@@ -286,12 +286,12 @@ complex types.
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``x == y``</span>   | ``x`` is equal to ``y`` | {{< wasm-enabled >}}  |
-| <span class="opa-keep-it-together">``x != y``</span>   | ``x`` is not equal to ``y`` | {{< wasm-enabled >}}  |
-| <span class="opa-keep-it-together">``x < y``</span>   | ``x`` is less than ``y`` | {{< wasm-enabled >}}   |
-| <span class="opa-keep-it-together">``x <= y``</span>   | ``x`` is less than or equal to ``y`` | {{< wasm-enabled >}}  |
-| <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` | {{< wasm-enabled >}}  |
-| <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``x == y``</span>   | ``x`` is equal to ``y`` | {{< builtin-tags equal >}} |
+| <span class="opa-keep-it-together">``x != y``</span>   | ``x`` is not equal to ``y`` | {{< builtin-tags neq >}} |
+| <span class="opa-keep-it-together">``x < y``</span>   | ``x`` is less than ``y`` |  {{< builtin-tags lt >}} |
+| <span class="opa-keep-it-together">``x <= y``</span>   | ``x`` is less than or equal to ``y`` | {{< builtin-tags lte >}} |
+| <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` | {{< builtin-tags gt >}} |
+| <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` | {{< builtin-tags gte >}} |
 
 ### Numbers
 
@@ -323,9 +323,9 @@ complex types.
 ### Arrays
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | {{< wasm-enabled >}} |
-  <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | {{< builtin-tags array.concat >}} |
+| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | {{< builtin-tags array.reverse >}} |
+  <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | {{< builtin-tags array.slice >}} |
 
 ### Sets
 
@@ -341,14 +341,14 @@ complex types.
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. For example: `object.get({"a": [{ "b": true }]}, ["a", 0, "b"], false)` results in `true` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`output := object.union_n(array)`</span> | `output` is a new object which is the result of an asymmetric recursive union of all objects in `array`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object. For example: `object.union_n([{"a": 1}, {"b": 2}, {"a": 3}])` will result in `{"b": 2, "a": 3}` | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">`output := json.patch(object, patches)`</span> | `output` is a the object obtained after consecutively applying all [JSON Patch](https://tools.ietf.org/html/rfc6902) operations in the array `patches`. For example: `json.patch({"a": {"foo": 1}}, [{"op": "add", "path": "/a/bar", "value": 2}])` results in `{"a": {"foo": 1, "bar": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined. | {{< wasm-sdk >}} |
+| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. For example: `object.get({"a": [{ "b": true }]}, ["a", 0, "b"], false)` results in `true` | {{< builtin-tags object.get >}} |
+| <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. | {{< builtin-tags object.remove >}} |
+| <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}` | {{< builtin-tags object.union >}} |
+| <span class="opa-keep-it-together">`output := object.union_n(array)`</span> | `output` is a new object which is the result of an asymmetric recursive union of all objects in `array`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object. For example: `object.union_n([{"a": 1}, {"b": 2}, {"a": 3}])` will result in `{"b": 2, "a": 3}` | {{< builtin-tags object.union_n >}}|
+| <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). | {{< builtin-tags object.filter >}} |
+| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. | {{< builtin-tags json.filter >}} |
+| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | {{< builtin-tags json.remove >}} |
+| <span class="opa-keep-it-together">`output := json.patch(object, patches)`</span> | `output` is a the object obtained after consecutively applying all [JSON Patch](https://tools.ietf.org/html/rfc6902) operations in the array `patches`. For example: `json.patch({"a": {"foo": 1}}, [{"op": "add", "path": "/a/bar", "value": 2}])` results in `{"a": {"foo": 1, "bar": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined. | {{< builtin-tags json.patch >}} |
 
 * When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
   For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
@@ -374,27 +374,27 @@ complex types.
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := concat(delimiter, array_or_set)``</span> | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``contains(string, search)``</span> | true if ``string`` contains ``search`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``endswith(string, search)``</span> | true if ``string`` ends with ``search`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := format_int(number, base)``</span> | ``output`` is string representation of ``number`` in the given ``base`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := concat(delimiter, array_or_set)``</span> | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` | {{< builtin-tags concat >}} |
+| <span class="opa-keep-it-together">``contains(string, search)``</span> | true if ``string`` contains ``search`` | {{< builtin-tags contains >}} |
+| <span class="opa-keep-it-together">``endswith(string, search)``</span> | true if ``string`` ends with ``search`` | {{< builtin-tags endswith >}} |
+| <span class="opa-keep-it-together">``output := format_int(number, base)``</span> | ``output`` is string representation of ``number`` in the given ``base`` | {{< builtin-tags format_int >}} |
+| <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | {{< builtin-tags indexof >}} |
+| <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | {{< builtin-tags indexof_n >}} |
+| <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | {{< builtin-tags lower >}} |
 | {{< builtin-sig replace >}} | {{< builtin-args replace >}} | {{< builtin-tags replace >}} |
-| <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | {{< builtin-tags strings.reverse >}} |
+| <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | {{< builtin-tags strings.replace_n >}}|
 | {{< builtin-sig split >}} | {{< builtin-args split >}} | {{< builtin-tags split >}} |
-| <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim_left(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading instances of the characters in ``cutset`` removed. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim_prefix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with leading instance of ``prefix`` removed. If ``string`` doesn't start with prefix, ``string`` is returned unchanged.| {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim_right(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all trailing instances of the characters in ``cutset`` removed. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim_suffix(string, suffix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.| {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.| {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | {{< builtin-tags sprintf >}} |
+| <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` | {{< builtin-tags startswith >}} |
+| <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. | {{< builtin-tags substring >}} |
+| <span class="opa-keep-it-together">``output := trim(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. | {{< builtin-tags trim >}}  |
+| <span class="opa-keep-it-together">``output := trim_left(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading instances of the characters in ``cutset`` removed. | {{< builtin-tags trim_left >}} |
+| <span class="opa-keep-it-together">``output := trim_prefix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with leading instance of ``prefix`` removed. If ``string`` doesn't start with prefix, ``string`` is returned unchanged.| {{< builtin-tags trim_prefix >}} |
+| <span class="opa-keep-it-together">``output := trim_right(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all trailing instances of the characters in ``cutset`` removed. | {{< builtin-tags trim_right >}}  |
+| <span class="opa-keep-it-together">``output := trim_suffix(string, suffix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.| {{< builtin-tags trim_suffix >}}  |
+| <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.| {{< builtin-tags trim_space >}} |
+| <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case | {{< builtin-tags upper >}} |
 
 
 ### Regex
