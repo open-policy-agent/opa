@@ -19,7 +19,7 @@ func main() {
 }
 
 // Capabilities file generation:
-//go:generate build/gen-run-go.sh internal/cmd/genopacapabilities/main.go capabilities.json
+//go:generate build/gen-run-go.sh internal/cmd/genopacapabilities/main.go capabilities.json builtin_metadata.json
 
 // WASM base binary generation:
 //go:generate build/gen-run-go.sh internal/cmd/genopawasm/main.go -o internal/compiler/wasm/opa/opa.go internal/compiler/wasm/opa/opa.wasm  internal/compiler/wasm/opa/callgraph.csv

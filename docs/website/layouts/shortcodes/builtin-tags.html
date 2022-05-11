@@ -1,0 +1,25 @@
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if (eq $version "latest") -}}
+{{- $version := index site.Data.releases 1 -}}
+{{- end -}}
+{{- $name := .Get 0 -}}
+{{- $metadata := index site.Data.builtin_metadata $name }}
+
+<div class="field is-grouped is-grouped-multiline">
+    <div class="control">
+        <div class="tags has-addons">
+            <span class="tag is-light">since</span>
+            <span class="tag is-success">{{ index $metadata "introduced" }}</span>
+        </div>
+    </div>
+    <div class="control">
+        <div class="tags has-addons">
+            <span class="tag is-light">Wasm</span>
+            {{- if index $metadata "wasm" -}}
+            <span class="tag is-success">enabled</span>
+            {{- else -}}
+            <span class="tag is-warning">SDK</span>
+            {{- end -}}
+        </div>
+    </div>
+</div>

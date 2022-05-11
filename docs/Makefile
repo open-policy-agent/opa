@@ -10,6 +10,7 @@ DEPLOY_PRIME_URL ?= "http://localhost:8888"
 clean:
 	rm -rf $(CURDIR)/website/data/releases.yaml
 	rm -rf $(CURDIR)/website/data/capabilities
+	rm -rf $(CURDIR)/website/data/builtin_metadata.json
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
@@ -27,7 +28,8 @@ generate: generate-cli-docs copy-capabilities
 copy-capabilities:
 	mkdir -p $(CURDIR)/website/data/capabilities
 	cp -rv $(CURDIR)/../capabilities/*.json $(CURDIR)/website/data/capabilities
-	cp -rv $(CURDIR)/../capabilities.json $(CURDIR)/website/data/capabilities/edge.json
+	cp -v $(CURDIR)/../capabilities.json $(CURDIR)/website/data/capabilities/edge.json
+	cp -v $(CURDIR)/../builtin_metadata.json $(CURDIR)/website/data/builtin_metadata.json
 
 .PHONY: dev-generate
 dev-generate: generate-cli-docs copy-capabilities
