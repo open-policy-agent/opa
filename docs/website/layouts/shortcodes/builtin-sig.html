@@ -1,0 +1,15 @@
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if (eq $version "latest") -}}
+{{- $version := index site.Data.releases 1 -}}
+{{- end -}}
+
+{{- range where (index (index site.Data.capabilities $version) "builtins") "name" (.Get "name") }}
+<span class="opa-keep-it-together"><code>
+    {{ .decl.result.name }} := {{ .name }}(
+    {{- range $index, $element := .decl.args -}}
+    {{- if gt $index 0 -}}, {{ end -}}
+    {{- $element.name -}}
+    {{- end -}}
+    )
+</code></span>
+{{- end }}

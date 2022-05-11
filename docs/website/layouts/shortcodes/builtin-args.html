@@ -1,0 +1,18 @@
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if (eq $version "latest") -}}
+{{- $version := index site.Data.releases 1 -}}
+{{- end -}}
+
+{{- range where (index (index site.Data.capabilities $version) "builtins") "name" (.Get "name") }}
+Arguments:
+<ol>
+{{- range $index, $element := .decl.args }}
+    <li>{{ $element.name }} ({{ $element.type }}): {{ $element.description }}</li>
+{{- end }}
+</ol>
+
+Result:
+<ul>
+    <li>{{ .decl.result.name }} ({{ .decl.result.type }}): {{ .decl.result.description }}</li>
+</ul>
+{{- end }}
