@@ -1276,6 +1276,22 @@ integrations:
     blogs:
       - https://github.com/magda-io/magda/blob/master/docs/docs/architecture/Guide%20to%20Magda%20Internals.md#authorization-authz
 
+  sansshell:
+    title: Sansshell
+    description: A non-interactive daemon for host management 
+    software:
+      - sansshell
+    labels:
+      category: management
+      layer: server
+      type: poweredbyopa
+    code:
+      - https://github.com/Snowflake-Labs/sansshell
+    blogs:
+      - https://www.snowflake.com/blog/sansshell-local-host-agent/
+    inventors:
+      - snowflake
+
 organizations:
   styra:
     name: Styra
@@ -1412,6 +1428,9 @@ organizations:
   aserto:
     name: Aserto
     link: https://www.aserto.com
+  snowflake:
+    name: Snowflake
+    link: https://www.snowflake.com/
 
 software:
   oauth:
@@ -1621,3 +1640,7 @@ software:
   google-kubernetes-engine:
     name: Google Kubernetes Engine
     link: https://cloud.google.com/kubernetes-engine/
+  sansshell:
+    name: Sansshell
+    link: https://github.com/Snowflake-Labs/sansshell
+
