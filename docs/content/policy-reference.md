@@ -307,7 +307,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := floor(x)``</span>    | ``output`` is ``x`` rounded down the nearest integer | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := numbers.range(a, b)``</span> | ``output`` is the range of integer numbers between ``a`` and ``b`` (inclusive). If ``a`` == ``b`` then ``output`` == ``[a]``. If ``a`` < ``b`` the range is in ascending order. If ``a`` > ``b`` the range is in descending order. | {{< wasm-enabled >}} |
-  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | SDK-dependent |
+  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | {{< wasm-sdk >}} |
 
 ### Aggregates
 
@@ -848,7 +848,7 @@ Note that the opa executable will need access to the timezone files in the envir
 | ------- |-------------|--------------|
 | <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := graph.reachable(graph, initial)``</span> | ``output`` is the set of vertices [reachable](https://en.wikipedia.org/wiki/Reachability) from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of vertices, and ``graph`` is an object containing a set or array of neighboring vertices. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := graph.reachable_paths(graph, initial)``</span> | ``output`` is the set of arrays of paths reachable from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of paths, and ``graph`` is an object containing a set or array of root vertices.    | `SDK-dependent` |
+| <span class="opa-keep-it-together">``output := graph.reachable_paths(graph, initial)``</span> | ``output`` is the set of arrays of paths reachable from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of paths, and ``graph`` is an object containing a set or array of root vertices.    | {{< wasm-sdk >}} |
 
 A common class of recursive rules can be reduced to a graph reachability
 problem, so `graph.reachable` is useful for more than just graph analysis.
