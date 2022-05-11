@@ -572,7 +572,15 @@ func NewVariadicFunction(args []Type, varargs Type, result Type) *Function {
 
 // FuncArgs returns the function's arguments.
 func (t *Function) FuncArgs() FuncArgs {
-	return FuncArgs{Args: t.args, Variadic: t.variadic}
+	return FuncArgs{Args: t.Args(), Variadic: unwrap(t.variadic)}
+}
+
+// NamedFuncArgs returns the function's arguments, with a name and
+// description if available.
+func (t *Function) NamedFuncArgs() FuncArgs {
+	args := make([]Type, len(t.args))
+	copy(args, t.args)
+	return FuncArgs{Args: args, Variadic: t.variadic}
 }
 
 // Args returns the function's arguments as a slice, ignoring variadic arguments.
@@ -587,7 +595,7 @@ func (t *Function) Args() []Type {
 
 // Result returns the function's result type.
 func (t *Function) Result() Type {
-	return t.result
+	return unwrap(t.result)
 }
 
 func (t *Function) String() string {
@@ -681,11 +689,12 @@ func (a FuncArgs) String() string {
 	return "(" + strings.Join(buf, ", ") + ")"
 }
 
+// Arg returns the nth argument's type.
 func (a FuncArgs) Arg(x int) Type {
 	if x < len(a.Args) {
-		return unwrap(a.Args[x])
+		return a.Args[x]
 	}
-	return unwrap(a.Variadic)
+	return a.Variadic
 }
 
 // Compare returns -1, 0, 1 based on comparison between a and b.

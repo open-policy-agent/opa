@@ -901,7 +901,7 @@ func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
 		for i, op := range expr.Operands() {
 			have[i] = env.Get(op)
 		}
-		return newArgError(expr.Loc(), f, "arity mismatch", have, want.FuncArgs())
+		return newArgError(expr.Loc(), f, "arity mismatch", have, want.NamedFuncArgs())
 	}
 	if act != 1 {
 		return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d arguments", f, exp, act)

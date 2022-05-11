@@ -320,11 +320,11 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 	}
 
 	if len(args) > len(fargs.Args) && fargs.Variadic == nil {
-		return newArgError(expr.Location, name, "too many arguments", pre, fargs)
+		return newArgError(expr.Location, name, "too many arguments", pre, ftpe.NamedFuncArgs())
 	}
 
 	if len(args) < len(ftpe.FuncArgs().Args) {
-		return newArgError(expr.Location, name, "too few arguments", pre, fargs)
+		return newArgError(expr.Location, name, "too few arguments", pre, ftpe.NamedFuncArgs())
 	}
 
 	for i := range args {
@@ -333,7 +333,7 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 			for i := range args {
 				post[i] = env.Get(args[i])
 			}
-			return newArgError(expr.Location, name, "invalid argument(s)", post, fargs)
+			return newArgError(expr.Location, name, "invalid argument(s)", post, ftpe.NamedFuncArgs())
 		}
 	}
 
@@ -380,7 +380,7 @@ func (tc *typeChecker) checkExprWith(env *TypeEnv, expr *Expr, i int) *Error {
 		switch v := valueType.(type) {
 		case *types.Function: // ...by function
 			if !unifies(targetType, valueType) {
-				return newArgError(expr.With[i].Loc(), target.Value.(Ref), "arity mismatch", v.Args(), t.FuncArgs())
+				return newArgError(expr.With[i].Loc(), target.Value.(Ref), "arity mismatch", v.Args(), t.NamedFuncArgs())
 			}
 		default: // ... by value, nothing to check
 		}
