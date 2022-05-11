@@ -6,13 +6,16 @@
 {{- range where (index (index site.Data.capabilities $version) "builtins") "name" (.Get "name") }}
 {{ .description | markdownify }}
 
-<ol>
+<dl class="bi-args">
 {{- range $index, $element := .decl.args }}
-    <li><code>{{ $element.name }}</code>: ({{ $element.type }}) {{ $element.description }}</li>
+    <dt><code>{{ $element.name }}</code></dt>
+    <dd>({{ $element.type }}) {{ $element.description | markdownify }}</dd>
 {{- end }}
-</ol>
+</dl>
 
 <emph>Returns:</emph>
-
-<code>{{ .decl.result.name }}</code>: ({{ .decl.result.type }}) {{ .decl.result.description }}
+<dl class="bi-args">
+    <dt><code>{{ .decl.result.name }}</code></dt>
+    <dd>({{ .decl.result.type }}) {{ .decl.result.description | markdownify }}</dd>
+</dl>
 {{- end }}

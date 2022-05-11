@@ -2938,19 +2938,28 @@
     },
     {
       "name": "replace",
+      "description": "Replace replaces all instances of a sub-string.",
       "decl": {
         "args": [
           {
+            "description": "the string being processed",
+            "name": "x",
             "type": "string"
           },
           {
+            "description": "the substring to replace",
+            "name": "old",
             "type": "string"
           },
           {
+            "description": "the string to replace `old` with",
+            "name": "new",
             "type": "string"
           }
         ],
         "result": {
+          "description": "the string with replaced substrings",
+          "name": "y",
           "type": "string"
         },
         "type": "function"

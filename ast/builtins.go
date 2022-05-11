@@ -967,17 +967,16 @@ var Split = &Builtin{
 	),
 }
 
-// Replace returns the given string with all instances of the second argument replaced
-// by the third.
 var Replace = &Builtin{
-	Name: "replace",
+	Name:        "replace",
+	Description: "Replace replaces all instances of a sub-string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("the string being processed"),
+			types.Named("old", types.S).Description("the substring to replace"),
+			types.Named("new", types.S).Description("the string to replace `old` with"),
 		),
-		types.S,
+		types.Named("y", types.S).Description("the string with replaced substrings"),
 	),
 }
 

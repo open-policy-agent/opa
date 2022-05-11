@@ -381,7 +381,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | ✅ |
 | <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | ✅ |
-| <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` | ✅ |
+| {{< builtin-sig name="replace" >}} | {{< builtin-args name="replace" >}} | ✅ |
 | <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | ✅ |
 | <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | ✅ |
 | {{< builtin-sig name="split" >}} | {{< builtin-args name="split" >}} | ✅ |
