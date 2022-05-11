@@ -2,8 +2,9 @@
 {{- if (eq $version "latest") -}}
 {{- $version := index site.Data.releases 1 -}}
 {{- end -}}
+{{- $name := .Get 0 -}}
 
-{{- range where (index (index site.Data.capabilities $version) "builtins") "name" (.Get "name") }}
+{{- range where (index (index site.Data.capabilities $version) "builtins") "name" $name }}
 {{ .description | markdownify }}
 
 <dl class="bi-args">

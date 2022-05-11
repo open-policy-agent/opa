@@ -381,10 +381,10 @@ complex types.
 | <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | {{< wasm-sdk >}} |
 | <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | {{< wasm-enabled >}} |
-| {{< builtin-sig name="replace" >}} | {{< builtin-args name="replace" >}} | {{< wasm-enabled >}} |
+| {{< builtin-sig replace >}} | {{< builtin-args replace >}} | {{< builtin-tags replace >}} |
 | <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | {{< wasm-enabled >}} |
-| {{< builtin-sig name="split" >}} | {{< builtin-args name="split" >}} | {{< builtin-tags split >}} |
+| {{< builtin-sig split >}} | {{< builtin-args split >}} | {{< builtin-tags split >}} |
 | <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | {{< wasm-sdk >}} |
 | <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` | {{< wasm-enabled >}} |
 | <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. | {{< wasm-enabled >}} |
