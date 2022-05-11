@@ -2645,16 +2645,21 @@
     },
     {
       "name": "plus",
+      "description": "Plus adds two numbers together.",
       "decl": {
         "args": [
           {
+            "name": "x",
             "type": "number"
           },
           {
+            "name": "y",
             "type": "number"
           }
         ],
         "result": {
+          "description": "the sum of `x` and `y`",
+          "name": "z",
           "type": "number"
         },
         "type": "function"

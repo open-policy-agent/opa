@@ -5,12 +5,22 @@
 {{- $name := .Get 0 -}}
 
 {{- range where (index (index site.Data.capabilities $version) "builtins") "name" $name }}
-<span class="opa-keep-it-together"><code>
-    {{ .decl.result.name }} := {{ .name }}(
-    {{- range $index, $element := .decl.args -}}
-    {{- if gt $index 0 -}}, {{ end -}}
-    {{- $element.name -}}
-    {{- end -}}
-    )
-</code></span>
+    {{- if isset . "infix" }}
+    <span class="opa-keep-it-together">
+        <code>
+        {{ .decl.result.name }} := {{ index (index .decl.args 0) "name" }} {{ .infix }} {{ index (index .decl.args 1) "name" }}
+        </code>
+    </span>
+    {{- else }}
+        <span class="opa-keep-it-together">
+            <code>
+            {{ .decl.result.name }} := {{ .name }}(
+            {{- range $index, $element := .decl.args -}}
+            {{- if gt $index 0 -}}, {{ end -}}
+            {{- $element.name -}}
+            {{- end -}}
+            )
+            </code>
+        </span>
+    {{- end }}
 {{- end }}

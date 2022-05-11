@@ -409,13 +409,16 @@ var Equal = &Builtin{
  * Arithmetic
  */
 
-// Plus adds two numbers together.
 var Plus = &Builtin{
-	Name:  "plus",
-	Infix: "+",
+	Name:        "plus",
+	Description: "Plus adds two numbers together.",
+	Infix:       "+",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N).Description("the sum of `x` and `y`"),
 	),
 }
 
