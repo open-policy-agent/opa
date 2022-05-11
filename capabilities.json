@@ -3628,6 +3628,20 @@
       }
     },
     {
+      "name": "units.parse",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "units.parse_bytes",
       "decl": {
         "args": [
