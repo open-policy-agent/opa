@@ -4,15 +4,15 @@
 {{- end -}}
 
 {{- range where (index (index site.Data.capabilities $version) "builtins") "name" (.Get "name") }}
-Arguments:
+{{ .description | markdownify }}
+
 <ol>
 {{- range $index, $element := .decl.args }}
-    <li>{{ $element.name }} ({{ $element.type }}): {{ $element.description }}</li>
+    <li><code>{{ $element.name }}</code>: ({{ $element.type }}) {{ $element.description }}</li>
 {{- end }}
 </ol>
 
-Result:
-<ul>
-    <li>{{ .decl.result.name }} ({{ .decl.result.type }}): {{ .decl.result.description }}</li>
-</ul>
+<emph>Returns:</emph>
+
+<code>{{ .decl.result.name }}</code>: ({{ .decl.result.type }}) {{ .decl.result.description }}
 {{- end }}

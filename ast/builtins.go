@@ -955,15 +955,15 @@ var Upper = &Builtin{
 	),
 }
 
-// Split returns an array containing elements of the input string split on a delimiter.
 var Split = &Builtin{
-	Name: "split",
+	Name:        "split",
+	Description: "Split returns an array containing elements of the input string split on a delimiter.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.S).Description("the string that is split"),
 			types.Named("delimiter", types.S).Description("the delimiter used for splitting"),
 		),
-		types.Named("ys", types.NewArray(nil, types.S)).Description("ys is x split on delimiter"),
+		types.Named("ys", types.NewArray(nil, types.S)).Description("the splitted parts"),
 	),
 }
 
@@ -2558,11 +2558,12 @@ var Any = &Builtin{
 // Builtin represents a built-in function supported by OPA. Every built-in
 // function is uniquely identified by a name.
 type Builtin struct {
-	Name       string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Decl       *types.Function `json:"decl"`               // Built-in function type declaration.
-	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
-	Relation   bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
-	deprecated bool            // Indicates if the built-in has been deprecated.
+	Name        string          `json:"name"`                  // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Description string          `json:"description,omitempty"` // Description of what the build-in function does.
+	Decl        *types.Function `json:"decl"`                  // Built-in function type declaration.
+	Infix       string          `json:"infix,omitempty"`       // Unique name of infix operator. Default should be unset.
+	Relation    bool            `json:"relation,omitempty"`    // Indicates if the built-in acts as a relation.
+	deprecated  bool            // Indicates if the built-in has been deprecated.
 }
 
 // IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.

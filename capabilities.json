@@ -3060,6 +3060,7 @@
     },
     {
       "name": "split",
+      "description": "Split returns an array containing elements of the input string split on a delimiter.",
       "decl": {
         "args": [
           {
@@ -3074,7 +3075,7 @@
           }
         ],
         "result": {
-          "description": "ys is x split on delimiter",
+          "description": "the splitted parts",
           "dynamic": {
             "type": "string"
           },
