@@ -1,0 +1,150 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/validator/validator_test.yml
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type User {
+              id: ID!
+          }
+          extend type Product {
+              upc: String!
+          }
+          union _Entity = Product | User
+          extend type Query {
+            entity: _Entity
+          }
+        `
+        query := `
+          {
+            entity {
+              ... on User {
+              id
+              }
+            }
+          }
+        `
+        q_ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "entity", "Definition": {"Description": "", "Name": "entity", "Type": {"NamedType": "_Entity", "NonNull": false}}, "Name": "entity", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "entity", "Type": {"NamedType": "_Entity", "NonNull": false}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}, "SelectionSet": [{"ObjectDefinition": {"BuiltIn": false, "Description": "", "Kind": "UNION", "Name": "_Entity", "Types": ["Product", "User"]}, "SelectionSet": [{"Alias": "id", "Definition": {"Description": "", "Name": "id", "Type": {"NamedType": "ID", "NonNull": true}}, "Name": "id", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "ID", "NonNull": true}}], "Kind": "OBJECT", "Name": "User"}}], "TypeCondition": "User"}]}]}]}
+        p {
+            [q_ast, _] = graphql.parse(query, schema)
+        }
+    note: graphql_parse/success extending non-existent types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          query SomeOperation {
+            # Note: Not providing mandatory parameter: (myEnum: Locale!)
+            myAction {
+              id
+            }
+          }
+        `
+        p {
+            graphql.parse(query, schema)
+        }
+    note: graphql_parse/failure validation rules are independent case 1
+    query: data.test.p = x
+    want_error: 'graphql.parse: Field "myAction" argument "myEnum" of type "Locale!" is required, but it was not provided in GraphQL query string at location 4:5'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          # Note: there is default enum value in variables
+          query SomeOperation ($locale: Locale! = DE) {
+            myAction(myEnum: $locale) {
+              id
+            }
+          }
+        `
+        q_ast := {"Operations": [{"Name": "SomeOperation", "Operation": "query", "SelectionSet": [{"Alias": "myAction", "Arguments": [{"Name": "myEnum", "Value": {"Definition": {"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "EN"}, {"Description": "", "Name": "LT"}, {"Description": "", "Name": "DE"}], "Kind": "ENUM", "Name": "Locale"}, "ExpectedType": {"NamedType": "Locale", "NonNull": true}, "Kind": 0, "Raw": "locale", "VariableDefinition": {"DefaultValue": {"Definition": {"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "EN"}, {"Description": "", "Name": "LT"}, {"Description": "", "Name": "DE"}], "Kind": "ENUM", "Name": "Locale"}, "ExpectedType": {"NamedType": "Locale", "NonNull": true}, "Kind": 7, "Raw": "DE"}, "Definition": {"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "EN"}, {"Description": "", "Name": "LT"}, {"Description": "", "Name": "DE"}], "Kind": "ENUM", "Name": "Locale"}, "Type": {"NamedType": "Locale", "NonNull": true}, "Used": true, "Variable": "locale"}}}], "Definition": {"Arguments": [{"Description": "", "Name": "myEnum", "Type": {"NamedType": "Locale", "NonNull": true}}], "Description": "", "Name": "myAction", "Type": {"NamedType": "SomeResult", "NonNull": true}}, "Name": "myAction", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "myEnum", "Type": {"NamedType": "Locale", "NonNull": true}}], "Description": "", "Name": "myAction", "Type": {"NamedType": "SomeResult", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}, "SelectionSet": [{"Alias": "id", "Definition": {"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": false}}, "Name": "id", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "SomeResult"}}]}], "VariableDefinitions": [{"DefaultValue": {"Definition": {"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "EN"}, {"Description": "", "Name": "LT"}, {"Description": "", "Name": "DE"}], "Kind": "ENUM", "Name": "Locale"}, "ExpectedType": {"NamedType": "Locale", "NonNull": true}, "Kind": 7, "Raw": "DE"}, "Definition": {"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "EN"}, {"Description": "", "Name": "LT"}, {"Description": "", "Name": "DE"}], "Kind": "ENUM", "Name": "Locale"}, "Type": {"NamedType": "Locale", "NonNull": true}, "Used": true, "Variable": "locale"}]}]}
+        p {
+            [q_ast, _] = graphql.parse(query, schema)
+        }
+    note: graphql_parse/success validation rules are independent case 2
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type DeprecatedType {
+            deprecatedField: String @deprecated
+            newField(deprecatedArg: Int): Boolean
+          }
+          enum DeprecatedEnum {
+            ALPHA @deprecated
+          }
+        `
+        query := ``
+        p {
+            [{}, _] = graphql.parse(query, schema)
+        }
+    note: graphql_parse/success deprecating types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Query {
+            bar: String!
+          }
+        `
+        query := `
+          query Foo($flag: Boolean!) {
+            ...Bar
+          }
+          fragment Bar on Query {
+            bar @include(if: $flag)
+          }
+        `
+        q_ast := {"Fragments": [{"Definition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}, "Name": "Bar", "SelectionSet": [{"Alias": "bar", "Definition": {"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, "Directives": [{"Arguments": [{"Name": "if", "Value": {"Definition": {"BuiltIn": true, "Description": "The `Boolean` scalar type represents `true` or `false`.", "Kind": "SCALAR", "Name": "Boolean"}, "ExpectedType": {"NamedType": "Boolean", "NonNull": true}, "Kind": 0, "Raw": "flag", "VariableDefinition": {"Definition": {"BuiltIn": true, "Description": "The `Boolean` scalar type represents `true` or `false`.", "Kind": "SCALAR", "Name": "Boolean"}, "Type": {"NamedType": "Boolean", "NonNull": true}, "Used": true, "Variable": "flag"}}}], "Definition": {"Arguments": [{"Description": "", "Name": "if", "Type": {"NamedType": "Boolean", "NonNull": true}}], "Description": "The @include directive may be provided for fields, fragment spreads, and inline fragments, and allows for conditional inclusion during execution as described by the if argument.", "IsRepeatable": false, "Locations": ["FIELD", "FRAGMENT_SPREAD", "INLINE_FRAGMENT"], "Name": "include"}, "Location": "FIELD", "Name": "include", "ParentDefinition": {"BuiltIn": true, "Description": "The `String`scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.", "Kind": "SCALAR", "Name": "String"}}], "Name": "bar", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}}], "TypeCondition": "Query"}], "Operations": [{"Name": "Foo", "Operation": "query", "SelectionSet": [{"Definition": {"Definition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}, "Name": "Bar", "SelectionSet": [{"Alias": "bar", "Definition": {"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, "Directives": [{"Arguments": [{"Name": "if", "Value": {"Definition": {"BuiltIn": true, "Description": "The `Boolean` scalar type represents `true` or `false`.", "Kind": "SCALAR", "Name": "Boolean"}, "ExpectedType": {"NamedType": "Boolean", "NonNull": true}, "Kind": 0, "Raw": "flag", "VariableDefinition": {"Definition": {"BuiltIn": true, "Description": "The `Boolean` scalar type represents `true` or `false`.", "Kind": "SCALAR", "Name": "Boolean"}, "Type": {"NamedType": "Boolean", "NonNull": true}, "Used": true, "Variable": "flag"}}}], "Definition": {"Arguments": [{"Description": "", "Name": "if", "Type": {"NamedType": "Boolean", "NonNull": true}}], "Description": "The @include directive may be provided for fields, fragment spreads, and inline fragments, and allows for conditional inclusion during execution as described by the if argument.", "IsRepeatable": false, "Locations": ["FIELD", "FRAGMENT_SPREAD", "INLINE_FRAGMENT"], "Name": "include"}, "Location": "FIELD", "Name": "include", "ParentDefinition": {"BuiltIn": true, "Description": "The `String`scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.", "Kind": "SCALAR", "Name": "String"}}], "Name": "bar", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}}], "TypeCondition": "Query"}, "Name": "Bar", "ObjectDefinition": {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "bar", "Type": {"NamedType": "String", "NonNull": true}}, {"Description": "", "Name": "__schema", "Type": {"NamedType": "__Schema", "NonNull": true}}, {"Arguments": [{"Description": "", "Name": "name", "Type": {"NamedType": "String", "NonNull": true}}], "Description": "", "Name": "__type", "Type": {"NamedType": "__Type", "NonNull": false}}], "Kind": "OBJECT", "Name": "Query"}}], "VariableDefinitions": [{"Definition": {"BuiltIn": true, "Description": "The `Boolean` scalar type represents `true` or `false`.", "Kind": "SCALAR", "Name": "Boolean"}, "Type": {"NamedType": "Boolean", "NonNull": true}, "Used": true, "Variable": "flag"}]}]}
+        p {
+            [q_ast, _] = graphql.parse(query, schema)
+        }
+    note: graphql_parse/success no unused variables
+    query: data.test.p = x
+    want_result:
+      - x: true

@@ -230,6 +230,13 @@ var DefaultBuiltins = [...]*Builtin{
 	// HTTP
 	HTTPSend,
 
+	// GraphQL
+	GraphQLParse,
+	GraphQLParseAndVerify,
+	GraphQLParseQuery,
+	GraphQLParseSchema,
+	GraphQLIsValid,
+
 	// Rego
 	RegoParseModule,
 	RegoMetadataChain,
@@ -2402,6 +2409,83 @@ var HTTPSend = &Builtin{
 			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 		),
 		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+	),
+}
+
+/**
+ * GraphQL
+ */
+
+// GraphQLParse returns a pair of AST objects from parsing/validation.
+var GraphQLParse = &Builtin{
+	Name:        "graphql.parse",
+	Description: "Returns AST objects for a given GraphQL query and schema after validating the query against the schema. Returns undefined if errors were encountered during parsing or validation.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("query", types.S),
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.NewArray([]types.Type{
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		}, nil)).Description("`output` is of the form `[query_ast, schema_ast]`. If the GraphQL query is valid given the provided schema, then `query_ast` and `schema_ast` are objects describing the ASTs for the query and schema."),
+	),
+}
+
+// GraphQLParseAndVerify returns a boolean and a pair of AST object from parsing/validation.
+var GraphQLParseAndVerify = &Builtin{
+	Name:        "graphql.parse_and_verify",
+	Description: "Returns a boolean indicating success or failure alongside the parsed ASTs for a given GraphQL query and schema after validating the query against the schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("query", types.S),
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.NewArray([]types.Type{
+			types.B,
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		}, nil)).Description(" `output` is of the form `[valid, query_ast, schema_ast]`. If the query is valid given the provided schema, then `valid` is `true`, and `query_ast` and `schema_ast` are objects describing the ASTs for the GraphQL query and schema. Otherwise, `valid` is `false` and `query_ast` and `schema_ast` are `{}`."),
+	),
+}
+
+// GraphQLParseQuery parses the input GraphQL query and returns a JSON
+// representation of its AST.
+var GraphQLParseQuery = &Builtin{
+	Name:        "graphql.parse_query",
+	Description: "Returns an AST object for a GraphQL query.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("query", types.S),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("AST object for the GraphQL query."),
+	),
+}
+
+// GraphQLParseSchema parses the input GraphQL schema and returns a JSON
+// representation of its AST.
+var GraphQLParseSchema = &Builtin{
+	Name:        "graphql.parse_schema",
+	Description: "Returns an AST object for a GraphQL schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("AST object for the GraphQL schema."),
+	),
+}
+
+// GraphQLIsValid returns true if a GraphQL query is valid with a given
+// schema, and returns false for all other inputs.
+var GraphQLIsValid = &Builtin{
+	Name:        "graphql.is_valid",
+	Description: "Checks that a GraphQL query is valid against a given schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("query", types.S),
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.B).Description("`true` if the query is valid under the given schema. `false` otherwise."),
 	),
 }
 
