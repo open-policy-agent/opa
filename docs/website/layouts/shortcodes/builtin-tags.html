@@ -1,15 +1,13 @@
-{{- $version := index (split $.Page.File.Path "/") 1 -}}
-{{- if (eq $version "latest") -}}
-{{- $version := index site.Data.releases 1 -}}
-{{- end -}}
 {{- $name := .Get 0 -}}
 {{- $metadata := index site.Data.builtin_metadata $name }}
 
 <div class="tags">
-    {{- if ne $metadata.introduced "v0.17.0" }}
+    {{- if and (ne $metadata.introduced "v0.17.0") (ne $metadata.introduced "edge") }}
     <a href="https://github.com/open-policy-agent/opa/releases/{{ $metadata.introduced }}" target="_blank">
         <span class="tag is-light">{{ $metadata.introduced }}</span>
     </a>
+    {{- else if eq $metadata.introduced "edge" }}
+    <span class="tag is-danger">{{ $metadata.introduced }}</span>
     {{- end }}
     {{- if index $metadata "wasm" -}}
         <span class="tag is-success">Wasm</span>

@@ -1,7 +1,3 @@
-{{- $version := index (split $.Page.File.Path "/") 1 -}}
-{{- if (eq $version "latest") -}}
-{{- $version := index site.Data.releases 1 -}}
-{{- end -}}
 {{- $name := .Get 0 -}}
 {{- $metadata := index site.Data.builtin_metadata $name }}
 
