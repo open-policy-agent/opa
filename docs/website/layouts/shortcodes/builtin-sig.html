@@ -3,24 +3,23 @@
 {{- $version := index site.Data.releases 1 -}}
 {{- end -}}
 {{- $name := .Get 0 -}}
+{{- $metadata := index site.Data.builtin_metadata $name }}
 
-{{- range where (index (index site.Data.capabilities $version) "builtins") "name" $name }}
-    {{- if isset . "infix" }}
+{{- if isset $metadata "infix" }}
+<span class="opa-keep-it-together">
+    <code>
+    {{ $metadata.result.name }} := {{ index (index $metadata.args 0) "name" }} {{ $metadata.infix }} {{ index (index $metadata.args 1) "name" }}
+    </code>
+</span>
+{{- else }}
     <span class="opa-keep-it-together">
         <code>
-        {{ .decl.result.name }} := {{ index (index .decl.args 0) "name" }} {{ .infix }} {{ index (index .decl.args 1) "name" }}
+        {{ $metadata.result.name }} := {{ $metadata.name }}(
+        {{- range $index, $element := $metadata.args -}}
+        {{- if gt $index 0 -}}, {{ end -}}
+        {{- $element.name -}}
+        {{- end -}}
+        )
         </code>
     </span>
-    {{- else }}
-        <span class="opa-keep-it-together">
-            <code>
-            {{ .decl.result.name }} := {{ .name }}(
-            {{- range $index, $element := .decl.args -}}
-            {{- if gt $index 0 -}}, {{ end -}}
-            {{- $element.name -}}
-            {{- end -}}
-            )
-            </code>
-        </span>
-    {{- end }}
 {{- end }}

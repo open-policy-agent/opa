@@ -70,6 +70,9 @@ func main() {
 			"args":       argTypes,
 			"result":     res,
 		}
+		if latest.Infix != "" {
+			md["infix"] = latest.Infix
+		}
 		if latest.Description != "" {
 			md["description"] = latest.Description
 		}
