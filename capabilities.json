@@ -106,23 +106,19 @@
             "dynamic": {
               "type": "any"
             },
-            "name": "x",
             "type": "array"
           },
           {
             "dynamic": {
               "type": "any"
             },
-            "name": "y",
             "type": "array"
           }
         ],
         "result": {
-          "description": "the concatenation of `x` and `y`",
           "dynamic": {
             "type": "any"
           },
-          "name": "z",
           "type": "array"
         },
         "type": "function"
@@ -134,20 +130,16 @@
       "decl": {
         "args": [
           {
-            "description": "the array to be reversed",
             "dynamic": {
               "type": "any"
             },
-            "name": "arr",
             "type": "array"
           }
         ],
         "result": {
-          "description": "an array containing the elements of `arr` in reverse order",
           "dynamic": {
             "type": "any"
           },
-          "name": "rev",
           "type": "array"
         },
         "type": "function"
@@ -159,30 +151,22 @@
       "decl": {
         "args": [
           {
-            "description": "the array to be sliced",
             "dynamic": {
               "type": "any"
             },
-            "name": "arr",
             "type": "array"
           },
           {
-            "description": "the start index of the returned slice; if less than zero, it's clamped to 0",
-            "name": "start",
             "type": "number"
           },
           {
-            "description": "the stop index of the returned slice; if larger than `count(arr)`, it's clamped to `count(arr)`",
-            "name": "stop",
             "type": "number"
           }
         ],
         "result": {
-          "description": "the subslice of `array`, from `start` to `end`, including `arr[start]`, but excluding `arr[end]`",
           "dynamic": {
             "type": "any"
           },
-          "name": "slice",
           "type": "array"
         },
         "type": "function"
@@ -826,19 +810,13 @@
       "decl": {
         "args": [
           {
-            "description": "the base string",
-            "name": "base",
             "type": "string"
           },
           {
-            "description": "the search string",
-            "name": "search",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the result of the suffix check",
-          "name": "result",
           "type": "boolean"
         },
         "type": "function"
@@ -1943,14 +1921,10 @@
       "decl": {
         "args": [
           {
-            "description": "the string that is converted to lower-case",
-            "name": "x",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the lower-case of x",
-          "name": "y",
           "type": "string"
         },
         "type": "function"
@@ -2054,7 +2028,6 @@
       "decl": {
         "args": [
           {
-            "name": "x",
             "of": [
               {
                 "type": "number"
@@ -2069,7 +2042,6 @@
             "type": "any"
           },
           {
-            "name": "y",
             "of": [
               {
                 "type": "number"
@@ -2085,8 +2057,6 @@
           }
         ],
         "result": {
-          "description": "the difference of `x` and `y`",
-          "name": "z",
           "of": [
             {
               "type": "number"
@@ -2514,7 +2484,6 @@
       "decl": {
         "args": [
           {
-            "description": "the object to remove keys from",
             "dynamic": {
               "key": {
                 "type": "any"
@@ -2523,12 +2492,9 @@
                 "type": "any"
               }
             },
-            "name": "x",
             "type": "object"
           },
           {
-            "description": "the array, set, or object specifying the keys ro remove from x",
-            "name": "rem",
             "of": [
               {
                 "dynamic": {
@@ -2558,8 +2524,6 @@
           }
         ],
         "result": {
-          "description": "the object x with the specified keys remvoed selected",
-          "name": "y",
           "type": "any"
         },
         "type": "function"
@@ -2673,17 +2637,13 @@
       "decl": {
         "args": [
           {
-            "name": "x",
             "type": "number"
           },
           {
-            "name": "y",
             "type": "number"
           }
         ],
         "result": {
-          "description": "the sum of `x` and `y`",
-          "name": "z",
           "type": "number"
         },
         "type": "function"
@@ -2693,10 +2653,7 @@
     {
       "name": "print",
       "decl": {
-        "type": "function",
-        "variadic": {
-          "type": "any"
-        }
+        "type": "function"
       }
     },
     {
@@ -2971,24 +2928,16 @@
       "decl": {
         "args": [
           {
-            "description": "the string being processed",
-            "name": "x",
             "type": "string"
           },
           {
-            "description": "the substring to replace",
-            "name": "old",
             "type": "string"
           },
           {
-            "description": "the string to replace `old` with",
-            "name": "new",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the string with replaced substrings",
-          "name": "y",
           "type": "string"
         },
         "type": "function"
@@ -3102,22 +3051,16 @@
       "decl": {
         "args": [
           {
-            "description": "the string that is split",
-            "name": "x",
             "type": "string"
           },
           {
-            "description": "the delimiter used for splitting",
-            "name": "delimiter",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the splitted parts",
           "dynamic": {
             "type": "string"
           },
-          "name": "ys",
           "type": "array"
         },
         "type": "function"
@@ -3148,19 +3091,13 @@
       "decl": {
         "args": [
           {
-            "description": "the base string",
-            "name": "base",
             "type": "string"
           },
           {
-            "description": "the search string",
-            "name": "search",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the result of the prefix check",
-          "name": "result",
           "type": "boolean"
         },
         "type": "function"
@@ -3727,14 +3664,10 @@
       "decl": {
         "args": [
           {
-            "description": "the string that is converted to upper-case",
-            "name": "x",
             "type": "string"
           }
         ],
         "result": {
-          "description": "the upper-case of x",
-          "name": "y",
           "type": "string"
         },
         "type": "function"

@@ -26,6 +26,14 @@ func main() {
 	enc := json.NewEncoder(fd)
 	enc.SetIndent("", "  ")
 
+	for i, bi := range f.Builtins {
+		fargs := bi.Decl.FuncArgs()
+		if fargs.Variadic != nil {
+			f.Builtins[i].Decl = types.NewVariadicFunction(fargs.Args, fargs.Variadic, bi.Decl.Result())
+		}
+		f.Builtins[i].Decl = types.NewFunction(fargs.Args, bi.Decl.Result())
+	}
+
 	if err := enc.Encode(f); err != nil {
 		panic(err)
 	}
