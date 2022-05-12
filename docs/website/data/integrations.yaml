@@ -345,6 +345,17 @@ integrations:
     inventors:
       - build.security
 
+  nginx:
+    title: Nginx
+    description: OPA Authorization for Nginx
+    labels:
+      category: gateway
+      layer: network
+    software:
+      - nginx
+    code:
+      - https://github.com/summerwind/opa-nginx-rbac
+
   asp-dotnet-core:
     title: ASP.NET Core
     description: |
@@ -1278,7 +1289,7 @@ integrations:
 
   sansshell:
     title: Sansshell
-    description: A non-interactive daemon for host management 
+    description: A non-interactive daemon for host management
     software:
       - sansshell
     labels:
@@ -1643,4 +1654,7 @@ software:
   sansshell:
     name: Sansshell
     link: https://github.com/Snowflake-Labs/sansshell
+  nginx:
+    name: Nginx
+    link: https://nginx.org/
 
