@@ -6,7 +6,9 @@
 {{- $metadata := index site.Data.builtin_metadata $name }}
 
 <div class="tags">
+    {{- if ne $metadata.introduced "v0.17.0" }}
     <span class="tag is-light">{{ $metadata.introduced }}</span>
+    {{- end }}
     {{- if index $metadata "wasm" -}}
         <span class="tag is-success">Wasm</span>
     {{- else -}}
