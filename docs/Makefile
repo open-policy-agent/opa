@@ -8,8 +8,8 @@ DEPLOY_PRIME_URL ?= "http://localhost:8888"
 
 .PHONY: clean
 clean:
-	rm -rf $(CURDIR)/website/data/releases.yaml
-	rm -rf $(CURDIR)/website/data/builtin_metadata.json
+	rm -f $(CURDIR)/website/data/releases.yaml
+	rm -f $(CURDIR)/website/data/builtin_metadata.json
 	rm -rf $(CURDIR)/website/generated
 	rm -rf $(CURDIR)/website/public
 	rm -rf $(CURDIR)/website/resources
