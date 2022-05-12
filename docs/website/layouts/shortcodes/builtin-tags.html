@@ -7,7 +7,9 @@
 
 <div class="tags">
     {{- if ne $metadata.introduced "v0.17.0" }}
-    <span class="tag is-light">{{ $metadata.introduced }}</span>
+    <a href="https://github.com/open-policy-agent/opa/releases/{{ $metadata.introduced }}" target="_blank">
+        <span class="tag is-light">{{ $metadata.introduced }}</span>
+    </a>
     {{- end }}
     {{- if index $metadata "wasm" -}}
         <span class="tag is-success">Wasm</span>
