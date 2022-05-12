@@ -5,4 +5,4 @@ resources/
 # Documentation versions
 generated/*
 data/releases.yaml
-data/capabilities
+data/builtin_metadata.json
