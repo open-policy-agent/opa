@@ -7,6 +7,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
@@ -36,8 +37,15 @@ func main() {
 	sorted := append(sortedCaps(), versionedCaps{version: "edge", caps: f})
 
 	mdata := make(map[string]interface{})
+	categories := make(map[string][]string)
+
 	for _, bi := range f.Builtins {
 		latest := getLatest(bi.Name, sorted)
+		cat := category(latest)
+		if cat != "" {
+			categories[cat] = append(categories[cat], bi.Name)
+		}
+
 		argTypes := make([]map[string]interface{}, len(latest.Decl.FuncArgs().Args))
 
 		for i, typ := range latest.Decl.NamedFuncArgs().Args {
@@ -78,6 +86,7 @@ func main() {
 		}
 		mdata[bi.Name] = md
 	}
+	mdata["_categories"] = categories
 
 	md, err := os.Create(os.Args[2]) // metadata
 	if err != nil {
@@ -144,4 +153,14 @@ func sortedCaps() []versionedCaps {
 		}
 	}
 	return sorted
+}
+
+func category(b *ast.Builtin) string {
+	if b.Category != "" {
+		return b.Category
+	}
+	if s := strings.Split(b.Name, "."); len(s) > 1 {
+		return s[0]
+	}
+	return ""
 }
