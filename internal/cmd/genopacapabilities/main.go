@@ -41,8 +41,7 @@ func main() {
 
 	for _, bi := range f.Builtins {
 		latest := getLatest(bi.Name, sorted)
-		cat := category(latest)
-		if cat != "" {
+		for _, cat := range builtinCategories(latest) {
 			categories[cat] = append(categories[cat], bi.Name)
 		}
 
@@ -155,12 +154,12 @@ func sortedCaps() []versionedCaps {
 	return sorted
 }
 
-func category(b *ast.Builtin) string {
-	if b.Category != "" {
-		return b.Category
+func builtinCategories(b *ast.Builtin) []string {
+	if len(b.Categories) > 0 {
+		return b.Categories
 	}
 	if s := strings.Split(b.Name, "."); len(s) > 1 {
-		return s[0]
+		return []string{s[0]}
 	}
-	return ""
+	return nil
 }

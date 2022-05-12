@@ -2562,9 +2562,10 @@ type Builtin struct {
 	Name        string `json:"name"`                  // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
 	Description string `json:"description,omitempty"` // Description of what the built-in function does.
 
-	// Category of the built-in function. Omitted for namespaced
+	// Categories of the built-in function. Omitted for namespaced
 	// built-ins, i.e. "array.concat" is taken to be of the "array" category.
-	Category string `json:"category,omitempty"`
+	// "minus" for example, is part of two categories: numbers and sets. (NOTE(sr): aspirational)
+	Categories []string `json:"categories,omitempty"`
 
 	Decl       *types.Function `json:"decl"`               // Built-in function type declaration.
 	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
