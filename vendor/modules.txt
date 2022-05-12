@@ -4,6 +4,8 @@ github.com/Azure/go-ansiterm/winterm
 # github.com/OneOfOne/xxhash v1.2.8
 ## explicit
 github.com/OneOfOne/xxhash
+# github.com/agnivade/levenshtein v1.0.1
+github.com/agnivade/levenshtein
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/bytecodealliance/wasmtime-go v0.36.0
@@ -247,6 +249,15 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/vektah/gqlparser/v2 v2.4.3
+## explicit
+github.com/vektah/gqlparser/v2
+github.com/vektah/gqlparser/v2/ast
+github.com/vektah/gqlparser/v2/gqlerror
+github.com/vektah/gqlparser/v2/lexer
+github.com/vektah/gqlparser/v2/parser
+github.com/vektah/gqlparser/v2/validator
+github.com/vektah/gqlparser/v2/validator/rules
 # github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb
 ## explicit
 github.com/xeipuuv/gojsonpointer

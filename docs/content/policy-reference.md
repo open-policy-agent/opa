@@ -706,6 +706,8 @@ all_paths[entity_name]
 ```live:graph/reachable_paths/example:output
 ```
 
+{{< builtin-table cat=graphql title="GraphQL" >}}
+
 {{< builtin-table cat=http title=HTTP >}}
 
 {{< danger >}}
