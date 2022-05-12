@@ -400,19 +400,19 @@ complex types.
 ### Regex
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := regex.match(pattern, value)``</span> | ``output`` is a ``boolean`` that indicates if ``value`` matches the regex ``pattern``. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern`` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``output := regex.find_n(pattern, string, number)``</span> | ``output`` is an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``output := regex.find_all_string_submatch_n(pattern, string, number)``</span> | ``output`` is an ``array[array[string]]`` with the outer `array` including a ``number`` of matches which match the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := regex.match(pattern, value)``</span> | ``output`` is a ``boolean`` that indicates if ``value`` matches the regex ``pattern``. | {{< builtin-tags regex.match >}} |
+| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern`` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | {{< builtin-tags regex.is_valid >}} |
+| <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` | {{< builtin-tags regex.split >}} |
+| <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. | {{< builtin-tags regex.globs_match >}} |
+| <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. | {{< builtin-tags regex.template_match >}} |
+| <span class="opa-keep-it-together">``output := regex.find_n(pattern, string, number)``</span> | ``output`` is an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< builtin-tags regex.find_n >}} |
+| <span class="opa-keep-it-together">``output := regex.find_all_string_submatch_n(pattern, string, number)``</span> | ``output`` is an ``array[array[string]]`` with the outer `array` including a ``number`` of matches which match the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< builtin-tags regex.find_all_string_submatch_n >}} |
 
 ### Glob
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := glob.match(pattern, delimiters, match)``</span> | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := glob.quote_meta(pattern)``</span> | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. | {{< wasm-sdk >}} |
+| <span class="opa-keep-it-together">``output := glob.match(pattern, delimiters, match)``</span> | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. | {{< builtin-tags glob.match >}} |
+| <span class="opa-keep-it-together">``output := glob.quote_meta(pattern)``</span> | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. | {{< builtin-tags glob.quote_meta >}} |
 
 The following table shows examples of how ``glob.match`` works:
 
@@ -443,38 +443,38 @@ The following table shows examples of how ``glob.match`` works:
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``z := bits.or(x, y)``</span>  | ``z`` is the bitwise or of integers ``x`` and ``y`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``z := bits.and(x, y)``</span> | ``z`` is the bitwise and of integers ``x`` and ``y`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``z := bits.xor(x, y)``</span> | ``z`` is the bitwise exclusive-or of integers ``x`` and ``y`` | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``z := bits.lsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the left | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``z := bits.rsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the right | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``z := bits.or(x, y)``</span>  | ``z`` is the bitwise or of integers ``x`` and ``y`` | {{< builtin-tags bits.or >}} |
+| <span class="opa-keep-it-together">``z := bits.and(x, y)``</span> | ``z`` is the bitwise and of integers ``x`` and ``y`` | {{< builtin-tags bits.and >}} |
+| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | {{< builtin-tags bits.negate >}}} |
+| <span class="opa-keep-it-together">``z := bits.xor(x, y)``</span> | ``z`` is the bitwise exclusive-or of integers ``x`` and ``y`` | {{< builtin-tags bits.xor >}} |
+| <span class="opa-keep-it-together">``z := bits.lsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the left | {{< builtin-tags bits.lsh >}} |
+| <span class="opa-keep-it-together">``z := bits.rsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the right | {{< builtin-tags bits.rsh >}} |
 
 ### Conversions
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. | {{< builtin-tags to_number >}} |
 
 ### Units
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := units.parse(x)``</span> | ``output`` is ``x`` converted to a number with support for standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi etc.) m, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as binary units. Note that 'm' and 'M' are case-sensitive, to allow distinguishing between "milli" and "mega" units respectively. Other units are case-insensitive. | {{< wasm-sdk >}} |
-| <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. The bytes symbol (b/B) in the unit is optional and omitting it wil give the same result (e.g. Mi and MiB) | {{< wasm-sdk >}} |
+| <span class="opa-keep-it-together">``output := units.parse(x)``</span> | ``output`` is ``x`` converted to a number with support for standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi etc.) m, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as binary units. Note that 'm' and 'M' are case-sensitive, to allow distinguishing between "milli" and "mega" units respectively. Other units are case-insensitive. | {{< builtin-tags units.parse >}} |
+| <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. The bytes symbol (b/B) in the unit is optional and omitting it wil give the same result (e.g. Mi and MiB) | {{< builtin-tags units.parse_bytes >}} |
 
 ### Types
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := is_number(x)``</span> | ``output`` is ``true`` if ``x`` is a number; otherwise undefined| {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_string(x)``</span> | ``output`` is ``true`` if ``x`` is a string; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_boolean(x)``</span> | ``output`` is ``true`` if ``x`` is a boolean; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_array(x)``</span> | ``output`` is ``true`` if ``x`` is an array; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | {{< wasm-enabled >}} |
-| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | {{< wasm-enabled >}} |
+| <span class="opa-keep-it-together">``output := is_number(x)``</span> | ``output`` is ``true`` if ``x`` is a number; otherwise undefined| {{< builtin-tags is_number >}} |
+| <span class="opa-keep-it-together">``output := is_string(x)``</span> | ``output`` is ``true`` if ``x`` is a string; otherwise undefined | {{< builtin-tags is_string >}} |
+| <span class="opa-keep-it-together">``output := is_boolean(x)``</span> | ``output`` is ``true`` if ``x`` is a boolean; otherwise undefined | {{< builtin-tags is_boolean >}} |
+| <span class="opa-keep-it-together">``output := is_array(x)``</span> | ``output`` is ``true`` if ``x`` is an array; otherwise undefined | {{< builtin-tags is_array >}} |
+| <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | {{< builtin-tags is_set >}} |
+| <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | {{< builtin-tags is_object >}} |
+| <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | {{< builtin-tags is_null >}} |
+| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | {{< builtin-tags type_name >}} |
 
 ### Encoding
 
