@@ -314,17 +314,19 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 	}
 
 	fargs := ftpe.FuncArgs()
+	namedFargs := ftpe.NamedFuncArgs()
 
 	if ftpe.Result() != nil {
 		fargs.Args = append(fargs.Args, ftpe.Result())
+		namedFargs.Args = append(namedFargs.Args, ftpe.NamedResult())
 	}
 
 	if len(args) > len(fargs.Args) && fargs.Variadic == nil {
-		return newArgError(expr.Location, name, "too many arguments", pre, ftpe.NamedFuncArgs())
+		return newArgError(expr.Location, name, "too many arguments", pre, namedFargs)
 	}
 
 	if len(args) < len(ftpe.FuncArgs().Args) {
-		return newArgError(expr.Location, name, "too few arguments", pre, ftpe.NamedFuncArgs())
+		return newArgError(expr.Location, name, "too few arguments", pre, namedFargs)
 	}
 
 	for i := range args {
@@ -333,7 +335,7 @@ func (tc *typeChecker) checkExprBuiltin(env *TypeEnv, expr *Expr) *Error {
 			for i := range args {
 				post[i] = env.Get(args[i])
 			}
-			return newArgError(expr.Location, name, "invalid argument(s)", post, ftpe.NamedFuncArgs())
+			return newArgError(expr.Location, name, "invalid argument(s)", post, namedFargs)
 		}
 	}
 
