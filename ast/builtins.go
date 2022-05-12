@@ -672,39 +672,39 @@ var Min = &Builtin{
  * Arrays
  */
 
-// ArrayConcat returns the result of concatenating two arrays together.
 var ArrayConcat = &Builtin{
-	Name: "array.concat",
+	Name:        "array.concat",
+	Description: "Concatenates two arrays.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewArray(nil, types.A),
-			types.NewArray(nil, types.A),
+			types.Named("x", types.NewArray(nil, types.A)),
+			types.Named("y", types.NewArray(nil, types.A)),
 		),
-		types.NewArray(nil, types.A),
+		types.Named("z", types.NewArray(nil, types.A)).Description("the concatenation of `x` and `y`"),
 	),
 }
 
-// ArraySlice returns a slice of a given array
 var ArraySlice = &Builtin{
-	Name: "array.slice",
+	Name:        "array.slice",
+	Description: "Returns a slice of a given array. If `start` is greater or equal than `stop`, `slice` is `[]`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewArray(nil, types.A),
-			types.NewNumber(),
-			types.NewNumber(),
+			types.Named("arr", types.NewArray(nil, types.A)).Description("the array to be sliced"),
+			types.Named("start", types.NewNumber()).Description("the start index of the returned slice; if less than zero, it's clamped to 0"),
+			types.Named("stop", types.NewNumber()).Description("the stop index of the returned slice; if larger than `count(arr)`, it's clamped to `count(arr)`"),
 		),
-		types.NewArray(nil, types.A),
+		types.Named("slice", types.NewArray(nil, types.A)).Description("the subslice of `array`, from `start` to `end`, including `arr[start]`, but excluding `arr[end]`"),
 	),
-}
+} // NOTE(sr): this function really needs examples
 
-// ArrayReverse returns a given array, reversed
 var ArrayReverse = &Builtin{
-	Name: "array.reverse",
+	Name:        "array.reverse",
+	Description: "Returns the reverse of a given array.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewArray(nil, types.A),
+			types.Named("arr", types.NewArray(nil, types.A)).Description("the array to be reversed"),
 		),
-		types.NewArray(nil, types.A),
+		types.Named("rev", types.NewArray(nil, types.A)).Description("an array containing the elements of `arr` in reverse order"),
 	),
 }
 

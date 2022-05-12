@@ -99,25 +99,30 @@
     },
     {
       "name": "array.concat",
+      "description": "Concatenates two arrays.",
       "decl": {
         "args": [
           {
             "dynamic": {
               "type": "any"
             },
+            "name": "x",
             "type": "array"
           },
           {
             "dynamic": {
               "type": "any"
             },
+            "name": "y",
             "type": "array"
           }
         ],
         "result": {
+          "description": "the concatenation of `x` and `y`",
           "dynamic": {
             "type": "any"
           },
+          "name": "z",
           "type": "array"
         },
         "type": "function"
@@ -125,19 +130,24 @@
     },
     {
       "name": "array.reverse",
+      "description": "Returns the reverse of a given array.",
       "decl": {
         "args": [
           {
+            "description": "the array to be reversed",
             "dynamic": {
               "type": "any"
             },
+            "name": "arr",
             "type": "array"
           }
         ],
         "result": {
+          "description": "an array containing the elements of `arr` in reverse order",
           "dynamic": {
             "type": "any"
           },
+          "name": "rev",
           "type": "array"
         },
         "type": "function"
@@ -145,25 +155,34 @@
     },
     {
       "name": "array.slice",
+      "description": "Returns a slice of a given array. If `start` is greater or equal than `stop`, `slice` is `[]`.",
       "decl": {
         "args": [
           {
+            "description": "the array to be sliced",
             "dynamic": {
               "type": "any"
             },
+            "name": "arr",
             "type": "array"
           },
           {
+            "description": "the start index of the returned slice; if less than zero, it's clamped to 0",
+            "name": "start",
             "type": "number"
           },
           {
+            "description": "the stop index of the returned slice; if larger than `count(arr)`, it's clamped to `count(arr)`",
+            "name": "stop",
             "type": "number"
           }
         ],
         "result": {
+          "description": "the subslice of `array`, from `start` to `end`, including `arr[start]`, but excluding `arr[end]`",
           "dynamic": {
             "type": "any"
           },
+          "name": "slice",
           "type": "array"
         },
         "type": "function"

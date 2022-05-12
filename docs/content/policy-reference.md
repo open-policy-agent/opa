@@ -320,12 +320,8 @@ complex types.
 | <span class="opa-keep-it-together">``output := min(array_or_set)``</span> | ``output`` is the minimum value in ``array_or_set`` | {{< builtin-tags min >}} |
 | <span class="opa-keep-it-together">``output := sort(array_or_set)``</span> | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. | {{< builtin-tags sort >}} |
 
-### Arrays
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | {{< builtin-tags array.concat >}} |
-| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | {{< builtin-tags array.reverse >}} |
-  <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | {{< builtin-tags array.slice >}} |
+
+{{< builtin-table array >}}
 
 ### Sets
 
