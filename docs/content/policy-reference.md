@@ -330,8 +330,8 @@ complex types.
 | <span class="opa-keep-it-together">``s3 := s1 & s2``</span> | ``s3`` is the intersection of ``s1`` and ``s2``. | {{< builtin-tags and >}} |
 | <span class="opa-keep-it-together"><code>s3 := s1 &#124; s2</code></span> | ``s3`` is the union of ``s1`` and ``s2``. | {{< builtin-tags or >}} |
 | <span class="opa-keep-it-together">``s3 := s1 - s2``</span> | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` | {{< builtin-tags minus >}} |
-| <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set | {{< builtin-tags intersection >}}} |
-| <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  |{{< builtin-tags union >}} |
+| <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set | {{< builtin-tags intersection >}} |
+| <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  | {{< builtin-tags union >}} |
 
 ### Objects
 
@@ -441,7 +441,7 @@ The following table shows examples of how ``glob.match`` works:
 | ------- |-------------|---------------|
 | <span class="opa-keep-it-together">``z := bits.or(x, y)``</span>  | ``z`` is the bitwise or of integers ``x`` and ``y`` | {{< builtin-tags bits.or >}} |
 | <span class="opa-keep-it-together">``z := bits.and(x, y)``</span> | ``z`` is the bitwise and of integers ``x`` and ``y`` | {{< builtin-tags bits.and >}} |
-| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | {{< builtin-tags bits.negate >}}} |
+| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | {{< builtin-tags bits.negate >}} |
 | <span class="opa-keep-it-together">``z := bits.xor(x, y)``</span> | ``z`` is the bitwise exclusive-or of integers ``x`` and ``y`` | {{< builtin-tags bits.xor >}} |
 | <span class="opa-keep-it-together">``z := bits.lsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the left | {{< builtin-tags bits.lsh >}} |
 | <span class="opa-keep-it-together">``z := bits.rsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the right | {{< builtin-tags bits.rsh >}} |
