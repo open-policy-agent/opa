@@ -6,40 +6,38 @@
 {{- if .Get "id" }}{{ $id = .Get "id" }}{{ end }}
 {{- if .Get "title" }}{{ $title = .Get "title" }}{{ end }}
 <h3 id={{ $id }}>{{ $title | title }}</h3>
-<table>
-    <thead>
-    <tr>
-    <th>Built-in</th>
-    <th>Description</th>
-    <th>Details</th>
-    </tr>
-    </thead>
+<table class="table is-hoverable">
     <tbody>
     {{- range $name := index site.Data.builtin_metadata._categories $cat }}
     {{- $bi := index site.Data.builtin_metadata $name }}
     <tr>
-        <td>
+        <th>
             {{- if isset $bi "infix" }}
-            <span class="opa-keep-it-together">
+                <code>
+                {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
+                </code>
+            {{- else }}
+                <code>{{ $name }}</code>
+            {{- end }}
+        </th>
+        <td>
+            <p>
+            {{- if isset $bi "infix" }}
                 <code>
                 {{ $bi.result.name }} := {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
                 </code>
-            </span>
             {{- else }}
-                <span class="opa-keep-it-together">
-                    <code>
-                    {{ $bi.result.name }} := {{ $name }}(
-                    {{- range $index, $element := $bi.args -}}
-                    {{- if gt $index 0 -}}, {{ end -}}
-                    {{- $element.name -}}
-                    {{- end -}}
-                    )
-                    </code>
-                </span>
+                <code>
+                {{ $bi.result.name }} := {{ $name }}(
+                {{- range $index, $element := $bi.args -}}
+                {{- if gt $index 0 -}}, {{ end -}}
+                {{- $element.name -}}
+                {{- end -}}
+                )
+                </code>
             {{- end }}
-        </td>
-        <td>
-            {{ $bi.description | markdownify }}
+            </p>
+            <p>{{ $bi.description | markdownify }}</p>
 
             <dl class="bi-args">
             {{- range $element := $bi.args }}
