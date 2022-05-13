@@ -20,6 +20,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
 	github.com/peterh/liner v0.0.0-20170211195444-bf27d3ba8e1d
 	github.com/pkg/errors v0.9.1

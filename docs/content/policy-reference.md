@@ -459,6 +459,7 @@ The following table shows examples of how ``glob.match`` works:
 
 | Built-in | Description | Wasm Support |
 | ------- |-------------|---------------|
+| <span class="opa-keep-it-together">``output := units.parse(x)``</span> | ``output`` is ``x`` converted to a number with support for standard metric decimal and binary SI units (e.g., K, Ki, M, Mi, G, Gi etc.) m, K, M, G, T, P, and E are treated as decimal units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as binary units. Note that 'm' and 'M' are case-sensitive, to allow distinguishing between "milli" and "mega" units respectively. Other units are case-insensitive. | ``SDK-dependent`` |
 | <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. The bytes symbol (b/B) in the unit is optional and omitting it wil give the same result (e.g. Mi and MiB) | ``SDK-dependent`` |
 
 ### Types

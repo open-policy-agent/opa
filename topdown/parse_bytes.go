@@ -35,14 +35,14 @@ func parseNumBytesError(msg string) error {
 	return fmt.Errorf("%s error: %s", ast.UnitsParseBytes.Name, msg)
 }
 
-func errUnitNotRecognized(unit string) error {
+func errBytesUnitNotRecognized(unit string) error {
 	return parseNumBytesError(fmt.Sprintf("byte unit %s not recognized", unit))
 }
 
 var (
-	errNoAmount       = parseNumBytesError("no byte amount provided")
-	errNumConv        = parseNumBytesError("could not parse byte amount to a number")
-	errIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
+	errBytesValueNoAmount       = parseNumBytesError("no byte amount provided")
+	errBytesValueNumConv        = parseNumBytesError("could not parse byte amount to a number")
+	errBytesValueIncludesSpaces = parseNumBytesError("spaces not allowed in resource strings")
 )
 
 func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -56,12 +56,12 @@ func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	s := formatString(raw)
 
 	if strings.Contains(s, " ") {
-		return errIncludesSpaces
+		return errBytesValueIncludesSpaces
 	}
 
 	num, unit := extractNumAndUnit(s)
 	if num == "" {
-		return errNoAmount
+		return errBytesValueNoAmount
 	}
 
 	switch unit {
@@ -92,12 +92,12 @@ func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	case "eib", "ei":
 		m.SetUint64(ei)
 	default:
-		return errUnitNotRecognized(unit)
+		return errBytesUnitNotRecognized(unit)
 	}
 
 	numFloat, ok := new(big.Float).SetString(num)
 	if !ok {
-		return errNumConv
+		return errBytesValueNumConv
 	}
 
 	var total big.Int

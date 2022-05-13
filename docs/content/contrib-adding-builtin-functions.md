@@ -18,9 +18,10 @@ Read more about extending OPA with custom built-in functions in go [here](../ext
 Adding a new built-in function involves the following steps:
 
 1. [Declare and register](#declare-and-register) the function
-2. [Implementation](#implement) the function
+2. [Implement](#implement) the function
 3. [Test](#test) the function
 4. [Document](#document) the function
+5. [Add a capability](#add-a-capability) for the function
 
 ## Example
 
@@ -157,5 +158,37 @@ For this example, we add an entry for our new function under the `Strings` secti
 | ------- |-------------|---------------|
 ...
 | <span class="opa-keep-it-together">``output := repeat(string, count)``</span> | ``output`` is ``string`` repeated ``count``times | ``SDK-dependent`` |
+...
+```
+
+### Add a capability
+
+{{< info >}}
+Read more about extending the default capabilities list for built-ins [here](../deployments/#built-ins).
+{{< /info >}}
+
+One of the security features of OPA is [capabilities](../deployments/#capabilities) checks on policies, allowing users to restrict which built-in functions will be available to policies at runtime.
+To ensure that our new `repeat` function will be available to callers, we'll need to add it to the `capabilities.json` file at the root of the repo.
+We can have this entry auto-generated for us by running `make generate`.
+
+After running `make generate` we should see a new JSON object entry in the list under the `"builtins"` key:
+
+```json
+...
+{
+  "name": "repeat",
+  "decl": {
+    "args": [
+      {
+        "type": "string"
+        "type": "number"
+      }
+    ],
+    "result": {
+      "type": "string"
+    },
+    "type": "function"
+  }
+},
 ...
 ```

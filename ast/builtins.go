@@ -255,6 +255,7 @@ var DefaultBuiltins = [...]*Builtin{
 	GlobQuoteMeta,
 
 	// Units
+	UnitsParse,
 	UnitsParseBytes,
 
 	// UUIDs
@@ -1122,6 +1123,18 @@ var NumbersRange = &Builtin{
 /**
  * Units
  */
+
+// UnitsParse converts strings like 10G, 5K, 4M, 1500m and the like into a
+// number. This number can be a non-integer, such as 1.5, 0.22, etc.
+var UnitsParse = &Builtin{
+	Name: "units.parse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+		),
+		types.N,
+	),
+}
 
 // UnitsParseBytes converts strings like 10GB, 5K, 4mb, and the like into an
 // integer number of bytes.

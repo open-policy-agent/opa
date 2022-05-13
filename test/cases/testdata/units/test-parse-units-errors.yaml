@@ -1,0 +1,78 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: no amount provided"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("G")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: no amount provided"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("foo")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: no amount provided"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("0.0.0")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: could not parse amount to a number"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse(".5.2")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: could not parse amount to a number"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("100 k")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: spaces not allowed in resource strings"
+  strict_error: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse(" 327Mi ")
+    }
+  note: parse/failure
+  query: data.test.p = x
+  want_error: "units.parse error: spaces not allowed in resource strings"
+  strict_error: true

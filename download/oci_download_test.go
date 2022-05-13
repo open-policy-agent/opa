@@ -84,3 +84,39 @@ func TestOCIFailureAuthn(t *testing.T) {
 		t.Fatal("expected 401 Unauthorized message")
 	}
 }
+
+func TestOCIEtag(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expAuth = "" // test on public registry
+	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+	firstResponse := Update{ETag: ""}
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/oci").WithCallback(func(_ context.Context, u Update) {
+		if firstResponse.ETag == "" {
+			firstResponse = u
+			return
+		}
+
+		if u.ETag != firstResponse.ETag || u.Bundle != nil {
+			t.Fatal("expected nil bundle and same etag but got:", u)
+		}
+	})
+
+	// fill firstResponse
+	err := d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("unexpected error")
+	}
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	// second call to verify if nil bundle is returned and same etag
+	err = d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("unexpected error")
+	}
+}
