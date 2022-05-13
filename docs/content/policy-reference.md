@@ -390,16 +390,7 @@ The following table shows examples of how ``glob.match`` works:
 | ``output := glob.match("{cat,bat,[fr]at}", [], "rat")`` | ``true`` | A glob with pattern-alternatives matchers. |
 | ``output := glob.match("{cat,bat,[fr]at}", [], "at")`` | ``false`` | A glob with pattern-alternatives matchers. |
 
-### Bitwise
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``z := bits.or(x, y)``</span>  | ``z`` is the bitwise or of integers ``x`` and ``y`` | {{< builtin-tags bits.or >}} |
-| <span class="opa-keep-it-together">``z := bits.and(x, y)``</span> | ``z`` is the bitwise and of integers ``x`` and ``y`` | {{< builtin-tags bits.and >}} |
-| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | {{< builtin-tags bits.negate >}} |
-| <span class="opa-keep-it-together">``z := bits.xor(x, y)``</span> | ``z`` is the bitwise exclusive-or of integers ``x`` and ``y`` | {{< builtin-tags bits.xor >}} |
-| <span class="opa-keep-it-together">``z := bits.lsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the left | {{< builtin-tags bits.lsh >}} |
-| <span class="opa-keep-it-together">``z := bits.rsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the right | {{< builtin-tags bits.rsh >}} |
+{{< builtin-table cat=bits title=bitwise >}}
 
 ### Conversions
 

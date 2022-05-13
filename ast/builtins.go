@@ -553,60 +553,74 @@ var Rem = &Builtin{
  * Bitwise
  */
 
-// BitsOr returns the bitwise "or" of two integers.
 var BitsOr = &Builtin{
-	Name: "bits.or",
+	Name:        "bits.or",
+	Description: "Returns the bitwise \"OR\" of two integers.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
-// BitsAnd returns the bitwise "and" of two integers.
 var BitsAnd = &Builtin{
-	Name: "bits.and",
+	Name:        "bits.and",
+	Description: "Returns the bitwise \"AND\" of two integers.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
-// BitsNegate returns the bitwise "negation" of an integer (i.e. flips each
-// bit).
 var BitsNegate = &Builtin{
-	Name: "bits.negate",
+	Name:        "bits.negate",
+	Description: "Returns the bitwise negation (flip) of an integer.",
 	Decl: types.NewFunction(
-		types.Args(types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
-// BitsXOr returns the bitwise "exclusive-or" of two integers.
 var BitsXOr = &Builtin{
-	Name: "bits.xor",
+	Name:        "bits.xor",
+	Description: "Returns the bitwise \"XOR\" (exclusive-or) of two integers.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
-// BitsShiftLeft returns a new integer with its bits shifted some value to the
-// left.
 var BitsShiftLeft = &Builtin{
-	Name: "bits.lsh",
+	Name:        "bits.lsh",
+	Description: "Returns a new integer with its bits shifted `s` bits to the left.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("s", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
-// BitsShiftRight returns a new integer with its bits shifted some value to the
-// right.
 var BitsShiftRight = &Builtin{
-	Name: "bits.rsh",
+	Name:        "bits.rsh",
+	Description: "Returns a new integer with its bits shifted `s` bits to the right.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("s", types.N),
+		),
+		types.Named("z", types.N),
 	),
 }
 
