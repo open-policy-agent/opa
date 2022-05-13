@@ -1,5 +1,11 @@
-{{ $cat := .Get 0 }}
-<h3 id={{ $cat}}>{{ $cat | title }}</h3>
+
+{{- $cat := .Get 0 }}
+{{ if .IsNamedParams }}{{- $cat = .Get "cat" }}{{- end }}
+{{- $id := $cat }}
+{{- $title := $cat }}
+{{- if .Get "id" }}{{ $id = .Get "id" }}{{ end }}
+{{- if .Get "title" }}{{ $title = .Get "title" }}{{ end }}
+<h3 id={{ $id }}>{{ $title | title }}</h3>
 <table>
     <thead>
     <tr>

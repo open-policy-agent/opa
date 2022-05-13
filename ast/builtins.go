@@ -456,7 +456,7 @@ var Minus = &Builtin{
 		),
 		types.Named("z", types.NewAny(types.N, types.NewSet(types.A))).Description("the difference of `x` and `y`"),
 	),
-	Categories: category("set", "numbers"),
+	Categories: category("sets", "numbers"),
 }
 
 var Multiply = &Builtin{
@@ -614,30 +614,59 @@ var BitsShiftRight = &Builtin{
  * Sets
  */
 
-// And performs an intersection operation on sets.
+var sets = category("sets")
+
 var And = &Builtin{
-	Name:  "and",
-	Infix: "&",
+	Name:        "and",
+	Infix:       "&",
+	Description: "Returns the intersection of two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewSet(types.A),
-			types.NewSet(types.A),
+			types.Named("x", types.NewSet(types.A)),
+			types.Named("y", types.NewSet(types.A)),
 		),
-		types.NewSet(types.A),
+		types.Named("z", types.NewSet(types.A)).Description("the intersection of `x` and `y`"),
 	),
+	Categories: sets,
 }
 
 // Or performs a union operation on sets.
 var Or = &Builtin{
-	Name:  "or",
-	Infix: "|",
+	Name:        "or",
+	Infix:       "|",
+	Description: "Returns the union of two sets.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewSet(types.A),
-			types.NewSet(types.A),
+			types.Named("x", types.NewSet(types.A)),
+			types.Named("y", types.NewSet(types.A)),
 		),
-		types.NewSet(types.A),
+		types.Named("z", types.NewSet(types.A)).Description("the union of `x` and `y`"),
 	),
+	Categories: sets,
+}
+
+var Intersection = &Builtin{
+	Name:        "intersection",
+	Description: "Returns the intersection of the given input sets.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("xs", types.NewSet(types.NewSet(types.A))).Description("set of sets to intersect"),
+		),
+		types.Named("y", types.NewSet(types.A)).Description("the intersection of all `xs` sets"),
+	),
+	Categories: sets,
+}
+
+var Union = &Builtin{
+	Name:        "union",
+	Description: "Returns the union of the given input sets.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("xs", types.NewSet(types.NewSet(types.A))).Description("set of sets to merge"),
+		),
+		types.Named("y", types.NewSet(types.A)).Description("the union of all `xs` sets"),
+	),
+	Categories: sets,
 }
 
 /**
@@ -2283,32 +2312,6 @@ var Trace = &Builtin{
 			types.S,
 		),
 		types.B,
-	),
-}
-
-/**
- * Set
- */
-
-// Intersection returns the intersection of the given input sets
-var Intersection = &Builtin{
-	Name: "intersection",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewSet(types.NewSet(types.A)),
-		),
-		types.NewSet(types.A),
-	),
-}
-
-// Union returns the union of the given input sets
-var Union = &Builtin{
-	Name: "union",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewSet(types.NewSet(types.A)),
-		),
-		types.NewSet(types.A),
 	),
 }
 

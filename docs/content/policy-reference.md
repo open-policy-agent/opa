@@ -301,17 +301,9 @@ complex types.
 
 {{< builtin-table aggregates >}}
 
-{{< builtin-table array >}}
+{{< builtin-table cat=array id=arrays-2 title=arrays >}}
 
-### Sets
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``s3 := s1 & s2``</span> | ``s3`` is the intersection of ``s1`` and ``s2``. | {{< builtin-tags and >}} |
-| <span class="opa-keep-it-together"><code>s3 := s1 &#124; s2</code></span> | ``s3`` is the union of ``s1`` and ``s2``. | {{< builtin-tags or >}} |
-| <span class="opa-keep-it-together">``s3 := s1 - s2``</span> | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` | {{< builtin-tags minus >}} |
-| <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set | {{< builtin-tags intersection >}} |
-| <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  | {{< builtin-tags union >}} |
+{{< builtin-table cat=sets id=sets-2 >}}
 
 ### Objects
 
