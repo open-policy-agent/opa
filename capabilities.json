@@ -99,7 +99,6 @@
     },
     {
       "name": "array.concat",
-      "description": "Concatenates two arrays.",
       "decl": {
         "args": [
           {
@@ -126,7 +125,6 @@
     },
     {
       "name": "array.reverse",
-      "description": "Returns the reverse of a given array.",
       "decl": {
         "args": [
           {
@@ -147,7 +145,6 @@
     },
     {
       "name": "array.slice",
-      "description": "Returns a slice of a given array. If `start` is greater or equal than `stop`, `slice` is `[]`.",
       "decl": {
         "args": [
           {
@@ -2024,7 +2021,6 @@
     },
     {
       "name": "minus",
-      "description": "Minus subtracts the second number from the first number or computes the difference between two sets.",
       "decl": {
         "args": [
           {
@@ -2633,7 +2629,6 @@
     },
     {
       "name": "plus",
-      "description": "Plus adds two numbers together.",
       "decl": {
         "args": [
           {
@@ -2924,7 +2919,6 @@
     },
     {
       "name": "replace",
-      "description": "Replace replaces all instances of a sub-string.",
       "decl": {
         "args": [
           {
@@ -3047,7 +3041,6 @@
     },
     {
       "name": "split",
-      "description": "Split returns an array containing elements of the input string split on a delimiter.",
       "decl": {
         "args": [
           {

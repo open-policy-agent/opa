@@ -31,6 +31,8 @@ func main() {
 			f.Builtins[i].Decl = types.NewVariadicFunction(fargs.Args, fargs.Variadic, bi.Decl.Result())
 		}
 		f.Builtins[i].Decl = types.NewFunction(fargs.Args, bi.Decl.Result())
+		f.Builtins[i].Categories = nil
+		f.Builtins[i].Description = ""
 	}
 
 	if err := enc.Encode(f); err != nil {
