@@ -344,75 +344,97 @@ var MemberWithKey = &Builtin{
 /**
  * Comparisons
  */
+var comparison = category("comparison")
 
-// GreaterThan represents the ">" comparison operator.
 var GreaterThan = &Builtin{
-	Name:  "gt",
-	Infix: ">",
+	Name:       "gt",
+	Infix:      ">",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is greater than `y`; false otherwise"),
 	),
 }
 
-// GreaterThanEq represents the ">=" comparison operator.
 var GreaterThanEq = &Builtin{
-	Name:  "gte",
-	Infix: ">=",
+	Name:       "gte",
+	Infix:      ">=",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is greater or equal to `y`; false otherwise"),
 	),
 }
 
 // LessThan represents the "<" comparison operator.
 var LessThan = &Builtin{
-	Name:  "lt",
-	Infix: "<",
+	Name:       "lt",
+	Infix:      "<",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is less than `y`; false otherwise"),
 	),
 }
 
-// LessThanEq represents the "<=" comparison operator.
 var LessThanEq = &Builtin{
-	Name:  "lte",
-	Infix: "<=",
+	Name:       "lte",
+	Infix:      "<=",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is less than or equal to `y`; false otherwise"),
 	),
 }
 
-// NotEqual represents the "!=" comparison operator.
 var NotEqual = &Builtin{
-	Name:  "neq",
-	Infix: "!=",
+	Name:       "neq",
+	Infix:      "!=",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is not equal to `y`; false otherwise"),
 	),
 }
 
 // Equal represents the "==" comparison operator.
 var Equal = &Builtin{
-	Name:  "equal",
-	Infix: "==",
+	Name:       "equal",
+	Infix:      "==",
+	Categories: comparison,
 	Decl: types.NewFunction(
-		types.Args(types.A, types.A),
-		types.B,
+		types.Args(
+			types.Named("x", types.A),
+			types.Named("y", types.A),
+		),
+		types.Named("result", types.B).Description("true if `x` is equal to `y`; false otherwise"),
 	),
 }
 
 /**
  * Arithmetic
  */
+var number = category("numbers")
 
 var Plus = &Builtin{
 	Name:        "plus",
-	Description: "Plus adds two numbers together.",
 	Infix:       "+",
+	Description: "Plus adds two numbers together.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.N),
@@ -420,12 +442,13 @@ var Plus = &Builtin{
 		),
 		types.Named("z", types.N).Description("the sum of `x` and `y`"),
 	),
+	Categories: number,
 }
 
 var Minus = &Builtin{
 	Name:        "minus",
-	Description: "Minus subtracts the second number from the first number or computes the difference between two sets.",
 	Infix:       "-",
+	Description: "Minus subtracts the second number from the first number or computes the difference between two sets.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.NewAny(types.N, types.NewSet(types.A))),
@@ -433,72 +456,97 @@ var Minus = &Builtin{
 		),
 		types.Named("z", types.NewAny(types.N, types.NewSet(types.A))).Description("the difference of `x` and `y`"),
 	),
+	Categories: category("set", "numbers"),
 }
 
-// Multiply multiplies two numbers together.
 var Multiply = &Builtin{
-	Name:  "mul",
-	Infix: "*",
+	Name:        "mul",
+	Infix:       "*",
+	Description: "Multiplies two numbers.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N).Description("the product of `x` and `y`"),
 	),
+	Categories: number,
 }
 
-// Divide divides the first number by the second number.
 var Divide = &Builtin{
-	Name:  "div",
-	Infix: "/",
+	Name:        "div",
+	Infix:       "/",
+	Description: "Divides the first number by the second number.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N).Description("the dividend"),
+			types.Named("y", types.N).Description("the divisor"),
+		),
+		types.Named("z", types.N).Description("the result of `x` divided by `y`"),
 	),
+	Categories: number,
 }
 
-// Round rounds the number to the nearest integer.
 var Round = &Builtin{
-	Name: "round",
+	Name:        "round",
+	Description: "Rounds the number to the nearest integer.",
 	Decl: types.NewFunction(
-		types.Args(types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N).Description("the number to round"),
+		),
+		types.Named("y", types.N).Description("the result of rounding `x`"),
 	),
+	Categories: number,
 }
 
-// Ceil rounds the number up to the nearest integer.
 var Ceil = &Builtin{
-	Name: "ceil",
+	Name:        "ceil",
+	Description: "Rounds the number _up_ to the nearest integer.",
 	Decl: types.NewFunction(
-		types.Args(types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N).Description("the number to round"),
+		),
+		types.Named("y", types.N).Description("the result of rounding `x` _up_"),
 	),
+	Categories: number,
 }
 
-// Floor rounds the number down to the nearest integer.
 var Floor = &Builtin{
-	Name: "floor",
+	Name:        "floor",
+	Description: "Rounds the number _down_ to the nearest integer.",
 	Decl: types.NewFunction(
-		types.Args(types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N).Description("the number to round"),
+		),
+		types.Named("y", types.N).Description("the result of rounding `x` _down_"),
 	),
+	Categories: number,
 }
 
-// Abs returns the number without its sign.
 var Abs = &Builtin{
-	Name: "abs",
+	Name:        "abs",
+	Description: "Returns the number without its sign.",
 	Decl: types.NewFunction(
-		types.Args(types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+		),
+		types.Named("y", types.N).Description("the absolute value of `x`"),
 	),
+	Categories: number,
 }
 
-// Rem returns the remainder for x%y for y != 0.
 var Rem = &Builtin{
-	Name:  "rem",
-	Infix: "%",
+	Name:        "rem",
+	Infix:       "%",
+	Description: "Returns the remainder for of `x` divided by `y`, for `y != 0`.",
 	Decl: types.NewFunction(
-		types.Args(types.N, types.N),
-		types.N,
+		types.Args(
+			types.Named("x", types.N),
+			types.Named("y", types.N),
+		),
+		types.Named("z", types.N).Description("the remainder"),
 	),
+	Categories: number,
 }
 
 /**
@@ -1103,25 +1151,27 @@ var StringReverse = &Builtin{
 
 // RandIntn returns a random number 0 - n
 var RandIntn = &Builtin{
-	Name: "rand.intn",
+	Name:        "rand.intn",
+	Description: "Returns a random integer between `0` and `n` (`n` exlusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.N,
+			types.Named("str", types.S),
+			types.Named("n", types.N),
 		),
-		types.N,
+		types.Named("y", types.N).Description("random integer in the range `[0, abs(n))`"),
 	),
+	Categories: number,
 }
 
-// NumbersRange returns an array of numbers in the given inclusive range.
 var NumbersRange = &Builtin{
-	Name: "numbers.range",
+	Name:        "numbers.range",
+	Description: "Returns an array of numbers in the given (inclusive) range. If `a==b`, then `range == [a]`; if `a > b`, then `range` is in descending order.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.N,
-			types.N,
+			types.Named("a", types.N),
+			types.Named("b", types.N),
 		),
-		types.NewArray(nil, types.N),
+		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b`"),
 	),
 }
 
@@ -2571,6 +2621,11 @@ type Builtin struct {
 	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
 	Relation   bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
 	deprecated bool            // Indicates if the built-in has been deprecated.
+}
+
+// category is a helper for specifying a Builtin's Categories
+func category(cs ...string) []string {
+	return cs
 }
 
 // IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.

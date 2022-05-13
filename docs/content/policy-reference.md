@@ -282,6 +282,10 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
+{{/* NOTE(sr): Comparisons are the exception here, rendering them automatically yields
+   *   result := x < y
+   * and the like, which is harder to read. So let's not auto-generate them.
+   */}}
 ### Comparison
 
 | Built-in | Description | Details |
@@ -293,21 +297,7 @@ complex types.
 | <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` | {{< builtin-tags gt >}} |
 | <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` | {{< builtin-tags gte >}} |
 
-### Numbers
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| {{< builtin-sig plus >}} | {{< builtin-args plus >}} | {{< builtin-tags plus >}} |
-| {{< builtin-sig minus >}} | {{< builtin-args minus >}} | {{< builtin-tags minus >}} |
-| <span class="opa-keep-it-together">``z := x * y``</span>   | ``z`` is the product of ``x`` and ``y`` | {{< builtin-tags mul >}} |
-| <span class="opa-keep-it-together">``z := x / y``</span>   | ``z`` is the quotient of ``x`` and ``y``  | {{< builtin-tags div >}} |
-| <span class="opa-keep-it-together">``z := x % y``</span>   | ``z`` is the remainder from the division of ``x`` and ``y`` | {{< builtin-tags rem >}} |
-| <span class="opa-keep-it-together">``output := round(x)``</span>    | ``output`` is ``x`` rounded to the nearest integer | {{< builtin-tags round >}} |
-| <span class="opa-keep-it-together">``output := ceil(x)``</span>    | ``output`` is ``x`` rounded up to the nearest integer | {{< builtin-tags ceil >}} |
-| <span class="opa-keep-it-together">``output := floor(x)``</span>    | ``output`` is ``x`` rounded down the nearest integer | {{< builtin-tags floor >}} |
-| <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` | {{< builtin-tags abs>}} |
-| <span class="opa-keep-it-together">``output := numbers.range(a, b)``</span> | ``output`` is the range of integer numbers between ``a`` and ``b`` (inclusive). If ``a`` == ``b`` then ``output`` == ``[a]``. If ``a`` < ``b`` the range is in ascending order. If ``a`` > ``b`` the range is in descending order. |  {{< builtin-tags numbers.range >}} |
-  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | {{< builtin-tags rand.intn >}} |
+{{< builtin-table numbers >}}
 
 ### Aggregates
 
