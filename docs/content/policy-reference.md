@@ -282,16 +282,7 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-### Comparison
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``x == y``</span>   | ``x`` is equal to ``y`` | {{< builtin-tags equal >}} |
-| <span class="opa-keep-it-together">``x != y``</span>   | ``x`` is not equal to ``y`` | {{< builtin-tags neq >}} |
-| <span class="opa-keep-it-together">``x < y``</span>   | ``x`` is less than ``y`` |  {{< builtin-tags lt >}} |
-| <span class="opa-keep-it-together">``x <= y``</span>   | ``x`` is less than or equal to ``y`` | {{< builtin-tags lte >}} |
-| <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` | {{< builtin-tags gt >}} |
-| <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` | {{< builtin-tags gte >}} |
+{{< builtin-table comparison >}}
 
 {{< builtin-table numbers >}}
 
