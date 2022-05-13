@@ -282,10 +282,6 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-{{/* NOTE(sr): Comparisons are the exception here, rendering them automatically yields
-   *   result := x < y
-   * and the like, which is harder to read. So let's not auto-generate them.
-   */}}
 ### Comparison
 
 | Built-in | Description | Details |
