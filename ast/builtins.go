@@ -2319,28 +2319,30 @@ var Trace = &Builtin{
  * Glob
  */
 
-// GlobMatch - not to be confused with regex.globs_match - parses and matches strings against the glob notation.
 var GlobMatch = &Builtin{
-	Name: "glob.match",
+	Name:        "glob.match",
+	Description: "Parses and matches strings against the glob notation. Not to be confused with `regex.globs_match`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.NewArray(nil, types.S),
-			types.S,
+			types.Named("pattern", types.S),
+			types.Named("delimiters", types.NewArray(nil, types.S)).Description("glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset."),
+			types.Named("match", types.S),
 		),
-		types.B,
+		types.Named("result", types.B).Description("true if `match` can be found in `pattern` which is separated by `delimiters`"),
 	),
 }
 
-// GlobQuoteMeta returns a string which represents a version of the pattern where all asterisks have been escaped.
+// GlobQuoteMeta
 var GlobQuoteMeta = &Builtin{
-	Name: "glob.quote_meta",
+	Name:        "glob.quote_meta",
+	Description: "Returns a string which represents a version of the pattern where all asterisks have been escaped.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("pattern", types.S),
 		),
-		types.S,
+		types.Named("output", types.S).Description("the escaped string of `pattern`"),
 	),
+	// TODO(sr): example for this was: Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``.
 }
 
 /**

@@ -363,11 +363,7 @@ complex types.
 | <span class="opa-keep-it-together">``output := regex.find_n(pattern, string, number)``</span> | ``output`` is an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< builtin-tags regex.find_n >}} |
 | <span class="opa-keep-it-together">``output := regex.find_all_string_submatch_n(pattern, string, number)``</span> | ``output`` is an ``array[array[string]]`` with the outer `array` including a ``number`` of matches which match the ``pattern``. A ``number`` of ``-1`` means all matches. | {{< builtin-tags regex.find_all_string_submatch_n >}} |
 
-### Glob
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := glob.match(pattern, delimiters, match)``</span> | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. | {{< builtin-tags glob.match >}} |
-| <span class="opa-keep-it-together">``output := glob.quote_meta(pattern)``</span> | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. | {{< builtin-tags glob.quote_meta >}} |
+{{< builtin-table glob >}}
 
 The following table shows examples of how ``glob.match`` works:
 
