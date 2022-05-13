@@ -392,11 +392,7 @@ The following table shows examples of how ``glob.match`` works:
 
 {{< builtin-table cat=bits title=bitwise >}}
 
-### Conversions
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. | {{< builtin-tags to_number >}} |
+{{< builtin-table conversions >}}
 
 ### Units
 

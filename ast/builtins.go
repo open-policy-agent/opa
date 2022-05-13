@@ -828,23 +828,23 @@ var ArrayReverse = &Builtin{
 /**
  * Conversions
  */
+var conversions = category("conversions")
 
-// ToNumber takes a string, bool, or number value and converts it to a number.
-// Strings are converted to numbers using strconv.Atoi.
-// Boolean false is converted to 0 and boolean true is converted to 1.
 var ToNumber = &Builtin{
-	Name: "to_number",
+	Name:        "to_number",
+	Description: "Converts a string, bool, or number value to a number: Strings are converted to numbers using `strconv.Atoi`, Boolean `false` is converted to 0 and `true` is converted to 1.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("x", types.NewAny(
 				types.N,
 				types.S,
 				types.B,
 				types.NewNull(),
-			),
+			)),
 		),
-		types.N,
+		types.Named("num", types.N),
 	),
+	Categories: conversions,
 }
 
 /**
