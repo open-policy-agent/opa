@@ -9,9 +9,11 @@
 <table class="table is-hoverable">
     <tbody>
     {{- range $name := index site.Data.builtin_metadata._categories $cat }}
+    {{- $anchor := anchorize (printf "builtin-%s-%s" $cat $name) }}
     {{- $bi := index site.Data.builtin_metadata $name }}
-    <tr>
+    <tr id="{{ $anchor }}">
         <th>
+            <a class="self-link" href="#{{ $anchor }}">
             {{- if isset $bi "infix" }}
                 <code>
                 {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
@@ -19,6 +21,7 @@
             {{- else }}
                 <code>{{ $name }}</code>
             {{- end }}
+            </a>
         </th>
         <td>
             <p>
