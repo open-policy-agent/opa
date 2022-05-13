@@ -299,17 +299,7 @@ complex types.
 
 {{< builtin-table numbers >}}
 
-### Aggregates
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := count(collection_or_string)``</span> | ``output`` is the length of the object, array, set, or string provided as input | {{< builtin-tags count >}}|
-| <span class="opa-keep-it-together">``output := sum(array_or_set)``</span> | ``output`` is the sum of the numbers in ``array_or_set`` | {{< builtin-tags sum >}} |
-| <span class="opa-keep-it-together">``output := product(array_or_set)``</span> | ``output`` is the product of the numbers in ``array_or_set`` | {{< builtin-tags product >}} |
-| <span class="opa-keep-it-together">``output := max(array_or_set)``</span> | ``output`` is the maximum value in ``array_or_set`` | {{< builtin-tags max >}} |
-| <span class="opa-keep-it-together">``output := min(array_or_set)``</span> | ``output`` is the minimum value in ``array_or_set`` | {{< builtin-tags min >}} |
-| <span class="opa-keep-it-together">``output := sort(array_or_set)``</span> | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. | {{< builtin-tags sort >}} |
-
+{{< builtin-table aggregates >}}
 
 {{< builtin-table array >}}
 

@@ -644,76 +644,102 @@ var Or = &Builtin{
  * Aggregates
  */
 
-// Count takes a collection or string and counts the number of elements in it.
+var aggregates = category("aggregates")
+
 var Count = &Builtin{
-	Name: "count",
+	Name:        "count",
+	Description: " Count takes a collection or string and returns the number of elements (or characters) in it.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.A),
 				types.NewArray(nil, types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 				types.S,
-			),
+			)).Description("the set/array/object/string to be counted"),
 		),
-		types.N,
+		types.Named("n", types.N).Description("the count of elements, key/val pairs, or characters, respectively."),
 	),
+	Categories: aggregates,
 }
 
-// Sum takes an array or set of numbers and sums them.
 var Sum = &Builtin{
-	Name: "sum",
+	Name:        "sum",
+	Description: "Sums elements of an array or set of numbers.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.N),
 				types.NewArray(nil, types.N),
-			),
+			)),
 		),
-		types.N,
+		types.Named("n", types.N).Description("the sum of all elements"),
 	),
+	Categories: aggregates,
 }
 
-// Product takes an array or set of numbers and multiplies them.
 var Product = &Builtin{
-	Name: "product",
+	Name:        "product",
+	Description: "Muliplies elements of an array or set of numbers",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.N),
 				types.NewArray(nil, types.N),
-			),
+			)),
 		),
-		types.N,
+		types.Named("n", types.N).Description("the product of all elements"),
 	),
+	Categories: aggregates,
 }
 
-// Max returns the maximum value in a collection.
 var Max = &Builtin{
-	Name: "max",
+	Name:        "max",
+	Description: "Returns the maximum value in a collection.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.A),
 				types.NewArray(nil, types.A),
-			),
+			)),
 		),
-		types.A,
+		types.Named("n", types.A).Description("the maximum of all elements"),
 	),
+	Categories: aggregates,
 }
 
-// Min returns the minimum value in a collection.
 var Min = &Builtin{
-	Name: "min",
+	Name:        "min",
+	Description: "Returns the minimum value in a collection.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.A),
 				types.NewArray(nil, types.A),
-			),
+			)),
 		),
-		types.A,
+		types.Named("n", types.A).Description("the minimum of all elements"),
 	),
+	Categories: aggregates,
+}
+
+/**
+ * Sorting
+ */
+
+var Sort = &Builtin{
+	Name:        "sort",
+	Description: "Returns a sorted array.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("collection", types.NewAny(
+				types.NewArray(nil, types.A),
+				types.NewSet(types.A),
+			)).Description("the array or set to be sorted"),
+		),
+		types.Named("n", types.NewArray(nil, types.A)).Description("the sorted array"),
+	),
+	Categories: aggregates,
 }
 
 /**
@@ -2080,24 +2106,6 @@ var ReachablePathsBuiltin = &Builtin{
 			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
 		),
 		types.NewSet(types.NewArray(nil, types.A)),
-	),
-}
-
-/**
- * Sorting
- */
-
-// Sort returns a sorted array.
-var Sort = &Builtin{
-	Name: "sort",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(
-				types.NewArray(nil, types.A),
-				types.NewSet(types.A),
-			),
-		),
-		types.NewArray(nil, types.A),
 	),
 }
 
