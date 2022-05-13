@@ -119,7 +119,7 @@ value will be undefined when the authorization policy is evaluated.
 - Client TLS certificates: Client TLS authentication is enabled by starting
 OPA with ``--authentication=tls``. When this authentication mode is enabled,
 OPA will require all clients to provide a client certificate. It is verified
-against the CA certificate(s) provided via `--tls-ca-cert-path`. Upon successful
+against the CA certificate(s) provided via `--tls-ca-cert-file`. Upon successful
 verification, the `input.identity` value is set to the TLS certificate's
 subject.
 
