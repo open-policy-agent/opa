@@ -1280,7 +1280,7 @@ Rego’s syntax is defined by the following grammar:
 ```ebnf
 module          = package { import } policy
 package         = "package" ref
-import          = "import" package [ "as" var ]
+import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
 rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" | "=" ) term ]
