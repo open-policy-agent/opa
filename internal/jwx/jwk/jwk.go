@@ -101,7 +101,7 @@ func parse(jwkSrc string) (*Set, error) {
 			rawKeyJSON := rawKeySetJSON.Keys[i]
 			jwkKey, err = rawKeyJSON.GenerateKey()
 			if err != nil {
-				return nil, fmt.Errorf("failed to generate key: %s: %w", err)
+				return nil, fmt.Errorf("failed to generate key: %w", err)
 			}
 			jwkKeySet.Keys = append(jwkKeySet.Keys, jwkKey)
 		}
