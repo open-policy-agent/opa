@@ -36,6 +36,12 @@ func (loc *Location) Errorf(f string, a ...interface{}) error {
 	return errors.New(loc.Format(f, a...))
 }
 
+// Wrapf returns a new error value that wraps an existing error with a message formatted
+// to include the location info (e.g., line, column, filename, etc.)
+func (loc *Location) Wrapf(err error, f string, a ...interface{}) error {
+	return fmt.Errorf(loc.Format(f, a...)+": %w", err)
+}
+
 // Format returns a formatted string prefixed with the location information.
 func (loc *Location) Format(f string, a ...interface{}) string {
 	if len(loc.File) > 0 {
