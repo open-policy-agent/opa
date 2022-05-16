@@ -394,28 +394,7 @@ The following table shows examples of how ``glob.match`` works:
 {{< builtin-table conversions >}}
 {{< builtin-table units >}}
 {{< builtin-table types >}}
-
-### Encoding
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := base64.encode(x)``</span> | ``output`` is ``x`` serialized to a base64 encoded string | {{< builtin-tags base64.encode >}} |
-| <span class="opa-keep-it-together">``output := base64.decode(string)``</span> | ``output`` is ``x`` deserialized from a base64 encoding string | {{< builtin-tags base64.decode >}} |
-| <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string | {{< builtin-tags base64url.encode >}} |
-| <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | {{< builtin-tags base64url.encode_no_pad >}} |
-| <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | {{< builtin-tags base64url.decode >}} |
-| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | {{< builtin-tags urlquery.encode >}} |
-| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is URL query parameter encoded ``object`` | {{< builtin-tags urlquery.encode_object >}} |
-| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is URL query parameter decoded ``string`` | {{< builtin-tags urlquery.decode >}} |
-| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is URL query parameter decoded ``string`` represented as an ``object`` | {{< builtin-tags urlquery.decode_object >}} |
-| <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string | {{< builtin-tags json.marshal >}} |
-| <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string | {{< builtin-tags json.unmarshal >}} |
-| <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document | {{< builtin-tags json.is_valid >}} |
-| <span class="opa-keep-it-together">``output := yaml.marshal(x)``</span> | ``output`` is ``x`` serialized to a YAML string | {{< builtin-tags yaml.marshal >}} |
-| <span class="opa-keep-it-together">``output := yaml.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from YAML encoded string | {{< builtin-tags yaml.unmarshal >}} |
-| <span class="opa-keep-it-together">``output := yaml.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid YAML document that can be decoded by `yaml.unmarshal` | {{< builtin-tags yaml.is_valid >}} |
-| <span class="opa-keep-it-together">``output := hex.encode(x)``</span> | ``output`` is ``x`` serialized to a hex encoded string | {{< builtin-tags hex.encode >}} |
-| <span class="opa-keep-it-together">``output := hex.decode(string)``</span> | ``output`` is a ``string`` deserialized from a hex encoded string | {{< builtin-tags hex.decode >}} |
+{{< builtin-table encoding >}}
 
 ### Token Signing
 

@@ -1297,33 +1297,6 @@ var UUIDRFC4122 = &Builtin{
  * JSON
  */
 
-// JSONMarshal serializes the input term.
-var JSONMarshal = &Builtin{
-	Name: "json.marshal",
-	Decl: types.NewFunction(
-		types.Args(types.A),
-		types.S,
-	),
-}
-
-// JSONUnmarshal deserializes the input string.
-var JSONUnmarshal = &Builtin{
-	Name: "json.unmarshal",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.A,
-	),
-}
-
-// JSONIsValid verifies the input string is a valid JSON document.
-var JSONIsValid = &Builtin{
-	Name: "json.is_valid",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.B,
-	),
-}
-
 // JSONFilter filters the JSON object
 var JSONFilter = &Builtin{
 	Name: "json.filter",
@@ -1499,149 +1472,234 @@ var ObjectFilter = &Builtin{
 	),
 }
 
-// Base64Encode serializes the input string into base64 encoding.
-var Base64Encode = &Builtin{
-	Name: "base64.encode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
+/*
+ *  Encoding
+ */
+var encoding = category("encoding")
 
-// Base64Decode deserializes the base64 encoded input string.
-var Base64Decode = &Builtin{
-	Name: "base64.decode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// Base64IsValid verifies the input string is base64 encoded.
-var Base64IsValid = &Builtin{
-	Name: "base64.is_valid",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.B,
-	),
-}
-
-// Base64UrlEncode serializes the input string into base64url encoding.
-var Base64UrlEncode = &Builtin{
-	Name: "base64url.encode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// Base64UrlEncodeNoPad serializes the input string into base64url encoding without padding.
-var Base64UrlEncodeNoPad = &Builtin{
-	Name: "base64url.encode_no_pad",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// Base64UrlDecode deserializes the base64url encoded input string.
-var Base64UrlDecode = &Builtin{
-	Name: "base64url.decode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// URLQueryDecode decodes a URL encoded input string.
-var URLQueryDecode = &Builtin{
-	Name: "urlquery.decode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// URLQueryEncode encodes the input string into a URL encoded string.
-var URLQueryEncode = &Builtin{
-	Name: "urlquery.encode",
-	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
-	),
-}
-
-// URLQueryEncodeObject encodes the given JSON into a URL encoded query string.
-var URLQueryEncodeObject = &Builtin{
-	Name: "urlquery.encode_object",
+var JSONMarshal = &Builtin{
+	Name:        "json.marshal",
+	Description: "Serializes the input term to JSON.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("x", types.A).Description("the term to serialize"),
+		),
+		types.Named("y", types.S).Description("the JSON string representation of `x`"),
+	),
+	Categories: encoding,
+}
+
+var JSONUnmarshal = &Builtin{
+	Name:        "json.unmarshal",
+	Description: "Deserializes the input string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S).Description("a JSON string"),
+		),
+		types.Named("y", types.A).Description("the term deseralized from `x`"),
+	),
+	Categories: encoding,
+}
+
+var JSONIsValid = &Builtin{
+	Name:        "json.is_valid",
+	Description: "Verifies the input string is a valid JSON document.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S).Description("a JSON string"),
+		),
+		types.Named("result", types.B).Description("`true` if `x` is valid JSON, `false` otherwise"),
+	),
+	Categories: encoding,
+}
+
+var Base64Encode = &Builtin{
+	Name:        "base64.encode",
+	Description: "Serializes the input string into base64 encoding.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("base64 serialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var Base64Decode = &Builtin{
+	Name:        "base64.decode",
+	Description: "Deserializes the base64 encoded input string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("base64 deserialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var Base64IsValid = &Builtin{
+	Name:        "base64.is_valid",
+	Description: "Verifies the input string is base64 encoded.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("result", types.B).Description("`true` if `x` is valid base64 encoded value, `false` otherwise"),
+	),
+	Categories: encoding,
+}
+
+var Base64UrlEncode = &Builtin{
+	Name:        "base64url.encode",
+	Description: "Serializes the input string into base64url encoding.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("base64url serialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var Base64UrlEncodeNoPad = &Builtin{
+	Name:        "base64url.encode_no_pad",
+	Description: "Serializes the input string into base64url encoding without padding.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("base64url serialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var Base64UrlDecode = &Builtin{
+	Name:        "base64url.decode",
+	Description: "Deserializes the base64url encoded input string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("base64url deserialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var URLQueryDecode = &Builtin{
+	Name:        "urlquery.decode",
+	Description: "Decodes a URL-encoded input string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("URL-encoding deserialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var URLQueryEncode = &Builtin{
+	Name:        "urlquery.encode",
+	Description: "Encodes the input string into a URL-encoded string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("URL-encoding serialization of `x`"),
+	),
+	Categories: encoding,
+}
+
+var URLQueryEncodeObject = &Builtin{
+	Name:        "urlquery.encode_object",
+	Description: "Encodes the given object into a URL encoded query string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(
 					types.S,
 					types.NewAny(
 						types.S,
 						types.NewArray(nil, types.S),
-						types.NewSet(types.S))))),
-		types.S,
+						types.NewSet(types.S)))))),
+		types.Named("y", types.S).Description("the URL-encoded serialization of `object`"),
 	),
+	Categories: encoding,
 }
 
-// URLQueryDecodeObject decodes the given URL query string into an object.
 var URLQueryDecodeObject = &Builtin{
-	Name: "urlquery.decode_object",
+	Name:        "urlquery.decode_object",
+	Description: "Decodes the given URL query string into an object.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewObject(nil, types.NewDynamicProperty(
+		types.Args(
+			types.Named("x", types.S).Description("the query string"),
+		),
+		types.Named("object", types.NewObject(nil, types.NewDynamicProperty(
 			types.S,
-			types.NewArray(nil, types.S))),
+			types.NewArray(nil, types.S)))).Description("the resulting object"),
 	),
+	Categories: encoding,
 }
 
-// YAMLMarshal serializes the input term.
 var YAMLMarshal = &Builtin{
-	Name: "yaml.marshal",
+	Name:        "yaml.marshal",
+	Description: "Serializes the input term to YAML.",
 	Decl: types.NewFunction(
-		types.Args(types.A),
-		types.S,
+		types.Args(
+			types.Named("x", types.A).Description("the term to serialize"),
+		),
+		types.Named("y", types.S).Description("the YAML string representation of `x`"),
 	),
+	Categories: encoding,
 }
 
-// YAMLUnmarshal deserializes the input string.
 var YAMLUnmarshal = &Builtin{
-	Name: "yaml.unmarshal",
+	Name:        "yaml.unmarshal",
+	Description: "Deserializes the input string.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.A,
+		types.Args(
+			types.Named("x", types.S).Description("a YAML string"),
+		),
+		types.Named("y", types.A).Description("the term deseralized from `x`"),
 	),
+	Categories: encoding,
 }
 
 // YAMLIsValid verifies the input string is a valid YAML document.
 var YAMLIsValid = &Builtin{
-	Name: "yaml.is_valid",
+	Name:        "yaml.is_valid",
+	Description: "Verifies the input string is a valid YAML document.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.B,
+		types.Args(
+			types.Named("x", types.S).Description("a YAML string"),
+		),
+		types.Named("result", types.B).Description("`true` if `x` is valid YAML, `false` otherwise"),
 	),
+	Categories: encoding,
 }
 
-// HexEncode serializes the input string into hex encoding.
 var HexEncode = &Builtin{
-	Name: "hex.encode",
+	Name:        "hex.encode",
+	Description: "Serializes the input string using hex-encoding.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("serialization of `x` using hex-encoding"),
 	),
+	Categories: encoding,
 }
 
-// HexDecode deserializes the hex encoded input string.
 var HexDecode = &Builtin{
-	Name: "hex.decode",
+	Name:        "hex.decode",
+	Description: "Deserializes the hex-encoded input string.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S).Description("a hex-encoded string"),
+		),
+		types.Named("y", types.S).Description("deseralized from `x`"),
 	),
+	Categories: encoding,
 }
 
 /**
