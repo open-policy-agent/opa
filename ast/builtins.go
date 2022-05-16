@@ -2155,82 +2155,90 @@ var ReachablePathsBuiltin = &Builtin{
 /**
  * Type
  */
+var typesCat = category("types")
 
-// IsNumber returns true if the input value is a number
 var IsNumber = &Builtin{
-	Name: "is_number",
+	Name:        "is_number",
+	Description: "Returns `true` if the input value is a number.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is a number, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsString returns true if the input value is a string.
 var IsString = &Builtin{
-	Name: "is_string",
+	Name:        "is_string",
+	Description: "Returns `true` if the input value is a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is a string, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsBoolean returns true if the input value is a boolean.
 var IsBoolean = &Builtin{
-	Name: "is_boolean",
+	Name:        "is_boolean",
+	Description: "Returns `true` if the input value is a boolean.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is an boolean, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsArray returns true if the input value is an array.
 var IsArray = &Builtin{
-	Name: "is_array",
+	Name:        "is_array",
+	Description: "Returns `true` if the input value is an array.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is an array, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsSet returns true if the input value is a set.
 var IsSet = &Builtin{
-	Name: "is_set",
+	Name:        "is_set",
+	Description: "Returns `true` if the input value is a set.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is a set, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsObject returns true if the input value is an object.
 var IsObject = &Builtin{
-	Name: "is_object",
+	Name:        "is_object",
+	Description: "Returns true if the input value is an object",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is an object, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
-// IsNull returns true if the input value is null.
 var IsNull = &Builtin{
-	Name: "is_null",
+	Name:        "is_null",
+	Description: "Returns `true` if the input value is null.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("x", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `x` is null, `false` otherwise."),
 	),
+	Categories: typesCat,
 }
 
 /**
