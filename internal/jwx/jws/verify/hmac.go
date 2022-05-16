@@ -6,6 +6,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/pkg/errors"
 )
 
 func newHMAC(alg jwa.SignatureAlgorithm) (*HMACVerifier, error) {
@@ -26,7 +27,7 @@ func (v HMACVerifier) Verify(signingInput, signature []byte, key interface{}) (e
 	}
 
 	if !hmac.Equal(signature, expected) {
-		return fmt.Errorf("failed to match hmac signature: %w", err)
+		return errors.New("failed to match hmac signature")
 	}
 	return nil
 }
