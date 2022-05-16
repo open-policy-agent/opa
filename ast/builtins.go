@@ -851,83 +851,80 @@ var ToNumber = &Builtin{
  * Regular Expressions
  */
 
-// RegexMatch takes two strings and evaluates to true if the string in the second
-// position matches the pattern in the first position.
 var RegexMatch = &Builtin{
-	Name: "regex.match",
+	Name:        "regex.match",
+	Description: "Matches a string against a regular expression.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("pattern", types.S).Description("regular expression"),
+			types.Named("value", types.S).Description("value to match against `pattern`"),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
 }
 
-// RegexIsValid returns true if the regex pattern string is valid, otherwise false.
 var RegexIsValid = &Builtin{
-	Name: "regex.is_valid",
+	Name:        "regex.is_valid",
+	Description: "Checks if a string is a valid regular expression: the detailed syntax for patterns is defined by https://github.com/google/re2/wiki/Syntax.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("pattern", types.S).Description("regular expression"),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
 }
 
-// RegexFindAllStringSubmatch returns an array of all successive matches of the expression.
-// It takes two strings and a number, the pattern, the value and number of matches to
-// return, -1 means all matches.
 var RegexFindAllStringSubmatch = &Builtin{
-	Name: "regex.find_all_string_submatch_n",
+	Name:        "regex.find_all_string_submatch_n",
+	Description: "Returns all successive matches of the expression.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
-			types.N,
+			types.Named("pattern", types.S).Description("regular expression"),
+			types.Named("value", types.S).Description("string to match"),
+			types.Named("number", types.N).Description("number of matches to return; `-1` means all matches"),
 		),
-		types.NewArray(nil, types.NewArray(nil, types.S)),
+		types.Named("output", types.NewArray(nil, types.NewArray(nil, types.S))),
 	),
 }
 
-// RegexTemplateMatch takes two strings and evaluates to true if the string in the second
-// position matches the pattern in the first position.
 var RegexTemplateMatch = &Builtin{
-	Name: "regex.template_match",
+	Name:        "regex.template_match",
+	Description: "Matches a string against a pattern, where there pattern may be glob-like",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
-			types.S,
-			types.S,
+			types.Named("template", types.S).Description("template expression containing `0..n` regular expressions"),
+			types.Named("value", types.S).Description("string to match"),
+			types.Named("delimiter_start", types.S).Description("start delimiter of the regular expression in `template`"),
+			types.Named("delimiter_end", types.S).Description("end delimiter of the regular expression in `template`"),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
-}
+} // TODO(sr): example:`regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``.
 
-// RegexSplit splits the input string by the occurrences of the given pattern.
 var RegexSplit = &Builtin{
-	Name: "regex.split",
+	Name:        "regex.split",
+	Description: "Splits the input string by the occurrences of the given pattern.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("pattern", types.S).Description("regular expression"),
+			types.Named("value", types.S).Description("string to match"),
 		),
-		types.NewArray(nil, types.S),
+		types.Named("output", types.NewArray(nil, types.S)).Description("the parts obtained by splitting `value`"),
 	),
 }
 
 // RegexFind takes two strings and a number, the pattern, the value and number of match values to
 // return, -1 means all match values.
 var RegexFind = &Builtin{
-	Name: "regex.find_n",
+	Name:        "regex.find_n",
+	Description: "Returns the specified number of matches when matching the input against the pattern.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
-			types.N,
+			types.Named("pattern", types.S).Description("regular expression"),
+			types.Named("value", types.S).Description("string to match"),
+			types.Named("number", types.N).Description("number of matches to return, if `-1`, returns all matches"),
 		),
-		types.NewArray(nil, types.S),
+		types.Named("output", types.NewArray(nil, types.S)).Description("collected matches"),
 	),
 }
 
@@ -938,12 +935,14 @@ var RegexFind = &Builtin{
 //  - "[a-z]*" and [0-9]+" -> not true.
 var GlobsMatch = &Builtin{
 	Name: "regex.globs_match",
+	Description: `Checks if the intersection of two glob-style regular expressions matches a non-empty set of non-empty strings.
+The set of regex symbols is limited for this builtin: only ` + "`.`, `*`, `+`, `[`, `-`, `]` and `\\` are treated as special symbols.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("glob1", types.S),
+			types.Named("glob2", types.S),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
 }
 
