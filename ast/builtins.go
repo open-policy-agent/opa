@@ -949,128 +949,138 @@ The set of regex symbols is limited for this builtin: only ` + "`.`, `*`, `+`, `
 /**
  * Strings
  */
+var stringsCat = category("strings")
 
-// Concat joins an array of strings with an input string.
 var Concat = &Builtin{
-	Name: "concat",
+	Name:        "concat",
+	Description: "Joins a set or array of strings with a delimiter.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.NewAny(
+			types.Named("delimiter", types.S),
+			types.Named("collection", types.NewAny(
 				types.NewSet(types.S),
 				types.NewArray(nil, types.S),
-			),
+			)).Description("strings to join"),
 		),
-		types.S,
+		types.Named("output", types.S),
 	),
+	Categories: stringsCat,
 }
 
-// FormatInt returns the string representation of the number in the given base after converting it to an integer value.
 var FormatInt = &Builtin{
-	Name: "format_int",
+	Name:        "format_int",
+	Description: "Returns the string representation of the number in the given base after converting it to an integer value.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.N,
-			types.N,
+			types.Named("number", types.N).Description("number to format"),
+			types.Named("base", types.N).Description("base of number representation to use"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("formatted number"),
 	),
+	Categories: stringsCat,
 }
 
-// IndexOf returns the index of a substring contained inside a string
 var IndexOf = &Builtin{
-	Name: "indexof",
+	Name:        "indexof",
+	Description: "Returns the index of a substring contained inside a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("haystack", types.S).Description("string to search in"),
+			types.Named("needle", types.S).Description("substring to look for"),
 		),
-		types.N,
+		types.Named("output", types.N).Description("index of first occurrence, `-1` if not found"),
 	),
+	Categories: stringsCat,
 }
 
-// IndexOfN returns a list of all the indexes of a substring contained inside a string
 var IndexOfN = &Builtin{
-	Name: "indexof_n",
+	Name:        "indexof_n",
+	Description: "Returns a list of all the indexes of a substring contained inside a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("haystack", types.S).Description("string to search in"),
+			types.Named("needle", types.S).Description("substring to look for"),
 		),
-		types.NewArray(nil, types.N),
+		types.Named("output", types.NewArray(nil, types.N)).Description("all indices at which `needle` occurs in `haystack`, may be empty"),
 	),
+	Categories: stringsCat,
 }
 
-// Substring returns the portion of a string for a given start index and a length.
-//   If the length is less than zero, then substring returns the remainder of the string.
 var Substring = &Builtin{
-	Name: "substring",
+	Name:        "substring",
+	Description: "Returns the  portion of a string for a given `offset` and a `length`.  If `length < 0`, `output` is the remainder of the string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.N,
-			types.N,
+			types.Named("value", types.S),
+			types.Named("offset", types.N).Description("offset, must be positive"),
+			types.Named("length", types.N).Description("length of the substring starting from `offset`"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("substring of `value` from `offset`, of length `length`"),
 	),
+	Categories: stringsCat,
 }
 
-// Contains returns true if the search string is included in the base string
 var Contains = &Builtin{
-	Name: "contains",
+	Name:        "contains",
+	Description: "Returns `true` if the search string is included in the base string",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("haystack", types.S).Description("string to search in"),
+			types.Named("needle", types.S).Description("substring to look for"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("result of the containment check"),
 	),
+	Categories: stringsCat,
 }
 
-// StartsWith returns true if the search string begins with the base string
 var StartsWith = &Builtin{
-	Name: "startswith",
+	Name:        "startswith",
+	Description: "Returns true if the search string begins with the base string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("base", types.S).Description("the base string"),
-			types.Named("search", types.S).Description("the search string"),
+			types.Named("base", types.S).Description("base string"),
+			types.Named("search", types.S).Description("search string"),
 		),
-		types.Named("result", types.B).Description("the result of the prefix check"),
+		types.Named("result", types.B).Description("result of the prefix check"),
 	),
+	Categories: stringsCat,
 }
 
-// EndsWith returns true if the search string begins with the base string
 var EndsWith = &Builtin{
-	Name: "endswith",
+	Name:        "endswith",
+	Description: "Returns true if the search string begins with the base string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("base", types.S).Description("the base string"),
-			types.Named("search", types.S).Description("the search string"),
+			types.Named("base", types.S).Description("base string"),
+			types.Named("search", types.S).Description("search string"),
 		),
-		types.Named("result", types.B).Description("the result of the suffix check"),
+		types.Named("result", types.B).Description("result of the suffix check"),
 	),
+	Categories: stringsCat,
 }
 
-// Lower returns the input string but with all characters in lower-case
 var Lower = &Builtin{
-	Name: "lower",
+	Name:        "lower",
+	Description: "Returns the input string but with all characters in lower-case.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S).Description("the string that is converted to lower-case"),
+			types.Named("x", types.S).Description("string that is converted to lower-case"),
 		),
-		types.Named("y", types.S).Description("the lower-case of x"),
+		types.Named("y", types.S).Description("lower-case of x"),
 	),
+	Categories: stringsCat,
 }
 
-// Upper returns the input string but with all characters in upper-case
 var Upper = &Builtin{
-	Name: "upper",
+	Name:        "upper",
+	Description: "Returns the input string but with all characters in upper-case.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S).Description("the string that is converted to upper-case"),
+			types.Named("x", types.S).Description("string that is converted to upper-case"),
 		),
-		types.Named("y", types.S).Description("the upper-case of x"),
+		types.Named("y", types.S).Description("upper-case of x"),
 	),
+	Categories: stringsCat,
 }
 
 var Split = &Builtin{
@@ -1078,11 +1088,12 @@ var Split = &Builtin{
 	Description: "Split returns an array containing elements of the input string split on a delimiter.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S).Description("the string that is split"),
-			types.Named("delimiter", types.S).Description("the delimiter used for splitting"),
+			types.Named("x", types.S).Description("string that is split"),
+			types.Named("delimiter", types.S).Description("delimiter used for splitting"),
 		),
-		types.Named("ys", types.NewArray(nil, types.S)).Description("the splitted parts"),
+		types.Named("ys", types.NewArray(nil, types.S)).Description("splitted parts"),
 	),
+	Categories: stringsCat,
 }
 
 var Replace = &Builtin{
@@ -1090,127 +1101,134 @@ var Replace = &Builtin{
 	Description: "Replace replaces all instances of a sub-string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.S).Description("the string being processed"),
-			types.Named("old", types.S).Description("the substring to replace"),
-			types.Named("new", types.S).Description("the string to replace `old` with"),
+			types.Named("x", types.S).Description("string being processed"),
+			types.Named("old", types.S).Description("substring to replace"),
+			types.Named("new", types.S).Description("string to replace `old` with"),
 		),
-		types.Named("y", types.S).Description("the string with replaced substrings"),
+		types.Named("y", types.S).Description("string with replaced substrings"),
 	),
+	Categories: stringsCat,
 }
 
-// ReplaceN replaces a string from a list of old, new string pairs.
-// Replacements are performed in the order they appear in the target string, without overlapping matches.
-// The old string comparisons are done in argument order.
 var ReplaceN = &Builtin{
 	Name: "strings.replace_n",
+	Description: `Replaces a string from a list of old, new string pairs.
+Replacements are performed in the order they appear in the target string, without overlapping matches.
+The old string comparisons are done in argument order.`,
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("patterns", types.NewObject(
 				nil,
 				types.NewDynamicProperty(
 					types.S,
 					types.S)),
-			types.S,
+			).Description("replacement pairs"),
+			types.Named("value", types.S).Description("string to replace substring matches in"),
 		),
-		types.S,
+		types.Named("output", types.S),
 	),
 }
 
-// Trim returns the given string with all leading or trailing instances of the second
-// argument removed.
 var Trim = &Builtin{
-	Name: "trim",
+	Name:        "trim",
+	Description: "Returns `value` with all leading or trailing instances of the `cutset` characters removed.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
+			types.Named("cutset", types.S).Description("string of characters that are cut off"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string trimmed of `cutset` characters"),
 	),
+	Categories: stringsCat,
 }
 
-// TrimLeft returns the given string with all leading instances of second argument removed.
 var TrimLeft = &Builtin{
-	Name: "trim_left",
+	Name:        "trim_left",
+	Description: "Returns `value` with all leading instances of the `cutset` chartacters removed.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
+			types.Named("cutset", types.S).Description("string of characters that are cut off on the left"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string left-trimmed of `cutset` characters"),
 	),
+	Categories: stringsCat,
 }
 
-// TrimPrefix returns the given string without the second argument prefix string.
-// If the given string doesn't start with prefix, it is returned unchanged.
 var TrimPrefix = &Builtin{
-	Name: "trim_prefix",
+	Name:        "trim_prefix",
+	Description: "Returns `value` without the prefix. If `value` doesn't start with `prefix`, it is returned unchanged.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
+			types.Named("prefix", types.S).Description("prefix to cut off"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string with `prefix` cut off"),
 	),
+	Categories: stringsCat,
 }
 
-// TrimRight returns the given string with all trailing instances of second argument removed.
 var TrimRight = &Builtin{
-	Name: "trim_right",
+	Name:        "trim_right",
+	Description: "Returns `value` with all trailing instances of the `cutset` chartacters removed.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
+			types.Named("cutset", types.S).Description("string of characters that are cut off on the right"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string right-trimmed of `cutset` characters"),
 	),
+	Categories: stringsCat,
 }
 
-// TrimSuffix returns the given string without the second argument suffix string.
-// If the given string doesn't end with suffix, it is returned unchanged.
 var TrimSuffix = &Builtin{
-	Name: "trim_suffix",
+	Name:        "trim_suffix",
+	Description: "Returns `value` without the suffix. If `value` doesn't end with `suffix`, it is returned unchanged.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
+			types.Named("suffix", types.S).Description("suffix to cut off"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string with `suffix` cut off"),
 	),
+	Categories: stringsCat,
 }
 
-// TrimSpace return the given string with all leading and trailing white space removed.
 var TrimSpace = &Builtin{
-	Name: "trim_space",
+	Name:        "trim_space",
+	Description: "Return the given string with all leading and trailing white space removed.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("value", types.S).Description("string to trim"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("string leading and trailing white space cut off"),
 	),
+	Categories: stringsCat,
 }
 
-// Sprintf returns the given string, formatted.
 var Sprintf = &Builtin{
-	Name: "sprintf",
+	Name:        "sprintf",
+	Description: "Returns the given string, formatted.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.NewArray(nil, types.A),
+			types.Named("format", types.S).Description("string with formatting verbs"),
+			types.Named("values", types.NewArray(nil, types.A)).Description("arguments to format into formatting verbs"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("`format` formatted by the values in `values`"),
 	),
+	Categories: stringsCat,
 }
 
-// StringReverse returns the given string, reversed.
 var StringReverse = &Builtin{
-	Name: "strings.reverse",
+	Name:        "strings.reverse",
+	Description: "Reverses a given string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("x", types.S),
 		),
-		types.S,
+		types.Named("y", types.S),
 	),
+	Categories: stringsCat,
 }
 
 /**
