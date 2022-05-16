@@ -1,7 +1,7 @@
 package jwk
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -11,7 +11,7 @@ func newSymmetricKey(key []byte) (*SymmetricKey, error) {
 
 	err := hdr.Set(KeyTypeKey, jwa.OctetSeq)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to set Key Type")
+		return nil, fmt.Errorf("failed to set Key Type: %w", err)
 	}
 	return &SymmetricKey{
 		StandardHeaders: &hdr,

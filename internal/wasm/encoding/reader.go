@@ -11,8 +11,6 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/internal/leb128"
 	"github.com/open-policy-agent/opa/internal/wasm/constant"
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
@@ -27,7 +25,7 @@ func ReadModule(r io.Reader) (*module.Module, error) {
 	wr := &reader{r: r, n: 0}
 	module, err := readModule(wr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "offset 0x%x", wr.n)
+		return nil, fmt.Errorf("offset 0x%x: %w", wr.n, err)
 	}
 
 	return module, nil
@@ -39,7 +37,7 @@ func ReadCodeEntry(r io.Reader) (*module.CodeEntry, error) {
 	wr := &reader{r: r, n: 0}
 	entry, err := readCodeEntry(wr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "offset 0x%x", wr.n)
+		return nil, fmt.Errorf("offset 0x%x: %w", wr.n, err)
 	}
 
 	return entry, nil
@@ -97,7 +95,7 @@ func readCodeEntry(r io.Reader) (*module.CodeEntry, error) {
 	var entry module.CodeEntry
 
 	if err := readLocals(r, &entry.Func.Locals); err != nil {
-		return nil, errors.Wrapf(err, "local declarations")
+		return nil, fmt.Errorf("local declarations: %w", err)
 	}
 
 	return &entry, readExpr(r, &entry.Func.Expr)
@@ -145,61 +143,61 @@ func readSections(r io.Reader, m *module.Module) error {
 		switch id {
 		case constant.StartSectionID:
 			if err := readStartSection(bufr, &m.Start); err != nil {
-				return errors.Wrap(err, "start section")
+				return fmt.Errorf("start section: %w", err)
 			}
 		case constant.CustomSectionID:
 			var name string
 			if err := readByteVectorString(bufr, &name); err != nil {
-				return errors.Wrap(err, "read custom section type")
+				return fmt.Errorf("read custom section type: %w", err)
 			}
 			if name == "name" {
 				if err := readCustomNameSections(bufr, &m.Names); err != nil {
-					return errors.Wrap(err, "custom 'name' section")
+					return fmt.Errorf("custom 'name' section: %w", err)
 				}
 			} else {
 				if err := readCustomSection(bufr, name, &m.Customs); err != nil {
-					return errors.Wrap(err, "custom section")
+					return fmt.Errorf("custom section: %w", err)
 				}
 			}
 		case constant.TypeSectionID:
 			if err := readTypeSection(bufr, &m.Type); err != nil {
-				return errors.Wrap(err, "type section")
+				return fmt.Errorf("type section: %w", err)
 			}
 		case constant.ImportSectionID:
 			if err := readImportSection(bufr, &m.Import); err != nil {
-				return errors.Wrap(err, "import section")
+				return fmt.Errorf("import section: %w", err)
 			}
 		case constant.TableSectionID:
 			if err := readTableSection(bufr, &m.Table); err != nil {
-				return errors.Wrap(err, "table section")
+				return fmt.Errorf("table section: %w", err)
 			}
 		case constant.MemorySectionID:
 			if err := readMemorySection(bufr, &m.Memory); err != nil {
-				return errors.Wrap(err, "memory section")
+				return fmt.Errorf("memory section: %w", err)
 			}
 		case constant.GlobalSectionID:
 			if err := readGlobalSection(bufr, &m.Global); err != nil {
-				return errors.Wrap(err, "global section")
+				return fmt.Errorf("global section: %w", err)
 			}
 		case constant.FunctionSectionID:
 			if err := readFunctionSection(bufr, &m.Function); err != nil {
-				return errors.Wrap(err, "function section")
+				return fmt.Errorf("function section: %w", err)
 			}
 		case constant.ExportSectionID:
 			if err := readExportSection(bufr, &m.Export); err != nil {
-				return errors.Wrap(err, "export section")
+				return fmt.Errorf("export section: %w", err)
 			}
 		case constant.ElementSectionID:
 			if err := readElementSection(bufr, &m.Element); err != nil {
-				return errors.Wrap(err, "element section")
+				return fmt.Errorf("element section: %w", err)
 			}
 		case constant.DataSectionID:
 			if err := readDataSection(bufr, &m.Data); err != nil {
-				return errors.Wrap(err, "data section")
+				return fmt.Errorf("data section: %w", err)
 			}
 		case constant.CodeSectionID:
 			if err := readRawCodeSection(bufr, &m.Code); err != nil {
-				return errors.Wrap(err, "code section")
+				return fmt.Errorf("code section: %w", err)
 			}
 		default:
 			return fmt.Errorf("illegal section id")

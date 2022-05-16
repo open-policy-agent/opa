@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
@@ -2088,7 +2087,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		case map[interface{}]interface{}:
 			w, err := convertYAMLMapKeyTypes(v, nil)
 			if err != nil {
-				return nil, errors.Wrap(err, "invalid schema definition")
+				return nil, fmt.Errorf("invalid schema definition: %w", err)
 			}
 			a.Definition = &w
 		default:
