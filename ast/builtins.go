@@ -1911,117 +1911,121 @@ var JWTEncodeSign = &Builtin{
  * Time
  */
 
-// NowNanos returns the current time since epoch in nanoseconds.
 var NowNanos = &Builtin{
-	Name: "time.now_ns",
+	Name:        "time.now_ns",
+	Description: "Returns the current time since epoch in nanoseconds.",
 	Decl: types.NewFunction(
 		nil,
-		types.N,
+		types.Named("now", types.N).Description("nanoseconds since epoch"),
 	),
 }
 
-// ParseNanos returns the time in nanoseconds parsed from the string in the given format.
 var ParseNanos = &Builtin{
-	Name: "time.parse_ns",
+	Name:        "time.parse_ns",
+	Description: "Returns the time in nanoseconds parsed from the string in the given format. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("layout", types.S).Description("format used for parsing, see the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details"),
+			types.Named("value", types.S).Description("input to parse according to `layout`"),
 		),
-		types.N,
+		types.Named("ns", types.N).Description("`value` in nanoseconds since epoch"),
 	),
 }
 
-// ParseRFC3339Nanos returns the time in nanoseconds parsed from the string in RFC3339 format.
 var ParseRFC3339Nanos = &Builtin{
-	Name: "time.parse_rfc3339_ns",
+	Name:        "time.parse_rfc3339_ns",
+	Description: "Returns the time in nanoseconds parsed from the string in RFC3339 format. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.N,
+		types.Args(
+			types.Named("value", types.S),
+		),
+		types.Named("ns", types.N).Description("`value` in nanoseconds since epoch"),
 	),
 }
 
-// ParseDurationNanos returns the duration in nanoseconds represented by a duration string.
-// Duration string is similar to the Go time.ParseDuration string
 var ParseDurationNanos = &Builtin{
-	Name: "time.parse_duration_ns",
+	Name:        "time.parse_duration_ns",
+	Description: "Returns the duration in nanoseconds represented by a string.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.N,
+		types.Args(
+			types.Named("duration", types.S).Description("a duration like \"3m\"; seethe [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details"),
+		),
+		types.Named("ns", types.N).Description("the `duration` in nanoseconds"),
 	),
 }
 
-// Date returns the [year, month, day] for the nanoseconds since epoch.
 var Date = &Builtin{
-	Name: "time.date",
+	Name:        "time.date",
+	Description: "Returns the `[year, month, day]` for the nanoseconds since epoch.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("x", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			),
+			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string"),
 		),
-		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
+		types.Named("date", types.NewArray([]types.Type{types.N, types.N, types.N}, nil)).Description("an array of `year`, `month` (1-12), and `day` (1-31)"),
 	),
 }
 
-// Clock returns the [hour, minute, second] of the day for the nanoseconds since epoch.
 var Clock = &Builtin{
-	Name: "time.clock",
+	Name:        "time.clock",
+	Description: "Returns the `[hour, minute, second]` of the day for the nanoseconds since epoch.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("x", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			),
+			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string"),
 		),
-		types.NewArray([]types.Type{types.N, types.N, types.N}, nil),
+		types.Named("output", types.NewArray([]types.Type{types.N, types.N, types.N}, nil)).
+			Description("the `hour`, `minute` (0-59), and `second` (0-59) representing the time of day for the nanoseconds since epoch in the supplied timezone (or UTC)"),
 	),
 }
 
-// Weekday returns the day of the week (Monday, Tuesday, ...) for the nanoseconds since epoch.
 var Weekday = &Builtin{
-	Name: "time.weekday",
+	Name:        "time.weekday",
+	Description: "Returns the day of the week (Monday, Tuesday, ...) for the nanoseconds since epoch.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("x", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			),
+			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string"),
 		),
-		types.S,
+		types.Named("day", types.S).Description("the weekday represented by `ns` nanoseconds since the epoch in the supplied timezone (or UTC)"),
 	),
 }
 
-// AddDate returns the nanoseconds since epoch after adding years, months and days to nanoseconds.
 var AddDate = &Builtin{
-	Name: "time.add_date",
+	Name:        "time.add_date",
+	Description: "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.N,
-			types.N,
-			types.N,
-			types.N,
+			types.Named("ns", types.N).Description("nanoseconds since the epoch"),
+			types.Named("years", types.N),
+			types.Named("months", types.N),
+			types.Named("days", types.N),
 		),
-		types.N,
+		types.Named("output", types.N).Description("nanoseconds since the epoch representing the input time, with years, months and days added"),
 	),
 }
 
-// Diff returns the difference [years, months, days, hours, minutes, seconds] between two unix timestamps in nanoseconds
 var Diff = &Builtin{
-	Name: "time.diff",
+	Name:        "time.diff",
+	Description: "Returns the difference between two unix timestamps in nanoseconds (with optional timezone strings).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
+			types.Named("ns1", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			),
-			types.NewAny(
+			)),
+			types.Named("ns2", types.NewAny(
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
-			),
+			)),
 		),
-		types.NewArray([]types.Type{types.N, types.N, types.N, types.N, types.N, types.N}, nil),
+		types.Named("output", types.NewArray([]types.Type{types.N, types.N, types.N, types.N, types.N, types.N}, nil)).Description("difference between `ns1` and `ns2` (in their supplied timezones, if supplied, or UTC) as array of numbers: `[years, months, days, hours, minutes, seconds]`"),
 	),
 }
 
