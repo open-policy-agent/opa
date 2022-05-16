@@ -1248,27 +1248,34 @@ var NumbersRange = &Builtin{
  * Units
  */
 
-// UnitsParse converts strings like 10G, 5K, 4M, 1500m and the like into a
-// number. This number can be a non-integer, such as 1.5, 0.22, etc.
+// UnitsParse
 var UnitsParse = &Builtin{
 	Name: "units.parse",
+	Description: `Converts strings like "10G", "5K", "4M", "1500m" and the like into a number.
+This number can be a non-integer, such as 1.5, 0.22, etc. Supports standard metric decimal and
+binary SI units (e.g., K, Ki, M, Mi, G, Gi etc.) m, K, M, G, T, P, and E are treated as decimal
+units and Ki, Mi, Gi, Ti, Pi, and Ei are treated as binary units.
+
+Note that 'm' and 'M' are case-sensitive, to allow distinguishing between "milli" and "mega" units respectively. Other units are case-insensitive.`,
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("x", types.S).Description("the unit to parse"),
 		),
-		types.N,
+		types.Named("y", types.N).Description("the parsed number"),
 	),
 }
 
-// UnitsParseBytes converts strings like 10GB, 5K, 4mb, and the like into an
-// integer number of bytes.
 var UnitsParseBytes = &Builtin{
 	Name: "units.parse_bytes",
+	Description: `Converts strings like "10GB", "5K", "4mb" into an integer number of bytes.
+Supports standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal
+units and KiB, MiB, GiB, and TiB are treated as binary units. The bytes symbol (b/B) in the
+unit is optional and omitting it wil give the same result (e.g. Mi and MiB).`,
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("x", types.S).Description("the byte unit to parse"),
 		),
-		types.N,
+		types.Named("y", types.N).Description("the parsed number"),
 	),
 }
 
