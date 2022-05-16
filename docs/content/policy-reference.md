@@ -981,13 +981,8 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 | <span class="opa-keep-it-together">``output := semver.is_valid(str)``</span> | ``output`` is a ``boolean``. ``true`` means the input is a valid SemVer string (e.g. "1.0.0"). ``false`` is returned for invalid version strings and non-string input. | {{< builtin-tags semver.is_valid >}} |
 | <span class="opa-keep-it-together">``output := semver.compare(str, str)``</span> | ``output`` is a ``number``. ``-1`` means the version in the first operand is less than the second. ``1`` means the version in the first operand is greater than the second. ``0`` means the versions are equal. Only valid SemVer strings are accepted e.g. ``1.2.3`` or ``0.1.0`` | {{< builtin-tags semver.compare >}} |
 
-### Rego
 
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := rego.parse_module(filename, string)``</span> | ``rego.parse_module`` parses the input ``string`` as a Rego module and returns the AST as a JSON object ``output``. | {{< builtin-tags rego.parse_module >}} |
-| <span class="opa-keep-it-together">``output := rego.metadata.chain()``</span> | Each entry in the ``output`` array represents a node in the path ancestry (chain) of the active rule that also has declared [annotations](../annotations).``output`` is ordered starting at the active rule, going outward to the most distant node in its package ancestry. A chain entry is a JSON document with two members: ``path``, an array representing the path of the node; and ``annotations``, a JSON document containing the annotations declared for the node. The first entry in the chain always points to the active rule, even if it has no declared annotations (in which case the ``annotations`` member is not present). | {{< builtin-tags rego.metadata.chain >}} |
-| <span class="opa-keep-it-together">``output := rego.metadata.rule()``</span> | Returns a JSON object ``output`` containing the set of [annotations](../annotations) declared for the active rule and using the `rule` [scope](../annotations#scope). If no annotations are declared, an empty object is returned. | {{< builtin-tags rego.metadata.rule >}} |
+{{< builtin-table rego >}}
 
 #### Example
 

@@ -2346,34 +2346,37 @@ var HTTPSend = &Builtin{
  * Rego
  */
 
-// RegoParseModule parses the input Rego file and returns a JSON representation
-// of the AST.
 var RegoParseModule = &Builtin{
-	Name: "rego.parse_module",
+	Name:        "rego.parse_module",
+	Description: "Parses the input Rego string and returns an object representation of the AST.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("filename", types.S).Description("file name to attach to AST nodes' locations"),
+			types.Named("rego", types.S).Description("Rego module"),
 		),
-		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)), // TODO(tsandall): import AST schema
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))), // TODO(tsandall): import AST schema
 	),
 }
 
-// RegoMetadataChain returns the chain of metadata for the active rule
 var RegoMetadataChain = &Builtin{
 	Name: "rego.metadata.chain",
+	Description: `Returns the chain of metadata for the active rule.
+Ordered starting at the active rule, going outward to the most distant node in its package ancestry.
+A chain entry is a JSON document with two members: "path", an array representing the path of the node; and "annotations", a JSON document containing the annotations declared for the node.
+The first entry in the chain always points to the active rule, even if it has no declared annotations (in which case the "annotations" member is not present).`,
 	Decl: types.NewFunction(
 		types.Args(),
-		types.NewArray(nil, types.A),
+		types.Named("chain", types.NewArray(nil, types.A)).Description("each array entry represents a node in the path ancestry (chain) of the active rule that also has declared annotations"),
 	),
 }
 
 // RegoMetadataRule returns the metadata for the active rule
 var RegoMetadataRule = &Builtin{
-	Name: "rego.metadata.rule",
+	Name:        "rego.metadata.rule",
+	Description: "Returns annotations declared for the active rule and using the _rule_ scope.",
 	Decl: types.NewFunction(
 		types.Args(),
-		types.A,
+		types.Named("output", types.A).Description("\"rule\" scope annotations for this rule; empty object if no annotations exist"),
 	),
 }
 
