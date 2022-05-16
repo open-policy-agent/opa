@@ -1109,11 +1109,12 @@ merge_annot(chain, name) = val {
 } else = null
 ```
 
-### OPA
+{{< builtin-table cat=opa title=OPA >}}
 
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := opa.runtime()``</span> | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. The ``output`` of ``opa.runtime`` will include ``"version"`` and ``"commit"`` keys containing the semantic version and build commit of OPA. | {{< builtin-tags opa.runtime >}} |
+{{< danger >}}
+Policies that depend on the output of `opa.runtime` may return different answers depending on how OPA was started.
+If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`.
+{{< /danger >}}
 
 ### Debugging
 
@@ -1129,11 +1130,7 @@ API | Output | Memo
 `opa run -s` (server) | `stderr` | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.
 Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements)
 
-### Tracing
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` emits ``string`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | {{< builtin-tags trace >}} |
+{{< builtin-table tracing >}}
 
 By default, explanations are disabled. The following table summarizes how you can enable tracing:
 

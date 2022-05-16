@@ -2381,29 +2381,31 @@ var RegoMetadataRule = &Builtin{
  * OPA
  */
 
-// OPARuntime returns an object containing OPA runtime information such as the
-// configuration that OPA was booted with.
 var OPARuntime = &Builtin{
-	Name: "opa.runtime",
+	Name:        "opa.runtime",
+	Description: "Returns an object that describes the runtime environment where OPA is deployed.",
 	Decl: types.NewFunction(
 		nil,
-		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
+			Description("includes a `config` key if OPA was started with a configuration file; an `env` key containing the environment variables that the OPA process was started with; includes `version` and `commit` keys containing the version and build commit of OPA."),
 	),
 }
 
 /**
  * Trace
  */
+var tracing = category("tracing")
 
-// Trace prints a note that is included in the query explanation.
 var Trace = &Builtin{
-	Name: "trace",
+	Name:        "trace",
+	Description: "Emits `note` as a `Note` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, `trace(\"Hello There!\")` includes `Note \"Hello There!\"` in the query explanation. To include variables in the message, use `sprintf`. For example, `person := \"Bob\"; trace(sprintf(\"Hello There! %v\", [person]))` will emit `Note \"Hello There! Bob\"` inside of the explanation.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("note", types.S).Description("the note to include"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("always `true`"),
 	),
+	Categories: tracing,
 }
 
 /**
