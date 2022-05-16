@@ -12,7 +12,7 @@
 {{- end -}}
 
 <h3 id={{ $id }}>{{ $title | title }}</h3>
-<table class="table is-hoverable">
+<table class="table bi-cat is-hoverable">
     <tbody>
     {{- range $name := index site.Data.builtin_metadata._categories $cat }}
     {{- $anchor := anchorize (printf "builtin-%s-%s" $cat $name) }}
