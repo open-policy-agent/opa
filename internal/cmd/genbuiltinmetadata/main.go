@@ -53,8 +53,10 @@ func main() {
 		} else if resType != nil {
 			res["type"] = resType.String()
 		}
+		versions := getVersions(bi.Name, sorted)
 		md := map[string]interface{}{
-			"introduced": getFirstVersion(bi.Name, sorted),
+			"introduced": versions[0],
+			"available":  versions,
 			"wasm":       getWasm(bi.Name),
 			"args":       argTypes,
 			"result":     res,
@@ -67,6 +69,7 @@ func main() {
 		}
 		mdata[bi.Name] = md
 	}
+
 	mdata["_categories"] = categories
 
 	md, err := os.Create(os.Args[1]) // metadata
@@ -86,15 +89,16 @@ func main() {
 	}
 }
 
-func getFirstVersion(bi string, sorted []versionedCaps) string {
+func getVersions(bi string, sorted []versionedCaps) []string {
+	vers := []string{}
 	for i := range sorted {
 		for j := range sorted[i].caps.Builtins {
 			if sorted[i].caps.Builtins[j].Name == bi {
-				return sorted[i].version
+				vers = append(vers, sorted[i].version)
 			}
 		}
 	}
-	panic("unreachable")
+	return vers
 }
 
 func getLatest(bi string, sorted []versionedCaps) *ast.Builtin {
