@@ -283,13 +283,9 @@ scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
 {{< builtin-table comparison >}}
-
 {{< builtin-table numbers >}}
-
 {{< builtin-table aggregates >}}
-
 {{< builtin-table cat=array id=arrays-2 title=arrays >}}
-
 {{< builtin-table cat=sets id=sets-2 >}}
 
 ### Objects
