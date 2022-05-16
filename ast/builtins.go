@@ -1286,10 +1286,13 @@ unit is optional and omitting it wil give the same result (e.g. Mi and MiB).`,
 
 // UUIDRFC4122 returns a version 4 UUID string.
 var UUIDRFC4122 = &Builtin{
-	Name: "uuid.rfc4122",
+	Name:        "uuid.rfc4122",
+	Description: "Returns a new UUIDv4.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("k", types.S),
+		),
+		types.Named("output", types.S).Description("a version 4 UUID; for any given `k`, the output will be consistent throughout a query evaluation"),
 	),
 }
 
@@ -2537,29 +2540,26 @@ var NetLookupIPAddr = &Builtin{
  * Semantic Versions
  */
 
-// SemVerIsValid validiates a the term is a valid SemVer as a string, returns
-// false for all other input
 var SemVerIsValid = &Builtin{
-	Name: "semver.is_valid",
+	Name:        "semver.is_valid",
+	Description: "Validates that the input is a valid SemVer string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
+			types.Named("vsn", types.A),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if `vsn` is a valid SemVer; `false` otherwise"),
 	),
 }
 
-// SemVerCompare compares valid SemVer formatted version strings. Given two
-// version strings, if A < B returns -1, if A > B returns 1. If A == B, returns
-// 0
 var SemVerCompare = &Builtin{
-	Name: "semver.compare",
+	Name:        "semver.compare",
+	Description: "Compares valid SemVer formatted version strings.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("a", types.S),
+			types.Named("b", types.S),
 		),
-		types.N,
+		types.Named("result", types.N).Description("`-1` if `a < b`; `1` if `b > a`; `0` if `a == b`"),
 	),
 }
 
