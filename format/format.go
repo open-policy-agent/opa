@@ -300,8 +300,10 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 
 	if len(rule.Head.Args) > 0 {
 		closeLoc = closingLoc('(', ')', '{', '}', rule.Location)
-	} else {
+	} else if rule.Head.Key != nil {
 		closeLoc = closingLoc('[', ']', '{', '}', rule.Location)
+	} else {
+		closeLoc = closingLoc(0, 0, '{', '}', rule.Location)
 	}
 
 	comments = w.insertComments(comments, closeLoc)
