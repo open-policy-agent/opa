@@ -357,7 +357,7 @@ The following table shows examples of how ``glob.match`` works:
 {{< builtin-table types >}}
 {{< builtin-table encoding >}}
 
-### Token Signing
+{{< builtin-table cat=tokensign title="Token Signing" >}}
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
 
@@ -369,10 +369,12 @@ OPA provides two builtins that implement JSON Web Signature [RFC7515](https://to
 ``io.jwt.encode_sign()`` takes three Rego Objects as parameters and returns their JWS Compact Serialization. This builtin
  should be used by those that want to use rego objects for signing during policy evaluation.
 
-> Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
-> whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
-> This will mean that the final encoded token may have different string values, but the decoded and parsed
-> JSON will match.
+{{< info >}}
+Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
+whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
+This will mean that the final encoded token may have different string values, but the decoded and parsed
+JSON will match.
+{{< /info >}}
 
 The following algorithms are supported:
 
@@ -389,15 +391,11 @@ The following algorithms are supported:
 	RS384       "RS384" // RSASSA-PKCS-v1.5 using SHA-384
 	RS512       "RS512" // RSASSA-PKCS-v1.5 using SHA-512
 
-<br>
 
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := io.jwt.encode_sign_raw(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` as strings that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.| {{< builtin-tags io.jwt.encode_sign_raw >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.encode_sign(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` are JSON objects that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.| {{< builtin-tags io.jwt.encode_sign >}} |
-
-> Note that the key's provided should be base64 encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
-> This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
+{{< info >}}
+Note that the key's provided should be base64 encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
+This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
+{{< /info >}}
 
 #### Token Signing Examples
 
@@ -488,27 +486,12 @@ io.jwt.encode_sign_raw(
 ```live:jwt/raw:output
 ```
 
-### Token Verification
+{{< builtin-table cat=tokens title="Token Verification" >}}
 
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs256(string, certificate)``</span> | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS256 signature| {{< builtin-tags io.jwt.verify_rs256 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs384(string, certificate)``</span> | ``output`` is ``true`` if the RS384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS384 signature| {{< builtin-tags io.jwt.verify_rs384 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs512(string, certificate)``</span> | ``output`` is ``true`` if the RS512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS512 signature| {{< builtin-tags io.jwt.verify_rs512 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps256(string, certificate)``</span> | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS256 signature| {{< builtin-tags io.jwt.verify_ps256 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps384(string, certificate)``</span> | ``output`` is ``true`` if the PS384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS384 signature| {{< builtin-tags io.jwt.verify_ps384 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps512(string, certificate)``</span> | ``output`` is ``true`` if the PS512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS512 signature| {{< builtin-tags io.jwt.verify_ps512 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es256(string, certificate)``</span> | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES256 signature| {{< builtin-tags io.jwt.verify_es256 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es384(string, certificate)``</span> | ``output`` is ``true`` if the ES384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES384 signature| {{< builtin-tags io.jwt.verify_es384 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es512(string, certificate)``</span> | ``output`` is ``true`` if the ES512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES512 signature| {{< builtin-tags io.jwt.verify_es512 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs256(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature| {{< builtin-tags io.jwt.verify_hs256 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs384(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS384 signature| {{< builtin-tags io.jwt.verify_hs384 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs512(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS512 signature| {{< builtin-tags io.jwt.verify_hs512 >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.decode(string)``</span> | ``output`` is of the form ``[header, payload, sig]``.  ``header`` and ``payload`` are ``object``. ``sig`` is the hexadecimal representation of the signature on the token. | {{< builtin-tags io.jwt.decode >}} |
-| <span class="opa-keep-it-together">``output := io.jwt.decode_verify(string, constraints)``</span> | ``output`` is of the form ``[valid, header, payload]``.  If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. Supports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384 and PS512. | {{< builtin-tags io.jwt.decode_verify >}} |
-
-> Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
-> payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+{{< info >}}
+Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
+payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+{{< /info >}}
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 

@@ -1725,206 +1725,226 @@ var HexDecode = &Builtin{
 /**
  * Tokens
  */
+var tokensCat = category("tokens")
 
-// JWTDecode decodes a JSON Web Token and outputs it as an Object.
 var JWTDecode = &Builtin{
-	Name: "io.jwt.decode",
+	Name:        "io.jwt.decode",
+	Description: "Decodes a JSON Web Token and outputs it as an object.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewArray([]types.Type{
+		types.Args(
+			types.Named("jwt", types.S).Description("JWT token to decode"),
+		),
+		types.Named("output", types.NewArray([]types.Type{
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			types.S,
-		}, nil),
+		}, nil)).Description("`[header, payload, sig]`, where `header` and `payload` are objects; `sig` is the hexadecimal representation of the signature on the token."),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyRS256 verifies if a RS256 JWT signature is valid or not.
 var JWTVerifyRS256 = &Builtin{
-	Name: "io.jwt.verify_rs256",
+	Name:        "io.jwt.verify_rs256",
+	Description: "Verifies if a RS256 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyRS384 verifies if a RS384 JWT signature is valid or not.
 var JWTVerifyRS384 = &Builtin{
-	Name: "io.jwt.verify_rs384",
+	Name:        "io.jwt.verify_rs384",
+	Description: "Verifies if a RS384 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyRS512 verifies if a RS512 JWT signature is valid or not.
 var JWTVerifyRS512 = &Builtin{
-	Name: "io.jwt.verify_rs512",
+	Name:        "io.jwt.verify_rs512",
+	Description: "Verifies if a RS512 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyPS256 verifies if a PS256 JWT signature is valid or not.
 var JWTVerifyPS256 = &Builtin{
-	Name: "io.jwt.verify_ps256",
+	Name:        "io.jwt.verify_ps256",
+	Description: "Verifies if a PS256 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyPS384 verifies if a PS384 JWT signature is valid or not.
 var JWTVerifyPS384 = &Builtin{
-	Name: "io.jwt.verify_ps384",
+	Name:        "io.jwt.verify_ps384",
+	Description: "Verifies if a PS384 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyPS512 verifies if a PS512 JWT signature is valid or not.
 var JWTVerifyPS512 = &Builtin{
-	Name: "io.jwt.verify_ps512",
+	Name:        "io.jwt.verify_ps512",
+	Description: "Verifies if a PS512 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyES256 verifies if a ES256 JWT signature is valid or not.
 var JWTVerifyES256 = &Builtin{
-	Name: "io.jwt.verify_es256",
+	Name:        "io.jwt.verify_es256",
+	Description: "Verifies if a ES256 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyES384 verifies if a ES384 JWT signature is valid or not.
 var JWTVerifyES384 = &Builtin{
-	Name: "io.jwt.verify_es384",
+	Name:        "io.jwt.verify_es384",
+	Description: "Verifies if a ES384 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyES512 verifies if a ES512 JWT signature is valid or not.
 var JWTVerifyES512 = &Builtin{
-	Name: "io.jwt.verify_es512",
+	Name:        "io.jwt.verify_es512",
+	Description: "Verifies if a ES512 JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("certificate", types.S).Description("PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyHS256 verifies if a HS256 (secret) JWT signature is valid or not.
 var JWTVerifyHS256 = &Builtin{
-	Name: "io.jwt.verify_hs256",
+	Name:        "io.jwt.verify_hs256",
+	Description: "Verifies if a HS256 (secret) JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("secret", types.S).Description("plain text secret used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyHS384 verifies if a HS384 (secret) JWT signature is valid or not.
 var JWTVerifyHS384 = &Builtin{
-	Name: "io.jwt.verify_hs384",
+	Name:        "io.jwt.verify_hs384",
+	Description: "Verifies if a HS384 (secret) JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("secret", types.S).Description("plain text secret used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTVerifyHS512 verifies if a HS512 (secret) JWT signature is valid or not.
 var JWTVerifyHS512 = &Builtin{
-	Name: "io.jwt.verify_hs512",
+	Name:        "io.jwt.verify_hs512",
+	Description: "Verifies if a HS512 (secret) JWT signature is valid.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified"),
+			types.Named("secret", types.S).Description("plain text secret used to verify the signature"),
 		),
-		types.B,
+		types.Named("result", types.B).Description("`true` if the signature is valid, `false` otherwise"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTDecodeVerify verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.
 var JWTDecodeVerify = &Builtin{
 	Name: "io.jwt.decode_verify",
+	Description: `Verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.
+Supports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384 and PS512.`,
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+			types.Named("jwt", types.S).Description("JWT token whose signature is to be verified and whose claims are to be checked"),
+			types.Named("constraints", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("claim verification constraints"),
 		),
-		types.NewArray([]types.Type{
+		types.Named("output", types.NewArray([]types.Type{
 			types.B,
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-		}, nil),
+		}, nil)).Description("`[valid, header, payload]`:  if the input token is verified and meets the requirements of `constraints` then `valid` is `true`; `header` and `payload` are objects containing the JOSE header and the JWT claim set; otherwise, `valid` is `false`, `header` and `payload` are `{}`"),
 	),
+	Categories: tokensCat,
 }
 
-// JWTEncodeSignRaw encodes and optionally sign  a JSON Web Token.
-// Inputs are protected headers, payload, secret
+var tokenSign = category("tokensign")
+
 var JWTEncodeSignRaw = &Builtin{
-	Name: "io.jwt.encode_sign_raw",
+	Name:        "io.jwt.encode_sign_raw",
+	Description: "Encodes and optionally signs a JSON Web Token.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
-			types.S,
+			types.Named("headers", types.S).Description("JWS Protected Header"),
+			types.Named("payload", types.S).Description("JWS Payload"),
+			types.Named("key", types.S).Description("JSON Web Key (RFC7517)"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("signed JWT"),
 	),
+	Categories: tokenSign,
 }
 
-// JWTEncodeSign encodes and optionally sign  a JSON Web Token.
-// Inputs are protected headers, payload, secret
 var JWTEncodeSign = &Builtin{
-	Name: "io.jwt.encode_sign",
+	Name:        "io.jwt.encode_sign",
+	Description: "Encodes and optionally signs a JSON Web Token. Inputs are taken as objects, not encoded strings (see `io.jwt.encode_sign_raw`).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
-			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
-			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+			types.Named("headers", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JWS Protected Header"),
+			types.Named("payload", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JWS Payload"),
+			types.Named("key", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JSON Web Key (RFC7517)"),
 		),
-		types.S,
+		types.Named("output", types.S).Description("signed JWT"),
 	),
+	Categories: tokenSign,
 }
 
 /**
