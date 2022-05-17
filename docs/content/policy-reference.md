@@ -734,11 +734,7 @@ all_paths[entity_name]
 ```live:graph/reachable_paths/example:output
 ```
 
-### HTTP
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. | {{< builtin-tags http.send >}} |
+{{< builtin-table cat=http title=HTTP >}}
 
 {{< danger >}}
 This built-in function **must not** be used for effecting changes in

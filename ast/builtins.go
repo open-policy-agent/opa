@@ -2360,14 +2360,14 @@ var TypeNameBuiltin = &Builtin{
  * HTTP Request
  */
 
-// HTTPSend returns a HTTP response to the given HTTP request.
 var HTTPSend = &Builtin{
-	Name: "http.send",
+	Name:        "http.send",
+	Description: "Returns a HTTP response to the given HTTP request.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 		),
-		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
+		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 	),
 }
 
