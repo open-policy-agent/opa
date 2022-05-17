@@ -1317,16 +1317,20 @@ var UUIDRFC4122 = &Builtin{
  * JSON
  */
 
-// JSONFilter filters the JSON object
+var objectCat = category("object")
+
 var JSONFilter = &Builtin{
 	Name: "json.filter",
+	Description: "Filters the object. " +
+		"For example: `json.filter({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"b\": \"x\"}}`). " +
+		"Paths are not filtered in-order and are deduplicated before being evaluated.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-			types.NewAny(
+			)),
+			types.Named("paths", types.NewAny(
 				types.NewArray(
 					nil,
 					types.NewAny(
@@ -1346,22 +1350,25 @@ var JSONFilter = &Builtin{
 						),
 					),
 				),
-			),
+			)).Description("JSON string paths; "),
 		),
-		types.A,
+		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `paths`"),
 	),
+	Categories: objectCat,
 }
 
-// JSONRemove removes paths in the JSON object
 var JSONRemove = &Builtin{
 	Name: "json.remove",
+	Description: "Removes paths from an object. " +
+		"For example: `json.remove({\"a\": {\"b\": \"x\", \"c\": \"y\"}}, [\"a/b\"])` will result in `{\"a\": {\"c\": \"y\"}}`. " +
+		"Paths are not removed in-order and are deduplicated before being evaluated.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-			types.NewAny(
+			)),
+			types.Named("paths", types.NewAny(
 				types.NewArray(
 					nil,
 					types.NewAny(
@@ -1381,19 +1388,21 @@ var JSONRemove = &Builtin{
 						),
 					),
 				),
-			),
+			)).Description("JSON string paths"),
 		),
-		types.A,
+		types.Named("output", types.A).Description("result of removing all keys specified in `paths`"),
 	),
+	Categories: objectCat,
 }
 
-// JSONPatch patches a JSON object according to RFC6902
 var JSONPatch = &Builtin{
 	Name: "json.patch",
+	Description: "Patches an object according to RFC6902. " +
+		"For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.A,
-			types.NewArray(
+			types.Named("object", types.A), // TODO(sr): types.A?
+			types.Named("patches", types.NewArray(
 				nil,
 				types.NewObject(
 					[]*types.StaticProperty{
@@ -1402,93 +1411,98 @@ var JSONPatch = &Builtin{
 					},
 					types.NewDynamicProperty(types.A, types.A),
 				),
-			),
+			)),
 		),
-		types.A,
+		types.Named("output", types.A).Description("result obtained after consecutively applying all patch operations in `patches`"),
 	),
+	Categories: objectCat,
 }
 
-// ObjectGet returns takes an object and returns a value under its key if
-// present, otherwise it returns the default.
 var ObjectGet = &Builtin{
 	Name: "object.get",
+	Description: "Returns value of an object's key if present, otherwise a default. " +
+		"If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. " +
+		"For example: `object.get({\"a\": [{ \"b\": true }]}, [\"a\", 0, \"b\"], false)` results in `true`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			types.A,
-			types.A,
+			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description(""),
+			types.Named("key", types.A).Description(""),
+			types.Named("default", types.A).Description(""),
 		),
-		types.A,
+		types.Named("value", types.A).Description("`object[key]` if present, otherwise `default`"),
 	),
 }
 
-// ObjectUnion creates a new object that is the asymmetric union of two objects
 var ObjectUnion = &Builtin{
 	Name: "object.union",
+	Description: "Creates a new object of the asymmetric union of two objects. " +
+		"For example: `object.union({\"a\": 1, \"b\": 2, \"c\": {\"d\": 3}}, {\"a\": 7, \"c\": {\"d\": 4, \"e\": 5}})` will result in `{\"a\": 7, \"b\": 2, \"c\": {\"d\": 4, \"e\": 5}}`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("a", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-			types.NewObject(
+			)),
+			types.Named("b", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
+			)),
 		),
-		types.A,
-	),
+		types.Named("output", types.A).Description("a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object `b`"),
+	), // TODO(sr): types.A?  ^^^^^^^ (also below)
 }
 
-// ObjectUnionN creates a new object that is the asymmetric union of all objects merged from left to right
 var ObjectUnionN = &Builtin{
 	Name: "object.union_n",
+	Description: "Creates a new object that is the asymmetric union of all objects merged from left to right. " +
+		"For example: `object.union_n([{\"a\": 1}, {\"b\": 2}, {\"a\": 3}])` will result in `{\"b\": 2, \"a\": 3}`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewArray(
+			types.Named("objects", types.NewArray(
 				nil,
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			),
+			)),
 		),
-		types.A,
+		types.Named("output", types.A).Description("asymmetric recursive union of all objects in `objects`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object"),
 	),
 }
 
-// ObjectRemove Removes specified keys from an object
 var ObjectRemove = &Builtin{
-	Name: "object.remove",
+	Name:        "object.remove",
+	Description: "Removes specified keys from an object.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("x", types.NewObject(
+			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			)).Description("the object to remove keys from"),
-			types.Named("rem", types.NewAny(
+			)).Description("object to remove keys from"),
+			types.Named("keys", types.NewAny(
 				types.NewArray(nil, types.A),
 				types.NewSet(types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			)).Description("the array, set, or object specifying the keys ro remove from x"),
+			)).Description("keys to remove from x"),
 		),
-		types.Named("y", types.A).Description("the object x with the specified keys remvoed selected"),
+		types.Named("output", types.A).Description("result of removing the specified `keys` from `object`"),
 	),
 }
 
-// ObjectFilter filters the object by keeping only specified keys
 var ObjectFilter = &Builtin{
 	Name: "object.filter",
+	Description: "Filters the object by keeping only specified keys. " +
+		"For example: `object.filter({\"a\": {\"b\": \"x\", \"c\": \"y\"}, \"d\": \"z\"}, [\"a\"])` will result in `{\"a\": {\"b\": \"x\", \"c\": \"y\"}}`).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("object", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
-			),
-			types.NewAny(
+			)).Description("object to filter keys"),
+			types.Named("keys", types.NewAny(
 				types.NewArray(nil, types.A),
 				types.NewSet(types.A),
 				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
-			),
+			)),
 		),
-		types.A,
+		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `keys`"),
 	),
 }
 

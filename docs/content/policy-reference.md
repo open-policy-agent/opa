@@ -288,18 +288,7 @@ complex types.
 {{< builtin-table cat=array id=arrays-2 title=arrays >}}
 {{< builtin-table cat=sets id=sets-2 >}}
 
-### Objects
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. For example: `object.get({"a": [{ "b": true }]}, ["a", 0, "b"], false)` results in `true` | {{< builtin-tags object.get >}} |
-| <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. | {{< builtin-tags object.remove >}} |
-| <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}` | {{< builtin-tags object.union >}} |
-| <span class="opa-keep-it-together">`output := object.union_n(array)`</span> | `output` is a new object which is the result of an asymmetric recursive union of all objects in `array`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object. For example: `object.union_n([{"a": 1}, {"b": 2}, {"a": 3}])` will result in `{"b": 2, "a": 3}` | {{< builtin-tags object.union_n >}}|
-| <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). | {{< builtin-tags object.filter >}} |
-| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. | {{< builtin-tags json.filter >}} |
-| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | {{< builtin-tags json.remove >}} |
-| <span class="opa-keep-it-together">`output := json.patch(object, patches)`</span> | `output` is a the object obtained after consecutively applying all [JSON Patch](https://tools.ietf.org/html/rfc6902) operations in the array `patches`. For example: `json.patch({"a": {"foo": 1}}, [{"op": "add", "path": "/a/bar", "value": 2}])` results in `{"a": {"foo": 1, "bar": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined. | {{< builtin-tags json.patch >}} |
+{{< builtin-table cat=object title=objects >}}
 
 * When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
   For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
