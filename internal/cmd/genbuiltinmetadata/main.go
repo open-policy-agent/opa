@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"strings"
 
@@ -149,6 +150,9 @@ func builtinCategories(b *ast.Builtin) []string {
 	}
 	if s := strings.Split(b.Name, "."); len(s) > 1 {
 		return []string{s[0]}
+	}
+	if !b.IsDeprecated() {
+		log.Printf("WARN: not categorized: %s", b.Name)
 	}
 	return nil
 }
