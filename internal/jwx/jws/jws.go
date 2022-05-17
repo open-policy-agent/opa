@@ -179,7 +179,7 @@ func SplitCompact(jwsCompact string) ([]string, error) {
 
 	parts := strings.Split(jwsCompact, ".")
 	if len(parts) < 3 {
-		return nil, errors.New("Failed to split compact serialization")
+		return nil, errors.New("failed to split compact serialization")
 	}
 	return parts, nil
 }

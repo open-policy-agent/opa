@@ -188,7 +188,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_RS256_sign": {
 			signedTokenRS256,
 			map[string]*KeyConfig{"foo": {Key: publicKeyInvalid, Algorithm: "RS256"}}, "", "",
-			true, errors.New("Failed to verify message: crypto/rsa: verification error"),
+			true, errors.New("failed to verify message: crypto/rsa: verification error"),
 		},
 		"public_key_with_bad_cert_RS256": {
 			signedTokenRS256,
