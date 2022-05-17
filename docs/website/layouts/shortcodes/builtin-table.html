@@ -36,6 +36,16 @@
                 <code>
                 {{ $bi.result.name }} := {{ index (index $bi.args 0) "name" }} {{ $bi.infix }} {{ index (index $bi.args 1) "name" }}
                 </code>
+            {{- else if isset $bi "relation" }}
+                <code>
+                {{ $name }}(
+                    {{- range $index, $element := $bi.args -}}
+                    {{- if gt $index 0 -}}, {{ end -}}
+                    {{- $element.name -}}
+                    {{- end -}}
+                    , {{ $bi.result.name -}}
+                )
+                </code>
             {{- else }}
                 <code>
                 {{ $bi.result.name }} := {{ $name }}(

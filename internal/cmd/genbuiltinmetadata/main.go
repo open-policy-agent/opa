@@ -61,6 +61,9 @@ func main() {
 			"args":       argTypes,
 			"result":     res,
 		}
+		if latest.Relation {
+			md["relation"] = true
+		}
 		if latest.Infix != "" {
 			md["infix"] = latest.Infix
 		}
