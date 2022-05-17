@@ -4541,7 +4541,7 @@ func TestCompilerMockFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { true with http.send as http_send }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "invalid ref: arity mismatch (in call)",
@@ -4549,14 +4549,14 @@ func TestCompilerMockFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { http.send({}) with http.send as http_send }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "invalid ref: value another built-in with different type",
 			module: `package test
 				p { true with http.send as net.lookup_ip_addr }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "ref: value another built-in with compatible type",
@@ -6476,7 +6476,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (any<array[number], set[number]>)"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (collection: any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",
