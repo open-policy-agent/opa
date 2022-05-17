@@ -2189,31 +2189,33 @@ var CryptoHmacSha512 = &Builtin{
 /**
  * Graphs.
  */
+var graphs = category("graph")
 
-// WalkBuiltin generates [path, value] tuples for all nested documents
-// (recursively).
 var WalkBuiltin = &Builtin{
-	Name:     "walk",
-	Relation: true,
+	Name:        "walk",
+	Relation:    true,
+	Description: "Generates `[path, value]` tuples for all nested documents of `x` (recursively).  Queries can use `walk` to traverse documents nested under `x`.",
 	Decl: types.NewFunction(
-		types.Args(types.A),
-		types.NewArray(
+		types.Args(
+			types.Named("x", types.A),
+		),
+		types.Named("output", types.NewArray(
 			[]types.Type{
 				types.NewArray(nil, types.A),
 				types.A,
 			},
 			nil,
-		),
+		)).Description("pairs of `path` and `value`: `path` is an array representing the pointer to `value` in `x`"),
 	),
+	Categories: graphs,
 }
 
-// ReachableBuiltin computes the set of reachable nodes in the graph from a set
-// of starting nodes.
 var ReachableBuiltin = &Builtin{
-	Name: "graph.reachable",
+	Name:        "graph.reachable",
+	Description: "Computes the set of reachable nodes in the graph from a set of starting nodes.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("graph", types.NewObject(
 				nil,
 				types.NewDynamicProperty(
 					types.A,
@@ -2221,19 +2223,19 @@ var ReachableBuiltin = &Builtin{
 						types.NewSet(types.A),
 						types.NewArray(nil, types.A)),
 				)),
-			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+			).Description("object containing a set or array of neighboring vertices"),
+			types.Named("initial", types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A))).Description("set or array of root vertices"),
 		),
-		types.NewSet(types.A),
+		types.Named("output", types.NewSet(types.A)).Description("set of vertices reachable from the `initial` vertices in the directed `graph`"),
 	),
 }
 
-// ReachablePathsBuiltin computes the set of reachable paths in the graph from a set
-// of starting nodes.
 var ReachablePathsBuiltin = &Builtin{
-	Name: "graph.reachable_paths",
+	Name:        "graph.reachable_paths",
+	Description: "Computes the set of reachable paths in the graph from a set of starting nodes.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewObject(
+			types.Named("graph", types.NewObject(
 				nil,
 				types.NewDynamicProperty(
 					types.A,
@@ -2241,9 +2243,10 @@ var ReachablePathsBuiltin = &Builtin{
 						types.NewSet(types.A),
 						types.NewArray(nil, types.A)),
 				)),
-			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+			).Description("object containing a set or array of root vertices"),
+			types.Named("initial", types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A))).Description("initial paths"), // TODO(sr): copied. is that correct?
 		),
-		types.NewSet(types.NewArray(nil, types.A)),
+		types.Named("output", types.NewSet(types.NewArray(nil, types.A))).Description("paths reachable from the `initial` vertices in the directed `graph`"),
 	),
 }
 

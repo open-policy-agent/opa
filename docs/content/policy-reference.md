@@ -677,13 +677,7 @@ Note that the opa executable will need access to the timezone files in the envir
 
 {{< builtin-table cat=crypto title=Cryptography >}}
 
-### Graphs
-
-| Built-in | Description | Details |
-| ------- |-------------|--------------|
-| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). | {{< builtin-tags walk >}} |
-| <span class="opa-keep-it-together">``output := graph.reachable(graph, initial)``</span> | ``output`` is the set of vertices [reachable](https://en.wikipedia.org/wiki/Reachability) from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of vertices, and ``graph`` is an object containing a set or array of neighboring vertices. | {{< builtin-tags graph.reachable >}} |
-| <span class="opa-keep-it-together">``output := graph.reachable_paths(graph, initial)``</span> | ``output`` is the set of arrays of paths reachable from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of paths, and ``graph`` is an object containing a set or array of root vertices.    | {{< builtin-tags graph.reachable_paths >}} |
+{{< builtin-table cat=graph title=Graphs >}}
 
 A common class of recursive rules can be reduced to a graph reachability
 problem, so `graph.reachable` is useful for more than just graph analysis.
