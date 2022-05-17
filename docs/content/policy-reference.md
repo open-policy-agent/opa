@@ -675,21 +675,7 @@ Timezones can be specified as
 
 Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
-### Cryptography
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing one or more certificates or a PEM string of one or more certificates. ``output`` is an array of X.509 certificates represented as JSON objects. | {{< builtin-tags crypto.x509.parse_certificates >}} |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_and_verify_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs. ``output`` is of the form ``[valid, certs]``. If the input certificate chain could be verified then ``valid`` is ``true`` and ``certs`` is an array of X.509 certificates represented as JSON objects. If the input certificate chain could not be verified then ``valid`` is ``false`` and ``certs`` is ``[]``. | {{< builtin-tags crypto.x509.parse_and_verify_certificates >}} |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 string containing either a PEM encoded or DER CSR or a string containing a PEM CSR.``output`` is an X.509 CSR represented as a JSON object. | {{< builtin-tags crypto.x509.parse_certificate_request >}} |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_rsa_private_key(pem)``</span> | ``pem`` is a base64 string containing a PEM encoded RSA private key.``output`` is a JWK as a JSON object. | {{< builtin-tags crypto.x509.parse_rsa_private_key >}} |
-| <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | {{< builtin-tags crypto.md5 >}} |
-| <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | {{< builtin-tags crypto.sha1 >}} |
-| <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. | {{< builtin-tags crypto.sha256 >}} |
-| <span class="opa-keep-it-together">``output := crypto.hmac.md5(string, key)``</span> | ``output`` is HMAC-MD5 of ``string`` using ``key`` | {{< builtin-tags crypto.hmac.md5 >}} |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha1(string, key)``</span> | ``output`` is HMAC-SHA-1 of ``string`` using ``key`` | {{< builtin-tags crypto.hmac.sha1 >}} |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha256(string, key)``</span> | ``output`` is HMAC-SHA-256 of ``string`` using ``key`` | {{< builtin-tags crypto.hmac.sha256 >}} |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha512(string, key)``</span> | ``output`` is HMAC-SHA-512 of ``string`` using ``key`` | {{< builtin-tags crypto.hmac.sha512 >}} |
+{{< builtin-table cat=crypto title=Cryptography >}}
 
 ### Graphs
 

@@ -2053,130 +2053,136 @@ var Diff = &Builtin{
  * Crypto.
  */
 
-// CryptoX509ParseCertificates returns one or more certificates from the given
-// base64 encoded string containing DER encoded certificates that have been
-// concatenated.
 var CryptoX509ParseCertificates = &Builtin{
-	Name: "crypto.x509.parse_certificates",
+	Name:        "crypto.x509.parse_certificates",
+	Description: "Returns one or more certificates from the given base64 encoded string containing DER encoded certificates that have been concatenated.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+		types.Args(
+			types.Named("certs", types.S).Description("base64 encoded DER or PEM data containing one or more certificates or a PEM string of one or more certificates"),
+		),
+		types.Named("output", types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)))).Description("parsed X.509 certificates represented as objects"),
 	),
 }
 
-// CryptoX509ParseAndVerifyCertificates returns one or more certificates from the given
-// string containing PEM or base64 encoded DER certificates after verifying the supplied
-// certificates form a complete certificate chain back to a trusted root.
-//
-// The first certificate is treated as the root and the last is treated as the leaf,
-// with all others being treated as intermediates
 var CryptoX509ParseAndVerifyCertificates = &Builtin{
 	Name: "crypto.x509.parse_and_verify_certificates",
+	Description: `Returns one or more certificates from the given string containing PEM
+or base64 encoded DER certificates after verifying the supplied certificates form a complete
+certificate chain back to a trusted root.
+
+The first certificate is treated as the root and the last is treated as the leaf,
+with all others being treated as intermediates.`,
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewArray([]types.Type{
+		types.Args(
+			types.Named("certs", types.S).Description("base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs"),
+		),
+		types.Named("output", types.NewArray([]types.Type{
 			types.B,
 			types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
-		}, nil),
+		}, nil)).Description("array of `[valid, certs]`: if the input certificate chain could be verified then `valid` is `true` and `certs` is an array of X.509 certificates represented as objects; if the input certificate chain could not be verified then `valid` is `false` and `certs` is `[]`"),
 	),
 }
 
-// CryptoX509ParseCertificateRequest returns a PKCS #10 certificate signing
-// request from the given PEM-encoded PKCS#10 certificate signing request.
 var CryptoX509ParseCertificateRequest = &Builtin{
-	Name: "crypto.x509.parse_certificate_request",
+	Name:        "crypto.x509.parse_certificate_request",
+	Description: "Returns a PKCS #10 certificate signing request from the given PEM-encoded PKCS#10 certificate signing request.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		types.Args(
+			types.Named("csr", types.S).Description("base64 string containing either a PEM encoded or DER CSR or a string containing a PEM CSR"),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("X.509 CSR represented as an object"),
 	),
 }
 
-// CryptoX509ParseRSAPrivateKey returns a JWK for signing a JWT from the given
-// PEM-encoded RSA private key.
 var CryptoX509ParseRSAPrivateKey = &Builtin{
-	Name: "crypto.x509.parse_rsa_private_key",
+	Name:        "crypto.x509.parse_rsa_private_key",
+	Description: "Returns a JWK for signing a JWT from the given PEM-encoded RSA private key.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+		types.Args(
+			types.Named("pem", types.S).Description("base64 string containing a PEM encoded RSA private key"),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JWK as an object"),
 	),
 }
 
-// CryptoMd5 returns a string representing the input string hashed with the md5 function
 var CryptoMd5 = &Builtin{
-	Name: "crypto.md5",
+	Name:        "crypto.md5",
+	Description: "Returns a string representing the input string hashed with the MD5 function",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("MD5-hash of `x`"),
 	),
 }
 
-// CryptoSha1 returns a string representing the input string hashed with the sha1 function
 var CryptoSha1 = &Builtin{
-	Name: "crypto.sha1",
+	Name:        "crypto.sha1",
+	Description: "Returns a string representing the input string hashed with the SHA1 function",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("SHA1-hash of `x`"),
 	),
 }
 
-// CryptoSha256 returns a string representing the input string hashed with the sha256 function
 var CryptoSha256 = &Builtin{
-	Name: "crypto.sha256",
+	Name:        "crypto.sha256",
+	Description: "Returns a string representing the input string hashed with the SHA256 function",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.S,
+		types.Args(
+			types.Named("x", types.S),
+		),
+		types.Named("y", types.S).Description("SHA256-hash of `x`"),
 	),
 }
 
-// CryptoHmacMd5 returns a string representing the MD-5 HMAC of the input message using the input key
-// Inputs are message, key
 var CryptoHmacMd5 = &Builtin{
-	Name: "crypto.hmac.md5",
+	Name:        "crypto.hmac.md5",
+	Description: "Returns a string representing the MD5 HMAC of the input message using the input key.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("input string"),
+			types.Named("key", types.S).Description("key to use"),
 		),
-		types.S,
+		types.Named("y", types.S).Description("MD5-HMAC of `x`"),
 	),
 }
 
-// CryptoHmacSha1 returns a string representing the SHA-1 HMAC of the input message using the input key
-// Inputs are message, key
 var CryptoHmacSha1 = &Builtin{
-	Name: "crypto.hmac.sha1",
+	Name:        "crypto.hmac.sha1",
+	Description: "Returns a string representing the SHA1 HMAC of the input message using the input key.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("input string"),
+			types.Named("key", types.S).Description("key to use"),
 		),
-		types.S,
+		types.Named("y", types.S).Description("SHA1-HMAC of `x`"),
 	),
 }
 
-// CryptoHmacSha256 returns a string representing the SHA-256 HMAC of the input message using the input key
-// Inputs are message, key
 var CryptoHmacSha256 = &Builtin{
-	Name: "crypto.hmac.sha256",
+	Name:        "crypto.hmac.sha256",
+	Description: "Returns a string representing the SHA256 HMAC of the input message using the input key.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("input string"),
+			types.Named("key", types.S).Description("key to use"),
 		),
-		types.S,
+		types.Named("y", types.S).Description("SHA256-HMAC of `x`"),
 	),
 }
 
-// CryptoHmacSha512 returns a string representing the SHA-512 HMAC of the input message using the input key
-// Inputs are message, key
 var CryptoHmacSha512 = &Builtin{
-	Name: "crypto.hmac.sha512",
+	Name:        "crypto.hmac.sha512",
+	Description: "Returns a string representing the SHA512 HMAC of the input message using the input key.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("x", types.S).Description("input string"),
+			types.Named("key", types.S).Description("key to use"),
 		),
-		types.S,
+		types.Named("y", types.S).Description("SHA512-HMAC of `x`"),
 	),
 }
 
