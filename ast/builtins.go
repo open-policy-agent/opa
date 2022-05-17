@@ -1350,7 +1350,7 @@ var JSONFilter = &Builtin{
 						),
 					),
 				),
-			)).Description("JSON string paths; "),
+			)).Description("JSON string paths"),
 		),
 		types.Named("filtered", types.A).Description("remaining data from `object` with only keys specified in `paths`"),
 	),
@@ -1425,9 +1425,9 @@ var ObjectGet = &Builtin{
 		"For example: `object.get({\"a\": [{ \"b\": true }]}, [\"a\", 0, \"b\"], false)` results in `true`.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description(""),
-			types.Named("key", types.A).Description(""),
-			types.Named("default", types.A).Description(""),
+			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("object to get `key` from"),
+			types.Named("key", types.A).Description("key to lookup in `object`"),
+			types.Named("default", types.A).Description("default to use when lookup fails"),
 		),
 		types.Named("value", types.A).Description("`object[key]` if present, otherwise `default`"),
 	),
