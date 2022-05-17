@@ -2474,63 +2474,69 @@ var GlobQuoteMeta = &Builtin{
  * Networking
  */
 
-// NetCIDRIntersects checks if a cidr intersects with another cidr and returns true or false
 var NetCIDRIntersects = &Builtin{
-	Name: "net.cidr_intersects",
+	Name:        "net.cidr_intersects",
+	Description: "Checks if a CIDR intersects with another CIDR (e.g. `192.168.0.0/16` overlaps with `192.168.1.0/24`). Supports both IPv4 and IPv6 notations.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("cidr1", types.S),
+			types.Named("cidr2", types.S),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
 }
 
-// NetCIDRExpand returns a set of hosts inside the specified cidr.
 var NetCIDRExpand = &Builtin{
-	Name: "net.cidr_expand",
+	Name:        "net.cidr_expand",
+	Description: "Expands CIDR to set of hosts  (e.g., `net.cidr_expand(\"192.168.0.0/30\")` generates 4 hosts: `{\"192.168.0.0\", \"192.168.0.1\", \"192.168.0.2\", \"192.168.0.3\"}`).",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
+			types.Named("cidr", types.S),
 		),
-		types.NewSet(types.S),
+		types.Named("hosts", types.NewSet(types.S)).Description("set of IP addresses the CIDR `cidr` expands to"),
 	),
 }
 
-// NetCIDRContains checks if a cidr or ip is contained within another cidr and returns true or false
 var NetCIDRContains = &Builtin{
-	Name: "net.cidr_contains",
+	Name:        "net.cidr_contains",
+	Description: "Checks if a CIDR or IP is contained within another CIDR. `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and `false` otherwise. Supports both IPv4 and IPv6 notations.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.S,
-			types.S,
+			types.Named("cidr", types.S),
+			types.Named("cidr_or_ip", types.S),
 		),
-		types.B,
+		types.Named("result", types.B),
 	),
 }
 
-// NetCIDRContainsMatches checks if collections of cidrs or ips are contained within another collection of cidrs and returns matches.
 var NetCIDRContainsMatches = &Builtin{
 	Name: "net.cidr_contains_matches",
+	Description: "Checks if collections of cidrs or ips are contained within another collection of cidrs and returns matches. " +
+		"This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs).",
 	Decl: types.NewFunction(
-		types.Args(netCidrContainsMatchesOperandType, netCidrContainsMatchesOperandType),
-		types.NewSet(types.NewArray([]types.Type{types.A, types.A}, nil)),
+		types.Args(
+			types.Named("cidrs", netCidrContainsMatchesOperandType),
+			types.Named("cidrs_or_ips", netCidrContainsMatchesOperandType),
+		),
+		types.Named("output", types.NewSet(types.NewArray([]types.Type{types.A, types.A}, nil))).Description("tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`"),
 	),
 }
 
-// NetCIDRMerge merges IP addresses and subnets into the smallest possible list of CIDRs.
 var NetCIDRMerge = &Builtin{
 	Name: "net.cidr_merge",
+	Description: "Merges IP addresses and subnets into the smallest possible list of CIDRs (e.g., `net.cidr_merge([\"192.0.128.0/24\", \"192.0.129.0/24\"])` generates `{\"192.0.128.0/23\"}`." +
+		`This function merges adjacent subnets where possible, those contained within others and also removes any duplicates.
+Supports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. "/128").`,
 	Decl: types.NewFunction(
-		types.Args(netCidrMergeOperandType),
-		types.NewSet(types.S),
+		types.Args(
+			types.Named("addrs", types.NewAny(
+				types.NewArray(nil, types.NewAny(types.S)),
+				types.NewSet(types.S),
+			)).Description("CIDRs or IP addresses"),
+		),
+		types.Named("output", types.NewSet(types.S)).Description("smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `addrs`"),
 	),
 }
-
-var netCidrMergeOperandType = types.NewAny(
-	types.NewArray(nil, types.NewAny(types.S)),
-	types.NewSet(types.S),
-)
 
 var netCidrContainsMatchesOperandType = types.NewAny(
 	types.S,
@@ -2551,14 +2557,14 @@ var netCidrContainsMatchesOperandType = types.NewAny(
 	)),
 )
 
-// NetLookupIPAddr returns the set of IP addresses (as strings, both v4 and v6)
-// that the passed-in name (string) resolves to using the standard name resolution
-// mechanisms available.
 var NetLookupIPAddr = &Builtin{
-	Name: "net.lookup_ip_addr",
+	Name:        "net.lookup_ip_addr",
+	Description: "Returns the set of IP addresses (both v4 and v6) that the passed-in `name` resolves to using the standard name resolution mechanisms available.",
 	Decl: types.NewFunction(
-		types.Args(types.S),
-		types.NewSet(types.S),
+		types.Args(
+			types.Named("name", types.S).Description("domain name to resolve"),
+		),
+		types.Named("addrs", types.NewSet(types.S)).Description("IP addresses (v4 and v6) that `name` resolves to"),
 	),
 }
 

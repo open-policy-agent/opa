@@ -833,16 +833,7 @@ The table below shows examples of calling `http.send`:
 | Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
 | Unix Socket URL Format| ``http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`` |
 
-### Net
-
-| Built-in | Description | Details |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``net.lookup_ip_addr(name)``</span> | `output` is a set of IP addresses (both v4 and v6, strings) that the domain name resolves to using standard name resolution, [see the notes below](#notes-on-name-resolution-netlookup_ip_addr). | {{< builtin-tags net.lookup_ip_addr >}} |
-| <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| {{< builtin-tags net.cidr_contains >}} |
-| <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. | {{< builtin-tags net.cidr_contains_matches >}} |
-| <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| {{< builtin-tags net.cidr_intersects >}} |
-| <span class="opa-keep-it-together">``net.cidr_expand(cidr)``</span> | `output` is the set of hosts in `cidr`  (e.g., `net.cidr_expand("192.168.0.0/30")` generates 4 hosts: `{"192.168.0.0", "192.168.0.1", "192.168.0.2", "192.168.0.3"}` | {{< builtin-tags net.cidr_expand >}} |
-| <span class="opa-keep-it-together">``net.cidr_merge(cidrs_or_ips)``</span> | `output` is the smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `cidrs_or_ips`  (e.g., `net.cidr_merge(["192.0.128.0/24", "192.0.129.0/24"])` generates `{"192.0.128.0/23"}`. This function merges adjacent subnets where possible, those contained within others and also removes any duplicates. Supports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. "/128"). | {{< builtin-tags net.cidr_merge >}} |
+{{< builtin-table net >}}
 
 #### Notes on Name Resolution (`net.lookup_ip_addr`)
 
