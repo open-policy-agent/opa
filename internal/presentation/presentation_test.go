@@ -197,6 +197,8 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 			  "want": {
 				"args": [
 				  {
+					"description": "the set/array/object/string to be counted",
+					"name": "collection",
 					"of": [
 					  {
 						"type": "string"
@@ -228,6 +230,8 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 					"type": "any"
 				  },
 				  {
+					"description": "the count of elements, key/val pairs, or characters, respectively.",
+					"name": "n",
 					"type": "number"
 				  }
 				]
