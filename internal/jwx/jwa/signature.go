@@ -1,9 +1,9 @@
 package jwa
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 // SignatureAlgorithm represents the various signature algorithms as described in https://tools.ietf.org/html/rfc7518#section-3.1
@@ -39,11 +39,11 @@ func (signature *SignatureAlgorithm) Accept(value interface{}) error {
 	case SignatureAlgorithm:
 		tmp = x
 	default:
-		return errors.Errorf(`invalid type for jwa.SignatureAlgorithm: %T`, value)
+		return fmt.Errorf("invalid type for jwa.SignatureAlgorithm: %T", value)
 	}
 	_, ok := signatureAlg[tmp.String()]
 	if !ok {
-		return errors.Errorf("Unknown signature algorithm")
+		return errors.New("unknown signature algorithm")
 	}
 	*signature = tmp
 	return nil
@@ -62,14 +62,14 @@ func (signature *SignatureAlgorithm) UnmarshalJSON(data []byte) error {
 		var err error
 		quoted, err = strconv.Unquote(string(data))
 		if err != nil {
-			return errors.Wrap(err, "Failed to process signature algorithm")
+			return fmt.Errorf("failed to process signature algorithm: %w", err)
 		}
 	} else {
 		quoted = string(data)
 	}
 	_, ok := signatureAlg[quoted]
 	if !ok {
-		return errors.Errorf("Unknown signature algorithm")
+		return errors.New("unknown signature algorithm")
 	}
 	*signature = SignatureAlgorithm(quoted)
 	return nil

@@ -15,12 +15,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"hash"
 	"math/big"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
@@ -280,7 +279,7 @@ func getKeyFromCertOrJWK(certificate string) ([]interface{}, error) {
 		if block.Type == blockTypeCertificate {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse a PEM certificate")
+				return nil, fmt.Errorf("failed to parse a PEM certificate: %w", err)
 			}
 
 			return []interface{}{cert.PublicKey}, nil
@@ -289,7 +288,7 @@ func getKeyFromCertOrJWK(certificate string) ([]interface{}, error) {
 		if block.Type == "PUBLIC KEY" {
 			key, err := x509.ParsePKIXPublicKey(block.Bytes)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse a PEM public key")
+				return nil, fmt.Errorf("failed to parse a PEM public key: %w", err)
 			}
 
 			return []interface{}{key}, nil
@@ -300,7 +299,7 @@ func getKeyFromCertOrJWK(certificate string) ([]interface{}, error) {
 
 	jwks, err := jwk.ParseString(certificate)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse a JWK key (set)")
+		return nil, fmt.Errorf("failed to parse a JWK key (set): %w", err)
 	}
 
 	var keys []interface{}

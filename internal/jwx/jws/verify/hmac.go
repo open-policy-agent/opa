@@ -2,18 +2,18 @@ package verify
 
 import (
 	"crypto/hmac"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/pkg/errors"
 )
 
 func newHMAC(alg jwa.SignatureAlgorithm) (*HMACVerifier, error) {
 
 	s, err := sign.New(alg)
 	if err != nil {
-		return nil, errors.Wrap(err, `failed to generate HMAC signer`)
+		return nil, fmt.Errorf("failed to generate HMAC signer: %w", err)
 	}
 	return &HMACVerifier{signer: s}, nil
 }
@@ -23,11 +23,11 @@ func (v HMACVerifier) Verify(signingInput, signature []byte, key interface{}) (e
 
 	expected, err := v.signer.Sign(signingInput, key)
 	if err != nil {
-		return errors.Wrap(err, `failed to generated signature`)
+		return fmt.Errorf("failed to generated signature: %w", err)
 	}
 
 	if !hmac.Equal(signature, expected) {
-		return errors.New(`failed to match hmac signature`)
+		return errors.New("failed to match hmac signature")
 	}
 	return nil
 }

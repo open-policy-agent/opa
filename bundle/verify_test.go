@@ -6,7 +6,7 @@ package bundle
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"testing"
 )
 
@@ -24,20 +24,20 @@ func TestVerifyBundleSignature(t *testing.T) {
 		wantErr            bool
 		err                error
 	}{
-		"no_signatures":       {SignaturesConfig{}, nil, true, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)")},
-		"multiple_signatures": {SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}}, nil, true, fmt.Errorf(".signatures.json: multiple JWTs not supported (expected exactly one)")},
-		"invalid_token":       {SignaturesConfig{Signatures: []string{badToken}}, nil, true, fmt.Errorf("Failed to split compact serialization")},
+		"no_signatures":       {SignaturesConfig{}, nil, true, errors.New(".signatures.json: missing JWT (expected exactly one)")},
+		"multiple_signatures": {SignaturesConfig{Signatures: []string{signedTokenHS256, otherSignedTokenHS256}}, nil, true, errors.New(".signatures.json: multiple JWTs not supported (expected exactly one)")},
+		"invalid_token":       {SignaturesConfig{Signatures: []string{badToken}}, nil, true, errors.New("failed to split compact serialization")},
 		"invalid_token_header_base64": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderBase64}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, fmt.Errorf("failed to base64 decode JWT headers: illegal base64 data at input byte 50"),
+			true, errors.New("failed to base64 decode JWT headers: illegal base64 data at input byte 50"),
 		},
 		"invalid_token_header_json": {
 			SignaturesConfig{Signatures: []string{badTokenHeaderJSON}},
 			NewVerificationConfig(nil, "", "", nil),
-			true, fmt.Errorf("failed to parse JWT headers: unexpected end of JSON input"),
+			true, errors.New("failed to parse JWT headers: unexpected end of JSON input"),
 		},
-		"bad_token_payload": {SignaturesConfig{Signatures: []string{badTokenPayload}}, nil, true, fmt.Errorf("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo")},
+		"bad_token_payload": {SignaturesConfig{Signatures: []string{badTokenPayload}}, nil, true, errors.New("json: cannot unmarshal object into Go struct field DecodedSignature.files of type []bundle.FileInfo")},
 		"valid_token_and_scope": {
 			SignaturesConfig{Signatures: []string{signedTokenHS256}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", nil),
@@ -46,7 +46,7 @@ func TestVerifyBundleSignature(t *testing.T) {
 		"valid_token_and_scope_mismatch": {
 			SignaturesConfig{Signatures: []string{signedTokenHS256}},
 			NewVerificationConfig(map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "bad_scope", nil),
-			true, fmt.Errorf("scope mismatch"),
+			true, errors.New("scope mismatch"),
 		},
 	}
 
@@ -158,8 +158,8 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		wantErr bool
 		err     error
 	}{
-		"no_public_key_id":          {signedNoKeyIDTokenHS256, map[string]*KeyConfig{}, "", "", true, fmt.Errorf("verification key ID is empty")},
-		"actual_public_key_missing": {signedTokenHS256, map[string]*KeyConfig{}, "", "", true, fmt.Errorf("verification key corresponding to ID foo not found")},
+		"no_public_key_id":          {signedNoKeyIDTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key ID is empty")},
+		"actual_public_key_missing": {signedTokenHS256, map[string]*KeyConfig{}, "", "", true, errors.New("verification key corresponding to ID foo not found")},
 		"deprecated_key_id_claim": {
 			signedTokenWithDeprecatedKidClaimHS256,
 			map[string]*KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "", "write", // check valid keyId in deprecated claim is used
@@ -168,7 +168,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"bad_public_key_algorithm": {
 			signedTokenHS256,
 			map[string]*KeyConfig{"foo": {Key: "somekey", Algorithm: "RS007"}}, "", "",
-			true, fmt.Errorf("unsupported signature algorithm: RS007"),
+			true, errors.New("unsupported signature algorithm: RS007"),
 		},
 		"public_key_with_valid_HS256_sign": {
 			signedTokenWithBarKidHS256,
@@ -178,7 +178,7 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_HS256_sign": {
 			signedTokenHS256,
 			map[string]*KeyConfig{"foo": {Key: "bad_secret", Algorithm: "HS256"}}, "", "",
-			true, fmt.Errorf("Failed to verify message: failed to match hmac signature"),
+			true, errors.New("failed to verify message: failed to match hmac signature"),
 		},
 		"public_key_with_valid_RS256_sign": {
 			signedTokenRS256,
@@ -188,12 +188,12 @@ yQjtQ8mbDOsiLLvh7wIDAQAB==
 		"public_key_with_invalid_RS256_sign": {
 			signedTokenRS256,
 			map[string]*KeyConfig{"foo": {Key: publicKeyInvalid, Algorithm: "RS256"}}, "", "",
-			true, fmt.Errorf("Failed to verify message: crypto/rsa: verification error"),
+			true, errors.New("failed to verify message: crypto/rsa: verification error"),
 		},
 		"public_key_with_bad_cert_RS256": {
 			signedTokenRS256,
 			map[string]*KeyConfig{"foo": {Key: publicKeyBad, Algorithm: "RS256"}}, "foo", "",
-			true, fmt.Errorf("failed to parse PEM block containing the key"),
+			true, errors.New("failed to parse PEM block containing the key"),
 		},
 	}
 
@@ -242,7 +242,7 @@ func TestVerifyBundleFile(t *testing.T) {
 		"file_not_found": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
 			map[string]FileInfo{},
-			true, fmt.Errorf("file /.manifest not included in bundle signature"),
+			true, errors.New("file /.manifest not included in bundle signature"),
 		},
 		"bad_hashing_algorithm": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
@@ -251,7 +251,7 @@ func TestVerifyBundleFile(t *testing.T) {
 				Hash:      "e7dc95e14ad6cd75d044c13d52ee3ab1",
 				Algorithm: "MD6",
 			}},
-			true, fmt.Errorf("unsupported hashing algorithm: MD6"),
+			true, errors.New("unsupported hashing algorithm: MD6"),
 		},
 		"bad_digest": {
 			[][2]string{{"/.manifest", `{"revision": "quickbrownfaux"}`}},
@@ -260,7 +260,7 @@ func TestVerifyBundleFile(t *testing.T) {
 				Hash:      "874984d68515ba2439c04dddf5b21574",
 				Algorithm: MD5.String(),
 			}},
-			true, fmt.Errorf("/.manifest: digest mismatch (want: 874984d68515ba2439c04dddf5b21574, got: a005c38a509dc2d5a7407b9494efb2ad)"),
+			true, errors.New("/.manifest: digest mismatch (want: 874984d68515ba2439c04dddf5b21574, got: a005c38a509dc2d5a7407b9494efb2ad)"),
 		},
 	}
 

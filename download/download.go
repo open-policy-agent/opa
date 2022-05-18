@@ -18,13 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/plugins"
-
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -285,7 +282,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	resp, err := d.client.Do(ctx, "GET", d.path)
 	m.Timer(metrics.BundleRequest).Stop()
 	if err != nil {
-		return nil, errors.Wrap(err, "request failed")
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	defer util.Close(resp)

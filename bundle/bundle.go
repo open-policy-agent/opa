@@ -11,14 +11,13 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
 	"path/filepath"
 	"reflect"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
@@ -499,7 +498,7 @@ func (r *Reader) Read() (Bundle, error) {
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
-				return bundle, errors.Wrapf(err, "bundle load failed on %v", r.fullPath(path))
+				return bundle, fmt.Errorf("bundle load failed on %v: %w", r.fullPath(path), err)
 			}
 
 			if err := insertValue(&bundle, path, value); err != nil {
@@ -515,7 +514,7 @@ func (r *Reader) Read() (Bundle, error) {
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
-				return bundle, errors.Wrapf(err, "bundle load failed on %v", r.fullPath(path))
+				return bundle, fmt.Errorf("bundle load failed on %v: %w", r.fullPath(path), err)
 			}
 
 			if err := insertValue(&bundle, path, value); err != nil {
@@ -524,7 +523,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 		} else if strings.HasSuffix(path, ManifestExt) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
-				return bundle, errors.Wrap(err, "bundle load failed on manifest decode")
+				return bundle, fmt.Errorf("bundle load failed on manifest decode: %w", err)
 			}
 		}
 	}
@@ -577,18 +576,18 @@ func (r *Reader) Read() (Bundle, error) {
 
 		b, err := json.Marshal(&bundle.Manifest)
 		if err != nil {
-			return bundle, errors.Wrap(err, "bundle load failed on manifest marshal")
+			return bundle, fmt.Errorf("bundle load failed on manifest marshal: %w", err)
 		}
 
 		err = util.UnmarshalJSON(b, &metadata)
 		if err != nil {
-			return bundle, errors.Wrap(err, "bundle load failed on manifest unmarshal")
+			return bundle, fmt.Errorf("bundle load failed on manifest unmarshal: %w", err)
 		}
 
 		// For backwards compatibility always write to the old unnamed manifest path
 		// This will *not* be correct if >1 bundle is in use...
 		if err := bundle.insertData(legacyManifestStoragePath, metadata); err != nil {
-			return bundle, errors.Wrapf(err, "bundle load failed on %v", legacyRevisionStoragePath)
+			return bundle, fmt.Errorf("bundle load failed on %v: %w", legacyRevisionStoragePath, err)
 		}
 	}
 
@@ -1209,7 +1208,7 @@ func insertValue(b *Bundle, path string, value interface{}) error {
 		key = strings.Split(dirpath, "/")
 	}
 	if err := b.insertData(key, value); err != nil {
-		return errors.Wrapf(err, "bundle load failed on %v", path)
+		return fmt.Errorf("bundle load failed on %v: %w", path, err)
 	}
 	return nil
 }
@@ -1264,7 +1263,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 		}
 
 		if err != nil {
-			return signatures, patch, nil, errors.Wrap(err, "bundle read failed")
+			return signatures, patch, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
 		// check for the signatures file
@@ -1275,7 +1274,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 			}
 
 			if err := util.NewJSONDecoder(&buf).Decode(&signatures); err != nil {
-				return signatures, patch, nil, errors.Wrap(err, "bundle load failed on signatures decode")
+				return signatures, patch, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
 			}
 		} else if !strings.HasSuffix(f.Path(), SignaturesFile) {
 			descriptors = append(descriptors, f)
@@ -1292,7 +1291,7 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 				}
 
 				if err := util.NewJSONDecoder(&buf).Decode(&patch); err != nil {
-					return signatures, patch, nil, errors.Wrap(err, "bundle load failed on patch decode")
+					return signatures, patch, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
 				}
 
 				f.reader = &b
