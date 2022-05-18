@@ -134,7 +134,6 @@ OPA includes functionality for reaching out to external servers during evaluatio
 That functionality is implemented using built-in functions such as [`http.send`](https://www.openpolicyagent.org/docs/latest/policy-reference/#http).  Check the docs for the latest instructions.
 
 ### Current limitations
-* Unit test framework does not allow you to mock out the results of builtin functions; however, you can create a helper rule that runs the builtin and mock that out.
 * Credentials needed for the external service can either be hardcoded into policy or pulled from the environment.
 * The built-in functions do not implement any retry logic.
 
