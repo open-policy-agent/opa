@@ -6,7 +6,7 @@ cases:
     p {
         units.parse("\"100TI\"") == 109951162777600
     }
-  note: parse/removes quotes and lowercases string
+  note: units_parse/removes quotes and lowercases string
   query: data.test.p = x
   want_result:
   - x: true
@@ -17,7 +17,7 @@ cases:
     p {
         units.parse("0") == 0
     }
-  note: parse/zero
+  note: units_parse/zero
   query: data.test.p = x
   want_result:
   - x: true
@@ -29,7 +29,7 @@ cases:
     p {
         units.parse("0.0") == 0
     }
-  note: parse/zero float
+  note: units_parse/zero float
   query: data.test.p = x
   want_result:
   - x: true
@@ -41,7 +41,7 @@ cases:
     p {
         units.parse(".0") == 0
     }
-  note: parse/zero bare float
+  note: units_parse/zero bare float
   query: data.test.p = x
   want_result:
   - x: true
@@ -53,7 +53,7 @@ cases:
     p {
         units.parse("12345") == 12345
     }
-  note: parse/raw number
+  note: units_parse/raw number
   query: data.test.p = x
   want_result:
   - x: true
@@ -65,7 +65,7 @@ cases:
     p {
         units.parse("10K") == 10000
     }
-  note: parse/10 kilo uppercase
+  note: units_parse/10 kilo uppercase
   query: data.test.p = x
   want_result:
   - x: true
@@ -77,7 +77,7 @@ cases:
     p {
         units.parse("10KI") == 10240
     }
-  note: parse/10 Ki uppercase
+  note: units_parse/10 Ki uppercase
   query: data.test.p = x
   want_result:
   - x: true
@@ -89,7 +89,7 @@ cases:
     p {
         units.parse("10k") == 10000
     }
-  note: parse/10 K lowercase
+  note: units_parse/10 K lowercase
   query: data.test.p = x
   want_result:
   - x: true
@@ -101,7 +101,7 @@ cases:
     p {
         units.parse("10Ki") == 10240
     }
-  note: parse/10 Ki mixed case
+  note: units_parse/10 Ki mixed case
   query: data.test.p = x
   want_result:
   - x: true
@@ -113,7 +113,7 @@ cases:
     p {
         units.parse("200M") == 200000000
     }
-  note: parse/200 mega
+  note: units_parse/200 mega
   query: data.test.p = x
   want_result:
   - x: true
@@ -125,7 +125,7 @@ cases:
     p {
         units.parse("300Gi") == 322122547200
     }
-  note: parse/300 Gi
+  note: units_parse/300 Gi
   query: data.test.p = x
   want_result:
   - x: true
@@ -137,7 +137,7 @@ cases:
     p {
         units.parse("1.1K") == 1100
     }
-  note: parse/1.1 K floating point
+  note: units_parse/1.1 K floating point
   query: data.test.p = x
   want_result:
   - x: true
@@ -149,7 +149,7 @@ cases:
     p {
         units.parse("1.1Ki") == 1126.4
     }
-  note: parse/1.1 Ki floating point, not rounded
+  note: units_parse/1.1 Ki floating point, not rounded
   query: data.test.p = x
   want_result:
   - x: true
@@ -161,7 +161,7 @@ cases:
     p {
         units.parse(".5K") == 500
     }
-  note: parse/.5 K bare floating point
+  note: units_parse/.5 K bare floating point
   query: data.test.p = x
   want_result:
   - x: true
@@ -173,7 +173,7 @@ cases:
     p {
         units.parse("100k") == 100000
     }
-  note: parse/100 kilo as k
+  note: units_parse/100 kilo as k
   query: data.test.p = x
   want_result:
   - x: true
@@ -185,7 +185,7 @@ cases:
     p {
         units.parse("100K") == 100000
     }
-  note: parse/100 kilo as K
+  note: units_parse/100 kilo as K
   query: data.test.p = x
   want_result:
   - x: true
@@ -197,7 +197,7 @@ cases:
     p {
         units.parse("100ki") == 102400
     }
-  note: parse/100 kibi as ki
+  note: units_parse/100 kibi as ki
   query: data.test.p = x
   want_result:
   - x: true
@@ -209,7 +209,7 @@ cases:
     p {
         units.parse("100Ki") == 102400
     }
-  note: parse/100 kibi as Ki
+  note: units_parse/100 kibi as Ki
   query: data.test.p = x
   want_result:
   - x: true
@@ -221,7 +221,7 @@ cases:
     p {
         round(units.parse("100m") * 1000) == 100
     }
-  note: parse/100 milli as m
+  note: units_parse/100 milli as m
   query: data.test.p = x
   want_result:
   - x: true
@@ -233,7 +233,7 @@ cases:
     p {
         units.parse("100M") == 100000000
     }
-  note: parse/100 mega as M
+  note: units_parse/100 mega as M
   query: data.test.p = x
   want_result:
   - x: true
@@ -245,7 +245,7 @@ cases:
     p {
         units.parse("100mi") == 104857600
     }
-  note: parse/100 mebi as mi
+  note: units_parse/100 mebi as mi
   query: data.test.p = x
   want_result:
   - x: true
@@ -257,7 +257,7 @@ cases:
     p {
         units.parse("100Mi") == 104857600
     }
-  note: parse/100 mebi as Mi
+  note: units_parse/100 mebi as Mi
   query: data.test.p = x
   want_result:
   - x: true
@@ -269,7 +269,7 @@ cases:
     p {
         units.parse("100g") == 100000000000
     }
-  note: parse/100 giga as g
+  note: units_parse/100 giga as g
   query: data.test.p = x
   want_result:
   - x: true
@@ -281,7 +281,7 @@ cases:
     p {
         units.parse("100gi") == 107374182400
     }
-  note: parse/100 gibi as gi
+  note: units_parse/100 gibi as gi
   query: data.test.p = x
   want_result:
   - x: true
@@ -293,7 +293,7 @@ cases:
     p {
         units.parse("100t") == 100000000000000
     }
-  note: parse/100 tera as t
+  note: units_parse/100 tera as t
   query: data.test.p = x
   want_result:
   - x: true
@@ -305,7 +305,7 @@ cases:
     p {
         units.parse("100T") == 100000000000000
     }
-  note: parse/100 tera as T
+  note: units_parse/100 tera as T
   query: data.test.p = x
   want_result:
   - x: true
@@ -317,7 +317,7 @@ cases:
     p {
         units.parse("100ti") == 109951162777600
     }
-  note: parse/100 tebi as ti
+  note: units_parse/100 tebi as ti
   query: data.test.p = x
   want_result:
   - x: true
@@ -329,7 +329,7 @@ cases:
     p {
         units.parse("100Ti") == 109951162777600
     }
-  note: parse/100 tebi as Ti
+  note: units_parse/100 tebi as Ti
   query: data.test.p = x
   want_result:
   - x: true
@@ -341,7 +341,7 @@ cases:
     p {
         units.parse("100p") == 100000000000000000
     }
-  note: parse/100 peta as p
+  note: units_parse/100 peta as p
   query: data.test.p = x
   want_result:
   - x: true
@@ -353,7 +353,7 @@ cases:
     p {
         units.parse("100P") == 100000000000000000
     }
-  note: parse/100 peta as P
+  note: units_parse/100 peta as P
   query: data.test.p = x
   want_result:
   - x: true
@@ -365,7 +365,7 @@ cases:
     p {
         units.parse("100pi") == 112589990684262400
     }
-  note: parse/100 pebi as pi
+  note: units_parse/100 pebi as pi
   query: data.test.p = x
   want_result:
   - x: true
@@ -377,7 +377,7 @@ cases:
     p {
         units.parse("100Pi") == 112589990684262400
     }
-  note: parse/100 pebi as Pi
+  note: units_parse/100 pebi as Pi
   query: data.test.p = x
   want_result:
   - x: true
@@ -389,7 +389,7 @@ cases:
     p {
         units.parse("10e") == 10000000000000000000
     }
-  note: parse/10 eta as e
+  note: units_parse/10 eta as e
   query: data.test.p = x
   want_result:
   - x: true
@@ -401,7 +401,7 @@ cases:
     p {
         units.parse("10E") == 10000000000000000000
     }
-  note: parse/10 eta as E
+  note: units_parse/10 eta as E
   query: data.test.p = x
   want_result:
   - x: true
@@ -413,7 +413,7 @@ cases:
     p {
         units.parse("10ei") == 11529215046068469760
     }
-  note: parse/10 ebi as ei
+  note: units_parse/10 ebi as ei
   query: data.test.p = x
   want_result:
   - x: true
@@ -425,7 +425,7 @@ cases:
     p {
         units.parse("10Ei") == 11529215046068469760
     }
-  note: parse/10 ebi as Ei
+  note: units_parse/10 ebi as Ei
   query: data.test.p = x
   want_result:
   - x: true
