@@ -6,7 +6,7 @@ cases:
     p {
         units.parse_bytes("8kb") > units.parse_bytes("7kb")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -17,7 +17,7 @@ cases:
     p {
         units.parse_bytes("8gb") > units.parse_bytes("8mb")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -28,7 +28,7 @@ cases:
     p {
         units.parse_bytes("1234kb") < units.parse_bytes("1gb")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -39,7 +39,7 @@ cases:
     p {
         units.parse_bytes("1024") == units.parse_bytes("1KiB")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -50,7 +50,7 @@ cases:
     p {
         units.parse_bytes("2MiB") == units.parse_bytes("2097152")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -61,7 +61,7 @@ cases:
     p {
         units.parse_bytes("3MiB") > units.parse_bytes("3MB")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -72,7 +72,7 @@ cases:
     p {
         units.parse_bytes("2MiB") == units.parse_bytes("2Mi")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -83,7 +83,7 @@ cases:
     p {
         units.parse_bytes("4Mi") > units.parse_bytes("4M")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -94,7 +94,7 @@ cases:
     p {
         units.parse_bytes("4.1Mi") > units.parse_bytes("4Mi")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true
@@ -105,7 +105,7 @@ cases:
     p {
         units.parse_bytes("128Gi") == units.parse_bytes("137438953472")
     }
-  note: parse_bytes/comparison
+  note: units_parse_bytes/comparison
   query: data.test.p = x
   want_result:
   - x: true

@@ -6,7 +6,7 @@ cases:
     p {
         units.parse("")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: no amount provided"
   strict_error: true
@@ -17,7 +17,7 @@ cases:
     p {
         units.parse("G")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: no amount provided"
   strict_error: true
@@ -28,7 +28,7 @@ cases:
     p {
         units.parse("foo")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: no amount provided"
   strict_error: true
@@ -39,7 +39,7 @@ cases:
     p {
         units.parse("0.0.0")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: could not parse amount to a number"
   strict_error: true
@@ -50,7 +50,7 @@ cases:
     p {
         units.parse(".5.2")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: could not parse amount to a number"
   strict_error: true
@@ -61,7 +61,7 @@ cases:
     p {
         units.parse("100 k")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: spaces not allowed in resource strings"
   strict_error: true
@@ -72,7 +72,7 @@ cases:
     p {
         units.parse(" 327Mi ")
     }
-  note: parse/failure
+  note: units_parse/failure
   query: data.test.p = x
   want_error: "units.parse error: spaces not allowed in resource strings"
   strict_error: true
