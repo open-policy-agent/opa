@@ -200,16 +200,16 @@ In the examples below `...` represents one or more conditions.
 ### Constants
 
 ```live:rules/constants:module:read_only
-a = {1, 2, 3}
-b = {4, 5, 6}
-c = a | b
+a := {1, 2, 3}
+b := {4, 5, 6}
+c := a | b
 ```
 
 ### Conditionals (Boolean)
 
 ```live:rules/condbool:module:read_only
 # p is true if ...
-p = true { ... }
+p := true { ... }
 
 # OR
 
@@ -219,9 +219,9 @@ p { ... }
 ### Conditionals
 
 ```live:rules/cond:module:read_only
-default a = 1
-a = 5 { ... }
-a = 100 { ... }
+default a := 1
+a := 5 { ... }
+a := 100 { ... }
 ```
 
 ### Incremental
@@ -232,16 +232,16 @@ a_set[x] { ... }
 a_set[y] { ... }
 
 # a_map will contain key->value pairs x->y and w->z
-a_map[x] = y { ... }
-a_map[w] = z { ... }
+a_map[x] := y { ... }
+a_map[w] := z { ... }
 ```
 
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
-default a = 1
-a = 5 { ... }
-else = 10 { ... }
+default a := 1
+a := 5 { ... }
+else := 10 { ... }
 ```
 
 ### Functions (Boolean)
@@ -253,7 +253,7 @@ f(x, y) {
 
 # OR
 
-f(x, y) = true {
+f(x, y) := true {
     ...
 }
 ```
@@ -261,9 +261,9 @@ f(x, y) = true {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
-f(x) = "A" { x >= 90 }
-f(x) = "B" { x >= 80; x < 90 }
-f(x) = "C" { x >= 70; x < 80 }
+f(x) := "A" { x >= 90 }
+f(x) := "B" { x >= 80; x < 90 }
+f(x) := "C" { x >= 70; x < 80 }
 ```
 
 ## Tests
@@ -504,7 +504,7 @@ unrecognized constraints then the token is considered invalid.
 The examples below use the following token:
 
 ```live:jwt/verify:module
-es256_token = "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
+es256_token := "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
 ```
 
 ##### Using JWKS
@@ -512,7 +512,7 @@ This example shows a two-step process to verify the token signature and then dec
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 ```live:jwt/verify/jwks:module
-jwks = `{
+jwks := `{
     "keys": [{
         "kty":"EC",
         "crv":"P-256",
@@ -546,7 +546,7 @@ constraints.
 The following examples will demonstrate verifying tokens using an X.509 Certificate
 defined as:
 ```live:jwt/verify/cert:module
-cert = `-----BEGIN CERTIFICATE-----
+cert := `-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
 CHdoYXRldmVyMB4XDTE4MDgxMDE0Mjg1NFoXDTE4MDkwOTE0Mjg1NFowEzERMA8G
 A1UEAwwId2hhdGV2ZXIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATPwn3WCEXL
@@ -967,7 +967,7 @@ allow {
     meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
 }
 
-merge(chain) = meta {
+merge(chain) := meta {
     ruleAndDoc := ["rule", "document"]
     meta := {
         "title": override_annot(chain, "title", ruleAndDoc),                         # looks for 'title' in 'rule' scope, then 'document' scope
@@ -978,19 +978,19 @@ merge(chain) = meta {
     }
 }
 
-override_annot(chain, name, scopes) = val {
+override_annot(chain, name, scopes) := val {
     val := [v |
         link := chain[_]
         link.annotations.scope in scopes
         v := link.annotations[name]
     ][0]
-} else = null
+} else := null
 
-merge_annot(chain, name) = val {
+merge_annot(chain, name) := val {
     val := {v |
         v := chain[_].annotations[name][_]
     }
-} else = null
+} else := null
 ```
 
 {{< builtin-table cat=opa title=OPA >}}

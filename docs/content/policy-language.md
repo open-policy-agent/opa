@@ -181,7 +181,7 @@ z {
 Rego [References](#references) help you refer to nested documents. For example, with:
 
 ```live:eg/references:module
-sites = [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
+sites := [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 ```
 And
 ```live:eg/references/basic:module

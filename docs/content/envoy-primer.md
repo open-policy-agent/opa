@@ -129,9 +129,9 @@ response_headers_to_add["x-foo"] := "bar"
 
 status_code := 200 {
   allow
-} else = 401 {
+} else := 401 {
   not is_token_valid
-} else = 403 {
+} else := 403 {
   true
 }
 
@@ -435,7 +435,7 @@ access the path `/people`.
 ```live:parsed_path_example:module:read_only
 package envoy.authz
 
-default allow = false
+default allow := false
 
 allow {
     input.parsed_path == ["people"]

@@ -193,7 +193,7 @@ policy:
     #
     # Example header check:
     #
-    #   input.headers["X-Custom"][_] = "mysecret"
+    #   input.headers["X-Custom"][_] == "mysecret"
     #
     # Header keys follow canonical MIME form. The first character and any
     # characters following a hyphen are uppercase. The rest are lowercase.

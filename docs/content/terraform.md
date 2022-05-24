@@ -480,7 +480,7 @@ resource_types := {"aws_autoscaling_group", "aws_instance", "aws_iam", "aws_laun
 #########
 
 # Authorization holds if score for the plan is acceptable and no changes are made to IAM
-default authz = false
+default authz := false
 authz {
     score < blast_radius
     not touches_iam

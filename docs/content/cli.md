@@ -404,7 +404,7 @@ Evaluate a Rego query and print the result.
 
 To evaluate a simple query:
 
-    $ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x := 1; y := 2; x < y'
 
 To evaluate a query against JSON data:
 
