@@ -55,7 +55,13 @@ func (l *Result) Compiler() (*ast.Compiler, error) {
 
 // Store returns a Store object with the documents from this loader result.
 func (l *Result) Store() (storage.Store, error) {
-	return inmem.NewFromObject(l.Documents), nil
+	return l.StoreWithOpts()
+}
+
+// StoreWithOpts returns a Store object with the documents from this loader result,
+// instantiated with the passed options.
+func (l *Result) StoreWithOpts(opts ...inmem.Opt) (storage.Store, error) {
+	return inmem.NewFromObjectWithOpts(l.Documents, opts...), nil
 }
 
 // RegoFile represents the result of loading a single Rego source file.

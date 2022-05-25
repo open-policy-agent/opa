@@ -318,7 +318,7 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 		return nil, compiler.Errors
 	}
 
-	store := inmem.NewFromObject(b.Data)
+	store := inmem.NewFromObjectWithOpts(b.Data, inmem.OptRoundTripOnWrite(false))
 
 	rego := rego.New(
 		rego.Query(query),
