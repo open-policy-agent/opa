@@ -27,17 +27,24 @@ import (
 )
 
 // New returns an empty in-memory store.
-func New() storage.Store {
-	return &store{
-		data:     map[string]interface{}{},
-		triggers: map[*handle]storage.TriggerConfig{},
-		policies: map[string][]byte{},
+func New(opts ...Opt) storage.Store {
+	s := &store{
+		data:             map[string]interface{}{},
+		triggers:         map[*handle]storage.TriggerConfig{},
+		policies:         map[string][]byte{},
+		roundTripOnWrite: true,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // NewFromObject returns a new in-memory store from the supplied data object.
-func NewFromObject(data map[string]interface{}) storage.Store {
-	db := New()
+func NewFromObject(data map[string]interface{}, opts ...Opt) storage.Store {
+	db := New(opts...)
 	ctx := context.Background()
 	txn, err := db.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -54,13 +61,13 @@ func NewFromObject(data map[string]interface{}) storage.Store {
 
 // NewFromReader returns a new in-memory store from a reader that produces a
 // JSON serialized object. This function is for test purposes.
-func NewFromReader(r io.Reader) storage.Store {
+func NewFromReader(r io.Reader, opts ...Opt) storage.Store {
 	d := util.NewJSONDecoder(r)
 	var data map[string]interface{}
 	if err := d.Decode(&data); err != nil {
 		panic(err)
 	}
-	return NewFromObject(data)
+	return NewFromObject(data, opts...)
 }
 
 type store struct {
@@ -70,6 +77,10 @@ type store struct {
 	data     map[string]interface{}            // raw data
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
+
+	// roundTripOnWrite, if true, means that every call to Write round trips the
+	// data through JSON before adding the data to the store. Defaults to true.
+	roundTripOnWrite bool
 }
 
 type handle struct {
@@ -78,10 +89,10 @@ type handle struct {
 
 func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	var write bool
-	var context *storage.Context
+	var ctx *storage.Context
 	if len(params) > 0 {
 		write = params[0].Write
-		context = params[0].Context
+		ctx = params[0].Context
 	}
 	xid := atomic.AddUint64(&db.xid, uint64(1))
 	if write {
@@ -89,7 +100,7 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 	} else {
 		db.rmu.RLock()
 	}
-	return newTransaction(xid, write, context, db), nil
+	return newTransaction(xid, write, ctx, db), nil
 }
 
 func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
@@ -101,7 +112,7 @@ func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
 		db.rmu.Lock()
 		event := underlying.Commit()
 		db.runOnCommitTriggers(ctx, txn, event)
-		// Mark the transaction stale after executing triggers so they can
+		// Mark the transaction stale after executing triggers, so they can
 		// perform store operations if needed.
 		underlying.stale = true
 		db.rmu.Unlock()
@@ -190,8 +201,10 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 		return err
 	}
 	val := util.Reference(value)
-	if err := util.RoundTrip(val); err != nil {
-		return err
+	if db.roundTripOnWrite {
+		if err := util.RoundTrip(val); err != nil {
+			return err
+		}
 	}
 	return underlying.Write(op, path, *val)
 }
