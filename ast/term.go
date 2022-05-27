@@ -109,8 +109,7 @@ func InterfaceToValue(x interface{}) (Value, error) {
 		}
 		return r, nil
 	default:
-		ptr := util.Reference(x)
-		p, err := util.RoundTrip(ptr)
+		p, err := util.RoundTrip(util.Reference(x))
 		if err != nil {
 			return nil, fmt.Errorf("ast: interface conversion: %w", err)
 		}

@@ -996,15 +996,14 @@ func (b Bundle) Equal(other Bundle) bool {
 func (b Bundle) Copy() Bundle {
 
 	// Copy data.
-	var x interface{} = b.Data
-	x2, err := util.RoundTrip(&x)
+	x, err := util.RoundTrip(util.Reference(b.Data))
 
 	if err != nil {
 		panic(err)
 	}
 
-	if x2 != nil {
-		b.Data = x2.(map[string]interface{})
+	if x != nil {
+		b.Data = x.(map[string]interface{})
 	}
 
 	// Copy modules.

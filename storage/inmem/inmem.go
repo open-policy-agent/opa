@@ -189,12 +189,12 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 	if err != nil {
 		return err
 	}
-	val := util.Reference(value)
-	val2, err := util.JSONify(val)
+
+	val, err := util.JSONify(util.Reference(value))
 	if err != nil {
 		return err
 	}
-	return underlying.Write(op, path, val2)
+	return underlying.Write(op, path, val)
 }
 
 func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {

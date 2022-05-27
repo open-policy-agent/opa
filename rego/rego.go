@@ -1750,16 +1750,14 @@ func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Valu
 	m.Timer(metrics.RegoInputParse).Start()
 	defer m.Timer(metrics.RegoInputParse).Stop()
 
-	rawPtr := util.Reference(rawInput)
-
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
 	// []interface{}, the only array type ast.InterfaceToValue can work with
-	rawPtr2, err := util.RoundTrip(rawPtr)
+	val, err := util.RoundTrip(util.Reference(rawInput))
 	if err != nil {
 		return nil, err
 	}
 
-	return ast.InterfaceToValue(rawPtr2)
+	return ast.InterfaceToValue(val)
 }
 
 func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.Body, error) {

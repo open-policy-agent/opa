@@ -207,15 +207,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 }
 
 func roundtripJSONToAST(x interface{}) (ast.Value, error) {
-	rawPtr := util.Reference(x)
 	// roundtrip through json: this turns slices (e.g. []string, []bool) into
 	// []interface{}, the only array type ast.InterfaceToValue can work with
-	rawPtr2, err := util.RoundTrip(rawPtr)
+	val, err := util.RoundTrip(util.Reference(x))
 	if err != nil {
 		return nil, err
 	}
 
-	return ast.InterfaceToValue(rawPtr2)
+	return ast.InterfaceToValue(val)
 }
 
 const (
