@@ -45,18 +45,35 @@ func TestRoundTrip(t *testing.T) {
 			"ones": {1, 1, 1},
 		},
 	}
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
-			err := util.RoundTrip(&tc)
-			if err != nil {
-				t.Errorf("expected error=nil, got %s", err.Error())
-			}
-			switch x := tc.(type) {
-			// These are the output types we want, nothing else
-			case nil, bool, json.Number, int64, float64, int, string, []interface{},
-				[]string, map[string]interface{}, map[string]string:
-			default:
-				t.Errorf("unexpected type %T", x)
+
+	// RoundTrip and JSONify should produce identical output.
+	fns := []struct {
+		name string
+		fn   func(*interface{}) error
+	}{{
+		name: "RoundTrip",
+		fn:   util.RoundTrip,
+	}, {
+		name: "JSONify",
+		fn:   util.JSONify,
+	}}
+
+	for _, fn := range fns {
+		t.Run(fn.name, func(t *testing.T) {
+			for _, tc := range cases {
+				t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
+					err := fn.fn(&tc)
+					if err != nil {
+						t.Errorf("expected error=nil, got %s", err.Error())
+					}
+					switch x := tc.(type) {
+					// These are the output types we want, nothing else
+					case nil, bool, json.Number, int64, float64, int, string, []interface{},
+						[]string, map[string]interface{}, map[string]string:
+					default:
+						t.Errorf("unexpected type %T", x)
+					}
+				})
 			}
 		})
 	}

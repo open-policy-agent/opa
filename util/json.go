@@ -93,7 +93,7 @@ func JSONify(x *interface{}) error {
 	}
 
 	switch t := (*x).(type) {
-	case nil, bool, float64, string:
+	case nil, bool, json.Number, int64, float64, int, string:
 		return nil
 
 	case []interface{}:
