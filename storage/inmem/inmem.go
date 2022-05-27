@@ -190,7 +190,7 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 		return err
 	}
 	val := util.Reference(value)
-	if err := util.RoundTrip(val); err != nil {
+	if err := util.JSONify(val); err != nil {
 		return err
 	}
 	return underlying.Write(op, path, *val)

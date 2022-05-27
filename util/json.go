@@ -85,6 +85,41 @@ func RoundTrip(x *interface{}) error {
 	return UnmarshalJSON(bs, x)
 }
 
+// JSONify recursively converts x into native-JSON types.
+// Does not deepcopy x, and does mutate the underlying structure.
+func JSONify(x *interface{}) error {
+	if x == nil {
+		return nil
+	}
+
+	switch t := (*x).(type) {
+	case nil, bool, float64, string:
+		return nil
+
+	case []interface{}:
+		for i := range t {
+			err := JSONify(&t[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case map[string]interface{}:
+		for k, v := range t {
+			err := JSONify(&v)
+			if err != nil {
+				return err
+			}
+			t[k] = v
+		}
+		return nil
+
+	default:
+		return RoundTrip(x)
+	}
+}
+
 // Reference returns a pointer to its argument unless the argument already is
 // a pointer. If the argument is **t, or ***t, etc, it will return *t.
 //
