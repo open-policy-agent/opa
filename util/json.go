@@ -77,43 +77,51 @@ func MustMarshalJSON(x interface{}) []byte {
 // Thereby, it is converting its argument to the representation expected by
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
-func RoundTrip(x *interface{}) error {
+func RoundTrip(x *interface{}) (interface{}, error) {
 	bs, err := json.Marshal(x)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return UnmarshalJSON(bs, x)
+	err = UnmarshalJSON(bs, x)
+	if err != nil {
+		return nil, err
+	}
+	return *x, err
 }
 
 // JSONify recursively converts x into native-JSON types.
-// Does not deepcopy x, and does mutate the underlying structure.
-func JSONify(x *interface{}) error {
+// Deepcopies x, and does not mutate the underlying structure.
+func JSONify(x *interface{}) (interface{}, error) {
 	if x == nil {
-		return nil
+		return nil, nil
 	}
 
 	switch t := (*x).(type) {
-	case nil, bool, json.Number, int64, float64, int, string:
-		return nil
+	case nil, bool, json.Number, int64, float64, string:
+		v := t
+		return v, nil
 
 	case []interface{}:
+		result := make([]interface{}, len(t))
 		for i := range t {
-			err := JSONify(&t[i])
+			v, err := JSONify(&t[i])
 			if err != nil {
-				return err
+				return nil, err
 			}
+			result[i] = v
 		}
-		return nil
+		return result, nil
 
 	case map[string]interface{}:
+		result := make(map[string]interface{}, len(t))
 		for k, v := range t {
-			err := JSONify(&v)
+			v2, err := JSONify(&v)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			t[k] = v
+			result[k] = v2
 		}
-		return nil
+		return result, nil
 
 	default:
 		return RoundTrip(x)

@@ -997,13 +997,14 @@ func (b Bundle) Copy() Bundle {
 
 	// Copy data.
 	var x interface{} = b.Data
+	x2, err := util.RoundTrip(&x)
 
-	if err := util.RoundTrip(&x); err != nil {
+	if err != nil {
 		panic(err)
 	}
 
-	if x != nil {
-		b.Data = x.(map[string]interface{})
+	if x2 != nil {
+		b.Data = x2.(map[string]interface{})
 	}
 
 	// Copy modules.

@@ -49,7 +49,7 @@ func TestRoundTrip(t *testing.T) {
 	// RoundTrip and JSONify should produce identical output.
 	fns := []struct {
 		name string
-		fn   func(*interface{}) error
+		fn   func(*interface{}) (interface{}, error)
 	}{{
 		name: "RoundTrip",
 		fn:   util.RoundTrip,
@@ -62,7 +62,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Run(fn.name, func(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(fmt.Sprintf("input %v", tc), func(t *testing.T) {
-					err := fn.fn(&tc)
+					_, err := fn.fn(&tc)
 					if err != nil {
 						t.Errorf("expected error=nil, got %s", err.Error())
 					}

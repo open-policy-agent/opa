@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/open-policy-agent/opa/util"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -334,8 +336,8 @@ func TestBundleLifecycle(t *testing.T) {
 }
 `
 	expected := loadExpectedSortedResult(expectedRaw)
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	if diff := cmp.Diff(expected, actual); diff != "" {
+		t.Errorf("-expected, +got: %v", diff)
 	}
 
 	// Ensure that the extra module was included
@@ -636,8 +638,8 @@ func TestDeltaBundleLifecycle(t *testing.T) {
 	}`
 
 	expected := loadExpectedSortedResult(expectedRaw)
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	if diff := cmp.Diff(expected, actual); diff != "" {
+		t.Errorf("-expected, +got:\n%v", diff)
 	}
 
 	// Stop the "read" transaction
@@ -1183,8 +1185,8 @@ func TestWriteData(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err)
 			}
 			expected := loadExpectedSortedResult(tc.expected)
-			if !reflect.DeepEqual(expected, actual) {
-				t.Errorf("expected %v, got %v", tc.expected, actual)
+			if diff := cmp.Diff(expected, actual); diff != "" {
+				t.Errorf("-expected, +got %v", diff)
 			}
 		})
 	}

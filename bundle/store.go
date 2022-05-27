@@ -90,7 +90,8 @@ func WriteEtagToStore(ctx context.Context, store storage.Store, txn storage.Tran
 }
 
 func write(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path, value interface{}) error {
-	if err := util.RoundTrip(&value); err != nil {
+	value2, err := util.RoundTrip(&value)
+	if err != nil {
 		return err
 	}
 
@@ -103,7 +104,7 @@ func write(ctx context.Context, store storage.Store, txn storage.Transaction, pa
 		return err
 	}
 
-	return store.Write(ctx, txn, storage.AddOp, path, value)
+	return store.Write(ctx, txn, storage.AddOp, path, value2)
 }
 
 // EraseManifestFromStore will remove the manifest from storage. This function is called

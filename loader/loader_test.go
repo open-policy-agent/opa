@@ -505,7 +505,7 @@ func TestAsBundleWithFile(t *testing.T) {
 		}
 
 		var tmp interface{} = b
-		err = util.RoundTrip(&tmp)
+		_, err = util.RoundTrip(&tmp)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

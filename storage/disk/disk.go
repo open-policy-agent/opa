@@ -349,10 +349,11 @@ func (db *Store) Write(ctx context.Context, txn storage.Transaction, op storage.
 		return err
 	}
 	val := util.Reference(value)
-	if err := util.RoundTrip(val); err != nil {
+	val2, err := util.RoundTrip(val)
+	if err != nil {
 		return wrapError(err)
 	}
-	return underlying.Write(ctx, op, path, *val)
+	return underlying.Write(ctx, op, path, val2)
 }
 
 func (db *Store) underlying(txn storage.Transaction) (*transaction, error) {
