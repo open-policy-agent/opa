@@ -99,6 +99,9 @@ func parse(jwkSrc string) (*Set, error) {
 	} else {
 		for i := range rawKeySetJSON.Keys {
 			rawKeyJSON := rawKeySetJSON.Keys[i]
+			if rawKeyJSON.Algorithm != nil && *rawKeyJSON.Algorithm == jwa.Unsupported {
+				continue
+			}
 			jwkKey, err = rawKeyJSON.GenerateKey()
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate key: %w", err)

@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -63,7 +64,7 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
-		pubKey := constraints.keys[0].(*ecdsa.PublicKey)
+		pubKey := constraints.keys[0].key.(*ecdsa.PublicKey)
 		if pubKey.Curve != elliptic.P256() {
 			t.Errorf("curve: %v", pubKey.Curve)
 		}
@@ -102,12 +103,12 @@ OHoCIHmNX37JOqTcTzGn2u9+c8NlnvZ0uDvsd1BmKPaUmjmm
 		if err != nil {
 			t.Fatalf("parseTokenConstraints: %v", err)
 		}
-		elPubKey := constraints.keys[0].(*ecdsa.PublicKey)
+		elPubKey := constraints.keys[0].key.(*ecdsa.PublicKey)
 		if elPubKey.Curve != elliptic.P256() {
 			t.Errorf("curve: %v", elPubKey.Curve)
 		}
 
-		rsaPubKey := constraints.keys[1].(*rsa.PublicKey)
+		rsaPubKey := constraints.keys[1].key.(*rsa.PublicKey)
 		if rsaPubKey.Size() != 256 {
 			t.Errorf("expected size 256 found %d", rsaPubKey.Size())
 		}
@@ -493,6 +494,208 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 		}
 		if exp, act := ast.String(encodedSigned), qrs[0][ast.Var("x")].Value; !exp.Equal(act) {
 			t.Fatalf("unexpected result: want %v, got %v", exp, act)
+		}
+	}
+}
+
+func TestTopdownJWTUnknownAlgTypesDiscardedFromJWKS(t *testing.T) {
+	cert := `{
+    "keys": [
+	    {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k3",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        },
+	    {
+		  "kid": "encryption algorithm",
+		  "kty": "RSA",
+		  "alg": "RSA-OAEP",
+		  "use": "enc",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
+		  "e": "AQAB",
+		  "x5c": [
+			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
+		  ],
+		  "x5t": "WKfdwdQkg",
+		  "x5t#S256": "2_FidAwjlCQl20"
+		}
+	]
+}
+`
+	keys, err := getKeysFromCertOrJWK(cert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(keys) != 1 {
+		t.Errorf("expected only one key as inavlid one should have been discarded")
+	}
+
+	if keys[0].alg != "RS256" {
+		t.Errorf("expected key with RS256 alg")
+	}
+}
+
+func TestTopdownJWTVerifyOnlyVerifiesUsingApplicableKeys(t *testing.T) {
+	cert := ast.MustInterfaceToValue(`{
+    "keys": [
+        {
+          "kty": "EC",
+          "use": "sig",
+          "crv": "P-256",
+          "kid": "k1",
+          "x": "9Qq5S5VqMQoH-FOI4atcH6V3bua03C-5ZMZMG1rszwA",
+          "y": "LLbFxWkGBEBrTm1GMYZJy1OXCH1KLweJMCgIEPIsibU",
+          "alg": "ES256"
+        },
+        {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k2",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        },
+	    {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k3",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        },
+	    {
+		  "kid": "unknown algorithm",
+		  "kty": "RSA",
+		  "alg": "RSA-OAEP",
+		  "use": "enc",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
+		  "e": "AQAB",
+		  "x5c": [
+			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
+		  ],
+		  "x5t": "WKfdwdQkg",
+		  "x5t#S256": "2_FidAw.....jlCQl20"
+		}
+	]
+}
+`)
+
+	cases := []struct {
+		note              string
+		header            string
+		expectVerifyCalls int
+	}{
+		{
+			note:              "verification considers only key with matching kid, if present",
+			header:            `{"alg":"RS256", "kid": "k2"}`,
+			expectVerifyCalls: 1,
+		},
+		{
+			note:              "verification considers any key with matching alg, if no kid matches",
+			header:            `{"alg":"RS256", "kid": "not-in-jwks"}`,
+			expectVerifyCalls: 2,
+		},
+		{
+			note:              "verification without kid considers only keys with alg matched from header",
+			header:            `{"alg":"RS256"}`,
+			expectVerifyCalls: 2,
+		},
+		{
+			note:              "verification is is skipped if alg unknown",
+			header:            `{"alg":"xyz"}`,
+			expectVerifyCalls: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			header := base64.RawURLEncoding.EncodeToString([]byte(tc.header))
+			payload := base64.RawURLEncoding.EncodeToString([]byte("{}"))
+			signature := base64.RawURLEncoding.EncodeToString([]byte("ignored"))
+
+			token := ast.MustInterfaceToValue(fmt.Sprintf("%s.%s.%s", header, payload, signature))
+
+			verifyCalls := 0
+			verifier := func(publicKey interface{}, digest []byte, signature []byte) error {
+				verifyCalls++
+				return fmt.Errorf("fail")
+			}
+
+			_, err := builtinJWTVerify(token, cert, sha256.New, verifier)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if verifyCalls != tc.expectVerifyCalls {
+				t.Errorf("expected %d calls to verify token, got %d", tc.expectVerifyCalls, verifyCalls)
+			}
+		})
+	}
+}
+
+func TestTopdownJWTDecodeVerifyIgnoresKeysOfUnknownAlgInJWKS(t *testing.T) {
+	c := ast.NewObject()
+	c.Insert(ast.StringTerm("cert"), ast.StringTerm(`{
+    "keys": [
+        {
+          "kty": "EC",
+          "use": "sig",
+          "crv": "P-256",
+          "kid": "k1",
+          "x": "9Qq5S5VqMQoH-FOI4atcH6V3bua03C-5ZMZMG1rszwA",
+          "y": "LLbFxWkGBEBrTm1GMYZJy1OXCH1KLweJMCgIEPIsibU",
+          "alg": "ES256"
+        },
+        {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k2",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        },
+	    {
+          "kty": "RSA",
+          "e": "AQAB",
+          "use": "enc",
+          "kid": "k3",
+          "alg": "RS256",
+          "n": "sGu-fYVE2nq2dPxJlqAMI0Z8G3FD0XcWDnD8mkfO1ddKRGuUQZmfj4gWeZGyIk3cnuoy7KJCEqa3daXc08QHuFZyfn0rH33t8_AFsvb0q0i7R2FK-Gdqs_E0-sGpYMsRJdZWfCioLkYjIHEuVnRbi3DEsWqe484rEGbKF60jNRgGC4b-8pz-E538ZkssWxcqHrYIj5bjGEU36onjS3M_yrTuNvzv_8wRioK4fbcwmGne9bDxu8LcoSReWpPn0CnUkWnfqroRcMJnC87ZuJagDW1ZWCmU3psdsVanmFFh0DP6z0fsA4h8G2n9-qp-LEKFaWwo3IWlOsIzU3MHdcEiGw"
+        },
+	    {
+		  "kid": "unknown algorithm",
+		  "kty": "RSA",
+		  "alg": "RSA-OAEP",
+		  "use": "enc",
+		  "n": "onlqv4UZx5ZabJ3TCq-IO0s0xaOwo6fWl9o4SzLXPbGtvxonQhoYOeMlS0XkdEdLzB-eqh_hkQ",
+		  "e": "AQAB",
+		  "x5c": [
+			"MIICnTCCAYUCBgGAmcG0xjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQ2YVaQn47Eew=="
+		  ],
+		  "x5t": "WKfdwdQkg",
+		  "x5t#S256": "2_FidAw.....jlCQl20"
+		}
+	]
+}
+`))
+
+	wallclock := ast.NumberTerm(int64ToJSONNumber(time.Now().UnixNano()))
+	constraints, err := parseTokenConstraints(c, wallclock)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(constraints.keys) != 3 {
+		t.Errorf("expected 3 keys in JWKS, got %d", len(constraints.keys))
+	}
+
+	for _, key := range constraints.keys {
+		if key.alg == "RSA-OAEP" {
+			t.Errorf("expected alg: RSA-OAEP to be removed from key set")
 		}
 	}
 }
