@@ -72,12 +72,38 @@ func MustMarshalJSON(x interface{}) []byte {
 	return bs
 }
 
+// RoundTripped holds a value which has already been round-tripped through JSON.
+type RoundTripped struct {
+	underlying interface{}
+}
+
+// PreRoundTrip round trips an object through JSON without acquiring locks on
+// OPA storage, avoiding holding up other calls to OPA storage.
+func PreRoundTrip(x *interface{}) (*RoundTripped, error) {
+	err := RoundTrip(x)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RoundTripped{
+		underlying: *x,
+	}, nil
+}
+
 // RoundTrip encodes to JSON, and decodes the result again.
 //
 // Thereby, it is converting its argument to the representation expected by
 // rego.Input and inmem's Write operations. Works with both references and
 // values.
 func RoundTrip(x *interface{}) error {
+	if x != nil {
+		rt, alreadyRoundTripped := (*x).(RoundTripped)
+		if alreadyRoundTripped {
+			*x = rt.underlying
+			return nil
+		}
+	}
+
 	bs, err := json.Marshal(x)
 	if err != nil {
 		return err
