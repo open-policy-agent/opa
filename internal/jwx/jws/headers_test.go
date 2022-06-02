@@ -112,9 +112,11 @@ func TestHeader(t *testing.T) {
 		headers := `{"typ":"JWT",` + "\r\n" + ` "alg":"dummy"}`
 		var standardHeaders jws.StandardHeaders
 		err := json.Unmarshal([]byte(headers), &standardHeaders)
-		if err == nil {
-			t.Fatal("Unmarshal should have failed")
+		if err != nil {
+			t.Fatal(err)
 		}
-
+		if standardHeaders.Algorithm != jwa.Unsupported {
+			t.Errorf("expected unsupported algorithm")
+		}
 	})
 }
