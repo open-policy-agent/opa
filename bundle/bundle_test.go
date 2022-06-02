@@ -1338,8 +1338,8 @@ func TestHashBundleFiles(t *testing.T) {
 		plan     []byte
 		exp      int
 	}{
-		"no_content":                 {map[string]interface{}{}, Manifest{}, nil, nil, 2},
-		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, nil, nil, 2},
+		"no_content":                 {map[string]interface{}{}, Manifest{}, nil, nil, 1},
+		"data":                       {map[string]interface{}{"foo": "bar"}, Manifest{}, nil, nil, 1},
 		"data_and_manifest":          {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte{}, nil, 2},
 		"data_and_manifest_and_wasm": {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, []byte("modules-compiled-as-wasm-binary"), nil, 3},
 		"data_and_plan":              {map[string]interface{}{"foo": "bar"}, Manifest{Revision: "quickbrownfaux"}, nil, []byte("not a plan but good enough"), 3},
