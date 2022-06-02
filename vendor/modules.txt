@@ -126,7 +126,7 @@ github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
 ## explicit
 github.com/ghodss/yaml
-# github.com/go-ini/ini v1.66.4
+# github.com/go-ini/ini v1.66.6
 ## explicit
 github.com/go-ini/ini
 # github.com/go-logr/logr v1.2.3
@@ -369,7 +369,7 @@ google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.46.2
+# google.golang.org/grpc v1.47.0
 ## explicit
 google.golang.org/grpc
 google.golang.org/grpc/attributes

@@ -1001,6 +1001,7 @@ func TestCompileV1Observability(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer disk.Close(ctx)
 		f := newFixtureWithStore(t, disk)
 
 		err = f.v1(http.MethodPut, "/policies/test", `package test
@@ -1579,6 +1580,7 @@ p = true { false }`
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer disk.Close(ctx)
 				executeRequests(t, tc.reqs,
 					variant{"inmem", nil},
 					variant{"disk", []func(*Server){
@@ -1600,6 +1602,7 @@ func TestDataV1Metrics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer disk.Close(ctx)
 
 		f := newFixtureWithStore(t, disk)
 		put := newReqV1(http.MethodPut, `/data?metrics`, `{"foo":"bar"}`)
@@ -1765,6 +1768,7 @@ func TestBundleScope(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer disk.Close(ctx)
 
 		for _, v := range []variant{
 			{"inmem", nil},
@@ -2406,6 +2410,7 @@ func TestDataMetricsEval(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer disk.Close(ctx)
 
 		f := newFixtureWithStore(t, disk)
 
@@ -3266,6 +3271,7 @@ func TestQueryV1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer disk.Close(ctx)
 
 		f := newFixtureWithStore(t, disk)
 		get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&metrics`, "")

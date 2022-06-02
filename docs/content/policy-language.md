@@ -147,37 +147,6 @@ t
 ```live:eg/rules:output
 ```
 
-The order of expressions in a rule does not affect the document’s content.
-
-```live:eg/expression_order:module
-s {
-    x > y
-    y = 41
-    x = 42
-}
-```
-
-The query result is the same:
-
-```live:eg/expression_order:query:hidden
-s
-```
-```live:eg/expression_order:output
-```
-
-There's one exception: if you use assignment `:=` the compiler will check
-that the variable you are assigning has not already been used.
-
-```live:eg/assignment_check:module:merge_down
-z {
-    y := 41
-    y := 42
-    43 > y
-}
-```
-```live:eg/assignment_check:output:expect_assigned_above
-```
-
 Rego [References](#references) help you refer to nested documents. For example, with:
 
 ```live:eg/references:module
@@ -1948,6 +1917,15 @@ sites[i].servers[j].name = apps[k].servers[m]
 ```live:eg/data/unification2:output
 ```
 
+As opposed to when assignment (`:=`) is used, the order of expressions in a rule does not affect the document’s content.
+
+```live:eg/expression_order:module
+s {
+    x > y
+    y = 41
+    x = 42
+}
+```
 
 #### Best Practices for Equality
 

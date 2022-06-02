@@ -27,6 +27,7 @@ const (
 	RS384       SignatureAlgorithm = "RS384" // RSASSA-PKCS-v1.5 using SHA-384
 	RS512       SignatureAlgorithm = "RS512" // RSASSA-PKCS-v1.5 using SHA-512
 	NoValue     SignatureAlgorithm = ""      // No value is different from none
+	Unsupported SignatureAlgorithm = "unsupported"
 )
 
 // Accept is used when conversion from values given by
@@ -69,7 +70,8 @@ func (signature *SignatureAlgorithm) UnmarshalJSON(data []byte) error {
 	}
 	_, ok := signatureAlg[quoted]
 	if !ok {
-		return errors.New("unknown signature algorithm")
+		*signature = Unsupported
+		return nil
 	}
 	*signature = SignatureAlgorithm(quoted)
 	return nil
