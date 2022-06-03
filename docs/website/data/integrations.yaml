@@ -658,6 +658,31 @@ integrations:
       - docker
       - snyk
 
+  pulumi:
+    title: Pulumi
+    description: Build infrastructure as code in familiar languages. CrossGuard is Pulumi's policy as code offering, providing OPA as one of the options to use for defining policy.
+    software:
+      - pulumi
+      - aws
+      - gcp
+      - azure
+    labels:
+      category: publiccloud
+      layer: orchestration
+    code:
+      - https://github.com/pulumi/pulumi-policy-opa
+    blogs:
+      - https://www.pulumi.com/blog/opa-support-for-crossguard/
+    videos:
+      - title: "Testing Configuration with Open Policy Agent"
+        speakers:
+          - name: Gareth Rushgrove
+            organization: snyk
+        venue: Cloud Engineering Summit 2020
+        link: https://www.pulumi.com/resources/testing-configuration-with-open-policy-agent/
+    inventors:
+      - pulumi
+
   iptables:
     title: IPTables
     description: IPTables is a useful tool available to Linux kernel for filtering network packets. OPA makes it possible to manage IPTables rules using context-aware policy.
@@ -1442,6 +1467,9 @@ organizations:
   snowflake:
     name: Snowflake
     link: https://www.snowflake.com/
+  pulumi:
+    name: Pulumi
+    link: https://www.pulumi.com/
 
 software:
   oauth:
@@ -1657,4 +1685,7 @@ software:
   nginx:
     name: Nginx
     link: https://nginx.org/
+  pulumi:
+    name: Pulumi
+    link: https://www.pulumi.com/
 
