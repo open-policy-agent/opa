@@ -4,14 +4,8 @@
       {{ .Title }} 
     </span>
     <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
-        {{ if .File.Path}}
-        {{ $.Scratch.Set "LogicalName" .File.LogicalName}}
-        {{ end }}
-        {{ with .Site.Params.GithubEdit}}
-        <a href='{{ . }}{{ $.Scratch.Get "LogicalName" }}' target="_blank"><i class="fab fa-github"></i><span>Edit</span></a>
-        {{ end }}
-        
-    </span>
+        <a href='{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}' target="_blank"><i class="fab fa-github"></i><span>Edit</span></a>
+    </span>    
     <hr>
   </div>
 </section>
