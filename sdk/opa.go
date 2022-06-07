@@ -53,9 +53,14 @@ type state struct {
 // options that specify an OPA configuration file.
 func New(ctx context.Context, opts Options) (*OPA, error) {
 
-	id, err := uuid.New(rand.Reader)
-	if err != nil {
-		return nil, err
+	var err error
+
+	id := opts.ID
+	if id == "" {
+		id, err = uuid.New(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := opts.init(); err != nil {

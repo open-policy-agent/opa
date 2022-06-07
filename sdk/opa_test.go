@@ -97,6 +97,59 @@ func TestPluginPanic(t *testing.T) {
 	opa.Stop(ctx)
 }
 
+func TestSDKConfigurableID(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": "package system\nmain = time.now_ns()",
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+		ID:            "164031de-e511-11ec-8fea-0242ac120002"})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Now: time.Unix(0, 1619868194450288000).UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+
+	if entries[0].Fields["labels"].(map[string]interface{})["id"] != "164031de-e511-11ec-8fea-0242ac120002" {
+		t.Fatalf("expected %v but got %v", "164031de-e511-11ec-8fea-0242ac120002", entries[0].Fields["labels"].(map[string]interface{})["id"])
+	}
+
+}
+
 func TestDecision(t *testing.T) {
 
 	ctx := context.Background()
