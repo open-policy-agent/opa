@@ -615,10 +615,11 @@ func (p *Planner) planWith(e *ast.Expr, iter planiter) error {
 		}
 
 		// If any of the `with` statements targeted the data document, overwriting
-		// parts of the ruletrie, we shadow the existing planned functions during
-		// expression planning. This causes the planner to re-plan any rules that
-		// may be required during planning of this expression (transitively).
-		shadowing := p.dataRefsShadowRuletrie(dataRefs)
+		// parts of the ruletrie; or if a function has been mocked, we shadow the
+		// existing planned functions during expression planning.
+		// This causes the planner to re-plan any rules that may be required during
+		// planning of this expression (transitively).
+		shadowing := p.dataRefsShadowRuletrie(dataRefs) || len(mocks) > 0
 		if shadowing {
 			p.funcs.Push(map[string]string{})
 			for _, ref := range dataRefs {
