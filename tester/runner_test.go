@@ -363,6 +363,7 @@ func testCancel(t *testing.T, bench bool) {
 }
 
 func TestRunnerTimeout(t *testing.T) {
+	test.Skip(t)
 	testTimeout(t, false)
 }
 
