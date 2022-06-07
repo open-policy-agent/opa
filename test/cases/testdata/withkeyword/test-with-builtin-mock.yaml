@@ -61,6 +61,23 @@ cases:
   modules:
   - |
     package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+      not q
+    }
+    q {
+      time.now_ns() == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 0, rule queried with and without mock'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
     import future.keywords.in
 
     pass_resp = {"body": {"roles": ["admin"]}}
@@ -132,6 +149,24 @@ cases:
     }
     valid_time(x) { time.now_ns() == x }
   note: 'withkeyword/builtin: indirect call through function'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+      not q
+    }
+    q {
+      valid_time(1)
+    }
+    valid_time(x) { time.now_ns() == x }
+  note: 'withkeyword/builtin: indirect call through function, rule with and without mock'
   query: data.test.p = x
   want_result:
   - x: true
