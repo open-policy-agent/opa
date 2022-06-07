@@ -2672,6 +2672,73 @@
       }
     },
     {
+      "name": "object.subset",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "dynamic": {
+                  "type": "any"
+                },
+                "type": "array"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
+              }
+            ],
+            "type": "any"
+          },
+          {
+            "of": [
+              {
+                "dynamic": {
+                  "type": "any"
+                },
+                "type": "array"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "of": {
+                  "type": "any"
+                },
+                "type": "set"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "object.union",
       "decl": {
         "args": [
