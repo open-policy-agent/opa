@@ -13,11 +13,16 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/version"
 )
 
 func main() {
 	f := ast.CapabilitiesForThisVersion()
-	sorted := append(sortedCaps(), versionedCaps{version: "edge", caps: f})
+	sorted := sortedCaps()
+	if !strings.HasSuffix(version.Version, "-dev") {
+		sorted = append(sorted, versionedCaps{version: "v" + version.Version, caps: f})
+	}
+	sorted = append(sorted, versionedCaps{version: "edge", caps: f})
 
 	mdata := make(map[string]interface{})
 	categories := make(map[string][]string)
