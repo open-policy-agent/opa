@@ -4125,11 +4125,11 @@
     "args": [
       {
         "name": "query",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
         "name": "schema",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       }
     ],
     "available": [
@@ -4142,7 +4142,7 @@
       "v0.44.0",
       "edge"
     ],
-    "description": "Checks that a GraphQL query is valid against a given schema.",
+    "description": "Checks that a GraphQL query is valid against a given schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
     "introduced": "v0.41.0",
     "result": {
       "description": "`true` if the query is valid under the given schema. `false` otherwise.",
@@ -4155,11 +4155,11 @@
     "args": [
       {
         "name": "query",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
         "name": "schema",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       }
     ],
     "available": [
@@ -4172,7 +4172,7 @@
       "v0.44.0",
       "edge"
     ],
-    "description": "Returns AST objects for a given GraphQL query and schema after validating the query against the schema. Returns undefined if errors were encountered during parsing or validation.",
+    "description": "Returns AST objects for a given GraphQL query and schema after validating the query against the schema. Returns undefined if errors were encountered during parsing or validation. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
     "introduced": "v0.41.0",
     "result": {
       "description": "`output` is of the form `[query_ast, schema_ast]`. If the GraphQL query is valid given the provided schema, then `query_ast` and `schema_ast` are objects describing the ASTs for the query and schema.",
@@ -4185,11 +4185,11 @@
     "args": [
       {
         "name": "query",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
         "name": "schema",
-        "type": "string"
+        "type": "any\u003cstring, object[any: any]\u003e"
       }
     ],
     "available": [
@@ -4202,7 +4202,7 @@
       "v0.44.0",
       "edge"
     ],
-    "description": "Returns a boolean indicating success or failure alongside the parsed ASTs for a given GraphQL query and schema after validating the query against the schema.",
+    "description": "Returns a boolean indicating success or failure alongside the parsed ASTs for a given GraphQL query and schema after validating the query against the schema. The query and/or schema can be either GraphQL strings or AST objects from the other GraphQL builtin functions.",
     "introduced": "v0.41.0",
     "result": {
       "description": " `output` is of the form `[valid, query_ast, schema_ast]`. If the query is valid given the provided schema, then `valid` is `true`, and `query_ast` and `schema_ast` are objects describing the ASTs for the GraphQL query and schema. Otherwise, `valid` is `false` and `query_ast` and `schema_ast` are `{}`.",

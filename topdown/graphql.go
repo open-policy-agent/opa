@@ -5,40 +5,22 @@
 package topdown
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-
-	gqltop "github.com/open-policy-agent/opa/internal/gqlparser"
 
 	gqlast "github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	gqlparser "github.com/open-policy-agent/opa/internal/gqlparser/parser"
 	gqlvalidator "github.com/open-policy-agent/opa/internal/gqlparser/validator"
 
+	// Side-effecting import. Triggers GraphQL library's validation rule init() functions.
+	_ "github.com/open-policy-agent/opa/internal/gqlparser/validator/rules"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-// Parses a GraphQL schema, and returns only the Schema object.
-// Used in validation of queries.
-// NOTE(philipc): The error type here is a gqlerror.Error struct,
-// which requires us to treat it specially, since the returned value
-// will *always* be non-null.
-// See: https://staticcheck.io/docs/checks#SA4023 for details.
-func loadSchema(schema string) (*gqlast.Schema, error) {
-	loadedSchema, err := gqltop.LoadSchema(&gqlast.Source{Input: schema})
-	if err != nil {
-		errorParts := strings.SplitN(err.Error(), ":", 4)
-		msg := strings.TrimLeft(errorParts[3], " ")
-		return nil, fmt.Errorf("%s in GraphQL schema string at location %s:%s", msg, errorParts[1], errorParts[2])
-	}
-	return loadedSchema, nil
-}
-
 // Parses a GraphQL schema, and returns the GraphQL AST for the schema.
-// NOTE(philipc): The error type here is a gqlerror.Error struct,
-// which requires us to treat it specially, since the returned value
-// will *always* be non-null.
-// See: https://staticcheck.io/docs/checks#SA4023 for details.
 func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 	// NOTE(philipc): We don't include the "built-in schema defs" from the
 	// underlying graphql parsing library here, because those definitions
@@ -56,10 +38,6 @@ func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 }
 
 // Parses a GraphQL query, and returns the GraphQL AST for the query.
-// NOTE(philipc): The error type here is a gqlerror.Error struct,
-// which requires us to treat it specially, since the returned value
-// will *always* be non-null.
-// See: https://staticcheck.io/docs/checks#SA4023 for details.
 func parseQuery(query string) (*gqlast.QueryDocument, error) {
 	queryAST, err := gqlparser.ParseQuery(&gqlast.Source{Input: query})
 	if err != nil {
@@ -73,10 +51,6 @@ func parseQuery(query string) (*gqlast.QueryDocument, error) {
 // Validates a GraphQL query against a schema, and returns an error.
 // In this case, we get a wrappered error list type, and pluck out
 // just the first error message in the list.
-// NOTE(philipc): The error type from Validate() is a gqlerror.List
-// struct, which requires us to treat it specially, since the
-// returned value will *always* be non-null.
-// See: https://staticcheck.io/docs/checks#SA4023 for details.
 func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 	// Validate the query against the schema, erroring if there's an issue.
 	err := gqlvalidator.Validate(schema, query)
@@ -92,6 +66,78 @@ func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 		return fmt.Errorf("%s in GraphQL query string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
 	return nil
+}
+
+func getBuiltinSchema() *gqlast.SchemaDocument {
+	schema, err := gqlparser.ParseSchema(gqlvalidator.Prelude)
+	if err != nil {
+		panic(fmt.Errorf("Error in gqlparser Prelude (should be impossible): %w", err))
+	}
+	return schema
+}
+
+// NOTE(philipc): This function expects *validated* schema documents, and will break
+// if it is fed arbitrary structures.
+func mergeSchemaDocuments(docA *gqlast.SchemaDocument, docB *gqlast.SchemaDocument) *gqlast.SchemaDocument {
+	ast := &gqlast.SchemaDocument{}
+	ast.Merge(docA)
+	ast.Merge(docB)
+	return ast
+}
+
+// Converts a SchemaDocument into a gqlast.Schema object that can be used for validation.
+// It merges in the builtin schema typedefs exactly as gqltop.LoadSchema did internally.
+func convertSchema(schemaDoc *gqlast.SchemaDocument) (*gqlast.Schema, error) {
+	// Merge builtin schema + schema we were provided.
+	builtinsSchemaDoc := getBuiltinSchema()
+	mergedSchemaDoc := mergeSchemaDocuments(builtinsSchemaDoc, schemaDoc)
+	schema, err := gqlvalidator.ValidateSchemaDocument(mergedSchemaDoc)
+	if err != nil {
+		return nil, fmt.Errorf("Error in gqlparser SchemaDocument to Schema conversion: %w", err)
+	}
+	return schema, nil
+}
+
+// Converts an ast.Object into a gqlast.QueryDocument object.
+func objectToQueryDocument(value ast.Object) (*gqlast.QueryDocument, error) {
+	// Convert ast.Term to interface{} for JSON encoding below.
+	asJSON, err := ast.JSON(value)
+	if err != nil {
+		return nil, err
+	}
+	// Marshal to JSON.
+	bs, err := json.Marshal(asJSON)
+	if err != nil {
+		return nil, err
+	}
+	// Unmarshal from JSON -> gqlast.QueryDocument.
+	var result gqlast.QueryDocument
+	err = json.Unmarshal(bs, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// Converts an ast.Object into a gqlast.SchemaDocument object.
+func objectToSchemaDocument(value ast.Object) (*gqlast.SchemaDocument, error) {
+	// Convert ast.Term to interface{} for JSON encoding below.
+	asJSON, err := ast.JSON(value)
+	if err != nil {
+		return nil, err
+	}
+	// Marshal to JSON.
+	bs, err := json.Marshal(asJSON)
+	if err != nil {
+		return nil, err
+	}
+	// Unmarshal from JSON -> gqlast.SchemaDocument.
+	var result gqlast.SchemaDocument
+	err = json.Unmarshal(bs, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // Recursively traverses an AST that has been run through InterfaceToValue,
@@ -178,35 +224,34 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 
 // Reports errors from parsing/validation.
 func builtinGraphQLParse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Get the raw strings from each operand so that we can
-	// feed them to the GraphQL parser functions.
-	rawQuery, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
-		return err
+	var queryDoc *gqlast.QueryDocument
+	var schemaDoc *gqlast.SchemaDocument
+	var err error
+
+	// Parse/translate query if it's a string/object.
+	switch x := operands[0].Value.(type) {
+	case ast.String:
+		queryDoc, err = parseQuery(string(x))
+	case ast.Object:
+		queryDoc, err = objectToQueryDocument(x)
+	default:
+		// Error if wrong type.
+		return builtins.NewOperandTypeErr(0, x, "string", "object")
 	}
-	rawSchema, err := builtins.StringOperand(operands[1].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	// Generate ASTs/errors for the GraphQL query.
-	queryDoc, err := parseQuery(string(rawQuery))
-	if err != nil {
-		return err
+	// Parse/translate schema if it's a string/object.
+	switch x := operands[1].Value.(type) {
+	case ast.String:
+		schemaDoc, err = parseSchema(string(x))
+	case ast.Object:
+		schemaDoc, err = objectToSchemaDocument(x)
+	default:
+		// Error if wrong type.
+		return builtins.NewOperandTypeErr(1, x, "string", "object")
 	}
-
-	// Validate the query against the schema, erroring if there's an issue.
-	schema, err := loadSchema(string(rawSchema))
-	if err != nil {
-		return err
-	}
-	if err := validateQuery(schema, queryDoc); err != nil {
-		return err
-	}
-
-	// Generate AST/errors for the GraphQL schema, since the query
-	// passed validation.
-	schemaDoc, err := parseSchema(string(rawSchema))
 	if err != nil {
 		return err
 	}
@@ -218,6 +263,15 @@ func builtinGraphQLParse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	}
 	schemaASTValue, err := ast.InterfaceToValue(schemaDoc)
 	if err != nil {
+		return err
+	}
+
+	// Validate the query against the schema, erroring if there's an issue.
+	schema, err := convertSchema(schemaDoc)
+	if err != nil {
+		return err
+	}
+	if err := validateQuery(schema, queryDoc); err != nil {
 		return err
 	}
 
@@ -236,16 +290,9 @@ func builtinGraphQLParse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 // Returns default value when errors occur.
 func builtinGraphQLParseAndVerify(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Get the raw strings from each operand so that we can
-	// feed them to the GraphQL parser functions.
-	rawQuery, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
-		return err
-	}
-	rawSchema, err := builtins.StringOperand(operands[1].Value, 1)
-	if err != nil {
-		return err
-	}
+	var queryDoc *gqlast.QueryDocument
+	var schemaDoc *gqlast.SchemaDocument
+	var err error
 
 	unverified := ast.ArrayTerm(
 		ast.BooleanTerm(false),
@@ -253,24 +300,30 @@ func builtinGraphQLParseAndVerify(_ BuiltinContext, operands []*ast.Term, iter f
 		ast.NewTerm(ast.NewObject()),
 	)
 
-	// Generate ASTs/errors for the GraphQL query.
-	queryDoc, err := parseQuery(string(rawQuery))
+	// Parse/translate query if it's a string/object.
+	switch x := operands[0].Value.(type) {
+	case ast.String:
+		queryDoc, err = parseQuery(string(x))
+	case ast.Object:
+		queryDoc, err = objectToQueryDocument(x)
+	default:
+		// Error if wrong type.
+		return iter(unverified)
+	}
 	if err != nil {
 		return iter(unverified)
 	}
 
-	// Validate the query against the schema, erroring if there's an issue.
-	schema, err := loadSchema(string(rawSchema))
-	if err != nil {
+	// Parse/translate schema if it's a string/object.
+	switch x := operands[1].Value.(type) {
+	case ast.String:
+		schemaDoc, err = parseSchema(string(x))
+	case ast.Object:
+		schemaDoc, err = objectToSchemaDocument(x)
+	default:
+		// Error if wrong type.
 		return iter(unverified)
 	}
-	if err := validateQuery(schema, queryDoc); err != nil {
-		return iter(unverified)
-	}
-
-	// Generate AST/errors for the GraphQL schema, since the query
-	// passed validation.
-	schemaDoc, err := parseSchema(string(rawSchema))
 	if err != nil {
 		return iter(unverified)
 	}
@@ -282,6 +335,15 @@ func builtinGraphQLParseAndVerify(_ BuiltinContext, operands []*ast.Term, iter f
 	}
 	schemaASTValue, err := ast.InterfaceToValue(schemaDoc)
 	if err != nil {
+		return iter(unverified)
+	}
+
+	// Validate the query against the schema, erroring if there's an issue.
+	schema, err := convertSchema(schemaDoc)
+	if err != nil {
+		return iter(unverified)
+	}
+	if err := validateQuery(schema, queryDoc); err != nil {
 		return iter(unverified)
 	}
 
@@ -348,29 +410,42 @@ func builtinGraphQLParseSchema(_ BuiltinContext, operands []*ast.Term, iter func
 }
 
 func builtinGraphQLIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Get the raw strings from each operand so that we can
-	// feed them to the GraphQL parser functions.
-	rawQuery, err := builtins.StringOperand(operands[0].Value, 1)
-	if err != nil {
+	var queryDoc *gqlast.QueryDocument
+	var schemaDoc *gqlast.SchemaDocument
+	var err error
+
+	switch x := operands[0].Value.(type) {
+	case ast.String:
+		queryDoc, err = parseQuery(string(x))
+	case ast.Object:
+		queryDoc, err = objectToQueryDocument(x)
+	default:
+		// Error if wrong type.
 		return iter(ast.BooleanTerm(false))
 	}
-	rawSchema, err := builtins.StringOperand(operands[1].Value, 1)
 	if err != nil {
 		return iter(ast.BooleanTerm(false))
 	}
 
-	// Generate ASTs/errors for the GraphQL schema and query.
-	schema, err := loadSchema(string(rawSchema))
-	if err != nil {
+	switch x := operands[1].Value.(type) {
+	case ast.String:
+		schemaDoc, err = parseSchema(string(x))
+	case ast.Object:
+		schemaDoc, err = objectToSchemaDocument(x)
+	default:
+		// Error if wrong type.
 		return iter(ast.BooleanTerm(false))
 	}
-	query, err := parseQuery(string(rawQuery))
 	if err != nil {
 		return iter(ast.BooleanTerm(false))
 	}
 
 	// Validate the query against the schema, erroring if there's an issue.
-	if err := validateQuery(schema, query); err != nil {
+	schema, err := convertSchema(schemaDoc)
+	if err != nil {
+		return iter(ast.BooleanTerm(false))
+	}
+	if err := validateQuery(schema, queryDoc); err != nil {
 		return iter(ast.BooleanTerm(false))
 	}
 
