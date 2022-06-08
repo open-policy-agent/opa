@@ -272,6 +272,7 @@ jobs:
         with:
           repository: open-policy-agent/npm-opa-wasm
           path: npm-opa-wasm
+          ref: '1.7.0'
 
       - name: Run npm-opa-wasm nodejs-app examples
         run: |
