@@ -290,10 +290,12 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 		return nil, err
 	}
 
-	for key, kc := range keys {
-		if curr, ok := c.config.Signing.PublicKeys[key]; ok {
-			if !curr.Equal(kc) {
-				return nil, fmt.Errorf("updates to keys specified in the boot configuration are not allowed")
+	if c.config.Signing != nil {
+		for key, kc := range keys {
+			if curr, ok := c.config.Signing.PublicKeys[key]; ok {
+				if !curr.Equal(kc) {
+					return nil, fmt.Errorf("updates to keys specified in the boot configuration are not allowed")
+				}
 			}
 		}
 	}

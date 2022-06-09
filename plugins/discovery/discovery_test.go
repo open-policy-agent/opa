@@ -827,7 +827,42 @@ func TestProcessBundleWithSigning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
+}
 
+func TestProcessBundleWithNoSigningConfig(t *testing.T) {
+	ctx := context.Background()
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"}
+	}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"bundles": {"test1": {"service": "localhost"}},
+				"keys": {"my_local_key": {"algorithm": "HS256", "key": "new_secret"}}
+			}
+		}
+	`)
+
+	_, err = disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
 }
 
 type testServer struct {
