@@ -1,7 +1,7 @@
 package jws
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -103,7 +103,7 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 	switch name {
 	case AlgorithmKey:
 		if err := h.Algorithm.Accept(value); err != nil {
-			return errors.Wrapf(err, `invalid value for %s key`, AlgorithmKey)
+			return fmt.Errorf("invalid value for %s key: %w", AlgorithmKey, err)
 		}
 		return nil
 	case ContentTypeKey:
@@ -111,44 +111,44 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 			h.ContentType = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, ContentTypeKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", ContentTypeKey, value)
 	case CriticalKey:
 		if v, ok := value.([]string); ok {
 			h.Critical = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, CriticalKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", CriticalKey, value)
 	case JWKKey:
 		if v, ok := value.(string); ok {
 			h.JWK = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, JWKKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", JWKKey, value)
 	case JWKSetURLKey:
 		if v, ok := value.(string); ok {
 			h.JWKSetURL = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, JWKSetURLKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", JWKSetURLKey, value)
 	case KeyIDKey:
 		if v, ok := value.(string); ok {
 			h.KeyID = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, KeyIDKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", KeyIDKey, value)
 	case PrivateParamsKey:
 		if v, ok := value.(map[string]interface{}); ok {
 			h.PrivateParams = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, PrivateParamsKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", PrivateParamsKey, value)
 	case TypeKey:
 		if v, ok := value.(string); ok {
 			h.Type = v
 			return nil
 		}
-		return errors.Errorf(`invalid value for %s key: %T`, TypeKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", TypeKey, value)
 	default:
-		return errors.Errorf(`invalid key: %s`, name)
+		return fmt.Errorf("invalid key: %s", name)
 	}
 }

@@ -3,9 +3,9 @@ package jwk
 import (
 	"crypto/rsa"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"math/big"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -15,7 +15,7 @@ func newRSAPublicKey(key *rsa.PublicKey) (*RSAPublicKey, error) {
 	var hdr StandardHeaders
 	err := hdr.Set(KeyTypeKey, jwa.RSA)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to set Key Type")
+		return nil, fmt.Errorf("failed to set Key Type: %w", err)
 	}
 	return &RSAPublicKey{
 		StandardHeaders: &hdr,
@@ -28,7 +28,7 @@ func newRSAPrivateKey(key *rsa.PrivateKey) (*RSAPrivateKey, error) {
 	var hdr StandardHeaders
 	err := hdr.Set(KeyTypeKey, jwa.RSA)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to set Key Type")
+		return nil, fmt.Errorf("failed to set Key Type: %w", err)
 	}
 
 	var algoParams jwa.AlgorithmParameters
@@ -67,7 +67,7 @@ func newRSAPrivateKey(key *rsa.PrivateKey) (*RSAPrivateKey, error) {
 // Materialize returns the standard RSA Public Key representation stored in the internal representation
 func (k *RSAPublicKey) Materialize() (interface{}, error) {
 	if k.key == nil {
-		return nil, errors.New(`key has no rsa.PublicKey associated with it`)
+		return nil, errors.New("key has no rsa.PublicKey associated with it")
 	}
 	return k.key, nil
 }
@@ -75,7 +75,7 @@ func (k *RSAPublicKey) Materialize() (interface{}, error) {
 // Materialize returns the standard RSA Private Key representation stored in the internal representation
 func (k *RSAPrivateKey) Materialize() (interface{}, error) {
 	if k.key == nil {
-		return nil, errors.New(`key has no rsa.PrivateKey associated with it`)
+		return nil, errors.New("key has no rsa.PrivateKey associated with it")
 	}
 	return k.key, nil
 }
@@ -84,7 +84,7 @@ func (k *RSAPrivateKey) Materialize() (interface{}, error) {
 func (k *RSAPublicKey) GenerateKey(keyJSON *RawKeyJSON) error {
 
 	if keyJSON.N == nil || keyJSON.E == nil {
-		return errors.Errorf("Missing mandatory key parameters N or E")
+		return errors.New("missing mandatory key parameters N or E")
 	}
 	rsaPublicKey := &rsa.PublicKey{
 		N: (&big.Int{}).SetBytes(keyJSON.N.Bytes()),
@@ -101,11 +101,11 @@ func (k *RSAPrivateKey) GenerateKey(keyJSON *RawKeyJSON) error {
 	rsaPublicKey := &RSAPublicKey{}
 	err := rsaPublicKey.GenerateKey(keyJSON)
 	if err != nil {
-		return errors.Wrap(err, "failed to generate public key")
+		return fmt.Errorf("failed to generate public key: %w", err)
 	}
 
 	if keyJSON.D == nil || keyJSON.P == nil || keyJSON.Q == nil {
-		return errors.Errorf("Missing mandatory key parameters D, P or Q")
+		return errors.New("missing mandatory key parameters D, P or Q")
 	}
 	privateKey := &rsa.PrivateKey{
 		PublicKey: *rsaPublicKey.key,

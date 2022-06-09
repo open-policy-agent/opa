@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/bundle"
@@ -192,7 +191,7 @@ func readBundleFiles(loaders []initload.BundleLoader, h bundle.SignatureHasher) 
 			}
 
 			if err != nil {
-				return files, errors.Wrap(err, "bundle read failed")
+				return files, fmt.Errorf("bundle read failed: %w", err)
 			}
 
 			// skip existing signatures file

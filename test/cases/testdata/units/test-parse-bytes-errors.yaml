@@ -6,7 +6,7 @@ cases:
     p {
         units.parse_bytes("")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: no byte amount provided"
   strict_error: true
@@ -17,7 +17,7 @@ cases:
     p {
         units.parse_bytes("GB")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: no byte amount provided"
   strict_error: true
@@ -28,7 +28,7 @@ cases:
     p {
         units.parse_bytes("foo")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: no byte amount provided"
   strict_error: true
@@ -39,7 +39,7 @@ cases:
     p {
         units.parse_bytes("0.0.0")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: could not parse byte amount to a number"
   strict_error: true
@@ -50,7 +50,7 @@ cases:
     p {
         units.parse_bytes(".5.2")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: could not parse byte amount to a number"
   strict_error: true
@@ -61,7 +61,7 @@ cases:
     p {
         units.parse_bytes("100 kb")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: spaces not allowed in resource strings"
   strict_error: true
@@ -72,7 +72,7 @@ cases:
     p {
         units.parse_bytes(" 327MiB ")
     }
-  note: parse_bytes/failure
+  note: units_parse_bytes/failure
   query: data.test.p = x
   want_error: "units.parse_bytes error: spaces not allowed in resource strings"
   strict_error: true

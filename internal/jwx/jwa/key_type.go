@@ -1,9 +1,9 @@
 package jwa
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
-
-	"github.com/pkg/errors"
 )
 
 // KeyType represents the key type ("kty") that are supported
@@ -29,11 +29,11 @@ func (keyType *KeyType) Accept(value interface{}) error {
 	case KeyType:
 		tmp = x
 	default:
-		return errors.Errorf(`invalid type for jwa.KeyType: %T`, value)
+		return fmt.Errorf("invalid type for jwa.KeyType: %T", value)
 	}
 	_, ok := keyTypeAlg[tmp.String()]
 	if !ok {
-		return errors.Errorf("Unknown Key Type algorithm")
+		return errors.New("unknown Key Type algorithm")
 	}
 
 	*keyType = tmp
@@ -53,14 +53,14 @@ func (keyType *KeyType) UnmarshalJSON(data []byte) error {
 		var err error
 		quoted, err = strconv.Unquote(string(data))
 		if err != nil {
-			return errors.Wrap(err, "Failed to process signature algorithm")
+			return fmt.Errorf("failed to process signature algorithm: %w", err)
 		}
 	} else {
 		quoted = string(data)
 	}
 	_, ok := keyTypeAlg[quoted]
 	if !ok {
-		return errors.Errorf("Unknown signature algorithm")
+		return errors.New("unknown signature algorithm")
 	}
 	*keyType = KeyType(quoted)
 	return nil

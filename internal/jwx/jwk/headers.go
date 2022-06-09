@@ -1,7 +1,7 @@
 package jwk
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -122,7 +122,7 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 	case AlgorithmKey:
 		var acceptor jwa.SignatureAlgorithm
 		if err := acceptor.Accept(value); err != nil {
-			return errors.Wrapf(err, `invalid value for %s key`, AlgorithmKey)
+			return fmt.Errorf("invalid value for %s key: %w", AlgorithmKey, err)
 		}
 		h.Algorithm = &acceptor
 		return nil
@@ -131,15 +131,15 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 			h.KeyID = v
 			return nil
 		}
-		return errors.Errorf("invalid value for %s key: %T", KeyIDKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", KeyIDKey, value)
 	case KeyOpsKey:
 		if err := h.KeyOps.Accept(value); err != nil {
-			return errors.Wrapf(err, "invalid value for %s key", KeyOpsKey)
+			return fmt.Errorf("invalid value for %s key: %w", KeyOpsKey, err)
 		}
 		return nil
 	case KeyTypeKey:
 		if err := h.KeyType.Accept(value); err != nil {
-			return errors.Wrapf(err, "invalid value for %s key", KeyTypeKey)
+			return fmt.Errorf("invalid value for %s key: %w", KeyTypeKey, err)
 		}
 		return nil
 	case KeyUsageKey:
@@ -147,15 +147,15 @@ func (h *StandardHeaders) Set(name string, value interface{}) error {
 			h.KeyUsage = v
 			return nil
 		}
-		return errors.Errorf("invalid value for %s key: %T", KeyUsageKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", KeyUsageKey, value)
 	case PrivateParamsKey:
 		if v, ok := value.(map[string]interface{}); ok {
 			h.PrivateParams = v
 			return nil
 		}
-		return errors.Errorf("invalid value for %s key: %T", PrivateParamsKey, value)
+		return fmt.Errorf("invalid value for %s key: %T", PrivateParamsKey, value)
 	default:
-		return errors.Errorf(`invalid key: %s`, name)
+		return fmt.Errorf("invalid key: %s", name)
 	}
 }
 
@@ -164,14 +164,14 @@ func (h StandardHeaders) Walk(f func(string, interface{}) error) error {
 	for _, key := range []string{AlgorithmKey, KeyIDKey, KeyOpsKey, KeyTypeKey, KeyUsageKey, PrivateParamsKey} {
 		if v, ok := h.Get(key); ok {
 			if err := f(key, v); err != nil {
-				return errors.Wrapf(err, `walk function returned error for %s`, key)
+				return fmt.Errorf("walk function returned error for %s: %w", key, err)
 			}
 		}
 	}
 
 	for k, v := range h.PrivateParams {
 		if err := f(k, v); err != nil {
-			return errors.Wrapf(err, `walk function returned error for %s`, k)
+			return fmt.Errorf("walk function returned error for %s: %w", k, err)
 		}
 	}
 	return nil

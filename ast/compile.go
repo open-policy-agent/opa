@@ -901,7 +901,7 @@ func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
 		for i, op := range expr.Operands() {
 			have[i] = env.Get(op)
 		}
-		return newArgError(expr.Loc(), f, "arity mismatch", have, want.FuncArgs())
+		return newArgError(expr.Loc(), f, "arity mismatch", have, want.NamedFuncArgs())
 	}
 	if act != 1 {
 		return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d arguments", f, exp, act)
@@ -1294,9 +1294,7 @@ func (c *Compiler) err(err *Error) {
 func (c *Compiler) getExports() *util.HashMap {
 
 	rules := util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
+		return a.(Ref).Equal(b.(Ref))
 	}, func(v util.T) int {
 		return v.(Ref).Hash()
 	})

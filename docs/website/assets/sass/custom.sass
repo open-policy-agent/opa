@@ -60,8 +60,55 @@
 .article
   padding-bottom: 5rem
 
+  .hero
+    width: 75%
+
+    +touch
+      width: 100%
+    
+    .hero-body
+      padding: 2rem 1.5rem 0 3rem
+
+      +touch
+        padding: 0 2rem
+
+  .section
+    padding: 0rem 3rem
+
+    +touch
+      padding: 0rem 2rem
+
   .content
     width: 75%
 
     +touch
       width: 100%
+
+  .icon-edit
+    float: right
+    padding-top: 2rem
+    line-height: 0.5rem
+    text-align: center
+
+    span
+      font-size: 0.7rem
+
+div.bi-args
+  display: grid
+  grid-template-columns: min-content min-content auto
+  margin-bottom: 1rem
+
+  .name
+    grid-column-start: 1
+
+  .type
+    grid-column-start: 2
+    white-space: nowrap
+
+  .desc
+    grid-column-start: 3
+    margin-left: 1rem
+
+table.bi-cat
+  code
+    white-space: nowrap

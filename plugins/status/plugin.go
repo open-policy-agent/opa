@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/pkg/errors"
 	prom "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/open-policy-agent/opa/logging"
@@ -111,7 +110,7 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 
 	t, err := plugins.ValidateAndInjectDefaultsForTriggerMode(trigger, c.Trigger)
 	if err != nil {
-		return errors.Wrap(err, "invalid status config")
+		return fmt.Errorf("invalid status config: %w", err)
 	}
 	c.Trigger = t
 

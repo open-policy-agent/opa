@@ -7,8 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // Buffer wraps `[]byte` and provides functions that are often used in
@@ -35,7 +34,7 @@ func FromUint(v uint64) Buffer {
 func FromBase64(v []byte) (Buffer, error) {
 	b := Buffer{}
 	if err := b.Base64Decode(v); err != nil {
-		return Buffer(nil), errors.Wrap(err, "failed to decode from base64")
+		return Buffer(nil), fmt.Errorf("failed to decode from base64: %w", err)
 	}
 
 	return b, nil
@@ -85,7 +84,7 @@ func (b *Buffer) Base64Decode(v []byte) error {
 	out := make([]byte, enc.DecodedLen(len(v)))
 	n, err := enc.Decode(out, v)
 	if err != nil {
-		return errors.Wrap(err, "failed to decode from base64")
+		return fmt.Errorf("failed to decode from base64: %w", err)
 	}
 	out = out[:n]
 	*b = Buffer(out)
@@ -97,7 +96,7 @@ func (b *Buffer) Base64Decode(v []byte) error {
 func (b Buffer) MarshalJSON() ([]byte, error) {
 	v, err := b.Base64Encode()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode to base64")
+		return nil, fmt.Errorf("failed to encode to base64: %w", err)
 	}
 	return json.Marshal(string(v))
 }
@@ -107,7 +106,7 @@ func (b Buffer) MarshalJSON() ([]byte, error) {
 func (b *Buffer) UnmarshalJSON(data []byte) error {
 	var x string
 	if err := json.Unmarshal(data, &x); err != nil {
-		return errors.Wrap(err, "failed to unmarshal JSON")
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 	return b.Base64Decode([]byte(x))
 }

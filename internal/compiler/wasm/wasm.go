@@ -8,10 +8,9 @@ package wasm
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
@@ -183,6 +182,11 @@ var builtinsUsingRE2 = [...]string{
 	builtinsFunctions[ast.RegexMatchDeprecated.Name],
 	builtinsFunctions[ast.RegexFindAllStringSubmatch.Name],
 	builtinsFunctions[ast.GlobMatch.Name],
+}
+
+func IsWasmEnabled(bi string) bool {
+	_, ok := builtinsFunctions[bi]
+	return ok
 }
 
 type externalFunc struct {
@@ -852,7 +856,7 @@ func (c *Compiler) compileFunc(fn *ir.Func) error {
 	for i := range fn.Blocks {
 		instrs, err := c.compileBlock(fn.Blocks[i])
 		if err != nil {
-			return errors.Wrapf(err, "block %d", i)
+			return fmt.Errorf("block %d: %w", i, err)
 		}
 		if i < len(fn.Blocks)-1 { // not the last block: wrap in `block` instr
 			if withControlInstr(instrs) { // unless we don't need to

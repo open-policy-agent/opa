@@ -3,9 +3,9 @@ package jwk
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"errors"
+	"fmt"
 	"math/big"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -15,7 +15,7 @@ func newECDSAPublicKey(key *ecdsa.PublicKey) (*ECDSAPublicKey, error) {
 	var hdr StandardHeaders
 	err := hdr.Set(KeyTypeKey, jwa.EC)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to set Key Type")
+		return nil, fmt.Errorf("failed to set Key Type: %w", err)
 	}
 
 	return &ECDSAPublicKey{
@@ -29,7 +29,7 @@ func newECDSAPrivateKey(key *ecdsa.PrivateKey) (*ECDSAPrivateKey, error) {
 	var hdr StandardHeaders
 	err := hdr.Set(KeyTypeKey, jwa.EC)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to set Key Type")
+		return nil, fmt.Errorf("failed to set Key Type: %w", err)
 	}
 
 	return &ECDSAPrivateKey{
@@ -54,7 +54,7 @@ func (k *ECDSAPublicKey) GenerateKey(keyJSON *RawKeyJSON) error {
 	var x, y big.Int
 
 	if keyJSON.X == nil || keyJSON.Y == nil || keyJSON.Crv == "" {
-		return errors.Errorf("Missing mandatory key parameters X, Y or Crv")
+		return errors.New("missing mandatory key parameters X, Y or Crv")
 	}
 
 	x.SetBytes(keyJSON.X.Bytes())
@@ -69,7 +69,7 @@ func (k *ECDSAPublicKey) GenerateKey(keyJSON *RawKeyJSON) error {
 	case jwa.P521:
 		curve = elliptic.P521()
 	default:
-		return errors.Errorf(`invalid curve name %s`, keyJSON.Crv)
+		return fmt.Errorf("invalid curve name %s", keyJSON.Crv)
 	}
 
 	*k = ECDSAPublicKey{
@@ -87,12 +87,12 @@ func (k *ECDSAPublicKey) GenerateKey(keyJSON *RawKeyJSON) error {
 func (k *ECDSAPrivateKey) GenerateKey(keyJSON *RawKeyJSON) error {
 
 	if keyJSON.D == nil {
-		return errors.Errorf("Missing mandatory key parameter D")
+		return errors.New("missing mandatory key parameter D")
 	}
 	eCDSAPublicKey := &ECDSAPublicKey{}
 	err := eCDSAPublicKey.GenerateKey(keyJSON)
 	if err != nil {
-		return errors.Wrap(err, `failed to generate public key`)
+		return fmt.Errorf("failed to generate public key: %w", err)
 	}
 	dBytes := keyJSON.D.Bytes()
 	// The length of this octet string MUST be ceiling(log-base-2(n)/8)
@@ -106,7 +106,7 @@ func (k *ECDSAPrivateKey) GenerateKey(keyJSON *RawKeyJSON) error {
 	n := eCDSAPublicKey.key.Params().N
 	octetLength := (new(big.Int).Sub(n, big.NewInt(1)).BitLen() + 7) >> 3
 	if octetLength-len(dBytes) != 0 {
-		return errors.Errorf("Failed to generate private key. Incorrect D value")
+		return errors.New("failed to generate private key. Incorrect D value")
 	}
 	privateKey := &ecdsa.PrivateKey{
 		PublicKey: *eCDSAPublicKey.key,

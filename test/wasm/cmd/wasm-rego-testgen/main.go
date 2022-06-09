@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/rego"
@@ -177,10 +176,10 @@ func run(params params) error {
 				return writeFile(tw, dst, bs)
 			}()
 			if err != nil {
-				return errors.Wrap(err, files[i].Name())
+				return fmt.Errorf("%s: %w", files[i].Name(), err)
 			}
 		} else if err != nil {
-			return errors.Wrap(err, files[i].Name())
+			return fmt.Errorf("%s: %w", files[i].Name(), err)
 		}
 	}
 

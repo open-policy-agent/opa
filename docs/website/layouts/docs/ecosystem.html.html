@@ -5,20 +5,26 @@
 {{ define "main" }}
 <script type="application/javascript">
     function openModal(modalID) {
-        $("#"+modalID).addClass("is-active")
+      location.hash = `#${modalID}`;
+      $("#"+modalID).addClass("is-active");
     }
 
     function closeModal(modalID) {
-        $("#"+modalID).removeClass("is-active")
+      location.hash = "";
+      $("#"+modalID).removeClass("is-active");
     }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (location.hash) {
+        $(location.hash).addClass("is-active");
+      }
+    });
 </script>
   <div class="dashboard">
       {{ partial "docs/dashboard-panel.html" . }}
 
     <div class="dashboard-main is-scrollable">
         {{ partial "docs/navbar.html" . }}
-
-
 
         <div class="integration-index">
           <nav class="navbar ecosystem-navbar">
@@ -94,7 +100,7 @@
           {{ $name := (index $integrations "name") }}
           {{ $rank := (index $integrations "rank") }}
           {{ $integration := (index $.Site.Data.integrations.integrations $name) }}
-          <div class="integration-item" onclick="openModal('{{ $name }}-detail-modal')">
+          <div class="integration-item" onclick="openModal('{{ $name }}-detail')">
             <div class="card is-flex-grow-1">
               <div class="card-image">
                 <figure class="image">
@@ -106,8 +112,8 @@
               </div>
             </div>
           </div>
-          <div id="{{ $name }}-detail-modal" class="modal">
-            <div class="modal-background" onclick="closeModal('{{ $name }}-detail-modal')"></div>
+          <div id="{{ $name }}-detail" class="modal">
+            <div class="modal-background" onclick="closeModal('{{ $name }}-detail')"></div>
             <div class="modal-content has-background-light">
               <div class="media integration-details">
                 <div class="media-left">
@@ -217,7 +223,7 @@
                   {{ end }}
                 </div>
                 <div class="media-right">
-                  <button class="delete" onclick="closeModal('{{ $name }}-detail-modal')"></button>
+                  <button class="delete" onclick="closeModal('{{ $name }}-detail')"></button>
                 </div>
               </div>
             </div>

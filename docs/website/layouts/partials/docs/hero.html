@@ -1,7 +1,11 @@
 <section class="hero">
   <div class="hero-body">
-    <p class="title is-size-1 is-size-2-mobile">
-      {{ .Title }}
-    </p>
+    <span class="title is-size-1 is-size-2-mobile">
+      {{ .Title }} 
+    </span>
+    <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
+        <a href='{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}' target="_blank"><i class="fab fa-github"></i><span>Edit</span></a>
+    </span>    
+    <hr>
   </div>
 </section>

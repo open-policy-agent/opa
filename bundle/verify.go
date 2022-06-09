@@ -16,8 +16,6 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/verify"
 	"github.com/open-policy-agent/opa/util"
-
-	"github.com/pkg/errors"
 )
 
 const defaultVerifierID = "_default"
@@ -92,12 +90,12 @@ func verifyJWTSignature(token string, bvc *VerificationConfig) (*DecodedSignatur
 
 	var decodedHeader []byte
 	if decodedHeader, err = base64.RawURLEncoding.DecodeString(parts[0]); err != nil {
-		return nil, errors.Wrap(err, "failed to base64 decode JWT headers")
+		return nil, fmt.Errorf("failed to base64 decode JWT headers: %w", err)
 	}
 
 	var hdr jws.StandardHeaders
 	if err := json.Unmarshal(decodedHeader, &hdr); err != nil {
-		return nil, errors.Wrap(err, "failed to parse JWT headers")
+		return nil, fmt.Errorf("failed to parse JWT headers: %w", err)
 	}
 
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
