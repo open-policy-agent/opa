@@ -4,8 +4,8 @@
 
 // NOTE(sr): Different go runtime metrics on 1.16.
 // This can be removed when we drop support for go 1.16.
-//go:build !go1.16
-// +build !go1.16
+//go:build go1.17
+// +build go1.17
 
 package prometheus
 
@@ -62,7 +62,7 @@ func TestJSONSerialization(t *testing.T) {
 			"go_memory_classes_total_bytes",
 			"go_memstats_alloc_bytes",
 			"go_memstats_buck_hash_sys_bytes",
-			"go_memstats_gc_cpu_fraction",
+			// "go_memstats_gc_cpu_fraction", // removed: https://github.com/prometheus/client_golang/issues/842#issuecomment-861812034
 			"go_memstats_gc_sys_bytes",
 			"go_memstats_heap_alloc_bytes",
 			"go_memstats_heap_idle_bytes",
@@ -101,9 +101,9 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_duration_seconds",
 		},
 		"HISTOGRAM": {
-			"go_gc_pauses_seconds_total",
-			"go_gc_heap_allocs_by_size_bytes_total",
-			"go_gc_heap_frees_by_size_bytes_total",
+			"go_gc_pauses_seconds",            // was: "go_gc_pauses_seconds_total"
+			"go_gc_heap_allocs_by_size_bytes", // was: "go_gc_heap_allocs_by_size_bytes_total"
+			"go_gc_heap_frees_by_size_bytes",  // was: "go_gc_heap_frees_by_size_bytes_total"
 			"go_sched_latencies_seconds",
 		},
 	}

@@ -250,36 +250,6 @@ jobs:
         run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
         if: matrix.wasm != 'disabled'
 
-  nodejs-wasm-example:
-    name: npm-opa-wasm
-    runs-on: ubuntu-latest
-    needs: go-build
-    steps:
-      - name: Download release binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: binaries
-          path: _release
-
-      - name: Prepare OPA
-        run: |
-          ln -s _release/*/opa_linux_amd64 opa
-          chmod +x opa
-          echo $(pwd) >> $GITHUB_PATH
-
-      - name: Check out npm-opa-wasm
-        uses: actions/checkout@v3
-        with:
-          repository: open-policy-agent/npm-opa-wasm
-          path: npm-opa-wasm
-          ref: '1.7.0'
-
-      - name: Run npm-opa-wasm nodejs-app examples
-        run: |
-          npm install
-          ./e2e.sh
-        working-directory: npm-opa-wasm
-
   go-version-build:
     name: Go compat build/test
     needs: generate
