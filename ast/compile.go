@@ -1294,9 +1294,7 @@ func (c *Compiler) err(err *Error) {
 func (c *Compiler) getExports() *util.HashMap {
 
 	rules := util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
+		return a.(Ref).Equal(b.(Ref))
 	}, func(v util.T) int {
 		return v.(Ref).Hash()
 	})
