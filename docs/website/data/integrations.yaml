@@ -729,10 +729,12 @@ integrations:
       - https://github.com/Bisnode/opa-spring-security
       - https://github.com/build-security/opa-java-spring-client
       - https://github.com/massenz/jwt-opa
+      - https://github.com/eugenp/tutorials/tree/master/spring-security-modules/spring-security-opa
 
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
       - https://github.com/massenz/jwt-opa#web-server-demo-app
+      - https://www.baeldung.com/spring-security-authorization-opa
     inventors:
       - styra
       - build.security
