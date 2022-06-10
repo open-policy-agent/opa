@@ -502,8 +502,20 @@ func builtinSprintf(a, b ast.Value) (ast.Value, error) {
 		resultString = ast.String(fmt.Sprintf(string(s), modifiedArgs...))
 
 	} else {
+		// NOTE(philipc): We have to take the minimum length of the two
+		// arrays here, or else we can wind up with a panic due to an
+		// out-of-bounds array/slice access. This can happen if this
+		// function is fed a malformed format string, for instance.
+		// Iter over min(len(formatStringArr), astArr.Len()) elements.
+		var argsLen int
+		if len(formatStringArr) <= astArr.Len() {
+			argsLen = len(formatStringArr) // Too many args isn't an issue, only too few.
+		} else {
+			// Not enough arguments for the format string? Bail early.
+			return nil, builtins.ErrOperand("There are missing arguments. Please advise.")
+		}
 		// No explicit details detected, currently parsing code now.
-		for i := 0; i < astArr.Len(); i++ {
+		for i := 0; i < argsLen; i++ {
 			formatString := ast.String(formatStringArr[i]).String()
 			args = builtinSprintfHelper(astArr, formatString, i, args)
 		}
