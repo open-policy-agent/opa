@@ -1559,9 +1559,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	params := storage.WriteParams
-	params.Context = storage.NewContext().WithMetrics(m)
-	txn, err := s.store.NewTransaction(ctx, params)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
