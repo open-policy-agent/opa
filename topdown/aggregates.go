@@ -22,7 +22,7 @@ func builtinCount(a ast.Value) (ast.Value, error) {
 	case ast.String:
 		return ast.IntNumberTerm(len([]rune(a))).Value, nil
 	}
-	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set")
+	return nil, builtins.NewOperandTypeErr(1, a, "array", "object", "set", "string")
 }
 
 func builtinSum(a ast.Value) (ast.Value, error) {
