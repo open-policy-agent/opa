@@ -1241,6 +1241,17 @@ integrations:
       - rekor
     code:
       - https://github.com/nsmith5/rekor-sidekick
+  alfred:
+    title: Self-hosted Alternative to OPA Playground
+    description:  |
+      Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally. 
+    labels:
+      layer: network
+      category: application
+    software:
+      - alfred
+    code:
+      - https://github.com/dolevf/Open-Policy-Agent-Alfred
 
   open-policy-registry:
     title: Open Policy Registry
@@ -1690,4 +1701,6 @@ software:
   pulumi:
     name: Pulumi
     link: https://www.pulumi.com/
-
+  alfred:
+    name: alfred
+    link: https://github.com/dolevf/Open-Policy-Agent-Alfred
