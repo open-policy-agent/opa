@@ -7,12 +7,25 @@ package topdown
 import (
 	"fmt"
 	"math/big"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
+
+// Package level variables
+type formatIndexMap struct {
+	formatArrIndex int
+	arrayIndex     int
+}
+
+var formatRE = regexp.MustCompile(`%(((\.[0-9]+)|([0-9]+)|([0-9]+\.[0-9]+))?(\[\d\])?([a-zA-Z]))`)
+var detectExpArgsRE = regexp.MustCompile(`%((\.[0-9]+)|([0-9]+)|([0-9]+\.[0-9]+))?(\[\d\]\w)`)
+var missingArgRE = regexp.MustCompile(`%\!\w{0,1}\(MISSING\)`)
+var explicitIndexRE = regexp.MustCompile(`\[\d\]`)
 
 func builtinFormatInt(a, b ast.Value) (ast.Value, error) {
 
@@ -410,38 +423,128 @@ func builtinTrimSpace(a ast.Value) (ast.Value, error) {
 }
 
 func builtinSprintf(a, b ast.Value) (ast.Value, error) {
+	var resultString ast.String
 	s, err := builtins.StringOperand(a, 1)
+
 	if err != nil {
 		return nil, err
 	}
 
 	astArr, ok := b.(*ast.Array)
+
 	if !ok {
 		return nil, builtins.NewOperandTypeErr(2, b, "array")
 	}
 
-	args := make([]interface{}, astArr.Len())
+	var args []interface{}
+	var formatStringArr []string
+	var explicitExprArr []string
+	var indexes []formatIndexMap
 
-	for i := range args {
-		switch v := astArr.Elem(i).Value.(type) {
-		case ast.Number:
-			if n, ok := v.Int(); ok {
-				args[i] = n
-			} else if b, ok := new(big.Int).SetString(v.String(), 10); ok {
-				args[i] = b
-			} else if f, ok := v.Float64(); ok {
-				args[i] = f
-			} else {
-				args[i] = v.String()
-			}
-		case ast.String:
-			args[i] = string(v)
-		default:
-			args[i] = astArr.Elem(i).String()
-		}
+	if astArr.Len() > 0 {
+		formatStringArr = formatRE.FindAllString(s.String(), -1)
+		explicitExprArr = detectExpArgsRE.FindAllString(s.String(), -1)
 	}
 
-	return ast.String(fmt.Sprintf(string(s), args...)), nil
+	if len(explicitExprArr) > 0 { // Parse the explicit indexes
+		// Iterate through the format string arr and
+		// explicit expression array and find their respective indexes.
+		for fIndex, formatString := range formatStringArr {
+			for _, explicitExpStr := range explicitExprArr {
+				if formatString == explicitExpStr {
+					// Grab the index from the format string
+					// remove the brackets from the integer
+					// and the argument index (args), and store it in an
+					// array of struct (formatIndexMap)
+					elementIndexStr := regexp.MustCompile(`\[\d\]`).FindAllString(explicitExpStr, -1)[0]
+					elementIndexStr = elementIndexStr[1 : len(elementIndexStr)-1]
+					elementIndex, _ := strconv.Atoi(elementIndexStr)
+					index := formatIndexMap{
+						fIndex, elementIndex - 1,
+					}
+					indexes = append(indexes, index)
+					break
+				}
+			}
+		}
+
+		var modifiedArgs []interface{}
+		argsIndex := 0
+
+		// Parse the explicit indexes
+		for i, formatString := range formatStringArr {
+			isFormatted := false
+			for _, index := range indexes {
+				if index.formatArrIndex == i {
+					// Trim the parent format string (s) by removing the quotes
+					// and remove all of the explicit indexes from (s)
+					trimmedParentFmtString := s.String()[1 : len(s.String())-1]
+					formattedString := explicitIndexRE.ReplaceAllString(trimmedParentFmtString, "")
+
+					s = ast.String(formattedString)
+
+					modifiedArgs = builtinSprintfHelper(astArr, formatString, index.arrayIndex, modifiedArgs)
+					isFormatted = true
+					break
+				}
+				if isFormatted {
+					continue // Was an explicit index argument, skip :)
+				} else {
+					// Does not contain index, format as usual.
+					modifiedArgs = builtinSprintfHelper(astArr, formatString, argsIndex, modifiedArgs)
+					// Move the counter for the next number passed in
+					argsIndex++
+				}
+			}
+
+		}
+
+		resultString = ast.String(fmt.Sprintf(string(s), modifiedArgs...))
+
+	} else {
+		// No explicit details detected, currently parsing code now.
+		for i := 0; i < astArr.Len(); i++ {
+			formatString := ast.String(formatStringArr[i]).String()
+			args = builtinSprintfHelper(astArr, formatString, i, args)
+		}
+
+		resultString = ast.String(fmt.Sprintf(string(s), args...))
+	}
+
+	// Check to exceptions first to ensure nothing is missing
+	missingArgsArr := missingArgRE.FindAllString(resultString.String(), -1)
+	if len(missingArgsArr) > 0 {
+		// Throw an exception - something is missing
+		return nil, builtins.ErrOperand("There are missing arguments. Please advise.")
+	}
+
+	return resultString, nil
+}
+
+func builtinSprintfHelper(astArr *ast.Array, formatString string, index int, args []interface{}) []interface{} {
+	// Parse the numbers and see if they're equivalent to something
+	switch v := astArr.Elem(index).Value.(type) {
+	case ast.Number:
+		// Parse the numbers and see if they're equivalent to something
+		if strings.Contains(formatString, "f") {
+			floatingNumber, _ := v.Float64()
+			args = append(args, floatingNumber)
+		} else {
+			if in, ok := v.Int(); ok {
+				args = append(args, in)
+			} else if bin, ok := new(big.Int).SetString(v.String(), 10); ok {
+				args = append(args, bin)
+			} else {
+				args = append(args, v.String())
+			}
+		}
+	case ast.String:
+		args = append(args, string(v))
+	default:
+		args = append(args, astArr.Elem(index).String())
+	}
+
+	return args
 }
 
 func builtinReverse(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

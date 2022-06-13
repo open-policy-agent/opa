@@ -8,7 +8,6 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	"github.com/open-policy-agent/opa/types"
 )
 
 func builtinObjectUnion(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -148,7 +147,7 @@ func getObjectKeysParam(arrayOrSet ast.Value) (ast.Set, error) {
 			return nil
 		})
 	default:
-		return nil, builtins.NewOperandTypeErr(2, arrayOrSet, ast.TypeName(types.Object{}), ast.TypeName(types.S), ast.TypeName(types.Array{}))
+		return nil, builtins.NewOperandTypeErr(2, arrayOrSet, "object", "set", "array")
 	}
 
 	return keys, nil

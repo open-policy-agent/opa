@@ -729,3 +729,124 @@ func genComprehensionIndexingData(n int) map[string]interface{} {
 	}
 	return map[string]interface{}{"items": items}
 }
+
+func BenchmarkObjectSubset(b *testing.B) {
+	ctx := context.Background()
+
+	sizes := []int{10, 100, 1000, 10000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			all := make(map[string]string)
+			evens := make(map[string]string)
+
+			for i := 0; i < n; i++ {
+				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				if i%2 == 0 {
+					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				}
+			}
+
+			store := inmem.NewFromObject(map[string]interface{}{"all": all, "evens": evens})
+
+			module := `package test
+			main {object.subset(data.all, data.evens)}`
+
+			query := ast.MustParseBody("data.test.main")
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": module,
+			})
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+					q := NewQuery(query).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn)
+
+					_, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkObjectSubsetSlow(b *testing.B) {
+	// This benchmarks the suggested means to implement object.subset
+	// without using the builtin, to give us an idea of whether or not
+	// the builtin is actually making things any faster.
+	ctx := context.Background()
+
+	sizes := []int{10, 100, 1000, 10000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			all := make(map[string]string)
+			evens := make(map[string]string)
+
+			for i := 0; i < n; i++ {
+				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				if i%2 == 0 {
+					evens[fmt.Sprint(i)] = fmt.Sprint(i * 2)
+				}
+			}
+
+			store := inmem.NewFromObject(map[string]interface{}{"all": all, "evens": evens})
+
+			// Code is lifted from here:
+			// https://github.com/open-policy-agent/opa/issues/4358#issue-1141145857
+
+			module := `package test
+			path_matches[match] {
+			    [path, value] := walk(data.evens)
+			    not is_object(value)
+
+			    match := object.get(data.all, path, null) == value
+			}
+
+			main { path_matches == {true} }`
+
+			query := ast.MustParseBody("data.test.main")
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": module,
+			})
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+					q := NewQuery(query).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn)
+
+					_, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
