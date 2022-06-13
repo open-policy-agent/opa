@@ -1,7 +1,8 @@
 ---
 title: WebAssembly
-kind: misc
-weight: 1
+kind: documentation
+weight: 62
+toc: true
 ---
 
 # What is WebAssembly (Wasm)?

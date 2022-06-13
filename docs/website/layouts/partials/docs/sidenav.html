@@ -8,6 +8,7 @@
 {{ $management := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib    := where $allDocs ".Params.kind" "eq" "contrib" }}
 {{ $misc       := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $support    := where $allDocs ".Params.kind" "eq" "support" }}
 {{ $pageUrl    := .URL }}
 {{ $isDocsHome := eq .URL $docsHome.URL }}
 {{ $version    := index (split .File.Path "/") 1 }}
@@ -49,12 +50,5 @@
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
 
-<hr class="docs-nav-hr" />
-
-<span class="docs-nav-title">
-  Community
-</span>
-
-<a class="docs-nav-item" href="/support">
-  Enterprise and Commercial
-</a>
+{{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Support" "section" $support "pageUrl" $pageUrl "version" $version ) }}
+<br />

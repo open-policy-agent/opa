@@ -16,6 +16,7 @@
 {{ $management  := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib     := where $allDocs ".Params.kind" "eq" "contrib" }}
 {{ $misc        := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $support    := where $allDocs ".Params.kind" "eq" "support" }}
 {{ $version     := index (split .File.Path "/") 1 }}
 {{ $pageUrl     := .URL }}
 <nav class="navbar is-primary">
@@ -59,17 +60,8 @@
 
       {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
 
+      {{ partial "docs/navbar-section.html" ( dict "ctx" . "sectionTitle" "Support" "section" $support "pageUrl" $pageUrl "version" $version ) }}
       <br />
-
-      <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
-        Support
-      </span>
-      <a class="navbar-item" href="/support">
-        Enterprise and Commercial
-      </a>
-      <a class="navbar-item" href="/community">
-        Community
-      </a>
     </div>
 
     <div class="navbar-end">

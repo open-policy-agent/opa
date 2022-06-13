@@ -1,8 +1,8 @@
 ---
 title: Frequently Asked Questions
 navtitle: FAQ
-kind: misc
-weight: 17
+kind: support
+weight: 1
 ---
 
 ## How do I make user attributes stored in LDAP/AD available to OPA for making decisions?
