@@ -103,6 +103,11 @@ some [x, "b", z] in a_set
 
 ## Iteration
 
+```live:iteration:module:hidden
+package example
+import future.keywords
+```
+
 ### Arrays
 
 ```live:iteration/arrays:query:read_only
@@ -182,13 +187,13 @@ not any_not_match
 ```
 
 ```live:iteration/forall:module:read_only
-any_match {
-    set[x]
+any_match if {
+    some x in set
     f(x)
 }
 
-any_not_match {
-    set[x]
+any_not_match if {
+    some x in set
     not f(x)
 }
 ```
@@ -196,6 +201,11 @@ any_not_match {
 ## Rules
 
 In the examples below `...` represents one or more conditions.
+
+```live:rules:module:hidden
+package example
+import future.keywords
+```
 
 ### Constants
 
@@ -212,7 +222,9 @@ c := a | b
 p := true { ... }
 
 # OR
+p if { ... }
 
+# OR
 p { ... }
 ```
 
@@ -220,8 +232,8 @@ p { ... }
 
 ```live:rules/cond:module:read_only
 default a := 1
-a := 5 { ... }
-a := 100 { ... }
+a := 5   if { ... }
+a := 100 if { ... }
 ```
 
 ### Incremental
@@ -231,29 +243,33 @@ a := 100 { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
+# alternatively, with future.keywords
+a_set contains x if { ... }
+a_set contains y if { ... }
+
 # a_map will contain key->value pairs x->y and w->z
-a_map[x] := y { ... }
-a_map[w] := z { ... }
+a_map[x] := y if { ... }
+a_map[w] := z if { ... }
 ```
 
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
 default a := 1
-a := 5 { ... }
+a := 5 if { ... }
 else := 10 { ... }
 ```
 
 ### Functions (Boolean)
 
 ```live:rules/funcs:module:read_only
-f(x, y) {
+f(x, y) if {
     ...
 }
 
 # OR
 
-f(x, y) := true {
+f(x, y) := true if {
     ...
 }
 ```
@@ -261,9 +277,9 @@ f(x, y) := true {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
-f(x) := "A" { x >= 90 }
-f(x) := "B" { x >= 80; x < 90 }
-f(x) := "C" { x >= 70; x < 80 }
+f(x) := "A" if { x >= 90 }
+f(x) := "B" if { x >= 80; x < 90 }
+f(x) := "C" if { x >= 70; x < 80 }
 ```
 
 ## Tests
@@ -1055,7 +1071,11 @@ package         = "package" ref
 import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
-rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" | "=" ) term ]
+rule-head       = var ( rule-head-set | rule-head-obj | rule-head-func | rule-head-comp )
+rule-head-comp  = [ ( ":=" | "=" ) term ]") [ "if" ]
+rule-head-obj   = [ "[" term "]" ] [ ( ":=" | "=" ) term ]) [ "if" ]
+rule-head-func  = [ "(" rule-args ")" ] [ ( ":=" | "=" ) term ]) [ "if" ]
+rule-head-set   = "contains" term [ "if" ] | "[" term "]"
 rule-args       = term { "," term }
 rule-body       = [ "else" [ ( ":=" | "=" ) term ] ] "{" query "}"
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
@@ -1089,6 +1109,8 @@ set             = empty-set | non-empty-set
 non-empty-set   = "{" term { "," term } "}"
 empty-set       = "set(" ")"
 ```
+
+Note that the grammar corresponds to Rego with all future keywords enabled.
 
 The grammar defined above makes use of the following syntax. See [the Wikipedia page on EBNF](https://en.wikipedia.org/wiki/Extended_Backus–Naur_Form) for more details:
 

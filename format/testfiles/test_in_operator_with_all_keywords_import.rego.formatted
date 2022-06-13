@@ -3,7 +3,7 @@ package p
 import future.keywords
 import input.foo
 
-r {
+r if {
 	1 in [1]
 	0, 1 in [1]
 }
