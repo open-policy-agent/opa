@@ -4058,7 +4058,9 @@
     }
   ],
   "future_keywords": [
+    "contains",
     "every",
+    "if",
     "in"
   ],
   "wasm_abi_versions": [

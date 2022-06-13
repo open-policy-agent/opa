@@ -7,6 +7,7 @@ toc: true
 
 ```live:eg:module:hidden
 package example
+import future.keywords
 ```
 
 OPA is purpose built for reasoning about information represented in structured
@@ -22,6 +23,17 @@ structured document models such as JSON.
 Rego queries are assertions on data stored in OPA. These queries can be used to
 define policies that enumerate instances of data that violate the expected state
 of the system.
+
+{{< info >}}
+The examples in this section try to represent the best practices. As such, they
+make use of keywords that are meant to become standard keywords at some point in
+time, but have been introduced gradually. These _future keywords_ can be enabled
+using
+
+```live:eg/import:module:read_only
+import future.keywords
+```
+{{< /info >}}
 
 ## Why use Rego?
 
@@ -77,10 +89,10 @@ rect == {"height": 4, "width": 2}
 ```live:eg/rect/compare:output
 ```
 
-You can define a new concept using a rule.  For example, `v` below is true if the equality expression is true.
+You can define a new concept using a rule. For example, `v` below is true if the equality expression is true.
 
 ```live:eg/undefined:module
-v { "hello" == "world" }
+v if "hello" == "world"
 ```
 
 If we evaluate `v`, the result is `undefined` because the body of the rule never
@@ -109,13 +121,25 @@ v != true
 We can define rules in terms of [Variables](#variables) as well:
 
 ```live:eg/rules:module
-t { x := 42; y := 41; x > y }
+t if { x := 42; y := 41; x > y }
 ```
 
 The formal syntax uses the semicolon character `;` to separate expressions. Rule
 bodies can separate expressions with newlines and omit the semicolon:
 
 ```live:eg/rules/newlines:module:read_only
+t2 if {
+    x := 42
+    y := 41
+    x > y
+}
+```
+
+Note that the future keyword `if` is optional. We could have written `v` and `t2` like this:
+
+```live:eg/rules/newlines_no_if:module:read_only
+v { "hello" == "world" }
+
 t2 {
     x := 42
     y := 41
@@ -154,7 +178,10 @@ sites := [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 ```
 And
 ```live:eg/references/basic:module
-r { sites[_].name == "prod" }
+r if {
+    some site in sites
+    site.name == "prod"
+}
 ```
 
 The rule `r` above asserts that there exists (at least) one document within `sites` where the `name` attribute equals `"prod"`.
@@ -170,7 +197,10 @@ r
 We can generalize the example above with a rule that defines a set document instead of a boolean document:
 
 ```live:eg/references/helper:module
-q[name] { name := sites[_].name }
+q contains name if {
+    some site in sites
+    name := site.name
+}
 ```
 
 The value of `q` is a set of names
@@ -184,7 +214,7 @@ q
 We can re-write the rule `r` from above to make use of `q`. We will call the new rule `p`:
 
 ```live:eg/references/helper/composed:module
-p { q["prod"] }
+p if q["prod"]
 ```
 
 Querying `p` will have the same result:
@@ -370,7 +400,10 @@ sites := [
     {"name": "dev"}
 ]
 
-q[name] { name := sites[_].name }
+q contains name if {
+    some site in sites
+    name := site.name
+}
 ```
 
 In this case, we evaluate `q` with a variable `x` (which is not bound to a value). As a result, the query returns all of the values for `x` and all of the values for `q[x]`, which are always the same because `q` is a set.
@@ -582,7 +615,7 @@ Array Comprehensions build array values out of sub-queries. Array Comprehensions
 For example, the following rule defines an object where the keys are application names and the values are hostnames of servers where the application is deployed. The hostnames of servers are represented as an array.
 
 ```live:eg/data/array_comprehension:module
-app_to_hostnames[app_name] := hostnames {
+app_to_hostnames[app_name] := hostnames if {
     app := apps[_]
     app_name := app.name
     hostnames := [hostname | name := app.servers[_]
@@ -670,9 +703,12 @@ The sample code in this section make use of the data defined in [Examples](#exam
 
 The following rule defines a set containing the hostnames of all servers:
 
-```live:eg/data/rules:module
-hostnames[name] { name := sites[_].servers[_].hostname }
+```live:eg/data/rules:module:read_only
+hostnames contains name if {
+    name := sites[_].servers[_].hostname
+}
 ```
+Note that the (future) keyword `if` is optional here.
 
 When we query for the content of `hostnames` we see the same data as we would if we queried using the `sites[_].servers[_].hostname` reference directly:
 
@@ -701,7 +737,7 @@ Third, the `name := sites[_].servers[_].hostname` expression binds the value of 
 Rules that define objects are very similar to rules that define sets.
 
 ```live:eg/data/rule_objects:module
-apps_by_hostname[hostname] := app {
+apps_by_hostname[hostname] := app if {
     some i
     server := sites[_].servers[_]
     hostname := server.hostname
@@ -731,12 +767,12 @@ For example, we can write a rule that abstracts over our `servers` and
 `containers` data as `instances`:
 
 ```live:eg/data/incremental_rule:module
-instances[instance] {
+instances contains instance if {
     server := sites[_].servers[_]
     instance := {"address": server.hostname, "name": server.name}
 }
 
-instances[instance] {
+instances contains instance if {
     container := containers[_]
     instance := {"address": container.ipaddress, "name": container.name}
 }
@@ -746,7 +782,7 @@ If the head of the rule is same, we can chain multiple rule bodies together to
 obtain the same result.  We don't recommend using this form anymore.
 
 ```live:eg/data/incremental_rule_nr:module:read_only
-instances[instance] {
+instances contains instance if {
     server := sites[_].servers[_]
     instance := {"address": server.hostname, "name": server.name}
 } {
@@ -795,10 +831,10 @@ power_users := {"alice", "bob", "fred"}
 restricted_users := {"bob", "kim"}
 
 # Power users get 32GB memory.
-max_memory := 32 { power_users[user] }
+max_memory := 32 if power_users[user]
 
 # Restricted users get 4GB memory.
-max_memory := 4 { restricted_users[user] }
+max_memory := 4 if restricted_users[user]
 ```
 
 Error:
@@ -825,7 +861,7 @@ Rego supports user-defined functions that can be called with the same semantics 
 For example, the following function will return the result of trimming the spaces from a string and then splitting it by periods.
 
 ```live:eg/basic_function:module:merge_down
-trim_and_split(s) := x {
+trim_and_split(s) := x if {
      t := trim(s, " ")
      x := split(t, ".")
 }
@@ -839,7 +875,7 @@ trim_and_split("   foo.bar ")
 Functions may have an arbitrary number of inputs, but exactly one output. Function arguments may be any kind of term. For example, suppose we have the following function:
 
 ```live:eg/function_input:module:read_only
-foo([x, {"bar": y}]) := z {
+foo([x, {"bar": y}]) := z if {
     z := {x: y}
 }
 ```
@@ -853,21 +889,25 @@ The following calls would produce the logical mappings given:
 | ``z := foo(["5", {"bar": [1, 2, 3, ["foo", "bar"]]}])`` | ``"5"``    | ``[1, 2, 3, ["foo", "bar"]]`` |
 
 
-If you need multiple outputs, write your functions so that the output is an array, object or set containing your results. If the output term is omitted, it is equivalent to having the output term be the literal `true`. That is, the function declarations below are equivalent:
-```live:eg/function_output_unset:module:read_only
-f(x) {
-    x == "foo"
-}
+If you need multiple outputs, write your functions so that the output is an array, object or set
+containing your results. If the output term is omitted, it is equivalent to having the output term
+be the literal `true`. Furthermore, `if` can be used to write shorter definitions. That is, the
+function declarations below are equivalent:
 
-f(x) = true {
-    x == "foo"
-}
+```live:eg/function_output_unset:module:read_only
+f(x) { x == "foo" }
+f(x) if { x == "foo" }
+f(x) if x == "foo"
+
+f(x) := true { x == "foo" }
+f(x) := true if { x == "foo" }
+f(x) := true if x == "foo"
 ```
 
 The outputs of user functions have some additional limitations, namely that they must resolve to a single value. If you write a function that has multiple possible bindings for an output variable, you will get a conflict error:
 
 ```live:eg/function_single_output:module:merge_down
-p(x) := y {
+p(x) := y if {
     y := x[_]
 }
 ```
@@ -882,10 +922,10 @@ It is possible in Rego to define a function more than once, to achieve a conditi
 Functions can be defined incrementally.
 
 ```live:eg/double_function_define:module
-q(1, x) := y {
+q(1, x) := y if {
     y := x
 }
-q(2, x) := y {
+q(2, x) := y if {
     y := x*4
 }
 ```
@@ -905,11 +945,11 @@ q(2, 2)
 A given function call will execute all functions that match the signature given. If a call matches multiple functions, they must produce the same output, or else a conflict error will occur:
 
 ```live:eg/double_function_define_diff_out:module
-r(1, x) := y {
+r(1, x) := y if {
     y := x
 }
 
-r(x, 2) := y {
+r(x, 2) := y if {
     y := x*4
 }
 ```
@@ -922,7 +962,7 @@ r(1, 2)
 
 On the other hand, if a call matches no functions, then the result is undefined.
 ```live:eg/double_function_define_undefined:module
-s(x, 2) := y {
+s(x, 2) := y if {
     y := x * 4
 }
 ```
@@ -952,7 +992,7 @@ For safety, a variable appearing in a negated expression must also appear in ano
 The simplest use of negation involves only scalar values or variables and is equivalent to complementing the operator:
 
 ```live:eg/simple_negation:module
-t {
+t if {
     greeting := "hello"
     not greeting == "goodbye"
 }
@@ -971,21 +1011,24 @@ Negation is required to check whether some value *does not* exist in a collectio
 For example, we can write a rule that defines a document containing names of apps not deployed on the `"prod"` site:
 
 ```live:eg/data/negation:module
-prod_servers[name] {
-    site := sites[_]
+prod_servers contains name if {
+    some site in sites
     site.name == "prod"
-    name := site.servers[_].name
+    some server in site.servers
+    name := server.name
 }
 
-apps_in_prod[name] {
-    app := apps[_]
-    server := app.servers[_]
-    prod_servers[server]
+apps_in_prod contains name if {
+    some site in sites
+    some app in apps
     name := app.name
+    some server in app.servers
+    prod_servers[server]
 }
 
-apps_not_in_prod[name] {
-    name := apps[_].name
+apps_not_in_prod contains name if {
+    some app in apps
+    name := app.name
     not apps_in_prod[name]
 }
 ```
@@ -1013,7 +1056,7 @@ The most expressive way to state this in Rego is using the `every` keyword:
 ```live:eg/data/every_alternative:module:read_only
 import future.keywords.every
 
-no_bitcoin_miners_using_every {
+no_bitcoin_miners_using_every if {
     every app in apps {
         app.name != "bitcoin-miner"
     }
@@ -1042,13 +1085,9 @@ quantifier.
 For example:
 
 ```live:eg/data/correct_negation:module
-import future.keywords.in
+no_bitcoin_miners_using_negation if not any_bitcoin_miners
 
-no_bitcoin_miners_using_negation {
-    not any_bitcoin_miners
-}
-
-any_bitcoin_miners {
+any_bitcoin_miners if {
     some app in apps
     app.name == "bitcoin-miner"
 }
@@ -1076,7 +1115,7 @@ A common mistake is to try encoding the policy with a rule named `no_bitcoin_min
 like so:
 
 ```live:eg/data/incorrect_no_bitcoin:module:read_only
-no_bitcoin_miners {
+no_bitcoin_miners if {
     app := apps[_]
     app.name != "bitcoin-miner"  # THIS IS NOT CORRECT.
 }
@@ -1087,9 +1126,7 @@ keyword, because the rule is true whenever there is SOME app that is not a
 bitcoin-miner:
 
 ```live:eg/data/incorrect_no_bitcoin_some:module
-import future.keywords.in
-
-no_bitcoin_miners {
+no_bitcoin_miners if {
     some app in apps
     app.name != "bitcoin-miner"
 }
@@ -1113,7 +1150,7 @@ Alternatively, we can implement the same kind of logic inside a single rule
 using [Comprehensions](#comprehensions).
 
 ```live:eg/data/comprehesion_alternative:module:read_only
-no_bitcoin_miners_using_comprehension {
+no_bitcoin_miners_using_comprehension if {
     bitcoin_miners := {app | some app in apps; app.name == "bitcoin-miner"}
     count(bitcoin_miners) == 0
 }
@@ -1191,11 +1228,11 @@ Modules use the same syntax to declare dependencies on [Base and Virtual Documen
 
 ```live:import_data:module:read_only
 package opa.examples
-import future.keywords.in
+import future.keywords # uses 'in' and 'contains' and 'if'
 
 import data.servers
 
-http_servers[server] {
+http_servers contains server if {
     some server in servers
     "http" in server.protocols
 }
@@ -1205,28 +1242,28 @@ Similarly, modules can declare dependencies on query arguments by specifying an 
 
 ```live:import_input:module:read_only
 package opa.examples
-import future.keywords.in
+import future.keywords
 
 import input.user
 import input.method
 
 # allow alice to perform any operation.
-allow { user == "alice" }
+allow if user == "alice"
 
 # allow bob to perform read-only operations.
-allow {
+allow if {
     user == "bob"
     method == "GET"
 }
 
 # allows users assigned a "dev" role to perform read-only operations.
-allow {
+allow if {
     method == "GET"
     input.user in data.roles["dev"]
 }
 
 # allows user catherine access on Saturday and Sunday
-allow {
+allow if {
     user == "catherine"
     day := time.weekday(time.now_ns())
     day in ["Saturday", "Sunday"]
@@ -1237,11 +1274,11 @@ Imports can include an optional `as` keyword to handle namespacing issues:
 
 ```live:import_namespacing:module:read_only
 package opa.examples
-import future.keywords.in
+import future.keywords
 
 import data.servers as my_servers
 
-http_servers[server] {
+http_servers contains server if {
     some server in my_servers
     "http" in server.protocols
 }
@@ -1264,10 +1301,10 @@ the "west" region that contain "db" in their name. The first element in the
 tuple is the site index and the second element is the server index.
 
 ```live:eg/data/some:module
-tuples[[i, j]] {
+tuples contains [i, j] if {
     some i, j
     sites[i].region == "west"
-    server := sites[i].servers[j]    # note: 'server' is local because it's declared with :=
+    server := sites[i].servers[j] # note: 'server' is local because it's declared with :=
     contains(server.name, "db")
 }
 ```
@@ -1319,7 +1356,7 @@ variable names.
 ```live:eg/data/every0:module:merge_down
 import future.keywords.every
 
-names_with_dev {
+names_with_dev if {
     some site in sites
     site.name == "dev"
 
@@ -1353,18 +1390,18 @@ scope of the body evaluation:
 ```live:eg/every1:module:merge_down
 import future.keywords.every
 
-array_domain {
+array_domain if {
     every i, x in [1, 2, 3] { x-i == 1 } # array domain
 }
 
-object_domain {
+object_domain if {
     every k, v in {"foo": "bar", "fox": "baz" } { # object domain
         startswith(k, "f")
         startswith(v, "b")
     }
 }
 
-set_domain {
+set_domain if {
     every x in {1, 2, 3} { x != 4 } # set domain
 }
 ```
@@ -1380,15 +1417,13 @@ import future.keywords.every
 xs := [2, 2, 4, 8]
 larger_than_one(x) := x > 1
 
-rule_every {
+rule_every if {
     every x in xs { larger_than_one(x) }
 }
 
-not_less_or_equal_one {
-    not lte_one
-}
+not_less_or_equal_one if not lte_one
 
-lte_one {
+lte_one if {
     some x in xs
     not larger_than_one(x)
 }
@@ -1470,17 +1505,17 @@ will see the unmodified value. The exception to this rule is when multiple
 `with` keywords are in-scope like below:
 
 ```live:multiple_with:module:read_only
-inner := [x, y] {
+inner := [x, y] if {
     x := input.foo
     y := input.bar
 }
 
-middle := [a, b] {
+middle := [a, b] if {
     a := inner with input.foo as 100
     b := input
 }
 
-outer := result {
+outer := result if {
     result := middle with input as {"foo": 200, "bar": 300}
 }
 ```
@@ -1498,66 +1533,60 @@ Replacement functions can call the function they're replacing **without causing
 recursion**.
 See the following example:
 
-```live:with_builtins:module:read_only
-package opa.examples
-import future.keywords.in
-
+```live:eg/with_builtins:module:read_only
 f(x) := count(x)
 
-mock_count(x) := 0 { "x" in x }
-mock_count(x) := count(x) { not "x" in x }
+mock_count(x) := 0 if "x" in x
+mock_count(x) := count(x) if not "x" in x
 ```
 
-```live:with_builtins/1:query:merge_down
+```live:eg/with_builtins/1:query:merge_down
 f([1, 2, 3]) with count as mock_count
 ```
-```live:with_builtins/1:output
+```live:eg/with_builtins/1:output
 ```
 
-```live:with_builtins/2:query:merge_down
+```live:eg/with_builtins/2:query:merge_down
 f(["x", "y", "z"]) with count as mock_count
 ```
-```live:with_builtins/2:output
+```live:eg/with_builtins/2:output
 ```
 
 Each replacement function evaluation will start a new scope: it's valid to use
 `with <builtin1> as ...` in the body of the replacement function -- for example:
 
-```live:with_builtins_nested:module:read_only
-package opa.examples
-import future.keywords.in
-
-f(x) := count(x) {
+```live:eg/with_builtins_nested:module:read_only
+f(x) := count(x) if {
     rule_using_concat with concat as "foo,bar"
 }
 
-mock_count(x) := 0 { "x" in x }
-mock_count(x) := count(x) { not "x" in x }
+mock_count(x) := 0 if "x" in x
+mock_count(x) := count(x) if not "x" in x
 
-rule_using_concat {
+rule_using_concat if {
     concat(",", input.x) == "foo,bar"
 }
 ```
-```live:with_builtins_nested/1:query:merge_down
+```live:eg/with_builtins_nested/1:query:merge_down
 f(["x", "y", "z"]) with count as mock_count with input.x as ["baz"]
 ```
-```live:with_builtins_nested/1:output
+```live:eg/with_builtins_nested/1:output
 ```
 
 Note that function replacement via `with` does not affect the evaluation of
 the function arguments: if `input.x` is undefined, the replacement of `concat`
 does not change the result of the evaluation:
 
-```live:with_builtins_nested/2:query:merge_down
+```live:eg/with_builtins_nested/2:query:merge_down
 count(input.x) with count as 3 with input.x as ["x"]
 ```
-```live:with_builtins_nested/2:output
+```live:eg/with_builtins_nested/2:output
 ```
 
-```live:with_builtins_nested/3:query:merge_down
+```live:eg/with_builtins_nested/3:query:merge_down
 count(input.x) with count as 3 with input as {}
 ```
-```live:with_builtins_nested/3:output:expect_undefined
+```live:eg/with_builtins_nested/3:output:expect_undefined
 ```
 
 ## Default Keyword
@@ -1571,14 +1600,12 @@ For example:
 ```live:eg/default:module
 default allow := false
 
-allow {
+allow if {
     input.user == "bob"
     input.method == "GET"
 }
 
-allow {
-    input.user == "alice"
-}
+allow if input.user == "alice"
 ```
 
 When the `allow` document is queried, the return value will be either `true` or `false`.
@@ -1620,7 +1647,7 @@ The ``else`` keyword is useful if you are porting policies into Rego from an
 order-sensitive system like IPTables.
 
 ```live:eg/else:module
-authorize := "allow" {
+authorize := "allow" if {
     input.user == "superuser"           # allow 'superuser' to perform any operation.
 } else := "deny" {
     input.path[0] == "admin"            # disallow 'admin' operations...
@@ -1687,7 +1714,7 @@ The membership operator `in` lets you check if an element is part of a collectio
 ```live:eg/member1:module:merge_down
 import future.keywords.in
 
-p := [x, y, z] {
+p := [x, y, z] if {
     x := 3 in [1, 2, 3]            # array
     y := 3 in {1, 2, 3}            # set
     z := 3 in {"foo": 1, "bar": 3} # object
@@ -1703,7 +1730,7 @@ taken to be the key (object) or index (array), respectively:
 ```live:eg/member1c:module:merge_down
 import future.keywords.in
 
-p := [x, y] {
+p := [x, y] if {
     x := "foo", "bar" in {"foo": "bar"}    # key, val with object
     y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
 }
@@ -1718,16 +1745,16 @@ arguments -- compare:
 ```live:eg/member1d:module:merge_down
 import future.keywords.in
 
-p := x {
+p := x if {
     x := { 0, 2 in [2] }
 }
-q := x {
+q := x if {
     x := { (0, 2 in [2]) }
 }
-w := x {
+w := x if {
     x := g((0, 2 in [2]))
 }
-z := x {
+z := x if {
     x := f(0, 2 in [2])
 }
 
@@ -1743,9 +1770,7 @@ member of an array:
 ```live:eg/member1a:module:merge_down
 import future.keywords.in
 
-deny {
-    not "admin" in input.user.roles
-}
+deny if not "admin" in input.user.roles
 
 test_deny {
     deny with input.user.roles as ["operator", "user"]
@@ -1760,7 +1785,7 @@ when called in non-collection arguments:
 ```live:eg/member1b:module:merge_down
 import future.keywords.in
 
-q := x {
+q := x if {
     x := 3 in "three"
 }
 ```
@@ -1795,11 +1820,11 @@ p[x] {
     some x, "r" in ["a", "r", "r", "a", "y"] # key variable, value constant
 }
 
-q[x] = y {
+q[x] = y if {
      some x, y in ["a", "r", "r", "a", "y"] # both variables
 }
 
-r[y] = x {
+r[y] = x if {
     some x, y in {"foo": "bar", "baz": "quz"}
 }
 ```
@@ -1811,10 +1836,10 @@ Any argument to the `some` variant can be a composite, non-ground value:
 ```live:eg/member4:module:merge_down
 import future.keywords.in
 
-p[x] = y {
+p[x] = y if {
     some x, {"foo": y} in [{"foo": 100}, {"bar": 200}]
 }
-p[x] = y {
+p[x] = y if {
     some {"bar": x}, {"foo": y} in {{"bar": "b"}: {"foo": "f"}}
 }
 ```
@@ -1832,7 +1857,7 @@ The assignment operator (`:=`) is used to assign values to variables. Variables 
 ```live:eg/assignment1:module:read_only
 x := 100
 
-p {
+p if {
     x := 1     # declare local variable 'x' and assign value 1
     x != 100   # true because 'x' refers to local variable
 }
@@ -1842,12 +1867,12 @@ Assigned variables are not allowed to appear before the assignment in the
 query. For example, the following policy will not compile:
 
 ```live:eg/assignment2:module:merge_down
-p {
+p if {
     x != 100
     x := 1     # error because x appears earlier in the query.
 }
 
-q {
+q if {
     x := 1
     x := 2     # error because x is assigned twice.
 }
@@ -1860,7 +1885,7 @@ A simple form of destructuring can be used to unpack values from arrays and assi
 ```live:eg/assignment3:module:read_only
 address := ["3 Abbey Road", "NW8 9AY", "London", "England"]
 
-in_london {
+in_london if {
     [_, _, city, country] := address
     city == "London"
     country == "England"
@@ -1875,7 +1900,7 @@ in_london {
 Comparison checks if two values are equal within a rule.  If the left or right hand side contains a variable that has not been assigned a value, the compiler throws an error.
 
 ```live:eg/comparison1:module:merge_down
-p {
+p if {
     x := 100
     x == 100   # true because x refers to the local variable
 }
@@ -1885,7 +1910,7 @@ p {
 
 ```live:eg/comparison2:module:merge_down
 y := 100
-q {
+q if {
     y == 100   # true because y refers to the global variable
 }
 ```
@@ -1893,7 +1918,7 @@ q {
 ```
 
 ```live:eg/comparison3:module:merge_down
-r {
+r if {
     z == 100   # compiler error because z has not been assigned a value
 }
 ```
@@ -1920,7 +1945,7 @@ sites[i].servers[j].name = apps[k].servers[m]
 As opposed to when assignment (`:=`) is used, the order of expressions in a rule does not affect the document’s content.
 
 ```live:eg/expression_order:module
-s {
+s if {
     x > y
     y = 41
     x = 42
@@ -2003,13 +2028,13 @@ logic. If error handling is required, the built-in function call can be negated
 to test for undefined. For example:
 
 ```live:eg/errors:module:merge_down
-allow {
+allow if {
     io.jwt.verify_hs256(input.token, "secret")
     [_, payload, _] := io.jwt.decode(input.token)
     payload.role == "admin"
 }
 
-reason["invalid JWT supplied as input"] {
+reason contains "invalid JWT supplied as input" if {
     not io.jwt.decode(input.token)
 }
 ```

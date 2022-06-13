@@ -1200,7 +1200,7 @@ func TestImport(t *testing.T) {
 func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
-	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
+	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
@@ -1589,6 +1589,244 @@ func TestRule(t *testing.T) {
 	})
 	assertParseError(t, "invalid rule body no separator", `p { a = "foo"bar }`)
 	assertParseError(t, "invalid rule body no newline", `p { a b c }`)
+}
+
+func TestRuleContains(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"contains"}}
+
+	tests := []struct {
+		note string
+		rule string
+		exp  *Rule
+	}{
+		{
+			note: "simple",
+			rule: `p contains "x" { true }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("x")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "no body",
+			rule: `p contains "x"`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("x")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "set with var element",
+			rule: `deny contains msg { msg := "nonono" }`,
+			exp: &Rule{
+				Head: NewHead(Var("deny"), VarTerm("msg")),
+				Body: MustParseBody(`msg := "nonono"`),
+			},
+		},
+		{
+			note: "set with object elem",
+			rule: `deny contains {"allow": false, "msg": msg} { msg := "nonono" }`,
+			exp: &Rule{
+				Head: NewHead(Var("deny"), MustParseTerm(`{"allow": false, "msg": msg}`)),
+				Body: MustParseBody(`msg := "nonono"`),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseRule(t, tc.note, tc.rule, tc.exp, opts)
+		})
+	}
+}
+
+func TestRuleIf(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"contains", "if", "every"}}
+
+	tests := []struct {
+		note string
+		rule string
+		exp  *Rule
+	}{
+		{
+			note: "complete",
+			rule: `p if { true }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "complete, normal body",
+			rule: `p if { x := 10; x > y }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: MustParseBody(`x := 10; x > y`),
+			},
+		},
+		{
+			note: "complete+else, normal bodies, assign",
+			rule: `p := "yes" if { 10 > y } else := "no" { 10 <= y }`,
+			exp: &Rule{
+				Head: &Head{
+					Name:   Var("p"),
+					Value:  StringTerm("yes"),
+					Assign: true,
+				},
+				Body: MustParseBody(`10 > y`),
+				Else: &Rule{
+					Head: &Head{
+						Name:   Var("p"),
+						Value:  StringTerm("no"),
+						Assign: true,
+					},
+					Body: MustParseBody(`10 <= y`),
+				},
+			},
+		},
+		{
+			note: "complete, shorthand",
+			rule: `p if true`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "complete+not, shorthand",
+			rule: `p if not q`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: MustParseBody(`not q`),
+			},
+		},
+		{
+			note: "complete+else, shorthand",
+			rule: `p if 1 > 2 else = 42 { 2 > 1 }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: MustParseBody(`1 > 2`),
+				Else: &Rule{
+					Head: &Head{
+						Name:  Var("p"),
+						Value: NumberTerm("42"),
+					},
+					Body: MustParseBody(`2 > 1`),
+				},
+			},
+		},
+		{
+			note: "complete+call, shorthand",
+			rule: `p if count(q) > 0`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: MustParseBody(`count(q) > 0`),
+			},
+		},
+		{
+			note: "function, shorthand",
+			rule: `f(x) = y if y := x + 1`,
+			exp: &Rule{
+				Head: &Head{
+					Name:  Var("f"),
+					Args:  []*Term{VarTerm("x")},
+					Value: VarTerm("y"),
+				},
+				Body: MustParseBody(`y := x + 1`),
+			},
+		},
+		{
+			note: "function+every, shorthand",
+			rule: `f(xs) if every x in xs { x != 0 }`,
+			exp: &Rule{
+				Head: &Head{
+					Name:  Var("f"),
+					Args:  []*Term{VarTerm("xs")},
+					Value: BooleanTerm(true),
+				},
+				Body: MustParseBodyWithOpts(`every x in xs { x != 0 }`, opts),
+			},
+		},
+		{
+			note: "object",
+			rule: `p["foo"] = "bar" if { true }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("foo"), StringTerm("bar")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "object, shorthand",
+			rule: `p["foo"] = "bar" if true`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("foo"), StringTerm("bar")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "object with vars",
+			rule: `p[x] = y if {
+				x := "foo"
+				y := "bar"
+			}`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
+				Body: MustParseBody(`x := "foo"; y := "bar"`),
+			},
+		},
+		{
+			note: "set",
+			rule: `p contains "foo" if { true }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("foo")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "set, shorthand",
+			rule: `p contains "foo" if true`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), StringTerm("foo")),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "set+var+shorthand",
+			rule: `p contains x if { x := "foo" }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), VarTerm("x")),
+				Body: MustParseBody(`x := "foo"`),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseRule(t, tc.note, tc.rule, tc.exp, opts)
+		})
+	}
+
+	errors := []struct {
+		note string
+		rule string
+		err  string
+	}{
+		{
+			note: "partial set+if, shorthand",
+			rule: `p[x] if x := 1`,
+			err:  "rego_parse_error: unexpected if keyword: invalid for partial set rule p (use `contains`)",
+		},
+		{
+			note: "partial set+if",
+			rule: `p[x] if { x := 1 }`,
+			err:  "rego_parse_error: unexpected if keyword: invalid for partial set rule p (use `contains`)",
+		},
+	}
+	for _, tc := range errors {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.rule, tc.err, opts)
+		})
+	}
 }
 
 func TestRuleElseKeyword(t *testing.T) {
@@ -4004,7 +4242,7 @@ func assertParseOne(t *testing.T, msg string, input string, correct func(interfa
 		return
 	}
 	if len(stmts) != 1 {
-		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d", msg, input, len(stmts))
+		t.Errorf("Error on test \"%s\": parse error on %s: expected exactly one statement, got %d: %v", msg, input, len(stmts), stmts)
 		return
 	}
 	correct(stmts[0])

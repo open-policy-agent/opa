@@ -3518,8 +3518,12 @@ func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
 	}
 
 	// Populate globals with imports.
-	for _, i := range imports {
-		globals[i.Name()] = &usedRef{ref: i.Path.Value.(Ref)}
+	for _, imp := range imports {
+		path := imp.Path.Value.(Ref)
+		if FutureRootDocument.Equal(path[0]) {
+			continue // ignore future imports
+		}
+		globals[imp.Name()] = &usedRef{ref: path}
 	}
 
 	return globals
