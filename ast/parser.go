@@ -1106,7 +1106,6 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 				}
 			}
 			p.restore(s)
-			return nil
 		}
 		if op := p.parseTermOpName(Member.Ref(), tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {

@@ -2400,6 +2400,97 @@ func TestNoMatchError(t *testing.T) {
 	}
 }
 
+func TestBraceBracketParenMatchingErrors(t *testing.T) {
+	// Checks to prevent regression on issue #4672.
+	// Error location is important here, which is why we check
+	// the error strings directly.
+	tests := []struct {
+		note  string
+		err   string
+		input string
+	}{
+		{
+			note: "Unmatched ')' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := contains("a"), "b")
+	                  ^`,
+			input: `package test
+p {
+	x := 5
+	y := contains("a"), "b")
+}`,
+		},
+		{
+			note: "Unmatched '}' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := {"a", "b", "c"}, "a"}
+	                    ^`,
+			input: `package test
+p {
+	x := 5
+	y := {"a", "b", "c"}, "a"}
+}`,
+		},
+		{
+			note: "Unmatched ']' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := ["a", "b", "c"], "a"]
+	                    ^`,
+			input: `package test
+p {
+	x := 5
+	y := ["a", "b", "c"], "a"]
+}`,
+		},
+		{
+			note: "Unmatched '(' case",
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected } token: expected "," or ")"
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := contains("a", "b"
+}`,
+		},
+		{
+			note: "Unmatched '{' case",
+
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected eof token: expected \n or ; or }
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := {{"a", "b", "c"}, "a"
+}`,
+		},
+		{
+			note: "Unmatched '[' case",
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected } token: expected "," or "]"
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := [["a", "b", "c"], "a"
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModule("test.rego", tc.input)
+			if err == nil {
+				t.Fatal("Expected error")
+			}
+			if tc.err != "" && tc.err != err.Error() {
+				t.Fatalf("Expected error string %q but got: %q", tc.err, err.Error())
+			}
+		})
+	}
+}
+
 func TestParseErrorDetails(t *testing.T) {
 
 	tests := []struct {
