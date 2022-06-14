@@ -202,6 +202,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 	if u.Bundle != nil {
 		c.status.Type = u.Bundle.Type()
 		c.status.LastSuccessfulDownload = c.status.LastSuccessfulRequest
+		c.status.SetBundleSize(u.Size)
 
 		if err := c.reconfigure(ctx, u); err != nil {
 			c.logger.Error("Discovery reconfiguration error occurred: %v", err)

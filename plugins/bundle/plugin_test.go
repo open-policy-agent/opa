@@ -39,6 +39,11 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
+const (
+	deltaBundleSize    = 128
+	snapshotBundleSize = 1024
+)
+
 func TestPluginOneShot(t *testing.T) {
 
 	ctx := context.Background()
@@ -67,7 +72,7 @@ func TestPluginOneShot(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -75,6 +80,8 @@ func TestPluginOneShot(t *testing.T) {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.SnapshotBundleType {
 		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	} else if status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -404,7 +411,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		Etag:     "foo",
 	}
 
-	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
+	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -412,6 +419,8 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.DeltaBundleType {
 		t.Fatalf("expected delta bundle but got %v", status.Type)
+	} else if status.Size != deltaBundleSize {
+		t.Fatalf("expected delta bundle size %d but got %d", deltaBundleSize, status.Size)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -1413,7 +1422,7 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 	if expectStatusErr && !isErrStatus(actual) {
 		t.Errorf("Expected status to be in an error state, but no error has occurred.")
 	} else if !expectStatusErr && isErrStatus(actual) {
-		t.Errorf("Unexpected error status %s", actual)
+		t.Errorf("Unexpected error status %v", actual)
 	}
 
 	if actual.ActiveRevision != expected {
