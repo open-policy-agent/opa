@@ -81,7 +81,22 @@ func ValidateSchemaDocument(ast *SchemaDocument) (*Schema, *gqlerror.Error) {
 
 	for i, dir := range ast.Directives {
 		if schema.Directives[dir.Name] != nil {
-			return nil, gqlerror.ErrorPosf(dir.Position, "Cannot redeclare directive %s.", dir.Name)
+			// While the spec says SDL must not (§3.5) explicitly define builtin
+			// scalars, it may (§3.13) define builtin directives. Here we check for
+			// that, and reject doubly-defined directives otherwise.
+			switch dir.Name {
+			case "include", "skip", "deprecated", "specifiedBy": // the builtins
+				// In principle here we might want to validate that the
+				// directives are the same. But they might not be, if the
+				// server has an older spec than we do. (Plus, validating this
+				// is a lot of work.) So we just keep the first one we saw.
+				// That's an arbitrary choice, but in theory the only way it
+				// fails is if the server is using features newer than this
+				// version of gqlparser, in which case they're in trouble
+				// anyway.
+			default:
+				return nil, gqlerror.ErrorPosf(dir.Position, "Cannot redeclare directive %s.", dir.Name)
+			}
 		}
 		schema.Directives[dir.Name] = ast.Directives[i]
 	}
