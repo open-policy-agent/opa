@@ -40,6 +40,10 @@ import (
 	"github.com/open-policy-agent/opa/version"
 )
 
+const (
+	snapshotBundleSize = 1024
+)
+
 func TestMain(m *testing.M) {
 	if version.Version == "" {
 		version.Version = "unit-test"
@@ -415,12 +419,14 @@ func TestReconfigure(t *testing.T) {
 		}
 	`)
 
-	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
 	} else if disco.status.Type != bundle.SnapshotBundleType {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	} else if disco.status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
 	}
 
 	// Verify labels are unchanged
