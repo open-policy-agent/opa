@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"testing"
@@ -818,6 +819,96 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 			}
 
 			main { path_matches == {true} }`
+
+			query := ast.MustParseBody("data.test.main")
+			compiler := ast.MustCompileModules(map[string]string{
+				"test.rego": module,
+			})
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+
+				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+					q := NewQuery(query).
+						WithCompiler(compiler).
+						WithStore(store).
+						WithTransaction(txn)
+
+					_, err := q.Run(ctx)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// randomString constructs and returns a string of the specified length
+// containing a random assortment of characters from the given symbols list.
+func randomString(symbols []rune, length int) string {
+	builder := strings.Builder{}
+	for i := 0; i < length; i++ {
+		builder.WriteRune(symbols[rand.Intn(len(symbols))])
+	}
+	return builder.String()
+}
+
+func BenchmarkGlob(b *testing.B) {
+	ctx := context.Background()
+
+	// Benchmark Strategy:
+	//
+	// We want to test both matching and non-matching, in case one is
+	// slower than the other. We also want to test a variety of different
+	// patterns, since (at time of writing), there is a pattern cache, so
+	// we want to exercise it but not rely on it excessively.
+	//
+	// For each individual test case, we generate size/2 random strings
+	// from the letters a,b,c,d as well as size/2 with those letters plus
+	// x. We test matching with the following globs:
+	//
+	// * "*x*"  (should always have matches)
+	// * "*y*"  (should never have matches)
+	// * the first half of a randomly chosen test case, followed by *
+
+	sizes := []int{10, 100, 1000}
+	length := 32
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			haystack := make([]string, n)
+			for i := 0; i < n; i++ {
+				if i%2 == 0 {
+					haystack[i] = randomString([]rune{'a', 'b', 'c', 'd'}, length)
+				} else {
+					haystack[i] = randomString([]rune{'a', 'b', 'c', 'd', 'x'}, length)
+				}
+			}
+
+			needleIndex := rand.Intn(len(haystack))
+			needle := haystack[needleIndex]
+			needleGlob := needle[0:length/2] + "*"
+
+			store := inmem.NewFromObject(map[string]interface{}{
+				"haystack":   haystack,
+				"needleGlob": needleGlob,
+			})
+
+			module := `package test
+			main {
+				needleMatches := {h | h := data.haystack[_]; glob.match(data.needleGlob, [], h)}
+				xMatches := {h | h := data.haystack[_]; glob.match("*x*", [], h)}
+				yMtches := {h | h := data.haystack[_]; glob.match("*y*", [], h)}
+			}`
 
 			query := ast.MustParseBody("data.test.main")
 			compiler := ast.MustCompileModules(map[string]string{
