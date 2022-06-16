@@ -150,9 +150,6 @@ fqdn_matches_any(str, patterns) {
 fqdn_matches(str, pattern) {
 	pattern_parts := split(pattern, ".")
 	pattern_parts[0] == "*"
-	str_parts := split(str, ".")
-	n_pattern_parts := count(pattern_parts)
-	n_str_parts := count(str_parts)
 	suffix := trim(pattern, "*.")
 	endswith(str, suffix)
 }
