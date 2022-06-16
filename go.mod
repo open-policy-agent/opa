@@ -41,9 +41,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.7.0
 	go.opentelemetry.io/otel/trace v1.7.0
 	go.uber.org/automaxprocs v1.5.1
-	golang.org/x/net v0.0.0-20220107192237-5cfca573fb4d
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/grpc v1.47.0
 	gopkg.in/yaml.v2 v2.4.0
-	oras.land/oras-go v1.1.1
+	oras.land/oras-go v1.2.0
 )
