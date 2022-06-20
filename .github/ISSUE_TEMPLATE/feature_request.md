@@ -10,11 +10,11 @@ assignees: ''
 <!-- Thanks for opening an issue to request a feature or file a bug!
 If you provide some basic information, it helps us address problems faster. -->
 
-## What part of OPA would you like to see improved?
+## What is the underlying problem you're trying to solve?
 <!--
-Is there something challenging or frustrating about OPA that you are trying to improve?
-Do you want OPA to integrate with another project or tool?
-Why would this improvement make your experience with OPA better?
+By making this change, what are you hoping to improve or fix?
+Why would this change make the OPA experience better?
+Are there any current solutions that are inefficient or frustrating?
 -->
 
 ## Describe the ideal solution
