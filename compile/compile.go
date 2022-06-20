@@ -9,13 +9,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -315,7 +314,7 @@ func (c *Compiler) initBundle() error {
 
 	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false)
 	if err != nil {
-		return errors.Wrap(err, "load error")
+		return fmt.Errorf("load error: %w", err)
 	}
 
 	if c.asBundle {

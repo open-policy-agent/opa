@@ -28,6 +28,11 @@ func ManifestStoragePath(name string) storage.Path {
 	return append(BundlesBasePath, name, "manifest")
 }
 
+// EtagStoragePath is the storage path used for the given named bundle etag.
+func EtagStoragePath(name string) storage.Path {
+	return append(BundlesBasePath, name, "etag")
+}
+
 func namedBundlePath(name string) storage.Path {
 	return append(BundlesBasePath, name)
 }
@@ -79,6 +84,11 @@ func WriteManifestToStore(ctx context.Context, store storage.Store, txn storage.
 	return write(ctx, store, txn, ManifestStoragePath(name), manifest)
 }
 
+// WriteEtagToStore will write the bundle etag into the storage. This function is called when the bundle is activated.
+func WriteEtagToStore(ctx context.Context, store storage.Store, txn storage.Transaction, name, etag string) error {
+	return write(ctx, store, txn, EtagStoragePath(name), etag)
+}
+
 func write(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path, value interface{}) error {
 	if err := util.RoundTrip(&value); err != nil {
 		return err
@@ -101,10 +111,22 @@ func write(ctx context.Context, store storage.Store, txn storage.Transaction, pa
 func EraseManifestFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) error {
 	path := namedBundlePath(name)
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
-	if err != nil && !storage.IsNotFound(err) {
-		return err
+	return suppressNotFound(err)
+}
+
+// eraseBundleEtagFromStore will remove the bundle etag from storage. This function is called
+// when the bundle is deactivated.
+func eraseBundleEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) error {
+	path := EtagStoragePath(name)
+	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
+	return suppressNotFound(err)
+}
+
+func suppressNotFound(err error) error {
+	if err == nil || storage.IsNotFound(err) {
+		return nil
 	}
-	return nil
+	return err
 }
 
 func writeWasmModulesToStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string, b *Bundle) error {
@@ -123,10 +145,7 @@ func eraseWasmModulesFromStore(ctx context.Context, store storage.Store, txn sto
 	path := wasmModulePath(name)
 
 	err := store.Write(ctx, txn, storage.RemoveOp, path, nil)
-	if err != nil && !storage.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return suppressNotFound(err)
 }
 
 // ReadWasmMetadataFromStore will read Wasm module resolver metadata from the store.
@@ -237,11 +256,7 @@ func ReadBundleMetadataFromStore(ctx context.Context, store storage.Store, txn s
 func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (map[string]interface{}, error) {
 	value, err := store.Read(ctx, txn, path)
 	if err != nil {
-		if storageErr, ok := err.(*storage.Error); ok && storageErr.Code == storage.NotFoundErr {
-			return nil, nil
-		}
-
-		return nil, err
+		return nil, suppressNotFound(err)
 	}
 
 	data, ok := value.(map[string]interface{})
@@ -250,6 +265,27 @@ func readMetadataFromStore(ctx context.Context, store storage.Store, txn storage
 	}
 
 	return data, nil
+}
+
+// ReadBundleEtagFromStore returns the etag for the specified bundle.
+// If the bundle is not activated, this function will return
+// storage NotFound error.
+func ReadBundleEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, name string) (string, error) {
+	return readEtagFromStore(ctx, store, txn, EtagStoragePath(name))
+}
+
+func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, path storage.Path) (string, error) {
+	value, err := store.Read(ctx, txn, path)
+	if err != nil {
+		return "", err
+	}
+
+	str, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("corrupt bundle etag")
+	}
+
+	return str, nil
 }
 
 // ActivateOpts defines options for the Activate API call.
@@ -285,12 +321,12 @@ type DeactivateOpts struct {
 func Deactivate(opts *DeactivateOpts) error {
 	erase := map[string]struct{}{}
 	for name := range opts.BundleNames {
-		if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
-			for _, root := range roots {
-				erase[root] = struct{}{}
-			}
-		} else if !storage.IsNotFound(err) {
+		roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name)
+		if suppressNotFound(err) != nil {
 			return err
+		}
+		for _, root := range roots {
+			erase[root] = struct{}{}
 		}
 	}
 	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.BundleNames, erase)
@@ -312,12 +348,12 @@ func activateBundles(opts *ActivateOpts) error {
 			snapshotBundles[name] = b
 			names[name] = struct{}{}
 
-			if roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name); err == nil {
-				for _, root := range roots {
-					erase[root] = struct{}{}
-				}
-			} else if !storage.IsNotFound(err) {
+			roots, err := ReadBundleRootsFromStore(opts.Ctx, opts.Store, opts.Txn, name)
+			if suppressNotFound(err) != nil {
 				return err
+			}
+			for _, root := range roots {
+				erase[root] = struct{}{}
 			}
 
 			// Erase data at new roots to prepare for writing the new data
@@ -376,6 +412,10 @@ func activateBundles(opts *ActivateOpts) error {
 			return err
 		}
 
+		if err := writeEtagToStore(opts, name, b.Etag); err != nil {
+			return err
+		}
+
 		if err := writeWasmModulesToStore(opts.Ctx, opts.Store, opts.Txn, name, b); err != nil {
 			return err
 		}
@@ -429,6 +469,10 @@ func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error 
 		if err := writeManifestToStore(opts, name, b.Manifest); err != nil {
 			return err
 		}
+
+		if err := writeEtagToStore(opts, name, b.Etag); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -448,15 +492,19 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 	}
 
 	for name := range names {
-		if err := EraseManifestFromStore(ctx, store, txn, name); err != nil && !storage.IsNotFound(err) {
+		if err := EraseManifestFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
 			return nil, err
 		}
 
-		if err := LegacyEraseManifestFromStore(ctx, store, txn); err != nil && !storage.IsNotFound(err) {
+		if err := LegacyEraseManifestFromStore(ctx, store, txn); suppressNotFound(err) != nil {
 			return nil, err
 		}
 
-		if err := eraseWasmModulesFromStore(ctx, store, txn, name); err != nil && !storage.IsNotFound(err) {
+		if err := eraseBundleEtagFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
+			return nil, err
+		}
+
+		if err := eraseWasmModulesFromStore(ctx, store, txn, name); suppressNotFound(err) != nil {
 			return nil, err
 		}
 	}
@@ -471,10 +519,8 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 			return fmt.Errorf("manifest root path invalid: %v", root)
 		}
 		if len(path) > 0 {
-			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); err != nil {
-				if !storage.IsNotFound(err) {
-					return err
-				}
+			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); suppressNotFound(err) != nil {
+				return err
 			}
 		}
 	}
@@ -532,6 +578,14 @@ func writeManifestToStore(opts *ActivateOpts, name string, manifest Manifest) er
 		if err := LegacyWriteManifestToStore(opts.Ctx, opts.Store, opts.Txn, manifest); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
+	if err := WriteEtagToStore(opts.Ctx, opts.Store, opts.Txn, name, etag); err != nil {
+		return err
 	}
 
 	return nil
@@ -632,7 +686,7 @@ func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) 
 func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Transaction, bundles map[string]*Bundle) error {
 	collisions := map[string][]string{}
 	allBundles, err := ReadBundleNamesFromStore(ctx, store, txn)
-	if err != nil && !storage.IsNotFound(err) {
+	if suppressNotFound(err) != nil {
 		return err
 	}
 
@@ -641,7 +695,7 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 	// Build a map of roots for existing bundles already in the system
 	for _, name := range allBundles {
 		roots, err := ReadBundleRootsFromStore(ctx, store, txn, name)
-		if err != nil && !storage.IsNotFound(err) {
+		if suppressNotFound(err) != nil {
 			return err
 		}
 		allRoots[name] = roots

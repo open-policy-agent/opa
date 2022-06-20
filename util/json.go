@@ -105,6 +105,9 @@ func Reference(x interface{}) *interface{} {
 
 // Unmarshal decodes a YAML or JSON value into the specified type.
 func Unmarshal(bs []byte, v interface{}) error {
+	if json.Valid(bs) {
+		return UnmarshalJSON(bs, v)
+	}
 	bs, err := yaml.YAMLToJSON(bs)
 	if err != nil {
 		return err

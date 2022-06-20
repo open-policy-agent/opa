@@ -12,7 +12,7 @@ policies over the HTTP request body.
 ## Prerequisites
 
 This tutorial requires Kubernetes 1.20 or later. To run the tutorial locally, we
-recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in 
+recommend using [minikube](https://minikube.sigs.k8s.io/docs/start/) in
 version `v1.21+` with Kubernetes 1.20+.
 
 ## Steps
@@ -127,7 +127,7 @@ package envoy.authz
 
 import input.attributes.request.http as http_request
 
-default allow = false
+default allow := false
 
 allow {
     is_token_valid
@@ -376,8 +376,8 @@ echo $SERVICE_URL
 For convenience, we’ll want to store Alice's and Bob's tokens in environment variables.
 
 ```bash
-export ALICE_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZ3Vlc3QiLCJzdWIiOiJZV3hwWTJVPSIsIm5iZiI6MTUxNDg1MTEzOSwiZXhwIjoxNjQxMDgxNTM5fQ.K5DnnbbIOspRbpCr2IKXE9cPVatGOCBrBQobQmBmaeU"
-export BOB_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJzdWIiOiJZbTlpIiwibmJmIjoxNTE0ODUxMTM5LCJleHAiOjE2NDEwODE1Mzl9.WCxNAveAVAdRCmkpIObOTaSd0AJRECY2Ch2Qdic3kU8"
+export ALICE_TOKEN="eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyMjQxMDgxNTM5LCAibmJmIjogMTUxNDg1MTEzOSwgInJvbGUiOiAiZ3Vlc3QiLCAic3ViIjogIllXeHBZMlU9In0.Uk5hgUqMuUfDLvBLnlXMD0-X53aM_Hlziqg3vhOsCc8"
+export BOB_TOKEN="eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAyMjQxMDgxNTM5LCAibmJmIjogMTUxNDg1MTEzOSwgInJvbGUiOiAiYWRtaW4iLCAic3ViIjogIlltOWkifQ.5qsm7rRTvqFHAgiB6evX0a_hWnGbWquZC0HImVQPQo8"
 ```
 
 Check that `Alice` can get employees **but cannot** create one.

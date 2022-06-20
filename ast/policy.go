@@ -144,6 +144,7 @@ type (
 		Annotations []*Annotations `json:"annotations,omitempty"`
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
+		stmts       []Statement
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -260,11 +261,7 @@ func (mod *Module) Copy() *Module {
 	cpy := *mod
 	cpy.Rules = make([]*Rule, len(mod.Rules))
 
-	var nodes map[Node]Node
-
-	if len(mod.Annotations) > 0 {
-		nodes = make(map[Node]Node)
-	}
+	nodes := make(map[Node]Node)
 
 	for i := range mod.Rules {
 		cpy.Rules[i] = mod.Rules[i].Copy()
@@ -295,6 +292,11 @@ func (mod *Module) Copy() *Module {
 	cpy.Comments = make([]*Comment, len(mod.Comments))
 	for i := range mod.Comments {
 		cpy.Comments[i] = mod.Comments[i].Copy()
+	}
+
+	cpy.stmts = make([]Statement, len(mod.stmts))
+	for i := range mod.stmts {
+		cpy.stmts[i] = nodes[mod.stmts[i]]
 	}
 
 	return &cpy
@@ -1053,10 +1055,22 @@ func (expr *Expr) sortOrder() int {
 	return -1
 }
 
+// CopyWithoutTerms returns a deep copy of expr without its Terms
+func (expr *Expr) CopyWithoutTerms() *Expr {
+	cpy := *expr
+
+	cpy.With = make([]*With, len(expr.With))
+	for i := range expr.With {
+		cpy.With[i] = expr.With[i].Copy()
+	}
+
+	return &cpy
+}
+
 // Copy returns a deep copy of expr.
 func (expr *Expr) Copy() *Expr {
 
-	cpy := *expr
+	cpy := expr.CopyWithoutTerms()
 
 	switch ts := expr.Terms.(type) {
 	case *SomeDecl:
@@ -1073,12 +1087,7 @@ func (expr *Expr) Copy() *Expr {
 		cpy.Terms = ts.Copy()
 	}
 
-	cpy.With = make([]*With, len(expr.With))
-	for i := range expr.With {
-		cpy.With[i] = expr.With[i].Copy()
-	}
-
-	return &cpy
+	return cpy
 }
 
 // Hash returns the hash code of the Expr.

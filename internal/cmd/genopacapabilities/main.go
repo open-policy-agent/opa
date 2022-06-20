@@ -9,10 +9,10 @@ import (
 	"os"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/types"
 )
 
 func main() {
-
 	f := ast.CapabilitiesForThisVersion()
 
 	fd, err := os.Create(os.Args[1])
@@ -22,6 +22,18 @@ func main() {
 
 	enc := json.NewEncoder(fd)
 	enc.SetIndent("", "  ")
+
+	for i, bi := range f.Builtins {
+		// NOTE(sr): This ensures that there are no type names and descriptions in capabilities.json
+		fargs := bi.Decl.FuncArgs()
+		if fargs.Variadic != nil {
+			f.Builtins[i].Decl = types.NewVariadicFunction(fargs.Args, fargs.Variadic, bi.Decl.Result())
+		} else {
+			f.Builtins[i].Decl = types.NewFunction(fargs.Args, bi.Decl.Result())
+		}
+		f.Builtins[i].Categories = nil
+		f.Builtins[i].Description = ""
+	}
 
 	if err := enc.Encode(f); err != nil {
 		panic(err)

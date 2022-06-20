@@ -66,6 +66,11 @@ services:
       - "run"
       - "--server"
       - "--set=decision_logs.console=true"
+      - "--set=services.nginx.url=http://bundle_server"
+      - "--set=bundles.nginx.service=nginx"
+      - "--set=bundles.nginx.resource=bundles/bundle.tar.gz"
+    depends_on:
+      - bundle_server
   frontend:
     image: openpolicyagent/demo-pam
     ports:
@@ -78,6 +83,12 @@ services:
       - "2223:22"
     volumes:
       - ./backend_host_id.json:/etc/host_identity.json
+  bundle_server:
+    image: nginx:1.20.0-alpine
+    ports:
+      - 8888:80
+    volumes:
+      - ./bundles:/usr/share/nginx/html/bundles
 ```
 
 The `tutorial-docker-compose.yaml` file requires two other local files:
@@ -104,13 +115,19 @@ This tutorial uses a special Docker image named `openpolicyagent/demo-pam` to si
 This image contains pre-created Linux accounts for our users, and the required PAM module is
 pre-configured inside the `sudo` and `sshd` files in `/etc/pam.d/`.
 
-### 2. Load policies and data into OPA.
+### 2. Create a Bundle for the policies and data.
 
-In another terminal, load the policies and data into OPA that will control access to the hosts.
+In another terminal, create the policies and data that OPA will use to control access to the hosts.
 
-First, create a policy that will tell the PAM module to collect context that is required for authorization.
-For more details on what this policy should look like, see
-[this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#pull).
+First, create folder called bundles and cd into it.
+
+```bash
+mkdir bundles
+cd bundles
+```
+
+Next, create a policy that will tell the PAM module to collect context that is required for authorization.
+For more details on what this policy should look like, see [this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#pull).
 
 **pull.rego**:
 
@@ -123,14 +140,9 @@ files := ["/etc/host_identity.json"]
 # Which environment variables should be loaded into the context?
 env_vars := []
 ```
-Load this policy into OPA.
 
-```shell
-curl -X PUT --data-binary @pull.rego \
-  localhost:8181/v1/policies/pull
-```
 
-Next, create the policies that will authorize SSH and sudo requests.
+Create the policies that will authorize SSH and sudo requests.
 The `input` which makes up the authorization context in the policy below will also
 include some default values, such as the username making the request. See
 [this documentation](https://github.com/open-policy-agent/contrib/tree/main/pam_opa/pam#authz)
@@ -154,7 +166,7 @@ import input.sysinfo
 import data.hosts
 
 # By default, users are not authorized.
-default allow = false
+default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow {
@@ -179,12 +191,7 @@ errors["Request denied by administrative policy"] {
 }
 ```
 
-Load this policy into OPA.
 
-```shell
-curl -X PUT --data-binary @sshd_authz.rego \
-  localhost:8181/v1/policies/sshd/authz
-```
 
 Create the `sudo` authorization policy. It should allow only admins to use `sudo`.
 
@@ -194,7 +201,7 @@ Create the `sudo` authorization policy. It should allow only admins to use `sudo
 package sudo.authz
 
 # By default, users are not authorized.
-default allow = false
+default allow := false
 
 # Allow access to any user that has the "admin" role.
 allow {
@@ -207,25 +214,27 @@ errors["Request denied by administrative policy"] {
 }
 ```
 
-Load this policy into OPA.
+
+
+Now we need to create the data that represents our roles, hots, and contributors into OPA.
+
+Create a folder called roles, and the following data file.
 
 ```shell
-curl -X PUT --data-binary @sudo_authz.rego \
-  localhost:8181/v1/policies/sudo/authz
-```
-
-Finally, load the data that represents our roles and contributors into OPA.
-
-```shell
-curl -X PUT localhost:8181/v1/data/roles -d \
-'{
+mkdir roles
+cat <<EOF > roles/data.json
+{
     "admin": ["ops"]
-}'
+}
+EOF
+
 ```
 
+Create a folder called hosts, and the following data file.
 ```shell
-curl -X PUT localhost:8181/v1/data/hosts -d \
-'{
+mkdir hosts
+cat <<EOF > hosts/data.json
+{
   "frontend": {
     "contributors": [
       "frontend-dev"
@@ -236,8 +245,34 @@ curl -X PUT localhost:8181/v1/data/hosts -d \
       "backend-dev"
     ]
   }
-}'
+}
+EOF
 ```
+
+Finally create the bundle for the bundle server to use.
+
+```bash
+opa build -b .
+```
+
+Now you should have the following file structure setup.
+
+```
+.
+└── tutorial-docker-compose.yaml
+├── backend_host_id.json
+├── frontend_host_id.json
+├── bundles
+│   ├── bundle.tar.gz
+│   ├── pull.rego
+│   ├── sshd_authz.rego
+│   ├── sudo_authz.rego
+│   ├── hosts
+│   │   └── data.json
+│   ├── roles
+│   │   └── data.json
+```
+
 
 ### 3. SSH and sudo as a user with the `admin` role.
 
@@ -294,13 +329,16 @@ their rights should be removed.
 Let's mock the current state of this simple ticketing system's API with some data.
 
 ```shell
-curl -X PUT localhost:8181/v1/data/elevate -d \
-'{
+mkdir elevate
+cat <<EOF > elevate/data.json
+{
   "tickets": {
     "frontend-dev": "1234"
   }
-}'
+}
+EOF
 ```
+
 This means that for now, if the `frontend-dev` user can provide ticket number `1234`,
 they should be able to SSH into all servers.
 
@@ -323,12 +361,7 @@ display_spec := [
 ]
 ```
 
-Load this policy into OPA.
 
-```shell
-curl -X PUT --data-binary @display.rego \
-  localhost:8181/v1/policies/display
-```
 
 Then we need to make sure that the authorization takes this input into account.
 
@@ -349,11 +382,10 @@ allow {
 }
 ```
 
-Load this policy into OPA.
+Now we need to build a new bundle for OPA to use.
 
 ```shell
-curl -X PUT --data-binary @sudo_authz_elevated.rego \
-  localhost:8181/v1/policies/sudo_authz_elevated
+opa build -b .
 ```
 
 Confirm that the user `frontend-dev` can indeed use `sudo`.
@@ -378,10 +410,17 @@ For `sudo`, enter the ticket number `1234` to get access.
 Lastly, update the mocked elevation API and confirm the user's original rights are restored.
 
 ```shell
-curl -X PUT localhost:8181/v1/data/elevate -d \
-'{
+cat <<EOF > elevate/data.json
+{
   "tickets": {}
-}'
+}
+EOF
+```
+
+Once again, build the bundle with this new data
+
+```bash
+opa build -b .
 ```
 
 You will find that running `sudo ls /` as the `frontend-dev` user is disallowed again.

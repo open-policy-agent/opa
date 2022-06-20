@@ -62,7 +62,7 @@ restart, you will need root access.
 ```live:docker_authz:module:read_only
 package docker.authz
 
-allow = true
+allow := true
 ```
 
 This policy defines a single rule named `allow` that always produces the
@@ -148,7 +148,7 @@ Let’s modify our policy to **deny** all requests:
 ```live:docker_authz_deny_all:module:read_only
 package docker.authz
 
-allow = false
+allow := false
 ```
 
 Rebuild the bundle and save it in the Nginx document root directory.
@@ -189,7 +189,7 @@ Now let's change the policy so that it's a bit more useful.
 ```live:docker_authz_deny_unconfined:module:openable
 package docker.authz
 
-default allow = false
+default allow := false
 
 allow {
     not deny
@@ -389,7 +389,7 @@ EOF
 ```live:docker_authz_users:module:read_only,openable
 package docker.authz
 
-default allow = false
+default allow := false
 
 # allow if the user is granted read/write access.
 allow {

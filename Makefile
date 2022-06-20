@@ -29,7 +29,7 @@ endif
 
 GOLANGCI_LINT_VERSION := v1.43.0
 
-DOCKER_RUNNING := $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
+DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
 # We use root because the windows build, invoked through the ci-go-build-windows
 # target, installs the gcc mingw32 cross-compiler.
@@ -57,7 +57,7 @@ BIN := opa_$(GOOS)_$(GOARCH)
 # Optional external configuration useful for forks of OPA
 DOCKER_IMAGE ?= openpolicyagent/opa
 S3_RELEASE_BUCKET ?= opa-releases
-FUZZ_TIME ?= 3600  # 1hr
+FUZZ_TIME ?= 1h
 TELEMETRY_URL ?= #Default empty
 
 BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
@@ -166,7 +166,17 @@ clean: wasm-lib-clean
 
 .PHONY: fuzz
 fuzz:
-	$(MAKE) -C ./build/fuzzer all
+	go test ./ast -fuzz FuzzParseStatementsAndCompileModules -fuzztime ${FUZZ_TIME} -v -run '^$$'
+
+.PHONY: update-builtin-metadata-release
+update-builtin-metadata-release:
+	build/update-version.sh "$(VERSION)"
+	make generate
+
+.PHONY: update-builtin-metadata-dev
+update-builtin-metadata-dev:
+	build/update-version.sh "$(VERSION)-dev"
+	make generate
 
 ######################################################
 #
@@ -447,14 +457,14 @@ release-ci: push-image push-manifest-list-latest
 endif
 
 .PHONY: netlify-prod
-netlify-prod: clean docs-clean build docs-generate docs-production-build
+netlify-prod: clean docs-clean build docs-production-build
 
 .PHONY: netlify-preview
-netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-generate docs-preview-build
+netlify-preview: clean docs-clean build docs-live-blocks-install-deps docs-live-blocks-test docs-dev-generate docs-preview-build
 
+# Kept for compatibility. Use `make fuzz` instead.
 .PHONY: check-fuzz
-check-fuzz:
-	./build/check-fuzz.sh $(FUZZ_TIME)
+check-fuzz: fuzz
 
 # GOPRIVATE=* causes go to fetch all dependencies from their corresponding VCS
 # source, not through the golang-provided proxy services. We're cleaning out
@@ -478,7 +488,7 @@ check-go-module:
 ######################################################
 
 .PHONY: release-patch
-release-patch:
+release-patch: update-builtin-metadata-release
 ifeq ($(GITHUB_TOKEN),)
 	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
 endif
@@ -490,7 +500,7 @@ endif
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
-dev-patch:
+dev-patch: update-builtin-metadata-dev
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src \
 		python:2.7 \

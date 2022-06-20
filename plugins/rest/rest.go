@@ -53,6 +53,7 @@ type Config struct {
 		AzureManagedIdentity *azureManagedIdentitiesAuthPlugin  `json:"azure_managed_identity,omitempty"`
 		Plugin               *string                            `json:"plugin,omitempty"`
 	} `json:"credentials"`
+	Type   string `json:"type,omitempty"`
 	keys   map[string]*keys.Config
 	logger logging.Logger
 }
@@ -293,16 +294,19 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		return nil, err
 	}
 
-	c.loggerFields = map[string]interface{}{
-		"method":  method,
-		"url":     url,
-		"headers": req.Header,
+	if c.logger.GetLevel() >= logging.Debug {
+		c.loggerFields = map[string]interface{}{
+			"method":  method,
+			"url":     url,
+			"headers": withMaskedAuthorizationHeader(req.Header),
+		}
+
+		c.logger.WithFields(c.loggerFields).Debug("Sending request.")
 	}
 
-	c.logger.WithFields(c.loggerFields).Debug("Sending request.")
-
 	resp, err := httpClient.Do(req)
-	if resp != nil {
+
+	if resp != nil && c.logger.GetLevel() >= logging.Debug {
 		// Only log for debug purposes. If an error occurred, the caller should handle
 		// that. In the non-error case, the caller may not do anything.
 		c.loggerFields["status"] = resp.Status
@@ -311,4 +315,17 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	}
 
 	return resp, err
+}
+
+func withMaskedAuthorizationHeader(headers http.Header) http.Header {
+	authzHeader := headers.Get("Authorization")
+	if authzHeader != "" {
+		masked := make(http.Header)
+		for k, v := range headers {
+			masked[k] = v
+		}
+		masked.Set("Authorization", "REDACTED")
+		return masked
+	}
+	return headers
 }

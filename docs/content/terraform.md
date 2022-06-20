@@ -480,14 +480,14 @@ resource_types := {"aws_autoscaling_group", "aws_instance", "aws_iam", "aws_laun
 #########
 
 # Authorization holds if score for the plan is acceptable and no changes are made to IAM
-default authz = false
+default authz := false
 authz {
     score < blast_radius
     not touches_iam
 }
 
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
-score = s {
+score := s {
     all := [ x |
             some resource_type
             crud := weights[resource_type];
@@ -510,7 +510,7 @@ touches_iam {
 ####################
 
 # list of all resources of a given type
-resources[resource_type] = all {
+resources[resource_type] := all {
     some resource_type
     resource_types[resource_type]
     all := [name |
@@ -520,7 +520,7 @@ resources[resource_type] = all {
 }
 
 # number of creations of resources of a given type
-num_creates[resource_type] = num {
+num_creates[resource_type] := num {
     some resource_type
     resource_types[resource_type]
     all := resources[resource_type]
@@ -530,7 +530,7 @@ num_creates[resource_type] = num {
 
 
 # number of deletions of resources of a given type
-num_deletes[resource_type] = num {
+num_deletes[resource_type] := num {
     some resource_type
     resource_types[resource_type]
     all := resources[resource_type]
@@ -539,7 +539,7 @@ num_deletes[resource_type] = num {
 }
 
 # number of modifications to resources of a given type
-num_modifies[resource_type] = num {
+num_modifies[resource_type] := num {
     some resource_type
     resource_types[resource_type]
     all := resources[resource_type]
@@ -801,7 +801,7 @@ resources := { r |
 }
 
 # Variant to match root_module resources
-module_resources(path, value) = rs {
+module_resources(path, value) := rs {
     # Expect something like:
     #
     #     {
@@ -820,7 +820,7 @@ module_resources(path, value) = rs {
 }
 
 # Variant to match child_modules resources
-module_resources(path, value) = rs {
+module_resources(path, value) := rs {
     # Expect something like:
     #
     #     {
@@ -845,7 +845,7 @@ module_resources(path, value) = rs {
     rs := value
 }
 
-reverse_index(path, idx) = value {
+reverse_index(path, idx) := value {
 	value := path[count(path) - idx]
 }
 ```

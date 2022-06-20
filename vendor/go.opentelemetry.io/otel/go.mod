@@ -3,11 +3,11 @@ module go.opentelemetry.io/otel
 go 1.16
 
 require (
-	github.com/go-logr/logr v1.2.2
+	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/stdr v1.2.2
 	github.com/google/go-cmp v0.5.7
-	github.com/stretchr/testify v1.7.0
-	go.opentelemetry.io/otel/trace v1.4.1
+	github.com/stretchr/testify v1.7.1
+	go.opentelemetry.io/otel/trace v1.7.0
 )
 
 replace go.opentelemetry.io/otel => ./
@@ -23,8 +23,6 @@ replace go.opentelemetry.io/otel/example/namedtracer => ./example/namedtracer
 replace go.opentelemetry.io/otel/example/opencensus => ./example/opencensus
 
 replace go.opentelemetry.io/otel/example/otel-collector => ./example/otel-collector
-
-replace go.opentelemetry.io/otel/example/prom-collector => ./example/prom-collector
 
 replace go.opentelemetry.io/otel/example/prometheus => ./example/prometheus
 

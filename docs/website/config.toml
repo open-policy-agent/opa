@@ -22,6 +22,7 @@ unsafe = true
 description = "Policy-based control for cloud native environments"
 tagline = "Empower your administrators with flexible, fine-grained control across your entire stack."
 algolia_api_key = "26fa0633923a7cb9432cf2851b77dca6"
+GithubEdit = "https://github.com/open-policy-agent/opa/edit/main/docs/content/"
 
 [params.social]
 twitter = "OpenPolicyAgent"

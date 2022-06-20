@@ -23,20 +23,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/file/archive"
-
-	"github.com/open-policy-agent/opa/util/test"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestPluginOneShot(t *testing.T) {
@@ -62,6 +62,7 @@ func TestPluginOneShot(t *testing.T) {
 				Raw:    []byte(module),
 			},
 		},
+		Etag: "foo",
 	}
 
 	b.Manifest.Init()
@@ -69,6 +70,12 @@ func TestPluginOneShot(t *testing.T) {
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
@@ -89,12 +96,117 @@ func TestPluginOneShot(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
+}
+
+func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
+
+	test.WithTempFS(nil, func(dir string) {
+		ctx := context.Background()
+		met := metrics.New()
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+			Partitions: []storage.Path{
+				storage.MustParsePath("/foo"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		manager := getTestManagerWithOpts(nil, store)
+		defer manager.Stop(ctx)
+		plugin := New(&Config{}, manager)
+		bundleName := "test-bundle"
+		plugin.status[bundleName] = &Status{Name: bundleName, Metrics: met}
+		plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+		ensurePluginState(t, plugin, plugins.StateNotReady)
+
+		module := "package foo\n\ncorge=1"
+
+		b := bundle.Bundle{
+			Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+			Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+			Modules: []bundle.ModuleFile{
+				{
+					Path:   "/foo/bar",
+					Parsed: ast.MustParseModule(module),
+					Raw:    []byte(module),
+				},
+			},
+		}
+
+		b.Manifest.Init()
+
+		met = metrics.New()
+		plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: met})
+
+		ensurePluginState(t, plugin, plugins.StateOK)
+
+		// NOTE(sr): These assertions reflect the current behaviour only! Not prescriptive.
+		name := "disk_deleted_keys"
+		if exp, act := 3, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_written_keys"
+		if exp, act := 6, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_read_keys"
+		if exp, act := 12, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		name = "disk_read_bytes"
+		if exp, act := 269, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+			t.Errorf("%s: expected %v, got %v", name, exp, act)
+		}
+		for _, timer := range []string{
+			"disk_commit",
+			"disk_write",
+			"disk_read",
+		} {
+			if act := met.Timer(timer).Int64(); act <= 0 {
+				t.Errorf("%s: expected non-zero timer, got %v", timer, act)
+			}
+		}
+		if t.Failed() {
+			t.Logf("all metrics: %v", met.All())
+		}
+
+		// Ensure we can read it all back -- this is the only bundle plugin test using disk storage,
+		// so some duplicating with TestPluginOneShot is OK:
+
+		txn := storage.NewTransactionOrDie(ctx, manager.Store)
+		defer manager.Store.Abort(ctx, txn)
+
+		ids, err := manager.Store.ListPolicies(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(ids) != 1 {
+			t.Fatal("Expected 1 policy")
+		}
+
+		bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+		exp := []byte("package foo\n\ncorge=1")
+		if err != nil {
+			t.Fatal(err)
+		} else if !bytes.Equal(bs, exp) {
+			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+		}
+
+		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		} else if !reflect.DeepEqual(data, expData) {
+			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+		}
+	})
 }
 
 func TestPluginOneShotDeltaBundle(t *testing.T) {
@@ -149,11 +261,18 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	b2 := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "delta", Roots: &[]string{"a"}},
 		Patch:    bundle.Patch{Data: []bundle.PatchOperation{p1, p2}},
+		Etag:     "foo",
 	}
 
 	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.DeltaBundleType {
+		t.Fatalf("expected delta bundle but got %v", status.Type)
+	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
 	defer manager.Store.Abort(ctx, txn)
@@ -174,7 +293,8 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -311,6 +431,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 				Raw:    []byte(module),
 			},
 		},
+		Etag: "foo",
 	}
 
 	b.Manifest.Init()
@@ -357,7 +478,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -418,7 +539,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 
 	var dup bytes.Buffer
 	tee := io.TeeReader(buf, &dup)
-	reader := bundle.NewReader(tee).WithBundleVerificationConfig(vc)
+	reader := bundle.NewReader(tee).WithBundleVerificationConfig(vc).WithBundleEtag("foo")
 	b, err := reader.Read()
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -458,7 +579,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expData := util.MustUnmarshalJSON([]byte(`{"example1": {"foo": "bar"}, "example2": {"x": true}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{"example1": {"foo": "bar"}, "example2": {"x": true}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
 	if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 	}
@@ -542,7 +663,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
 	if err != nil {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
@@ -1627,7 +1748,7 @@ func TestPluginSetCompilerOnContext(t *testing.T) {
 
 	if err := storage.Txn(ctx, manager.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		_, err := manager.Store.Register(ctx, txn, storage.TriggerConfig{
-			OnCommit: func(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+			OnCommit: func(_ context.Context, _ storage.Transaction, event storage.TriggerEvent) {
 				events = append(events, event)
 			},
 		})
@@ -1654,8 +1775,12 @@ func getTestManager() *plugins.Manager {
 	return getTestManagerWithOpts(nil)
 }
 
-func getTestManagerWithOpts(config []byte) *plugins.Manager {
+func getTestManagerWithOpts(config []byte, stores ...storage.Store) *plugins.Manager {
 	store := inmem.New()
+	if len(stores) == 1 {
+		store = stores[0]
+	}
+
 	manager, err := plugins.New(config, "test-instance-id", store)
 	if err != nil {
 		panic(err)
@@ -2482,6 +2607,183 @@ func TestPluginUsingDirectoryLoader(t *testing.T) {
 
 		if s.LastSuccessfulActivation.IsZero() {
 			t.Fatal("expected successful activation")
+		}
+	})
+}
+
+func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
+
+	// setup fake http server with mock bundle
+	mockBundle := bundle.Bundle{
+		Data:    map[string]interface{}{"p": "x1"},
+		Modules: []bundle.ModuleFile{},
+	}
+
+	notModifiedCount := 0
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		etag := r.Header.Get("If-None-Match")
+		if etag == "foo" {
+			notModifiedCount++
+			w.WriteHeader(304)
+			return
+		}
+
+		w.Header().Add("Etag", "foo")
+		w.WriteHeader(200)
+
+		err := bundle.NewWriter(w).Write(mockBundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	test.WithTempFS(nil, func(dir string) {
+		ctx := context.Background()
+
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+			Partitions: []storage.Path{
+				storage.MustParsePath("/foo"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// setup plugin pointing at fake server
+		manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		"services": {
+				"default": {
+					"url": %q
+				}
+			}
+		}`, s.URL)), store)
+
+		var mode plugins.TriggerMode = "manual"
+
+		plugin := New(&Config{
+			Bundles: map[string]*Source{
+				"test": {
+					Service:        "default",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+				},
+			},
+		}, manager)
+
+		statusCh := make(chan map[string]*Status)
+
+		// register for bundle updates to observe changes and start the plugin
+		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+			statusCh <- st
+		})
+
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// manually trigger bundle download
+		go func() {
+			_ = plugin.Loaders()["test"].Trigger(ctx)
+		}()
+
+		// wait for bundle update and then verify that activated bundle etag written to store
+		<-statusCh
+
+		txn := storage.NewTransactionOrDie(ctx, manager.Store)
+
+		actual, err := manager.Store.Read(ctx, txn, storage.MustParsePath("/system/bundles/test/etag"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if actual != "foo" {
+			t.Fatalf("Expected etag foo but got %v", actual)
+		}
+
+		// Stop the "read" transaction
+		manager.Store.Abort(ctx, txn)
+
+		// Stop the plugin and reinitialize it. Verify that etag is retrieved from store in the bundle request.
+		// The server should respond with a 304 as OPA has the right bundle loaded.
+		plugin.Stop(ctx)
+
+		plugin = New(&Config{
+			Bundles: map[string]*Source{
+				"test": {
+					Service:        "default",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+				},
+			},
+		}, manager)
+
+		statusCh = make(chan map[string]*Status)
+
+		// register for bundle updates to observe changes and start the plugin
+		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+			statusCh <- st
+		})
+
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		val, ok := plugin.etags["test"]
+		if !ok {
+			t.Fatal("Expected etag entry for bundle \"test\"")
+		}
+
+		if val != "foo" {
+			t.Fatalf("Expected etag foo but got %v", val)
+		}
+
+		// manually trigger bundle download
+		go func() {
+			_ = plugin.Loaders()["test"].Trigger(ctx)
+		}()
+
+		<-statusCh
+
+		if notModifiedCount != 1 {
+			t.Fatalf("Expected one bundle response with HTTP status 304 but got %v", notModifiedCount)
+		}
+
+		// reconfigure the plugin
+		cfg := &Config{
+			Bundles: map[string]*Source{
+				"test": {
+					Service:        "default",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+					Resource:       "/new/path/bundles/bundle.tar.gz",
+				},
+			},
+		}
+
+		plugin.Reconfigure(ctx, cfg)
+
+		// manually trigger bundle download
+		go func() {
+			_ = plugin.Loaders()["test"].Trigger(ctx)
+		}()
+
+		<-statusCh
+
+		if notModifiedCount != 2 {
+			t.Fatalf("Expected two bundle responses with HTTP status 304 but got %v", notModifiedCount)
+		}
+
+		val, ok = plugin.etags["test"]
+		if !ok {
+			t.Fatal("Expected etag entry for bundle \"test\"")
+		}
+
+		if val != "foo" {
+			t.Fatalf("Expected etag foo but got %v", val)
 		}
 	})
 }

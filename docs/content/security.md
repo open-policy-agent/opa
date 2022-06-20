@@ -119,7 +119,7 @@ value will be undefined when the authorization policy is evaluated.
 - Client TLS certificates: Client TLS authentication is enabled by starting
 OPA with ``--authentication=tls``. When this authentication mode is enabled,
 OPA will require all clients to provide a client certificate. It is verified
-against the CA certificate(s) provided via `--tls-ca-cert-path`. Upon successful
+against the CA certificate(s) provided via `--tls-ca-cert-file`. Upon successful
 verification, the `input.identity` value is set to the TLS certificate's
 subject.
 
@@ -140,7 +140,7 @@ must be provided on startup. The authorization policy must be structured as foll
 # system.authz as follows:
 package system.authz
 
-default allow = false  # Reject requests by default.
+default allow := false  # Reject requests by default.
 
 allow {
   # Logic to authorize request goes here.
@@ -193,7 +193,7 @@ policy:
     #
     # Example header check:
     #
-    #   input.headers["X-Custom"][_] = "mysecret"
+    #   input.headers["X-Custom"][_] == "mysecret"
     #
     # Header keys follow canonical MIME form. The first character and any
     # characters following a hyphen are uppercase. The rest are lowercase.
@@ -233,7 +233,7 @@ identity:
 ```live:system_authz_secret:module:read_only
 package system.authz
 
-default allow = false           # Reject requests by default.
+default allow := false           # Reject requests by default.
 
 allow {                         # Allow request if...
     "secret" == input.identity  # Identity is the secret root key.
@@ -283,16 +283,16 @@ follows:
 ```live:system_authz_object_resp:module:read_only
 package system.authz
 
-default allow = {
+default allow := {
     "allowed": false,
     "reason": "unauthorized resource access"
 }
 
-allow = { "allowed": true } {   # Allow request if...
+allow := { "allowed": true } {   # Allow request if...
     "secret" == input.identity  # identity is the secret root key.
 }
 
-allow = { "allowed": false, "reason": reason } {
+allow := { "allowed": false, "reason": reason } {
     not input.identity
     reason := "no identity provided"
 }
@@ -319,7 +319,7 @@ tokens := {
     }
 }
 
-default allow = false           # Reject requests by default.
+default allow := false           # Reject requests by default.
 
 allow {                         # Allow request if...
     input.identity == "secret"  # Identity is the secret root key.
@@ -362,7 +362,7 @@ tokens := {
     }
 }
 
-default allow = false               # Reject requests by default.
+default allow := false               # Reject requests by default.
 
 allow {                             # Allow request if...
     some right
@@ -445,7 +445,7 @@ client_cns := {
 	"my-client": true
 }
 
-default allow = false
+default allow := false
 
 allow {                                        # Allow request if
 	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
@@ -550,7 +550,7 @@ clients access to the default policy decision, i.e., `POST /`:
 package system.authz
 
 # Deny access by default.
-default allow = false
+default allow := false
 
 # Allow anonymous access to the default policy decision.
 allow {

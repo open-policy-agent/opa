@@ -1,0 +1,455 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p = y {
+      y = time.now_ns() with time.now_ns as f
+    }
+  note: 'withkeyword/builtin: direct call, arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    p = y {
+      y = count([1,2,3]) with count as f
+    }
+  note: 'withkeyword/builtin: direct call, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    p {
+      q with count as f
+    }
+    q {
+      count([1,2,3]) == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+    }
+    q {
+      time.now_ns() == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+      not q
+    }
+    q {
+      time.now_ns() == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 0, rule queried with and without mock'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+    }
+    q {
+      time.now_ns() == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 0, query package'
+  query: data.test = x
+  want_result:
+  - x:
+      f: 1
+      p: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    pass_resp = {"body": {"roles": ["admin"]}}
+    deny_resp = {"body": {"roles": []}}
+    mock_http_send(req) = pass_resp {
+      req.body.name == "alice"
+    } else = deny_resp
+
+    test_allow {
+      allow with http.send as mock_http_send with input.name as "alice"
+    }
+
+    allow {
+      "admin" in http.send({"method": "GET", "body": input}).body.roles
+    }
+  note: 'withkeyword/builtin: http.send example'
+  query: data.test.test_allow = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    pass_resp = {"body": {"jwt": "myjot"}}
+    deny_resp = {"body"}
+    mock_http_send(req) = pass_resp {
+      req.body.name == "alice"
+    } else = deny_resp
+
+    mock_decode_verify("myjot", _) = [true, {}, {"owner": "alice"}]
+
+    test_allow {
+      allow
+        with data.verification.cert as "cert"
+        with input.name as "alice"
+        with http.send as mock_http_send
+        with io.jwt.decode_verify as mock_decode_verify
+    }
+
+    allow {
+      payload.owner == input.name
+    }
+
+    claims[k] = v {
+      resp := http.send({"method": "GET", "body": input}).body
+      some k, v in resp
+    }
+    payload = p {
+      some p
+      [true, _, p] = io.jwt.decode_verify(claims.jwt, { "cert": data.verification.cert, "iss": "issuer"})
+    }
+  note: 'withkeyword/builtin: nested, multiple mocks'
+  query: data.test.test_allow = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+    }
+    q {
+      valid_time(1)
+    }
+    valid_time(x) { time.now_ns() == x }
+  note: 'withkeyword/builtin: indirect call through function'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+      not q
+    }
+    q {
+      valid_time(1)
+    }
+    valid_time(x) { time.now_ns() == x }
+  note: 'withkeyword/builtin: indirect call through function, rule with and without mock'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f() = 1
+    p {
+      q with time.now_ns as f
+    }
+    q {
+      valid_time(1)
+    }
+    valid_time(x) { time.now_ns() == x }
+  note: 'withkeyword/builtin: indirect call through function, query package'
+  query: data.test = x
+  want_result:
+  - x:
+      f: 1
+      p: true 
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    mock_count("one") = 1
+    mock_count(x) = count(x) {
+      x != "one"
+    }
+
+    numbers := {"one", "two", "tree"}
+    p = s {
+      s := { count(n) | some n in numbers } with count as mock_count
+    }
+  note: 'withkeyword/builtin: mock function calls original'
+  query: data.test.p = x
+  want_result:
+  - x:
+    - 1
+    - 3
+    - 4
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    mock_concat("one", _) = ["one"]
+    mock_concat("one", x) = x
+
+    numbers := ["one", "one"]
+    p = s {
+      s := { concat(n, [n]) | some n in numbers } with concat as mock_concat
+    }
+  note: 'withkeyword/builtin: mock function returns same result for both rule defs'
+  query: data.test.p = x
+  want_result:
+  - x: [["one"]]
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.in
+
+    mock_concat("one", _) = ["one"]
+    mock_concat("one", x) = x
+
+    count_four(4) = 4
+    count_four(x) = count(x)
+
+    numbers := {"one", "two", "tree"}
+    q = s {
+      s := { concat(n, [n]) | some n in numbers } with concat as mock_concat
+      r
+    }
+    r {
+      count(input.four) == 4
+    }
+    p = y {
+      y := q
+        with concat as mock_concat
+        with count as count_four
+        with input.four as 4
+    }
+  note: 'withkeyword/builtin: nested, mock function calls original'
+  query: data.test.p = x
+  want_result:
+  - x: [["one"]]
+- data:
+  modules:
+  - |
+    package test
+
+    f(_) = 1
+    g(x) = count(x) # replaced with f by inner "with"
+
+    q = y {
+      y = count([1,2,3]) with count as f
+    }
+    p = y {
+      y = q with count as g
+    }
+  note: 'withkeyword/builtin: multiple with'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- data:
+  modules:
+  - |
+    package test
+
+    f(x) = object.union_n(x) { { x: i | x := ["a", "a"][i]} } # never called, runtime error
+    g(x) = count(x)
+    p {
+      q with count as f
+    }
+    q {
+      r with object.union_n as g
+    }
+    r {
+      object.union_n([{}])
+    }
+  note: 'withkeyword/builtin: mock will not call other mock'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    f(x) = object.union_n(x) # b1
+    g(x) = 123 {
+      count(x) # b2
+      s with array.reverse as h
+    }
+    h(_) = ["replaced"]
+    p { q with object.union_n as f }
+    q { r with count as g }
+    r { x := [{"foo": 4}, {"baz": 5}]; count(x) == 123; object.union_n(x) == {"foo": 4, "baz": 5} }
+    s { x := [{}]; array.reverse(x) == ["replaced"] }
+  note: 'withkeyword/builtin: nested scope handling'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p = y {
+      y = time.now_ns() with time.now_ns as 12300
+    }
+  note: 'withkeyword/builtin-value: arity-0, captured output'
+  query: data.test.p = x
+  want_result:
+  - x: 12300
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      time.now_ns() with time.now_ns as false
+    }
+  note: 'withkeyword/builtin-value: arity-0, false'
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      time.now_ns() with time.now_ns as true
+    }
+  note: 'withkeyword/builtin-value: arity-0'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      x := true
+      time.now_ns() with time.now_ns as x
+    }
+  note: 'withkeyword/builtin-value: arity-0, var'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count([]) == 1 with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count([], 1) with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1, captured'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      count(input) == 1 with count as 1
+    }
+  note: 'withkeyword/builtin-value: arity-1, input must still be defined'
+  query: data.test.p = x
+  want_result: []
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = time.now_ns() with time.now_ns as opa.runtime
+    }
+  note: 'withkeyword/builtin-builtin: arity 0'
+  query: data.test.p = x
+  want_result:
+  - x: {}
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = count([{}, {"foo": 3}]) with count as object.union_n
+    }
+  note: 'withkeyword/builtin-builtin: arity 1, replacement is compound'
+  query: data.test.p = x
+  want_result:
+  - x:
+      foo: 3
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = object.union_n([{}, {"foo": 3}]) with object.union_n as count
+    }
+  note: 'withkeyword/builtin-builtin: arity 1, replacement is simple'
+  query: data.test.p = x
+  want_result:
+  - x: 2

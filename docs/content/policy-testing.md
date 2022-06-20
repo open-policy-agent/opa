@@ -31,10 +31,8 @@ allow {
 }
 
 allow {
-    some profile_id
-    input.path = ["users", profile_id]
+    input.path == ["users", input.user_id]
     input.method == "GET"
-    profile_id == input.user_id
 }
 ```
 
@@ -64,14 +62,14 @@ test_get_another_user_denied {
 
 Both of these files are saved in the same directory.
 
-```bash
+```console
 $ ls
 example.rego      example_test.rego
 ```
 
 To exercise the policy, run the `opa test` command in the directory containing the files.
 
-```bash
+```console
 $ opa test . -v
 data.authz.test_post_allowed: PASS (1.417µs)
 data.authz.test_get_anonymous_denied: PASS (426ns)
@@ -85,7 +83,7 @@ The `opa test` output indicates that all of the tests passed.
 
 Try exercising the tests a bit more by removing the first rule in **example.rego**.
 
-```bash
+```console
 $ opa test . -v
 FAILURES
 --------------------------------------------------------------------------------
@@ -170,7 +168,7 @@ todo_test_missing_implementation {
 By default, `opa test` reports the number of tests executed and displays all
 of the tests that failed or errored.
 
-```bash
+```console
 $ opa test pass_fail_error_test.rego
 data.example.test_failure: FAIL (253ns)
 data.example.test_error: ERROR (289ns)
@@ -185,7 +183,7 @@ By default, OPA prints the test results in a human-readable format. If you
 need to consume the test results programmatically, use the JSON output format.
 
 ```bash
-$ opa test --format=json pass_fail_error_test.rego
+opa test --format=json pass_fail_error_test.rego
 ```
 
 ```json
@@ -233,23 +231,34 @@ $ opa test --format=json pass_fail_error_test.rego
 ]
 ```
 
-## Data Mocking
+## Data and Function Mocking
 
-OPA's `with` keyword can be used to replace the data document. Both base and virtual documents can be replaced. Below is a simple policy that depends on the data document.
+OPA's `with` keyword can be used to replace the data document or called functions with mocks.
+Both base and virtual documents can be replaced.
+
+When replacing functions, built-in or otherwise, the following constraints are in place:
+
+1. Replacing `internal.*` functions, or `rego.metadata.*`, or `eq`; or relations (`walk`) is not allowed.
+2. Replacement and replaced function need to have the same arity.
+3. Replaced functions can call the functions they're replacing, and those calls
+   will call out to the original function, and not cause recursion.
+
+Below is a simple policy that depends on the data document.
 
 **authz.rego**:
 
 ```live:with_keyword:module:read_only,openable
 package authz
+import future.keywords.in
 
 allow {
-    x := data.policies[_]
+    some x in data.policies
     x.name == "test_policy"
     matches_role(input.role)
 }
 
 matches_role(my_role) {
-    data.roles[my_role][_] == input.user
+    input.user in data.roles[my_role]
 }
 ```
 
@@ -260,24 +269,26 @@ Below is the Rego file to test the above policy.
 ```live:with_keyword/tests:module:read_only
 package authz
 
-policies = [{"name": "test_policy"}]
-roles = {"admin": ["alice"]}
+policies := [{"name": "test_policy"}]
+roles := {"admin": ["alice"]}
 
 test_allow_with_data {
-    allow with input as {"user": "alice", "role": "admin"}  with data.policies as policies  with data.roles as roles
+    allow with input as {"user": "alice", "role": "admin"}
+      with data.policies as policies
+      with data.roles as roles
 }
 ```
 
 To exercise the policy, run the `opa test` command.
 
-```bash
+```console
 $ opa test -v authz.rego authz_test.rego
 data.authz.test_allow_with_data: PASS (697ns)
 --------------------------------------------------------------------------------
 PASS: 1/1
 ```
 
-Below is an example to replace a rule without arguments.
+Below is an example to replace a **rule without arguments**.
 
 **authz.rego**:
 
@@ -303,25 +314,79 @@ test_replace_rule {
 }
 ```
 
-```bash
+```console
 $  opa test -v authz.rego authz_test.rego
 data.authz.test_replace_rule: PASS (328ns)
 --------------------------------------------------------------------------------
 PASS: 1/1
 ```
 
-Functions cannot be replaced by the `with` keyword. For example, in the below policy the function `cannot_replace` cannot be replaced.
+Here is an example to replace a rule's **built-in function** with a user-defined function.
+
+**authz.rego**:
+
+```live:with_keyword_builtins:module:read_only
+package authz
+
+import data.jwks.cert
+
+allow {
+    [true, _, _] = io.jwt.decode_verify(input.headers["x-token"], {"cert": cert, "iss": "corp.issuer.com"})
+}
+```
+
+**authz_test.rego**:
+
+```live:with_keyword_builtins/tests:module:read_only
+package authz
+
+mock_decode_verify("my-jwt", _) := [true, {}, {}]
+mock_decode_verify(x, _) := [false, {}, {}] {
+    x != "my-jwt"
+}
+
+test_allow {
+    allow
+      with input.headers["x-token"] as "my-jwt"
+      with data.jwks.cert as "mock-cert"
+      with io.jwt.decode_verify as mock_decode_verify
+}
+```
+
+```console
+$  opa test -v authz.rego authz_test.rego
+data.authz.test_allow: PASS (458.752µs)
+--------------------------------------------------------------------------------
+PASS: 1/1
+```
+
+In simple cases, a function can also be replaced with a value, as in
+
+```live:with_keyword_builtins/tests/value:module:read_only
+test_allow_value {
+    allow
+      with input.headers["x-token"] as "my-jwt"
+      with data.jwks.cert as "mock-cert"
+      with io.jwt.decode_verify as [true, {}, {}]
+}
+```
+
+Every invocation of the function will then return the replacement value, regardless
+of the function's arguments.
+
+Note that it's also possible to replace one built-in function by another; or a non-built-in
+function by a built-in function.
 
 **authz.rego**:
 
 ```live:with_keyword_funcs:module:read_only
 package authz
 
-invalid_replace {
-    cannot_replace(input.label)
+replace_rule {
+    replace(input.label)
 }
 
-cannot_replace(label) {
+replace(label) {
     label == "test_label"
 }
 ```
@@ -331,14 +396,16 @@ cannot_replace(label) {
 ```live:with_keyword_funcs/tests:module:read_only
 package authz
 
-test_invalid_replace {
-    invalid_replace with input as {"label": "test_label"} with cannot_replace as true
+test_replace_rule {
+    replace_rule with input.label as "does-not-matter" with replace as true
 }
 ```
 
-```bash
+```console
 $ opa test -v authz.rego authz_test.rego
-1 error occurred: authz_test.rego:4: rego_compile_error: with keyword cannot replace functions
+data.authz.test_replace_rule: PASS (648.314µs)
+--------------------------------------------------------------------------------
+PASS: 1/1
 ```
 
 
@@ -430,4 +497,3 @@ opa test --coverage --format=json example.rego example_test.rego
   }
 }
 ```
-

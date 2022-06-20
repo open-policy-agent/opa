@@ -7,9 +7,12 @@ package disk
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/storage"
 )
+
+const pathWildcard = "*"
 
 type pathMapper struct {
 	dataPrefix                string
@@ -38,7 +41,7 @@ func (pm *pathMapper) PolicyID2Key(id string) []byte {
 }
 
 func (pm *pathMapper) DataKey2Path(key []byte) (storage.Path, error) {
-	p, ok := storage.ParsePath(string(key))
+	p, ok := storage.ParsePathEscaped(string(key))
 	if !ok {
 		return nil, &storage.Error{Code: storage.InternalErr, Message: fmt.Sprintf("corrupt key: %s", key)}
 	}
@@ -62,14 +65,64 @@ func (pm *pathMapper) DataPath2Key(path storage.Path) ([]byte, error) {
 
 type pathSet []storage.Path
 
+func (ps pathSet) String() string {
+	if len(ps) == 0 {
+		return "[]"
+	}
+	buf := strings.Builder{}
+	buf.WriteRune('[')
+	for j, p := range ps.Sorted() {
+		if j != 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteString(toString(p))
+	}
+	buf.WriteRune(']')
+	return buf.String()
+}
+
 func (ps pathSet) IsDisjoint() bool {
 	for i := range ps {
 		for j := range ps {
 			if i != j {
-				if ps[i].HasPrefix(ps[j]) || ps[j].HasPrefix(ps[i]) {
+				if hasPrefixWithWildcard(ps[i], ps[j]) {
 					return false
 				}
 			}
+		}
+	}
+	return true
+}
+
+// hasPrefixWithWildcard returns true if p starts with other; respecting
+// wildcards
+func hasPrefixWithWildcard(p, other storage.Path) bool {
+	if len(other) > len(p) {
+		return false
+	}
+	for i := range other {
+		if p[i] == pathWildcard || other[i] == pathWildcard {
+			continue
+		}
+		if p[i] != other[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// isMatchedBy returns true if p starts with other, or is matched by it
+// respecting wildcards _in other_ -- not in p.
+func isMatchedBy(p, other storage.Path) bool {
+	if len(other) != len(p) {
+		return false
+	}
+	for i := range other {
+		if other[i] == pathWildcard {
+			continue
+		}
+		if p[i] != other[i] {
+			return false
 		}
 	}
 	return true

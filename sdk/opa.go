@@ -53,9 +53,14 @@ type state struct {
 // options that specify an OPA configuration file.
 func New(ctx context.Context, opts Options) (*OPA, error) {
 
-	id, err := uuid.New(rand.Reader)
-	if err != nil {
-		return nil, err
+	var err error
+
+	id := opts.ID
+	if id == "" {
+		id, err = uuid.New(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := opts.init(); err != nil {
@@ -128,7 +133,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
-	manager.RegisterCompilerTrigger(func(_ storage.Transaction) {
+	manager.RegisterCompilerTrigger(func(storage.Transaction) {
 		opa.mtx.Lock()
 		opa.state.queryCache.Clear()
 		opa.mtx.Unlock()
@@ -224,15 +229,15 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 	result, err := opa.executeTransaction(
 		ctx,
 		&record,
-		func(result *DecisionResult) {
+		func(s state, result *DecisionResult) {
 			result.Result, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
-				runtime:         opa.state.manager.Info,
-				printHook:       opa.state.manager.PrintHook(),
-				compiler:        opa.state.manager.GetCompiler(),
-				store:           opa.state.manager.Store,
+				runtime:         s.manager.Info,
+				printHook:       s.manager.PrintHook(),
+				compiler:        s.manager.GetCompiler(),
+				store:           s.manager.Store,
+				queryCache:      s.queryCache,
+				interQueryCache: s.interQueryBuiltinCache,
 				txn:             record.Txn,
-				queryCache:      opa.state.queryCache,
-				interQueryCache: opa.state.interQueryBuiltinCache,
 				now:             record.Timestamp,
 				path:            record.Path,
 				input:           *record.Input,
@@ -272,7 +277,7 @@ func newDecisionResult() (*DecisionResult, error) {
 	return result, nil
 }
 
-func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(result *DecisionResult)) (*DecisionResult, error) {
+func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
 	m := metrics.New()
 	m.Timer(metrics.SDKDecisionEval).Start()
 
@@ -300,7 +305,7 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 
 	if record.Error == nil {
 		defer s.manager.Store.Abort(ctx, record.Txn)
-		work(result)
+		work(s, result)
 	}
 
 	m.Timer(metrics.SDKDecisionEval).Stop()
@@ -330,12 +335,12 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 	decision, err := opa.executeTransaction(
 		ctx,
 		&record,
-		func(result *DecisionResult) {
+		func(s state, result *DecisionResult) {
 			pq, record.InputAST, record.Bundles, record.Error = partial(ctx, partialEvalArgs{
-				runtime:   opa.state.manager.Info,
-				printHook: opa.state.manager.PrintHook(),
-				compiler:  opa.state.manager.GetCompiler(),
-				store:     opa.state.manager.Store,
+				runtime:   s.manager.Info,
+				printHook: s.manager.PrintHook(),
+				compiler:  s.manager.GetCompiler(),
+				store:     s.manager.Store,
 				txn:       record.Txn,
 				now:       record.Timestamp,
 				query:     record.Query,

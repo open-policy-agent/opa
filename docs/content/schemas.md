@@ -167,7 +167,7 @@ package policy
 
 import data.acl
 
-default allow = false
+default allow := false
 
 # METADATA
 # schemas:
@@ -206,6 +206,111 @@ Note that the second `allow` rule doesn't have a METADATA comment block attached
 On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` alongwith the `--schema` parameter for type checking a set of `*.rego` policy files.
 
 The *scope* of the `schema` annotation can be controlled through the [scope](../annotations#scope) annotation
+
+In case of overlap, schema annotations override each other as follows:
+
+```
+rule overrides document
+document overrides package
+package overrides subpackages
+```
+
+The following sections explain how the different scopes affect `schema` annotation
+overriding for type checking.
+
+#### Rule and Document Scopes
+
+In the example above, the second rule does not include an annotation so type
+checking of the second rule would not take schemas into account. To enable type
+checking on the second (or other rules in the same file) we could specify the
+annotation multiple times:
+
+```
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+This is obviously redundant and error-prone. To avoid this problem, we can
+define the annotation once on a rule with scope `document`:
+
+```
+# METADATA
+# scope: document
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+In this example, the annotation with `document` scope has the same affect as the
+two `rule` scoped annotations in the previous example.
+
+#### Package and Subpackage Scopes
+
+Annotations can be defined at the `package` level and then applied to all rules
+within the package:
+
+```
+# METADATA
+# scope: package
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+package example
+
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+`package` scoped schema annotations are useful when all rules in the same
+package operate on the same input structure. In some cases, when policies are
+organized into many sub-packages, it is useful to declare schemas recursively
+for them using the `subpackages` scope. For example:
+
+```
+# METADTA
+# scope: subpackages
+# schemas:
+# - input: schema.input
+package kubernetes.admission
+```
+
+This snippet would declare the top-level schema for `input` for the
+`kubernetes.admission` package as well as all subpackages. If admission control
+rules were defined inside packages like `kubernetes.admission.workloads.pods`,
+they would be able to pick up that one schema declaration.
 
 ### Overriding
 
@@ -280,7 +385,7 @@ package policy
 
 import data.acl
 
-default allow = false
+default allow := false
 
 # METADATA
 # scope: rule
@@ -332,14 +437,14 @@ Specifically, `anyOf` acts as an Rego Or type where at least one (can be more th
 
 `policy-anyOf.rego`
 ```
-package kubernetes.admission  
+package kubernetes.admission
 
 # METADATA
 # scope: rule
-# schemas: 
-#   - input: schema["input-anyOf"] 
-deny {                                                                
-    input.request.servers.versions == "Pod"                       
+# schemas:
+#   - input: schema["input-anyOf"]
+deny {
+    input.request.servers.versions == "Pod"
 }
 ```
 
@@ -407,14 +512,14 @@ Specifically, `allOf` keyword implies that all conditions under `allOf` within a
 
 `policy-allOf.rego`
 ```
-package kubernetes.admission  
+package kubernetes.admission
 
 # METADATA
 # scope: rule
-# schemas: 
-#   - input: schema["input-allof"] 
-deny {                                                                
-    input.request.servers.versions == "Pod"                       
+# schemas:
+#   - input: schema["input-allof"]
+deny {
+    input.request.servers.versions == "Pod"
 }
 ```
 

@@ -166,3 +166,49 @@ func (t *ruletrie) Get(k ast.Value) *ruletrie {
 	}
 	return nodes[len(nodes)-1]
 }
+
+type functionMocksStack struct {
+	stack []*functionMocksElem
+}
+
+type functionMocksElem []frame
+
+type frame map[string]*ast.Term
+
+func newFunctionMocksStack() *functionMocksStack {
+	stack := &functionMocksStack{}
+	stack.Push()
+	return stack
+}
+
+func newFunctionMocksElem() *functionMocksElem {
+	return &functionMocksElem{}
+}
+
+func (s *functionMocksStack) Push() {
+	s.stack = append(s.stack, newFunctionMocksElem())
+}
+
+func (s *functionMocksStack) Pop() {
+	s.stack = s.stack[:len(s.stack)-1]
+}
+
+func (s *functionMocksStack) PushFrame(f frame) {
+	current := s.stack[len(s.stack)-1]
+	*current = append(*current, f)
+}
+
+func (s *functionMocksStack) PopFrame() {
+	current := s.stack[len(s.stack)-1]
+	*current = (*current)[:len(*current)-1]
+}
+
+func (s *functionMocksStack) Lookup(f string) *ast.Term {
+	current := *s.stack[len(s.stack)-1]
+	for i := len(current) - 1; i >= 0; i-- {
+		if t, ok := current[i][f]; ok {
+			return t
+		}
+	}
+	return nil
+}

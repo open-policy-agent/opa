@@ -1,13 +1,16 @@
-package metrics
+package concurrency
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/open-policy-agent/opa/server/types"
+	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
 
@@ -17,16 +20,29 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	testServerParams := e2e.NewAPIServerTestParams()
 
-	var err error
-	testRuntime, err = e2e.NewTestRuntimeWithOpts(e2e.TestRuntimeOpts{}, testServerParams)
+	dir, err := ioutil.TempDir("", "disk-store")
 	if err != nil {
-		os.Exit(1)
+		panic(err)
 	}
+	defer func() { os.RemoveAll(dir) }()
 
-	os.Exit(testRuntime.RunTests(m))
+	for _, opts := range []*disk.Options{
+		nil,
+		{Dir: dir, Partitions: nil},
+	} {
+		var err error
+		testServerParams.DiskStorage = opts
+		testRuntime, err = e2e.NewTestRuntime(testServerParams)
+		if err != nil {
+			panic(err)
+		}
+		if ec := testRuntime.RunTests(m); ec != 0 {
+			os.Exit(ec)
+		}
+	}
 }
 
-func TestConcurrency(t *testing.T) {
+func TestConcurrencyGetV1Data(t *testing.T) {
 
 	policy := `
 	package test
@@ -39,10 +55,12 @@ func TestConcurrency(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
+	num := runtime.NumCPU()
+	wg.Add(num)
 
-	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
+	for i := 0; i < num; i++ {
 		go func() {
+			defer wg.Done()
 			for n := 0; n < 1000; n++ {
 				dr := struct {
 					Result bool `json:"result"`
@@ -56,10 +74,49 @@ func TestConcurrency(t *testing.T) {
 					return
 				}
 			}
-			wg.Done()
 		}()
 	}
 
 	wg.Wait()
+}
 
+func TestConcurrencyCompile(t *testing.T) {
+
+	policy := `
+	package test
+	f(_)
+	p {
+		not q
+	}
+	q {
+		not f(input.foo)
+	}
+	`
+
+	err := testRuntime.UploadPolicy(t.Name(), strings.NewReader(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := types.CompileRequestV1{
+		Query: "data.test.p",
+	}
+
+	var wg sync.WaitGroup
+	num := runtime.NumCPU()
+	wg.Add(num)
+
+	for i := 0; i < num; i++ {
+		go func() {
+			defer wg.Done()
+			for n := 0; n < 1000; n++ {
+				if _, err := testRuntime.CompileRequest(req); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 }

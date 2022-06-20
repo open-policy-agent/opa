@@ -760,6 +760,348 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantQueries: []string{`{} = a`},
 		},
 		{
+			note:  "with+builtin: no unknowns",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = "foo/bar"
+				p { q with concat as mock_concat }
+				q { concat("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`a = true`},
+		},
+		{
+			note:  "with+builtin: value replacement",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				p { q with concat as "foo/bar" }
+				q { concat("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`a = true`},
+		},
+		{
+			note:  "with+function: no unknowns",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+				f(_, _) = "x"
+				mock_f(_, _) = "foo/bar"
+				p { q with f as mock_f }
+				q { f("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`a = true`},
+		},
+		{
+			note:  "with+function: value replacement",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+				f(_, _) = "x"
+				p { q with f as "foo/bar" }
+				q { f("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`a = true`},
+		},
+		{
+			note:  "with+builtin: unknowns in replacement function",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(x, _) = concat(x, input)
+				p { q with concat as mock_concat}
+				q { concat("/", ["a", "b"], "foo/bar") }`,
+			},
+			wantQueries: []string{`data.partial.test.mock_concat("/", ["a", "b"], "foo/bar"); a = true`},
+			wantSupport: []string{
+				`package partial.test
+
+				mock_concat(__local0__3, __local1__3) = __local2__3 {
+					__local3__3 = input
+					concat(__local0__3, __local3__3, __local2__3)
+				}`,
+			},
+		},
+		{
+			note:  "with+function: unknowns in replacement function",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+				f(_) = "x/y"
+				mock_f(_) = "foo/bar" { input.y }
+				p { q with f as mock_f}
+				q { f("/", "foo/bar") }`,
+			},
+			wantQueries: []string{`data.partial.test.mock_f("/", "foo/bar"); a = true`},
+			wantSupport: []string{
+				`package partial.test
+
+				mock_f(__local1__3) = "foo/bar" {
+					input.y = x_term_3_03
+					x_term_3_03
+				}`,
+			},
+		},
+		{
+			note:  "with+builtin: unknowns in replaced function's args",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = ["foo", "bar"]
+				p {
+					q with array.concat as mock_concat
+				}
+				q {
+					array.concat(["foo"], input, ["foo", "bar"])
+				}`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+				q {
+					data.partial.test.mock_concat(["foo"], input, ["foo", "bar"])
+				}
+				mock_concat(__local0__3, __local1__3) = ["foo", "bar"]
+			`},
+		},
+		{
+			note:  "with+function: unknowns in replaced function's args",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+				my_concat(x, y) = concat(x, y)
+				mock_concat(_, _) = "foo,bar"
+				p {
+					q with my_concat as mock_concat
+				}
+				q {
+					my_concat("/", input, "foo,bar")
+				}`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+				q {
+					data.partial.test.mock_concat("/", input, "foo,bar")
+				}
+				mock_concat(__local2__3, __local3__3) = "foo,bar"
+			`},
+		},
+		{
+			note:  "with+builtin: unknowns in replacement function's bodies",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+
+				mock_concat(_, _) = ["foo", "bar"] { input.foo }
+				mock_concat(_, _) = ["bar", "baz"] { input.bar }
+
+				p { q with array.concat as mock_concat }
+				q { x := array.concat(["foo"], input) }`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+			q {
+				__local6__2 = input
+				data.partial.test.mock_concat(["foo"], __local6__2, __local5__2)
+				__local4__2 = __local5__2
+			}
+			mock_concat(__local0__3, __local1__3) = ["foo", "bar"] {
+				input.foo = x_term_3_03
+				x_term_3_03
+			}
+			mock_concat(__local2__4, __local3__4) = ["bar", "baz"] {
+				input.bar = x_term_4_04
+				x_term_4_04
+			}`},
+		},
+		{
+			note:  "with+function: unknowns in replacement function's bodies",
+			query: "data.test.p = a",
+			modules: []string{
+				`package test
+				my_concat(x, y) = concat(x, y)
+				mock_concat(_, _) = "foo,bar" { input.foo }
+				mock_concat(_, _) = "bar,baz" { input.bar }
+
+				p { q with my_concat as mock_concat }
+				q { x := my_concat(",", input) }`,
+			},
+			wantQueries: []string{`
+				data.partial.test.q
+				a = true
+			`},
+			wantSupport: []string{`package partial.test
+
+			q {
+				__local9__2 = input
+				data.partial.test.mock_concat(",", __local9__2, __local8__2)
+				__local6__2 = __local8__2
+			}
+			mock_concat(__local2__3, __local3__3) = "foo,bar" {
+				input.foo = x_term_3_03
+				x_term_3_03
+			}
+			mock_concat(__local4__4, __local5__4) = "bar,baz" {
+				input.bar = x_term_4_04
+				x_term_4_04
+			}`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100
+				p {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q {
+					count([1,2,3]) = input.x
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { 100 = input.x }
+			`},
+		},
+		{
+			note:  "with+function+negation: when replacement has no unknowns (args, defs), save negated expr without replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100
+				p {
+					not q with input.x as 1 with my_count as mock_count
+				}
+
+				q {
+					my_count([1,2,3]) = input.x
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { 100 = input.x }
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement args have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100
+				p {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q {
+					count(input.y) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { data.partial.test.mock_count(input.y, __local1__3); __local1__3 = input.x }
+				mock_count(__local0__4) = 100 
+			`},
+		},
+		{
+			note:  "with+function+negation: when replacement args have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100
+				p {
+					not q with input.x as 1 with my_count as mock_count
+				}
+
+				q {
+					my_count(input.y) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{`not data.partial.test.q with input.x as 1`},
+			wantSupport: []string{`
+				package partial.test
+
+				q { data.partial.test.mock_count(input.y, __local3__3); __local3__3 = input.x }
+				mock_count(__local1__4) = 100
+			`},
+		},
+		{
+			note:  "with+builtin+negation: when replacement defs have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+
+				mock_count(_) = 100 { input.y }
+				mock_count(_) = 101 { input.z }
+				p {
+					not q with input.x as 1 with count as mock_count
+				}
+
+				q {
+					count([1]) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { data.partial.test.mock_count([1], __local2__3); __local2__3 = input.x }
+				mock_count(__local0__4) = 100 { input.y = x_term_4_04; x_term_4_04 }
+				mock_count(__local1__5) = 101 { input.z = x_term_5_05; x_term_5_05 }
+			`},
+		},
+		{
+			note:  "with+function+negation: when replacement defs have unknowns, save negated expr with replacement",
+			query: "data.test.p = true",
+			modules: []string{`
+				package test
+				my_count(x) = count(x)
+				mock_count(_) = 100 { input.y }
+				mock_count(_) = 101 { input.z }
+				p {
+					not q with input.x as 1 with my_count as mock_count
+				}
+
+				q {
+					my_count([1]) = input.x # unknown arg for mocked func
+				}
+			`},
+			wantQueries: []string{"not data.partial.test.q with input.x as 1"},
+			wantSupport: []string{`
+				package partial.test
+
+				q { data.partial.test.mock_count([1], __local4__3); __local4__3 = input.x }
+				mock_count(__local1__4) = 100 { input.y = x_term_4_04; x_term_4_04 }
+				mock_count(__local2__5) = 101 { input.z = x_term_5_05; x_term_5_05 }
+			`},
+		},
+		{
 			note:  "save: sub path",
 			query: "input.x = 1; input.y = 2; input.z.a = 3; input.z.b = x",
 			input: `{"x": 1, "z": {"b": 4}}`,

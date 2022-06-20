@@ -46,6 +46,7 @@ var allowedKeyNames = [...]string{
 	"body",
 	"enable_redirect",
 	"force_json_decode",
+	"force_yaml_decode",
 	"headers",
 	"raw_body",
 	"tls_use_system_certs",
@@ -431,7 +432,10 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			if err != nil {
 				return nil, nil, err
 			}
-		case "cache", "force_cache", "force_cache_duration_seconds", "force_json_decode", "raise_error", "caching_mode": // no-op
+		case "cache", "caching_mode",
+			"force_cache", "force_cache_duration_seconds",
+			"force_json_decode", "force_yaml_decode",
+			"raise_error": // no-op
 		default:
 			return nil, nil, fmt.Errorf("invalid parameter %q", key)
 		}
@@ -618,8 +622,13 @@ func executeHTTPRequest(req *http.Request, client *http.Client) (*http.Response,
 	return client.Do(req)
 }
 
-func isContentTypeJSON(header http.Header) bool {
-	return strings.Contains(header.Get("Content-Type"), "application/json")
+func isContentType(header http.Header, typ ...string) bool {
+	for _, t := range typ {
+		if strings.Contains(header.Get("Content-Type"), t) {
+			return true
+		}
+	}
+	return false
 }
 
 // In the BuiltinContext cache we only store a single entry that points to
@@ -690,7 +699,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 	// check the freshness of the cached response
 	if isCachedResponseFresh(c.bctx, headers, c.forceCacheParams) {
-		return cachedRespData.formatToAST(c.forceJSONDecode)
+		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
 
 	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
@@ -736,16 +745,15 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 		c.bctx.InterQueryBuiltinCache.Insert(c.key, pcv)
 
-		return cachedRespData.formatToAST(c.forceJSONDecode)
+		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
 
-	newValue, respBody, err := formatHTTPResponseToAST(result, c.forceJSONDecode)
+	newValue, respBody, err := formatHTTPResponseToAST(result, c.forceJSONDecode, c.forceYAMLDecode)
 	if err != nil {
 		return nil, err
 	}
 
-	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, respBody, c.forceCacheParams != nil)
-	if err != nil {
+	if err := insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, respBody, c.forceCacheParams != nil); err != nil {
 		return nil, err
 	}
 
@@ -901,8 +909,8 @@ func newInterQueryCacheData(resp *http.Response, respBody []byte) (*interQueryCa
 	return &cv, nil
 }
 
-func (c *interQueryCacheData) formatToAST(forceJSONDecode bool) (ast.Value, error) {
-	return prepareASTResult(c.Headers, forceJSONDecode, c.RespBody, c.Status, c.StatusCode)
+func (c *interQueryCacheData) formatToAST(forceJSONDecode, forceYAMLDecode bool) (ast.Value, error) {
+	return prepareASTResult(c.Headers, forceJSONDecode, forceYAMLDecode, c.RespBody, c.Status, c.StatusCode)
 }
 
 func (c *interQueryCacheData) toCacheValue() (*interQueryCacheValue, error) {
@@ -1145,14 +1153,14 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 	return deltaSeconds(val), nil
 }
 
-func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode bool) (ast.Value, []byte, error) {
+func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
 
 	resultRawBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	resultObj, err := prepareASTResult(resp.Header, forceJSONDecode, resultRawBody, resp.Status, resp.StatusCode)
+	resultObj, err := prepareASTResult(resp.Header, forceJSONDecode, forceYAMLDecode, resultRawBody, resp.Status, resp.StatusCode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1160,14 +1168,17 @@ func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode bool) (ast.Val
 	return resultObj, resultRawBody, nil
 }
 
-func prepareASTResult(headers http.Header, forceJSONDecode bool, body []byte, status string, statusCode int) (ast.Value, error) {
+func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool, body []byte, status string, statusCode int) (ast.Value, error) {
 	var resultBody interface{}
 
-	// If the response body cannot be JSON decoded,
+	// If the response body cannot be JSON/YAML decoded,
 	// an error will not be returned. Instead the "body" field
 	// in the result will be null.
-	if isContentTypeJSON(headers) || forceJSONDecode {
+	switch {
+	case forceJSONDecode || isContentType(headers, "application/json"):
 		_ = util.UnmarshalJSON(body, &resultBody)
+	case forceYAMLDecode || isContentType(headers, "application/yaml", "application/x-yaml"):
+		_ = util.Unmarshal(body, &resultBody)
 	}
 
 	result := make(map[string]interface{})
@@ -1224,6 +1235,7 @@ type interQueryCache struct {
 	httpReq          *http.Request
 	httpClient       *http.Client
 	forceJSONDecode  bool
+	forceYAMLDecode  bool
 	forceCacheParams *forceCacheParams
 }
 
@@ -1236,6 +1248,10 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 	var err error
 
 	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+	c.forceYAMLDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_yaml_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
@@ -1253,7 +1269,7 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
 func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, error) {
-	result, respBody, err := formatHTTPResponseToAST(value, c.forceJSONDecode)
+	result, respBody, err := formatHTTPResponseToAST(value, c.forceJSONDecode, c.forceYAMLDecode)
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
@@ -1297,8 +1313,12 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
+	forceYAMLDecode, err := getBoolValFromReqObj(c.key, ast.StringTerm("force_yaml_decode"))
+	if err != nil {
+		return nil, handleHTTPSendErr(c.bctx, err)
+	}
 
-	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode)
+	result, _, err := formatHTTPResponseToAST(value, forceJSONDecode, forceYAMLDecode)
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}

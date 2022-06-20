@@ -34,9 +34,12 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/logging"
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/util/test"
+
+	testlogger "github.com/open-policy-agent/opa/logging/test"
 )
 
 const keyID = "key1"
@@ -1198,6 +1201,20 @@ func TestOauth2ClientCredentials(t *testing.T) {
 				c.Credentials.OAuth2.Scopes = []string{"read", "opa"}
 			},
 		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t, expHeaders: map[string]string{"x-custom-header": "custom-value"}},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.AdditionalHeaders = map[string]string{"x-custom-header": "custom-value"}
+			},
+		},
+		{
+			ts:  &testServer{t: t},
+			ots: &oauth2TestServer{t: t, expBody: map[string]string{"custom_field": "custom-value"}},
+			options: func(c *Config) {
+				c.Credentials.OAuth2.AdditionalParameters = map[string]string{"custom_field": "custom-value"}
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1500,6 +1517,53 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 	}
 }
 
+func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
+	token := "secret"
+	ts := testServer{t: t, expBearerToken: token}
+	ts.start()
+	defer ts.stop()
+
+	config := fmt.Sprintf(`{
+		"name": "foo",
+		"url": %q,
+		"credentials": {
+			"bearer": {
+				"token": %q
+			}
+		}
+	}`, ts.server.URL, token)
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	logger := testlogger.New()
+	logger.SetLevel(logging.Debug)
+	client.logger = logger
+
+	ctx := context.Background()
+	if _, err := client.Do(ctx, "GET", "test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	var reqLogFound bool
+	for _, entry := range logger.Entries() {
+		if entry.Fields["headers"] != nil {
+			headers := entry.Fields["headers"].(http.Header)
+			authzHeader := headers.Get("Authorization")
+			if authzHeader != "" {
+				reqLogFound = true
+				if authzHeader != "REDACTED" {
+					t.Errorf("Excpected redacted Authorization header value, got %v", authzHeader)
+				}
+			}
+		}
+	}
+	if !reqLogFound {
+		t.Fatalf("Expected log entry from request")
+	}
+}
+
 func newTestClient(t *testing.T, ts *testServer, certPath string, keypath string) *Client {
 	config := fmt.Sprintf(`{
 			"name": "foo",
@@ -1552,6 +1616,8 @@ type oauth2TestServer struct {
 	expGrantType     string
 	expClientID      string
 	expClientSecret  string
+	expHeaders       map[string]string
+	expBody          map[string]string
 	expJwtCredential bool
 	expScope         *[]string
 	expAlgorithm     jwa.SignatureAlgorithm
@@ -1705,6 +1771,18 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Form["grant_type"][0] != t.expGrantType {
 		t.t.Fatalf("Expected grant_type=%v", t.expGrantType)
+	}
+
+	for k, v := range t.expBody {
+		if r.Form[k][0] != v {
+			t.t.Fatalf("Expected header %s=%s got %s", k, v, r.Form[k][0])
+		}
+	}
+
+	for k, v := range t.expHeaders {
+		if r.Header.Get(k) != v {
+			t.t.Fatalf("Expected header %s=%s got %s", k, v, r.Header.Get(k))
+		}
 	}
 
 	if len(r.Form["scope"]) > 0 {

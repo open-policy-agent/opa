@@ -785,6 +785,10 @@ func TestSomeDeclExpr(t *testing.T) {
 			},
 			With: []*With{{Value: ArrayTerm(), Target: NewTerm(MustParseRef("input"))}},
 		}, opts)
+
+	assertParseErrorContains(t, "invalid domain (internal.member_2)", "some internal.member_2()", "illegal domain", opts)
+	assertParseErrorContains(t, "invalid domain (internal.member_3)", "some internal.member_3()", "illegal domain", opts)
+
 }
 
 func TestEvery(t *testing.T) {
@@ -851,6 +855,8 @@ func TestEvery(t *testing.T) {
 		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
 	)
 
+	assertParseErrorContains(t, "invalid domain (internal.member_2)", "every internal.member_2()", "illegal domain", opts)
+	assertParseErrorContains(t, "invalid domain (internal.member_3)", "every internal.member_3()", "illegal domain", opts)
 }
 
 func TestNestedExpressions(t *testing.T) {
@@ -1195,8 +1201,8 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "future", "import future", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "future.a", "import future.a", "invalid import, must be `future.keywords`")
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [every in]")
-	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "future keyword imports cannot be aliased")
-	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "future keyword imports cannot be aliased")
+	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
+	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
 
 	assertParseImport(t, "import kw with kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
@@ -1373,6 +1379,16 @@ func TestRule(t *testing.T) {
 		Body:    NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "default w/ assignment", `default allow := false`, &Rule{
+		Default: true,
+		Head: &Head{
+			Name:   "allow",
+			Value:  BooleanTerm(false),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	assertParseRule(t, "default w/ comprehension", `default widgets = [x | x = data.fooz[_]]`, &Rule{
 		Default: true,
 		Head:    NewHead(Var("widgets"), nil, MustParseTerm(`[x | x = data.fooz[_]]`)),
@@ -1471,6 +1487,45 @@ func TestRule(t *testing.T) {
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
+	assertParseRule(t, "else assignment", `x := 1 { false } else := 2`, &Rule{
+		Head: &Head{
+			Name:   "x",
+			Value:  IntNumberTerm(1),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(false))),
+		Else: &Rule{
+			Head: &Head{
+				Name:   "x",
+				Value:  IntNumberTerm(2),
+				Assign: true,
+			},
+			Body: NewBody(NewExpr(BooleanTerm(true))),
+		},
+	})
+
+	assertParseRule(t, "partial assignment", `p[x] := y { true }`, &Rule{
+		Head: &Head{
+			Name:   "p",
+			Value:  VarTerm("y"),
+			Key:    VarTerm("x"),
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
+	assertParseRule(t, "function assignment", `f(x) := y { true }`, &Rule{
+		Head: &Head{
+			Name:  "f",
+			Value: VarTerm("y"),
+			Args: Args{
+				VarTerm("x"),
+			},
+			Assign: true,
+		},
+		Body: NewBody(NewExpr(BooleanTerm(true))),
+	})
+
 	// TODO: expect expressions instead?
 	assertParseErrorContains(t, "empty body", `f(_) = y {}`, "rego_parse_error: found empty body")
 	assertParseErrorContains(t, "empty rule body", "p {}", "rego_parse_error: found empty body")
@@ -1478,16 +1533,15 @@ func TestRule(t *testing.T) {
 
 	// TODO: how to highlight that assignment is incorrect here?
 	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: unexpected eq token: expected rule value term")
+	assertParseErrorContains(t, "no output", `f(_) := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected function value term")
+	assertParseErrorContains(t, "no output", `f := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected rule value term")
+	assertParseErrorContains(t, "no output", `f[_] := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected partial rule value term")
+	assertParseErrorContains(t, "no output", `default f :=`, "rego_parse_error: unexpected assign token: expected default rule value term")
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
 	// parser can be improved.
 	assertParseError(t, "dangling semicolon", "p { true; false; }")
-
-	assertParseErrorContains(t, "default assignment", "default p := 1", `default rules must use = operator (not := operator)`)
-	assertParseErrorContains(t, "partial assignment", `p[x] := y { true }`, "partial rules must use = operator (not := operator)")
-	assertParseErrorContains(t, "function assignment", `f(x) := y { true }`, "functions must use = operator (not := operator)")
-	assertParseErrorContains(t, "else assignment", `p := y { true } else = 2 { true } `, "else keyword cannot be used on rule declared with := operator")
 
 	assertParseErrorContains(t, "default invalid rule name", `default 0[0`, "unexpected default keyword")
 	assertParseErrorContains(t, "default invalid rule value", `default a[0`, "illegal default rule (must have a value)")
@@ -2343,6 +2397,97 @@ func TestNoMatchError(t *testing.T) {
 
 	if !loc.Equal(err.(Errors)[0].Location) {
 		t.Fatalf("Expected %v but got: %v", loc, err)
+	}
+}
+
+func TestBraceBracketParenMatchingErrors(t *testing.T) {
+	// Checks to prevent regression on issue #4672.
+	// Error location is important here, which is why we check
+	// the error strings directly.
+	tests := []struct {
+		note  string
+		err   string
+		input string
+	}{
+		{
+			note: "Unmatched ')' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := contains("a"), "b")
+	                  ^`,
+			input: `package test
+p {
+	x := 5
+	y := contains("a"), "b")
+}`,
+		},
+		{
+			note: "Unmatched '}' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := {"a", "b", "c"}, "a"}
+	                    ^`,
+			input: `package test
+p {
+	x := 5
+	y := {"a", "b", "c"}, "a"}
+}`,
+		},
+		{
+			note: "Unmatched ']' case",
+			err: `1 error occurred: test.rego:4: rego_parse_error: unexpected , token: expected \n or ; or }
+	y := ["a", "b", "c"], "a"]
+	                    ^`,
+			input: `package test
+p {
+	x := 5
+	y := ["a", "b", "c"], "a"]
+}`,
+		},
+		{
+			note: "Unmatched '(' case",
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected } token: expected "," or ")"
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := contains("a", "b"
+}`,
+		},
+		{
+			note: "Unmatched '{' case",
+
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected eof token: expected \n or ; or }
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := {{"a", "b", "c"}, "a"
+}`,
+		},
+		{
+			note: "Unmatched '[' case",
+			err: `1 error occurred: test.rego:5: rego_parse_error: unexpected } token: expected "," or "]"
+	}
+	^`,
+			input: `package test
+p {
+	x := 5
+	y := [["a", "b", "c"], "a"
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModule("test.rego", tc.input)
+			if err == nil {
+				t.Fatal("Expected error")
+			}
+			if tc.err != "" && tc.err != err.Error() {
+				t.Fatalf("Expected error string %q but got: %q", tc.err, err.Error())
+			}
+		})
 	}
 }
 
@@ -3909,7 +4054,7 @@ func assertParseOneTermNegated(t *testing.T, msg string, input string, correct *
 	assertParseOneExprNegated(t, msg, input, &Expr{Terms: correct})
 }
 
-func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
+func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts ...ParserOptions) {
 	t.Helper()
 	assertParseOne(t, msg, input, func(parsed interface{}) {
 		t.Helper()
@@ -3917,5 +4062,6 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule) {
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test \"%s\": rules not equal: %v (parsed), %v (correct)", msg, rule, correct)
 		}
-	})
+	},
+		opts...)
 }

@@ -73,7 +73,7 @@ func builtinNetCIDRIntersects(a, b ast.Value) (ast.Value, error) {
 	}
 
 	// If either net contains the others starting IP they are overlapping
-	cidrsOverlap := (cidrnetA.Contains(cidrnetB.IP) || cidrnetB.Contains(cidrnetA.IP))
+	cidrsOverlap := cidrnetA.Contains(cidrnetB.IP) || cidrnetB.Contains(cidrnetA.IP)
 
 	return ast.Boolean(cidrsOverlap), nil
 }
@@ -332,25 +332,25 @@ func evalNetCIDRMerge(networks []*net.IPNet) []*net.IPNet {
 }
 
 func generateIPNet(term *ast.Term) (*net.IPNet, error) {
-	switch e := term.Value.(type) {
-	case ast.String:
-		network := &net.IPNet{}
-		// try to parse element as an IP first, fall back to CIDR
-		ip := net.ParseIP(string(e))
-		if ip != nil {
-			network.IP = ip
-			network.Mask = ip.DefaultMask()
-		} else {
-			var err error
-			_, network, err = net.ParseCIDR(string(e))
-			if err != nil {
-				return nil, err
-			}
-		}
-		return network, nil
-	default:
+	e, ok := term.Value.(ast.String)
+	if !ok {
 		return nil, errors.New("element must be string")
 	}
+
+	// try to parse element as an IP first, fall back to CIDR
+	ip := net.ParseIP(string(e))
+	if ip == nil {
+		_, network, err := net.ParseCIDR(string(e))
+		return network, err
+	}
+
+	if ip.To4() != nil {
+		return &net.IPNet{
+			IP:   ip,
+			Mask: ip.DefaultMask(),
+		}, nil
+	}
+	return nil, errors.New("IPv6 invalid: needs prefix length")
 }
 
 func mergeCIDRs(ranges cidrBlockRanges) cidrBlockRanges {

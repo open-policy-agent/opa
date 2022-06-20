@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage/disk"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -352,7 +353,7 @@ func ExampleRego_Eval_persistent_storage() {
 	// user's data is stored on a different row. Assuming the policy only reads
 	// data for a single user to process the policy query, OPA can avoid loading
 	// _all_ user data into memory this way.
-	store, err := disk.New(ctx, disk.Options{
+	store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 		Dir:        rootDir,
 		Partitions: []storage.Path{{"example", "user"}},
 	})
@@ -379,7 +380,7 @@ func ExampleRego_Eval_persistent_storage() {
 	// Re-open the store in the same directory.
 	store.Close(ctx)
 
-	store2, err := disk.New(ctx, disk.Options{
+	store2, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 		Dir:        rootDir,
 		Partitions: []storage.Path{{"example", "user"}},
 	})

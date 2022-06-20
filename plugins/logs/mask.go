@@ -70,12 +70,12 @@ func newMaskRule(path string, opts ...maskRuleOption) (*maskRule, error) {
 
 	escapedParts := make([]string, len(parts))
 	for i := range parts {
-		_, err := url.QueryUnescape(parts[i])
+		_, err := url.PathUnescape(parts[i])
 		if err != nil {
 			return nil, err
 		}
 
-		escapedParts[i] = url.QueryEscape(parts[i])
+		escapedParts[i] = url.PathEscape(parts[i])
 	}
 
 	modifyFullObj := false

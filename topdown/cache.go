@@ -235,3 +235,57 @@ func newComprehensionCacheHashMap() *util.HashMap {
 		return x.(*ast.Term).Hash()
 	})
 }
+
+type functionMocksStack struct {
+	stack []*functionMocksElem
+}
+
+type functionMocksElem []frame
+
+type frame map[string]*ast.Term
+
+func newFunctionMocksStack() *functionMocksStack {
+	stack := &functionMocksStack{}
+	stack.Push()
+	return stack
+}
+
+func newFunctionMocksElem() *functionMocksElem {
+	return &functionMocksElem{}
+}
+
+func (s *functionMocksStack) Push() {
+	s.stack = append(s.stack, newFunctionMocksElem())
+}
+
+func (s *functionMocksStack) Pop() {
+	s.stack = s.stack[:len(s.stack)-1]
+}
+
+func (s *functionMocksStack) PopPairs() {
+	current := s.stack[len(s.stack)-1]
+	*current = (*current)[:len(*current)-1]
+}
+
+func (s *functionMocksStack) PutPairs(mocks [][2]*ast.Term) {
+	el := frame{}
+	for i := range mocks {
+		el[mocks[i][0].Value.String()] = mocks[i][1]
+	}
+	s.Put(el)
+}
+
+func (s *functionMocksStack) Put(el frame) {
+	current := s.stack[len(s.stack)-1]
+	*current = append(*current, el)
+}
+
+func (s *functionMocksStack) Get(f ast.Ref) (*ast.Term, bool) {
+	current := *s.stack[len(s.stack)-1]
+	for i := len(current) - 1; i >= 0; i-- {
+		if r, ok := current[i][f.String()]; ok {
+			return r, true
+		}
+	}
+	return nil, false
+}

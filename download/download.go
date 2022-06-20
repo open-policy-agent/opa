@@ -18,13 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/plugins"
-
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -209,7 +206,7 @@ func (d *Downloader) loop(ctx context.Context) {
 		if err != nil {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		} else {
-			if !d.longPollingEnabled {
+			if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 				// revert the response header timeout value on the http client's transport
 				if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
 					d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
@@ -285,7 +282,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	resp, err := d.client.Do(ctx, "GET", d.path)
 	m.Timer(metrics.BundleRequest).Stop()
 	if err != nil {
-		return nil, errors.Wrap(err, "request failed")
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	defer util.Close(resp)
@@ -307,10 +304,30 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				loader = bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
 			}
 
-			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
+			etag := resp.Header.Get("ETag")
+			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc).
+				WithBundleEtag(etag)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
+
+			if d.logger.GetLevel() >= logging.Debug {
+				expectedBundleContentType := []string{
+					"application/gzip",
+					"application/octet-stream",
+					"application/vnd.openpolicyagent.bundles",
+				}
+
+				contentType := resp.Header.Get("content-type")
+				if !contains(contentType, expectedBundleContentType) {
+					d.logger.Debug("Content-Type response header set to %v. Expected one of %v. "+
+						"Possibly not a bundle being downloaded.",
+						contentType,
+						expectedBundleContentType,
+					)
+				}
+			}
+
 			b, err := reader.Read()
 			if err != nil {
 				return nil, err
@@ -319,7 +336,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			return &downloaderResponse{
 				b:        &b,
 				raw:      &buf,
-				etag:     resp.Header.Get("ETag"),
+				etag:     etag,
 				longPoll: isLongPollSupported(resp.Header),
 			}, nil
 		}
@@ -357,4 +374,13 @@ type HTTPError struct {
 
 func (e HTTPError) Error() string {
 	return fmt.Sprintf("server replied with %s", http.StatusText(e.StatusCode))
+}
+
+func contains(s string, strings []string) bool {
+	for _, str := range strings {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

@@ -24,13 +24,17 @@ RELEASES=()
 PREV_MAJOR_VER="-1"
 PREV_MINOR_VER="-1"
 
+if [[ ${DEV} != "" ]]; then
+    ALL_RELEASES=()
+fi
+
 for release in ${ALL_RELEASES}; do
     CUR_SEM_VER=${release#"v"}
 
     # ignore any release candidate versions, for now if they
     # are the "latest" they'll be documented under "edge"
     if [[ "${CUR_SEM_VER}" == *"rc"* ]]; then
-      continue
+        continue
     fi
 
     SEMVER_REGEX='[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)'
@@ -57,8 +61,8 @@ for release in ${ALL_RELEASES}; do
     # The releases are sorted in order by semver from newest to oldest, and we only want
     # the latest point release for each minor version
     if [[ "${CUR_MAJOR_VER}" != "${PREV_MAJOR_VER}" || \
-             ("${CUR_MAJOR_VER}" = "${PREV_MAJOR_VER}" && \
-                "${CUR_MINOR_VER}" != "${PREV_MINOR_VER}") ]]; then
+            ("${CUR_MAJOR_VER}" = "${PREV_MAJOR_VER}" && \
+            "${CUR_MINOR_VER}" != "${PREV_MINOR_VER}") ]]; then
         RELEASES+=(${release})
     fi
 
@@ -77,8 +81,10 @@ rm -f ${RELEASES_YAML_FILE}
 
 mkdir -p $(dirname ${RELEASES_YAML_FILE})
 
-echo 'Adding "latest" version to releases.yaml'
-echo "- latest" > ${RELEASES_YAML_FILE}
+if [[ ${DEV} == "" ]]; then
+    echo 'Adding "latest" version to releases.yaml'
+    echo "- latest" > ${RELEASES_YAML_FILE}
+fi
 
 for release in "${RELEASES[@]}"; do
     version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
@@ -108,7 +114,10 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 
 # Link instead of copy so we don't need to re-generate each time.
 # Use a relative link so it works in a container more easily.
+mkdir -p ${ROOT_DIR}/docs/website/generated/docs
 ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge
 
 # Create a "latest" version from the latest semver found
-cp -r ${ROOT_DIR}/docs/website/generated/docs/${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
+if [[ ${DEV} == "" ]]; then
+    cp -r ${ROOT_DIR}/docs/website/generated/docs/${RELEASES[0]} ${ROOT_DIR}/docs/website/generated/docs/latest
+fi

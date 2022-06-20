@@ -14,13 +14,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-policy-agent/opa/util"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -198,6 +197,8 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 			  "want": {
 				"args": [
 				  {
+					"description": "the set/array/object/string to be counted",
+					"name": "collection",
 					"of": [
 					  {
 						"type": "string"
@@ -229,6 +230,8 @@ func TestOutputJSONErrorStructuredAstErr(t *testing.T) {
 					"type": "any"
 				  },
 				  {
+					"description": "the count of elements, key/val pairs, or characters, respectively.",
+					"name": "n",
 					"type": "number"
 				  }
 				]

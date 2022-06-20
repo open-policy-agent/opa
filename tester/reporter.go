@@ -11,10 +11,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/open-policy-agent/opa/topdown"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/cover"
+	"github.com/open-policy-agent/opa/topdown"
 )
 
 // Reporter defines the interface for reporting test results.
@@ -71,19 +70,20 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 	}
 
 	// Report individual tests.
+	var lastFile string
 	for _, tr := range results {
+
 		if tr.Pass() && r.BenchmarkResults {
 			dirty = true
 			fmt.Fprintln(r.Output, r.fmtBenchmark(tr))
-		} else if r.Verbose {
-			dirty = true
-			fmt.Fprintln(r.Output, tr)
-			if len(tr.Output) > 0 {
-				fmt.Fprintln(r.Output)
-				fmt.Fprintln(newIndentingWriter(r.Output), strings.TrimSpace(string(tr.Output)))
-				fmt.Fprintln(r.Output)
+		} else if r.Verbose || !tr.Pass() {
+			if tr.Location != nil && tr.Location.File != lastFile {
+				if lastFile != "" {
+					fmt.Fprintln(r.Output, "")
+				}
+				fmt.Fprintf(r.Output, "%s:\n", tr.Location.File)
+				lastFile = tr.Location.File
 			}
-		} else if !tr.Pass() {
 			dirty = true
 			fmt.Fprintln(r.Output, tr)
 			if len(tr.Output) > 0 {

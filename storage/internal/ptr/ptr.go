@@ -37,12 +37,32 @@ func Ptr(data interface{}, path storage.Path) (interface{}, error) {
 }
 
 func ValidateArrayIndex(arr []interface{}, s string, path storage.Path) (int, error) {
-	idx, err := strconv.Atoi(s)
-	if err != nil {
+	idx, ok := isInt(s)
+	if !ok {
 		return 0, errors.NewNotFoundErrorWithHint(path, errors.ArrayIndexTypeMsg)
 	}
-	if idx < 0 || idx >= len(arr) {
+	return inRange(idx, arr, path)
+}
+
+// ValidateArrayIndexForWrite also checks that `s` is a valid way to address an
+// array element like `ValidateArrayIndex`, but returns a `resource_conflict` error
+// if it is not.
+func ValidateArrayIndexForWrite(arr []interface{}, s string, i int, path storage.Path) (int, error) {
+	idx, ok := isInt(s)
+	if !ok {
+		return 0, errors.NewWriteConflictError(path[:i-1])
+	}
+	return inRange(idx, arr, path)
+}
+
+func isInt(s string) (int, bool) {
+	idx, err := strconv.Atoi(s)
+	return idx, err == nil
+}
+
+func inRange(i int, arr []interface{}, path storage.Path) (int, error) {
+	if i < 0 || i >= len(arr) {
 		return 0, errors.NewNotFoundErrorWithHint(path, errors.OutOfRangeMsg)
 	}
-	return idx, nil
+	return i, nil
 }

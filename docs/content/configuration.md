@@ -252,9 +252,35 @@ multiple services.
 | `services[_].tls.ca_cert` | `string` | No | The path to the root CA certificate.  If not provided, this defaults to TLS using the host's root CA set. |
 | `services[_].tls.system_ca_required` | `bool` | No (default: `false`) | Require system certificate appended with root CA certificate. |
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
+| `services[_].type` | `string` | No (default: empty) | Optional parameter that allows to use an "OCI" service type. This will allow bundle and discovery plugins to download bundles from an OCI registry. |
 
 Each service may optionally specify a credential mechanism by which OPA will authenticate
 itself to the service.
+
+##### Example
+
+Using an OCI service type to download a bundle from an OCI repository.
+
+```yaml
+services:
+  ghcr-registry:
+    url: https://ghcr.io
+    type: oci
+
+bundles:
+  authz:
+    service: ghcr-registry
+    resource: ghcr.io/${ORGANIZATION}/${REPOSITORY}:${TAG}
+    persist: true
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+
+persistence_directory: ${PERSISTENCE_PATH}
+```
+
+When using an OCI service type the downloader uses the persistence path to store the layers of the downloaded repository. This storage path should be maintained by the user. 
+If persistence is not configured the OCI downloader will store the layers in the system's temporary directory to allow automatic cleanup on system restart. 
 
 #### Bearer Token
 
@@ -293,6 +319,8 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.client_id` | `string` | Yes | The client ID to use for authentication. |
 | `services[_].credentials.oauth2.client_secret` | `string` | Yes | The client secret to use for authentication. |
 | `services[_].credentials.oauth2.scopes` | `[]string` | No | Optional list of scopes to request for the token. |
+| `services[_].credentials.oauth2.additional_headers` | `map` | No | Map of additional headers to send to token endpoint at the OAuth2 authorization server |
+| `services[_].credentials.oauth2.additional_parameters` | `map` | No | Map of additional body parameters to send token endpoint at the OAuth2 authorization server |
 
 #### OAuth2 Client Credentials JWT authentication
 
@@ -683,6 +711,28 @@ func init() {
 
 ```
 
+### Using private image from OCI repositories
+
+When using a private image from an OCI registry the credentials are mandatory as the OCI downloader needs the credentials for the pull operation.
+
+Examples of setting credetials for pulling private images: 
+*AWS ECR* private image usually requires at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+```
+ credentials:
+      bearer:
+        scheme: "Basic"
+        token: "<username>:<password>"
+```
+The OCI downloader includes a base64 encoder for these credentials so they can be supplied as shown above. 
+
+For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
+```
+ credentials:
+      bearer:
+        schema: "Bearer"
+        token: "<PAT>"
+```
+
 ### Miscellaneous
 
 | Field | Type | Required | Description |
@@ -835,3 +885,20 @@ The following encryption methods are supported:
 | `off` | Disable TLS |
 | `tls` | Enable TLS |
 | `mtls` | Enable mutual TLS |
+
+### Disk Storage
+
+The `storage` configuration key allows for enabling, and configuring, the
+persistent on-disk storage of an OPA instance.
+
+If `disk` is set to something, the server will enable the on-disk store
+with data put into the configured `directory`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `storage.disk.directory` | `string` | Yes | This is the directory to use for storing the persistent database. |
+| `storage.disk.auto_create` | `bool` | No (default: `false`) | If set to true, the configured directory will be created if it does not exist. |
+| `storage.disk.partitions` | `array[string]` | No | Non-overlapping `data` prefixes used for partitioning the data on disk. |
+| `storage.disk.badger` | `string` | No (default: empty) | "Superflags" passed to Badger allowing to modify advanced options. |
+
+See [the docs on disk storage](../misc-disk/) for details about the settings.

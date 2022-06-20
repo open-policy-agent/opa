@@ -4,14 +4,14 @@ go 1.16
 
 require (
 	github.com/google/go-cmp v0.5.7
-	github.com/stretchr/testify v1.7.0
-	go.opentelemetry.io/otel v1.4.1
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.4.1
-	go.opentelemetry.io/otel/sdk v1.4.1
-	go.opentelemetry.io/otel/trace v1.4.1
-	go.opentelemetry.io/proto/otlp v0.12.0
-	google.golang.org/grpc v1.44.0
-	google.golang.org/protobuf v1.27.1
+	github.com/stretchr/testify v1.7.1
+	go.opentelemetry.io/otel v1.7.0
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.7.0
+	go.opentelemetry.io/otel/sdk v1.7.0
+	go.opentelemetry.io/otel/trace v1.7.0
+	go.opentelemetry.io/proto/otlp v0.16.0
+	google.golang.org/grpc v1.46.0
+	google.golang.org/protobuf v1.28.0
 )
 
 replace go.opentelemetry.io/otel => ../../..
@@ -33,8 +33,6 @@ replace go.opentelemetry.io/otel/example/namedtracer => ../../../example/namedtr
 replace go.opentelemetry.io/otel/example/opencensus => ../../../example/opencensus
 
 replace go.opentelemetry.io/otel/example/otel-collector => ../../../example/otel-collector
-
-replace go.opentelemetry.io/otel/example/prom-collector => ../../../example/prom-collector
 
 replace go.opentelemetry.io/otel/example/prometheus => ../../../example/prometheus
 

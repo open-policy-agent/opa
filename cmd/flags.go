@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/pflag"
 
@@ -127,7 +126,7 @@ func addBundleVerificationExcludeFilesFlag(fs *pflag.FlagSet, excludeNames *[]st
 }
 
 func addCapabilitiesFlag(fs *pflag.FlagSet, f *capabilitiesFlag) {
-	fs.VarP(f, "capabilities", "", "set capabilities.json file path")
+	fs.VarP(f, "capabilities", "", "set capabilities version or capabilities.json file path")
 }
 
 func addPartialFlag(fs *pflag.FlagSet, partial *bool, value bool) {
@@ -170,8 +169,8 @@ func setExplainFlag(fs *pflag.FlagSet, explain *util.EnumFlag) {
 }
 
 type capabilitiesFlag struct {
-	C    *ast.Capabilities
-	path string
+	C             *ast.Capabilities
+	pathOrVersion string
 }
 
 func newcapabilitiesFlag() *capabilitiesFlag {
@@ -187,18 +186,23 @@ func (f *capabilitiesFlag) Type() string {
 }
 
 func (f *capabilitiesFlag) String() string {
-	return f.path
+	return f.pathOrVersion
 }
 
 func (f *capabilitiesFlag) Set(s string) error {
-	f.path = s
-	fd, err := os.Open(s)
-	if err != nil {
-		return err
+	f.pathOrVersion = s
+	var errPath, errVersion error
+
+	f.C, errPath = ast.LoadCapabilitiesFile(s)
+	if errPath != nil {
+		f.C, errVersion = ast.LoadCapabilitiesVersion(s)
 	}
-	defer fd.Close()
-	f.C, err = ast.LoadCapabilitiesJSON(fd)
-	return err
+
+	if errVersion != nil && errPath != nil {
+		return fmt.Errorf("no such file or capabilities version found: %v", s)
+	}
+	return nil
+
 }
 
 type stringptrFlag struct {

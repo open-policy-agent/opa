@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -25,7 +26,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -868,7 +868,7 @@ func getRevisions(ctx context.Context, store storage.Store, txn storage.Transact
 	return br, nil
 }
 
-func (s *Server) reload(ctx context.Context, txn storage.Transaction, event storage.TriggerEvent) {
+func (s *Server) reload(context.Context, storage.Transaction, storage.TriggerEvent) {
 
 	// NOTE(tsandall): We currently rely on the storage txn to provide
 	// critical sections in the server.
@@ -901,7 +901,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 
 	input, err := readInputV0(r)
 	if err != nil {
-		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, errors.Wrapf(err, "unexpected parse error for input"))
+		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
 		return
 	}
 
@@ -909,7 +909,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	if input != nil {
 		x, err := ast.JSON(input)
 		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
 			return
 		}
 		goInput = &x
@@ -1222,7 +1222,8 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoQueryParse).Stop()
 
-	txn, err := s.store.NewTransaction(ctx)
+	c := storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: c})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1322,7 +1323,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	if input != nil {
 		x, err := ast.JSON(input)
 		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
 			return
 		}
 		goInput = &x
@@ -1331,7 +1332,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoInputParse).Stop()
 
 	// Prepare for query.
-	txn, err := s.store.NewTransaction(ctx)
+	c := storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: c})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1455,15 +1457,21 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
-
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	ops := []types.PatchV1{}
 
+	m.Timer(metrics.RegoInputParse).Start()
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
 	if err != nil {
@@ -1471,7 +1479,9 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1497,6 +1507,14 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.Commit(ctx, txn); err != nil {
 		writer.ErrorAuto(w, err)
+		return
+	}
+
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
 		return
 	}
 
@@ -1533,7 +1551,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	if input != nil {
 		x, err := ast.JSON(input)
 		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, errors.Wrapf(err, "could not marshal input"))
+			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
 			return
 		}
 		goInput = &x
@@ -1541,7 +1559,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	txn, err := s.store.NewTransaction(ctx)
+	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)})
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1630,6 +1648,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
+	if input == nil {
+		result.Warning = types.NewWarning(types.CodeAPIUsageWarn, types.MsgInputKeyMissing)
+	}
+
 	if includeMetrics || includeInstrumentation {
 		result.Metrics = m.All()
 	}
@@ -1670,14 +1692,21 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
+	m.Timer(metrics.RegoInputParse).Start()
 	var value interface{}
 	if err := util.NewJSONDecoder(r.Body).Decode(&value); err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
+	m.Timer(metrics.RegoInputParse).Stop()
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -1685,7 +1714,9 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1697,15 +1728,16 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = s.store.Read(ctx, txn, path)
-
 	if err != nil {
 		if !storage.IsNotFound(err) {
 			s.abortAuto(ctx, txn, w, err)
 			return
 		}
-		if err := storage.MakeDir(ctx, s.store, txn, path[:len(path)-1]); err != nil {
-			s.abortAuto(ctx, txn, w, err)
-			return
+		if len(path) > 0 {
+			if err := storage.MakeDir(ctx, s.store, txn, path[:len(path)-1]); err != nil {
+				s.abortAuto(ctx, txn, w, err)
+				return
+			}
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
 		s.store.Abort(ctx, txn)
@@ -1729,12 +1761,25 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
+		return
+	}
+
 	writer.Bytes(w, http.StatusNoContent, nil)
 }
 
 func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
+	m := metrics.New()
+	m.Timer(metrics.ServerHandler).Start()
+	defer m.Timer(metrics.ServerHandler).Stop()
+
 	ctx := r.Context()
 	vars := mux.Vars(r)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -1742,7 +1787,9 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1769,6 +1816,14 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if includeMetrics {
+		result := types.DataResponseV1{
+			Metrics: m.All(),
+		}
+		writer.JSON(w, http.StatusOK, result, false)
+		return
+	}
+
 	writer.Bytes(w, http.StatusNoContent, nil)
 }
 
@@ -1776,7 +1831,7 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	includeMetrics := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	id, err := url.PathUnescape(vars["path"])
 	if err != nil {
@@ -1785,8 +1840,9 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := metrics.New()
-
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1944,7 +2000,9 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer("server_read_bytes").Stop()
 
-	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
+	params := storage.WriteParams
+	params.Context = storage.NewContext().WithMetrics(m)
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2067,7 +2125,8 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
-	txn, err := s.store.NewTransaction(ctx)
+	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2136,7 +2195,8 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	txn, err := s.store.NewTransaction(ctx)
+	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
+	txn, err := s.store.NewTransaction(ctx, params)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -2618,7 +2678,7 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 func readInputGetV1(str string) (ast.Value, error) {
 	var input interface{}
 	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
-		return nil, errors.Wrapf(err, "parameter contains malformed input document")
+		return nil, fmt.Errorf("parameter contains malformed input document: %w", err)
 	}
 	return ast.InterfaceToValue(input)
 }
@@ -2651,10 +2711,10 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 		// anything related
 		if strings.Contains(ct, "yaml") {
 			if err := util.Unmarshal(bs, &request); err != nil {
-				return nil, errors.Wrapf(err, "body contains malformed input document")
+				return nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		} else if err := util.UnmarshalJSON(bs, &request); err != nil {
-			return nil, errors.Wrapf(err, "body contains malformed input document")
+			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
 
 		if request.Input == nil {
@@ -2818,7 +2878,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 
 	if l.logger != nil {
 		if err := l.logger(ctx, info); err != nil {
-			return errors.Wrap(err, "decision_logs")
+			return fmt.Errorf("decision_logs: %w", err)
 		}
 	}
 

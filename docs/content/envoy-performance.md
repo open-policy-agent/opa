@@ -12,15 +12,15 @@ benchmarking scenarios and important metrics that should be captured to understa
 
 #### Sample App
 
-The first component of the setup features a simple Go app which provides information about employees in a company. It 
+The first component of the setup features a simple Go app which provides information about employees in a company. It
 exposes a `/people` endpoint to `get` and `create` employees. The app's source code can be found [here](https://github.com/ashutosh-narkar/go-test-server).
 
 #### Envoy
-  
+
 Next, is the Envoy proxy that runs alongside the example application. The Envoy configuration below defines an external authorization
 filter `envoy.ext_authz` for a gRPC authorization server. The config uses Envoy’s in-built gRPC client which
 is a minimal custom implementation of gRPC to make the external gRPC call.
-  
+
 ```yaml
 static_resources:
   listeners:
@@ -178,7 +178,7 @@ Envoy will make a call to OPA on every incoming request with the below NOP polic
 ```live:nop_example:module:read_only
 package envoy.authz
 
-default allow = true
+default allow := true
 ```
 
 * **App, Envoy and OPA (RBAC policy)**
@@ -191,7 +191,7 @@ package envoy.authz
 
 import input.attributes.request.http as http_request
 
-default allow = false
+default allow := false
 
 allow {
     roles_for_user[r]
@@ -208,7 +208,7 @@ required_roles[r] {
     perm.path == http_request.path
 }
 
-user_name = parsed {
+user_name := parsed {
     [_, encoded] := split(http_request.headers.authorization, " ")
     [parsed, _] := split(base64url.decode(encoded), ":")
 }

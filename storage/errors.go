@@ -99,7 +99,7 @@ func IsIndexingNotSupported(error) bool { return false }
 func writeConflictError(path Path) *Error {
 	return &Error{
 		Code:    WriteConflictErr,
-		Message: fmt.Sprint(path),
+		Message: path.String(),
 	}
 }
 

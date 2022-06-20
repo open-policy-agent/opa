@@ -2,16 +2,26 @@ package test
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
+
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockBundle sets a bundle named file on the test server containing the given
@@ -23,6 +33,17 @@ func MockBundle(file string, policies map[string]string) func(*Server) error {
 		}
 		s.bundles[file] = policies
 		return nil
+	}
+}
+
+// MockOCIBundle prepares the server to allow serving "/v2" OCI responses from the supplied policies
+// Ref parameter must be in the form of <registry>/<org>/<repo>:<tag> that will be used in detecting future calls
+func MockOCIBundle(ref string, policies map[string]string) func(*Server) error {
+	return func(s *Server) error {
+		if !strings.Contains(ref, "/") {
+			return fmt.Errorf("mock oci bundle ref must contain 'org/repo' but got %q", ref)
+		}
+		return s.buildBundles(ref, policies)
 	}
 }
 
@@ -87,6 +108,112 @@ func (s *Server) URL() string {
 	return s.server.URL
 }
 
+// Builds the tarball from the supplied policies and prepares the layers in a temporary directory
+func (s *Server) buildBundles(ref string, policies map[string]string) error {
+	// Prepare the modules to include in the bundle. Sort them so bundles are deterministic.
+	var modules []bundle.ModuleFile
+	for url, str := range policies {
+		module, err := ast.ParseModule(url, str)
+		if err != nil {
+			return fmt.Errorf("failed to parse module: %v", err)
+		}
+		modules = append(modules, bundle.ModuleFile{
+			URL:    url,
+			Parsed: module,
+		})
+	}
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].URL < modules[j].URL
+	})
+
+	// Compile the bundle out into a buffer
+	buf := bytes.NewBuffer(nil)
+	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
+		Data:    map[string]interface{}{},
+		Modules: modules,
+	}).Build(context.Background())
+	if err != nil {
+		return err
+	}
+	directoryName, err := os.MkdirTemp("", "oci-test-temp")
+	fmt.Println("Testing OCI temporary directory:", directoryName)
+	if err != nil {
+		return err
+	}
+	// Write buf tarball to layer
+	tarLayer := filepath.Join(directoryName, "tar.layer")
+	err = ioutil.WriteFile(tarLayer, buf.Bytes(), 0655)
+	if err != nil {
+		return err
+	}
+	// Write empty config layer
+	configLayer := filepath.Join(directoryName, "config.layer")
+	err = ioutil.WriteFile(configLayer, []byte("{}"), 0655)
+	if err != nil {
+		return err
+	}
+	// Calculate SHA and size and prepare manifest layer
+	tarSHA, err := getFileSHA(tarLayer)
+	if err != nil {
+		return err
+	}
+
+	configSHA, err := getFileSHA(configLayer)
+	if err != nil {
+		return err
+	}
+
+	var manifest ocispec.Manifest
+	manifest.SchemaVersion = 2
+	manifest.Config = ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageConfig,
+		Digest:    digest.Digest(fmt.Sprintf("sha256:%x", configSHA)),
+		Size:      int64(2), // config size is set to 2 as an empty config is used
+	}
+	manifest.Layers = []ocispec.Descriptor{
+		{
+			MediaType: ocispec.MediaTypeImageLayerGzip,
+			Digest:    digest.Digest(fmt.Sprintf("sha256:%x", tarSHA)),
+			Size:      int64(buf.Len()),
+			Annotations: map[string]string{
+				ocispec.AnnotationTitle:   ref,
+				ocispec.AnnotationCreated: time.Now().Format(time.RFC3339),
+			},
+		},
+	}
+
+	manifestData, err := json.Marshal(manifest)
+	if err != nil {
+		return err
+	}
+	manifestLayer := filepath.Join(directoryName, "manifest.layer")
+	err = ioutil.WriteFile(manifestLayer, manifestData, 0655)
+	if err != nil {
+		return err
+	}
+
+	// Set ref layer paths to server bundles
+	s.bundles[ref] = map[string]string{
+		"manifest": manifestLayer,
+		"config":   configLayer,
+		"tar":      tarLayer,
+	}
+	return nil
+}
+
+func getFileSHA(filePath string) ([]byte, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, f); err != nil {
+		return nil, err
+	}
+	return hash.Sum(nil), nil
+}
+
 func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 
 	select {
@@ -96,12 +223,135 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasPrefix(r.URL.Path, "/v2") {
+		s.handleOCIBundles(w, r)
+		return
+	}
+
 	if strings.HasPrefix(r.URL.Path, "/bundles") {
 		s.handleBundles(w, r)
 		return
 	}
 
 	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
+	ref := ""  // key used to detect layers from s.bundles
+	tag := ""  // image tag used in request path verification
+	repo := "" // image repo used in request path verification
+	var buf bytes.Buffer
+	//get first key that matches request url pattern
+	for key := range s.bundles {
+		// extract tag
+		parsedRef := strings.Split(key, ":")
+		checkRef := strings.Split(parsedRef[0], "/")
+		// check if request path contains org and repository
+		if strings.Contains(r.URL.Path, checkRef[1]) && strings.Contains(r.URL.Path, checkRef[2]) {
+			ref = key
+			tag = parsedRef[1]
+			repo = checkRef[1] + "/" + checkRef[2]
+			break
+		}
+	}
+	if ref == "" || tag == "" || repo == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	layers := s.bundles[ref]
+	fi, err := os.Stat(layers["manifest"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+	manifestSize := fi.Size()
+	manifestSHA, err := getFileSHA(layers["manifest"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+	fi, err = os.Stat(layers["config"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+	configSize := fi.Size()
+	configSHA, err := getFileSHA(layers["config"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+	fi, err = os.Stat(layers["tar"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+	// get the size
+	tarSize := fi.Size()
+	tarSHA, err := getFileSHA(layers["tar"])
+	if err != nil {
+		w.WriteHeader(http.StatusFailedDependency)
+		return
+	}
+
+	if r.URL.Path == fmt.Sprintf("/v2/%s/manifests/%s", repo, tag) {
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", manifestSize))
+		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", manifestSHA))
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.URL.Path == fmt.Sprintf("/v2/%s/manifests/sha256:%x", repo, manifestSHA) {
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", manifestSize))
+		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", manifestSHA))
+		w.WriteHeader(200)
+		bs, err := ioutil.ReadFile(layers["manifest"])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		buf.WriteString(string(bs))
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	if r.URL.Path == fmt.Sprintf("/v2/%s/blobs/sha256:%x", repo, configSHA) {
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", configSize))
+		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", configSHA))
+		w.WriteHeader(200)
+		bs, err := ioutil.ReadFile(layers["config"])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		buf.WriteString(string(bs))
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	if r.URL.Path == fmt.Sprintf("/v2/%s/blobs/sha256:%x", repo, tarSHA) {
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", tarSize))
+		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		w.Header().Add("Docker-Content-Digest", fmt.Sprintf("sha256:%x", tarSHA))
+		w.WriteHeader(200)
+		bs, err := ioutil.ReadFile(layers["tar"])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		buf.WriteString(string(bs))
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
 }
 
 func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {

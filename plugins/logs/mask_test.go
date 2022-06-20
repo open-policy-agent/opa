@@ -541,6 +541,25 @@ func TestMaskRuleMask(t *testing.T) {
 			event: `{"input": {"foo": [{"bar": 1, "baz": 2}]}}`,
 			exp:   `{"input": {"foo": [{"baz": 2}]}, "erased": ["/input/foo/0/bar"]}`,
 		},
+		{
+			note: "erase input: special character in path",
+			ptr: &maskRule{
+				OP:   maskOPRemove,
+				Path: "/input/:path",
+			},
+			event: `{"input": {"bar": 1, ":path": "token"}}`,
+			exp:   `{"input": {"bar": 1}, "erased": ["/input/:path"]}`,
+		},
+		{
+			note: "upsert input: special character in path",
+			ptr: &maskRule{
+				OP:    maskOPUpsert,
+				Path:  "/input/:path",
+				Value: "upserted",
+			},
+			event: `{"input": {"bar": 1, ":path": "token"}}`,
+			exp:   `{"input": {"bar": 1, ":path": "upserted"}, "masked": ["/input/:path"]}`,
+		},
 	}
 
 	for _, tc := range tests {

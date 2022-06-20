@@ -14,6 +14,15 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
+// Opts lets you control the code formatting via `AstWithOpts()`.
+type Opts struct {
+	// IgnoreLocations instructs the formatter not to use the AST nodes' locations
+	// into account when laying out the code: notably, when the input is the result
+	// of partial evaluation, arguments maybe have been shuffled around, but still
+	// carry along their original source locations.
+	IgnoreLocations bool
+}
+
 // defaultLocationFile is the file name used in `Ast()` for terms
 // without a location, as could happen when pretty-printing the
 // results of partial eval.
@@ -48,7 +57,10 @@ func MustAst(x interface{}) []byte {
 // element, Ast returns nil and an error. If AST nodes are missing locations
 // an arbitrary location will be used.
 func Ast(x interface{}) ([]byte, error) {
+	return AstWithOpts(x, Opts{})
+}
 
+func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	// The node has to be deep copied because it may be mutated below. Alternatively,
 	// we could avoid the copy by checking if mutation will occur first. For now,
 	// since format is not latency sensitive, just deep copy in all cases.
@@ -60,7 +72,7 @@ func Ast(x interface{}) ([]byte, error) {
 	// or internal.member_3, it will sugarize them into usage of the `in`
 	// operator. It has to ensure that the proper future keyword import is
 	// present.
-	extraFutureKeywordImports := map[string]bool{}
+	extraFutureKeywordImports := map[string]struct{}{}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
@@ -76,12 +88,13 @@ func Ast(x interface{}) ([]byte, error) {
 		case *ast.Expr:
 			switch {
 			case n.IsCall() && ast.Member.Ref().Equal(n.Operator()) || ast.MemberWithKey.Ref().Equal(n.Operator()):
-				extraFutureKeywordImports["in"] = true
+				extraFutureKeywordImports["in"] = struct{}{}
 			case n.IsEvery():
-				extraFutureKeywordImports["every"] = true
+				extraFutureKeywordImports["every"] = struct{}{}
 			}
 		}
-		if x.Loc() == nil {
+
+		if opts.IgnoreLocations || x.Loc() == nil {
 			x.SetLoc(defaultLocation(x))
 		}
 		return false
@@ -110,7 +123,7 @@ func Ast(x interface{}) ([]byte, error) {
 	case *ast.Expr:
 		w.writeExpr(x, nil)
 	case *ast.With:
-		w.writeWith(x, nil)
+		w.writeWith(x, nil, false)
 	case *ast.Term:
 		w.writeTerm(x, nil)
 	case ast.Value:
@@ -287,8 +300,10 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, comments []*ast.Comment)
 
 	if len(rule.Head.Args) > 0 {
 		closeLoc = closingLoc('(', ')', '{', '}', rule.Location)
-	} else {
+	} else if rule.Head.Key != nil {
 		closeLoc = closingLoc('[', ']', '{', '}', rule.Location)
+	} else {
+		closeLoc = closingLoc(0, 0, '{', '}', rule.Location)
 	}
 
 	comments = w.insertComments(comments, closeLoc)
@@ -442,7 +457,9 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 
 	var indented bool
 	for i, with := range expr.With {
-		if i > 0 && with.Location.Row-expr.With[i-1].Location.Row > 0 {
+		if i == 0 || with.Location.Row == expr.With[i-1].Location.Row { // we're on the same line
+			comments = w.writeWith(with, comments, false)
+		} else { // we're on a new line
 			if !indented {
 				indented = true
 
@@ -451,8 +468,8 @@ func (w *writer) writeExpr(expr *ast.Expr, comments []*ast.Comment) []*ast.Comme
 			}
 			w.endLine()
 			w.startLine()
+			comments = w.writeWith(with, comments, true)
 		}
-		comments = w.writeWith(with, comments)
 	}
 
 	return comments
@@ -556,9 +573,12 @@ func (w *writer) writeFunctionCallPlain(terms []*ast.Term, comments []*ast.Comme
 	return w.writeIterable(args, loc, closingLoc(0, 0, '(', ')', loc), comments, w.listWriter())
 }
 
-func (w *writer) writeWith(with *ast.With, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeWith(with *ast.With, comments []*ast.Comment, indented bool) []*ast.Comment {
 	comments = w.insertComments(comments, with.Location)
-	w.write(" with ")
+	if !indented {
+		w.write(" ")
+	}
+	w.write("with ")
 	comments = w.writeTerm(with.Target, comments)
 	w.write(" as ")
 	return w.writeTerm(with.Value, comments)
@@ -1236,11 +1256,22 @@ func (w *writer) down() {
 
 func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 	allKeywords := ast.MustParseTerm("future.keywords")
-	kwPath := ast.MustParseTerm("future.keywords." + kw)
+	kwPath := keyword(kw)
+	every := keyword("every")
 	for _, imp := range imps {
-		if allKeywords.Equal(imp.Path) || imp.Path.Equal(kwPath) {
+		if allKeywords.Equal(imp.Path) ||
+			imp.Path.Equal(kwPath) ||
+			(imp.Path.Equal(every) && kw == "in") { // "every" implies "in", so we don't need to add both
 			return imps
 		}
 	}
-	return append(imps, &ast.Import{Path: kwPath})
+	imp := &ast.Import{
+		Path: kwPath,
+	}
+	imp.Location = defaultLocation(imp)
+	return append(imps, imp)
+}
+
+func keyword(kw string) *ast.Term {
+	return ast.MustParseTerm("future.keywords." + kw)
 }

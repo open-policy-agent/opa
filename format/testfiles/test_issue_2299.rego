@@ -25,7 +25,8 @@ else = z {
 # Mixed compact and newline separated
 p = x {
     foo == "bar"
-} # some special case
+}
+# some special case
 # with lots of comments
 # describing it
 else = y {

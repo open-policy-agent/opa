@@ -200,16 +200,16 @@ In the examples below `...` represents one or more conditions.
 ### Constants
 
 ```live:rules/constants:module:read_only
-a = {1, 2, 3}
-b = {4, 5, 6}
-c = a | b
+a := {1, 2, 3}
+b := {4, 5, 6}
+c := a | b
 ```
 
 ### Conditionals (Boolean)
 
 ```live:rules/condbool:module:read_only
 # p is true if ...
-p = true { ... }
+p := true { ... }
 
 # OR
 
@@ -219,9 +219,9 @@ p { ... }
 ### Conditionals
 
 ```live:rules/cond:module:read_only
-default a = 1
-a = 5 { ... }
-a = 100 { ... }
+default a := 1
+a := 5 { ... }
+a := 100 { ... }
 ```
 
 ### Incremental
@@ -232,16 +232,16 @@ a_set[x] { ... }
 a_set[y] { ... }
 
 # a_map will contain key->value pairs x->y and w->z
-a_map[x] = y { ... }
-a_map[w] = z { ... }
+a_map[x] := y { ... }
+a_map[w] := z { ... }
 ```
 
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
-default a = 1
-a = 5 { ... }
-else = 10 { ... }
+default a := 1
+a := 5 { ... }
+else := 10 { ... }
 ```
 
 ### Functions (Boolean)
@@ -253,7 +253,7 @@ f(x, y) {
 
 # OR
 
-f(x, y) = true {
+f(x, y) := true {
     ...
 }
 ```
@@ -261,9 +261,9 @@ f(x, y) = true {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
-f(x) = "A" { x >= 90 }
-f(x) = "B" { x >= 80; x < 90 }
-f(x) = "C" { x >= 70; x < 80 }
+f(x) := "A" { x >= 90 }
+f(x) := "B" { x >= 80; x < 90 }
+f(x) := "C" { x >= 70; x < 80 }
 ```
 
 ## Tests
@@ -282,73 +282,13 @@ The built-in functions for the language provide basic operations to manipulate
 scalar values (e.g. numbers and strings), and aggregate functions that summarize
 complex types.
 
-### Comparison
+{{< builtin-table comparison >}}
+{{< builtin-table numbers >}}
+{{< builtin-table aggregates >}}
+{{< builtin-table cat=array id=arrays-2 title=arrays >}}
+{{< builtin-table cat=sets id=sets-2 >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``x == y``</span>   | ``x`` is equal to ``y`` | ✅  |
-| <span class="opa-keep-it-together">``x != y``</span>   | ``x`` is not equal to ``y`` | ✅  |
-| <span class="opa-keep-it-together">``x < y``</span>   | ``x`` is less than ``y`` | ✅   |
-| <span class="opa-keep-it-together">``x <= y``</span>   | ``x`` is less than or equal to ``y`` | ✅  |
-| <span class="opa-keep-it-together">``x > y``</span>   | ``x`` is greater than ``y`` | ✅  |
-| <span class="opa-keep-it-together">``x >= y``</span>   | ``x`` is greater than or equal to ``y`` | ✅ |
-
-### Numbers
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``z := x + y``</span>   | ``z`` is the sum of ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := x - y``</span>  | ``z`` is the difference of ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := x * y``</span>   | ``z`` is the product of ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := x / y``</span>   | ``z`` is the quotient of ``x`` and ``y``  | ✅ |
-| <span class="opa-keep-it-together">``z := x % y``</span>   | ``z`` is the remainder from the division of ``x`` and ``y``  | ✅ |
-| <span class="opa-keep-it-together">``output := round(x)``</span>    | ``output`` is ``x`` rounded to the nearest integer | ✅ |
-| <span class="opa-keep-it-together">``output := ceil(x)``</span>    | ``output`` is ``x`` rounded up to the nearest integer | ✅ |
-| <span class="opa-keep-it-together">``output := floor(x)``</span>    | ``output`` is ``x`` rounded down the nearest integer | ✅ |
-| <span class="opa-keep-it-together">``output := abs(x)``</span>    | ``output`` is the absolute value of ``x`` | ✅ |
-| <span class="opa-keep-it-together">``output := numbers.range(a, b)``</span> | ``output`` is the range of integer numbers between ``a`` and ``b`` (inclusive). If ``a`` == ``b`` then ``output`` == ``[a]``. If ``a`` < ``b`` the range is in ascending order. If ``a`` > ``b`` the range is in descending order. | ✅ |
-  <span class="opa-keep-it-together">``output := rand.intn(str, n)``</span> |  ``output`` is a ``number`` in the range [0, abs(``n``)). If ``n`` is 0, then ``output`` is 0. For any given (``str``, ``n``) pair the output will be consistent throughout a query evaluation. | SDK-dependent |
-
-### Aggregates
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := count(collection_or_string)``</span> | ``output`` is the length of the object, array, set, or string provided as input | ✅ |
-| <span class="opa-keep-it-together">``output := sum(array_or_set)``</span> | ``output`` is the sum of the numbers in ``array_or_set`` | ✅ |
-| <span class="opa-keep-it-together">``output := product(array_or_set)``</span> | ``output`` is the product of the numbers in ``array_or_set`` | ✅ |
-| <span class="opa-keep-it-together">``output := max(array_or_set)``</span> | ``output`` is the maximum value in ``array_or_set`` | ✅ |
-| <span class="opa-keep-it-together">``output := min(array_or_set)``</span> | ``output`` is the minimum value in ``array_or_set`` | ✅ |
-| <span class="opa-keep-it-together">``output := sort(array_or_set)``</span> | ``output`` is the sorted ``array`` containing elements from ``array_or_set``. | ✅ |
-
-### Arrays
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := array.concat(array, array)``</span> | ``output`` is the result of concatenating the two input arrays together. | ✅ |
-| <span class="opa-keep-it-together">``output := array.reverse(array)``</span> | ``output`` is the result of reversing the order of the elements in ``array``. | ✅ |
-  <span class="opa-keep-it-together">``output := array.slice(array, startIndex, stopIndex)``</span> | ``output`` is the part of the ``array`` from ``startIndex`` to ``stopIndex`` including the first but excluding the last. If `startIndex >= stopIndex` then `output == []`. If both `startIndex` and `stopIndex` are less than zero, `output == []`. Otherwise, `startIndex` and `stopIndex` are clamped to 0 and `count(array)` respectively. | ✅ |
-
-### Sets
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``s3 := s1 & s2``</span> | ``s3`` is the intersection of ``s1`` and ``s2``. | ✅ |
-| <span class="opa-keep-it-together"><code>s3 := s1 &#124; s2</code></span> | ``s3`` is the union of ``s1`` and ``s2``. | ✅ |
-| <span class="opa-keep-it-together">``s3 := s1 - s2``</span> | ``s3`` is the difference between ``s1`` and ``s2``, i.e., the elements in ``s1`` that are not in ``s2`` | ✅ |
-| <span class="opa-keep-it-together">``output := intersection(set[set])``</span> | ``output`` is the intersection of the sets in the input set | ✅ |
-| <span class="opa-keep-it-together">``output := union(set[set])``</span> | ``output`` is the union of the sets in the input set  | ✅ |
-
-### Objects
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">`value := object.get(object, key, default)`</span> | `value` is the value stored by the `object` at `key`. If no value is found, `default` is returned. If the supplied `key` is an `array`, then `object.get` will search through a nested object or array using each key in turn. For example: `object.get({"a": [{ "b": true }]}, ["a", 0, "b"], false)` results in `true` | ✅ |
-| <span class="opa-keep-it-together">`output := object.remove(object, keys)`</span> | `output` is a new object which is the result of removing the specified `keys` from `object`. `keys` must be either an array, object, or set of keys. | ✅ |
-| <span class="opa-keep-it-together">`output := object.union(objectA, objectB)`</span> | `output` is a new object which is the result of an asymmetric recursive union of two objects where conflicts are resolved by choosing the key from the right-hand object (`objectB`). For example: `object.union({"a": 1, "b": 2, "c": {"d": 3}}, {"a": 7, "c": {"d": 4, "e": 5}})` will result in `{"a": 7, "b": 2, "c": {"d": 4, "e": 5}}` | ✅ |
-| <span class="opa-keep-it-together">`output := object.union_n(array)`</span> | `output` is a new object which is the result of an asymmetric recursive union of all objects in `array`, merged from left to right, where conflicts are resolved by choosing the key from the right-hand object. For example: `object.union_n([{"a": 1}, {"b": 2}, {"a": 3}])` will result in `{"b": 2, "a": 3}` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">`filtered := object.filter(object, keys)`</span> | `filtered` is a new object with the remaining data from `object` with only keys specified in `keys` which is an array, object, or set of keys. For example: `object.filter({"a": {"b": "x", "c": "y"}, "d": "z"}, ["a"])` will result in `{"a": {"b": "x", "c": "y"}}`). | ✅ |
-| <span class="opa-keep-it-together">`filtered := json.filter(object, paths)`</span> | `filtered` is the remaining data from `object` with only keys specified in `paths` which is an array or set of JSON string paths. For example: `json.filter({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"b": "x"}}`). Paths are not filtered in-order and are deduplicated before being evaluated. | ✅ |
-| <span class="opa-keep-it-together">`output := json.remove(object, paths)`</span> | `output` is a new object which is the result of removing all keys specified in `paths` which is an array or set of JSON string paths. For example: `json.remove({"a": {"b": "x", "c": "y"}}, ["a/b"])` will result in `{"a": {"c": "y"}}`. Paths are not removed in-order and are deduplicated before being evaluated. | ✅ |
-| <span class="opa-keep-it-together">`output := json.patch(object, patches)`</span> | `output` is a the object obtained after consecutively applying all [JSON Patch](https://tools.ietf.org/html/rfc6902) operations in the array `patches`. For example: `json.patch({"a": {"foo": 1}}, [{"op": "add", "path": "/a/bar", "value": 2}])` results in `{"a": {"foo": 1, "bar": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined. | ``SDK-dependent`` |
+{{< builtin-table cat=object title=objects >}}
 
 * When `keys` are provided as an object only the top level keys on the object will be used, values are ignored.
   For example: `object.remove({"a": {"b": {"c": 2}}, "x": 123}, {"a": 1}) == {"x": 123}` regardless of the value
@@ -370,48 +310,10 @@ complex types.
   the path `a/b/c` can be passed in as `["a", "b", "c"]`.
 
 
-### Strings
+{{< builtin-table strings >}}
+{{< builtin-table regex >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := concat(delimiter, array_or_set)``</span> | ``output`` is the result of joining together the elements of ``array_or_set`` with the  string ``delimiter`` | ✅ |
-| <span class="opa-keep-it-together">``contains(string, search)``</span> | true if ``string`` contains ``search`` | ✅ |
-| <span class="opa-keep-it-together">``endswith(string, search)``</span> | true if ``string`` ends with ``search`` | ✅ |
-| <span class="opa-keep-it-together">``output := format_int(number, base)``</span> | ``output`` is string representation of ``number`` in the given ``base`` | ✅ |
-| <span class="opa-keep-it-together">``output := indexof(string, search)``</span> | ``output`` is the index inside ``string`` where ``search`` first occurs, or -1 if ``search`` does not exist | ✅ |
-| <span class="opa-keep-it-together">``output := indexof_n(string, search)``</span> | ``output`` is ``array[number]`` representing the indexes inside ``string`` where ``search`` occurs | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := lower(string)``</span> | ``output`` is ``string`` after converting to lower case | ✅ |
-| <span class="opa-keep-it-together">``output := replace(string, old, new)``</span> | ``output`` is a ``string`` representing ``string`` with all instances of ``old`` replaced by ``new`` | ✅ |
-| <span class="opa-keep-it-together">``output := strings.reverse(string)``</span> | ``output`` is ``string`` reversed | ✅ |
-| <span class="opa-keep-it-together">``output := strings.replace_n(patterns, string)``</span> | ``patterns`` is an object with old, new string key value pairs (e.g. ``{"old1": "new1", "old2": "new2", ...}``). ``output`` is a ``string`` with all old strings inside ``patterns`` replaced by the new strings | ✅ |
-| <span class="opa-keep-it-together">``output := split(string, delimiter)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``delimiter`` | ✅ |
-| <span class="opa-keep-it-together">``output := sprintf(string, values)``</span> | ``output`` is a ``string`` representing ``string`` formatted by the values in the ``array`` ``values``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``startswith(string, search)``</span> | true if ``string`` begins with ``search`` | ✅ |
-| <span class="opa-keep-it-together">``output := substring(string, start, length)``</span> | ``output`` is the portion of ``string`` from index ``start`` and having a length of ``length``.  If ``length`` is less than zero, ``length`` is the remainder of the ``string``. If ``start`` is greater than the length of the string, ``output`` is empty. It is invalid to pass a negative offset to this function. | ✅ |
-| <span class="opa-keep-it-together">``output := trim(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing instances of the characters in ``cutset`` removed. | ✅ |
-| <span class="opa-keep-it-together">``output := trim_left(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all leading instances of the characters in ``cutset`` removed. | ✅ |
-| <span class="opa-keep-it-together">``output := trim_prefix(string, prefix)``</span> | ``output`` is a ``string`` representing ``string`` with leading instance of ``prefix`` removed. If ``string`` doesn't start with prefix, ``string`` is returned unchanged.| ✅ |
-| <span class="opa-keep-it-together">``output := trim_right(string, cutset)``</span> | ``output`` is a ``string`` representing ``string`` with all trailing instances of the characters in ``cutset`` removed. | ✅ |
-| <span class="opa-keep-it-together">``output := trim_suffix(string, suffix)``</span> | ``output`` is a ``string`` representing ``string`` with trailing instance of ``suffix`` removed. If ``string`` doesn't end with suffix, ``string`` is returned unchanged.| ✅ |
-| <span class="opa-keep-it-together">``output := trim_space(string)``</span> | ``output`` is a ``string`` representing ``string`` with all leading and trailing white space removed.| ✅ |
-| <span class="opa-keep-it-together">``output := upper(string)``</span> | ``output`` is ``string`` after converting to upper case | ✅ |
-
-### Regex
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := regex.match(pattern, value)``</span> | ``output`` is a ``boolean`` that indicates if ``value`` matches the regex ``pattern``. | ✅ |
-| <span class="opa-keep-it-together">``output := regex.is_valid(pattern)``</span> | ``output`` is a ``boolean`` that indicates if ``pattern`` is a valid regex pattern. The detailed syntax for regex patterns is defined by https://github.com/google/re2/wiki/Syntax. | ✅ |
-| <span class="opa-keep-it-together">``output := regex.split(pattern, string)``</span> | ``output`` is ``array[string]`` representing elements of ``string`` separated by ``pattern`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``regex.globs_match(glob1, glob2)``</span> | true if the intersection of regex-style globs ``glob1`` and ``glob2`` matches a non-empty set of non-empty strings. The set of regex symbols is limited for this builtin: only ``.``, ``*``, ``+``, ``[``, ``-``, ``]`` and ``\`` are treated as special symbols. | ``SDK-dependent`` |
-| <span class="opa-keep-it-normal">``output := regex.template_match(pattern, string, delimiter_start, delimiter_end)``</span> | ``output`` is true if ``string`` matches ``pattern``. ``pattern`` is a string containing ``0..n`` regular expressions delimited by ``delimiter_start`` and ``delimiter_end``. Example ``regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}")`` returns ``true``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := regex.find_n(pattern, string, number)``</span> | ``output`` is an ``array[string]`` with the ``number`` of values matching the ``pattern``. A ``number`` of ``-1`` means all matches. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := regex.find_all_string_submatch_n(pattern, string, number)``</span> | ``output`` is an ``array[array[string]]`` with the outer `array` including a ``number`` of matches which match the ``pattern``. A ``number`` of ``-1`` means all matches. | ✅ |
-
-### Glob
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := glob.match(pattern, delimiters, match)``</span> | ``output`` is true if ``match`` can be found in ``pattern`` which is separated by ``delimiters``. For valid patterns, check the table below. Argument ``delimiters`` is an array of single-characters (e.g. `[".", ":"]`). If ``delimiters`` is empty, it defaults to ``["."]``. | ✅ |
-| <span class="opa-keep-it-together">``output := glob.quote_meta(pattern)``</span> | ``output`` is the escaped string of ``pattern``. Calling ``glob.quote_meta("*.github.com", output)`` returns ``\\*.github.com`` as ``output``. | ``SDK-dependent`` |
+{{< builtin-table glob >}}
 
 The following table shows examples of how ``glob.match`` works:
 
@@ -438,65 +340,13 @@ The following table shows examples of how ``glob.match`` works:
 | ``output := glob.match("{cat,bat,[fr]at}", [], "rat")`` | ``true`` | A glob with pattern-alternatives matchers. |
 | ``output := glob.match("{cat,bat,[fr]at}", [], "at")`` | ``false`` | A glob with pattern-alternatives matchers. |
 
-### Bitwise
+{{< builtin-table cat=bits title=bitwise >}}
+{{< builtin-table conversions >}}
+{{< builtin-table units >}}
+{{< builtin-table types >}}
+{{< builtin-table encoding >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``z := bits.or(x, y)``</span>  | ``z`` is the bitwise or of integers ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := bits.and(x, y)``</span> | ``z`` is the bitwise and of integers ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := bits.negate(x)``</span> | ``z`` is the bitwise negation (flip) of integer ``x`` | ✅ |
-| <span class="opa-keep-it-together">``z := bits.xor(x, y)``</span> | ``z`` is the bitwise exclusive-or of integers ``x`` and ``y`` | ✅ |
-| <span class="opa-keep-it-together">``z := bits.lsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the left | ✅ |
-| <span class="opa-keep-it-together">``z := bits.rsh(x, s)``</span> | ``z`` is the bitshift of integer ``x`` by ``s`` bits to the right | ✅ |
-
-### Conversions
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := to_number(x)``</span> | ``output`` is ``x`` converted to a number. `null` is converted to zero, `true` and `false` are converted to one and zero (respectively), `string` values are interpreted as base 10, and `numbers` are a no-op. Other types are not supported. | ✅ |
-
-### Units
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := units.parse_bytes(x)``</span> | ``output`` is ``x`` converted to a number with support for standard byte units (e.g., KB, KiB, etc.) KB, MB, GB, and TB are treated as decimal units and KiB, MiB, GiB, and TiB are treated as binary units. The bytes symbol (b/B) in the unit is optional and omitting it wil give the same result (e.g. Mi and MiB) | ``SDK-dependent`` |
-
-### Types
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := is_number(x)``</span> | ``output`` is ``true`` if ``x`` is a number; otherwise undefined| ✅ |
-| <span class="opa-keep-it-together">``output := is_string(x)``</span> | ``output`` is ``true`` if ``x`` is a string; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := is_boolean(x)``</span> | ``output`` is ``true`` if ``x`` is a boolean; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := is_array(x)``</span> | ``output`` is ``true`` if ``x`` is an array; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := is_set(x)``</span> | ``output`` is ``true`` if ``x`` is a set; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := is_object(x)``</span> | ``output`` is ``true`` if ``x`` is an object; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := is_null(x)``</span> | ``output`` is ``true`` if ``x`` is null; otherwise undefined | ✅ |
-| <span class="opa-keep-it-together">``output := type_name(x)``</span> | ``output`` is the type of ``x`` (e.g. ``"number"``, ``"boolean"``, ...) | ✅ |
-
-### Encoding
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := base64.encode(x)``</span> | ``output`` is ``x`` serialized to a base64 encoded string without padding | ✅ |
-| <span class="opa-keep-it-together">``output := base64.decode(string)``</span> | ``output`` is ``x`` deserialized from a base64 encoding string without padding | ✅ |
-| <span class="opa-keep-it-together">``output := base64url.encode(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string with padding | ✅ |
-| <span class="opa-keep-it-together">``output := base64url.encode_no_pad(x)``</span> | ``output`` is ``x`` serialized to a base64url encoded string without padding | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := base64url.decode(string)``</span> | ``output`` is ``string`` deserialized from a base64url encoded string with or without padding | ✅ |
-| <span class="opa-keep-it-together">``output := urlquery.encode(string)``</span> | ``output`` is URL query parameter encoded ``string`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.encode_object(object)``</span> | ``output`` is URL query parameter encoded ``object`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode(string)``</span> | ``output`` is URL query parameter decoded ``string`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := urlquery.decode_object(string)``</span> | ``output`` is URL query parameter decoded ``string`` represented as an ``object`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := json.marshal(x)``</span> | ``output`` is ``x`` serialized to a JSON string | ✅ |
-| <span class="opa-keep-it-together">``output := json.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from a JSON encoded string | ✅ |
-| <span class="opa-keep-it-together">``output := json.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid JSON document | ✅ |
-| <span class="opa-keep-it-together">``output := yaml.marshal(x)``</span> | ``output`` is ``x`` serialized to a YAML string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := yaml.unmarshal(string)``</span> | ``output`` is ``string`` deserialized to a term from YAML encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := yaml.is_valid(string)``</span> | ``output`` is a ``boolean`` that indicated whether ``string`` is a valid YAML document that can be decoded by `yaml.unmarshal` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := hex.encode(x)``</span> | ``output`` is ``x`` serialized to a hex encoded string | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := hex.decode(string)``</span> | ``output`` is a ``string`` deserialized from a hex encoded string | ``SDK-dependent`` |
-
-### Token Signing
+{{< builtin-table cat=tokensign title="Token Signing" >}}
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
 
@@ -508,10 +358,12 @@ OPA provides two builtins that implement JSON Web Signature [RFC7515](https://to
 ``io.jwt.encode_sign()`` takes three Rego Objects as parameters and returns their JWS Compact Serialization. This builtin
  should be used by those that want to use rego objects for signing during policy evaluation.
 
-> Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
-> whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
-> This will mean that the final encoded token may have different string values, but the decoded and parsed
-> JSON will match.
+{{< info >}}
+Note that with `io.jwt.encode_sign` the Rego objects are serialized to JSON with standard formatting applied
+whereas the `io.jwt.encode_sign_raw` built-in will **not** affect whitespace of the strings passed in.
+This will mean that the final encoded token may have different string values, but the decoded and parsed
+JSON will match.
+{{< /info >}}
 
 The following algorithms are supported:
 
@@ -528,15 +380,11 @@ The following algorithms are supported:
 	RS384       "RS384" // RSASSA-PKCS-v1.5 using SHA-384
 	RS512       "RS512" // RSASSA-PKCS-v1.5 using SHA-512
 
-<br>
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := io.jwt.encode_sign_raw(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` as strings that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.encode_sign(headers, payload, key)``</span> | ``headers``, ``payload`` and  ``key`` are JSON objects that represent the JWS Protected Header, JWS Payload and JSON Web Key ([RFC7517](https://tools.ietf.org/html/rfc7517)) respectively.| ``SDK-dependent`` |
-
-> Note that the key's provided should be base64 encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
-> This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
+{{< info >}}
+Note that the key's provided should be base64 encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
+This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
+{{< /info >}}
 
 #### Token Signing Examples
 
@@ -627,27 +475,12 @@ io.jwt.encode_sign_raw(
 ```live:jwt/raw:output
 ```
 
-### Token Verification
+{{< builtin-table cat=tokens title="Token Verification" >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs256(string, certificate)``</span> | ``output`` is ``true`` if the RS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS256 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs384(string, certificate)``</span> | ``output`` is ``true`` if the RS384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS384 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_rs512(string, certificate)``</span> | ``output`` is ``true`` if the RS512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key, or the JWK key (set) used to verify the RS512 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps256(string, certificate)``</span> | ``output`` is ``true`` if the PS256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS256 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps384(string, certificate)``</span> | ``output`` is ``true`` if the PS384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS384 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_ps512(string, certificate)``</span> | ``output`` is ``true`` if the PS512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the PS512 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es256(string, certificate)``</span> | ``output`` is ``true`` if the ES256 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES256 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es384(string, certificate)``</span> | ``output`` is ``true`` if the ES384 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES384 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_es512(string, certificate)``</span> | ``output`` is ``true`` if the ES512 signature of the input token is valid. ``certificate`` is the PEM encoded certificate, PEM encoded public key or the JWK key (set) used to verify the ES512 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs256(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS256 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs384(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS384 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.verify_hs512(string, secret)``</span> | ``output`` is ``true`` if the Secret signature of the input token is valid. ``secret`` is a plain text secret used to verify the HS512 signature| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.decode(string)``</span> | ``output`` is of the form ``[header, payload, sig]``.  ``header`` and ``payload`` are ``object``. ``sig`` is the hexadecimal representation of the signature on the token. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := io.jwt.decode_verify(string, constraints)``</span> | ``output`` is of the form ``[valid, header, payload]``.  If the input token verifies and meets the requirements of ``constraints`` then ``valid`` is ``true`` and ``header`` and ``payload`` are objects containing the JOSE header and the JWT claim set. Otherwise, ``valid`` is ``false`` and ``header`` and ``payload`` are ``{}``. Supports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES256, ES384, ES512, PS256, PS384 and PS512. | ``SDK-dependent`` |
-
-> Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
-> payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+{{< info >}}
+Note that the `io.jwt.verify_XX` built-in methods verify **only** the signature. They **do not** provide any validation for the JWT
+payload and any claims specified. The `io.jwt.decode_verify` built-in will verify the payload and **all** standard claims.
+{{< /info >}}
 
 The input `string` is a JSON Web Token encoded with JWS Compact Serialization. JWE and JWS JSON Serialization are not supported. If nested signing was used, the ``header``, ``payload`` and ``signature`` will represent the most deeply nested token.
 
@@ -671,7 +504,7 @@ unrecognized constraints then the token is considered invalid.
 The examples below use the following token:
 
 ```live:jwt/verify:module
-es256_token = "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
+es256_token := "eyJ0eXAiOiAiSldUIiwgImFsZyI6ICJFUzI1NiJ9.eyJuYmYiOiAxNDQ0NDc4NDAwLCAiaXNzIjogInh4eCJ9.lArczfN-pIL8oUU-7PU83u-zfXougXBZj6drFeKFsPEoVhy9WAyiZlRshYqjTSXdaw8yw2L-ovt4zTUZb2PWMg"
 ```
 
 ##### Using JWKS
@@ -679,7 +512,7 @@ This example shows a two-step process to verify the token signature and then dec
 further checks of the payload content. This approach gives more flexibility in verifying only
 the claims that the policy needs to enforce.
 ```live:jwt/verify/jwks:module
-jwks = `{
+jwks := `{
     "keys": [{
         "kty":"EC",
         "crv":"P-256",
@@ -713,7 +546,7 @@ constraints.
 The following examples will demonstrate verifying tokens using an X.509 Certificate
 defined as:
 ```live:jwt/verify/cert:module
-cert = `-----BEGIN CERTIFICATE-----
+cert := `-----BEGIN CERTIFICATE-----
 MIIBcDCCARagAwIBAgIJAMZmuGSIfvgzMAoGCCqGSM49BAMCMBMxETAPBgNVBAMM
 CHdoYXRldmVyMB4XDTE4MDgxMDE0Mjg1NFoXDTE4MDkwOTE0Mjg1NFowEzERMA8G
 A1UEAwwId2hhdGV2ZXIwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATPwn3WCEXL
@@ -799,22 +632,12 @@ result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 > `io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
 > in. The decoded and parsed JSON values are still the same.
 
-### Time
+{{< builtin-table time >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := time.now_ns()``</span> | ``output`` is a ``number`` representing the current time since epoch in nanoseconds. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_ns(layout, value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Parse) for more details on ``layout``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_rfc3339_ns(value)``</span> | ``output`` is a ``number`` representing the time ``value`` in nanoseconds since epoch; or ``undefined`` if outside the valid time range that can fit within an ``int64``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.parse_duration_ns(duration)``</span> | ``output`` is a ``number`` representing the duration ``duration`` in nanoseconds. See the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details on ``duration``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.date(ns)``<br/>``output := time.date([ns, tz])``</span> | ``output`` is of the form ``[year, month, day]``, which includes the ``year``, ``month`` (0-12), and ``day`` (0-31) as ``number``s representing the date from the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC.| ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.clock(ns)``<br/>``output := time.clock([ns, tz])``</span> | ``output`` is of the form ``[hour, minute, second]``, which outputs the ``hour``, ``minute`` (0-59), and ``second`` (0-59) as ``number``s representing the time of day for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``day := time.weekday(ns)``<br/>``day := time.weekday([ns, tz])``</span> | outputs the ``day`` as ``string`` representing the day of the week for the nanoseconds since epoch (``ns``) in the timezone (``tz``), if supplied, or as UTC. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.add_date(ns, years, months, days)``</span> | ``output`` is a ``number`` representing the time since epoch in nanoseconds after adding the ``years``, ``months`` and ``days`` to ``ns``; or ``undefined`` if outside the valid time range that can fit within an ``int64``. See the [Go `time` package documentation](https://golang.org/pkg/time/#Time.AddDate) for more details on ``add_date``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := time.diff(ns1, ns2)``<br/>``output := time.diff([ns1, tz1], [ns2, tz2])``</span> | ``output`` is of the form ``[year(s), month(s), day(s), hour(s), minute(s), second(s)]``, which outputs ``year(s)``, ``month(s)`` (0-11), ``day(s)`` (0-30),  ``hour(s)``(0-23), ``minute(s)``(0-59) and ``second(s)``(0-59)  as ``number``s representing the  difference between the the two timestamps in nanoseconds since epoch (``ns1`` and ``ns2``), in the timezones (``tz1`` and ``tz2``, respectively), if supplied, or as UTC. | ``SDK-dependent`` |
-
-> Multiple calls to the `time.now_ns` built-in function within a single policy
+{{< info >}}
+Multiple calls to the `time.now_ns` built-in function within a single policy
 evaluation query will always return the same value.
+{{< /info >}}
 
 Timezones can be specified as
 
@@ -822,31 +645,11 @@ Timezones can be specified as
 * "UTC" or "", which are equivalent to not passing a timezone (i.e. will return as UTC)
 * "Local", which will use the local timezone.
 
-Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go time.LoadLocation()](https://golang.org/pkg/time/#LoadLocation) documentation for more information).
+Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
-### Cryptography
+{{< builtin-table cat=crypto title=Cryptography >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing one or more certificates or a PEM string of one or more certificates. ``output`` is an array of X.509 certificates represented as JSON objects. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_and_verify_certificates(certs)``</span> | ``certs`` is base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs. ``output`` is of the form ``[valid, certs]``. If the input certificate chain could be verified then ``valid`` is ``true`` and ``certs`` is an array of X.509 certificates represented as JSON objects. If the input certificate chain could not be verified then ``valid`` is ``false`` and ``certs`` is ``[]``. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_certificate_request(csr)``</span> | ``csr`` is a base64 string containing either a PEM encoded or DER CSR or a string containing a PEM CSR.``output`` is an X.509 CSR represented as a JSON object. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.x509.parse_rsa_private_key(pem)``</span> | ``pem`` is a base64 string containing a PEM encoded RSA private key.``output`` is a JWK as a JSON object. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.md5(string)``</span> | ``output`` is ``string`` md5 hashed. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.sha1(string)``</span> | ``output`` is ``string`` sha1 hashed. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.sha256(string)``</span> | ``output`` is ``string`` sha256 hashed. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.hmac.md5(string, key)``</span> | ``output`` is HMAC-MD5 of ``string`` using ``key`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha1(string, key)``</span> | ``output`` is HMAC-SHA-1 of ``string`` using ``key`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha256(string, key)``</span> | ``output`` is HMAC-SHA-256 of ``string`` using ``key`` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := crypto.hmac.sha512(string, key)``</span> | ``output`` is HMAC-SHA-512 of ``string`` using ``key`` | ``SDK-dependent`` |
-
-### Graphs
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|--------------|
-| <span class="opa-keep-it-together">``walk(x, [path, value])``</span> | ``walk`` is a relation that produces ``path`` and ``value`` pairs for documents under ``x``. ``path`` is ``array`` representing a pointer to ``value`` in ``x``.  Queries can use ``walk`` to traverse documents nested under ``x`` (recursively). | ✅ |
-| <span class="opa-keep-it-together">``output := graph.reachable(graph, initial)``</span> | ``output`` is the set of vertices [reachable](https://en.wikipedia.org/wiki/Reachability) from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of vertices, and ``graph`` is an object containing a set or array of neighboring vertices. | ✅ |
-| <span class="opa-keep-it-together">``output := graph.reachable_paths(graph, initial)``</span> | ``output`` is the set of arrays of paths reachable from the ``initial`` vertices in the directed ``graph``.  ``initial`` is a set or array of paths, and ``graph`` is an object containing a set or array of root vertices.    | `SDK-dependent` |
+{{< builtin-table cat=graph title=Graphs >}}
 
 A common class of recursive rules can be reduced to a graph reachability
 problem, so `graph.reachable` is useful for more than just graph analysis.
@@ -856,19 +659,19 @@ shows you how to "flatten" a hierarchy of access permissions.
 ```live:graph/reachable/example:module
 package graph_reachable_example
 
-org_chart_data = {
+org_chart_data := {
   "ceo": {},
   "human_resources": {"owner": "ceo", "access": ["salaries", "complaints"]},
   "staffing": {"owner": "human_resources", "access": ["interviews"]},
   "internships": {"owner": "staffing", "access": ["blog"]}
 }
 
-org_chart_graph[entity_name] = edges {
+org_chart_graph[entity_name] := edges {
   org_chart_data[entity_name]
   edges := {neighbor | org_chart_data[neighbor].owner == entity_name}
 }
 
-org_chart_permissions[entity_name] = access {
+org_chart_permissions[entity_name] := access {
   org_chart_data[entity_name]
   reachable := graph.reachable(org_chart_graph, {entity_name})
   access := {item | reachable[k]; item := org_chart_data[k].access[_]}
@@ -885,14 +688,14 @@ It may be useful to find all reachable paths from a root element. `graph.reachab
 ```live:graph/reachable_paths/example:module
 package graph_reachable_paths_example
 
-path_data = {
+path_data := {
     "aTop": [],
     "cMiddle": ["aTop"],
     "bBottom": ["cMiddle"],
     "dIgnored": []
 }
 
-all_paths[root] = paths {
+all_paths[root] := paths {
     path_data[root]
     paths := graph.reachable_paths(path_data, {root})
 }
@@ -903,11 +706,9 @@ all_paths[entity_name]
 ```live:graph/reachable_paths/example:output
 ```
 
-### HTTP
+{{< builtin-table cat=graphql title="GraphQL" >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``response := http.send(request)``</span> | ``http.send`` executes an HTTP `request` and returns a `response`. | ``SDK-dependent`` |
+{{< builtin-table cat=http title=HTTP >}}
 
 {{< danger >}}
 This built-in function **must not** be used for effecting changes in
@@ -926,6 +727,7 @@ The `request` object parameter may contain the following fields:
 | `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`). |
 | `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`. |
 | `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`. |
+| `force_yaml_decode` | no | `boolean` | Decode the HTTP response message body as YAML even if the `Content-Type` header is missing. Default: `false`. |
 | `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms. |
 | `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format. |
 | `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format. |
@@ -961,7 +763,7 @@ The `response` object parameter will contain the following fields:
 | --- | --- | --- |
 | `status` | `string` | HTTP status message (e.g., `"200 OK"`). |
 | `status_code` | `number` | HTTP status code (e.g., `200`). If `raise_error` is `false`, this field will be set to `0` if `http.send` encounters an error. |
-| `body` | `any` | Any JSON value. If the HTTP response message body was not deserialized from JSON, this field is set to `null`. |
+| `body` | `any` | Any value. If the HTTP response message body was not deserialized from JSON or YAML (by force or via the expected Content-Type headers `application/json`; or `application/yaml` or `application/x-yaml`), this field is set to `null`. |
 | `raw_body` | `string` | The entire raw HTTP response message body represented as a string. |
 | `headers` | `object` | An object containing the response headers. The values will be an array of strings, repeated headers are grouped under the same keys with all values in the array. |
 | `error` | `object` | If `raise_error` is `false`, this field will represent the error encountered while running `http.send`. The `error` object contains a `message` key which holds the actual error message and a `code` key which represents if the error was caused due to a network issue or during policy evaluation. |
@@ -988,11 +790,13 @@ conjunction with the `force_cache_duration_seconds` field. If `force_cache` is `
 
 Also, if `force_cache` is `true`, it overrides the `cache` field.
 
-> `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
-> This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
-> an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
-> approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
-> age of the response is represented as a negative duration, the cached response will be considered as stale.
+{{< info >}}
+`http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
+This value is used to determine the freshness of the cached response. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
+an origin server MUST NOT send a `Date` header field if it does not have a clock capable of providing a reasonable
+approximation of the current instance in Coordinated Universal Time. Hence, if `http.send` encounters a scenario where current
+age of the response is represented as a negative duration, the cached response will be considered as stale.
+{{< /info >}}
 
 The table below shows examples of calling `http.send`:
 
@@ -1003,16 +807,7 @@ The table below shows examples of calling `http.send`:
 | Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
 | Unix Socket URL Format| ``http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`` |
 
-### Net
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``net.lookup_ip_addr(name)``</span> | `output` is a set of IP addresses (both v4 and v6, strings) that the domain name resolves to using standard name resolution, [see the notes below](#notes-on-name-resolution-netlookup_ip_addr). | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``net.cidr_contains(cidr, cidr_or_ip)``</span> | `output` is `true` if `cidr_or_ip` (e.g. `127.0.0.64/26` or `127.0.0.1`) is contained within `cidr` (e.g. `127.0.0.1/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
-| <span class="opa-keep-it-together">``output := net.cidr_contains_matches(cidrs, cidrs_or_ips)``</span> | `output` is a `set` of tuples identifying matches where `cidrs_or_ips` are contained within `cidrs`. This function is similar to `net.cidr_contains` except it allows callers to pass collections of CIDRs or IPs as arguments and returns the matches (as opposed to a boolean result indicating a match between two CIDRs/IPs.) See below for examples. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``net.cidr_intersects(cidr1, cidr2)``</span> | `output` is `true` if `cidr1` (e.g. `192.168.0.0/16`) overlaps with `cidr2` (e.g. `192.168.1.0/24`) and false otherwise. Supports both IPv4 and IPv6 notations.| ✅ |
-| <span class="opa-keep-it-together">``net.cidr_expand(cidr)``</span> | `output` is the set of hosts in `cidr`  (e.g., `net.cidr_expand("192.168.0.0/30")` generates 4 hosts: `{"192.168.0.0", "192.168.0.1", "192.168.0.2", "192.168.0.3"}` | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``net.cidr_merge(cidrs_or_ips)``</span> | `output` is the smallest possible set of CIDRs obtained after merging the provided list of IP addresses and subnets in `cidrs_or_ips`  (e.g., `net.cidr_merge(["192.0.128.0/24", "192.0.129.0/24"])` generates `{"192.0.128.0/23"}`. This function merges adjacent subnets where possible, those contained within others and also removes any duplicates. Supports both IPv4 and IPv6 notations. | ``SDK-dependent`` |
+{{< builtin-table net >}}
 
 #### Notes on Name Resolution (`net.lookup_ip_addr`)
 
@@ -1075,36 +870,143 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 ```live:netcidrcontainsmatches/sets_and_objects:output:merge_down
 ```
 
-### UUID
+{{< builtin-table cat=uuid title=UUID >}}
+{{< builtin-table cat=semver title="Semantic Versions" >}}
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := uuid.rfc4122(str)``</span> | ``output`` is ``string`` representing a version 4 uuid. For any given str the output will be consistent throughout a query evaluation. | ``SDK-dependent`` |
+{{< builtin-table rego >}}
 
-### Semantic Versions
+#### Example
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := semver.is_valid(str)``</span> | ``output`` is a ``boolean``. ``true`` means the input is a valid SemVer string (e.g. "1.0.0"). ``false`` is returned for invalid version strings and non-string input. | ``SDK-dependent`` |
-| <span class="opa-keep-it-together">``output := semver.compare(str, str)``</span> | ``output`` is a ``number``. ``-1`` means the version in the first operand is less than the second. ``1`` means the version in the first operand is greater than the second. ``0`` means the versions are equal. Only valid SemVer strings are accepted e.g. ``1.2.3`` or ``0.1.0`` | ``SDK-dependent`` |
+Given the input document
 
-### Rego
+```live:example/metadata/1:input
+{
+    "number": 11,
+    "subject": {
+        "name": "John doe",
+        "role": "customer"
+    }
+}
+```
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := rego.parse_module(filename, string)``</span> | ``rego.parse_module`` parses the input ``string`` as a Rego module and returns the AST as a JSON object ``output``. | ``SDK-dependent`` |
+the following policy
 
-### OPA
+```live:example/metadata/1:module
+package example
 
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``output := opa.runtime()``</span> | ``opa.runtime`` returns a JSON object ``output`` that describes the runtime environment where OPA is deployed. **Caution**: Policies that depend on the output of ``opa.runtime`` may return different answers depending on how OPA was started. If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`. The ``output`` of ``opa.runtime`` will include a ``"config"`` key if OPA was started with a configuration file. The ``output`` of ``opa.runtime`` will include a ``"env"`` key containing the environment variables that the OPA process was started with. The ``output`` of ``opa.runtime`` will include ``"version"`` and ``"commit"`` keys containing the semantic version and build commit of OPA. | ``SDK-dependent`` |
+# METADATA
+# title: Deny invalid numbers
+# description: Numbers may not be higer than 5
+# custom:
+#  severity: MEDIUM
+deny[format(rego.metadata.rule())] {
+    input.number > 5
+}
+
+# METADATA
+# title: Deny non-admin subjects
+# description: Subject must have the 'admin' role
+# custom:
+#  severity: HIGH
+deny[format(rego.metadata.rule())] {
+    input.subject.role != "admin"
+}
+
+format(meta) := {"severity": meta.custom.severity, "reason": meta.description}
+```
+
+will output
+
+```live:example/metadata/1:query:merge_down
+deny
+```
+```live:example/metadata/1:output
+```
+
+#### Metadata Merge strategies
+
+When multiple [annotations](../annotations) are declared along the path ancestry (chain) for a rule, how any given annotation should be selected, inherited or merged depends on the semantics of the annotation, the context of the rule, and the preferences of the developer.
+OPA doesn't presume what merge strategy is appropriate; instead, this lies in the hands of the developer. The following example demonstrates how some string and list type annotations in a metadata chain can be merged into a single metadata object.
+
+```live:rego/metadata:module:read_only
+# METADATA
+# title: My Example Package
+# description: A set of rules illustrating how metadata annotations can be merged.
+# authors:
+# - John Doe <john@example.com>
+# organizations:
+# - Acme Corp.
+package example
+
+import future.keywords.in
+
+# METADATA
+# scope: document
+# description: A rule that merges metadata annotations in various ways.
+
+# METADATA
+# title: My Allow Rule
+# authors:
+# - Jane Doe <jane@example.com>
+allow {
+    meta := merge(rego.metadata.chain())
+    meta.title == "My Allow Rule"                                                  # 'title' pulled from 'rule' scope
+    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+    meta.authors == {                                                              # 'authors' joined from 'package' and 'rule' scopes
+        {"email": "jane@example.com", "name": "Jane Doe"},
+        {"email": "john@example.com", "name": "John Doe"}
+    }
+    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+}
+
+allow {
+    meta := merge(rego.metadata.chain())
+    meta.title == null                                                             # No 'title' present in 'rule' or 'document' scopes
+    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+    meta.authors == {                                                              # 'authors' pulled from 'package' scope
+        {"email": "john@example.com", "name": "John Doe"}
+    }
+    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+}
+
+merge(chain) := meta {
+    ruleAndDoc := ["rule", "document"]
+    meta := {
+        "title": override_annot(chain, "title", ruleAndDoc),                         # looks for 'title' in 'rule' scope, then 'document' scope
+        "description": override_annot(chain, "description", ruleAndDoc),             # looks for 'description' in 'rule' scope, then 'document' scope
+        "related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
+        "authors": merge_annot(chain, "authors"),                                    # merges all 'authors' across all scopes
+        "organizations": merge_annot(chain, "organizations"),                        # merges all 'organizations' across all scopes
+    }
+}
+
+override_annot(chain, name, scopes) := val {
+    val := [v |
+        link := chain[_]
+        link.annotations.scope in scopes
+        v := link.annotations[name]
+    ][0]
+} else := null
+
+merge_annot(chain, name) := val {
+    val := {v |
+        v := chain[_].annotations[name][_]
+    }
+} else := null
+```
+
+{{< builtin-table cat=opa title=OPA >}}
+
+{{< danger >}}
+Policies that depend on the output of `opa.runtime` may return different answers depending on how OPA was started.
+If possible, prefer using an explicit `input` or `data` value instead of `opa.runtime`.
+{{< /danger >}}
 
 ### Debugging
 
-| Built-in | Description | Wasm Support |
+| Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | ``SDK-dependent`` |
+| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | {{< builtin-tags internal.print >}} |
 
 API | Output | Memo
 --- | --- | ---
@@ -1114,11 +1016,7 @@ API | Output | Memo
 `opa run -s` (server) | `stderr` | Specify `--log-level=info` (default) or higher. Output is sent to the log stream. Use `--log-format=text` for pretty output.
 Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements](https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego-Print_statements)
 
-### Tracing
-
-| Built-in | Description | Wasm Support |
-| ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``trace(string)``</span> | ``trace`` emits ``string`` as a ``Note`` event in the query explanation. Query explanations show the exact expressions evaluated by OPA during policy execution. For example, ``trace("Hello There!")`` includes ``Note "Hello There!"`` in the query explanation. To include variables in the message, use ``sprintf``. For example, ``person := "Bob"; trace(sprintf("Hello There! %v", [person]))`` will emit ``Note "Hello There! Bob"`` inside of the explanation. | ``SDK-dependent`` |
+{{< builtin-table tracing >}}
 
 By default, explanations are disabled. The following table summarizes how you can enable tracing:
 
@@ -1154,12 +1052,12 @@ Rego’s syntax is defined by the following grammar:
 ```ebnf
 module          = package { import } policy
 package         = "package" ref
-import          = "import" package [ "as" var ]
+import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
 rule-head       = var [ "(" rule-args ")" ] [ "[" term "]" ] [ ( ":=" | "=" ) term ]
 rule-args       = term { "," term }
-rule-body       = [ "else" [ "=" term ] ] "{" query "}"
+rule-body       = [ "else" [ ( ":=" | "=" ) term ] ] "{" query "}"
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
