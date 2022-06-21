@@ -17,7 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wazero"
+	wasm "github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wazero"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
