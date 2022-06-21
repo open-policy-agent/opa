@@ -5,7 +5,7 @@
 //go:build opa_wasm
 // +build opa_wasm
 
-package wazer_test
+package wazero_test
 
 import (
 	"context"

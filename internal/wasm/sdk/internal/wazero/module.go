@@ -1,4 +1,4 @@
-package wazer
+package wazero
 
 import (
 	"context"
