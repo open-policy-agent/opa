@@ -109,6 +109,7 @@ func TestEnablePrintStatementsForBundles(t *testing.T) {
 		if !strings.Contains(buf.String(), expContains) {
 			t.Fatalf("expected logs to contain %q but got: %v", expContains, buf.String())
 		}
+		time.Sleep(3 * time.Second) // wait a couple of seconds for the second trigger to kick in
 		if !strings.Contains(buf.String(), skipContains) {
 			t.Fatalf("expected logs to contain %q but got: %v", skipContains, buf.String())
 		}
