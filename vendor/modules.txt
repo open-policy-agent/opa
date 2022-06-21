@@ -249,6 +249,29 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/tetratelabs/wazero v0.0.0-20220621063451-2f8276e853f3
+## explicit
+github.com/tetratelabs/wazero
+github.com/tetratelabs/wazero/api
+github.com/tetratelabs/wazero/experimental
+github.com/tetratelabs/wazero/internal/asm
+github.com/tetratelabs/wazero/internal/asm/amd64
+github.com/tetratelabs/wazero/internal/asm/arm64
+github.com/tetratelabs/wazero/internal/buildoptions
+github.com/tetratelabs/wazero/internal/engine/compiler
+github.com/tetratelabs/wazero/internal/engine/interpreter
+github.com/tetratelabs/wazero/internal/ieee754
+github.com/tetratelabs/wazero/internal/leb128
+github.com/tetratelabs/wazero/internal/moremath
+github.com/tetratelabs/wazero/internal/platform
+github.com/tetratelabs/wazero/internal/sys
+github.com/tetratelabs/wazero/internal/u64
+github.com/tetratelabs/wazero/internal/wasm
+github.com/tetratelabs/wazero/internal/wasm/binary
+github.com/tetratelabs/wazero/internal/wasmdebug
+github.com/tetratelabs/wazero/internal/wasmruntime
+github.com/tetratelabs/wazero/internal/wazeroir
+github.com/tetratelabs/wazero/sys
 # github.com/vektah/gqlparser/v2 v2.4.5
 ## explicit
 github.com/vektah/gqlparser/v2
