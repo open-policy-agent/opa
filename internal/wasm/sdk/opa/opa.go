@@ -14,14 +14,13 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	wasm "github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wazero"
-	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 )
 
-var errNotReady = errors.New(errors.NotReadyErr, "")
+var errNotReady = sdk_errors.New(sdk_errors.NotReadyErr, "")
 
 // OPA executes WebAssembly compiled Rego policies.
 type OPA struct {
