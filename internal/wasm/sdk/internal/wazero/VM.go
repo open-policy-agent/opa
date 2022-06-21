@@ -236,6 +236,50 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 
 // fromRegoJSON parses serialized JSON from the Wasm memory buffer into
 // native go types.
+func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface{}, error) {
+	serialized, err := i.jsonDump(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	data := i.module.readFrom(addr)
+	n := bytes.IndexByte(data, 0)
+	if n < 0 {
+		n = 0
+	}
+
+	// Parse the result into go types.
+
+	decoder := json.NewDecoder(bytes.NewReader(data[0:n]))
+	decoder.UseNumber()
+
+	var result interface{}
+	if err := decoder.Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if free {
+		if err := i.free(ctx, serialized); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+type builtinError struct {
+	err error
+}
+type abortError struct {
+	message string
+}
+
+type cancelledError struct {
+	message string
+}
+
+// toRegoJSON converts go native JSON to Rego JSON. If the value is
+// an AST type it will be dumped using its stringer.
 func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, error) {
 	var raw []byte
 	switch v := v.(type) {

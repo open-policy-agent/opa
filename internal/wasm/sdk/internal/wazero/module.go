@@ -1,6 +1,7 @@
 package wazero
 
 import (
+	bs "bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -72,22 +73,12 @@ func (m *Module) GetEntrypoints() map[string]int32 {
 	return parseJsonString(m.fromRegoJSON(eLoc))
 }
 func (m *Module) opaAbort(ptr int32) {
-	bytes := []byte{}
-	var index uint32 = 0
-	for ok := true; ok; {
-		b := m.readMemByte(uint32(ptr) + index)
-		if b == 0b0 {
-			ok = false
-		} else {
-			bytes = append(bytes, b)
-		}
-		index++
+	data := m.readFrom(ptr)
+	n := bs.IndexByte(data, 0)
+	if n < 0 {
+		panic("invalid abort argument")
 	}
-	out := ""
-	for _, b := range bytes {
-		out += string(b)
-	}
-	log.Panic("error", out)
+	panic(abortError{message: string(data[:n])})
 }
 
 // calls the built-in functions
@@ -97,12 +88,12 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 	for _, ter := range args {
 		serialized, err := m.value_dump(m.ctx, (ter))
 		if err != nil {
-			log.Panic(err)
+			panic(builtinError{err: err})
 		}
 		data := m.readStr(uint32(serialized))
 		pTer, err := ast.ParseTerm(string(data))
 		if err != nil {
-			log.Panic(err)
+			panic(builtinError{err: err})
 		}
 		pArgs = append(pArgs, pTer)
 	}
@@ -115,9 +106,9 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 			var e *topdown.Error
 			if errors.As(err, &e) && e.Code == topdown.CancelErr {
 
-				log.Panic(err)
+				panic(cancelledError{message: e.Message})
 			}
-			log.Panic(err)
+			panic(builtinError{err: err})
 		}
 		// non-halt errors are treated as undefined ("non-strict eval" is the only
 		// mode in wasm), the `output == nil` case below will return NULL
@@ -129,7 +120,7 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 	loc := m.writeMem(outB)
 	addr, err := m.value_parse(m.ctx, int32(loc), int32(len(outB)))
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 	return int32(addr)
 }
