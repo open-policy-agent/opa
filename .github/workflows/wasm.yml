@@ -1,6 +1,6 @@
 name: PR Check
 
-on: [pull_request]
+on: [push]
 
 jobs:
   # All jobs essentially re-create the `ci-release-test` make target, but are split
