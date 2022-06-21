@@ -3134,13 +3134,10 @@ func (vs unsafeVars) Slice() (result []unsafePair) {
 // contains a mapping of expressions to unsafe variables in those expressions.
 func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
 
-	body, unsafe := reorderBodyForClosures(arity, globals, body)
-	if len(unsafe) != 0 {
-		return nil, unsafe
-	}
-
-	reordered := Body{}
+	bodyVars := body.Vars(SafetyCheckVisitorParams)
+	reordered := make(Body, 0, len(body))
 	safe := VarSet{}
+	unsafe := unsafeVars{}
 
 	for _, e := range body {
 		for v := range e.Vars(SafetyCheckVisitorParams) {
@@ -3160,10 +3157,23 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 				continue
 			}
 
-			safe.Update(outputVarsForExpr(e, arity, safe))
+			ovs := outputVarsForExpr(e, arity, safe)
+
+			// check closures: is this expression closing over variables that
+			// haven't been made safe by what's already included in `reordered`?
+			vs := unsafeVarsInClosures(e, arity, safe)
+			cv := vs.Intersect(bodyVars).Diff(globals)
+			uv := cv.Diff(outputVarsForBody(reordered, arity, safe))
+
+			if len(uv) > 0 {
+				if uv.Equal(ovs) { // special case "closure-self"
+					continue
+				}
+				unsafe.Set(e, uv)
+			}
 
 			for v := range unsafe[e] {
-				if safe.Contains(v) {
+				if ovs.Contains(v) || safe.Contains(v) {
 					delete(unsafe[e], v)
 				}
 			}
@@ -3171,10 +3181,11 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 			if len(unsafe[e]) == 0 {
 				delete(unsafe, e)
 				reordered.Append(e)
+				safe.Update(ovs) // this expression's outputs are safe
 			}
 		}
 
-		if len(reordered) == n {
+		if len(reordered) == n { // fixed point, could not add any expr of body
 			break
 		}
 	}
@@ -3281,55 +3292,20 @@ func (xform *bodySafetyTransformer) reorderSetComprehensionSafety(sc *SetCompreh
 	sc.Body = xform.reorderComprehensionSafety(sc.Term.Vars(), sc.Body)
 }
 
-// reorderBodyForClosures returns a copy of the body ordered such that
-// expressions (such as array comprehensions) that close over variables are ordered
-// after other expressions that contain the same variable in an output position.
-func reorderBodyForClosures(arity func(Ref) int, globals VarSet, body Body) (Body, unsafeVars) {
-
-	reordered := Body{}
-	unsafe := unsafeVars{}
-
-	for {
-		n := len(reordered)
-
-		for _, e := range body {
-			if reordered.Contains(e) {
-				continue
-			}
-
-			// Collect vars that are contained in closures within this
-			// expression.
-			vs := VarSet{}
-			WalkClosures(e, func(x interface{}) bool {
-				vis := &VarVisitor{vars: vs}
-				if ev, ok := x.(*Every); ok {
-					vis.Walk(ev.Body)
-					return true
-				}
-				vis.Walk(x)
-				return true
-			})
-
-			// Compute vars that are closed over from the body but not yet
-			// contained in the output position of an expression in the reordered
-			// body. These vars are considered unsafe.
-			cv := vs.Intersect(body.Vars(SafetyCheckVisitorParams)).Diff(globals)
-			uv := cv.Diff(outputVarsForBody(reordered, arity, globals))
-
-			if len(uv) == 0 {
-				reordered = append(reordered, e)
-				delete(unsafe, e)
-			} else {
-				unsafe.Set(e, uv)
-			}
+// unsafeVarsInClosures collects vars that are contained in closures within
+// this expression.
+func unsafeVarsInClosures(e *Expr, arity func(Ref) int, safe VarSet) VarSet {
+	vs := VarSet{}
+	WalkClosures(e, func(x interface{}) bool {
+		vis := &VarVisitor{vars: vs}
+		if ev, ok := x.(*Every); ok {
+			vis.Walk(ev.Body)
+			return true
 		}
-
-		if len(reordered) == n {
-			break
-		}
-	}
-
-	return reordered, unsafe
+		vis.Walk(x)
+		return true
+	})
+	return vs
 }
 
 // OutputVarsFromBody returns all variables which are the "output" for
