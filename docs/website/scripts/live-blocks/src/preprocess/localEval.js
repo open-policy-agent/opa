@@ -91,6 +91,7 @@ async function prepEval(groups, groupName) {
     }
 
     if (query) {
+      rest.push('--import', 'future.keywords') // queries may contain them
       rest.push(query)
     } else { // Simulate playground default behavior
       if (included) {
