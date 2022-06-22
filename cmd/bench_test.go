@@ -58,6 +58,158 @@ func TestRunBenchmark(t *testing.T) {
 	}
 }
 
+func TestRunBenchmarkE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+
+	args := []string{"1 + 1"}
+	var buf bytes.Buffer
+
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if rc != 0 {
+		t.Fatalf("Unexpected return code %d, expected 0", rc)
+	}
+
+	// Expect a json serialized benchmark result with histogram fields
+	var br testing.BenchmarkResult
+	err = util.UnmarshalJSON(buf.Bytes(), &br)
+	if err != nil {
+		t.Fatalf("Unexpected error unmarshalling output: %s", err)
+	}
+
+	if br.N == 0 || br.T == 0 || br.MemAllocs == 0 || br.MemBytes == 0 {
+		t.Fatalf("Expected benchmark results to be non-zero, got: %+v", br)
+	}
+
+	if _, ok := br.Extra["histogram_timer_rego_query_eval_ns_count"]; !ok {
+		t.Fatalf("Expected benchmark results to contain 'histogram_timer_rego_query_eval_ns_count', got: %+v", br)
+	}
+
+	if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
+		t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+	}
+
+	if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
+		t.Fatalf("Expected benchmark results to contain 'histogram_timer_server_handler_ns_count', got: %+v", br)
+	}
+
+	if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
+		t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+	}
+}
+
+func TestRunBenchmarkFailFastE2E(t *testing.T) {
+	params := testBenchParams()
+	params.fail = true // configured to fail on undefined results
+	params.e2e = true
+
+	args := []string{"a := 1; a > 2"}
+	var buf bytes.Buffer
+
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if rc != 1 {
+		t.Fatalf("Unexpected return code %d, expected 1", rc)
+	}
+
+	// Expect a json serialized benchmark result with histogram fields
+	var pr presentation.Output
+	err = util.UnmarshalJSON(buf.Bytes(), &pr)
+	if err != nil {
+		t.Fatalf("Unexpected error unmarshalling output: %s", err)
+	}
+
+	if len(pr.Errors) != 1 {
+		t.Fatalf("Expected 1 error in result, got:\n\n%s\n", buf.String())
+	}
+}
+
+func TestBenchPartialE2E(t *testing.T) {
+	params := testBenchParams()
+	params.partial = true
+	params.fail = true
+	params.e2e = true
+	params.unknowns = []string{"input"}
+	args := []string{"input.x > 0"}
+	var buf bytes.Buffer
+
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if rc != 0 {
+		t.Fatalf("Unexpected return code %d, expected 0", rc)
+	}
+
+	var br testing.BenchmarkResult
+	err = util.UnmarshalJSON(buf.Bytes(), &br)
+	if err != nil {
+		t.Fatalf("Unexpected error unmarshalling output: %s", err)
+	}
+
+	if br.N == 0 || br.T == 0 || br.MemAllocs == 0 || br.MemBytes == 0 {
+		t.Fatalf("Expected benchmark results to be non-zero, got: %+v", br)
+	}
+
+	if _, ok := br.Extra["histogram_timer_rego_partial_eval_ns_count"]; !ok {
+		t.Fatalf("Expected benchmark results to contain 'histogram_timer_rego_partial_eval_ns_count', got: %+v", br)
+	}
+
+	if float64(br.N) != br.Extra["histogram_timer_rego_partial_eval_ns_count"] {
+		t.Fatalf("Expected 'histogram_timer_rego_partial_eval_ns_count' to be equal to N")
+	}
+
+	if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
+		t.Fatalf("Expected benchmark results to contain 'histogram_timer_server_handler_ns_count', got: %+v", br)
+	}
+
+	if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
+		t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+	}
+}
+
+func TestRunBenchmarkPartialFailFastE2E(t *testing.T) {
+	params := testBenchParams()
+	params.partial = true
+	params.unknowns = []string{}
+	params.fail = true
+	params.e2e = true
+	args := []string{"1 == 2"}
+	var buf bytes.Buffer
+
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if rc != 1 {
+		t.Fatalf("Unexpected return code %d, expected 1", rc)
+	}
+
+	actual := buf.String()
+	expected := `{
+  "errors": [
+    {
+      "message": "undefined result"
+    }
+  ]
+}
+`
+
+	if actual != expected {
+		t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n", expected, actual)
+	}
+
+}
+
 func TestRunBenchmarkFailFast(t *testing.T) {
 	params := testBenchParams()
 	params.fail = true // configured to fail on undefined results
@@ -290,33 +442,79 @@ func TestBenchMainInvalidInputFile(t *testing.T) {
 	})
 }
 
+func TestBenchMainWithJSONInputFileE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+	files := map[string]string{
+		"/input.json": `{"x": 42}`,
+	}
+	args := []string{"input.x == 42"}
+	test.WithTempFS(files, func(path string) {
+		params.inputPath = filepath.Join(path, "input.json")
+
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 0 {
+			t.Fatalf("Unexpected return code %d, expected 0", rc)
+		}
+	})
+}
+
+func TestBenchMainWithYAMLInputFileE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+	files := map[string]string{
+		"/input.yaml": `x: 42`,
+	}
+	args := []string{"input.x == 42"}
+	test.WithTempFS(files, func(path string) {
+		params.inputPath = filepath.Join(path, "input.yaml")
+
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 0 {
+			t.Fatalf("Unexpected return code %d, expected 0", rc)
+		}
+	})
+}
+
+func TestBenchMainInvalidInputFileE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+	files := map[string]string{
+		"/input.yaml": `x: 42`,
+	}
+	args := []string{"1+1"}
+	test.WithTempFS(files, func(path string) {
+		params.inputPath = filepath.Join(path, "definitely/not/input.yaml")
+
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 1 {
+			t.Fatalf("Unexpected return code %d, expected 1", rc)
+		}
+	})
+}
+
 func TestBenchMainWithBundleData(t *testing.T) {
 	params := testBenchParams()
 
-	mod := `package a.b
-
-	x {
-	   data.a.b.c == 42
-	}
-	`
-
-	b := bundle.Bundle{
-		Manifest: bundle.Manifest{},
-		Data: map[string]interface{}{
-			"a": map[string]interface{}{
-				"b": map[string]interface{}{
-					"c": 42,
-				},
-			},
-		},
-		Modules: []bundle.ModuleFile{
-			{
-				Path:   "/a/b/policy.rego",
-				Raw:    []byte(mod),
-				Parsed: ast.MustParseModule(mod),
-			},
-		},
-	}
+	b := testBundle()
 
 	files := map[string]string{
 		"bundle.tar.gz": "",
@@ -343,7 +541,101 @@ func TestBenchMainWithBundleData(t *testing.T) {
 
 		validateBenchMainPrep(t, args, params)
 	})
+}
 
+func TestBenchMainWithBundleDataE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+
+	b := testBundle()
+
+	files := map[string]string{
+		"bundle.tar.gz": "",
+	}
+
+	test.WithTempFS(files, func(path string) {
+		bundlePath := filepath.Join(path, "bundle.tar.gz")
+		f, err := os.OpenFile(bundlePath, os.O_WRONLY, os.ModePerm)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = bundle.Write(f, b)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = params.bundlePaths.Set(bundlePath)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		args := []string{"data.a.b.x"}
+
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 0 {
+			t.Fatalf("Unexpected return code %d, expected 0", rc)
+		}
+	})
+}
+
+func TestBenchMainWithDataE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+
+	mod := `package a.b
+
+	x {
+	   data.a.b.c == 42
+	}
+	`
+
+	files := map[string]string{
+		"p.rego": mod,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		err := params.dataPaths.Set(filepath.Join(path, "p.rego"))
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		args := []string{"data.a.b.x"}
+
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 0 {
+			t.Fatalf("Unexpected return code %d, expected 0", rc)
+		}
+	})
+}
+
+func TestBenchMainBadQueryE2E(t *testing.T) {
+	params := testBenchParams()
+	params.e2e = true
+	args := []string{"foo.bar"}
+
+	var buf bytes.Buffer
+
+	rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if rc != 1 {
+		t.Fatalf("Unexpected return code %d, expected 1", rc)
+	}
 }
 
 func TestRenderBenchmarkResultJSONOutput(t *testing.T) {
@@ -597,6 +889,33 @@ func fakeBenchResults() testing.BenchmarkResult {
 			"histogram_timer_rego_query_eval_ns_median": 4312,
 			"histogram_timer_rego_query_eval_ns_min":    3553,
 			"histogram_timer_rego_query_eval_ns_stddev": 6587.830963916497,
+		},
+	}
+}
+
+func testBundle() bundle.Bundle {
+	mod := `package a.b
+
+	x {
+	   data.a.b.c == 42
+	}
+	`
+
+	return bundle.Bundle{
+		Manifest: bundle.Manifest{},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"b": map[string]interface{}{
+					"c": 42,
+				},
+			},
+		},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/a/b/policy.rego",
+				Raw:    []byte(mod),
+				Parsed: ast.MustParseModule(mod),
+			},
 		},
 	}
 }
