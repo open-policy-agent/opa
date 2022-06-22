@@ -69,23 +69,23 @@ func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
 	vm.abiMinorVersion = vm.module.wasm_abi_minor_version()
 	vm.entrypointIDs = vm.GetEntrypoints()
 	vm.dataAddr = opts.parsedDataAddr
-	vm.evalOneOff = vm.module.evalOneOff
+	vm.evalOneOff = vm.module.opa_eval
 	vm.eval = vm.module.eval
-	vm.evalCtxGetResult = vm.module.evalCtxGetResult
-	vm.evalCtxNew = vm.module.evalCtxNew
-	vm.evalCtxSetData = vm.module.evalCtxSetData
-	vm.evalCtxSetInput = vm.module.evalCtxSetInput
-	vm.evalCtxSetEntrypoint = vm.module.evalCtxSetEntrypoint
-	vm.heapPtrGet = vm.module.heapPtrGet
-	vm.heapPtrSet = vm.module.heapPtrSet
-	vm.jsonDump = vm.module.jsonDump
-	vm.jsonParse = vm.module.jsonParse
-	vm.valueDump = vm.module.valueDump
-	vm.valueParse = vm.module.valueParse
+	vm.evalCtxGetResult = vm.module.eval_ctx_get_result
+	vm.evalCtxNew = vm.module.eval_ctx_new
+	vm.evalCtxSetData = vm.module.eval_ctx_set_data
+	vm.evalCtxSetInput = vm.module.eval_ctx_set_input
+	vm.evalCtxSetEntrypoint = vm.module.eval_ctx_set_entrypoint
+	vm.heapPtrGet = vm.module.heap_ptr_get
+	vm.heapPtrSet = vm.module.heap_ptr_set
+	vm.jsonDump = vm.module.json_dump
+	vm.jsonParse = vm.module.json_parse
+	vm.valueDump = vm.module.value_dump
+	vm.valueParse = vm.module.value_parse
 	vm.malloc = vm.module.malloc
 	vm.free = vm.module.free
-	vm.valueAddPath = vm.module.valueAddPath
-	vm.valueRemovePath = vm.module.valueRemovePath
+	vm.valueAddPath = vm.module.value_add_path
+	vm.valueRemovePath = vm.module.value_remove_path
 	vm.setData(opts, vm.ctx, "newVM")
 	return &vm, nil
 }
