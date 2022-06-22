@@ -36,23 +36,23 @@ type VM struct {
 	dataAddr             int32
 	dataLen              int32
 	evalHeapPtr          int32
-	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
-	eval                 func(context.Context, int32) error
-	evalCtxGetResult     func(context.Context, int32) (int32, error)
-	evalCtxNew           func(context.Context) (int32, error)
-	evalCtxSetData       func(context.Context, int32, int32) error
-	evalCtxSetInput      func(context.Context, int32, int32) error
-	evalCtxSetEntrypoint func(context.Context, int32, int32) error
-	heapPtrGet           func(context.Context) (int32, error)
-	heapPtrSet           func(context.Context, int32) error
-	jsonDump             func(context.Context, int32) (int32, error)
-	jsonParse            func(context.Context, int32, int32) (int32, error)
-	valueDump            func(context.Context, int32) (int32, error)
-	valueParse           func(context.Context, int32, int32) (int32, error)
-	malloc               func(context.Context, int32) (int32, error)
-	free                 func(context.Context, int32) error
-	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
-	valueRemovePath      func(context.Context, int32, int32) (int32, error)
+	evalOneOff           func(context.Context, ...uint64) ([]uint64, error)
+	eval                 func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxGetResult     func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxNew           func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetData       func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetInput      func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetEntrypoint func(context.Context, ...uint64) ([]uint64, error)
+	heapPtrGet           func(context.Context, ...uint64) ([]uint64, error)
+	heapPtrSet           func(context.Context, ...uint64) ([]uint64, error)
+	jsonDump             func(context.Context, ...uint64) ([]uint64, error)
+	jsonParse            func(context.Context, ...uint64) ([]uint64, error)
+	valueDump            func(context.Context, ...uint64) ([]uint64, error)
+	valueParse           func(context.Context, ...uint64) ([]uint64, error)
+	malloc               func(context.Context, ...uint64) ([]uint64, error)
+	free                 func(context.Context, ...uint64) ([]uint64, error)
+	valueAddPath         func(context.Context, ...uint64) ([]uint64, error)
+	valueRemovePath      func(context.Context, ...uint64) ([]uint64, error)
 }
 
 func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
@@ -68,23 +68,23 @@ func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
 	vm.abiMinorVersion = vm.module.wasm_abi_minor_version()
 	vm.entrypointIDs = vm.GetEntrypoints()
 	vm.dataAddr = opts.parsedDataAddr
-	vm.evalOneOff = vm.module.opa_eval
+	vm.evalOneOff = vm.module.evalOneOff
 	vm.eval = vm.module.eval
-	vm.evalCtxGetResult = vm.module.eval_ctx_get_result
-	vm.evalCtxNew = vm.module.eval_ctx_new
-	vm.evalCtxSetData = vm.module.eval_ctx_set_data
-	vm.evalCtxSetInput = vm.module.eval_ctx_set_input
-	vm.evalCtxSetEntrypoint = vm.module.eval_ctx_set_entrypoint
-	vm.heapPtrGet = vm.module.heap_ptr_get
-	vm.heapPtrSet = vm.module.heap_ptr_set
-	vm.jsonDump = vm.module.json_dump
-	vm.jsonParse = vm.module.json_parse
-	vm.valueDump = vm.module.value_dump
-	vm.valueParse = vm.module.value_parse
+	vm.evalCtxGetResult = vm.module.evalCtxGetResult
+	vm.evalCtxNew = vm.module.evalCtxNew
+	vm.evalCtxSetData = vm.module.evalCtxSetData
+	vm.evalCtxSetInput = vm.module.evalCtxSetInput
+	vm.evalCtxSetEntrypoint = vm.module.evalCtxSetEntrypoint
+	vm.heapPtrGet = vm.module.heapPtrGet
+	vm.heapPtrSet = vm.module.heapPtrSet
+	vm.jsonDump = vm.module.jsonDump
+	vm.jsonParse = vm.module.jsonParse
+	vm.valueDump = vm.module.valueDump
+	vm.valueParse = vm.module.valueParse
 	vm.malloc = vm.module.malloc
 	vm.free = vm.module.free
-	vm.valueAddPath = vm.module.value_add_path
-	vm.valueRemovePath = vm.module.value_remove_path
+	vm.valueAddPath = vm.module.valueAddPath
+	vm.valueRemovePath = vm.module.valueRemovePath
 	vm.setData(opts, vm.ctx, "newVM")
 	return &vm, nil
 }
@@ -180,7 +180,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 		return err
 	}
 
-	result, err := i.valueAddPath(ctx, i.dataAddr, pathAddr, valueAddr)
+	result, err := i.valueAddPath(ctx, uint64(i.dataAddr), uint64(pathAddr), uint64(valueAddr))
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 	// overall data object now.
 	// We do need to free the path
 
-	if err := i.free(ctx, pathAddr); err != nil {
+	if _, err := i.free(ctx, uint64(pathAddr)); err != nil {
 		return err
 	}
 
@@ -201,7 +201,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 	}
 
 	errc := result
-	if errc != 0 {
+	if errc[0] != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
 
@@ -217,16 +217,16 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 		return err
 	}
 
-	errc, err := i.valueRemovePath(ctx, i.dataAddr, pathAddr)
+	errc, err := i.valueRemovePath(ctx, uint64(i.dataAddr), uint64(pathAddr))
 	if err != nil {
 		return err
 	}
 
-	if err := i.free(ctx, pathAddr); err != nil {
+	if _, err := i.free(ctx, uint64(pathAddr)); err != nil {
 		return err
 	}
 
-	if errc != 0 {
+	if errc[0] != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
 
@@ -236,7 +236,7 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 // fromRegoJSON parses serialized JSON from the Wasm memory buffer into
 // native go types.
 func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface{}, error) {
-	serialized, err := i.jsonDump(ctx, addr)
+	serialized, err := i.jsonDump(ctx, uint64(addr))
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface
 	}
 
 	if free {
-		if err := i.free(ctx, serialized); err != nil {
+		if _, err := i.free(ctx, serialized[0]); err != nil {
 			return nil, err
 		}
 	}
@@ -296,8 +296,8 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 		}
 	}
 
-	n := int32(len(raw))
-	p := int32(i.module.writeMem(raw))
+	n := uint64(len(raw))
+	p := uint64(i.module.writeMem(raw))
 
 	addr, err := i.valueParse(ctx, p, n)
 	if err != nil {
@@ -305,12 +305,12 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 	}
 
 	if free {
-		if err := i.free(ctx, p); err != nil {
+		if _, err := i.free(ctx, p); err != nil {
 			return 0, err
 		}
 	}
 
-	return addr, nil
+	return int32(addr[0]), nil
 }
 
 //
@@ -334,21 +334,21 @@ func (i *VM) toDRegoJSON(ctx context.Context, v interface{}, free bool) error {
 		}
 	}
 
-	n := int32(len(raw))
-	p := int32(i.module.writeMem(raw))
+	n := uint64(len(raw))
+	p := uint64(i.module.writeMem(raw))
 	i.dataLen = int32(n)
 	addr, err := i.valueParse(ctx, p, n)
 	if err != nil {
 		return err
 	}
-	i.dataAddr = addr
+	i.dataAddr = int32(addr[0])
 	cPtr, err := i.getHeapState(ctx)
 	if err != nil {
 		return err
 	}
-	i.dataLen = cPtr - addr
+	i.dataLen = cPtr - int32(addr[0])
 	if free {
-		if err := i.free(ctx, p); err != nil {
+		if _, err := i.free(ctx, p); err != nil {
 			return err
 		}
 	}
@@ -356,11 +356,13 @@ func (i *VM) toDRegoJSON(ctx context.Context, v interface{}, free bool) error {
 	return nil
 }
 func (i *VM) getHeapState(ctx context.Context) (int32, error) {
-	return i.heapPtrGet(ctx)
+	a, err := i.heapPtrGet(ctx)
+	return int32(a[0]), err
 }
 
 func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
-	return i.heapPtrSet(ctx, ptr)
+	_, err := i.heapPtrSet(ctx, uint64(ptr))
+	return err
 }
 
 //copies the parsed data to optimize cloning VMs
@@ -428,13 +430,13 @@ func (i *VM) Eval(ctx context.Context,
 	i.module.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
-	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
+	resultAddr, err := i.evalOneOff(ctx, uint64(entrypoint), uint64(i.dataAddr), uint64(inputAddr), uint64(inputLen), uint64(heapPtr))
 	if err != nil {
 		return nil, err
 	}
 	metrics.Timer("wasm_vm_eval_call").Stop()
 
-	data := i.module.readUntil(resultAddr, 0b0)
+	data := i.module.readUntil(int32(resultAddr[0]), 0b0)
 	dataC := make([]byte, len(data)-2)
 	copy(dataC, data[1:len(data)-1])
 	retVals := []byte{byte(123)}
@@ -477,12 +479,12 @@ func (i *VM) evalCompat(ctx context.Context,
 	}
 
 	if i.dataAddr != 0 {
-		if err := i.evalCtxSetData(ctx, ctxAddr, i.dataAddr); err != nil {
+		if _, err := i.evalCtxSetData(ctx, ctxAddr[0], uint64(i.dataAddr)); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, int32(entrypoint)); err != nil {
+	if _, err := i.evalCtxSetEntrypoint(ctx, ctxAddr[0], uint64(entrypoint)); err != nil {
 		return nil, err
 	}
 
@@ -492,7 +494,7 @@ func (i *VM) evalCompat(ctx context.Context,
 			return nil, err
 		}
 
-		if err := i.evalCtxSetInput(ctx, ctxAddr, inputAddr); err != nil {
+		if _, err := i.evalCtxSetInput(ctx, ctxAddr[0], uint64(inputAddr)); err != nil {
 			return nil, err
 		}
 	}
@@ -500,24 +502,24 @@ func (i *VM) evalCompat(ctx context.Context,
 
 	// Evaluate the policy.
 	metrics.Timer("wasm_vm_eval_execute").Start()
-	err = i.eval(ctx, ctxAddr)
+	_, err = i.eval(ctx, ctxAddr[0])
 	metrics.Timer("wasm_vm_eval_execute").Stop()
 	if err != nil {
 		return nil, err
 	}
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Start()
-	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr)
+	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr[0])
 	if err != nil {
 		return nil, err
 	}
 
-	serialized, err := i.valueDump(ctx, resultAddr)
+	serialized, err := i.valueDump(ctx, resultAddr[0])
 	if err != nil {
 		return nil, err
 	}
 
-	data := i.module.readUntil(serialized, 0b0)
+	data := i.module.readUntil(int32(serialized[0]), 0b0)
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 

@@ -2,13 +2,8 @@ package wazero
 
 import (
 	"context"
-
-	"errors"
-	"fmt"
 	"io"
 	"log"
-
-	"strings"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -28,11 +23,28 @@ type moduleOpts struct {
 
 //wrapper for wazero policy module and environment module
 type Module struct {
-	module      api.Module
-	env         environment
-	ctx         context.Context
-	vm          *VM
-	entrypointT map[string]int32
+	module               api.Module
+	env                  environment
+	ctx                  context.Context
+	vm                   *VM
+	entrypointT          map[string]int32
+	evalOneOff           func(context.Context, ...uint64) ([]uint64, error)
+	eval                 func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxGetResult     func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxNew           func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetData       func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetInput      func(context.Context, ...uint64) ([]uint64, error)
+	evalCtxSetEntrypoint func(context.Context, ...uint64) ([]uint64, error)
+	heapPtrGet           func(context.Context, ...uint64) ([]uint64, error)
+	heapPtrSet           func(context.Context, ...uint64) ([]uint64, error)
+	jsonDump             func(context.Context, ...uint64) ([]uint64, error)
+	jsonParse            func(context.Context, ...uint64) ([]uint64, error)
+	valueDump            func(context.Context, ...uint64) ([]uint64, error)
+	valueParse           func(context.Context, ...uint64) ([]uint64, error)
+	malloc               func(context.Context, ...uint64) ([]uint64, error)
+	free                 func(context.Context, ...uint64) ([]uint64, error)
+	valueAddPath         func(context.Context, ...uint64) ([]uint64, error)
+	valueRemovePath      func(context.Context, ...uint64) ([]uint64, error)
 }
 
 // Env is a wasm module that holds the shared memory buffer and the builtin bindings
@@ -71,6 +83,23 @@ func newModule(opts moduleOpts, r wazero.Runtime) Module {
 	}
 	m.entrypointT = m.GetEntrypoints()
 	m.env.setBuiltins()
+	m.evalOneOff = m.module.ExportedFunction("opa_eval").Call
+	m.eval = m.module.ExportedFunction("eval").Call
+	m.evalCtxGetResult = m.module.ExportedFunction("opa_eval_ctx_get_result").Call
+	m.evalCtxNew = m.module.ExportedFunction("opa_eval_ctx_new").Call
+	m.evalCtxSetData = m.module.ExportedFunction("opa_eval_ctx_set_data").Call
+	m.evalCtxSetInput = m.module.ExportedFunction("opa_eval_ctx_set_input").Call
+	m.evalCtxSetEntrypoint = m.module.ExportedFunction("opa_").Call
+	m.heapPtrGet = m.module.ExportedFunction("opa_heap_ptr_get").Call
+	m.heapPtrSet = m.module.ExportedFunction("opa_heap_ptr_set").Call
+	m.jsonDump = m.module.ExportedFunction("opa_json_dump").Call
+	m.jsonParse = m.module.ExportedFunction("opa_json_parse").Call
+	m.valueDump = m.module.ExportedFunction("opa_value_dump").Call
+	m.valueParse = m.module.ExportedFunction("opa_value_parse").Call
+	m.malloc = m.module.ExportedFunction("opa_malloc").Call
+	m.free = m.module.ExportedFunction("opa_free").Call
+	m.valueAddPath = m.module.ExportedFunction("opa_value_add_path").Call
+	m.valueRemovePath = m.module.ExportedFunction("opa_value_remove_path").Call
 	return m
 }
 
@@ -114,11 +143,11 @@ func (m *Module) readStr(loc uint32) string {
 	return out
 }
 func (m *Module) fromRegoJSON(addr int32) string {
-	dump_addr, err := m.json_dump(m.ctx, addr)
+	dump_addr, err := m.jsonDump(m.ctx, uint64(addr))
 	if err != nil {
 		log.Panic(err)
 	}
-	str := m.readStr(uint32(dump_addr))
+	str := m.readStr(uint32(dump_addr[0]))
 	return str
 }
 
@@ -132,18 +161,11 @@ func (m *Module) readFrom(addr int32) []byte {
 	return m.env.readFrom(addr)
 }
 
-//
-// Expose the exported wasm functions for ease of use
-//
 func (m Module) wasm_abi_version() int32 {
 	return int32(m.module.ExportedGlobal("opa_wasm_abi_version").Get(m.ctx))
 }
 func (m Module) wasm_abi_minor_version() int32 {
 	return int32(m.module.ExportedGlobal("opa_wasm_abi_minor_version").Get(m.ctx))
-}
-func (m Module) eval(ctx context.Context, ctx_addr int32) error {
-	_, err := m.module.ExportedFunction("eval").Call(ctx, uint64(ctx_addr))
-	return err
 }
 func (m Module) builtins(ctx context.Context) int32 {
 	addr, _ := m.module.ExportedFunction("builtins").Call(ctx)
@@ -152,6 +174,15 @@ func (m Module) builtins(ctx context.Context) int32 {
 func (m Module) entrypoints(ctx context.Context) int32 {
 	addr, _ := m.module.ExportedFunction("entrypoints").Call(ctx)
 	return int32(addr[0])
+}
+
+/*
+//
+// Expose the exported wasm functions for ease of use
+//
+func (m Module) eval(ctx context.Context, ctx_addr int32) error {
+	_, err := m.module.ExportedFunction("eval").Call(ctx, uint64(ctx_addr))
+	return err
 }
 func (m Module) eval_ctx_new(ctx context.Context) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_eval_ctx_new").Call(ctx)
@@ -261,3 +292,4 @@ func (m Module) opa_eval(ctx context.Context, entrypoint_id, data, input, input_
 	}
 	return int32(addr[0]), err
 }
+*/

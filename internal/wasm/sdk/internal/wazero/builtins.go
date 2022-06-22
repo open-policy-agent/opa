@@ -12,7 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
-	"github.com/tetratelabs/wazero/api"
 	"io"
 	"log"
 	"strconv"
@@ -21,11 +20,11 @@ import (
 
 func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 	builtinStrAddr := mod.builtins(mod.ctx)
-	builtinsJSON, err := mod.json_dump(mod.ctx, (builtinStrAddr))
+	builtinsJSON, err := mod.jsonDump(mod.ctx, uint64(builtinStrAddr))
 	if err != nil {
 		panic(err)
 	}
-	builtinStr := mod.readStr(uint32(builtinsJSON))
+	builtinStr := mod.readStr(uint32(builtinsJSON[0]))
 	builtinNameMap := parseJsonString(builtinStr)
 	builtinIdMap, err := getFuncs(builtinNameMap)
 	if err != nil {
@@ -80,13 +79,14 @@ func getFuncs(ids map[string]int32) (map[int32]topdown.BuiltinFunc, error) {
 }
 
 type exports struct {
-	val_dump  api.Function
-	val_parse api.Function
-	malloc    api.Function
+	val_dump  func(context.Context, ...uint64) ([]uint64, error)
+	val_parse func(context.Context, ...uint64) ([]uint64, error)
+	json_dump func(context.Context, ...uint64) ([]uint64, error)
+	malloc    func(context.Context, ...uint64) ([]uint64, error)
 }
 type builtinContainer struct {
 	builtinIdMap map[int32]topdown.BuiltinFunc
-	module       *Module
+	module       Module
 	e            exports
 	ctx          *topdown.BuiltinContext
 }
@@ -97,7 +97,7 @@ func (b *builtinContainer) Call(args ...int32) int32 {
 	pArgs := []*ast.Term{}
 	for _, ter := range args[2:] {
 		log.Println("value_dump")
-		serialized, err := b.e.val_dump.Call(b.module.ctx, uint64(ter))
+		serialized, err := b.e.val_dump(b.module.ctx, uint64(ter))
 		log.Println("post_value_dump")
 		if err != nil {
 			log.Println("93", err)
@@ -139,7 +139,7 @@ func (b *builtinContainer) Call(args ...int32) int32 {
 	}
 	outB := []byte(output.String())
 	loc := b.module.writeMem(outB)
-	addr, err := b.e.val_dump.Call(b.module.ctx, uint64(loc), uint64(len(outB)))
+	addr, err := b.e.val_dump(b.module.ctx, uint64(loc), uint64(len(outB)))
 	if err != nil {
 		log.Println("128", err)
 		panic(err)
@@ -196,10 +196,10 @@ func (b *builtinContainer) Reset(ctx context.Context,
 	}
 
 }
-func newBuiltinContainer(m Module) builtinContainer {
+func newBuiltinContainer(m Module) *builtinContainer {
 	bc := builtinContainer{}
 	bc.builtinIdMap = newBuiltinTable(m)
-	bc.e = exports{val_dump: m.module.ExportedFunction("opa_value_dump"), val_parse: m.module.ExportedFunction("opa_value_parse"), malloc: m.module.ExportedFunction("opa_malloc")}
+	bc.e = exports{val_dump: m.module.ExportedFunction("opa_value_dump").Call, val_parse: m.module.ExportedFunction("opa_value_parse").Call, json_dump: m.module.ExportedFunction("opa_json_dump").Call, malloc: m.module.ExportedFunction("opa_malloc").Call}
 	bc.ctx = &topdown.BuiltinContext{
 		Context:      m.ctx,
 		Metrics:      metrics.New(),
@@ -214,5 +214,5 @@ func newBuiltinContainer(m Module) builtinContainer {
 		QueryID:      0,
 		ParentID:     0,
 	}
-	return bc
+	return &bc
 }

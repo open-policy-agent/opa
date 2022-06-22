@@ -13,7 +13,7 @@ type environment struct {
 	module                 *Module
 	env                    api.Module
 	maxMemSize, minMemSize int
-	builtins               builtinContainer
+	builtins               *builtinContainer
 	ctx                    context.Context
 }
 
@@ -47,13 +47,13 @@ func (e *environment) writeMemPlus(wAddr uint32, wData []byte, caller string) er
 
 //allocates and writes data to the shared memory buffer
 func (e *environment) writeMem(data []byte) uint32 {
-	addr, err := e.module.malloc(e.ctx, int32(len(data)))
+	addr, err := e.module.malloc(e.ctx, uint64(len(data)))
 	if err != nil {
 		log.Panic("internal_error: opa_malloc: failed")
 	}
-	e.env.Memory().Write(e.ctx, uint32(addr), data)
+	e.env.Memory().Write(e.ctx, uint32(addr[0]), data)
 
-	return uint32(addr)
+	return uint32(addr[0])
 }
 func (e *environment) readFrom(addr int32) []byte {
 	out := []byte{}
