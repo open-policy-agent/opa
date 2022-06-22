@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/tetratelabs/wazero"
-	"io"
-	"time"
 )
 
 type vmOpts struct {
@@ -445,6 +446,7 @@ func (i *VM) Eval(ctx context.Context,
 	if string(retVals) == "{}" {
 		retVals = []byte("set()")
 	}
+
 	return retVals, nil
 }
 func (i *VM) evalCompat(ctx context.Context,
