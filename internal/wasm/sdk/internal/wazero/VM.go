@@ -5,14 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"time"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/tetratelabs/wazero"
+	"io"
+	"time"
 )
 
 type vmOpts struct {
@@ -93,7 +92,8 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-		i.Close(i.ctx)
+		i.module.module.Close(i.ctx)
+		i.module.env.Close(i.ctx)
 		n, err := newVM(opts, i.runtime)
 		if err != nil {
 			return err
@@ -181,7 +181,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 		return err
 	}
 
-	result, err := i.valueAddPath(ctx, uint64(i.dataAddr), uint64(pathAddr), uint64(valueAddr))
+	result, err := i.valueAddPath(ctx, i.dataAddr, pathAddr, valueAddr)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 	// overall data object now.
 	// We do need to free the path
 
-	if _, err := i.free(ctx, uint64(pathAddr)); err != nil {
+	if err := i.free(ctx, pathAddr); err != nil {
 		return err
 	}
 
@@ -202,7 +202,7 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 	}
 
 	errc := result
-	if errc[0] != 0 {
+	if errc != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
 
@@ -218,16 +218,16 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 		return err
 	}
 
-	errc, err := i.valueRemovePath(ctx, uint64(i.dataAddr), uint64(pathAddr))
+	errc, err := i.valueRemovePath(ctx, i.dataAddr, pathAddr)
 	if err != nil {
 		return err
 	}
 
-	if _, err := i.free(ctx, uint64(pathAddr)); err != nil {
+	if err := i.free(ctx, pathAddr); err != nil {
 		return err
 	}
 
-	if errc[0] != 0 {
+	if errc != 0 {
 		return fmt.Errorf("unable to set data value for path %v, err=%d", path, errc)
 	}
 
@@ -237,7 +237,7 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 // fromRegoJSON parses serialized JSON from the Wasm memory buffer into
 // native go types.
 func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface{}, error) {
-	serialized, err := i.jsonDump(ctx, uint64(addr))
+	serialized, err := i.jsonDump(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface
 	}
 
 	if free {
-		if _, err := i.free(ctx, serialized[0]); err != nil {
+		if err := i.free(ctx, serialized); err != nil {
 			return nil, err
 		}
 	}
@@ -297,8 +297,8 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 		}
 	}
 
-	n := uint64(len(raw))
-	p := uint64(i.module.writeMem(raw))
+	n := int32(len(raw))
+	p := int32(i.module.writeMem(raw))
 
 	addr, err := i.valueParse(ctx, p, n)
 	if err != nil {
@@ -306,12 +306,12 @@ func (i *VM) toRegoJSON(ctx context.Context, v interface{}, free bool) (int32, e
 	}
 
 	if free {
-		if _, err := i.free(ctx, p); err != nil {
+		if err := i.free(ctx, p); err != nil {
 			return 0, err
 		}
 	}
 
-	return int32(addr[0]), nil
+	return addr, nil
 }
 
 //
@@ -335,21 +335,21 @@ func (i *VM) toDRegoJSON(ctx context.Context, v interface{}, free bool) error {
 		}
 	}
 
-	n := uint64(len(raw))
-	p := uint64(i.module.writeMem(raw))
+	n := int32(len(raw))
+	p := int32(i.module.writeMem(raw))
 	i.dataLen = int32(n)
 	addr, err := i.valueParse(ctx, p, n)
 	if err != nil {
 		return err
 	}
-	i.dataAddr = int32(addr[0])
+	i.dataAddr = addr
 	cPtr, err := i.getHeapState(ctx)
 	if err != nil {
 		return err
 	}
-	i.dataLen = cPtr - int32(addr[0])
+	i.dataLen = cPtr - addr
 	if free {
-		if _, err := i.free(ctx, p); err != nil {
+		if err := i.free(ctx, p); err != nil {
 			return err
 		}
 	}
@@ -357,13 +357,11 @@ func (i *VM) toDRegoJSON(ctx context.Context, v interface{}, free bool) error {
 	return nil
 }
 func (i *VM) getHeapState(ctx context.Context) (int32, error) {
-	a, err := i.heapPtrGet(ctx)
-	return int32(a[0]), err
+	return i.heapPtrGet(ctx)
 }
 
 func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
-	_, err := i.heapPtrSet(ctx, uint64(ptr))
-	return err
+	return i.heapPtrSet(ctx, ptr)
 }
 
 //copies the parsed data to optimize cloning VMs
@@ -385,9 +383,11 @@ func (i *VM) Eval(ctx context.Context,
 	iqbCache cache.InterQueryCache,
 	ph print.Hook,
 	capabilities *ast.Capabilities) ([]byte, error) {
+	i.module.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
 	if i.abiMinorVersion < int32(2) {
 		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph, capabilities)
 	}
+
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -423,30 +423,27 @@ func (i *VM) Eval(ctx context.Context,
 		heapPtr += inputLen
 		metrics.Timer("wasm_vm_eval_prepare_input").Stop()
 	}
-
 	// Setting the ctx here ensures that it'll be available to builtins that
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
 	i.module.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
-
 	metrics.Timer("wasm_vm_eval_call").Start()
-	resultAddr, err := i.evalOneOff(ctx, uint64(entrypoint), uint64(i.dataAddr), uint64(inputAddr), uint64(inputLen), uint64(heapPtr))
+	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
 	if err != nil {
 		return nil, err
 	}
 	metrics.Timer("wasm_vm_eval_call").Stop()
 
-	data := i.module.readUntil(int32(resultAddr[0]), 0b0)
+	data := i.module.readUntil(resultAddr, 0b0)
 	dataC := make([]byte, len(data)-2)
 	copy(dataC, data[1:len(data)-1])
 	retVals := []byte{byte(123)}
 	retVals = append(retVals, dataC...)
 	retVals = append(retVals, byte(125))
 	if string(retVals) == "{}" {
-		retVals = []byte("set()")
+		return []byte("set()"), nil
 	}
-
 	return retVals, nil
 }
 func (i *VM) evalCompat(ctx context.Context,
@@ -458,16 +455,15 @@ func (i *VM) evalCompat(ctx context.Context,
 	iqbCache cache.InterQueryCache,
 	ph print.Hook,
 	capabilities *ast.Capabilities) ([]byte, error) {
-	metrics.Timer("wasm_vm_eval").Start()
-	defer metrics.Timer("wasm_vm_eval").Stop()
-
-	metrics.Timer("wasm_vm_eval_prepare_input").Start()
-
 	// Setting the ctx here ensures that it'll be available to builtins that
 	// make use of it (e.g. `http.send`); and it will spawn a go routine
 	// cancelling the builtins that use topdown.Cancel, when the context is
 	// cancelled.
 	i.module.Reset(ctx, seed, ns, iqbCache, ph, capabilities)
+	metrics.Timer("wasm_vm_eval").Start()
+	defer metrics.Timer("wasm_vm_eval").Stop()
+
+	metrics.Timer("wasm_vm_eval_prepare_input").Start()
 
 	err := i.setHeapState(ctx, i.evalHeapPtr)
 	if err != nil {
@@ -481,12 +477,12 @@ func (i *VM) evalCompat(ctx context.Context,
 	}
 
 	if i.dataAddr != 0 {
-		if _, err := i.evalCtxSetData(ctx, ctxAddr[0], uint64(i.dataAddr)); err != nil {
+		if err := i.evalCtxSetData(ctx, ctxAddr, i.dataAddr); err != nil {
 			return nil, err
 		}
 	}
 
-	if _, err := i.evalCtxSetEntrypoint(ctx, ctxAddr[0], uint64(entrypoint)); err != nil {
+	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, int32(entrypoint)); err != nil {
 		return nil, err
 	}
 
@@ -496,7 +492,7 @@ func (i *VM) evalCompat(ctx context.Context,
 			return nil, err
 		}
 
-		if _, err := i.evalCtxSetInput(ctx, ctxAddr[0], uint64(inputAddr)); err != nil {
+		if err := i.evalCtxSetInput(ctx, ctxAddr, inputAddr); err != nil {
 			return nil, err
 		}
 	}
@@ -504,31 +500,27 @@ func (i *VM) evalCompat(ctx context.Context,
 
 	// Evaluate the policy.
 	metrics.Timer("wasm_vm_eval_execute").Start()
-	_, err = i.eval(ctx, ctxAddr[0])
+	err = i.eval(ctx, ctxAddr)
 	metrics.Timer("wasm_vm_eval_execute").Stop()
 	if err != nil {
 		return nil, err
 	}
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Start()
-	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr[0])
+	resultAddr, err := i.evalCtxGetResult(ctx, ctxAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	serialized, err := i.valueDump(ctx, resultAddr[0])
+	serialized, err := i.valueDump(ctx, resultAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	data := i.module.readUntil(int32(serialized[0]), 0b0)
+	data := i.module.readUntil(serialized, 0b0)
 
 	metrics.Timer("wasm_vm_eval_prepare_result").Stop()
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data, nil
-}
-func (vm *VM) Close(ctx context.Context) {
-	vm.module.module.Close(ctx)
-	vm.module.env.env.Close(ctx)
 }
