@@ -47,3 +47,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	oras.land/oras-go v1.2.0
 )
+
+// glog is only used through badger, and only for fatal log-and-exit. However, it comes
+// at a cost, its init function will lookup the current user, and on Windows, that's much
+// work.
+replace github.com/golang/glog => ./build/replacements/github.com/golang/glog

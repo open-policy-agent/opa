@@ -147,7 +147,7 @@ github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/proto
-# github.com/golang/glog v1.0.0
+# github.com/golang/glog v1.0.0 => ./build/replacements/github.com/golang/glog
 github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
@@ -468,3 +468,4 @@ oras.land/oras-go/pkg/auth/docker
 oras.land/oras-go/pkg/content
 oras.land/oras-go/pkg/oras
 oras.land/oras-go/pkg/target
+# github.com/golang/glog => ./build/replacements/github.com/golang/glog
