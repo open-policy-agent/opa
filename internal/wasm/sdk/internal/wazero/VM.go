@@ -37,23 +37,23 @@ type VM struct {
 	dataAddr             int32
 	dataLen              int32
 	evalHeapPtr          int32
-	evalOneOff           func(context.Context, ...uint64) ([]uint64, error)
-	eval                 func(context.Context, ...uint64) ([]uint64, error)
-	evalCtxGetResult     func(context.Context, ...uint64) ([]uint64, error)
-	evalCtxNew           func(context.Context, ...uint64) ([]uint64, error)
-	evalCtxSetData       func(context.Context, ...uint64) ([]uint64, error)
-	evalCtxSetInput      func(context.Context, ...uint64) ([]uint64, error)
-	evalCtxSetEntrypoint func(context.Context, ...uint64) ([]uint64, error)
-	heapPtrGet           func(context.Context, ...uint64) ([]uint64, error)
-	heapPtrSet           func(context.Context, ...uint64) ([]uint64, error)
-	jsonDump             func(context.Context, ...uint64) ([]uint64, error)
-	jsonParse            func(context.Context, ...uint64) ([]uint64, error)
-	valueDump            func(context.Context, ...uint64) ([]uint64, error)
-	valueParse           func(context.Context, ...uint64) ([]uint64, error)
-	malloc               func(context.Context, ...uint64) ([]uint64, error)
-	free                 func(context.Context, ...uint64) ([]uint64, error)
-	valueAddPath         func(context.Context, ...uint64) ([]uint64, error)
-	valueRemovePath      func(context.Context, ...uint64) ([]uint64, error)
+	evalOneOff           func(context.Context, int32, int32, int32, int32, int32) (int32, error)
+	eval                 func(context.Context, int32) error
+	evalCtxGetResult     func(context.Context, int32) (int32, error)
+	evalCtxNew           func(context.Context) (int32, error)
+	evalCtxSetData       func(context.Context, int32, int32) error
+	evalCtxSetInput      func(context.Context, int32, int32) error
+	evalCtxSetEntrypoint func(context.Context, int32, int32) error
+	heapPtrGet           func(context.Context) (int32, error)
+	heapPtrSet           func(context.Context, int32) error
+	jsonDump             func(context.Context, int32) (int32, error)
+	jsonParse            func(context.Context, int32, int32) (int32, error)
+	valueDump            func(context.Context, int32) (int32, error)
+	valueParse           func(context.Context, int32, int32) (int32, error)
+	malloc               func(context.Context, int32) (int32, error)
+	free                 func(context.Context, int32) error
+	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
+	valueRemovePath      func(context.Context, int32, int32) (int32, error)
 }
 
 func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
