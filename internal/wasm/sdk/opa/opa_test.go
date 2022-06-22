@@ -213,6 +213,13 @@ a = "c" { input > 2 }`,
 			},
 		},
 		{
+			Description: "builtin sdk test",
+			Query:       `x:=indexof_n("Hello World","l")`,
+			Evals: []Eval{
+				{Result: `{{"x": [2,3,9]}}`},
+			},
+		},
+		{
 			Description: "mpd init problem (#3110)",
 			Query:       `data.p.main = x`,
 			Policy:      `main { numbers.range(1, 2)[_] == 2 }`,

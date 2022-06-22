@@ -92,8 +92,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	if !bytes.Equal(opts.policy, i.policy) {
 		// Swap the instance to a new one, with new policy.
-		i.module.module.Close(i.ctx)
-		i.module.env.Close(i.ctx)
+		i.Close(i.ctx)
 		n, err := newVM(opts, i.runtime)
 		if err != nil {
 			return err
@@ -386,7 +385,6 @@ func (i *VM) Eval(ctx context.Context,
 	if i.abiMinorVersion < int32(2) {
 		return i.evalCompat(ctx, entrypoint, input, metrics, seed, ns, iqbCache, ph, capabilities)
 	}
-
 	metrics.Timer("wasm_vm_eval").Start()
 	defer metrics.Timer("wasm_vm_eval").Stop()
 
@@ -442,7 +440,10 @@ func (i *VM) Eval(ctx context.Context,
 	retVals := []byte{byte(123)}
 	retVals = append(retVals, dataC...)
 	retVals = append(retVals, byte(125))
-	return data, nil
+	if string(retVals) == "{}" {
+		retVals = []byte("set()")
+	}
+	return retVals, nil
 }
 func (i *VM) evalCompat(ctx context.Context,
 	entrypoint int32,
@@ -522,4 +523,8 @@ func (i *VM) evalCompat(ctx context.Context,
 
 	// Skip free'ing input and result JSON as the heap will be reset next round anyway.
 	return data, nil
+}
+func (vm *VM) Close(ctx context.Context) {
+	vm.module.module.Close(ctx)
+	vm.module.env.env.Close(ctx)
 }

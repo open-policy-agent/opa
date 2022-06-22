@@ -284,7 +284,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = Pages(uint32(vm.module.env.Memory().Size(context.Background())))
+				seedMemorySize = Pages(uint32(vm.module.env.env.Memory().Size(context.Background())))
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 
@@ -338,8 +338,7 @@ func (p *Pool) Wait(i int) *VM {
 func (p *Pool) remove(i int) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	p.vms[i].module.module.Close(p.vms[i].ctx)
-	p.vms[i].module.env.Close(p.vms[i].ctx)
+	p.vms[i].Close(p.vms[i].ctx)
 	n := len(p.vms)
 	if n > 1 {
 		p.vms[i] = p.vms[n-1]
