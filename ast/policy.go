@@ -261,28 +261,22 @@ func (mod *Module) Copy() *Module {
 	cpy := *mod
 	cpy.Rules = make([]*Rule, len(mod.Rules))
 
-	nodes := make(map[Node]Node)
+	nodes := make(map[Node]Node, len(mod.Rules)+len(mod.Imports)+1 /* package */)
 
 	for i := range mod.Rules {
 		cpy.Rules[i] = mod.Rules[i].Copy()
 		cpy.Rules[i].Module = &cpy
-		if nodes != nil {
-			nodes[mod.Rules[i]] = cpy.Rules[i]
-		}
+		nodes[mod.Rules[i]] = cpy.Rules[i]
 	}
 
 	cpy.Imports = make([]*Import, len(mod.Imports))
 	for i := range mod.Imports {
 		cpy.Imports[i] = mod.Imports[i].Copy()
-		if nodes != nil {
-			nodes[mod.Imports[i]] = cpy.Imports[i]
-		}
+		nodes[mod.Imports[i]] = cpy.Imports[i]
 	}
 
 	cpy.Package = mod.Package.Copy()
-	if nodes != nil {
-		nodes[mod.Package] = cpy.Package
-	}
+	nodes[mod.Package] = cpy.Package
 
 	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
 	for i := range mod.Annotations {
