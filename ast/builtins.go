@@ -1046,8 +1046,8 @@ var StartsWith = &Builtin{
 	Description: "Returns true if the search string begins with the base string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("base", types.S).Description("base string"),
 			types.Named("search", types.S).Description("search string"),
+			types.Named("base", types.S).Description("base string"),
 		),
 		types.Named("result", types.B).Description("result of the prefix check"),
 	),
@@ -1056,11 +1056,11 @@ var StartsWith = &Builtin{
 
 var EndsWith = &Builtin{
 	Name:        "endswith",
-	Description: "Returns true if the search string begins with the base string.",
+	Description: "Returns true if the search string ends with the base string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("base", types.S).Description("base string"),
 			types.Named("search", types.S).Description("search string"),
+			types.Named("base", types.S).Description("base string"),
 		),
 		types.Named("result", types.B).Description("result of the suffix check"),
 	),
