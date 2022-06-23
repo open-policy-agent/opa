@@ -38,9 +38,11 @@ func main() {
 		for i, typ := range latest.Decl.NamedFuncArgs().Args {
 			if n, ok := typ.(*types.NamedType); ok {
 				argTypes[i] = map[string]interface{}{
-					"name":        n.Name,
-					"description": n.Descr,
-					"type":        n.Type.String(),
+					"name": n.Name,
+					"type": n.Type.String(),
+				}
+				if n.Descr != "" {
+					argTypes[i]["description"] = n.Descr
 				}
 			} else {
 				argTypes[i] = map[string]interface{}{
