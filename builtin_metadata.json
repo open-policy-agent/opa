@@ -227,7 +227,6 @@
   "abs": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       }
@@ -382,12 +381,10 @@
   "and": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "set[any]"
       },
       {
-        "description": "",
         "name": "y",
         "type": "set[any]"
       }
@@ -543,12 +540,10 @@
   "array.concat": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "array[any]"
       },
       {
-        "description": "",
         "name": "y",
         "type": "array[any]"
       }
@@ -827,7 +822,6 @@
   "base64.decode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -907,7 +901,6 @@
   "base64.encode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -987,7 +980,6 @@
   "base64.is_valid": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -1046,7 +1038,6 @@
   "base64url.decode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -1126,7 +1117,6 @@
   "base64url.encode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -1206,7 +1196,6 @@
   "base64url.encode_no_pad": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -1263,12 +1252,10 @@
   "bits.and": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -1343,12 +1330,10 @@
   "bits.lsh": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "s",
         "type": "number"
       }
@@ -1423,7 +1408,6 @@
   "bits.negate": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       }
@@ -1498,12 +1482,10 @@
   "bits.or": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -1578,12 +1560,10 @@
   "bits.rsh": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "s",
         "type": "number"
       }
@@ -1658,12 +1638,10 @@
   "bits.xor": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -2239,7 +2217,6 @@
   "concat": {
     "args": [
       {
-        "description": "",
         "name": "delimiter",
         "type": "string"
       },
@@ -2628,7 +2605,6 @@
   "crypto.md5": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -2708,7 +2684,6 @@
   "crypto.sha1": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -2788,7 +2763,6 @@
   "crypto.sha256": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -3338,12 +3312,10 @@
   "equal": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -3559,7 +3531,6 @@
   "glob.match": {
     "args": [
       {
-        "description": "",
         "name": "pattern",
         "type": "string"
       },
@@ -3569,7 +3540,6 @@
         "type": "array[string]"
       },
       {
-        "description": "",
         "name": "match",
         "type": "string"
       }
@@ -3649,7 +3619,6 @@
   "glob.quote_meta": {
     "args": [
       {
-        "description": "",
         "name": "pattern",
         "type": "string"
       }
@@ -3838,12 +3807,10 @@
   "graphql.is_valid": {
     "args": [
       {
-        "description": "",
         "name": "query",
         "type": "string"
       },
       {
-        "description": "",
         "name": "schema",
         "type": "string"
       }
@@ -3864,12 +3831,10 @@
   "graphql.parse": {
     "args": [
       {
-        "description": "",
         "name": "query",
         "type": "string"
       },
       {
-        "description": "",
         "name": "schema",
         "type": "string"
       }
@@ -3890,12 +3855,10 @@
   "graphql.parse_and_verify": {
     "args": [
       {
-        "description": "",
         "name": "query",
         "type": "string"
       },
       {
-        "description": "",
         "name": "schema",
         "type": "string"
       }
@@ -3916,7 +3879,6 @@
   "graphql.parse_query": {
     "args": [
       {
-        "description": "",
         "name": "query",
         "type": "string"
       }
@@ -3937,7 +3899,6 @@
   "graphql.parse_schema": {
     "args": [
       {
-        "description": "",
         "name": "schema",
         "type": "string"
       }
@@ -3958,12 +3919,10 @@
   "gt": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -4043,12 +4002,10 @@
   "gte": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -4185,7 +4142,6 @@
   "hex.encode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -4242,7 +4198,6 @@
   "http.send": {
     "args": [
       {
-        "description": "",
         "name": "request",
         "type": "object[string: any]"
       }
@@ -5908,7 +5863,6 @@
   "is_array": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -5988,7 +5942,6 @@
   "is_boolean": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6068,7 +6021,6 @@
   "is_null": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6148,7 +6100,6 @@
   "is_number": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6228,7 +6179,6 @@
   "is_object": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6308,7 +6258,6 @@
   "is_set": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6388,7 +6337,6 @@
   "is_string": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
@@ -6468,7 +6416,6 @@
   "json.filter": {
     "args": [
       {
-        "description": "",
         "name": "object",
         "type": "object[any: any]"
       },
@@ -6691,12 +6638,10 @@
   "json.patch": {
     "args": [
       {
-        "description": "",
         "name": "object",
         "type": "any"
       },
       {
-        "description": "",
         "name": "patches",
         "type": "array[object\u003cop: string, path: any\u003e[any: any]]"
       }
@@ -6750,7 +6695,6 @@
   "json.remove": {
     "args": [
       {
-        "description": "",
         "name": "object",
         "type": "object[any: any]"
       },
@@ -6991,12 +6935,10 @@
   "lt": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -7076,12 +7018,10 @@
   "lte": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -7161,7 +7101,6 @@
   "max": {
     "args": [
       {
-        "description": "",
         "name": "collection",
         "type": "any\u003carray[any], set[any]\u003e"
       }
@@ -7241,7 +7180,6 @@
   "min": {
     "args": [
       {
-        "description": "",
         "name": "collection",
         "type": "any\u003carray[any], set[any]\u003e"
       }
@@ -7321,12 +7259,10 @@
   "minus": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any\u003cnumber, set[any]\u003e"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any\u003cnumber, set[any]\u003e"
       }
@@ -7407,12 +7343,10 @@
   "mul": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -7493,12 +7427,10 @@
   "neq": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       },
       {
-        "description": "",
         "name": "y",
         "type": "any"
       }
@@ -7578,12 +7510,10 @@
   "net.cidr_contains": {
     "args": [
       {
-        "description": "",
         "name": "cidr",
         "type": "string"
       },
       {
-        "description": "",
         "name": "cidr_or_ip",
         "type": "string"
       }
@@ -7662,12 +7592,10 @@
   "net.cidr_contains_matches": {
     "args": [
       {
-        "description": "",
         "name": "cidrs",
         "type": "any\u003cstring, array[any\u003cstring, array[any]\u003e], object[string: any\u003cstring, array[any]\u003e], set[any\u003cstring, array[any]\u003e]\u003e"
       },
       {
-        "description": "",
         "name": "cidrs_or_ips",
         "type": "any\u003cstring, array[any\u003cstring, array[any]\u003e], object[string: any\u003cstring, array[any]\u003e], set[any\u003cstring, array[any]\u003e]\u003e"
       }
@@ -7742,7 +7670,6 @@
   "net.cidr_expand": {
     "args": [
       {
-        "description": "",
         "name": "cidr",
         "type": "string"
       }
@@ -7822,12 +7749,10 @@
   "net.cidr_intersects": {
     "args": [
       {
-        "description": "",
         "name": "cidr1",
         "type": "string"
       },
       {
-        "description": "",
         "name": "cidr2",
         "type": "string"
       }
@@ -8074,12 +7999,10 @@
   "numbers.range": {
     "args": [
       {
-        "description": "",
         "name": "a",
         "type": "number"
       },
       {
-        "description": "",
         "name": "b",
         "type": "number"
       }
@@ -8147,7 +8070,6 @@
         "type": "object[any: any]"
       },
       {
-        "description": "",
         "name": "keys",
         "type": "any\u003carray[any], object[any: any], set[any]\u003e"
       }
@@ -8423,12 +8345,10 @@
   "object.union": {
     "args": [
       {
-        "description": "",
         "name": "a",
         "type": "object[any: any]"
       },
       {
-        "description": "",
         "name": "b",
         "type": "object[any: any]"
       }
@@ -8506,7 +8426,6 @@
   "object.union_n": {
     "args": [
       {
-        "description": "",
         "name": "objects",
         "type": "array[object[any: any]]"
       }
@@ -8608,12 +8527,10 @@
   "or": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "set[any]"
       },
       {
-        "description": "",
         "name": "y",
         "type": "set[any]"
       }
@@ -8694,12 +8611,10 @@
   "plus": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -8803,7 +8718,6 @@
   "product": {
     "args": [
       {
-        "description": "",
         "name": "collection",
         "type": "any\u003carray[number], set[number]\u003e"
       }
@@ -8883,12 +8797,10 @@
   "rand.intn": {
     "args": [
       {
-        "description": "",
         "name": "str",
         "type": "string"
       },
       {
-        "description": "",
         "name": "n",
         "type": "number"
       }
@@ -9184,12 +9096,10 @@
   "regex.globs_match": {
     "args": [
       {
-        "description": "",
         "name": "glob1",
         "type": "string"
       },
       {
-        "description": "",
         "name": "glob2",
         "type": "string"
       }
@@ -9690,12 +9600,10 @@
   "rem": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "number"
       },
       {
-        "description": "",
         "name": "y",
         "type": "number"
       }
@@ -9946,12 +9854,10 @@
   "semver.compare": {
     "args": [
       {
-        "description": "",
         "name": "a",
         "type": "string"
       },
       {
-        "description": "",
         "name": "b",
         "type": "string"
       }
@@ -10014,7 +9920,6 @@
   "semver.is_valid": {
     "args": [
       {
-        "description": "",
         "name": "vsn",
         "type": "any"
       }
@@ -10574,7 +10479,6 @@
   "strings.reverse": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -10603,7 +10507,6 @@
   "substring": {
     "args": [
       {
-        "description": "",
         "name": "value",
         "type": "string"
       },
@@ -10693,7 +10596,6 @@
   "sum": {
     "args": [
       {
-        "description": "",
         "name": "collection",
         "type": "any\u003carray[number], set[number]\u003e"
       }
@@ -10778,17 +10680,14 @@
         "type": "number"
       },
       {
-        "description": "",
         "name": "years",
         "type": "number"
       },
       {
-        "description": "",
         "name": "months",
         "type": "number"
       },
       {
-        "description": "",
         "name": "days",
         "type": "number"
       }
@@ -11022,12 +10921,10 @@
   "time.diff": {
     "args": [
       {
-        "description": "",
         "name": "ns1",
         "type": "any\u003cnumber, array\u003cnumber, string\u003e\u003e"
       },
       {
-        "description": "",
         "name": "ns2",
         "type": "any\u003cnumber, array\u003cnumber, string\u003e\u003e"
       }
@@ -11314,7 +11211,6 @@
   "time.parse_rfc3339_ns": {
     "args": [
       {
-        "description": "",
         "name": "value",
         "type": "string"
       }
@@ -11474,7 +11370,6 @@
   "to_number": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any\u003cnull, boolean, number, string\u003e"
       }
@@ -12474,7 +12369,6 @@
   "urlquery.decode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -12613,7 +12507,6 @@
   "urlquery.encode": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "string"
       }
@@ -12693,7 +12586,6 @@
   "urlquery.encode_object": {
     "args": [
       {
-        "description": "",
         "name": "object",
         "type": "object[string: any\u003cstring, array[string], set[string]\u003e]"
       }
@@ -12773,7 +12665,6 @@
   "uuid.rfc4122": {
     "args": [
       {
-        "description": "",
         "name": "k",
         "type": "string"
       }
@@ -12844,7 +12735,6 @@
   "walk": {
     "args": [
       {
-        "description": "",
         "name": "x",
         "type": "any"
       }
