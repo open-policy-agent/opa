@@ -3174,13 +3174,13 @@
   "endswith": {
     "args": [
       {
-        "description": "base string",
-        "name": "base",
+        "description": "search string",
+        "name": "search",
         "type": "string"
       },
       {
-        "description": "search string",
-        "name": "search",
+        "description": "base string",
+        "name": "base",
         "type": "string"
       }
     ],
@@ -3247,7 +3247,7 @@
       "v0.41.0",
       "edge"
     ],
-    "description": "Returns true if the search string begins with the base string.",
+    "description": "Returns true if the search string ends with the base string.",
     "introduced": "v0.17.0",
     "result": {
       "description": "result of the suffix check",
@@ -10405,13 +10405,13 @@
   "startswith": {
     "args": [
       {
-        "description": "base string",
-        "name": "base",
+        "description": "search string",
+        "name": "search",
         "type": "string"
       },
       {
-        "description": "search string",
-        "name": "search",
+        "description": "base string",
+        "name": "base",
         "type": "string"
       }
     ],

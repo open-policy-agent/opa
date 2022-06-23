@@ -6574,7 +6574,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        `startswith("x")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (base: string, search: string)"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (search: string, base: string)"),
 		},
 		{
 			note:     "built-in function arity mismatch (arity 0)",
