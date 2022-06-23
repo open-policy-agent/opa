@@ -24,6 +24,8 @@ Example with bundle and input data:
 
 To enable more detailed analysis use the --metrics and --benchmem flags.
 
+To run benchmarks against a running OPA server to evaluate server overhead use the --e2e flag.
+
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 
 
@@ -38,6 +40,7 @@ opa bench <query> [flags]
   -b, --bundle string                  set bundle file(s) or directory path(s). This flag can be repeated.
       --count int                      number of times to repeat each benchmark (default 1)
   -d, --data string                    set policy or data file(s). This flag can be repeated.
+      --e2e                            run benchmarks against a running OPA server
       --fail                           exits with non-zero exit code on undefined/empty result and errors (default true)
   -f, --format {json,pretty,gobench}   set output format (default pretty)
   -h, --help                           help for bench
@@ -48,6 +51,8 @@ opa bench <query> [flags]
       --package string                 set query package
   -p, --partial                        perform partial evaluation
   -s, --schema string                  set schema file path or directory path
+      --shutdown-grace-period int      set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only. (default 10)
+      --shutdown-wait-period int       set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.
       --stdin                          read query from stdin
   -I, --stdin-input                    read input document from stdin
   -t, --target {rego,wasm}             set the runtime to exercise (default rego)
