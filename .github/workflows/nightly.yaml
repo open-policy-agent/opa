@@ -76,3 +76,33 @@ jobs:
         with:
           status: ${{ job.status }}
           fields: repo,workflow
+
+  trivy-scan:
+    name: Trivy security scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Equivalent to:
+      # $ trivy fs .
+      - name: Run Trivy scan on repo
+        uses: aquasecurity/trivy-action@0.4.1
+        with:
+          scan-type: fs
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      # Equivalent to:
+      # $ trivy image openpolicyagent/opa:edge
+      - name: Run Trivy scan on image
+        uses: aquasecurity/trivy-action@0.4.1
+        with:
+          image-ref: 'openpolicyagent/opa:edge'
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
