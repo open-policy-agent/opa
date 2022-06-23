@@ -441,10 +441,28 @@ func (i *VM) Eval(ctx context.Context,
 	retVals := []byte{byte(123)}
 	retVals = append(retVals, dataC...)
 	retVals = append(retVals, byte(125))
+	retVals = formatAsReturn(retVals)
 	if string(retVals) == "{}" {
 		return []byte("set()"), nil
 	}
 	return retVals, nil
+}
+func formatAsReturn(data []byte) []byte {
+	outBytes := []byte{}
+	inString := false
+	bComma := byte(',')
+	bColon := byte(':')
+	prev := byte(' ')
+	for _, b := range data {
+		outBytes = append(outBytes, b)
+		if (b == bComma || b == bColon) && !inString {
+			outBytes = append(outBytes, byte(' '))
+		} else if b == byte('"') && prev != byte('\\') {
+			inString = !inString
+		}
+		prev = outBytes[len(outBytes)-1]
+	}
+	return outBytes
 }
 func (i *VM) evalCompat(ctx context.Context,
 	entrypoint int32,

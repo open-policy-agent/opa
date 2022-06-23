@@ -1,0 +1,233 @@
+[
+    {
+        "Time": "2022-06-22T12:39:24.4116511+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\cryptohmacmd5\\test-cryptohmacmd5.yaml/cryptohmacmd5/crypto.hmac.md5_unicode",
+        "Output": "    external_test.go:101: expected {{\"x\": [\"20a8743c2157ac60b7e8b79c83651b8d\"]},}, but got {{\"x\": [\"614d4648157f0a25e76897ffe8ae1046\"]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:39:24.6627758+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\cryptohmacsha1\\test-cryptohmacsha1.yaml/cryptohmacsha1/crypto.hmac.sha1_unicode",
+        "Output": "    external_test.go:101: expected {{\"x\": [\"81759c39013935fcf0de833d44c8018d7c1455dd\"]},}, but got {{\"x\": [\"f150657772e7d0378c1bf683b63ff9714bf4b418\"]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:39:24.9287359+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\cryptohmacsha256\\test-cryptohmacsha256.yaml/cryptohmacsha256/crypto.hmac.sha256_unicode",
+        "Output": "    external_test.go:101: expected {{\"x\": [\"eb90daeb76d4b2571fbdaf94bbb240809faa8fed93ec0c260dd38c3fdf8d963a\"]},}, but got {{\"x\": [\"da53575f0144733d921bb1011a714a795961de4d3fd1afdb28bff7ae54c90419\"]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:39:25.2245582+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\cryptohmacsha512\\test-cryptohmacsha512.yaml/cryptohmacsha512/crypto.hmac.sha512_unicode",
+        "Output": "    external_test.go:101: expected {{\"x\": [\"192f5afded233d6e21427aa26ed267ac118cfa2971013d91cbed530c0b208d78138b83dfe1d6cc3553d7bd518f22a481402c723028e1279d1ffbe8f11ea6b125\"]},}, but got {{\"x\": [\"6794ab9ecae2b9c35a62ec3aeaf04dae467948d37721cfe5a2be6ae6d14566f78ef8c8b87aa3ae5e4ab3a3728a32943633b3f2a79d21af9e0ac46dc8df49c127\"]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:40:08.3978636+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\graphql\\test-graphql-parse-query.yaml/graphql_parse_query/success-encoding_multibyte_characters_are_supported",
+        "Output": "    external_test.go:101: expected {{\"x\": true},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:28.0322165+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0467.yaml/jwtdecodeverify/es256-unconstrained",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"ES256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:30.1319445+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0469.yaml/jwtdecodeverify/hs256-key-wrong",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:30.2696051+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0468.yaml/jwtdecodeverify/hs256-unconstrained",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"HS256\", \"typ\": \"JWT\"},, {\"azp\": \"alice\", \"hr\": false, \"subordinates\": [], \"user\": \"alice\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:30.712715+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0454.yaml/jwtdecodeverify/ps256-alg-ok",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"PS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:30.8402361+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0455.yaml/jwtdecodeverify/ps256-alg-wrong",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:30.972129+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0452.yaml/jwtdecodeverify/ps256-iss-ok",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"PS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.1068539+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0453.yaml/jwtdecodeverify/ps256-iss-wrong",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.2487965+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0450.yaml/jwtdecodeverify/ps256-key-wrong",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.3933117+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0472.yaml/jwtdecodeverify/ps256-no-aud",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.5347932+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0449.yaml/jwtdecodeverify/ps256-unconstrained",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"PS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.6668314+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0463.yaml/jwtdecodeverify/rs256-alg-missing",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.7952777+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0470.yaml/jwtdecodeverify/rs256-aud",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"RS256\", \"typ\": \"JWT\"},, {\"aud\": \"fred\", \"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:31.9220557+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0471.yaml/jwtdecodeverify/rs256-aud-list",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"RS256\", \"typ\": \"JWT\"},, {\"aud\": [\"fred\", \"bob\"], \"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:32.0545207+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0464.yaml/jwtdecodeverify/rs256-crit-junk",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:32.3227433+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0458.yaml/jwtdecodeverify/rs256-exp-now-expired",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:32.4515056+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0459.yaml/jwtdecodeverify/rs256-exp-now-explicit-expired",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:32.7879059+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0451.yaml/jwtdecodeverify/rs256-key-wrong",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:32.9213205+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0473.yaml/jwtdecodeverify/rs256-missing-aud",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:33.0592208+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0461.yaml/jwtdecodeverify/rs256-nbf-now-ok",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"RS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\", \"nbf\": 1000},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:33.4690166+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0474.yaml/jwtdecodeverify/rs256-wrong-aud",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:33.6018266+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0475.yaml/jwtdecodeverify/rs256-wrong-aud-list",
+        "Output": "    external_test.go:101: expected {{\"x\": [false, {},, {},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:33.7316368+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0465.yaml/jwtdecodeverify/rsa256-nested",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"RS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:41:33.8740078+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\jwtdecodeverify\\test-jwtdecodeverify-0466.yaml/jwtdecodeverify/rsa256-nested2",
+        "Output": "    external_test.go:101: expected {{\"x\": [true, {\"alg\": \"RS256\", \"typ\": \"JWT\"},, {\"iss\": \"xxx\"},]},}, but got set()\n"
+    },
+    {
+        "Time": "2022-06-22T12:42:13.5986599+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\reachable\\test-reachable-paths-0422.yaml/reachable_paths/multiple_paths",
+        "Output": "    external_test.go:101: expected {{\"x\": [[\"a\", \"b\", \"c\"], [\"a\", \"c\"]]},}, but got {{\"x\": [[\"a\", \"c\"], [\"a\", \"b\", \"c\"]]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:42:28.2630807+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\strings\\test-strings-0925.yaml/strings/indexof_n_unicode_matches",
+        "Output": "    external_test.go:101: expected {{\"x\": [1, 3, 5]},}, but got {{\"x\": [4, 12, 20]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:43:53.7029672+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\withkeyword\\test-withkeyword-1053.yaml/withkeyword/invalidate_comprehension_cache",
+        "Output": "    external_test.go:101: expected {{\"x\": [[{\"b\": [\"a\"]},], [{\"b\": [\"a\", \"c\"]},]]},}, but got {{\"x\": [[{\"b\": [\"a\"]},], [{\"b\": [\"c\", \"a\"]},]]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:44:00.8174724+02:00",
+        "Action": "output",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\withkeyword\\test-withkeyword-1040.yaml/withkeyword/with_virtual_doc_exact_value",
+        "Output": "    external_test.go:101: expected {{\"x\": [[\"c\", \"e\"]]},}, but got {{\"x\": [[\"e\", \"c\"]]},},\n"
+    },
+    {
+        "Time": "2022-06-22T12:44:01.2136864+02:00",
+        "Action": "skip",
+        "Package": "command-line-arguments",
+        "Test": "TestWasmE2E/..\\..\\..\\..\\..\\test\\cases\\testdata\\functions\\test-functions-default.yaml/functions/default",
+        "Elapsed": 0
+    }
+]
