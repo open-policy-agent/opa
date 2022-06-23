@@ -174,6 +174,19 @@ type ModuleBuilder interface {
 
 	// Instantiate is a convenience that calls Compile, then Namespace.InstantiateModule.
 	//
+	// Ex.
+	//
+	//	ctx := context.Background()
+	//	r := wazero.NewRuntime()
+	//	defer r.Close(ctx) // This closes everything this Runtime created.
+	//
+	//	hello := func() {
+	//		fmt.Fprintln(stdout, "hello!")
+	//	}
+	//	env, _ := r.NewModuleBuilder("env").
+	//		ExportFunction("hello", hello).
+	//		Instantiate(ctx, r)
+	//
 	// Notes
 	//
 	//	* Closing the Namespace has the same effect as closing the result.

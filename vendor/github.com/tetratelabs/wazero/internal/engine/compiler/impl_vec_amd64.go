@@ -495,12 +495,12 @@ func (c *amd64Compiler) compileV128Shuffle(o *wazeroir.OperationV128Shuffle) err
 		}
 	}
 
-	err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, consts[:16], tmp)
+	err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(consts[:16]), tmp)
 	if err != nil {
 		return err
 	}
 	c.assembler.CompileRegisterToRegister(amd64.PSHUFB, tmp, v.register)
-	err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, consts[16:], tmp)
+	err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(consts[16:]), tmp)
 	if err != nil {
 		return err
 	}
@@ -534,7 +534,7 @@ func (c *amd64Compiler) compileV128Swizzle(*wazeroir.OperationV128Swizzle) error
 		return err
 	}
 
-	err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, swizzleConst[:], tmp)
+	err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(swizzleConst[:]), tmp)
 	if err != nil {
 		return err
 	}
@@ -957,7 +957,7 @@ func (c *amd64Compiler) compileV128ShrI8x16Impl(signed bool) error {
 		}
 
 		// Read the initial address of the mask table into gpTmp register.
-		err = c.assembler.CompileLoadStaticConstToRegister(amd64.LEAQ, i8x16LogicalSHRMaskTable[:], gpTmp)
+		err = c.assembler.CompileStaticConstToRegister(amd64.LEAQ, asm.NewStaticConst(i8x16LogicalSHRMaskTable[:]), gpTmp)
 		if err != nil {
 			return err
 		}
@@ -1042,7 +1042,7 @@ func (c *amd64Compiler) compileV128Shl(o *wazeroir.OperationV128Shl) error {
 		}
 
 		// Read the initial address of the mask table into gpTmp register.
-		err = c.assembler.CompileLoadStaticConstToRegister(amd64.LEAQ, i8x16SHLMaskTable[:], gpTmp)
+		err = c.assembler.CompileStaticConstToRegister(amd64.LEAQ, asm.NewStaticConst(i8x16SHLMaskTable[:]), gpTmp)
 		if err != nil {
 			return err
 		}
@@ -1754,7 +1754,7 @@ func (c *amd64Compiler) compileV128Popcnt(*wazeroir.OperationV128Popcnt) error {
 
 	// Read the popcntMask into tmp1, and we have
 	//  tmp1 = [0xf, ..., 0xf]
-	if err := c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, popcntMask[:], tmp1); err != nil {
+	if err := c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(popcntMask[:]), tmp1); err != nil {
 		return err
 	}
 
@@ -1775,7 +1775,7 @@ func (c *amd64Compiler) compileV128Popcnt(*wazeroir.OperationV128Popcnt) error {
 
 	// Read the popcntTable into tmp1, and we have
 	//  tmp1 = [0x00, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x03, 0x01, 0x02, 0x02, 0x03, 0x02, 0x03, 0x03, 0x04]
-	if err := c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, popcntTable[:], tmp1); err != nil {
+	if err := c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(popcntTable[:]), tmp1); err != nil {
 		return err
 	}
 
@@ -2261,7 +2261,7 @@ func (c *amd64Compiler) compileV128Q15mulrSatS(*wazeroir.OperationV128Q15mulrSat
 	x1r, x2r := x1.register, x2.register
 
 	// See https://github.com/WebAssembly/simd/pull/365 for the following logic.
-	if err := c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, q15mulrSatSMask[:], tmp); err != nil {
+	if err := c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(q15mulrSatSMask[:]), tmp); err != nil {
 		return err
 	}
 
@@ -2299,8 +2299,8 @@ func (c *amd64Compiler) compileV128ExtAddPairwise(o *wazeroir.OperationV128ExtAd
 			return err
 		}
 
-		if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU,
-			allOnesI8x16[:], allOnesReg); err != nil {
+		if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+			asm.NewStaticConst(allOnesI8x16[:]), allOnesReg); err != nil {
 			return err
 		}
 
@@ -2329,7 +2329,8 @@ func (c *amd64Compiler) compileV128ExtAddPairwise(o *wazeroir.OperationV128ExtAd
 
 		if o.Signed {
 			// See https://www.felixcloutier.com/x86/pmaddwd
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, allOnesI16x8[:], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+				asm.NewStaticConst(allOnesI16x8[:]), tmp); err != nil {
 				return err
 			}
 
@@ -2337,7 +2338,8 @@ func (c *amd64Compiler) compileV128ExtAddPairwise(o *wazeroir.OperationV128ExtAd
 			c.pushVectorRuntimeValueLocationOnRegister(vr)
 		} else {
 
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, extAddPairwiseI16x8uMask[:16], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+				asm.NewStaticConst(extAddPairwiseI16x8uMask[:16]), tmp); err != nil {
 				return err
 			}
 
@@ -2347,7 +2349,8 @@ func (c *amd64Compiler) compileV128ExtAddPairwise(o *wazeroir.OperationV128ExtAd
 			// 	vr[i] = int8(-w1) for i = 0...8
 			c.assembler.CompileRegisterToRegister(amd64.PXOR, tmp, vr)
 
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, allOnesI16x8[:], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+				asm.NewStaticConst(allOnesI16x8[:]), tmp); err != nil {
 				return err
 			}
 
@@ -2356,7 +2359,8 @@ func (c *amd64Compiler) compileV128ExtAddPairwise(o *wazeroir.OperationV128ExtAd
 			c.assembler.CompileRegisterToRegister(amd64.PMADDWD, tmp, vr)
 
 			// tmp[i] = [0, 0, 1, 0] = int32(math.MaxInt16+1)
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, extAddPairwiseI16x8uMask[16:], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+				asm.NewStaticConst(extAddPairwiseI16x8uMask[16:]), tmp); err != nil {
 				return err
 			}
 
@@ -2468,7 +2472,7 @@ func (c *amd64Compiler) compileV128FConvertFromI(o *wazeroir.OperationV128FConve
 			}
 
 			// tmp = [0x00, 0x00, 0x30, 0x43, 0x00, 0x00, 0x30, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, fConvertFromIMask[:16], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU, asm.NewStaticConst(fConvertFromIMask[:16]), tmp); err != nil {
 				return err
 			}
 
@@ -2479,7 +2483,8 @@ func (c *amd64Compiler) compileV128FConvertFromI(o *wazeroir.OperationV128FConve
 			c.assembler.CompileRegisterToRegister(amd64.UNPCKLPS, tmp, vr)
 
 			// tmp = [float64(0x1.0p52), float64(0x1.0p52)]
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVDQU, twop52[:], tmp); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVDQU,
+				asm.NewStaticConst(twop52[:]), tmp); err != nil {
 				return err
 			}
 
@@ -2649,7 +2654,7 @@ func (c *amd64Compiler) compileV128ITruncSatFromF(o *wazeroir.OperationV128ITrun
 			c.assembler.CompileRegisterToRegister(amd64.CMPEQPD, tmp, tmp)
 
 			// Load the 2147483647 into tmp2's each lane.
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVUPD, i32sMaxOnF64x2[:], tmp2); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVUPD, asm.NewStaticConst(i32sMaxOnF64x2[:]), tmp2); err != nil {
 				return err
 			}
 
@@ -2671,7 +2676,7 @@ func (c *amd64Compiler) compileV128ITruncSatFromF(o *wazeroir.OperationV128ITrun
 			c.assembler.CompileRegisterToRegister(amd64.MAXPD, tmp, vr)
 
 			// tmp2[i] = float64(math.MaxUint32) = math.MaxUint32
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVUPD, i32uMaxOnF64x2[:], tmp2); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVUPD, asm.NewStaticConst(i32uMaxOnF64x2[:]), tmp2); err != nil {
 				return err
 			}
 
@@ -2683,7 +2688,7 @@ func (c *amd64Compiler) compileV128ITruncSatFromF(o *wazeroir.OperationV128ITrun
 			c.assembler.CompileRegisterToRegisterWithArg(amd64.ROUNDPD, vr, vr, 0x3)
 
 			// tmp2[i] = float64(0x1.0p52)
-			if err = c.assembler.CompileLoadStaticConstToRegister(amd64.MOVUPD, twop52[:], tmp2); err != nil {
+			if err = c.assembler.CompileStaticConstToRegister(amd64.MOVUPD, asm.NewStaticConst(twop52[:]), tmp2); err != nil {
 				return err
 			}
 

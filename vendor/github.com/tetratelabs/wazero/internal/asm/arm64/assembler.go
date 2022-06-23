@@ -96,9 +96,13 @@ type Assembler interface {
 	CompileVectorRegisterToVectorRegisterWithConst(instruction asm.Instruction, srcReg, dstReg asm.Register,
 		arrangement VectorArrangement, c asm.ConstantValue)
 
-	// CompileLoadStaticConstToVectorRegister adds an instruction where the source operand is StaticConstant located in
+	// CompileStaticConstToRegister adds an instruction where the source operand is StaticConstant located in
 	// the memory and the destination is the dstReg.
-	CompileLoadStaticConstToVectorRegister(instruction asm.Instruction, c asm.StaticConst, dstReg asm.Register,
+	CompileStaticConstToRegister(instruction asm.Instruction, c *asm.StaticConst, dstReg asm.Register)
+
+	// CompileStaticConstToVectorRegister adds an instruction where the source operand is StaticConstant located in
+	// the memory and the destination is the dstReg.
+	CompileStaticConstToVectorRegister(instruction asm.Instruction, c *asm.StaticConst, dstReg asm.Register,
 		arrangement VectorArrangement)
 
 	// CompileTwoVectorRegistersToVectorRegister adds an instruction where source are two vectors and destination is one

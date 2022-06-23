@@ -14,8 +14,7 @@ type compiler interface {
 	compilePreamble() error
 	// compile generates the byte slice of native code.
 	// stackPointerCeil is the max stack pointer that the target function would reach.
-	// staticData is codeStaticData for the resulting native code.
-	compile() (code []byte, staticData codeStaticData, stackPointerCeil uint64, err error)
+	compile() (code []byte, stackPointerCeil uint64, err error)
 	// compileHostFunction adds the trampoline code from which native code can jump into the host function.
 	// TODO: maybe we wouldn't need to have trampoline for host functions.
 	compileHostFunction() error

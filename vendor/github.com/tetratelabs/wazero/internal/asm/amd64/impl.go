@@ -39,7 +39,7 @@ type NodeImpl struct {
 	// JumpOrigins hold all the nodes trying to jump into this node. In other words, all the nodes with .JumpTarget == this.
 	JumpOrigins map[*NodeImpl]struct{}
 
-	staticConst asm.StaticConst
+	staticConst *asm.StaticConst
 }
 
 type NodeFlag byte
@@ -204,6 +204,7 @@ var (
 	OperandTypesConstToRegister       = OperandTypes{OperandTypeConst, OperandTypeRegister}
 	OperandTypesConstToMemory         = OperandTypes{OperandTypeConst, OperandTypeMemory}
 	OperandTypesStaticConstToRegister = OperandTypes{OperandTypeStaticConst, OperandTypeRegister}
+	OperandTypesRegisterToStaticConst = OperandTypes{OperandTypeRegister, OperandTypeStaticConst}
 )
 
 // String implements fmt.Stringer
@@ -223,14 +224,14 @@ type AssemblerImpl struct {
 	// but have it as a field here for testability.
 	MaxDisplacementForConstantPool int
 
-	pool constPool
+	pool *asm.StaticConstPool
 }
 
 // compile-time check to ensure AssemblerImpl implements Assembler.
 var _ Assembler = &AssemblerImpl{}
 
 func NewAssemblerImpl() *AssemblerImpl {
-	return &AssemblerImpl{Buf: bytes.NewBuffer(nil), EnablePadding: true, pool: newConstPool(),
+	return &AssemblerImpl{Buf: bytes.NewBuffer(nil), EnablePadding: true, pool: asm.NewStaticConstPool(),
 		MaxDisplacementForConstantPool: defaultMaxDisplacementForConstantPool}
 }
 
@@ -295,6 +296,8 @@ func (a *AssemblerImpl) EncodeNode(n *NodeImpl) (err error) {
 		err = a.EncodeMemoryToConst(n)
 	case OperandTypesStaticConstToRegister:
 		err = a.encodeStaticConstToRegister(n)
+	case OperandTypesRegisterToStaticConst:
+		err = a.encodeRegisterToStaticConst(n)
 	default:
 		err = fmt.Errorf("encoder undefined for [%s] operand type", n.Types)
 	}

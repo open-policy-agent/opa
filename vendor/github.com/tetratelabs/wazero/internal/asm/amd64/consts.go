@@ -167,7 +167,7 @@ const (
 	MOVBQSX
 	// MOVBQZX is the MOVZX instruction for single-byte in 64-bit mode. https://www.felixcloutier.com/x86/movzx
 	MOVBQZX
-	// MOVL is the MOV instruction for a word.
+	// MOVL is the MOV instruction for a double word.
 	MOVL
 	// MOVLQSX is the MOVSXD instruction. https://www.felixcloutier.com/x86/movsx:movsxd
 	MOVLQSX

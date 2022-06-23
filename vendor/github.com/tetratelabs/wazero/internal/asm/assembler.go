@@ -5,8 +5,6 @@ import (
 	"math"
 )
 
-type NewAssembler func(temporaryRegister Register) (AssemblerBase, error)
-
 // Register represents architecture-specific registers.
 type Register byte
 
@@ -53,11 +51,63 @@ type ConstantValue = int64
 
 // StaticConst represents an arbitrary constant bytes which are pooled and emitted by assembler into the binary.
 // These constants can be referenced by instructions.
-type StaticConst = []byte
+type StaticConst struct {
+	Raw []byte
+	// OffsetInBinary is the offset of this static const in the result binary.
+	offsetInBinary uint64
+	// offsetFinalizedCallbacks holds callbacks which are called when .OffsetInBinary is finalized by assembler implementation.
+	offsetFinalizedCallbacks []func(offsetOfConstInBinary uint64)
+}
 
-// StaticConstKey returns a string whose underlying bytes equal the original const.
-func StaticConstKey(c StaticConst) string {
-	return string(c)
+// NewStaticConst returns the pointer to the new NewStaticConst for given bytes.
+func NewStaticConst(raw []byte) *StaticConst {
+	return &StaticConst{Raw: raw}
+}
+
+// AddOffsetFinalizedCallback adds a callback into offsetFinalizedCallbacks.
+func (s *StaticConst) AddOffsetFinalizedCallback(cb func(offsetOfConstInBinary uint64)) {
+	s.offsetFinalizedCallbacks = append(s.offsetFinalizedCallbacks, cb)
+}
+
+// SetOffsetInBinary finalizes the offset of this StaticConst, and invokes callbacks.
+func (s *StaticConst) SetOffsetInBinary(offset uint64) {
+	s.offsetInBinary = offset
+	for _, cb := range s.offsetFinalizedCallbacks {
+		cb(offset)
+	}
+}
+
+// StaticConstPool holds a bulk of StaticConst which are yet to be emitted into the binary.
+type StaticConstPool struct {
+	// FirstUseOffsetInBinary holds the offset of the first instruction which accesses this const pool .
+	FirstUseOffsetInBinary *NodeOffsetInBinary
+	Consts                 []*StaticConst
+	// addedConsts is used to deduplicate the consts to reduce the final size of binary.
+	// Note: we can use map on .consts field and remove this field,
+	// but we have the separate field for deduplication in order to have deterministic assembling behavior.
+	addedConsts map[*StaticConst]struct{}
+	// PoolSizeInBytes is the current size of the pool in bytes.
+	PoolSizeInBytes int
+}
+
+// NewStaticConstPool returns the pointer to a new StaticConstPool.
+func NewStaticConstPool() *StaticConstPool {
+	return &StaticConstPool{addedConsts: map[*StaticConst]struct{}{}}
+}
+
+// AddConst adds a *StaticConst into the pool if it's not already added.
+func (p *StaticConstPool) AddConst(c *StaticConst, useOffset NodeOffsetInBinary) {
+	if _, ok := p.addedConsts[c]; ok {
+		return
+	}
+
+	if p.FirstUseOffsetInBinary == nil {
+		p.FirstUseOffsetInBinary = &useOffset
+	}
+
+	p.Consts = append(p.Consts, c)
+	p.PoolSizeInBytes += len(c.Raw)
+	p.addedConsts[c] = struct{}{}
 }
 
 // AssemblerBase is the common interface for assemblers among multiple architectures.
@@ -78,10 +128,8 @@ type AssemblerBase interface {
 
 	// BuildJumpTable calculates the offsets between the first instruction `initialInstructions[0]`
 	// and others (e.g. initialInstructions[3]), and wrote the calculated offsets into pre-allocated
-	// `table` slice in little endian.
-	//
-	// TODO: This can be hidden into assembler implementation after golang-asm removal.
-	BuildJumpTable(table []byte, initialInstructions []Node)
+	// `table` StaticConst in little endian.
+	BuildJumpTable(table *StaticConst, initialInstructions []Node)
 
 	// CompileStandAlone adds an instruction to take no arguments.
 	CompileStandAlone(instruction Instruction) Node

@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/tetratelabs/wazero/internal/asm"
 	"github.com/tetratelabs/wazero/internal/asm/arm64"
@@ -34,9 +33,6 @@ type arm64Compiler struct {
 	stackPointerCeil uint64
 	// onStackPointerCeilDeterminedCallBack hold a callback which are called when the ceil of stack pointer is determined before generating native code.
 	onStackPointerCeilDeterminedCallBack func(stackPointerCeil uint64)
-	// codeStaticData holds br_table offset tables.
-	// See codeStaticData and arm64Compiler.compileBrTable.
-	staticData codeStaticData
 }
 
 func newArm64Compiler(ir *wazeroir.CompilationResult) (compiler, error) {
@@ -100,12 +96,8 @@ func isZeroRegister(r asm.Register) bool {
 	return r == arm64.RegRZR
 }
 
-func (c *arm64Compiler) addStaticData(d []byte) {
-	c.staticData = append(c.staticData, d)
-}
-
 // compile implements compiler.compile for the arm64 architecture.
-func (c *arm64Compiler) compile() (code []byte, staticData codeStaticData, stackPointerCeil uint64, err error) {
+func (c *arm64Compiler) compile() (code []byte, stackPointerCeil uint64, err error) {
 	// c.stackPointerCeil tracks the stack pointer ceiling (max seen) value across all runtimeValueLocationStack(s)
 	// used for all labels (via setLocationStack), excluding the current one.
 	// Hence, we check here if the final block's max one exceeds the current c.stackPointerCeil.
@@ -130,8 +122,6 @@ func (c *arm64Compiler) compile() (code []byte, staticData codeStaticData, stack
 	if err != nil {
 		return
 	}
-
-	staticData = c.staticData
 	return
 }
 
@@ -819,7 +809,7 @@ func (c *arm64Compiler) compileBrTable(o *wazeroir.OperationBrTable) error {
 	c.assembler.CompileRegisterToRegister(arm64.MOVWU, tmpReg, index.register)
 	c.assembler.SetJumpTargetOnNext(brDefaultIndex)
 
-	// We prepare the static data which holds the offset of
+	// We prepare the asm.StaticConst which holds the offset of
 	// each target's first instruction (incl. default)
 	// relative to the beginning of label tables.
 	//
@@ -844,16 +834,10 @@ func (c *arm64Compiler) compileBrTable(o *wazeroir.OperationBrTable) error {
 	// the above example's offsetData would be [0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x8, 0x0, 0x0, 0x0].
 	//
 	// Note: this is similar to how GCC implements Switch statements in C.
-	offsetData := make([]byte, 4*(len(o.Targets)+1))
-	c.addStaticData(offsetData)
+	offsetData := asm.NewStaticConst(make([]byte, 4*(len(o.Targets)+1)))
 
 	// "tmpReg = &offsetData[0]"
-	c.assembler.CompileConstToRegister(
-		arm64.MOVD,
-		// Note: this should be modified to support Clone() functionality per #179.
-		int64(uintptr(unsafe.Pointer(&offsetData[0]))),
-		tmpReg,
-	)
+	c.assembler.CompileStaticConstToRegister(arm64.ADR, offsetData, tmpReg)
 
 	// "index.register = tmpReg + (index.register << 2) (== &offsetData[offset])"
 	c.assembler.CompileLeftShiftedRegisterToRegister(arm64.ADD, index.register, 2, tmpReg, index.register)

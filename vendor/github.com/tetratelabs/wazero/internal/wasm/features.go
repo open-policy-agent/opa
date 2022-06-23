@@ -17,7 +17,6 @@ const Features20191205 = FeatureMutableGlobal
 
 // Features20220419 include those finished in WebAssembly 2.0 (20220419).
 //
-// TODO: not yet complete https://github.com/tetratelabs/wazero/issues/484
 // See https://www.w3.org/TR/2022/WD-wasm-core-2-20220419/appendix/changes.html#release-1-1
 const Features20220419 = Features20191205 |
 	FeatureBulkMemoryOperations |

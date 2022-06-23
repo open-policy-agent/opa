@@ -88,7 +88,11 @@ type Assembler interface {
 	// the destination is the constant `value`.
 	CompileMemoryToConst(instruction asm.Instruction, srcBaseReg asm.Register, srcOffset int64, value int64) asm.Node
 
-	// CompileLoadStaticConstToRegister adds an instruction where the source operand is asm.StaticConst located in the
+	// CompileStaticConstToRegister adds an instruction where the source operand is asm.StaticConst located in the
 	// memory and the destination is the dstReg.
-	CompileLoadStaticConstToRegister(instruction asm.Instruction, c asm.StaticConst, dstReg asm.Register) error
+	CompileStaticConstToRegister(instruction asm.Instruction, c *asm.StaticConst, dstReg asm.Register) error
+
+	// CompileRegisterToStaticConst adds an instruction where the destination operand is asm.StaticConst located in the
+	// memory and the source is the srcReg.
+	CompileRegisterToStaticConst(instruction asm.Instruction, srcReg asm.Register, c *asm.StaticConst) error
 }

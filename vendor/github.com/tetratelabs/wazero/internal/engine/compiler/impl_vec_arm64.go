@@ -567,7 +567,7 @@ func (c *arm64Compiler) compileV128Shuffle(o *wazeroir.OperationV128Shuffle) (er
 		return err
 	}
 
-	c.assembler.CompileLoadStaticConstToVectorRegister(arm64.VMOV, o.Lanes[:], result, arm64.VectorArrangementQ)
+	c.assembler.CompileStaticConstToVectorRegister(arm64.VMOV, asm.NewStaticConst(o.Lanes[:]), result, arm64.VectorArrangementQ)
 	c.assembler.CompileVectorRegisterToVectorRegister(arm64.TBL2, vReg, result, arm64.VectorArrangement16B,
 		arm64.VectorIndexNone, arm64.VectorIndexNone)
 
@@ -691,7 +691,7 @@ func (c *arm64Compiler) compileV128BitMask(o *wazeroir.OperationV128BitMask) (er
 		c.assembler.CompileVectorRegisterToVectorRegisterWithConst(arm64.SSHR, v, v, arm64.VectorArrangement16B, 7)
 
 		// Load the bit mask into vecTmp.
-		c.assembler.CompileLoadStaticConstToVectorRegister(arm64.VMOV, i8x16BitmaskConst[:], vecTmp, arm64.VectorArrangementQ)
+		c.assembler.CompileStaticConstToVectorRegister(arm64.VMOV, asm.NewStaticConst(i8x16BitmaskConst[:]), vecTmp, arm64.VectorArrangementQ)
 
 		// Lane-wise logical AND with i8x16BitmaskConst, meaning that we have
 		// v[i] = (1 << i) if vi<0, 0 otherwise.
@@ -725,7 +725,7 @@ func (c *arm64Compiler) compileV128BitMask(o *wazeroir.OperationV128BitMask) (er
 		c.assembler.CompileVectorRegisterToVectorRegisterWithConst(arm64.SSHR, v, v, arm64.VectorArrangement8H, 15)
 
 		// Load the bit mask into vecTmp.
-		c.assembler.CompileLoadStaticConstToVectorRegister(arm64.VMOV, i16x8BitmaskConst[:], vecTmp, arm64.VectorArrangementQ)
+		c.assembler.CompileStaticConstToVectorRegister(arm64.VMOV, asm.NewStaticConst(i16x8BitmaskConst[:]), vecTmp, arm64.VectorArrangementQ)
 
 		// Lane-wise logical AND with i16x8BitmaskConst, meaning that we have
 		// v[i] = (1 << i)     if vi<0, 0 otherwise for i=0..3
@@ -748,7 +748,8 @@ func (c *arm64Compiler) compileV128BitMask(o *wazeroir.OperationV128BitMask) (er
 		c.assembler.CompileVectorRegisterToVectorRegisterWithConst(arm64.SSHR, v, v, arm64.VectorArrangement4S, 32)
 
 		// Load the bit mask into vecTmp.
-		c.assembler.CompileLoadStaticConstToVectorRegister(arm64.VMOV, i32x4BitmaskConst[:], vecTmp, arm64.VectorArrangementQ)
+		c.assembler.CompileStaticConstToVectorRegister(arm64.VMOV,
+			asm.NewStaticConst(i32x4BitmaskConst[:]), vecTmp, arm64.VectorArrangementQ)
 
 		// Lane-wise logical AND with i16x8BitmaskConst, meaning that we have
 		// v[i] = (1 << i)     if vi<0, 0 otherwise for i in [0, 1]

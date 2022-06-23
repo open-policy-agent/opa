@@ -10,82 +10,37 @@ import (
 	"fmt"
 	"math"
 	"runtime"
-	"unsafe"
 
 	"github.com/tetratelabs/wazero/internal/asm"
 	"github.com/tetratelabs/wazero/internal/asm/amd64"
 	"github.com/tetratelabs/wazero/internal/buildoptions"
 	"github.com/tetratelabs/wazero/internal/platform"
+	"github.com/tetratelabs/wazero/internal/u32"
+	"github.com/tetratelabs/wazero/internal/u64"
 	"github.com/tetratelabs/wazero/internal/wasm"
 	"github.com/tetratelabs/wazero/internal/wazeroir"
 )
 
 var (
-	zero64Bit                                     uint64 = 0
-	zero64BitAddress                              uintptr
-	minimum32BitSignedInt                         int32 = math.MinInt32
-	minimum32BitSignedIntAddress                  uintptr
-	maximum32BitSignedInt                         int32 = math.MaxInt32
-	maximum32BitSignedIntAddress                  uintptr
-	maximum32BitUnsignedInt                       uint32 = math.MaxUint32
-	maximum32BitUnsignedIntAddress                uintptr
-	minimum64BitSignedInt                         int64 = math.MinInt64
-	minimum64BitSignedIntAddress                  uintptr
-	maximum64BitSignedInt                         int64 = math.MaxInt64
-	maximum64BitSignedIntAddress                  uintptr
-	maximum64BitUnsignedInt                       uint64 = math.MaxUint64
-	maximum64BitUnsignedIntAddress                uintptr
-	float32SignBitMask                            uint32 = 1 << 31
-	float32RestBitMask                                   = ^float32SignBitMask
-	float32SignBitMaskAddress                     uintptr
-	float32RestBitMaskAddress                     uintptr
-	float64SignBitMask                            uint64 = 1 << 63
-	float64RestBitMask                                   = ^float64SignBitMask
-	float64SignBitMaskAddress                     uintptr
-	float64RestBitMaskAddress                     uintptr
-	float32ForMinimumSigned32bitInteger           = math.Float32frombits(0xCF00_0000)
-	float32ForMinimumSigned32bitIntegerAddress    uintptr
-	float64ForMinimumSigned32bitInteger           = math.Float64frombits(0xC1E0_0000_0020_0000)
-	float64ForMinimumSigned32bitIntegerAddress    uintptr
-	float32ForMinimumSigned64bitInteger           = math.Float32frombits(0xDF00_0000)
-	float32ForMinimumSigned64bitIntegerAddress    uintptr
-	float64ForMinimumSigned64bitInteger           = math.Float64frombits(0xC3E0_0000_0000_0000)
-	float64ForMinimumSigned64bitIntegerAddress    uintptr
-	float32ForMaximumSigned32bitIntPlusOne        = math.Float32frombits(0x4F00_0000)
-	float32ForMaximumSigned32bitIntPlusOneAddress uintptr
-	float64ForMaximumSigned32bitIntPlusOne        = math.Float64frombits(0x41E0_0000_0000_0000)
-	float64ForMaximumSigned32bitIntPlusOneAddress uintptr
-	float32ForMaximumSigned64bitIntPlusOne        = math.Float32frombits(0x5F00_0000)
-	float32ForMaximumSigned64bitIntPlusOneAddress uintptr
-	float64ForMaximumSigned64bitIntPlusOne        = math.Float64frombits(0x43E0_0000_0000_0000)
-	float64ForMaximumSigned64bitIntPlusOneAddress uintptr
+	minimum32BitSignedInt                  int32  = math.MinInt32
+	maximum32BitSignedInt                  int32  = math.MaxInt32
+	maximum32BitUnsignedInt                uint32 = math.MaxUint32
+	minimum64BitSignedInt                  int64  = math.MinInt64
+	maximum64BitSignedInt                  int64  = math.MaxInt64
+	maximum64BitUnsignedInt                uint64 = math.MaxUint64
+	float32SignBitMask                     uint32 = 1 << 31
+	float32RestBitMask                            = ^float32SignBitMask
+	float64SignBitMask                     uint64 = 1 << 63
+	float64RestBitMask                            = ^float64SignBitMask
+	float32ForMinimumSigned32bitInteger           = uint32(0xCF00_0000)
+	float64ForMinimumSigned32bitInteger           = uint64(0xC1E0_0000_0020_0000)
+	float32ForMinimumSigned64bitInteger           = uint32(0xDF00_0000)
+	float64ForMinimumSigned64bitInteger           = uint64(0xC3E0_0000_0000_0000)
+	float32ForMaximumSigned32bitIntPlusOne        = uint32(0x4F00_0000)
+	float64ForMaximumSigned32bitIntPlusOne        = uint64(0x41E0_0000_0000_0000)
+	float32ForMaximumSigned64bitIntPlusOne        = uint32(0x5F00_0000)
+	float64ForMaximumSigned64bitIntPlusOne        = uint64(0x43E0_0000_0000_0000)
 )
-
-func init() {
-	// TODO: what if these address exceed 32-bit address space?  Even though AMD says 2GB memory space
-	// should be enough for everyone, we might end up in these circum stances. We access these variables
-	// via 32-bit displacement which cannot accommodate 64-bit addresses.
-	// https://stackoverflow.com/questions/31853189/x86-64-assembly-why-displacement-not-64-bits
-	zero64BitAddress = uintptr(unsafe.Pointer(&zero64Bit))
-	minimum32BitSignedIntAddress = uintptr(unsafe.Pointer(&minimum32BitSignedInt))
-	maximum32BitSignedIntAddress = uintptr(unsafe.Pointer(&maximum32BitSignedInt))
-	maximum32BitUnsignedIntAddress = uintptr(unsafe.Pointer(&maximum32BitUnsignedInt))
-	minimum64BitSignedIntAddress = uintptr(unsafe.Pointer(&minimum64BitSignedInt))
-	maximum64BitSignedIntAddress = uintptr(unsafe.Pointer(&maximum64BitSignedInt))
-	maximum64BitUnsignedIntAddress = uintptr(unsafe.Pointer(&maximum64BitUnsignedInt))
-	float32SignBitMaskAddress = uintptr(unsafe.Pointer(&float32SignBitMask))
-	float32RestBitMaskAddress = uintptr(unsafe.Pointer(&float32RestBitMask))
-	float64SignBitMaskAddress = uintptr(unsafe.Pointer(&float64SignBitMask))
-	float64RestBitMaskAddress = uintptr(unsafe.Pointer(&float64RestBitMask))
-	float32ForMinimumSigned32bitIntegerAddress = uintptr(unsafe.Pointer(&float32ForMinimumSigned32bitInteger))
-	float64ForMinimumSigned32bitIntegerAddress = uintptr(unsafe.Pointer(&float64ForMinimumSigned32bitInteger))
-	float32ForMinimumSigned64bitIntegerAddress = uintptr(unsafe.Pointer(&float32ForMinimumSigned64bitInteger))
-	float64ForMinimumSigned64bitIntegerAddress = uintptr(unsafe.Pointer(&float64ForMinimumSigned64bitInteger))
-	float32ForMaximumSigned32bitIntPlusOneAddress = uintptr(unsafe.Pointer(&float32ForMaximumSigned32bitIntPlusOne))
-	float64ForMaximumSigned32bitIntPlusOneAddress = uintptr(unsafe.Pointer(&float64ForMaximumSigned32bitIntPlusOne))
-	float32ForMaximumSigned64bitIntPlusOneAddress = uintptr(unsafe.Pointer(&float32ForMaximumSigned64bitIntPlusOne))
-	float64ForMaximumSigned64bitIntPlusOneAddress = uintptr(unsafe.Pointer(&float64ForMaximumSigned64bitIntPlusOne))
-}
 
 var (
 	// amd64ReservedRegisterForCallEngine: pointer to callEngine (i.e. *callEngine as uintptr)
@@ -140,7 +95,6 @@ type amd64Compiler struct {
 	currentLabel string
 	// onStackPointerCeilDeterminedCallBack hold a callback which are called when the max stack pointer is determined BEFORE generating native code.
 	onStackPointerCeilDeterminedCallBack func(stackPointerCeil uint64)
-	staticData                           codeStaticData
 }
 
 func newAmd64Compiler(ir *wazeroir.CompilationResult) (compiler, error) {
@@ -162,10 +116,6 @@ func (c *amd64Compiler) setLocationStack(newStack *runtimeValueLocationStack) {
 		c.stackPointerCeil = c.locationStack.stackPointerCeil
 	}
 	c.locationStack = newStack
-}
-
-func (c *amd64Compiler) addStaticData(d []byte) {
-	c.staticData = append(c.staticData, d)
 }
 
 func (c *amd64Compiler) pushRuntimeValueLocationOnRegister(reg asm.Register, vt runtimeValueType) (ret *runtimeValueLocation) {
@@ -211,7 +161,7 @@ func (c *amd64Compiler) compileHostFunction() error {
 }
 
 // compile implements compiler.compile for the amd64 architecture.
-func (c *amd64Compiler) compile() (code []byte, staticData codeStaticData, stackPointerCeil uint64, err error) {
+func (c *amd64Compiler) compile() (code []byte, stackPointerCeil uint64, err error) {
 	// c.stackPointerCeil tracks the stack pointer ceiling (max seen) value across all runtimeValueLocationStack(s)
 	// used for all labels (via setLocationStack), excluding the current one.
 	// Hence, we check here if the final block's max one exceeds the current c.stackPointerCeil.
@@ -236,8 +186,6 @@ func (c *amd64Compiler) compile() (code []byte, staticData codeStaticData, stack
 	if err != nil {
 		return
 	}
-
-	staticData = c.staticData
 	return
 }
 
@@ -610,10 +558,12 @@ func (c *amd64Compiler) compileBrTable(o *wazeroir.OperationBrTable) error {
 	// the above example's offsetData would be [0x0, 0x0, 0x0, 0x0, 0x5, 0x0, 0x0, 0x0, 0x8, 0x0, 0x0, 0x0].
 	//
 	// Note: this is similar to how GCC implements Switch statements in C.
-	offsetData := make([]byte, 4*(len(o.Targets)+1))
-	c.addStaticData(offsetData)
+	offsetData := asm.NewStaticConst(make([]byte, 4*(len(o.Targets)+1)))
 
-	c.assembler.CompileConstToRegister(amd64.MOVQ, int64(uintptr(unsafe.Pointer(&offsetData[0]))), tmp)
+	// Load the offsetData's address into tmp.
+	if err = c.assembler.CompileStaticConstToRegister(amd64.LEAQ, offsetData, tmp); err != nil {
+		return err
+	}
 
 	// Now we have the address of first byte of offsetData in tmp register.
 	// So the target offset's first byte is at tmp+index*4 as we store
@@ -1525,9 +1475,15 @@ func (c *amd64Compiler) performDivisionOnInts(isRem, is32Bit, signed bool) error
 		// Next we check if the quotient is the most negative value for the signed integer.
 		// That means whether or not we try to do (math.MaxInt32 / -1) or (math.Math.Int64 / -1) respectively.
 		if is32Bit {
-			c.assembler.CompileRegisterToMemory(amd64.CMPL, x1.register, asm.NilRegister, int64(minimum32BitSignedIntAddress))
+			if err := c.assembler.CompileRegisterToStaticConst(amd64.CMPL, x1.register,
+				asm.NewStaticConst(u32.LeBytes(uint32(minimum32BitSignedInt)))); err != nil {
+				return err
+			}
 		} else {
-			c.assembler.CompileRegisterToMemory(amd64.CMPQ, x1.register, asm.NilRegister, int64(minimum64BitSignedIntAddress))
+			if err := c.assembler.CompileRegisterToStaticConst(amd64.CMPQ, x1.register,
+				asm.NewStaticConst(u64.LeBytes(uint64(minimum64BitSignedInt)))); err != nil {
+				return err
+			}
 		}
 
 		// If it doesn't equal, we jump to the normal case.
@@ -1782,10 +1738,16 @@ func (c *amd64Compiler) compileNeg(o *wazeroir.OperationNeg) (err error) {
 	// since we cannot take XOR directly with float reg and const.
 	// And then negate the value by XOR it with the sign-bit mask.
 	if o.Type == wazeroir.Float32 {
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(float32SignBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVL, asm.NewStaticConst(u32.LeBytes(float32SignBitMask)), tmpReg)
+		if err != nil {
+			return err
+		}
 		c.assembler.CompileRegisterToRegister(amd64.XORPS, tmpReg, target.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(float64SignBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ, asm.NewStaticConst(u64.LeBytes(float64SignBitMask)), tmpReg)
+		if err != nil {
+			return err
+		}
 		c.assembler.CompileRegisterToRegister(amd64.XORPD, tmpReg, target.register)
 	}
 	return nil
@@ -1946,9 +1908,12 @@ func (c *amd64Compiler) compileCopysign(o *wazeroir.OperationCopysign) error {
 
 	// Move the rest bit mask to the temp register.
 	if is32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(float32RestBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVL, asm.NewStaticConst(u32.LeBytes(float32RestBitMask)), tmpReg)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(float64RestBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ, asm.NewStaticConst(u64.LeBytes(float64RestBitMask)), tmpReg)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Clear the sign bit of x1 via AND with the mask.
@@ -1960,9 +1925,12 @@ func (c *amd64Compiler) compileCopysign(o *wazeroir.OperationCopysign) error {
 
 	// Move the sign bit mask to the temp register.
 	if is32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(float32SignBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVL, asm.NewStaticConst(u32.LeBytes(float32SignBitMask)), tmpReg)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(float64SignBitMaskAddress), tmpReg)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ, asm.NewStaticConst(u64.LeBytes(float64SignBitMask)), tmpReg)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Clear the non-sign bits of x2 via AND with the mask.
@@ -2053,9 +2021,14 @@ func (c *amd64Compiler) emitUnsignedI32TruncFromFloat(isFloat32Bit, nonTrapping 
 
 	// First, we check the source float value is above or equal math.MaxInt32+1.
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(float32ForMaximumSigned32bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMaximumSigned32bitIntPlusOne)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(float64ForMaximumSigned32bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMaximumSigned32bitIntPlusOne)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Check the parity flag (set when the value is NaN), and if it is set, we should raise an exception.
@@ -2107,9 +2080,14 @@ func (c *amd64Compiler) emitUnsignedI32TruncFromFloat(isFloat32Bit, nonTrapping 
 	// First, we subtract the math.MaxInt32+1 from the original value so it can fit in signed 32-bit integer.
 	c.assembler.SetJumpTargetOnNext(jmpAboveOrEqualMaxIn32PlusOne)
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.SUBSS, asm.NilRegister, int64(float32ForMaximumSigned32bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.SUBSS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMaximumSigned32bitIntPlusOne)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.SUBSD, asm.NilRegister, int64(float64ForMaximumSigned32bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.SUBSD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMaximumSigned32bitIntPlusOne)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Then, convert the subtracted value as a signed 32-bit integer.
@@ -2129,7 +2107,10 @@ func (c *amd64Compiler) emitUnsignedI32TruncFromFloat(isFloat32Bit, nonTrapping 
 
 	// Otherwise, we successfully converted the source float minus (math.MaxInt32+1) to int.
 	// So, we retrieve the original source float value by adding the sign mask.
-	c.assembler.CompileMemoryToRegister(amd64.ADDL, asm.NilRegister, int64(float32SignBitMaskAddress), result)
+	if err = c.assembler.CompileStaticConstToRegister(amd64.ADDL,
+		asm.NewStaticConst(u32.LeBytes(float32SignBitMask)), result); err != nil {
+		return err
+	}
 
 	okJmpForAboveOrEqualMaxInt32PlusOne := c.assembler.CompileJump(amd64.JMP)
 
@@ -2137,7 +2118,11 @@ func (c *amd64Compiler) emitUnsignedI32TruncFromFloat(isFloat32Bit, nonTrapping 
 	if !nonTrapping {
 		c.compileExitFromNativeCode(nativeCallStatusIntegerOverflow)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(maximum32BitUnsignedIntAddress), result)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVL,
+			asm.NewStaticConst(u32.LeBytes(maximum32BitUnsignedInt)), result)
+		if err != nil {
+			return err
+		}
 	}
 
 	// We jump to the next instructions for valid cases.
@@ -2167,9 +2152,14 @@ func (c *amd64Compiler) emitUnsignedI64TruncFromFloat(isFloat32Bit, nonTrapping 
 
 	// First, we check the source float value is above or equal math.MaxInt64+1.
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(float32ForMaximumSigned64bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMaximumSigned64bitIntPlusOne)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(float64ForMaximumSigned64bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMaximumSigned64bitIntPlusOne)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Check the parity flag (set when the value is NaN), and if it is set, we should raise an exception.
@@ -2221,9 +2211,14 @@ func (c *amd64Compiler) emitUnsignedI64TruncFromFloat(isFloat32Bit, nonTrapping 
 	// First, we subtract the math.MaxInt64+1 from the original value so it can fit in signed 64-bit integer.
 	c.assembler.SetJumpTargetOnNext(jmpAboveOrEqualMaxIn32PlusOne)
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.SUBSS, asm.NilRegister, int64(float32ForMaximumSigned64bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.SUBSS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMaximumSigned64bitIntPlusOne)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.SUBSD, asm.NilRegister, int64(float64ForMaximumSigned64bitIntPlusOneAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.SUBSD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMaximumSigned64bitIntPlusOne)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Then, convert the subtracted value as a signed 64-bit integer.
@@ -2243,7 +2238,10 @@ func (c *amd64Compiler) emitUnsignedI64TruncFromFloat(isFloat32Bit, nonTrapping 
 
 	// Otherwise, we successfully converted the the source float minus (math.MaxInt64+1) to int.
 	// So, we retrieve the original source float value by adding the sign mask.
-	c.assembler.CompileMemoryToRegister(amd64.ADDQ, asm.NilRegister, int64(float64SignBitMaskAddress), result)
+	if err = c.assembler.CompileStaticConstToRegister(amd64.ADDQ,
+		asm.NewStaticConst(u64.LeBytes(float64SignBitMask)), result); err != nil {
+		return err
+	}
 
 	okJmpForAboveOrEqualMaxInt64PlusOne := c.assembler.CompileJump(amd64.JMP)
 
@@ -2251,7 +2249,11 @@ func (c *amd64Compiler) emitUnsignedI64TruncFromFloat(isFloat32Bit, nonTrapping 
 	if !nonTrapping {
 		c.compileExitFromNativeCode(nativeCallStatusIntegerOverflow)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(maximum64BitUnsignedIntAddress), result)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ,
+			asm.NewStaticConst(u64.LeBytes(maximum64BitUnsignedInt)), result)
+		if err != nil {
+			return err
+		}
 	}
 
 	// We jump to the next instructions for valid cases.
@@ -2290,7 +2292,10 @@ func (c *amd64Compiler) emitSignedI32TruncFromFloat(isFloat32Bit, nonTrapping bo
 	// 1) the source float value is either +-Inf or NaN, or it exceeds representative ranges of 32bit signed integer, or
 	// 2) the source equals the minimum signed 32-bit (=-2147483648.000000) whose bit pattern is float32ForMinimumSigned32bitIntegerAddress for 32 bit float
 	// 	  or float64ForMinimumSigned32bitIntegerAddress for 64bit float.
-	c.assembler.CompileMemoryToRegister(amd64.CMPL, asm.NilRegister, int64(float32SignBitMaskAddress), result)
+	err = c.assembler.CompileStaticConstToRegister(amd64.CMPL, asm.NewStaticConst(u32.LeBytes(float32SignBitMask)), result)
+	if err != nil {
+		return err
+	}
 
 	// Otherwise, jump to exit as the result is valid.
 	okJmp := c.assembler.CompileJump(amd64.JNE)
@@ -2321,9 +2326,14 @@ func (c *amd64Compiler) emitSignedI32TruncFromFloat(isFloat32Bit, nonTrapping bo
 	// meaning that the value exceeds the lower bound of 32-bit signed integer range.
 	c.assembler.SetJumpTargetOnNext(jmpIfNotNaN)
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(float32ForMinimumSigned32bitIntegerAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMinimumSigned32bitInteger)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(float64ForMinimumSigned32bitIntegerAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMinimumSigned32bitInteger)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	if !nonTrapping {
@@ -2338,9 +2348,14 @@ func (c *amd64Compiler) emitSignedI32TruncFromFloat(isFloat32Bit, nonTrapping bo
 		// At this point, the value is the minimum signed 32-bit int (=-2147483648.000000) or larger than 32-bit maximum.
 		// So, check if the value equals the minimum signed 32-bit int.
 		if isFloat32Bit {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+				asm.NewStaticConst([]byte{0, 0, 0, 0}), source.register)
 		} else {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+				asm.NewStaticConst([]byte{0, 0, 0, 0, 0, 0, 0, 0}), source.register)
+		}
+		if err != nil {
+			return err
 		}
 
 		jmpIfMinimumSignedInt := c.assembler.CompileJump(amd64.JCS) // jump if the value is minus (= the minimum signed 32-bit int).
@@ -2351,7 +2366,7 @@ func (c *amd64Compiler) emitSignedI32TruncFromFloat(isFloat32Bit, nonTrapping bo
 		// We jump to the next instructions for valid cases.
 		c.assembler.SetJumpTargetOnNext(okJmp, jmpIfMinimumSignedInt)
 	} else {
-		// Jump if the value does not exceeds the lower bound.
+		// Jump if the value does not exceed the lower bound.
 		var jmpIfNotExceedsLowerBound asm.Node
 		if isFloat32Bit {
 			jmpIfNotExceedsLowerBound = c.assembler.CompileJump(amd64.JCC)
@@ -2360,20 +2375,31 @@ func (c *amd64Compiler) emitSignedI32TruncFromFloat(isFloat32Bit, nonTrapping bo
 		}
 
 		// If the value exceeds the lower bound, we "saturate" it to the minimum.
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(minimum32BitSignedIntAddress), result)
+		if err = c.assembler.CompileStaticConstToRegister(amd64.MOVL,
+			asm.NewStaticConst(u32.LeBytes(uint32(minimum32BitSignedInt))), result); err != nil {
+			return err
+		}
 		nonTrappingSaturatedMinimumJump := c.assembler.CompileJump(amd64.JMP)
 
 		// Otherwise, the value is the minimum signed 32-bit int (=-2147483648.000000) or larger than 32-bit maximum.
 		c.assembler.SetJumpTargetOnNext(jmpIfNotExceedsLowerBound)
 		if isFloat32Bit {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+				asm.NewStaticConst([]byte{0, 0, 0, 0}), source.register)
 		} else {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+				asm.NewStaticConst([]byte{0, 0, 0, 0, 0, 0, 0, 0}), source.register)
+		}
+		if err != nil {
+			return err
 		}
 		jmpIfMinimumSignedInt := c.assembler.CompileJump(amd64.JCS) // jump if the value is minus (= the minimum signed 32-bit int).
 
 		// If the value exceeds signed 32-bit maximum, we saturate it to the maximum.
-		c.assembler.CompileMemoryToRegister(amd64.MOVL, asm.NilRegister, int64(maximum32BitSignedIntAddress), result)
+		if err = c.assembler.CompileStaticConstToRegister(amd64.MOVL,
+			asm.NewStaticConst(u32.LeBytes(uint32(maximum32BitSignedInt))), result); err != nil {
+			return err
+		}
 
 		c.assembler.SetJumpTargetOnNext(okJmp, nontrappingNanJump, nonTrappingSaturatedMinimumJump, jmpIfMinimumSignedInt)
 	}
@@ -2408,7 +2434,11 @@ func (c *amd64Compiler) emitSignedI64TruncFromFloat(isFloat32Bit, nonTrapping bo
 	// 1) the source float value is either +-Inf or NaN, or it exceeds representative ranges of 32bit signed integer, or
 	// 2) the source equals the minimum signed 32-bit (=-9223372036854775808.0) whose bit pattern is float32ForMinimumSigned64bitIntegerAddress for 32 bit float
 	// 	  or float64ForMinimumSigned64bitIntegerAddress for 64bit float.
-	c.assembler.CompileMemoryToRegister(amd64.CMPQ, asm.NilRegister, int64(float64SignBitMaskAddress), result)
+	err = c.assembler.CompileStaticConstToRegister(amd64.CMPQ,
+		asm.NewStaticConst(u64.LeBytes(float64SignBitMask)), result)
+	if err != nil {
+		return err
+	}
 
 	// Otherwise, we simply jump to exit as the result is valid.
 	okJmp := c.assembler.CompileJump(amd64.JNE)
@@ -2438,9 +2468,14 @@ func (c *amd64Compiler) emitSignedI64TruncFromFloat(isFloat32Bit, nonTrapping bo
 	// meaning that the value exceeds the lower bound of 64-bit signed integer range.
 	c.assembler.SetJumpTargetOnNext(jmpIfNotNaN)
 	if isFloat32Bit {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(float32ForMinimumSigned64bitIntegerAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+			asm.NewStaticConst(u32.LeBytes(float32ForMinimumSigned64bitInteger)), source.register)
 	} else {
-		c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(float64ForMinimumSigned64bitIntegerAddress), source.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+			asm.NewStaticConst(u64.LeBytes(float64ForMinimumSigned64bitInteger)), source.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	if !nonTrapping {
@@ -2450,9 +2485,14 @@ func (c *amd64Compiler) emitSignedI64TruncFromFloat(isFloat32Bit, nonTrapping bo
 		// At this point, the value is the minimum signed 64-bit int (=-9223372036854775808.0) or larger than 64-bit maximum.
 		// So, check if the value equals the minimum signed 64-bit int.
 		if isFloat32Bit {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS,
+				asm.NewStaticConst([]byte{0, 0, 0, 0}), source.register)
 		} else {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD,
+				asm.NewStaticConst([]byte{0, 0, 0, 0, 0, 0, 0, 0}), source.register)
+		}
+		if err != nil {
+			return err
 		}
 
 		jmpIfMinimumSignedInt := c.assembler.CompileJump(amd64.JCS) // jump if the value is minus (= the minimum signed 64-bit int).
@@ -2467,22 +2507,32 @@ func (c *amd64Compiler) emitSignedI64TruncFromFloat(isFloat32Bit, nonTrapping bo
 		jmpIfNotExceedsLowerBound := c.assembler.CompileJump(amd64.JCC)
 
 		// If the value exceeds the lower bound, we "saturate" it to the minimum.
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(minimum64BitSignedIntAddress), result)
+		err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ,
+			asm.NewStaticConst(u64.LeBytes(uint64(minimum64BitSignedInt))), result)
+		if err != nil {
+			return err
+		}
+
 		nonTrappingSaturatedMinimumJump := c.assembler.CompileJump(amd64.JMP)
 
 		// Otherwise, the value is the minimum signed 64-bit int (=-9223372036854775808.0) or larger than 64-bit maximum.
 		// So, check if the value equals the minimum signed 64-bit int.
 		c.assembler.SetJumpTargetOnNext(jmpIfNotExceedsLowerBound)
 		if isFloat32Bit {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISS, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISS, asm.NewStaticConst([]byte{0, 0, 0, 0}), source.register)
 		} else {
-			c.assembler.CompileMemoryToRegister(amd64.UCOMISD, asm.NilRegister, int64(zero64BitAddress), source.register)
+			err = c.assembler.CompileStaticConstToRegister(amd64.UCOMISD, asm.NewStaticConst([]byte{0, 0, 0, 0, 0, 0, 0, 0}), source.register)
+		}
+		if err != nil {
+			return err
 		}
 
 		jmpIfMinimumSignedInt := c.assembler.CompileJump(amd64.JCS) // jump if the value is minus (= the minimum signed 64-bit int).
 
 		// If the value exceeds signed 64-bit maximum, we saturate it to the maximum.
-		c.assembler.CompileMemoryToRegister(amd64.MOVQ, asm.NilRegister, int64(maximum64BitSignedIntAddress), result)
+		if err = c.assembler.CompileStaticConstToRegister(amd64.MOVQ, asm.NewStaticConst(u64.LeBytes(uint64(maximum64BitSignedInt))), result); err != nil {
+			return err
+		}
 
 		c.assembler.SetJumpTargetOnNext(okJmp, jmpIfMinimumSignedInt, nonTrappingSaturatedMinimumJump, nontrappingNanJump)
 	}
@@ -2874,17 +2924,20 @@ func (c *amd64Compiler) compileEqOrNeForFloats(x1Reg, x2Reg asm.Register, cmpIns
 }
 
 // compileEqz implements compiler.compileEqz for the amd64 architecture.
-func (c *amd64Compiler) compileEqz(o *wazeroir.OperationEqz) error {
+func (c *amd64Compiler) compileEqz(o *wazeroir.OperationEqz) (err error) {
 	v := c.locationStack.pop()
-	if err := c.compileEnsureOnRegister(v); err != nil {
+	if err = c.compileEnsureOnRegister(v); err != nil {
 		return err
 	}
 
 	switch o.Type {
 	case wazeroir.UnsignedInt32:
-		c.assembler.CompileMemoryToRegister(amd64.CMPL, asm.NilRegister, int64(zero64BitAddress), v.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.CMPL, asm.NewStaticConst([]byte{0, 0, 0, 0}), v.register)
 	case wazeroir.UnsignedInt64:
-		c.assembler.CompileMemoryToRegister(amd64.CMPQ, asm.NilRegister, int64(zero64BitAddress), v.register)
+		err = c.assembler.CompileStaticConstToRegister(amd64.CMPQ, asm.NewStaticConst([]byte{0, 0, 0, 0, 0, 0, 0, 0}), v.register)
+	}
+	if err != nil {
+		return err
 	}
 
 	// v is consumed by the cmp operation so release it.

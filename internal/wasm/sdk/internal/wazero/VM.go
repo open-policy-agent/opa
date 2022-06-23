@@ -85,7 +85,10 @@ func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
 	vm.free = vm.module.free
 	vm.valueAddPath = vm.module.value_add_path
 	vm.valueRemovePath = vm.module.value_remove_path
-	vm.setData(opts, vm.ctx, "newVM")
+	err := vm.setData(opts, vm.ctx, "newVM")
+	if err != nil {
+		return nil, err
+	}
 	return &vm, nil
 }
 func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
@@ -112,9 +115,9 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 	return i.setData(opts, i.ctx, "setPolicyData")
 }
 
-func (v *VM) setData(opts vmOpts, ctx context.Context, path string) error {
+func (i *VM) setData(opts vmOpts, ctx context.Context, path string) error {
 	var err error
-	if v.baseHeapPtr, err = v.getHeapState(ctx); err != nil {
+	if i.baseHeapPtr, err = i.getHeapState(ctx); err != nil {
 		return err
 	}
 
@@ -123,22 +126,22 @@ func (v *VM) setData(opts vmOpts, ctx context.Context, path string) error {
 	// This only works because the placement is deterministic (eg, for a given policy
 	// the base heap pointer and parsed data layout will always be the same).
 	if opts.parsedData != nil {
-		err = v.module.writeMemPlus(uint32(v.baseHeapPtr), opts.parsedData, "data")
+		err = i.module.writeMemPlus(uint32(i.baseHeapPtr), opts.parsedData, "data")
 		if err != nil {
 			return err
 		}
-		v.dataAddr = opts.parsedDataAddr
-		v.evalHeapPtr = v.baseHeapPtr + int32(len(opts.parsedData))
-		err := v.setHeapState(ctx, v.evalHeapPtr)
+		i.dataAddr = opts.parsedDataAddr
+		i.evalHeapPtr = i.baseHeapPtr + int32(len(opts.parsedData))
+		err := i.setHeapState(ctx, i.evalHeapPtr)
 		if err != nil {
 			return err
 		}
 	} else if opts.data != nil {
-		if err = v.toDRegoJSON(ctx, opts.data, true); err != nil {
+		if err = i.toDRegoJSON(ctx, opts.data, true); err != nil {
 			return err
 		}
 	}
-	if v.evalHeapPtr, err = v.getHeapState(ctx); err != nil {
+	if i.evalHeapPtr, err = i.getHeapState(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -232,39 +235,6 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 	}
 
 	return nil
-}
-
-// fromRegoJSON parses serialized JSON from the Wasm memory buffer into
-// native go types.
-func (i *VM) fromRegoJSON(ctx context.Context, addr int32, free bool) (interface{}, error) {
-	serialized, err := i.jsonDump(ctx, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	data := i.module.readFrom(addr)
-	n := bytes.IndexByte(data, 0)
-	if n < 0 {
-		n = 0
-	}
-
-	// Parse the result into go types.
-
-	decoder := json.NewDecoder(bytes.NewReader(data[0:n]))
-	decoder.UseNumber()
-
-	var result interface{}
-	if err := decoder.Decode(&result); err != nil {
-		return nil, err
-	}
-
-	if free {
-		if err := i.free(ctx, serialized); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
 
 type builtinError struct {
@@ -365,14 +335,14 @@ func (i *VM) setHeapState(ctx context.Context, ptr int32) error {
 }
 
 //copies the parsed data to optimize cloning VMs
-func (vm *VM) cloneDataSegment() (int32, []byte) {
-	srcData := vm.module.readFrom(0)[vm.baseHeapPtr:vm.evalHeapPtr]
+func (i *VM) cloneDataSegment() (int32, []byte) {
+	srcData := i.module.readFrom(0)[i.baseHeapPtr:i.evalHeapPtr]
 	patchedData := make([]byte, len(srcData))
 	copy(patchedData, srcData)
-	return vm.dataAddr, patchedData
+	return i.dataAddr, patchedData
 }
-func (vm *VM) GetEntrypoints() map[string]int32 {
-	return vm.module.GetEntrypoints()
+func (i *VM) GetEntrypoints() map[string]int32 {
+	return i.module.GetEntrypoints()
 }
 func (i *VM) Eval(ctx context.Context,
 	entrypoint int32,

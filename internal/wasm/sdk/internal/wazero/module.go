@@ -195,7 +195,7 @@ func (m *Module) Reset(ctx context.Context,
 func (m *Module) opaPrintln(ptr int32) {
 
 	bytes := []byte{}
-	var index uint32 = 0
+	var index uint32
 	for ok := true; ok; {
 		b := m.readMemByte(uint32(ptr) + index)
 		if b == 0b0 {
@@ -235,12 +235,6 @@ func newModule(opts moduleOpts, r wazero.Runtime) Module {
 	return m
 }
 
-// reads the shared memory buffer
-func (m *Module) readMem(offset, length uint32) []byte {
-	data, _ := m.env.Memory().Read(m.ctx, offset, length)
-	return data
-}
-
 //reads a single byte from the shared memory buffer
 func (m *Module) readMemByte(offset uint32) byte {
 	data, _ := m.env.Memory().ReadByte(m.ctx, offset)
@@ -277,7 +271,7 @@ func (m *Module) writeMem(data []byte) uint32 {
 //reads a null terminated string starting at the given address in the shared memory buffer
 func (m *Module) readStr(loc uint32) string {
 	bytes := []byte{}
-	var index uint32 = 0
+	var index uint32
 	for ok := true; ok; {
 		b := m.readMemByte(loc + index)
 		if b == 0b0 {
