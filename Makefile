@@ -27,7 +27,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.43.0
+GOLANGCI_LINT_VERSION := v1.46.2
 
 DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
