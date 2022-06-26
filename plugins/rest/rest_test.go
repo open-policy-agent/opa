@@ -266,7 +266,7 @@ func TestNew(t *testing.T) {
 				"url": "http://localhost",
 				"credentials": {
 					"s3_signing": {
-						"metadata_credentials": {}
+						"environment_credentials": {}
 					},
 					"bearer": {
 						"scheme": "Acmecorp-Token",
