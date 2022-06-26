@@ -219,7 +219,7 @@ func TestNew(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "TooManyS3CredOptions/metadata+environment",
+			name: "MultipleS3CredOptions/metadata+environment",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -233,10 +233,10 @@ func TestNew(t *testing.T) {
 					}
 				}
 			}`,
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name: "TooManyS3CredOptions/metadata+profile+environment+webidentity",
+			name: "MultipleS3CredOptions/metadata+profile+environment+webidentity",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
@@ -245,25 +245,33 @@ func TestNew(t *testing.T) {
 						"profile_credentials": {},
 						"environment_credentials": {},
 						"web_identity_credentials": {},
-						"metadata_credentials": {}
+						"metadata_credentials": {
+							"aws_region": "us-east-1",
+							"iam_role": "my_iam_role"
+						}
 					}
 				}
 			}`,
-			wantErr: true,
+			env: map[string]string{
+				awsRoleArnEnvVar:              "TEST",
+				awsWebIdentityTokenFileEnvVar: "TEST",
+				awsRegionEnvVar:               "us-west-2",
+			},
+			wantErr: false,
 		},
 		{
-			name: "TooManyCredentialsOptions",
+			name: "MultipleCredentialsOptions",
 			input: `{
 				"name": "foo",
 				"url": "http://localhost",
 				"credentials": {
 					"s3_signing": {
-						"environment_credentials": {}
+						"metadata_credentials": {}
 					},
 					"bearer": {
 						"scheme": "Acmecorp-Token",
 						"token": "secret"
-					}					
+					}
 				}
 			}`,
 			wantErr: true,
@@ -1514,6 +1522,55 @@ func TestS3SigningInstantiationInitializesLogger(t *testing.T) {
 
 	if authPlugin.logger == nil {
 		t.Errorf("Expected logger to be initialized")
+	}
+}
+
+func TestS3SigningMultiCredentialProvider(t *testing.T) {
+	credentialProviderCount := 4
+	config := `{
+		"name": "foo",
+		"url": "https://bundles.example.com",
+		"credentials": {
+			"s3_signing": {
+				"environment_credentials": {},
+				"profile_credentials": {},
+				"metadata_credentials": {},
+				"web_identity_credentials": {}
+			}
+		}
+	}`
+
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	awsPlugin := client.config.Credentials.S3Signing
+	if awsPlugin == nil {
+		t.Fatalf("Client config S3 signing credentials setup unexpected")
+	}
+
+	awsCredentialServiceChain, ok := awsPlugin.awsCredentialService().(*awsCredentialServiceChain)
+	if !ok {
+		t.Fatalf("Unexpected AWS credential service:%v is not a chain",
+			reflect.TypeOf(awsCredentialServiceChain))
+	}
+
+	if len(awsCredentialServiceChain.awsCredentialServices) != credentialProviderCount {
+		t.Fatalf("Credential provider count mismatch %d != %d", credentialProviderCount,
+			len(awsCredentialServiceChain.awsCredentialServices))
+	}
+
+	expectedOrder := []awsCredentialService{
+		&awsEnvironmentCredentialService{},
+		&awsWebIdentityCredentialService{},
+		&awsProfileCredentialService{},
+		&awsMetadataCredentialService{},
+	}
+
+	if !reflect.DeepEqual(awsCredentialServiceChain.awsCredentialServices,
+		expectedOrder) {
+		t.Fatalf("Ordering is unexpected")
 	}
 }
 
