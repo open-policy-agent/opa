@@ -9,17 +9,17 @@ import (
 
 func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 	builtinStrAddr := mod.builtins(mod.ctx)
-	builtinsJSON, err := mod.json_dump(mod.ctx, (builtinStrAddr))
+	builtinsJSON, err := mod.jsonDump(mod.ctx, (builtinStrAddr))
 	if err != nil {
 		panic(err)
 	}
 	builtinStr := mod.readStr(uint32(builtinsJSON))
 	builtinNameMap := parseJsonString(builtinStr)
-	builtinIdMap, err := getFuncs(builtinNameMap)
+	builtinIDMap, err := getFuncs(builtinNameMap)
 	if err != nil {
 		panic(err)
 	}
-	return builtinIdMap
+	return builtinIDMap
 }
 func parseJsonString(str string) map[string]int32 {
 	currKey := ""

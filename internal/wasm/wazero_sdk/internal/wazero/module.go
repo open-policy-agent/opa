@@ -99,7 +99,7 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 	var output *ast.Term
 	pArgs := []*ast.Term{}
 	for _, ter := range args {
-		serialized, err := m.value_dump(m.ctx, (ter))
+		serialized, err := m.valueDump(m.ctx, (ter))
 		if err != nil {
 			panic(builtinError{err: err})
 		}
@@ -131,7 +131,7 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 	}
 	outB := []byte(output.String())
 	loc := m.writeMem(outB)
-	addr, err := m.value_parse(m.ctx, int32(loc), int32(len(outB)))
+	addr, err := m.valueParse(m.ctx, int32(loc), int32(len(outB)))
 	if err != nil {
 		panic(err)
 	}
@@ -288,7 +288,7 @@ func (m *Module) readStr(loc uint32) string {
 	return out
 }
 func (m *Module) fromRegoJSON(addr int32) string {
-	dump_addr, err := m.json_dump(m.ctx, addr)
+	dump_addr, err := m.jsonDump(m.ctx, addr)
 	if err != nil {
 		panic(err)
 	}
@@ -324,10 +324,10 @@ func (m *Module) readFrom(addr int32) []byte {
 //
 // Expose the exported wasm functions for ease of use
 //
-func (m *Module) wasm_abi_version() int32 {
+func (m *Module) wasmAbiVersion() int32 {
 	return int32(m.module.ExportedGlobal("opa_wasm_abi_version").Get(m.ctx))
 }
-func (m *Module) wasm_abi_minor_version() int32 {
+func (m *Module) wasmAbiMinorVersion() int32 {
 	return int32(m.module.ExportedGlobal("opa_wasm_abi_minor_version").Get(m.ctx))
 }
 func (m *Module) eval(ctx context.Context, ctx_addr int32) error {
@@ -342,26 +342,26 @@ func (m *Module) entrypoints(ctx context.Context) int32 {
 	addr, _ := m.module.ExportedFunction("entrypoints").Call(ctx)
 	return int32(addr[0])
 }
-func (m *Module) eval_ctx_new(ctx context.Context) (int32, error) {
+func (m *Module) evalCtxNew(ctx context.Context) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_eval_ctx_new").Call(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) eval_ctx_set_input(ctx context.Context, ctx_addr, value_addr int32) error {
+func (m *Module) evalCtxSetInput(ctx context.Context, ctx_addr, value_addr int32) error {
 	_, err := m.module.ExportedFunction("opa_eval_ctx_set_input").Call(ctx, uint64(ctx_addr), uint64(value_addr))
 	return err
 }
-func (m *Module) eval_ctx_set_data(ctx context.Context, ctx_addr, value_addr int32) error {
+func (m *Module) evalCtxSetData(ctx context.Context, ctx_addr, value_addr int32) error {
 	_, err := m.module.ExportedFunction("opa_eval_ctx_set_data").Call(ctx, uint64(ctx_addr), uint64(value_addr))
 	return err
 }
-func (m *Module) eval_ctx_set_entrypoint(ctx context.Context, ctx_addr, entrypoint_id int32) error {
+func (m *Module) evalCtxSetEntrypoint(ctx context.Context, ctx_addr, entrypoint_id int32) error {
 	_, err := m.module.ExportedFunction("opa_eval_ctx_set_data").Call(ctx, uint64(ctx_addr), uint64(entrypoint_id))
 	return err
 }
-func (m *Module) eval_ctx_get_result(ctx context.Context, ctx_addr int32) (int32, error) {
+func (m *Module) evalCtxGetResult(ctx context.Context, ctx_addr int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_eval_ctx_get_result").Call(ctx, uint64(ctx_addr))
 	if err != nil {
 		return 0, err
@@ -379,60 +379,60 @@ func (m *Module) free(ctx context.Context, addr int32) error {
 	_, err := m.module.ExportedFunction("opa_free").Call(ctx, uint64(addr))
 	return err
 }
-func (m *Module) json_parse(ctx context.Context, str_addr, size int32) (int32, error) {
+func (m *Module) jsonParse(ctx context.Context, str_addr, size int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_json_parse").Call(ctx, uint64(str_addr), uint64(size))
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) value_parse(ctx context.Context, str_addr, size int32) (int32, error) {
+func (m *Module) valueParse(ctx context.Context, str_addr, size int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_value_parse").Call(ctx, uint64(str_addr), uint64(size))
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) json_dump(ctx context.Context, value_addr int32) (int32, error) {
+func (m *Module) jsonDump(ctx context.Context, value_addr int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_json_dump").Call(ctx, uint64(value_addr))
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) value_dump(ctx context.Context, value_addr int32) (int32, error) {
+func (m *Module) valueDump(ctx context.Context, value_addr int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_value_dump").Call(ctx, uint64(value_addr))
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) heap_ptr_set(ctx context.Context, addr int32) error {
+func (m *Module) heapPtrSet(ctx context.Context, addr int32) error {
 	_, err := m.module.ExportedFunction("opa_heap_ptr_set").Call(ctx, uint64(addr))
 	return err
 }
-func (m *Module) heap_ptr_get(ctx context.Context) (int32, error) {
+func (m *Module) heapPtrGet(ctx context.Context) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_heap_ptr_get").Call(ctx)
 	if err != nil {
 		return 0, err
 	}
 	return int32(addr[0]), err
 }
-func (m *Module) value_add_path(ctx context.Context, base_value_addr, path_value_addr, value_addr int32) (int32, error) {
+func (m *Module) valueAddPath(ctx context.Context, base_value_addr, path_value_addr, value_addr int32) (int32, error) {
 	ret, err := m.module.ExportedFunction("opa_value_add_path").Call(ctx, uint64(base_value_addr), uint64(path_value_addr), uint64(value_addr))
 	if err != nil {
 		return 0, err
 	}
 	return int32(ret[0]), err
 }
-func (m *Module) value_remove_path(ctx context.Context, base_value_addr, path_value_addr int32) (int32, error) {
+func (m *Module) valueRemovePath(ctx context.Context, base_value_addr, path_value_addr int32) (int32, error) {
 	ret, err := m.module.ExportedFunction("opa_value_remove_path").Call(ctx, uint64(base_value_addr), uint64(path_value_addr))
 	if err != nil {
 		return 0, err
 	}
 	return int32(ret[0]), err
 }
-func (m *Module) opa_eval(ctx context.Context, entrypoint_id, data, input, input_len, heap_ptr int32) (int32, error) {
+func (m *Module) opaEval(ctx context.Context, entrypoint_id, data, input, input_len, heap_ptr int32) (int32, error) {
 	addr, err := m.module.ExportedFunction("opa_eval").Call(ctx, 0, uint64(entrypoint_id), uint64(data), uint64(input), uint64(input_len), uint64(heap_ptr), 0)
 	if err != nil {
 		str := err.Error()[1:]

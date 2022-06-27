@@ -64,28 +64,28 @@ func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
 	vm.memoryMax = int(opts.memoryMax)
 	modOpts := moduleOpts{policy: opts.policy, ctx: vm.ctx, minMemSize: int(opts.memoryMin), maxMemSize: int(opts.memoryMax), vm: &vm}
 	vm.module = newModule(modOpts, *runtime)
-	vm.abiMajorVersion = vm.module.wasm_abi_version()
-	vm.abiMinorVersion = vm.module.wasm_abi_minor_version()
+	vm.abiMajorVersion = vm.module.wasmAbiVersion()
+	vm.abiMinorVersion = vm.module.wasmAbiMinorVersion()
 	vm.entrypointIDs = vm.GetEntrypoints()
 	vm.dataAddr = opts.parsedDataAddr
-	vm.evalOneOff = vm.module.opa_eval
+	vm.evalOneOff = vm.module.opaEval
 	vm.eval = vm.module.eval
-	vm.evalCtxGetResult = vm.module.eval_ctx_get_result
-	vm.evalCtxNew = vm.module.eval_ctx_new
-	vm.evalCtxSetData = vm.module.eval_ctx_set_data
-	vm.evalCtxSetInput = vm.module.eval_ctx_set_input
-	vm.evalCtxSetEntrypoint = vm.module.eval_ctx_set_entrypoint
-	vm.heapPtrGet = vm.module.heap_ptr_get
-	vm.heapPtrSet = vm.module.heap_ptr_set
-	vm.jsonDump = vm.module.json_dump
-	vm.jsonParse = vm.module.json_parse
-	vm.valueDump = vm.module.value_dump
-	vm.valueParse = vm.module.value_parse
+	vm.evalCtxGetResult = vm.module.evalCtxGetResult
+	vm.evalCtxNew = vm.module.evalCtxNew
+	vm.evalCtxSetData = vm.module.evalCtxSetData
+	vm.evalCtxSetInput = vm.module.evalCtxSetInput
+	vm.evalCtxSetEntrypoint = vm.module.evalCtxSetEntrypoint
+	vm.heapPtrGet = vm.module.heapPtrGet
+	vm.heapPtrSet = vm.module.heapPtrSet
+	vm.jsonDump = vm.module.jsonDump
+	vm.jsonParse = vm.module.jsonParse
+	vm.valueDump = vm.module.valueDump
+	vm.valueParse = vm.module.valueParse
 	vm.malloc = vm.module.malloc
 	vm.free = vm.module.free
-	vm.valueAddPath = vm.module.value_add_path
-	vm.valueRemovePath = vm.module.value_remove_path
-	err := vm.setData(opts, vm.ctx, "newVM")
+	vm.valueAddPath = vm.module.valueAddPath
+	vm.valueRemovePath = vm.module.valueRemovePath
+	err := vm.setData(vm.ctx, opts, "newVM")
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +112,10 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		return err
 	}
 
-	return i.setData(opts, i.ctx, "setPolicyData")
+	return i.setData(i.ctx, opts, "setPolicyData")
 }
 
-func (i *VM) setData(opts vmOpts, ctx context.Context, path string) error {
+func (i *VM) setData(ctx context.Context, opts vmOpts, path string) error {
 	var err error
 	if i.baseHeapPtr, err = i.getHeapState(ctx); err != nil {
 		return err
