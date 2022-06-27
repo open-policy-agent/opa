@@ -1,0 +1,13 @@
+# Exception Format is <test name>: <reason>
+"functions/default": "not supported in topdown, https://github.com/open-policy-agent/opa/issues/2445"
+"bitsshiftleft/shift_of_max_int64_doesn't_overflow_and_is_not_lossy":"Not supported in wazero"
+"containskeyword/ordinary_deny_rule":"Supported in wazero_sdk but answer is partially reversed"
+"cryptohmacmd5/crypto.hmac.md5_unicode":"Wazero sees Unicode characters as four separate characters"
+"cryptohmacsha1/crypto.hmac.sha1_unicode":"Wazero sees Unicode characters as four separate characters"
+"cryptohmacsha256/crypto.hmac.sha256_unicode":"Wazero sees Unicode characters as four separate characters"
+"cryptohmacsha512/crypto.hmac.sha512_unicode":"Wazero sees Unicode characters as four separate characters"
+"graphql_parse_query/success-encoding_multibyte_characters_are_supported":"Wazero see it as multiple characters and returns an empty set"
+"reachable_paths/multiple_paths":"Supported in wazero_sdk but answer is partially reversed"
+"strings/indexof_n_unicode_matches":"Wazero sees Unicode characters as four separate characters"
+"withkeyword/invalidate_comprehension_cache":"Supported in wazero_sdk but answer is partially reversed"
+"withkeyword/with_virtual_doc_exact_value":"Supported in wazero_sdk but answer is partially reversed"

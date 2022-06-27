@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
-	wasm "github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
+	wasm "github.com/open-policy-agent/opa/internal/wasm/wazero_sdk/internal/wazero"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
