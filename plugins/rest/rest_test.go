@@ -1574,6 +1574,91 @@ func TestS3SigningMultiCredentialProvider(t *testing.T) {
 	}
 }
 
+func TestAWSCredentialServiceChain(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+		env     map[string]string
+	}{
+		{
+			name: "Fallback to Environment Credential",
+			input: `{
+				"name": "foo",
+				"url": "https://bundles.example.com",
+				"credentials": {
+					"s3_signing": {
+						"web_identity_credentials": {},
+						"environment_credentials": {},
+						"profile_credentials": {},
+						"metadata_credentials": {}
+					}
+				}
+			}`,
+			wantErr: false,
+			env: map[string]string{
+				accessKeyEnvVar: "a",
+				secretKeyEnvVar: "a",
+				awsRegionEnvVar: "us-east-1",
+			},
+		},
+		{
+			name: "No provider is successful",
+			input: `{
+				"name": "foo",
+				"url": "https://bundles.example.com",
+				"credentials": {
+					"s3_signing": {
+						"web_identity_credentials": {},
+						"environment_credentials": {},
+						"profile_credentials": {},
+						"metadata_credentials": {}
+					}
+				}
+			}`,
+			wantErr: true,
+			env:     map[string]string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for key, val := range tc.env {
+				_ = os.Setenv(key, val)
+			}
+
+			t.Cleanup(func() {
+				for key := range tc.env {
+					_ = os.Unsetenv(key)
+				}
+			})
+
+			client, err := New([]byte(tc.input), map[string]*keys.Config{})
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			awsPlugin := client.config.Credentials.S3Signing
+			if awsPlugin == nil {
+				t.Fatalf("Client config S3 signing credentials setup unexpected")
+			}
+
+			req, err := http.NewRequest("GET", "/example/bundle.tar.gz", nil)
+			if err != nil {
+				t.Fatalf("Failed to create HTTP request: %v", err)
+			}
+
+			awsPlugin.logger = client.logger
+			err = awsPlugin.Prepare(req)
+			if err != nil && !tc.wantErr {
+				t.Fatalf("Unexpected error: %v", err)
+			} else if err == nil && tc.wantErr {
+				t.Fatalf("Expected error for input %v", tc.input)
+			}
+		})
+	}
+}
+
 func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 	token := "secret"
 	ts := testServer{t: t, expBearerToken: token}
