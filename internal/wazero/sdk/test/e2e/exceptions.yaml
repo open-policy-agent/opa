@@ -1,2 +1,0 @@
-# Exception Format is <test name>: <reason>
-"functions/default": "not supported in topdown, https://github.com/open-policy-agent/opa/issues/2445"
