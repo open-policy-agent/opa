@@ -336,7 +336,7 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 	aligns := []int{}
 	var hdrs []string
 	for _, k := range keys {
-		hdrs = append(hdrs, strings.Title((k)))
+		hdrs = append(hdrs, strings.Title(k)) //nolint:staticcheck // SA1019, no unicode
 		aligns = append(aligns, tablewriter.ALIGN_LEFT)
 	}
 	table.SetHeader(hdrs)
