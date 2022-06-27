@@ -1,3 +1,6 @@
+// Copyright 2020 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
 package wazero
 
 import (
@@ -14,14 +17,14 @@ func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 		panic(err)
 	}
 	builtinStr := mod.readStr(uint32(builtinsJSON))
-	builtinNameMap := parseJsonString(builtinStr)
+	builtinNameMap := parseJSONString(builtinStr)
 	builtinIDMap, err := getFuncs(builtinNameMap)
 	if err != nil {
 		panic(err)
 	}
 	return builtinIDMap
 }
-func parseJsonString(str string) map[string]int32 {
+func parseJSONString(str string) map[string]int32 {
 	currKey := ""
 	inKey := false
 	inVal := false
