@@ -331,8 +331,8 @@ func (m *Module) wasmAbiVersion() int32 {
 func (m *Module) wasmAbiMinorVersion() int32 {
 	return int32(m.module.ExportedGlobal("opa_wasm_abi_minor_version").Get(m.ctx))
 }
-func (m *Module) eval(ctx context.Context, ctx_addr int32) error {
-	_, err := m.module.ExportedFunction("eval").Call(ctx, uint64(ctx_addr))
+func (m *Module) eval(ctx context.Context, ctxAddr int32) error {
+	_, err := m.module.ExportedFunction("eval").Call(ctx, uint64(ctxAddr))
 	return err
 }
 func (m *Module) builtins(ctx context.Context) int32 {
@@ -358,8 +358,8 @@ func (m *Module) evalCtxSetData(ctx context.Context, ctxAddr, valueAddr int32) e
 	_, err := m.module.ExportedFunction("opa_eval_ctx_set_data").Call(ctx, uint64(ctxAddr), uint64(valueAddr))
 	return err
 }
-func (m *Module) evalCtxSetEntrypoint(ctx context.Context, ctxAddr, entrypointId int32) error {
-	_, err := m.module.ExportedFunction("opa_eval_ctx_set_data").Call(ctx, uint64(ctxAddr), uint64(entrypointId))
+func (m *Module) evalCtxSetEntrypoint(ctx context.Context, ctxAddr, entrypointID int32) error {
+	_, err := m.module.ExportedFunction("opa_eval_ctx_set_data").Call(ctx, uint64(ctxAddr), uint64(entrypointID))
 	return err
 }
 func (m *Module) evalCtxGetResult(ctx context.Context, ctxAddr int32) (int32, error) {
@@ -433,8 +433,8 @@ func (m *Module) valueRemovePath(ctx context.Context, baseValueAddr, pathValueAd
 	}
 	return int32(ret[0]), err
 }
-func (m *Module) opaEval(ctx context.Context, entrypointId, data, input, inputLen, heapPtr int32) (int32, error) {
-	addr, err := m.module.ExportedFunction("opa_eval").Call(ctx, 0, uint64(entrypointId), uint64(data), uint64(input), uint64(inputLen), uint64(heapPtr), 0)
+func (m *Module) opaEval(ctx context.Context, entrypointID, data, input, inputLen, heapPtr int32) (int32, error) {
+	addr, err := m.module.ExportedFunction("opa_eval").Call(ctx, 0, uint64(entrypointID), uint64(data), uint64(input), uint64(inputLen), uint64(heapPtr), 0)
 	if err != nil {
 		str := err.Error()[1:]
 		end := strings.Index(str, "} (recovered")
