@@ -77,6 +77,8 @@ func (m *Module) GetEntrypoints() map[string]int32 {
 	eLoc := m.entrypoints(m.ctx)
 	return parseJSONString(m.fromRegoJSON(eLoc))
 }
+
+// Internal error
 func (m *Module) opaAbort(ptr int32) {
 	data := m.readFrom(ptr)
 	n := bs.IndexByte(data, 0)
@@ -193,6 +195,8 @@ func (m *Module) Reset(ctx context.Context,
 		Capabilities:           capabilities,
 	}
 }
+
+// Used by the policy to print values
 func (m *Module) opaPrintln(ptr int32) {
 
 	bytes := []byte{}
@@ -288,6 +292,8 @@ func (m *Module) readStr(loc uint32) string {
 	}
 	return out
 }
+
+// returns a string representation of the JSON object stored att addr
 func (m *Module) fromRegoJSON(addr int32) string {
 	dumpAddr, err := m.jsonDump(m.ctx, addr)
 	if err != nil {

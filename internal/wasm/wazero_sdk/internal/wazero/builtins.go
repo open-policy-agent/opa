@@ -10,6 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
+// generates the map of id to Builtin from the policy module
 func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 	builtinStrAddr := mod.builtins(mod.ctx)
 	builtinsJSON, err := mod.jsonDump(mod.ctx, (builtinStrAddr))
@@ -24,6 +25,8 @@ func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 	}
 	return builtinIDMap
 }
+
+// json string parser
 func parseJSONString(str string) map[string]int32 {
 	currKey := ""
 	inKey := false
@@ -57,6 +60,8 @@ func parseJSONString(str string) map[string]int32 {
 	}
 	return out
 }
+
+// returns the id->function map from the name->id map
 func getFuncs(ids map[string]int32) (map[int32]topdown.BuiltinFunc, error) {
 	out := map[int32]topdown.BuiltinFunc{}
 	for name, id := range ids {
