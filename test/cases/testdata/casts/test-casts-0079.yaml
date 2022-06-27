@@ -1,6 +1,9 @@
 cases:
 - data:
-    op1: [1, 2, 3]
+    op1:
+    - 1
+    - 2
+    - 3
   modules:
   - |
     package generated
@@ -10,6 +13,6 @@ cases:
     }
   note: casts/string invalid
   query: data.generated.p = x
-  want_error: ""
-  want_error_code: eval_type_error
   strict_error: true
+  want_error: ''
+  want_error_code: eval_type_error

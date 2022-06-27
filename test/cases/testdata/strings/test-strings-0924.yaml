@@ -1,73 +1,70 @@
 cases:
-- note: 'strings/reverse_bar'
-  query: data.test.p = x
-  data:
-    foo: "bar"
+- data:
+    foo: bar
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_result:
-  - x: "rab"
-- note: 'strings/reverse_unicode_multi_char_emojii'
+  note: strings/reverse_bar
   query: data.test.p = x
-  data:
-    # The "Keycap Digit Two" consists of three codepoints: [2 U+32, U+FE0F, U+20E3]
-    # Other examples of such emojies are smileys with defined skin-color
-    # In the current implementation, we reverse strings at the level of codepoints, not Glyphs
-    foo: "2️⃣"
+  want_result:
+  - x: rab
+- data:
+    foo: "2\uFE0F\u20E3"
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_result:
-  - x: "⃣️2"
-- note: 'strings/reverse_unicode'
+  note: strings/reverse_unicode_multi_char_emojii
   query: data.test.p = x
-  data:
-    foo: "1😀𝛾"
+  want_result:
+  - x: "\u20E3\uFE0F2"
+- data:
+    foo: "1\U0001F600\U0001D6FE"
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_result:
-  - x: "𝛾😀1"
-- note: 'strings/reverse_empty'
+  note: strings/reverse_unicode
   query: data.test.p = x
-  data:
-    foo: ""
+  want_result:
+  - x: "\U0001D6FE\U0001F6001"
+- data:
+    foo: ''
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_result:
-  - x: ""
-- note: 'strings/reverse_number_error'
+  note: strings/reverse_empty
   query: data.test.p = x
-  data:
+  want_result:
+  - x: ''
+- data:
     foo: 123
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_error: "reverse: operand 1 must be string but got number"
-  want_error_code: eval_type_error
-  strict_error: true
-- note: 'strings/reverse_object_error'
+  note: strings/reverse_number_error
   query: data.test.p = x
-  data:
-    foo: 
+  strict_error: true
+  want_error: 'reverse: operand 1 must be string but got number'
+  want_error_code: eval_type_error
+- data:
+    foo:
       bar: baz
   modules:
   - |
     package test
 
     p := strings.reverse(data.foo)
-  want_error: "reverse: operand 1 must be string but got object"
-  want_error_code: eval_type_error
+  note: strings/reverse_object_error
+  query: data.test.p = x
   strict_error: true
+  want_error: 'reverse: operand 1 must be string but got object'
+  want_error_code: eval_type_error

@@ -7,23 +7,9 @@ cases:
             x:
             - 100
             - 200
-            "y": false
+            y: false
             z:
               a: b
-      conflicts:
-        k: foo
-      g:
-        h:
-          k:
-          - 1
-          - 2
-          - 3
-      set:
-        u:
-        - 1
-        - 2
-        - 3
-        - 4
   input_term: '{}'
   modules:
   - |
@@ -301,6 +287,6 @@ cases:
         x:
         - 100
         - 200
-        "y": false
+        y: false
         z:
           a: b

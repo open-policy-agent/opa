@@ -1,13 +1,5 @@
 cases:
-- data:
-    a:
-    - 1
-    - 2
-    - 3
-    - 4
-    b:
-      v1: hello
-      v2: goodbye
+- data: {}
   modules:
   - |
     package generated
