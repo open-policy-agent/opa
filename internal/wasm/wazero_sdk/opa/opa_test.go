@@ -55,47 +55,6 @@ func TestOPA(t *testing.T) {
 			},
 		},
 		{
-			Description: "net.lookup_ip_addr/simple ip4 returns that ip4",
-			Policy: `package test
-			p = x {
-				  x := net.lookup_ip_addr("10.0.0.0")
-				  }`,
-			Query: "data.test.p = x",
-			Evals: []Eval{
-				{Result: `{{"x": ["10.0.0.0"]}}`},
-			},
-		},
-		{
-			Description: "net.lookup_ip_addr/simple ip6 returns that ip6",
-			Policy: `package test
-	
-			p = x {
-				  x := net.lookup_ip_addr("::")
-				  }
-				  `,
-			Query: "data.test.p = x",
-			Evals: []Eval{
-				{Result: `{{"x": ["::"]}}`}},
-		},
-		{
-			Description: "net.lookup_ip_addr/localhost",
-			Policy: `package test
-			p {
-				  net.lookup_ip_addr("localhost") == {"127.0.0.1"}
-			}
-			p {
-				  net.lookup_ip_addr("localhost") == {"127.0.0.1", "::1"}
-				  }
-				  p {
-					  net.lookup_ip_addr("localhost") == {"::1"}
-					}
-				  `,
-			Query: "data.test.p = x",
-			Evals: []Eval{
-				{Result: `{{"x": true}}`},
-			},
-		},
-		{
 			Description: "Only input changing",
 			Policy:      `a = input`,
 			Query:       "data.p.a = x",
