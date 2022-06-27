@@ -416,6 +416,7 @@ func (i *VM) Eval(ctx context.Context,
 	if string(retVals) == "{}" {
 		return []byte("set()"), nil
 	}
+
 	return retVals, nil
 }
 func formatAsReturn(data []byte) []byte {

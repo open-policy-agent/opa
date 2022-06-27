@@ -148,6 +148,10 @@ wasm-sdk-e2e-test: generate
 wasm-wazero-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
 
+.PHONY: wasm-wazero-sdk-e2e-test
+wasm-wazero-sdk-e2e-test: generate
+	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
+
 .PHONY: check
 check:
 ifeq ($(DOCKER_RUNNING), 1)
