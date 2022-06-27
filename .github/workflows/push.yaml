@@ -1,0 +1,319 @@
+name: PR Check
+
+on: [push]
+
+jobs:
+  # All jobs essentially re-create the `ci-release-test` make target, but are split
+  # up for parallel runners for faster PR feedback and a nicer UX.
+  generate:
+    name: Generate Code
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Generate
+        run: make clean generate
+
+      - name: Upload generated artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: generated
+          path: |
+            internal/compiler/wasm/opa
+            capabilities.json
+
+  go-build:
+    name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }})
+    runs-on: ${{ matrix.run }}
+    needs: generate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
+            arch: amd64
+          - os: linux
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-linux-static
+            arch: arm64
+          - os: windows
+            run: ubuntu-18.04
+            targets: ci-go-ci-build-windows
+          - os: darwin
+            run: macos-latest
+            targets: ci-build-darwin ci-build-darwin-arm64-static
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+        if: matrix.os == 'darwin'
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Build
+        run: make ${{ matrix.targets }}
+        env:
+          GOARCH: ${{ matrix.arch }}
+        timeout-minutes: 30
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: binaries
+          path: _release
+
+  go-test:
+    name: Go Test (${{ matrix.os }})
+    runs-on: ${{ matrix.run }}
+    needs: generate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            run: ubuntu-18.04
+          - os: darwin
+            run: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - id: go_version
+        name: Read go version
+        run: echo "::set-output name=go_version::$(cat .go-version)"
+
+      - name: Install Go (${{ steps.go_version.outputs.go_version }})
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ steps.go_version.outputs.go_version }}
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Unit Test Golang
+        run: make test-coverage
+        timeout-minutes: 30
+
+  go-perf:
+    name: Go Perf
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Benchmark Test Golang
+        run: make ci-go-perf
+        timeout-minutes: 30
+
+  go-quick-fuzz:
+    name: Go quick fuzz
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Run fuzz check (3m)
+        run: make ci-go-fuzz FUZZ_TIME=180s
+        timeout-minutes: 30
+
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Golang Style and Lint Check
+        run: make check
+        timeout-minutes: 30
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Build and Test WASM
+        run: make ci-wasm
+        timeout-minutes: 15
+
+  check-generated:
+    name: Check Generated
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Check Working Copy
+        run: make ci-check-working-copy
+        timeout-minutes: 15
+
+  wasm-go-sdk-e2e:
+    name: OPA Wasm SDK e2e
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Build and Test Wasm SDK
+        run: make ci-go-wasm-sdk-e2e-test
+        timeout-minutes: 30
+
+  wasm-go-wazero-sdk-e2e:
+    name: OPA Wasm Wazero SDK e2e
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build and Test Wasm Wazero SDK
+        run: make ci-go-wasm-wazero-sdk-e2e-test
+        timeout-minutes: 30
+
+  race-detector:
+    name: Go Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Test with Race Detector
+        run: make ci-go-race-detector
+
+  smoke-test-docker-images:
+    name: docker image smoke test
+    runs-on: ubuntu-latest
+    needs: go-build
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa@v1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+
+      - name: Download release binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: binaries
+          path: _release
+
+      - name: Test amd64 images
+        run: make ci-image-smoke-test
+
+      - name: Test arm64 images
+        run: make ci-image-smoke-test
+        env:
+          GOARCH: arm64
+
+  smoke-test-binaries:
+    runs-on: ${{ matrix.os }}
+    needs: go-build
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            exec: opa_linux_amd64
+          - os: ubuntu-latest
+            exec: opa_linux_amd64_static
+            wasm: disabled
+          - os: macos-latest
+            exec: opa_darwin_amd64
+          - os: windows-latest
+            exec: opa_windows_amd64.exe
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Download release binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: binaries
+          path: _release
+
+      - name: Test binaries (Rego)
+        run: make ci-binary-smoke-test-rego BINARY=${{ matrix.exec }}
+
+      - name: Test binaries (Wasm)
+        run: make ci-binary-smoke-test-wasm BINARY=${{ matrix.exec }}
+        if: matrix.wasm != 'disabled'
+
+  go-version-build:
+    name: Go compat build/test
+    needs: generate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macos-latest]
+        version: ["1.17", "1.16"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.version }}
+      - run: make build
+        env:
+          DOCKER_RUNNING: 0
+      - run: make go-test
+        env:
+          DOCKER_RUNNING: 0
+
+  # Run PR metadata against Rego policies
+  rego-check-pr:
+    name: Rego PR checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download OPA
+        uses: open-policy-agent/setup-opa@v1
+        with:
+          version: edge
+
+      - name: Test policies
+        run: opa test build/policy
+
+      - name: Ensure proper formatting
+        run: opa fmt --list --fail build/policy
+
+      - name: Run policy checks on changed files
+        run: |
+          curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files
+          opa eval --bundle build/policy/ --format values --input files.json \
+            --fail-defined 'data.files.deny[message]'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show input on failure
+        run: opa eval --input files.json --format pretty input
+        if: ${{ failure() }}
