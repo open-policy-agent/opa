@@ -1,7 +1,6 @@
 cases:
 - data:
     err: package foo.
-    ok: "package foo.bar\n\n\t\timport data.a\n\n\t\tp { a = true }"
   modules:
   - |
     package generated
@@ -12,6 +11,6 @@ cases:
     }
   note: regoparsemodule/error
   query: data.generated.p = x
+  strict_error: true
   want_error: 'rego_parse_error: unexpected eof token: expected ident'
   want_error_code: eval_builtin_error
-  strict_error: true

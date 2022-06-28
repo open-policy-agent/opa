@@ -118,6 +118,34 @@ func TestReadWithSizeLimit(t *testing.T) {
 	}
 }
 
+func TestReadBundleInLazyMode(t *testing.T) {
+	files := [][2]string{
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/a/b/d/data.json", "true"},
+		{"/a/b/y/data.yaml", `foo: 1`},
+		{"/example/example.rego", `package example`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/.manifest", `{"revision": "foo", "roots": ["example"]}`}, // data is outside roots but validation skipped in lazy mode
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	loader := NewTarballLoaderWithBaseURL(buf, "")
+	br := NewCustomReader(loader).WithLazyLoadingMode(true)
+
+	bundle, err := br.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(bundle.Data) != 0 {
+		t.Fatal("expected the bundle object to contain no data")
+	}
+
+	if len(bundle.Raw) == 0 {
+		t.Fatal("raw bundle bytes not set on bundle object")
+	}
+}
+
 func TestReadWithBundleEtag(t *testing.T) {
 
 	files := [][2]string{

@@ -231,6 +231,7 @@ func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storag
 	if err != nil {
 		return err
 	}
+
 	for _, u := range updates {
 		if u.delete {
 			if err := txn.underlying.Delete(u.key); err != nil {
@@ -318,11 +319,29 @@ func (txn *transaction) partitionWrite(op storage.PatchOp, path storage.Path, va
 }
 
 func (txn *transaction) partitionWriteMultiple(node *partitionTrie, path storage.Path, value interface{}, result []update) ([]update, error) {
-
 	// NOTE(tsandall): value must be an object so that it can be partitioned; in
 	// the future, arrays could be supported but that requires investigation.
-	obj, ok := value.(map[string]interface{})
-	if !ok {
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		bs, err := serialize(v)
+		if err != nil {
+			return nil, err
+		}
+		return txn.doPartitionWriteMultiple(node, path, bs, result)
+	case json.RawMessage:
+		return txn.doPartitionWriteMultiple(node, path, v, result)
+	case []uint8:
+		return txn.doPartitionWriteMultiple(node, path, v, result)
+	}
+
+	return nil, &storage.Error{Code: storage.InvalidPatchErr, Message: "value cannot be partitioned"}
+}
+
+func (txn *transaction) doPartitionWriteMultiple(node *partitionTrie, path storage.Path, bs []byte, result []update) ([]update, error) {
+	var obj map[string]json.RawMessage
+	err := util.Unmarshal(bs, &obj)
+	if err != nil {
 		return nil, &storage.Error{Code: storage.InvalidPatchErr, Message: "value cannot be partitioned"}
 	}
 
@@ -437,6 +456,11 @@ func (txn *transaction) DeletePolicy(_ context.Context, id string) error {
 }
 
 func serialize(value interface{}) ([]byte, error) {
+	val, ok := value.([]byte)
+	if ok {
+		return val, nil
+	}
+
 	bs, err := json.Marshal(value)
 	return bs, wrapError(err)
 }
@@ -449,6 +473,36 @@ func deserialize(bs []byte, result interface{}) error {
 func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, value interface{}) (interface{}, error) {
 	if idx == len(path) {
 		panic("unreachable")
+	}
+
+	val := value
+	switch v := value.(type) {
+	case json.RawMessage:
+		var obj map[string]json.RawMessage
+		err := util.Unmarshal(v, &obj)
+		if err == nil {
+			val = obj
+		} else {
+			var obj interface{}
+			err := util.Unmarshal(v, &obj)
+			if err != nil {
+				return nil, err
+			}
+			val = obj
+		}
+	case []uint8:
+		var obj map[string]json.RawMessage
+		err := util.Unmarshal(v, &obj)
+		if err == nil {
+			val = obj
+		} else {
+			var obj interface{}
+			err := util.Unmarshal(v, &obj)
+			if err != nil {
+				return nil, err
+			}
+			val = obj
+		}
 	}
 
 	// Base case: mutate the data value in-place.
@@ -467,42 +521,43 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 				if _, ok := x[key]; !ok {
 					return nil, errors.NewNotFoundError(path)
 				}
-				x[key] = value
+				x[key] = val
 				return x, nil
 			case storage.AddOp:
-				x[key] = value
+				x[key] = val
 				return x, nil
 			}
 		case []interface{}:
 			switch op {
 			case storage.AddOp:
 				if path[idx] == "-" || path[idx] == strconv.Itoa(len(x)) {
-					return append(x, value), nil
+					return append(x, val), nil
 				}
 				i, err := ptr.ValidateArrayIndexForWrite(x, path[idx], idx, path)
 				if err != nil {
 					return nil, err
 				}
 				// insert at i
-				return append(x[:i], append([]interface{}{value}, x[i:]...)...), nil
+				return append(x[:i], append([]interface{}{val}, x[i:]...)...), nil
 			case storage.ReplaceOp:
 				i, err := ptr.ValidateArrayIndexForWrite(x, path[idx], idx, path)
 				if err != nil {
 					return nil, err
 				}
-				x[i] = value
+				x[i] = val
 				return x, nil
 			case storage.RemoveOp:
 				i, err := ptr.ValidateArrayIndexForWrite(x, path[idx], idx, path)
 				if err != nil {
 					return nil, err
+
 				}
 				return append(x[:i], x[i+1:]...), nil // i is skipped
 			default:
 				panic("unreachable")
 			}
 		case nil: // data wasn't set before
-			return map[string]interface{}{path[idx]: value}, nil
+			return map[string]interface{}{path[idx]: val}, nil
 		default:
 			return nil, errors.NewNotFoundError(path)
 		}
@@ -513,7 +568,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 
 	switch x := data.(type) {
 	case map[string]interface{}:
-		modified, err := patch(x[key], op, path, idx+1, value)
+		modified, err := patch(x[key], op, path, idx+1, val)
 		if err != nil {
 			return nil, err
 		}
@@ -524,7 +579,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 		if err != nil {
 			return nil, err
 		}
-		modified, err := patch(x[i], op, path, idx+1, value)
+		modified, err := patch(x[i], op, path, idx+1, val)
 		if err != nil {
 			return nil, err
 		}
@@ -532,7 +587,7 @@ func patch(data interface{}, op storage.PatchOp, path storage.Path, idx int, val
 		return x, nil
 	case nil: // data isn't there yet
 		y := make(map[string]interface{}, 1)
-		modified, err := patch(nil, op, path, idx+1, value)
+		modified, err := patch(nil, op, path, idx+1, val)
 		if err != nil {
 			return nil, err
 		}

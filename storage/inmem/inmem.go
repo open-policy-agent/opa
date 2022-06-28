@@ -92,6 +92,74 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 	return newTransaction(xid, write, context, db), nil
 }
 
+// Truncate implements the storage.Store interface. This method must be called within a transaction.
+func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storage.TransactionParams, it storage.Iterator) error {
+	var update *storage.Update
+	var err error
+
+	underlying, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+
+	for {
+		update, err = it.Next()
+		if err != nil {
+			break
+		}
+
+		if update.IsPolicy {
+			err = underlying.UpsertPolicy(update.Path.String(), update.Value)
+			if err != nil {
+				return err
+			}
+		} else {
+			if len(update.Path) > 0 {
+				var obj interface{}
+				err = util.Unmarshal(update.Value, &obj)
+				if err != nil {
+					return err
+				}
+
+				err = underlying.Write(storage.AddOp, update.Path, obj)
+				if err != nil {
+					return err
+				}
+			} else {
+				// write operation at root path
+
+				var val map[string]interface{}
+				err := util.Unmarshal(update.Value, &val)
+				if err != nil {
+					return invalidPatchError(rootMustBeObjectMsg)
+				}
+
+				for k := range val {
+					newPath, ok := storage.ParsePathEscaped("/" + k)
+					if !ok {
+						return fmt.Errorf("storage path invalid: %v", newPath)
+					}
+
+					if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+						return err
+					}
+
+					err = underlying.Write(storage.AddOp, newPath, val[k])
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
 func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {

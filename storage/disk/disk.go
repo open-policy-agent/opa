@@ -60,7 +60,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -113,6 +118,9 @@ const (
 	// basePartitionVersion represents the version of the caller-supplied data
 	// layout (aka partitioning).
 	basePartitionVersion int64 = 1
+
+	// symlink to directory path where badger write its files to
+	symlinkKey = "active"
 )
 
 type metadata struct {
@@ -147,7 +155,13 @@ func New(ctx context.Context, logger logging.Logger, prom prometheus.Registerer,
 		}
 	}
 
-	db, err := badger.Open(badgerConfigFromOptions(opts).WithLogger(&wrap{logger}))
+	options, err := badgerConfigFromOptions(opts)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+
+	options = options.WithLogger(&wrap{logger})
+	db, err := badger.Open(options)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -233,6 +247,235 @@ func (db *Store) NewTransaction(ctx context.Context, params ...storage.Transacti
 	underlying := db.db.NewTransaction(write)
 
 	return newTransaction(xid, write, underlying, context, db.pm, db.partitions, db), nil
+}
+
+// Truncate implements the storage.Store interface. This method must be called within a transaction.
+func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
+	var err error
+
+	newDB, backupDir, err := db.backupAndLoadDB()
+	if err != nil {
+		return wrapError(err)
+	}
+
+	// write new bundle policy and data into the new DB
+	underlying := newDB.NewTransaction(true)
+	xid := atomic.AddUint64(&db.xid, uint64(1))
+	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, nil)
+
+	for {
+		var update *storage.Update
+
+		update, err = it.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return wrapError(err)
+		}
+
+		if update.IsPolicy {
+			err = underlyingTxn.UpsertPolicy(ctx, update.Path.String(), update.Value)
+			if err != nil {
+				if err != badger.ErrTxnTooBig {
+					return wrapError(err)
+				}
+
+				_, err = underlyingTxn.Commit(ctx)
+				if err != nil {
+					return wrapError(err)
+				}
+
+				underlying = newDB.NewTransaction(true)
+				xid = atomic.AddUint64(&db.xid, uint64(1))
+				underlyingTxn = newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, nil)
+
+				if err = underlyingTxn.UpsertPolicy(ctx, update.Path.String(), update.Value); err != nil {
+					return wrapError(err)
+				}
+			}
+		} else {
+			if len(update.Path) > 0 {
+				sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, update.Path, update.Value)
+				if err != nil {
+					return wrapError(err)
+				}
+
+				if sTxn != nil {
+					underlyingTxn = sTxn
+				}
+			} else {
+				// write operation at root path
+
+				var obj map[string]json.RawMessage
+				err := util.Unmarshal(update.Value, &obj)
+				if err != nil {
+					return err
+				}
+
+				for k := range obj {
+					newPath, ok := storage.ParsePathEscaped("/" + k)
+					if !ok {
+						return fmt.Errorf("storage path invalid: %v", newPath)
+					}
+
+					if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+						return err
+					}
+
+					sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, obj[k])
+					if err != nil {
+						return wrapError(err)
+					}
+
+					if sTxn != nil {
+						underlyingTxn = sTxn
+					}
+				}
+			}
+		}
+	}
+
+	if err != nil && err != io.EOF {
+		return wrapError(err)
+	}
+
+	// commit active transaction on new store
+	_, err = underlyingTxn.Commit(ctx)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	db.rmu.Lock()
+
+	// update symlink to point to the active db
+	symlink := filepath.Join(path.Dir(newDB.Opts().Dir), symlinkKey)
+	if _, err := os.Lstat(symlink); err == nil {
+		if err := os.Remove(symlink); err != nil {
+			return wrapError(err)
+		}
+
+		err = os.Symlink(newDB.Opts().Dir, symlink)
+		if err != nil {
+			return wrapError(err)
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		err = os.Symlink(newDB.Opts().Dir, symlink)
+		if err != nil {
+			return wrapError(err)
+		}
+	} else {
+		return wrapError(err)
+	}
+
+	// swap db
+	oldDb := db.db
+	db.db = newDB
+
+	// replace transaction on old badger store with new one
+	uTxn, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+
+	uTxn.Abort(ctx)
+
+	uTxn.stale = false
+	uTxn.underlying = newDB.NewTransaction(true)
+
+	db.rmu.Unlock()
+
+	return wrapError(db.cleanup(oldDb, backupDir))
+}
+
+func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, badgerdb *badger.DB,
+	params storage.TransactionParams, path storage.Path, value interface{}) (*transaction, error) {
+
+	err := underlying.Write(ctx, storage.AddOp, path, value)
+	if err != nil {
+		if err != badger.ErrTxnTooBig {
+			return nil, wrapError(err)
+		}
+
+		_, err = underlying.Commit(ctx)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+
+		txn := badgerdb.NewTransaction(true)
+		xid := atomic.AddUint64(&db.xid, uint64(1))
+		sTxn := newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, nil)
+
+		if err = sTxn.Write(ctx, storage.AddOp, path, value); err != nil {
+			return nil, wrapError(err)
+		}
+
+		return sTxn, nil
+	}
+
+	return nil, nil
+}
+
+func (db *Store) backupAndLoadDB() (*badger.DB, string, error) {
+	currDir := db.db.Opts().Dir
+
+	// backup db
+	backupDir, err := ioutil.TempDir(path.Dir(currDir), "backup")
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	bak, err := ioutil.TempFile(backupDir, "badgerbak")
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	_, err = db.db.Backup(bak, 0)
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	// restore db
+	newDBDir, err := ioutil.TempDir(path.Dir(currDir), "backup")
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	opts := db.db.Opts().WithDir(newDBDir).WithValueDir(newDBDir)
+
+	// open new db
+	newDB, err := badger.Open(opts)
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	bak, err = os.Open(bak.Name())
+	if err != nil {
+		return nil, "", err
+	}
+	defer bak.Close()
+
+	err = newDB.Load(bak, 16)
+	if err != nil {
+		return nil, "", wrapError(err)
+	}
+
+	return newDB, backupDir, nil
+}
+
+func (db *Store) cleanup(oldDB *badger.DB, backupDir string) error {
+	err := oldDB.Close()
+	if err != nil {
+		return wrapError(err)
+	}
+
+	err = os.RemoveAll(oldDB.Opts().Dir)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	return wrapError(os.RemoveAll(backupDir))
 }
 
 // Commit implements the storage.Store interface.
@@ -687,6 +930,12 @@ func toString(path storage.Path) string {
 // what we have badger write its files to. It is done to give us some
 // wiggle room in the future should we need to put further files on the
 // file system (like backups): we can then just use the opts.Dir.
-func dataDir(dir string) string {
-	return filepath.Join(dir, "data")
+func dataDir(dir string) (string, error) {
+
+	symlink := filepath.Join(dir, symlinkKey)
+	if _, err := os.Lstat(symlink); err == nil {
+		return filepath.EvalSymlinks(symlink)
+	}
+
+	return filepath.Join(dir, "data"), nil
 }

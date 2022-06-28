@@ -1,5 +1,5 @@
 cases:
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -12,7 +12,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -24,7 +24,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -36,7 +36,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -48,7 +48,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -60,7 +60,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -72,7 +72,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -84,7 +84,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -96,7 +96,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -108,7 +108,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -120,7 +120,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -132,7 +132,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -144,7 +144,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -156,7 +156,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -168,7 +168,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -182,7 +182,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -194,7 +194,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -206,7 +206,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -219,7 +219,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -232,7 +232,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -245,7 +245,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -258,7 +258,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -271,7 +271,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -284,7 +284,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -296,7 +296,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -308,7 +308,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -320,7 +320,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -332,7 +332,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: false
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -343,8 +343,11 @@ cases:
   note: aggregates/member+some simple, array
   query: data.test.p = x
   want_result:
-  - x: [1, 2, 3]
-- data:
+  - x:
+    - 1
+    - 2
+    - 3
+- data: {}
   modules:
   - |
     package test
@@ -356,7 +359,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -368,7 +371,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -380,7 +383,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 100
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -392,7 +395,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 100
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -404,7 +407,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -415,7 +418,7 @@ cases:
   note: aggregates/member+some ground composite containee (false)
   query: data.test.p = x
   want_result: []
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -427,7 +430,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 100
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -439,7 +442,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: what
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -453,7 +456,7 @@ cases:
   - x:
       foo: 100
       what: ever
-- data:
+- data: {}
   modules:
   - |
     package test
@@ -496,7 +499,9 @@ cases:
   note: aggregates/member+some+key+ref
   query: data.test.p = x
   want_result:
-  - x: [3, 2]
+  - x:
+    - 3
+    - 2
 - data:
     object:
       array:
@@ -514,8 +519,11 @@ cases:
   note: aggregates/member+some+key+ref with other variable
   query: data.test.p = x
   want_result:
-  - x: [3, 2, "array"]
-- data:
+  - x:
+    - 3
+    - 2
+    - array
+- data: {}
   modules:
   - |
     package test
@@ -527,4 +535,5 @@ cases:
   query: data.test.p = x
   want_result:
   - x:
-    - ["foo", "bar"]
+    - - foo
+      - bar
