@@ -105,3 +105,36 @@ func TestPluginPrometheus(t *testing.T) {
 		t.Fatalf("Unexpected number of plugins (%v), got %v", 1, pluginsStatus)
 	}
 }
+
+func TestMetricsBundleWithoutRevision(t *testing.T) {
+	fixture := newTestFixture(t, nil, func(c *Config) {
+		c.Prometheus = true
+	})
+	fixture.server.ch = make(chan UpdateRequestV1)
+	defer fixture.server.stop()
+
+	ctx := context.Background()
+
+	err := fixture.plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fixture.plugin.Stop(ctx)
+	<-fixture.server.ch
+
+	status := testStatus()
+	status.ActiveRevision = ""
+
+	fixture.plugin.BulkUpdateBundleStatus(map[string]*bundle.Status{"bundle": status})
+	<-fixture.server.ch
+
+	bundlesLoaded := testutil.CollectAndCount(loaded)
+	if bundlesLoaded != 1 {
+		t.Fatalf("Unexpected number of bundle loads (%v), got %v", 1, bundlesLoaded)
+	}
+
+	bundlesFailedToLoad := testutil.CollectAndCount(failLoad)
+	if bundlesFailedToLoad != 0 {
+		t.Fatalf("Unexpected number of bundle fails load (%v), got %v", 0, bundlesFailedToLoad)
+	}
+}
