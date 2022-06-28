@@ -901,7 +901,7 @@ func arityMismatchError(env *TypeEnv, f Ref, expr *Expr, exp, act int) *Error {
 		for i, op := range expr.Operands() {
 			have[i] = env.Get(op)
 		}
-		return newArgError(expr.Loc(), f, "arity mismatch", have, want.FuncArgs())
+		return newArgError(expr.Loc(), f, "arity mismatch", have, want.NamedFuncArgs())
 	}
 	if act != 1 {
 		return NewError(TypeErr, expr.Loc(), "function %v has arity %d, got %d arguments", f, exp, act)
@@ -1294,9 +1294,7 @@ func (c *Compiler) err(err *Error) {
 func (c *Compiler) getExports() *util.HashMap {
 
 	rules := util.NewHashMap(func(a, b util.T) bool {
-		r1 := a.(Ref)
-		r2 := a.(Ref)
-		return r1.Equal(r2)
+		return a.(Ref).Equal(b.(Ref))
 	}, func(v util.T) int {
 		return v.(Ref).Hash()
 	})
@@ -3520,8 +3518,12 @@ func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
 	}
 
 	// Populate globals with imports.
-	for _, i := range imports {
-		globals[i.Name()] = &usedRef{ref: i.Path.Value.(Ref)}
+	for _, imp := range imports {
+		path := imp.Path.Value.(Ref)
+		if FutureRootDocument.Equal(path[0]) {
+			continue // ignore future imports
+		}
+		globals[imp.Name()] = &usedRef{ref: path}
 	}
 
 	return globals
@@ -4662,6 +4664,17 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 
 			return true, errs
 		}
+		return false, errs
+	case Call:
+		ref := v[0]
+		WalkVars(ref, func(v Var) bool {
+			if gv, ok := stack.Declared(v); ok && !gv.Equal(v) {
+				// We will rewrite the ref of a function call, which is never ok since we don't have first-class functions.
+				errs = append(errs, NewError(CompileErr, term.Location, "called function %s shadowed", ref))
+				return true
+			}
+			return false
+		})
 		return false, errs
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {

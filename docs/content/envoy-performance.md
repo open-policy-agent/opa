@@ -178,7 +178,7 @@ Envoy will make a call to OPA on every incoming request with the below NOP polic
 ```live:nop_example:module:read_only
 package envoy.authz
 
-default allow = true
+default allow := true
 ```
 
 * **App, Envoy and OPA (RBAC policy)**

@@ -112,3 +112,13 @@ func TestReference(t *testing.T) {
 		})
 	}
 }
+
+// There's valid JSON that doesn't pass through yaml.YAMLToJSON.
+// See https://github.com/open-policy-agent/opa/issues/4673
+func TestInvalidYAMLValidJSON(t *testing.T) {
+	x := []byte{0x22, 0x3a, 0xc2, 0x9a, 0x22}
+	y := ""
+	if err := util.Unmarshal(x, &y); err != nil {
+		t.Fatal(err)
+	}
+}

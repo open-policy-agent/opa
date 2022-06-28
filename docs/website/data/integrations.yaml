@@ -345,6 +345,17 @@ integrations:
     inventors:
       - build.security
 
+  nginx:
+    title: Nginx
+    description: OPA Authorization for Nginx
+    labels:
+      category: gateway
+      layer: network
+    software:
+      - nginx
+    code:
+      - https://github.com/summerwind/opa-nginx-rbac
+
   asp-dotnet-core:
     title: ASP.NET Core
     description: |
@@ -647,6 +658,31 @@ integrations:
       - docker
       - snyk
 
+  pulumi:
+    title: Pulumi
+    description: Build infrastructure as code in familiar languages. CrossGuard is Pulumi's policy as code offering, providing OPA as one of the options to use for defining policy.
+    software:
+      - pulumi
+      - aws
+      - gcp
+      - azure
+    labels:
+      category: publiccloud
+      layer: orchestration
+    code:
+      - https://github.com/pulumi/pulumi-policy-opa
+    blogs:
+      - https://www.pulumi.com/blog/opa-support-for-crossguard/
+    videos:
+      - title: "Testing Configuration with Open Policy Agent"
+        speakers:
+          - name: Gareth Rushgrove
+            organization: snyk
+        venue: Cloud Engineering Summit 2020
+        link: https://www.pulumi.com/resources/testing-configuration-with-open-policy-agent/
+    inventors:
+      - pulumi
+
   iptables:
     title: IPTables
     description: IPTables is a useful tool available to Linux kernel for filtering network packets. OPA makes it possible to manage IPTables rules using context-aware policy.
@@ -693,10 +729,12 @@ integrations:
       - https://github.com/Bisnode/opa-spring-security
       - https://github.com/build-security/opa-java-spring-client
       - https://github.com/massenz/jwt-opa
+      - https://github.com/eugenp/tutorials/tree/master/spring-security-modules/spring-security-opa
 
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/spring_authz/README.md
       - https://github.com/massenz/jwt-opa#web-server-demo-app
+      - https://www.baeldung.com/spring-security-authorization-opa
     inventors:
       - styra
       - build.security
@@ -1203,6 +1241,17 @@ integrations:
       - rekor
     code:
       - https://github.com/nsmith5/rekor-sidekick
+  alfred:
+    title: Self-hosted Alternative to OPA Playground
+    description:  |
+      Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally. 
+    labels:
+      layer: network
+      category: application
+    software:
+      - alfred
+    code:
+      - https://github.com/dolevf/Open-Policy-Agent-Alfred
 
   open-policy-registry:
     title: Open Policy Registry
@@ -1275,6 +1324,22 @@ integrations:
       - https://github.com/magda-io/magda
     blogs:
       - https://github.com/magda-io/magda/blob/master/docs/docs/architecture/Guide%20to%20Magda%20Internals.md#authorization-authz
+
+  sansshell:
+    title: Sansshell
+    description: A non-interactive daemon for host management
+    software:
+      - sansshell
+    labels:
+      category: management
+      layer: server
+      type: poweredbyopa
+    code:
+      - https://github.com/Snowflake-Labs/sansshell
+    blogs:
+      - https://www.snowflake.com/blog/sansshell-local-host-agent/
+    inventors:
+      - snowflake
 
 organizations:
   styra:
@@ -1412,6 +1477,12 @@ organizations:
   aserto:
     name: Aserto
     link: https://www.aserto.com
+  snowflake:
+    name: Snowflake
+    link: https://www.snowflake.com/
+  pulumi:
+    name: Pulumi
+    link: https://www.pulumi.com/
 
 software:
   oauth:
@@ -1621,3 +1692,15 @@ software:
   google-kubernetes-engine:
     name: Google Kubernetes Engine
     link: https://cloud.google.com/kubernetes-engine/
+  sansshell:
+    name: Sansshell
+    link: https://github.com/Snowflake-Labs/sansshell
+  nginx:
+    name: Nginx
+    link: https://nginx.org/
+  pulumi:
+    name: Pulumi
+    link: https://www.pulumi.com/
+  alfred:
+    name: alfred
+    link: https://github.com/dolevf/Open-Policy-Agent-Alfred

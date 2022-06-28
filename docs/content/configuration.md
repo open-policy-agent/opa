@@ -711,6 +711,28 @@ func init() {
 
 ```
 
+### Using private image from OCI repositories
+
+When using a private image from an OCI registry the credentials are mandatory as the OCI downloader needs the credentials for the pull operation.
+
+Examples of setting credetials for pulling private images: 
+*AWS ECR* private image usually requires at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+```
+ credentials:
+      bearer:
+        scheme: "Basic"
+        token: "<username>:<password>"
+```
+The OCI downloader includes a base64 encoder for these credentials so they can be supplied as shown above. 
+
+For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
+```
+ credentials:
+      bearer:
+        schema: "Bearer"
+        token: "<PAT>"
+```
+
 ### Miscellaneous
 
 | Field | Type | Required | Description |

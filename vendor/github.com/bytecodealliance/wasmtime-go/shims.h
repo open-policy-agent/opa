@@ -25,10 +25,8 @@ wasmtime_externref_t *go_externref_new(size_t env);
   \
   UNION_ACCESSOR(wasmtime_extern, func, wasmtime_func_t) \
   UNION_ACCESSOR(wasmtime_extern, memory, wasmtime_memory_t) \
-  UNION_ACCESSOR(wasmtime_extern, instance, wasmtime_instance_t) \
   UNION_ACCESSOR(wasmtime_extern, table, wasmtime_table_t) \
-  UNION_ACCESSOR(wasmtime_extern, global, wasmtime_global_t) \
-  UNION_ACCESSOR(wasmtime_extern, module, wasmtime_module_t*)
+  UNION_ACCESSOR(wasmtime_extern, global, wasmtime_global_t)
 
 #define UNION_ACCESSOR(name, field, ty) \
   ty go_##name##_##field##_get(const name##_t *val); \

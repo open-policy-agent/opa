@@ -7,9 +7,17 @@ package disk
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/internal/file/archive"
+
+	"github.com/open-policy-agent/opa/bundle"
 
 	badger "github.com/dgraph-io/badger/v3"
 
@@ -155,6 +163,201 @@ func TestPolicies(t *testing.T) {
 		})
 		if err != nil {
 			t.Fatal(err)
+		}
+	})
+}
+
+func TestTruncate(t *testing.T) {
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		ctx := context.Background()
+		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close(ctx)
+
+		txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+		var archiveFiles = map[string]string{
+			"/a/b/c/data.json":   "[1,2,3]",
+			"/a/b/d/data.json":   `e: true`,
+			"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}}`,
+			"/a/b/y/data.yaml":   `foo: 1`,
+			"/policy.rego":       "package foo\n p = 1",
+			"/roles/policy.rego": "package bar\n p = 1",
+		}
+
+		var files [][2]string
+		for name, content := range archiveFiles {
+			files = append(files, [2]string{name, content})
+		}
+
+		buf := archive.MustWriteTarGz(files)
+		b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		iterator := bundle.NewIterator(b.Raw)
+
+		err = s.Truncate(ctx, txn, storage.WriteParams, iterator)
+		if err != nil {
+			t.Fatalf("Unexpected truncate error: %v", err)
+		}
+
+		// check if symlink is created
+		symlink := filepath.Join(dir, symlinkKey)
+		_, err = os.Lstat(symlink)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := s.Commit(ctx, txn); err != nil {
+			t.Fatalf("Unexpected commit error: %v", err)
+		}
+
+		txn = storage.NewTransactionOrDie(ctx, s)
+
+		actual, err := s.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := `
+		{
+			"a": {
+				"b": {
+					"c": [1,2,3],
+					"d": {
+						"e": true
+					},
+					"y": {
+						"foo": 1
+					},
+					"z": true
+				}
+			},
+			"x": {
+				"y": true
+			}
+		}
+		`
+		jsn := util.MustUnmarshalJSON([]byte(expected))
+
+		if !reflect.DeepEqual(jsn, actual) {
+			t.Fatalf("Expected reader's read to be %v but got: %v", jsn, actual)
+		}
+
+		s.Abort(ctx, txn)
+
+		txn = storage.NewTransactionOrDie(ctx, s)
+		ids, err := s.ListPolicies(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedIds := map[string]struct{}{"/policy.rego": {}, "/roles/policy.rego": {}}
+
+		for _, id := range ids {
+			if _, ok := expectedIds[id]; !ok {
+				t.Fatalf("Expected list policies to contain %v but got: %v", expectedIds, id)
+			}
+		}
+
+		bs, err := s.GetPolicy(ctx, txn, "/policy.rego")
+		expectedBytes := []byte("package foo\n p = 1")
+		if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+			t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
+		}
+
+		bs, err = s.GetPolicy(ctx, txn, "/roles/policy.rego")
+		expectedBytes = []byte("package bar\n p = 1")
+		if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+			t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
+		}
+	})
+}
+
+func TestTruncateMultipleTxn(t *testing.T) {
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		ctx := context.Background()
+		s, err := New(ctx, logging.NewNoOpLogger(), nil, Options{Dir: dir, Partitions: nil, Badger: "memtablesize=4000;valuethreshold=600"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close(ctx)
+
+		txn := storage.NewTransactionOrDie(ctx, s, storage.WriteParams)
+
+		archiveFiles := map[string]string{}
+
+		for i := 0; i < 20; i++ {
+
+			path := fmt.Sprintf("users/user%d/data.json", i)
+
+			obj := map[string][]byte{}
+			obj[fmt.Sprintf("key%d", i)] = bytes.Repeat([]byte("a"), 1<<20) // 1 MB.
+
+			bs, err := json.Marshal(obj)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			archiveFiles[path] = string(bs)
+		}
+
+		// additional data file at root
+		archiveFiles["/data.json"] = `{"a": {"b": {"z": true}}}}`
+
+		var files [][2]string
+		for name, content := range archiveFiles {
+			files = append(files, [2]string{name, content})
+		}
+
+		buf := archive.MustWriteTarGz(files)
+		b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		iterator := bundle.NewIterator(b.Raw)
+
+		err = s.Truncate(ctx, txn, storage.WriteParams, iterator)
+		if err != nil {
+			t.Fatalf("Unexpected truncate error: %v", err)
+		}
+
+		if err := s.Commit(ctx, txn); err != nil {
+			t.Fatalf("Unexpected commit error: %v", err)
+		}
+
+		txn = storage.NewTransactionOrDie(ctx, s)
+
+		_, err = s.Read(ctx, txn, storage.MustParsePath("/users/user19"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s.Abort(ctx, txn)
+
+		txn = storage.NewTransactionOrDie(ctx, s)
+
+		actual, err := s.Read(ctx, txn, storage.MustParsePath("/a"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expected := `
+		{
+			"b": {
+				"z": true
+			}
+		}
+		`
+		jsn := util.MustUnmarshalJSON([]byte(expected))
+
+		if !reflect.DeepEqual(jsn, actual) {
+			t.Fatalf("Expected reader's read to be %v but got: %v", jsn, actual)
 		}
 	})
 }

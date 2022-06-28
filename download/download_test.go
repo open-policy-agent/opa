@@ -148,6 +148,47 @@ func TestStopWithMultipleCalls(t *testing.T) {
 	}
 }
 
+func TestStartStopWithLazyLoadingMode(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(config, fixture.client, "/bundles/test/bundle1").WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
+	}).WithLazyLoadingMode(true)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
+	if len(u1.Bundle.Raw) == 0 {
+		t.Fatal("expected bundle to contain raw bytes")
+	}
+
+	if len(u1.Bundle.Data) != 0 {
+		t.Fatal("expected the bundle object to contain no data")
+	}
+
+	d.Stop(ctx)
+}
+
 func TestStartStopWithDeltaBundleMode(t *testing.T) {
 	ctx := context.Background()
 

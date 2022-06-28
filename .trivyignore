@@ -1,0 +1,13 @@
+# We're not directly using nor running these dependencies, and hence they're not applicable
+#
+# * github.com/satori/go.uuid - used by a dependency that imports containerd... the containerd import
+#   used here is not vulnerable though.
+CVE-2021-3538
+
+# * go.etcd.io/etcd - we don't run etcd as part of the OPA deployment
+CVE-2018-1098
+
+# * k8s.io/kubernetes - we don't run kubernetes as part of the OPA deployment
+CVE-2019-11253
+CVE-2020-8558
+CVE-2021-25741

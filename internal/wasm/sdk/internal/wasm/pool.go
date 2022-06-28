@@ -41,7 +41,7 @@ type Pool struct {
 func NewPool(poolSize, memoryMinPages, memoryMaxPages uint32) *Pool {
 
 	cfg := wasmtime.NewConfig()
-	cfg.SetInterruptable(true)
+	cfg.SetEpochInterruption(true)
 
 	available := make(chan struct{}, poolSize)
 	for i := uint32(0); i < poolSize; i++ {

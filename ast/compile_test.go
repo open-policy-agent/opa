@@ -1515,6 +1515,118 @@ func TestCompilerRewriteExprTerms(t *testing.T) {
 	}
 }
 
+func TestIllegalFunctionCallRewrite(t *testing.T) {
+	cases := []struct {
+		note           string
+		module         string
+		expectedErrors []string
+	}{
+		/*{
+					note: "function call override in function value",
+					module: `package test
+		foo(x) := x
+
+		p := foo(bar) {
+			#foo := 1
+			bar := 2
+		}`,
+					expectedErrors: []string{
+						"undefined function foo",
+					},
+				},*/
+		{
+			note: "function call override in array comprehension value",
+			module: `package test
+p := [foo(bar) | foo := 1; bar := 2]`,
+			expectedErrors: []string{
+				"called function foo shadowed",
+			},
+		},
+		{
+			note: "function call override in set comprehension value",
+			module: `package test
+p := {foo(bar) | foo := 1; bar := 2}`,
+			expectedErrors: []string{
+				"called function foo shadowed",
+			},
+		},
+		{
+			note: "function call override in object comprehension value",
+			module: `package test
+p := {foo(bar): bar(foo) | foo := 1; bar := 2}`,
+			expectedErrors: []string{
+				"called function bar shadowed",
+				"called function foo shadowed",
+			},
+		},
+		{
+			note: "function call override in array comprehension value",
+			module: `package test
+p := [foo.bar(baz) | foo := 1; bar := 2; baz := 3]`,
+			expectedErrors: []string{
+				"called function foo.bar shadowed",
+			},
+		},
+		{
+			note: "nested function call override in array comprehension value",
+			module: `package test
+p := [baz(foo(bar)) | foo := 1; bar := 2]`,
+			expectedErrors: []string{
+				"called function foo shadowed",
+			},
+		},
+		{
+			note: "function call override of 'input' root document",
+			module: `package test
+p := [input() | input := 1]`,
+			expectedErrors: []string{
+				"called function input shadowed",
+			},
+		},
+		{
+			note: "function call override of 'data' root document",
+			module: `package test
+p := [data() | data := 1]`,
+			expectedErrors: []string{
+				"called function data shadowed",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler()
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModuleWithOpts(tc.module, opts),
+			}
+			compileStages(compiler, compiler.rewriteLocalVars)
+
+			result := make([]string, 0, len(compiler.Errors))
+			for i := range compiler.Errors {
+				result = append(result, compiler.Errors[i].Message)
+			}
+
+			sort.Strings(tc.expectedErrors)
+			sort.Strings(result)
+
+			if len(tc.expectedErrors) != len(result) {
+				t.Fatalf("Expected %d errors but got %d:\n\n%v\n\nGot:\n\n%v",
+					len(tc.expectedErrors), len(result),
+					strings.Join(tc.expectedErrors, "\n"), strings.Join(result, "\n"))
+			}
+
+			for i := range result {
+				if result[i] != tc.expectedErrors[i] {
+					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v",
+						strings.Join(tc.expectedErrors, "\n"), strings.Join(result, "\n"))
+				}
+			}
+		})
+	}
+}
+
 func TestCompilerCheckUnusedImports(t *testing.T) {
 	cases := []strictnessTestCase{
 		{
@@ -4541,7 +4653,7 @@ func TestCompilerMockFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { true with http.send as http_send }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "invalid ref: arity mismatch (in call)",
@@ -4549,14 +4661,14 @@ func TestCompilerMockFunction(t *testing.T) {
 				http_send(_, _) = { "body": "nope" }
 				p { http.send({}) with http.send as http_send }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (any, any)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "invalid ref: value another built-in with different type",
 			module: `package test
 				p { true with http.send as net.lookup_ip_addr }
 			`,
-			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (object[string: any])",
+			err: "rego_type_error: http.send: arity mismatch\n\thave: (string)\n\twant: (request: object[string: any])",
 		},
 		{
 			note: "ref: value another built-in with compatible type",
@@ -6462,7 +6574,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        `startswith("x")`,
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (string, string)"),
+			expected: fmt.Errorf("1 error occurred: 1:1: rego_type_error: startswith: arity mismatch\n\thave: (string)\n\twant: (search: string, base: string)"),
 		},
 		{
 			note:     "built-in function arity mismatch (arity 0)",
@@ -6476,7 +6588,7 @@ func TestQueryCompiler(t *testing.T) {
 			q:        "count(sum())",
 			pkg:      "",
 			imports:  nil,
-			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (any<array[number], set[number]>)"),
+			expected: fmt.Errorf("1 error occurred: 1:7: rego_type_error: sum: arity mismatch\n\thave: (???)\n\twant: (collection: any<array[number], set[number]>)"),
 		},
 		{
 			note:     "check types",

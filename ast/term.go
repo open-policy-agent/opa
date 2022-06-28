@@ -1570,9 +1570,7 @@ func (s *set) MarshalJSON() ([]byte, error) {
 // Sorted returns an Array that contains the sorted elements of s.
 func (s *set) Sorted() *Array {
 	cpy := make([]*Term, len(s.keys))
-	for i := range s.keys {
-		cpy[i] = s.keys[i]
-	}
+	copy(cpy, s.keys)
 	sort.Sort(termSlice(cpy))
 	return NewArray(cpy...)
 }

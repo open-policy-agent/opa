@@ -4,7 +4,6 @@ package wasmtime
 // #include "shims.h"
 import "C"
 import (
-	"errors"
 	"reflect"
 	"runtime"
 	"sync"
@@ -88,25 +87,6 @@ func goFinalizeStore(env unsafe.Pointer) {
 	gStoreSlab.deallocate(idx)
 }
 
-// InterruptHandle returns a handle, if enabled, which can be used to interrupt
-// execution of WebAssembly within this `Store` from any goroutine.
-//
-// This requires that `SetInterruptable` is set to `true` on the `Config`
-// associated with this `Store`. Returns an error if interrupts aren't enabled.
-func (store *Store) InterruptHandle() (*InterruptHandle, error) {
-	ptr := C.wasmtime_interrupt_handle_new(store.Context())
-	runtime.KeepAlive(store)
-	if ptr == nil {
-		return nil, errors.New("interrupts not enabled in `Config`")
-	}
-
-	handle := &InterruptHandle{_ptr: ptr}
-	runtime.SetFinalizer(handle, func(handle *InterruptHandle) {
-		C.wasmtime_interrupt_handle_delete(handle._ptr)
-	})
-	return handle, nil
-}
-
 // GC will clean up any `externref` values that are no longer actually
 // referenced.
 //
@@ -140,6 +120,13 @@ func (store *Store) Context() *C.wasmtime_context_t {
 	return ret
 }
 
+// SetEpochDeadline will configure the relative deadline, from the current
+// engine's epoch number, after which wasm code will be interrupted.
+func (store *Store) SetEpochDeadline(deadline uint64) {
+	C.wasmtime_context_set_epoch_deadline(store.Context(), C.uint64_t(deadline))
+	runtime.KeepAlive(store)
+}
+
 // Returns the underlying `*storeData` that this store references in Go, used
 // for inserting functions or storing panic data.
 func getDataInStore(store Storelike) *storeData {
@@ -147,31 +134,6 @@ func getDataInStore(store Storelike) *storeData {
 	gStoreLock.Lock()
 	defer gStoreLock.Unlock()
 	return gStoreMap[int(data)]
-}
-
-// InterruptHandle is used to interrupt the execution of currently running
-// wasm code.
-//
-// For more information see
-// https://bytecodealliance.github.io/wasmtime/api/wasmtime/struct.Store.html#method.interrupt_handle
-type InterruptHandle struct {
-	_ptr *C.wasmtime_interrupt_handle_t
-}
-
-// Interrupt interrupts currently executing WebAssembly code, if it's currently running,
-// or interrupts wasm the next time it starts running.
-//
-// For more information see
-// https://bytecodealliance.github.io/wasmtime/api/wasmtime/struct.Store.html#method.interrupt_handle
-func (i *InterruptHandle) Interrupt() {
-	C.wasmtime_interrupt_handle_interrupt(i.ptr())
-	runtime.KeepAlive(i)
-}
-
-func (i *InterruptHandle) ptr() *C.wasmtime_interrupt_handle_t {
-	ret := i._ptr
-	maybeGC()
-	return ret
 }
 
 var gEngineFuncLock sync.Mutex

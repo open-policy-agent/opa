@@ -116,7 +116,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	changed := !bytes.Equal(contents, formatted)
 
-	if params.fail {
+	if params.fail && !params.list && !params.diff {
 		if changed {
 			return newError("unexpected diff")
 		}
@@ -125,6 +125,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	if params.list {
 		if changed {
 			fmt.Fprintln(out, filename)
+
+			if params.fail {
+				return newError("unexpected diff")
+			}
 		}
 		return nil
 	}
@@ -138,6 +142,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 			}
 
 			fmt.Fprintln(out, stdout.String())
+
+			if params.fail {
+				return newError("unexpected diff")
+			}
 		}
 		return nil
 	}

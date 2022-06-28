@@ -12,11 +12,10 @@ package ast
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
-
-	"github.com/pkg/errors"
 )
 
 // MustParseBody returns a parsed body.
@@ -464,7 +463,7 @@ func ParseBodyWithOpts(input string, popts ParserOptions) (Body, error) {
 func ParseExpr(input string) (*Expr, error) {
 	body, err := ParseBody(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse expression")
+		return nil, fmt.Errorf("failed to parse expression: %w", err)
 	}
 	if len(body) != 1 {
 		return nil, fmt.Errorf("expected exactly one expression but got: %v", body)
@@ -491,7 +490,7 @@ func ParsePackage(input string) (*Package, error) {
 func ParseTerm(input string) (*Term, error) {
 	body, err := ParseBody(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse term")
+		return nil, fmt.Errorf("failed to parse term: %w", err)
 	}
 	if len(body) != 1 {
 		return nil, fmt.Errorf("expected exactly one term but got: %v", body)
@@ -507,7 +506,7 @@ func ParseTerm(input string) (*Term, error) {
 func ParseRef(input string) (Ref, error) {
 	term, err := ParseTerm(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse ref")
+		return nil, fmt.Errorf("failed to parse ref: %w", err)
 	}
 	ref, ok := term.Value.(Ref)
 	if !ok {

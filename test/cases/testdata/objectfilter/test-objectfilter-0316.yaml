@@ -12,7 +12,6 @@ cases:
     }
   note: objectfilter/error invalid key param type number input
   query: data.generated.p = x
-  want_error: 'object.filter: operand 2 must be one of {object, string, array} but
-    got number'
+  want_error: 'object.filter: operand 2 must be one of {object, set, array} but got number'
   want_error_code: eval_type_error
   strict_error: true

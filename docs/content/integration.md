@@ -199,6 +199,8 @@ store, etc.
 module := `
 package example.authz
 
+import future.keywords
+
 default allow := false
 
 allow {
@@ -211,7 +213,7 @@ allow {
 }
 
 is_admin {
-    input.subject.groups[_] = "admin"
+    "admin" in input.subject.groups
 }
 `
 

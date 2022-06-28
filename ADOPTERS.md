@@ -81,6 +81,11 @@ production users that have added themselves (in alphabetical order):
   RBAC, PV, and Quota resources that are central to the security and operation of
   these clusters. For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=lYHr_UaHsYQ).
 
+* [Infracost](https://www.infracost.io/) shows cloud cost estimates for Terraform.
+  It uses OPA to enable users to create cost policies, and setup guardrails such
+  as "this change puts the monthly costs above $10K, which is the budget for this
+  product. Consider asking the team lead to review it". See [the docs](https://www.infracost.io/docs/features/cost_policies/) for details.
+
 * [Intuit](https://www.intuit.com/company/) uses OPA as a validating
   and mutating admission controller to implement various security,
   multi-tenancy, and risk management policies across approximately 50
@@ -141,6 +146,8 @@ production users that have added themselves (in alphabetical order):
   access control decisions over projects, collaborators, jobs,
   etc. SAP/Infrabox is used in production within SAP and has several
   external users.
+
+* [Terminus Software](https://terminus.com/) uses OPA for microservice authorization.
 
 * [T-Mobile](https://www.t-mobile.com) uses OPA as a core component for their
   [MagTape](https://github.com/tmobile/magtape/) project that enforces best

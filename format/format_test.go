@@ -274,7 +274,7 @@ p {
 
 import future.keywords
 
-p {
+p if {
 	every k, v in [1, 2] { k != v }
 }`,
 		},
@@ -290,7 +290,7 @@ p {
 
 import future.keywords
 
-p {
+p if {
 	every k, v in [1, 2] { k != v }
 }`,
 		},

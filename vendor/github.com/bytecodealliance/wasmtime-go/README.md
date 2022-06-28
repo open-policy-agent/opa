@@ -25,7 +25,7 @@
 ## Installation
 
 ```sh
-go get -u github.com/bytecodealliance/wasmtime-go@v0.35.0
+go get -u github.com/bytecodealliance/wasmtime-go@v0.36.0
 ```
 
 Be sure to check out the [API documentation][api]!
@@ -37,13 +37,10 @@ Wasmtime locally, but it means that this project only works on Linux x86\_64,
 macOS x86\_64 , and Windows x86\_64 currently. Building on other platforms will
 need to arrange to build Wasmtime and use `CGO_*` env vars to compile correctly.
 
-This project has been tested with Go 1.13 or later. It is not recommended to
-use Go 1.14 earlier than Go 1.14.11 on macOS due to a [bug in the Go runtime][bug].
+This project has been tested with Go 1.13 or later.
 
 [api]: https://pkg.go.dev/github.com/bytecodealliance/wasmtime-go
 [wasmtime]: https://github.com/bytecodealliance/wasmtime
-[bug]: https://github.com/golang/go/issues/39079
-
 
 If you are a bazel user, add following to your WORKSPACE file:
 
@@ -51,7 +48,7 @@ If you are a bazel user, add following to your WORKSPACE file:
 go_repository(
     name = "com_github_bytecodealliance_wasmtime_go",
     importpath = "github.com/bytecodealliance/wasmtime-go",
-    version = "v0.35.0",
+    version = "v0.36.0",
 )
 ```
 

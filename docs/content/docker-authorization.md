@@ -189,7 +189,7 @@ Now let's change the policy so that it's a bit more useful.
 ```live:docker_authz_deny_unconfined:module:openable
 package docker.authz
 
-default allow = false
+default allow := false
 
 allow {
     not deny

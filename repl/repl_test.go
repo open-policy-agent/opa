@@ -2676,6 +2676,28 @@ func TestUnsetPackage(t *testing.T) {
 	}
 }
 
+func TestCapabilities(t *testing.T) {
+	capabilities := ast.CapabilitiesForThisVersion()
+	allowedBuiltins := []*ast.Builtin{}
+	for _, builtin := range capabilities.Builtins {
+		if builtin.Name != "http.send" {
+			allowedBuiltins = append(allowedBuiltins, builtin)
+		}
+	}
+	capabilities.Builtins = allowedBuiltins
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer).WithCapabilities(capabilities)
+	if err := repl.OneShot(ctx, `http.send({"url": "http://example.com", "method": "GET"})`); err != nil {
+		if !strings.Contains(fmt.Sprintf("%v", err), "undefined function http.send") {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	} else {
+		t.Fatalf("Expected error on http.send")
+	}
+}
+
 func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
 	t.Helper()
 	result := buf.String()

@@ -5,8 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 )
@@ -17,7 +17,7 @@ import (
 // public key cannot be deduced, an error is returned
 func GetPublicKey(key interface{}) (interface{}, error) {
 	if key == nil {
-		return nil, errors.New(`jwk.New requires a non-nil key`)
+		return nil, errors.New("jwk.New requires a non-nil key")
 	}
 
 	switch v := key.(type) {
@@ -32,7 +32,7 @@ func GetPublicKey(key interface{}) (interface{}, error) {
 	case []byte:
 		return v, nil
 	default:
-		return nil, errors.Errorf(`invalid key type %T`, key)
+		return nil, fmt.Errorf("invalid key type %T", key)
 	}
 }
 
@@ -54,7 +54,7 @@ func GetKeyTypeFromKey(key interface{}) jwa.KeyType {
 // New creates a jwk.Key from the given key.
 func New(key interface{}) (Key, error) {
 	if key == nil {
-		return nil, errors.New(`jwk.New requires a non-nil key`)
+		return nil, errors.New("jwk.New requires a non-nil key")
 	}
 
 	switch v := key.(type) {
@@ -69,7 +69,7 @@ func New(key interface{}) (Key, error) {
 	case []byte:
 		return newSymmetricKey(v)
 	default:
-		return nil, errors.Errorf(`invalid key type %T`, key)
+		return nil, fmt.Errorf("invalid key type %T", key)
 	}
 }
 
@@ -80,7 +80,7 @@ func parse(jwkSrc string) (*Set, error) {
 	rawKeySetJSON := &RawKeySetJSON{}
 	err := json.Unmarshal([]byte(jwkSrc), rawKeySetJSON)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal JWK Set")
+		return nil, fmt.Errorf("failed to unmarshal JWK Set: %w", err)
 	}
 	if len(rawKeySetJSON.Keys) == 0 {
 
@@ -88,20 +88,23 @@ func parse(jwkSrc string) (*Set, error) {
 		rawKeyJSON := &RawKeyJSON{}
 		err := json.Unmarshal([]byte(jwkSrc), rawKeyJSON)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal JWK")
+			return nil, fmt.Errorf("failed to unmarshal JWK: %w", err)
 		}
 		jwkKey, err = rawKeyJSON.GenerateKey()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to generate key")
+			return nil, fmt.Errorf("failed to generate key: %w", err)
 		}
 		// Add to set
 		jwkKeySet.Keys = append(jwkKeySet.Keys, jwkKey)
 	} else {
 		for i := range rawKeySetJSON.Keys {
 			rawKeyJSON := rawKeySetJSON.Keys[i]
+			if rawKeyJSON.Algorithm != nil && *rawKeyJSON.Algorithm == jwa.Unsupported {
+				continue
+			}
 			jwkKey, err = rawKeyJSON.GenerateKey()
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to generate key: %s")
+				return nil, fmt.Errorf("failed to generate key: %w", err)
 			}
 			jwkKeySet.Keys = append(jwkKeySet.Keys, jwkKey)
 		}
@@ -140,11 +143,11 @@ func (r *RawKeyJSON) GenerateKey() (Key, error) {
 	case jwa.OctetSeq:
 		key = &SymmetricKey{}
 	default:
-		return nil, errors.Errorf(`Unrecognized key type`)
+		return nil, errors.New("unrecognized key type")
 	}
 	err := key.GenerateKey(r)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to generate key from JWK")
+		return nil, fmt.Errorf("failed to generate key from JWK: %w", err)
 	}
 	return key, nil
 }

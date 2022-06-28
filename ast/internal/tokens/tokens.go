@@ -67,6 +67,8 @@ const (
 	Semicolon
 
 	Every
+	Contains
+	If
 )
 
 var strings = [...]string{
@@ -115,6 +117,8 @@ var strings = [...]string{
 	Dot:        ".",
 	Semicolon:  ";",
 	Every:      "every",
+	Contains:   "contains",
+	If:         "if",
 }
 
 var keywords = map[string]Token{

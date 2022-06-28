@@ -18,13 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/plugins"
-
-	"github.com/pkg/errors"
-
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -65,6 +62,8 @@ type Downloader struct {
 	stopped            bool
 	persist            bool
 	longPollingEnabled bool
+	lazyLoadingMode    bool
+	bundleName         string
 }
 
 type downloaderResponse struct {
@@ -115,6 +114,21 @@ func (d *Downloader) WithSizeLimitBytes(n int64) *Downloader {
 // WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
 func (d *Downloader) WithBundlePersistence(persist bool) *Downloader {
 	d.persist = persist
+	return d
+}
+
+// WithLazyLoadingMode specifies how the downloaded bundle should be read.
+// If true, data files in the bundle will not be deserialized
+// and the check to validate that the bundle data does not contain paths
+// outside the bundle's roots will not be performed while reading the bundle.
+func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
+	d.lazyLoadingMode = yes
+	return d
+}
+
+// WithBundleName specifies the name of the downloaded bundle.
+func (d *Downloader) WithBundleName(bundleName string) *Downloader {
+	d.bundleName = bundleName
 	return d
 }
 
@@ -285,7 +299,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	resp, err := d.client.Do(ctx, "GET", d.path)
 	m.Timer(metrics.BundleRequest).Stop()
 	if err != nil {
-		return nil, errors.Wrap(err, "request failed")
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	defer util.Close(resp)
@@ -308,8 +322,13 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			}
 
 			etag := resp.Header.Get("ETag")
-			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc).
-				WithBundleEtag(etag)
+
+			reader := bundle.NewCustomReader(loader).
+				WithMetrics(m).
+				WithBundleVerificationConfig(d.bvc).
+				WithBundleEtag(etag).
+				WithLazyLoadingMode(d.lazyLoadingMode).
+				WithBundleName(d.bundleName)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}

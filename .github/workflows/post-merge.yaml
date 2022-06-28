@@ -155,7 +155,7 @@ jobs:
           path: _release
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
 
       - name: Deploy OPA Edge
         env:

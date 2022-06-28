@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
@@ -544,7 +543,8 @@ func (p *Parser) parseRules() []*Rule {
 		return nil
 	}
 
-	if rule.Head = p.parseHead(rule.Default); rule.Head == nil {
+	usesContains := false
+	if rule.Head, usesContains = p.parseHead(rule.Default); rule.Head == nil {
 		return nil
 	}
 
@@ -557,13 +557,52 @@ func (p *Parser) parseRules() []*Rule {
 		return []*Rule{&rule}
 	}
 
-	if p.s.tok == tokens.LBrace {
+	hasIf := false
+	if p.s.tok == tokens.If {
+		hasIf = true
+	}
+
+	if hasIf && !usesContains && rule.Head.Key != nil && rule.Head.Value == nil {
+		p.illegal("invalid for partial set rule %s (use `contains`)", rule.Head.Name)
+		return nil
+	}
+
+	switch {
+	case hasIf:
+		p.scan()
+		s := p.save()
+		if expr := p.parseLiteral(); expr != nil {
+			// NOTE(sr): set literals are never false or undefined, so parsing this as
+			//  p if { true }
+			//       ^^^^^^^^ set of one element, `true`
+			// isn't valid.
+			isSetLiteral := false
+			if t, ok := expr.Terms.(*Term); ok {
+				_, isSetLiteral = t.Value.(Set)
+			}
+			// expr.Term is []*Term or Every
+			if !isSetLiteral {
+				rule.Body.Append(expr)
+				break
+			}
+		}
+
+		// parsing as literal didn't work out, expect '{ BODY }'
+		p.restore(s)
+		fallthrough
+
+	case p.s.tok == tokens.LBrace:
 		p.scan()
 		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
 			return nil
 		}
 		p.scan()
-	} else {
+
+	case usesContains:
+		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		return []*Rule{&rule}
+
+	default:
 		return nil
 	}
 
@@ -668,7 +707,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	return &rule
 }
 
-func (p *Parser) parseHead(defaultRule bool) *Head {
+func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	var head Head
 	head.SetLoc(p.s.Loc())
@@ -690,13 +729,13 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		if p.s.tok != tokens.RParen {
 			head.Args = p.parseTermList(tokens.RParen, nil)
 			if head.Args == nil {
-				return nil
+				return nil, false
 			}
 		}
 		p.scan()
 
 		if p.s.tok == tokens.LBrack {
-			return nil
+			return nil, false
 		}
 	}
 
@@ -715,13 +754,23 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		p.scan()
 	}
 
-	if p.s.tok == tokens.Unify {
+	switch p.s.tok {
+	case tokens.Contains:
+		p.scan()
+		head.Key = p.parseTermInfixCall()
+		if head.Key == nil {
+			p.illegal("expected rule key term (e.g., %s contains <VALUE> { ... })", head.Name)
+		}
+
+		return &head, true
+	case tokens.Unify:
 		p.scan()
 		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
 			p.illegal("expected rule value term (e.g., %s[%s] = <VALUE> { ... })", head.Name, head.Key)
 		}
-	} else if p.s.tok == tokens.Assign {
+
+	case tokens.Assign:
 		s := p.save()
 		p.scan()
 		head.Assign = true
@@ -745,7 +794,7 @@ func (p *Parser) parseHead(defaultRule bool) *Head {
 		head.Value = BooleanTerm(true).SetLocation(head.Location)
 	}
 
-	return &head
+	return &head, false
 }
 
 func (p *Parser) parseBody(end tokens.Token) Body {
@@ -1107,7 +1156,6 @@ func (p *Parser) parseTermIn(lhs *Term, keyVal bool, offset int) *Term {
 				}
 			}
 			p.restore(s)
-			return nil
 		}
 		if op := p.parseTermOpName(Member.Ref(), tokens.In); op != nil {
 			if rhs := p.parseTermRelation(nil, p.s.loc.Offset); rhs != nil {
@@ -1245,7 +1293,7 @@ func (p *Parser) parseTerm() *Term {
 		term = p.parseNumber()
 	case tokens.String:
 		term = p.parseString()
-	case tokens.Ident:
+	case tokens.Ident, tokens.Contains: // NOTE(sr): contains anywhere BUT in rule heads gets no special treatment
 		term = p.parseVar()
 	case tokens.LBrack:
 		term = p.parseArray()
@@ -2088,7 +2136,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		case map[interface{}]interface{}:
 			w, err := convertYAMLMapKeyTypes(v, nil)
 			if err != nil {
-				return nil, errors.Wrap(err, "invalid schema definition")
+				return nil, fmt.Errorf("invalid schema definition: %w", err)
 			}
 			a.Definition = &w
 		default:
@@ -2271,8 +2319,10 @@ func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 // futureKeywords is the source of truth for future keywords that will
 // eventually become standard keywords inside of Rego.
 var futureKeywords = map[string]tokens.Token{
-	"in":    tokens.In,
-	"every": tokens.Every,
+	"in":       tokens.In,
+	"every":    tokens.Every,
+	"contains": tokens.Contains,
+	"if":       tokens.If,
 }
 
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
