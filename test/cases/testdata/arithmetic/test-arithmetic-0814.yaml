@@ -13,6 +13,6 @@ cases:
     }
   note: arithmetic/divide+error
   query: data.generated.p = x
+  strict_error: true
   want_error: divide by zero
   want_error_code: eval_builtin_error
-  strict_error: true

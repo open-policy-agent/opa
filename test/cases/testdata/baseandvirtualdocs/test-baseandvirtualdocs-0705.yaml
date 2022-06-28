@@ -1,29 +1,5 @@
 cases:
-- data:
-    topdown:
-      a:
-        b:
-          c:
-            x:
-            - 100
-            - 200
-            "y": false
-            z:
-              a: b
-      conflicts:
-        k: foo
-      g:
-        h:
-          k:
-          - 1
-          - 2
-          - 3
-      set:
-        u:
-        - 1
-        - 2
-        - 3
-        - 4
+- data: {}
   input_term: '{}'
   modules:
   - |
@@ -172,9 +148,9 @@ cases:
     r["b"] = 2
   note: baseandvirtualdocs/enumerate virtual errors
   query: data.enum_errors.caller.p = x
+  strict_error: true
   want_error: divide by zero
   want_error_code: eval_builtin_error
-  strict_error: true
   want_result:
   - x:
       b:

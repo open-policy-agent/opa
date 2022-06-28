@@ -1,6 +1,5 @@
 cases:
 - data:
-    err: package foo.
     ok: "package foo.bar\n\n\t\timport data.a\n\n\t\tp { a = true }"
   modules:
   - |

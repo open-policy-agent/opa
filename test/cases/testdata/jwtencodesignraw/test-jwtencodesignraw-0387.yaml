@@ -1,91 +1,9 @@
 cases:
-- data:
-    a:
-    - 1
-    - 2
-    - 3
-    - 4
-    b:
-      v1: hello
-      v2: goodbye
-    c:
-    - x:
-      - true
-      - false
-      - foo
-      "y":
-      - null
-      - 3.14159
-      z:
-        p: true
-        q: false
-    d:
-      e:
-      - bar
-      - baz
-    f:
-    - xs:
-      - 1
-      ys:
-      - 2
-    - xs:
-      - 2
-      ys:
-      - 3
-    g:
-      a:
-      - 1
-      - 0
-      - 0
-      - 0
-      b:
-      - 0
-      - 2
-      - 0
-      - 0
-      c:
-      - 0
-      - 0
-      - 0
-      - 4
-    h:
-    - - 1
-      - 2
-      - 3
-    - - 2
-      - 3
-      - 4
-    l:
-    - a: bob
-      b: -1
-      c:
-      - 1
-      - 2
-      - 3
-      - 4
-    - a: alice
-      b: 1
-      c:
-      - 2
-      - 3
-      - 4
-      - 5
-      d: null
-    m: []
-    numbers:
-    - "1"
-    - "2"
-    - "3"
-    - "4"
-    strings:
-      bar: 2
-      baz: 3
-      foo: 1
-    three: 3
+- data: {}
   modules:
-  - "package generated\n\np = x {\n  io.jwt.encode_sign_raw(`{\"typ\":\"JWT\",\r\n
-    \"alg\":\"HS256\"}`, `{}`, `{\n\"kty\":\"oct\",\n\"k\":\"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow\"\n}`,
-    x)\n}\n"
+  - "package generated\n\np = x {\n  io.jwt.encode_sign_raw(`{\"typ\":\"JWT\",\r\n\
+    \ \"alg\":\"HS256\"}`, `{}`, `{\n\"kty\":\"oct\",\n\"k\":\"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow\"\
+    \n}`, x)\n}\n"
   note: jwtencodesignraw/Empty JSON payload
   query: data.generated.p = x
   want_result:
