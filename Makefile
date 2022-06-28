@@ -87,7 +87,7 @@ LDFLAGS := "$(TELEMETRY_FLAG) \
 
 # If you update the 'all' target make sure the 'ci-release-test' target is consistent.
 .PHONY: all
-all: build test perf wasm-sdk-e2e-test check
+all: build test perf wasm-sdk-e2e-test wasm-wazero-sdk-e2e-test check
 
 .PHONY: version
 version:
@@ -143,6 +143,14 @@ perf-noisy: generate
 .PHONY: wasm-sdk-e2e-test
 wasm-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/sdk/test/e2e
+
+.PHONY: wasm-wazero-sdk-e2e-test
+wasm-wazero-sdk-e2e-test: generate
+	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
+
+.PHONY: wasm-wazero-sdk-e2e-test
+wasm-wazero-sdk-e2e-test: generate
+	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
 
 .PHONY: check
 check:
@@ -430,7 +438,7 @@ ci-binary-smoke-test-%:
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
+	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress
 
 .PHONY: docker-login
 docker-login:

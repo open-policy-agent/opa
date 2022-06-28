@@ -177,6 +177,17 @@ jobs:
         run: make ci-go-wasm-sdk-e2e-test
         timeout-minutes: 30
 
+  wasm-go-wazero-sdk-e2e:
+    name: OPA Wasm Wazero SDK e2e
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Build and Test Wasm Wazero SDK
+        run: make ci-go-wasm-wazero-sdk-e2e-test
+        timeout-minutes: 30
+
   race-detector:
     name: Go Race Detector
     runs-on: ubuntu-latest
@@ -274,7 +285,6 @@ jobs:
       - run: make go-test
         env:
           DOCKER_RUNNING: 0
-
 
   # Run PR metadata against Rego policies
   rego-check-pr:

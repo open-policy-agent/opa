@@ -111,6 +111,39 @@ func TestOPA(t *testing.T) {
 			},
 		},
 		{
+			Description: "jwt data",
+			Policy: `a = io.jwt.encode_sign({
+				"typ": "JWT",
+				"alg": "HS256"
+			}, {
+				"iss": "joe",
+				"exp": 1300819380,
+				"aud": ["bob", "saul"],
+				"http://example.com/is_root": true,
+				"privateParams": {
+					"private_one": "one",
+					"private_two": "two"
+				}
+			}, {
+				"kty": "oct",
+				"k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+			})`,
+			Query: "data.p.a = x",
+			Evals: []Eval{
+				{Result: `{{"x": "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4"}}`},
+			},
+		},
+		{
+			Description: "jwt data decode",
+			Policy:      `q=x{[x, _, _] := io.jwt.decode("eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4")}`,
+			Query:       "data.p.q = x",
+			Evals: []Eval{
+				{Result: `{{"x":{"alg":"HS256","typ":"JWT"}}}`},
+				{NewPolicy: `q=x{[_, x, _] := io.jwt.decode("eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4")}`, Result: `{{"x":{"aud":["bob","saul"],"exp":1300819380,"http://example.com/is_root":true,"iss":"joe","privateParams":{"private_one":"one","private_two":"two"}}}}`},
+				{NewPolicy: `q=x{[_, _, x] = io.jwt.decode("eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4")}`, Result: `{{"x":"335d1371a1400ebfc9600c7ba89ef5c24b5dcae3782009e15af55b82b6798ffe"}}`},
+			},
+		},
+		{
 			Description: "Runtime error/object insert conflict",
 			Policy:      `a = { "a": y | y := [1, 2][_] }`,
 			Query:       "data.p.a.a = x",
@@ -210,6 +243,19 @@ a = "c" { input > 2 }`,
 			q = 2`,
 			Evals: []Eval{
 				{Result: `{{"y": 2, "x": "q"}}`},
+			},
+		},
+		{
+			Description: "builtin sdk test",
+			Query:       `x:=indexof_n("Hello World","l")`,
+			Evals: []Eval{
+				{Result: `{{"x": [2,3,9]}}`},
+			},
+		}, {
+			Description: "array test",
+			Query:       `x:={"c":["a","b",{"e":"d"}]}`,
+			Evals: []Eval{
+				{Result: `{{"x": {"c":["a","b",{"e":"d"}]}}}`},
 			},
 		},
 		{
@@ -337,7 +383,6 @@ a = "c" { input > 2 }`,
 
 func TestNamedEntrypoint(t *testing.T) {
 	module := `package test
-
 	a = 7
 	b = a
 	`
