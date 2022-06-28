@@ -430,7 +430,7 @@ ci-binary-smoke-test-%:
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress
+	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
 
 .PHONY: docker-login
 docker-login:
