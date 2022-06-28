@@ -1,3 +1,6 @@
+// Copyright 2022 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
 package wazero
 
 import (
@@ -12,14 +15,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
+
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
-	"github.com/tetratelabs/wazero"
-	"github.com/tetratelabs/wazero/api"
 )
 
 type moduleOpts struct {
@@ -34,7 +39,7 @@ type moduleOpts struct {
 type Module struct {
 	module, env            api.Module
 	ctx, ctxt              context.Context
-	tCTX                   *topdown.BuiltinContext
+	tCtx                   *topdown.BuiltinContext
 	vm                     *VM
 	maxMemSize, minMemSize int
 	builtinT               map[int32]topdown.BuiltinFunc
@@ -48,34 +53,31 @@ type Module struct {
 
 // Env is a wasm module that holds the shared memory buffer and the builtin bindings
 func (m *Module) newEnv(opts moduleOpts, r wazero.Runtime) (api.Module, error) {
-	if opts.maxMemSize == (moduleOpts{}).maxMemSize {
 
-		return r.NewModuleBuilder("env").
-			ExportFunction("opa_abort", m.opaAbort).
-			ExportFunction("opa_builtin0", m.C0).
-			ExportFunction("opa_builtin1", m.C1).
-			ExportFunction("opa_builtin2", m.C2).
-			ExportFunction("opa_builtin3", m.C3).
-			ExportFunction("opa_builtin4", m.C4).
-			ExportFunction("opa_println", m.opaPrintln).
-			ExportMemory("memory", uint32(opts.minMemSize)).
-			Instantiate(opts.ctx, r)
-	}
-	return r.NewModuleBuilder("env").
+	env := r.NewModuleBuilder("env").
 		ExportFunction("opa_abort", m.opaAbort).
 		ExportFunction("opa_builtin0", m.C0).
 		ExportFunction("opa_builtin1", m.C1).
 		ExportFunction("opa_builtin2", m.C2).
 		ExportFunction("opa_builtin3", m.C3).
 		ExportFunction("opa_builtin4", m.C4).
-		ExportFunction("opa_println", m.opaPrintln).
-		ExportMemoryWithMax("memory", uint32(opts.minMemSize), uint32(opts.maxMemSize)).
-		Instantiate(opts.ctx, r)
+		ExportFunction("opa_println", m.opaPrintln)
+	if opts.maxMemSize != 0 {
+		env.ExportMemoryWithMax("memory", uint32(opts.minMemSize), uint32(opts.maxMemSize))
+	} else {
+		env.ExportMemory("memory", uint32(opts.minMemSize))
+	}
+	return env.Instantiate(opts.ctx, r)
 
 }
 func (m *Module) GetEntrypoints() map[string]int32 {
-	eLoc := m.entrypoints(m.ctx)
-	return parseJSONString(m.fromRegoJSON(eLoc))
+	var retVal map[string]int32
+	entr, _ := m.jsonDump(m.ctx, m.entrypoints(m.ctx))
+	err := json.Unmarshal(m.readUntil(entr, 0b0), &retVal)
+	if err != nil {
+		panic(err)
+	}
+	return retVal
 }
 
 // Internal error
@@ -95,8 +97,8 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 	go func() {
 		select {
 		case <-done:
-		case <-m.tCTX.Context.Done():
-			m.tCTX.Cancel.Cancel()
+		case <-m.tCtx.Context.Done():
+			m.tCtx.Cancel.Cancel()
 		}
 	}()
 	var output *ast.Term
@@ -106,14 +108,14 @@ func (m *Module) Call(id, ctx int32, args ...int32) int32 {
 		if err != nil {
 			panic(builtinError{err: err})
 		}
-		data := m.readStr(uint32(serialized))
+		data := m.readStr(serialized)
 		pTer, err := ast.ParseTerm(string(data))
 		if err != nil {
 			panic(builtinError{err: err})
 		}
 		pArgs = append(pArgs, pTer)
 	}
-	err := m.builtinT[id](*m.tCTX, pArgs, func(t *ast.Term) error {
+	err := m.builtinT[id](*m.tCtx, pArgs, func(t *ast.Term) error {
 		output = t
 		return nil
 	})
@@ -177,7 +179,7 @@ func (m *Module) Reset(ctx context.Context,
 	m.ns = ns
 	m.ph = ph
 	m.iqbCache = iqbCache
-	m.tCTX = &topdown.BuiltinContext{
+	m.tCtx = &topdown.BuiltinContext{
 		Context:                ctx,
 		Metrics:                metrics.New(),
 		Seed:                   seed,
@@ -198,23 +200,7 @@ func (m *Module) Reset(ctx context.Context,
 
 // Used by the policy to print values
 func (m *Module) opaPrintln(ptr int32) {
-
-	bytes := []byte{}
-	var index uint32
-	for ok := true; ok; {
-		b := m.readMemByte(uint32(ptr) + index)
-		if b == 0b0 {
-			ok = false
-		} else {
-			bytes = append(bytes, b)
-		}
-		index++
-	}
-	out := ""
-	for _, b := range bytes {
-		out += string(b)
-	}
-	fmt.Println(out)
+	fmt.Println(m.readStr(ptr))
 
 }
 func newModule(opts moduleOpts, r wazero.Runtime) Module {
@@ -232,7 +218,7 @@ func newModule(opts moduleOpts, r wazero.Runtime) Module {
 	if err != nil {
 		panic(err)
 	}
-	m.tCTX = &topdown.BuiltinContext{Context: context.Background(), Metrics: metrics.New(),
+	m.tCtx = &topdown.BuiltinContext{Context: context.Background(), Metrics: metrics.New(),
 		Time:  ast.NumberTerm(json.Number(strconv.FormatInt(time.Now().UnixNano(), 10))),
 		Cache: make(builtins.Cache)}
 	m.builtinT = newBuiltinTable(m)
@@ -253,9 +239,9 @@ func (m *Module) writeMemPlus(wAddr uint32, wData []byte, caller string) error {
 	if (m.env.Memory().Size(m.ctx)) < finPtrLoc { // need to grow memory
 
 		delta := uint32(len(wData)) - dataLeft
-		_, success := m.env.Memory().Grow(m.ctx, Pages(uint32(delta)))
+		_, success := m.env.Memory().Grow(m.ctx, util.Pages(uint32(delta)))
 		if !success {
-			return fmt.Errorf("%s: failed to grow memory by `%d` (max pages %d)", caller, Pages(delta), m.maxMemSize)
+			return fmt.Errorf("%s: failed to grow memory by `%d` (max pages %d)", caller, util.Pages(delta), m.maxMemSize)
 		}
 	}
 	m.env.Memory().Write(m.ctx, wAddr, wData)
@@ -274,33 +260,8 @@ func (m *Module) writeMem(data []byte) uint32 {
 }
 
 //reads a null terminated string starting at the given address in the shared memory buffer
-func (m *Module) readStr(loc uint32) string {
-	bytes := []byte{}
-	var index uint32
-	for ok := true; ok; {
-		b := m.readMemByte(loc + index)
-		if b == 0b0 {
-			ok = false
-		} else {
-			bytes = append(bytes, b)
-		}
-		index++
-	}
-	out := ""
-	for _, b := range bytes {
-		out += string(b)
-	}
-	return out
-}
-
-// returns a string representation of the JSON object stored att addr
-func (m *Module) fromRegoJSON(addr int32) string {
-	dumpAddr, err := m.jsonDump(m.ctx, addr)
-	if err != nil {
-		panic(err)
-	}
-	str := m.readStr(uint32(dumpAddr))
-	return str
+func (m *Module) readStr(loc int32) string {
+	return string(m.readUntil(loc, 0b0))
 }
 
 //Reads and returns the shared memory buffer from the given address and stops when it reaches the terminator byte or reaches the end of the buffer

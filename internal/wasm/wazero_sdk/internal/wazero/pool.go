@@ -1,3 +1,6 @@
+// Copyright 2022 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
 package wazero
 
 import (
@@ -5,23 +8,14 @@ import (
 	"context"
 	"sync"
 
+	"github.com/tetratelabs/wazero"
+
+	"github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/internal/wasm/wazero_sdk/opa/errors"
 	"github.com/open-policy-agent/opa/metrics"
-	"github.com/tetratelabs/wazero"
 )
 
 var errNotReady = errors.New(errors.NotReadyErr, "")
-
-const PageSize = 65535
-
-func Pages(n uint32) uint32 {
-	pages := n / PageSize
-	if pages*PageSize == n {
-		return pages
-	}
-
-	return pages + 1
-}
 
 // Pool maintains a pool of WebAssemly VM instances.
 type Pool struct {
@@ -284,7 +278,7 @@ func (p *Pool) updateVMs(update func(vm *VM, opts vmOpts) error) error {
 				activated = true
 				policy = vm.policy
 				parsedDataAddr, parsedData = vm.cloneDataSegment()
-				seedMemorySize = Pages(uint32(vm.module.env.Memory().Size(context.Background())))
+				seedMemorySize = util.Pages(uint32(vm.module.env.Memory().Size(context.Background())))
 				p.activate(policy, parsedData, parsedDataAddr, seedMemorySize)
 			}
 

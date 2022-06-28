@@ -1,3 +1,7 @@
+// Copyright 2022 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package wazero
 
 import (
@@ -8,11 +12,12 @@ import (
 	"io"
 	"time"
 
+	"github.com/tetratelabs/wazero"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
-	"github.com/tetratelabs/wazero"
 )
 
 type vmOpts struct {
@@ -23,6 +28,7 @@ type vmOpts struct {
 	memoryMin      uint32
 	memoryMax      uint32
 }
+
 type VM struct {
 	runtime              *wazero.Runtime
 	ctx                  context.Context
@@ -86,7 +92,7 @@ func newVM(opts vmOpts, runtime *wazero.Runtime) (*VM, error) {
 	vm.free = vm.module.free
 	vm.valueAddPath = vm.module.valueAddPath
 	vm.valueRemovePath = vm.module.valueRemovePath
-	err := vm.setData(vm.ctx, opts, "newVM")
+	err := vm.setData(vm.ctx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +119,10 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		return err
 	}
 
-	return i.setData(i.ctx, opts, "setPolicyData")
+	return i.setData(i.ctx, opts)
 }
 
-func (i *VM) setData(ctx context.Context, opts vmOpts, path string) error {
+func (i *VM) setData(ctx context.Context, opts vmOpts) error {
 	var err error
 	if i.baseHeapPtr, err = i.getHeapState(ctx); err != nil {
 		return err

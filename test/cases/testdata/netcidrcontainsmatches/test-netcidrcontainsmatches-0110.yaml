@@ -13,7 +13,7 @@ cases:
     }
   note: netcidrcontainsmatches/bad set
   query: data.generated.p = x
+  strict_error: true
   want_error: 'net.cidr_contains_matches: operand 2: element must be string or non-empty
     array'
   want_error_code: eval_builtin_error
-  strict_error: true

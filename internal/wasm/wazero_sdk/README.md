@@ -1,4 +1,4 @@
-**Work in Progress -- Contributions welcome!**
+**Experiment -- Contributions welcome!**
 
 # Open Policy Agent WebAssemby Go Wazero SDK
 

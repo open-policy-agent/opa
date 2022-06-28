@@ -148,10 +148,6 @@ wasm-sdk-e2e-test: generate
 wasm-wazero-sdk-e2e-test: generate
 	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
 
-.PHONY: wasm-wazero-sdk-e2e-test
-wasm-wazero-sdk-e2e-test: generate
-	$(GO) test $(GO_TAGS),slow,wasm_sdk_e2e $(GO_TEST_TIMEOUT) -v ./internal/wasm/wazero_sdk/test/e2e
-
 .PHONY: check
 check:
 ifeq ($(DOCKER_RUNNING), 1)
@@ -438,7 +434,8 @@ ci-binary-smoke-test-%:
 
 .PHONY: push-binary-edge
 push-binary-edge:
-	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress
+	aws s3 sync $(RELEASE_DIR) s3://$(S3_RELEASE_BUCKET)/edge/ --no-progress --region us-west-1
+
 
 .PHONY: docker-login
 docker-login:

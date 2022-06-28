@@ -1,11 +1,11 @@
-// Copyright 2020 The OPA Authors.  All rights reserved.
+// Copyright 2022 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 package wazero
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/open-policy-agent/opa/topdown"
 )
@@ -17,48 +17,17 @@ func newBuiltinTable(mod Module) map[int32]topdown.BuiltinFunc {
 	if err != nil {
 		panic(err)
 	}
-	builtinStr := mod.readStr(uint32(builtinsJSON))
-	builtinNameMap := parseJSONString(builtinStr)
+	builtinStr := mod.readStr(builtinsJSON)
+	var builtinNameMap map[string]int32
+	err = json.Unmarshal([]byte(builtinStr), &builtinNameMap)
+	if err != nil {
+		panic(err)
+	}
 	builtinIDMap, err := getFuncs(builtinNameMap)
 	if err != nil {
 		panic(err)
 	}
 	return builtinIDMap
-}
-
-// json string parser
-func parseJSONString(str string) map[string]int32 {
-	currKey := ""
-	inKey := false
-	inVal := false
-	currVal := ""
-	out := map[string]int32{}
-	for _, char := range str {
-		switch char {
-		case '"':
-			inKey = !inKey
-		case '{':
-		case '}':
-			val, _ := strconv.ParseInt(currVal, 10, 32)
-			out[currKey] = int32(val)
-		case ':':
-			inVal = true
-		case ',':
-			val, _ := strconv.ParseInt(currVal, 10, 32)
-			out[currKey] = int32(val)
-			inVal = false
-			currVal = ""
-			currKey = ""
-		default:
-			if inKey {
-				currKey += string(char)
-			} else if inVal {
-				currVal += string(char)
-			}
-		}
-
-	}
-	return out
 }
 
 // returns the id->function map from the name->id map

@@ -4,6 +4,7 @@
 
 package opa
 
+//copied from ../../sdk/opa
 import (
 	"context"
 	"encoding/json"
