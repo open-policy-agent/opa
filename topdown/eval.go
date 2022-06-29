@@ -909,20 +909,20 @@ func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyItera
 		b = plugKeys(b, b2)
 	}
 
-	return e.biunifyObjectsRec(a, b, b1, b2, iter, a, 0)
+	return e.biunifyObjectsRec(a, b, b1, b2, iter, a, a.KeysIterator())
 }
 
-func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, keys ast.Object, idx int) error {
-	if idx == keys.Len() {
+func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, keys ast.Object, oki ast.ObjectKeysIterator) error {
+	key, more := oki.Next() // Get next key from iterator.
+	if !more {
 		return iter()
 	}
-	key, _ := keys.Elem(idx)
 	v2 := b.Get(key)
 	if v2 == nil {
 		return nil
 	}
 	return e.biunify(a.Get(key), v2, b1, b2, func() error {
-		return e.biunifyObjectsRec(a, b, b1, b2, iter, keys, idx+1)
+		return e.biunifyObjectsRec(a, b, b1, b2, iter, keys, oki)
 	})
 }
 
