@@ -3107,7 +3107,10 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in [] { x > input }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in [] { __local3__ = input; __local1__ > __local3__ }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [] {
+				__local3__1 = input
+				__local1__1 > __local3__1
+			}`},
 		},
 		{
 			note:  "every: known domain, unknowns in body",
@@ -3116,7 +3119,10 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in [1, 2, 3] { x > input }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { __local3__ = input; __local1__ > __local3__ }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
+				__local3__1 = input
+				__local1__1 > __local3__1
+			}`},
 		},
 		{
 			note:  "every: known domain, unknowns in body (with call+assignment)",
@@ -3125,7 +3131,12 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in [1, 2, 3] { y := x+10; y > input }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { plus(__local1__, 10, __local4__); __local2__ = __local4__; __local5__ = input; __local2__ > __local5__ }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
+				plus(__local1__1, 10, __local4__1)
+				__local2__1 = __local4__1
+				__local5__1 = input
+				__local2__1 > __local5__1
+			}`},
 		},
 		{
 			note:  "every: known domain, unknowns in body, body impossible",
@@ -3134,7 +3145,11 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in [1, 2, 3] { false; x > input }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in [1, 2, 3] { false; __local3__ = input; __local1__ > __local3__ }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in [1, 2, 3] {
+				false
+				__local3__1 = input
+				__local1__1 > __local3__1
+			}`},
 		},
 		{
 			note:  "every: unknown domain",
@@ -3143,7 +3158,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				p {
 					every x in input { x > 1 }
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in input { __local1__ > 1 }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input { __local1__1 > 1 }`},
 		},
 		{
 			note:  "every: in-scope var in body",
@@ -3153,7 +3168,7 @@ func TestTopDownPartialEval(t *testing.T) {
 					y := 3
 					every x in [1, 2] { x != 0; input > y }
 				}`},
-			wantQueries: []string{`every __local1__, __local2__ in [1, 2] { __local2__ != 0; __local4__ = input; __local4__ > 3 }`},
+			wantQueries: []string{`every __local1__1, __local2__1 in [1, 2] { __local2__1 != 0; __local4__1 = input; __local4__1 > 3 }`},
 		},
 		{
 			note:  "every: unknown domain, call in body",
@@ -3164,7 +3179,22 @@ func TestTopDownPartialEval(t *testing.T) {
 						y = concat(",", [x])
 					}
 				}`},
-			wantQueries: []string{`every __local0__, __local1__ in input { concat(",", [__local1__], __local3__); y = __local3__ }`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input { concat(",", [__local1__1], __local3__1); y1 = __local3__1 }`},
+		},
+		{
+			note:  "every: closing over function args",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					f(input)
+				}
+				f(x) {
+					every y in [1] {
+						a = x
+						1 == y
+					}
+				}`},
+			wantQueries: []string{`every __local1__2, __local2__2 in [1] { a2 = input; 1 = __local2__2 }`},
 		},
 	}
 
