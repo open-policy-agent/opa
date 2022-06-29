@@ -38,9 +38,11 @@ func main() {
 		for i, typ := range latest.Decl.NamedFuncArgs().Args {
 			if n, ok := typ.(*types.NamedType); ok {
 				argTypes[i] = map[string]interface{}{
-					"name":        n.Name,
-					"description": n.Descr,
-					"type":        n.Type.String(),
+					"name": n.Name,
+					"type": n.Type.String(),
+				}
+				if n.Descr != "" {
+					argTypes[i]["description"] = n.Descr
 				}
 			} else {
 				argTypes[i] = map[string]interface{}{
@@ -157,7 +159,13 @@ func builtinCategories(b *ast.Builtin) []string {
 		return []string{s[0]}
 	}
 	if !b.IsDeprecated() {
-		log.Printf("WARN: not categorized: %s", b.Name)
+		switch b.Name {
+		case "assign", "cast_array", "cast_boolean", "cast_null", "cast_object", "cast_set", "cast_string",
+			"eq", "print", "re_match", "set_diff", "type_name":
+			// Do nothing.
+		default:
+			log.Printf("WARN: not categorized: %s", b.Name)
+		}
 	}
 	return nil
 }

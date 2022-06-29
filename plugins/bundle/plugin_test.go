@@ -104,6 +104,146 @@ func TestPluginOneShot(t *testing.T) {
 	}
 }
 
+func TestPluginStartLazyLoadInMem(t *testing.T) {
+	ctx := context.Background()
+
+	module := "package authz\n\ncorge=1"
+
+	// setup fake http server with mock bundle
+	mockBundle1 := bundle.Bundle{
+		Data: map[string]interface{}{"p": "x1"},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/bar/policy.rego",
+				Path:   "/bar/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"p", "authz"},
+		},
+	}
+
+	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle1)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	mockBundle2 := bundle.Bundle{
+		Data:    map[string]interface{}{"q": "x2"},
+		Modules: []bundle.ModuleFile{},
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"q"},
+		},
+	}
+
+	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle2)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"default": {
+				"url": %q
+			},
+			"acmecorp": {
+				"url": %q
+			}
+		}
+	}`, s1.URL, s2.URL))
+
+	manager := getTestManagerWithOpts(config)
+	defer manager.Stop(ctx)
+
+	var mode plugins.TriggerMode = "manual"
+
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test-1": {
+				Service:        "default",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+			"test-2": {
+				Service:        "acmecorp",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+				Config:         download.Config{Trigger: &mode},
+			},
+		},
+	}, manager)
+
+	statusCh := make(chan map[string]*Status)
+
+	// register for bundle updates to observe changes and start the plugin
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
+	})
+
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// manually trigger bundle download on all configured bundles
+	go func() {
+		_ = plugin.Trigger(ctx)
+	}()
+
+	// wait for bundle update and then assert on data content
+	<-statusCh
+	<-statusCh
+
+	result, err := storage.ReadOne(ctx, manager.Store, storage.Path{"p"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
+		t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
+	}
+
+	result, err = storage.ReadOne(ctx, manager.Store, storage.Path{"q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
+		t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package authz\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"p": "x1", "q": "x2", "system": {"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 
 	test.WithTempFS(nil, func(dir string) {
@@ -158,7 +298,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_keys"
-		if exp, act := 12, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
+		if exp, act := 13, met.Counter(name).Value(); act.(uint64) != uint64(exp) {
 			t.Errorf("%s: expected %v, got %v", name, exp, act)
 		}
 		name = "disk_read_bytes"
@@ -2874,6 +3014,155 @@ func TestPluginManualTrigger(t *testing.T) {
 	if !reflect.DeepEqual(result, mockBundle.Data["p"]) {
 		t.Fatalf("expected data to be %v but got %v", mockBundle.Data, result)
 	}
+}
+
+func TestPluginManualTriggerMultipleDiskStorage(t *testing.T) {
+
+	ctx := context.Background()
+
+	module := "package authz\n\ncorge=1"
+
+	// setup fake http server with mock bundle
+	mockBundle1 := bundle.Bundle{
+		Data: map[string]interface{}{"p": "x1"},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/bar/policy.rego",
+				Path:   "/bar/policy.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"p", "authz"},
+		},
+	}
+
+	s1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle1)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	mockBundle2 := bundle.Bundle{
+		Data:    map[string]interface{}{"q": "x2"},
+		Modules: []bundle.ModuleFile{},
+		Manifest: bundle.Manifest{
+			Roots: &[]string{"q"},
+		},
+	}
+
+	s2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := bundle.NewWriter(w).Write(mockBundle2)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	test.WithTempFS(nil, func(dir string) {
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		config := []byte(fmt.Sprintf(`{
+		"services": {
+			"default": {
+				"url": %q
+			},
+			"acmecorp": {
+				"url": %q
+			}
+		}
+	}`, s1.URL, s2.URL))
+
+		manager := getTestManagerWithOpts(config, store)
+		defer manager.Stop(ctx)
+
+		var mode plugins.TriggerMode = "manual"
+
+		plugin := New(&Config{
+			Bundles: map[string]*Source{
+				"test-1": {
+					Service:        "default",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+				},
+				"test-2": {
+					Service:        "acmecorp",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+				},
+			},
+		}, manager)
+
+		statusCh := make(chan map[string]*Status)
+
+		// register for bundle updates to observe changes and start the plugin
+		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+			statusCh <- st
+		})
+
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// manually trigger bundle download on all configured bundles
+		go func() {
+			_ = plugin.Trigger(ctx)
+		}()
+
+		// wait for bundle update and then assert on data content
+		<-statusCh
+		<-statusCh
+
+		result, err := storage.ReadOne(ctx, manager.Store, storage.Path{"p"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(result, mockBundle1.Data["p"]) {
+			t.Fatalf("expected data to be %v but got %v", mockBundle1.Data, result)
+		}
+
+		result, err = storage.ReadOne(ctx, manager.Store, storage.Path{"q"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(result, mockBundle2.Data["q"]) {
+			t.Fatalf("expected data to be %v but got %v", mockBundle2.Data, result)
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, manager.Store)
+		defer manager.Store.Abort(ctx, txn)
+
+		ids, err := manager.Store.ListPolicies(ctx, txn)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(ids) != 1 {
+			t.Fatal("Expected 1 policy")
+		}
+
+		bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+		exp := []byte("package authz\n\ncorge=1")
+		if err != nil {
+			t.Fatal(err)
+		} else if !bytes.Equal(bs, exp) {
+			t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+		}
+
+		data, err := manager.Store.Read(ctx, txn, storage.Path{})
+		expData := util.MustUnmarshalJSON([]byte(`{"p": "x1", "q": "x2", "system": {"bundles": {"test-1": {"etag": "", "manifest": {"revision": "", "roots": ["p", "authz"]}}, "test-2": {"etag": "", "manifest": {"revision": "", "roots": ["q"]}}}}}`))
+		if err != nil {
+			t.Fatal(err)
+		} else if !reflect.DeepEqual(data, expData) {
+			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+		}
+	})
 }
 
 func TestPluginManualTriggerMultiple(t *testing.T) {

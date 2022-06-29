@@ -147,7 +147,7 @@ github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/proto
-# github.com/golang/glog v1.0.0
+# github.com/golang/glog v1.0.0 => ./build/replacements/github.com/golang/glog
 github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
@@ -245,7 +245,7 @@ github.com/spf13/cobra/doc
 # github.com/spf13/pflag v1.0.5
 ## explicit
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.7.4
+# github.com/stretchr/testify v1.7.5
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
@@ -468,3 +468,4 @@ oras.land/oras-go/pkg/auth/docker
 oras.land/oras-go/pkg/content
 oras.land/oras-go/pkg/oras
 oras.land/oras-go/pkg/target
+# github.com/golang/glog => ./build/replacements/github.com/golang/glog

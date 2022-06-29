@@ -481,7 +481,7 @@ func updatePrometheusMetrics(u *UpdateRequestV1) {
 	}
 	lastSuccessfulActivation.Reset()
 	for _, bundle := range u.Bundles {
-		if bundle.Code == "" && bundle.ActiveRevision != "" {
+		if bundle.Code == "" && !bundle.LastSuccessfulActivation.IsZero() {
 			loaded.WithLabelValues(bundle.Name).Inc()
 		} else {
 			failLoad.WithLabelValues(bundle.Name, bundle.Code, bundle.Message).Inc()

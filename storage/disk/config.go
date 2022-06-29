@@ -65,11 +65,18 @@ func OptionsFromConfig(raw []byte, id string) (*Options, error) {
 	return &opts, nil
 }
 
-func badgerConfigFromOptions(opts Options) badger.Options {
+func badgerConfigFromOptions(opts Options) (badger.Options, error) {
 	// Set some things _after_ FromSuperFlag to prohibit overriding them
+
+	dir, err := dataDir(opts.Dir)
+	if err != nil {
+		return badger.DefaultOptions(""), err
+	}
+
 	return badger.DefaultOptions("").
-		FromSuperFlag(opts.Badger).
-		WithDir(dataDir(opts.Dir)).
-		WithValueDir(dataDir(opts.Dir)).
-		WithDetectConflicts(false) // We only allow one write txn at a time; so conflicts cannot happen.
+			FromSuperFlag(opts.Badger).
+			WithDir(dir).
+			WithValueDir(dir).
+			WithDetectConflicts(false), // We only allow one write txn at a time; so conflicts cannot happen.
+		nil
 }

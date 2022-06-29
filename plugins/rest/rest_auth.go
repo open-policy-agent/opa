@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -519,21 +520,65 @@ type awsSigningAuthPlugin struct {
 	logger logging.Logger
 }
 
+type awsCredentialServiceChain struct {
+	awsCredentialServices []awsCredentialService
+	logger                logging.Logger
+}
+
+func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
+	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
+}
+
+func (acs *awsCredentialServiceChain) credentials() (awsCredentials, error) {
+	for _, service := range acs.awsCredentialServices {
+		credential, err := service.credentials()
+		if err == nil {
+			acs.logger.Debug("awsSigningAuthPlugin:%s successful",
+				reflect.TypeOf(service).String())
+			return credential, nil
+		}
+
+		acs.logger.Debug("awsSigningAuthPlugin:%s failed: %v",
+			reflect.TypeOf(service).String(), err)
+	}
+
+	return awsCredentials{}, errors.New("all AWS credential providers failed")
+}
+
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
+	chain := awsCredentialServiceChain{
+		logger: ap.logger,
+	}
+
+	/*
+		Here we maintain the order of addition to the chain inline with
+		the order of credential providers followed by default by the
+		AWS SDK. For example
+
+		https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html
+	*/
+
 	if ap.AWSEnvironmentCredentials != nil {
 		ap.AWSEnvironmentCredentials.logger = ap.logger
-		return ap.AWSEnvironmentCredentials
+		chain.addService(ap.AWSEnvironmentCredentials)
 	}
+
 	if ap.AWSWebIdentityCredentials != nil {
 		ap.AWSWebIdentityCredentials.logger = ap.logger
-		return ap.AWSWebIdentityCredentials
+		chain.addService(ap.AWSWebIdentityCredentials)
 	}
+
+	if ap.AWSProfileCredentials != nil {
+		ap.AWSProfileCredentials.logger = ap.logger
+		chain.addService(ap.AWSProfileCredentials)
+	}
+
 	if ap.AWSMetadataCredentials != nil {
 		ap.AWSMetadataCredentials.logger = ap.logger
-		return ap.AWSMetadataCredentials
+		chain.addService(ap.AWSMetadataCredentials)
 	}
-	ap.AWSProfileCredentials.logger = ap.logger
-	return ap.AWSProfileCredentials
+
+	return &chain
 }
 
 func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -565,11 +610,8 @@ func (ap *awsSigningAuthPlugin) validateConfig() error {
 	cfgs[ap.AWSWebIdentityCredentials != nil]++
 	cfgs[ap.AWSProfileCredentials != nil]++
 
-	switch n := cfgs[true]; {
-	case n == 0:
+	if cfgs[true] == 0 {
 		return errors.New("a AWS credential service must be specified when S3 signing is enabled")
-	case n > 1:
-		return errors.New("exactly one AWS credential service must be specified when S3 signing is enabled")
 	}
 
 	if ap.AWSMetadataCredentials != nil {
@@ -577,13 +619,16 @@ func (ap *awsSigningAuthPlugin) validateConfig() error {
 			return errors.New("at least aws_region must be specified for AWS metadata credential service")
 		}
 	}
+
 	if ap.AWSWebIdentityCredentials != nil {
 		if err := ap.AWSWebIdentityCredentials.populateFromEnv(); err != nil {
 			return err
 		}
 	}
+
 	if ap.AWSService == "" {
 		ap.AWSService = awsSigv4SigningDefaultService
 	}
+
 	return nil
 }

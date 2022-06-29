@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -384,16 +385,67 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
+	// Validate data in bundle does not contain paths outside the bundle's roots.
 	for _, b := range snapshotBundles {
-		// Write data from each new bundle into the store. Only write under the
-		// roots contained in their manifest. This should be done *before* the
-		// policies so that path conflict checks can occur.
-		if err := writeData(opts.Ctx, opts.Store, opts.Txn, *b.Manifest.Roots, b.Data); err != nil {
-			return err
+
+		if b.lazyLoadingMode {
+
+			if len(b.Raw) == 0 {
+				return fmt.Errorf("raw bundle bytes not set on bundle object")
+			}
+
+			for _, item := range b.Raw {
+				path := filepath.ToSlash(item.Path)
+
+				if filepath.Base(path) == dataFile || filepath.Base(path) == yamlDataFile {
+					var val map[string]json.RawMessage
+					err = util.Unmarshal(item.Value, &val)
+					if err == nil {
+						err = doDFS(val, filepath.Dir(strings.Trim(path, "/")), *b.Manifest.Roots)
+						if err != nil {
+							return err
+						}
+					} else {
+						// Build an object for the value
+						p := getNormalizedPath(path)
+
+						if len(p) == 0 {
+							return fmt.Errorf("root value must be object")
+						}
+
+						// verify valid YAML or JSON value
+						var x interface{}
+						err := util.Unmarshal(item.Value, &x)
+						if err != nil {
+							return err
+						}
+
+						value := item.Value
+						dir := map[string]json.RawMessage{}
+						for i := len(p) - 1; i > 0; i-- {
+							dir[p[i]] = value
+
+							bs, err := json.Marshal(dir)
+							if err != nil {
+								return err
+							}
+
+							value = bs
+							dir = map[string]json.RawMessage{}
+						}
+						dir[p[0]] = value
+
+						err = doDFS(dir, filepath.Dir(strings.Trim(path, "/")), *b.Manifest.Roots)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 
-	// Write and compile the modules all at once to avoid having to re-do work.
+	// Compile the modules all at once to avoid having to re-do work.
 	remainingAndExtra := make(map[string]*ast.Module)
 	for name, mod := range remaining {
 		remainingAndExtra[name] = mod
@@ -402,8 +454,16 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = writeModules(opts.Ctx, opts.Store, opts.Txn, opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy)
+	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy)
 	if err != nil {
+		return err
+	}
+
+	if err := writeDataAndModules(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, snapshotBundles, opts.legacy); err != nil {
+		return err
+	}
+
+	if err := ast.CheckPathConflicts(opts.Compiler, storage.NonEmpty(opts.Ctx, opts.Store, opts.Txn)); len(err) > 0 {
 		return err
 	}
 
@@ -421,6 +481,49 @@ func activateBundles(opts *ActivateOpts) error {
 		}
 	}
 
+	return nil
+}
+
+func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
+	if len(roots) == 1 && roots[0] == "" {
+		return nil
+	}
+
+	for key := range obj {
+
+		newPath := filepath.Join(strings.Trim(path, "/"), key)
+
+		contains := false
+		prefix := false
+		if RootPathsContain(roots, newPath) {
+			contains = true
+		} else {
+			for i := range roots {
+				if strings.HasPrefix(strings.Trim(roots[i], "/"), newPath) {
+					prefix = true
+					break
+				}
+			}
+		}
+
+		if !contains && !prefix {
+			return fmt.Errorf("manifest roots %v do not permit data at path '/%s' (hint: check bundle directory structure)", roots, newPath)
+		}
+
+		if contains {
+			continue
+		}
+
+		var next map[string]json.RawMessage
+		err := util.Unmarshal(obj[key], &next)
+		if err != nil {
+			return fmt.Errorf("manifest roots %v do not permit data at path '/%s' (hint: check bundle directory structure)", roots, newPath)
+		}
+
+		if err := doDFS(next, newPath, roots); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -518,6 +621,7 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 		if !ok {
 			return fmt.Errorf("manifest root path invalid: %v", root)
 		}
+
 		if len(path) > 0 {
 			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); suppressNotFound(err) != nil {
 				return err
@@ -591,6 +695,44 @@ func writeEtagToStore(opts *ActivateOpts, name, etag string) error {
 	return nil
 }
 
+func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, bundles map[string]*Bundle, legacy bool) error {
+	params := storage.WriteParams
+	params.Context = txnCtx
+
+	for name, b := range bundles {
+		if len(b.Raw) == 0 {
+			// Write data from each new bundle into the store. Only write under the
+			// roots contained in their manifest.
+			if err := writeData(ctx, store, txn, *b.Manifest.Roots, b.Data); err != nil {
+				return err
+			}
+
+			for _, mf := range b.Modules {
+				var path string
+
+				// For backwards compatibility, in legacy mode, upsert policies to
+				// the unprefixed path.
+				if legacy {
+					path = mf.Path
+				} else {
+					path = modulePathWithPrefix(name, mf.Path)
+				}
+
+				if err := store.UpsertPolicy(ctx, txn, path, mf.Raw); err != nil {
+					return err
+				}
+			}
+		} else {
+			err := store.Truncate(ctx, txn, params, NewIterator(b.Raw))
+			if err != nil {
+				return fmt.Errorf("store truncate failed for bundle '%s': %v", name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func writeData(ctx context.Context, store storage.Store, txn storage.Transaction, roots []string, data map[string]interface{}) error {
 	for _, root := range roots {
 		path, ok := storage.ParsePathEscaped("/" + root)
@@ -608,6 +750,43 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 			}
 		}
 	}
+	return nil
+}
+
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
+
+	m.Timer(metrics.RegoModuleCompile).Start()
+	defer m.Timer(metrics.RegoModuleCompile).Stop()
+
+	modules := map[string]*ast.Module{}
+
+	// preserve any modules already on the compiler
+	for name, module := range compiler.Modules {
+		modules[name] = module
+	}
+
+	// preserve any modules passed in from the store
+	for name, module := range extraModules {
+		modules[name] = module
+	}
+
+	// include all the new bundle modules
+	for bundleName, b := range bundles {
+		if legacy {
+			for _, mf := range b.Modules {
+				modules[mf.Path] = mf.Parsed
+			}
+		} else {
+			for name, module := range b.ParsedModules(bundleName) {
+				modules[name] = module
+			}
+		}
+	}
+
+	if compiler.Compile(modules); compiler.Failed() {
+		return compiler.Errors
+	}
+
 	return nil
 }
 

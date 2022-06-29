@@ -13,8 +13,9 @@ func FuzzParseStatementsAndCompileModules(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input string) {
 		t.Parallel() // seed corpus tests can run in parallel
 		_, _, err := ParseStatements("", input)
-		if err != nil {
-			CompileModules(map[string]string{"": input})
+		if err == nil {
+			// CompileModules is expected to error, but it shouldn't panic
+			CompileModules(map[string]string{"": input}) //nolint
 		}
 	})
 }

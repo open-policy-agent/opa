@@ -153,6 +153,10 @@ func addStrictFlag(fs *pflag.FlagSet, strict *bool, value bool) {
 	fs.BoolVarP(strict, "strict", "S", value, "enable compiler strict mode")
 }
 
+func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
+	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running OPA server")
+}
+
 const (
 	explainModeOff   = "off"
 	explainModeFull  = "full"

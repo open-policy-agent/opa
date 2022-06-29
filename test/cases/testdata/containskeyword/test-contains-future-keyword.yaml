@@ -1,0 +1,67 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    p {
+      contains("fireplace", "repl")
+    }
+  note: containskeyword/base case
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.contains
+
+    p {
+      contains("fireplace", "repl")
+    }
+  note: containskeyword/with unused kw import
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.contains
+
+    p contains "x" {
+      contains("fireplace", "repl")
+    }
+  note: containskeyword/with kw and builtin used
+  query: data.test.p = x
+  want_result:
+  - x: [x]
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.contains
+
+    p contains "x"
+  note: containskeyword/empty body
+  query: data.test.p = x
+  want_result:
+  - x: [x]
+- data:
+  modules:
+  - |
+    package test
+    import future.keywords.contains
+
+    p contains msg {
+      msg := "nono"
+    }
+    p contains msg {
+      msg := "nonono"
+    }
+  note: containskeyword/ordinary deny rule
+  query: data.test.p = x
+  want_result:
+  - x:
+    - nono
+    - nonono
