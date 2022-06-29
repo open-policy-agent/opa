@@ -14,6 +14,17 @@ framework that you can use to write _tests_ for your policies. By writing
 tests for your policies you can speed up the development process of new rules
 and reduce the amount of time it takes to modify rules as requirements evolve.
 
+{{< info >}}
+The examples in this section try to represent the best practices. As such, they
+make use of keywords that are meant to become standard keywords at some point in
+time, but have been introduced gradually. These _future keywords_ can be enabled
+using
+
+```live:eg/import:module:read_only
+import future.keywords
+```
+{{< /info >}}
+
 ## Getting Started
 
 Let's use an example to get started. The file below implements a simple
@@ -24,13 +35,14 @@ profile.
 
 ```live:example:module:read_only,openable
 package authz
+import future.keywords
 
-allow {
+allow if {
     input.path == ["users"]
     input.method == "POST"
 }
 
-allow {
+allow if {
     input.path == ["users", input.user_id]
     input.method == "GET"
 }
@@ -43,19 +55,19 @@ To test this policy, we will create a separate Rego file that contains test case
 ```live:example/test:module:read_only
 package authz
 
-test_post_allowed {
+test_post_allowed if {
     allow with input as {"path": ["users"], "method": "POST"}
 }
 
-test_get_anonymous_denied {
+test_get_anonymous_denied if {
     not allow with input as {"path": ["users"], "method": "GET"}
 }
 
-test_get_user_allowed {
+test_get_user_allowed if {
     allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
 }
 
-test_get_another_user_denied {
+test_get_another_user_denied if {
     not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
 }
 ```
@@ -113,7 +125,7 @@ name is prefixed with `test_`.
 ```live:example_format:module:read_only
 package mypackage
 
-test_some_descriptive_name {
+test_some_descriptive_name if {
     # test logic
 }
 ```
@@ -145,22 +157,16 @@ by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
 package example
 
 # This test will pass.
-test_ok {
-    true
-}
+test_ok if true
 
 # This test will fail.
-test_failure {
-    1 == 2
-}
+test_failure if 1 == 2
 
 # This test will error.
-test_error {
-    1 / 0
-}
+test_error if 1 / 0
 
 # This test will be skipped.
-todo_test_missing_implementation {
+todo_test_missing_implementation if {
     allow with data.roles as ["not", "implemented"]
 }
 ```
@@ -249,7 +255,7 @@ Below is a simple policy that depends on the data document.
 
 ```live:with_keyword:module:read_only,openable
 package authz
-import future.keywords.in
+import future.keywords
 
 allow {
     some x in data.policies
@@ -257,9 +263,7 @@ allow {
     matches_role(input.role)
 }
 
-matches_role(my_role) {
-    input.user in data.roles[my_role]
-}
+matches_role(my_role) if input.user in data.roles[my_role]
 ```
 
 Below is the Rego file to test the above policy.
@@ -268,11 +272,12 @@ Below is the Rego file to test the above policy.
 
 ```live:with_keyword/tests:module:read_only
 package authz
+import future.keywords
 
 policies := [{"name": "test_policy"}]
 roles := {"admin": ["alice"]}
 
-test_allow_with_data {
+test_allow_with_data if {
     allow with input as {"user": "alice", "role": "admin"}
       with data.policies as policies
       with data.roles as roles
@@ -294,22 +299,20 @@ Below is an example to replace a **rule without arguments**.
 
 ```live:with_keyword_rules:module:read_only
 package authz
+import future.keywords
 
-allow1 {
-    allow2
-}
+allow1 if allow2
 
-allow2 {
-    2 == 1
-}
+allow2 if 2 == 1
 ```
 
 **authz_test.rego**:
 
 ```live:with_keyword_rules/tests:module:read_only
 package authz
+import future.keywords
 
-test_replace_rule {
+test_replace_rule if {
     allow1 with allow2 as true
 }
 ```
@@ -327,10 +330,11 @@ Here is an example to replace a rule's **built-in function** with a user-defined
 
 ```live:with_keyword_builtins:module:read_only
 package authz
+import future.keywords
 
 import data.jwks.cert
 
-allow {
+allow if {
     [true, _, _] = io.jwt.decode_verify(input.headers["x-token"], {"cert": cert, "iss": "corp.issuer.com"})
 }
 ```
@@ -339,13 +343,12 @@ allow {
 
 ```live:with_keyword_builtins/tests:module:read_only
 package authz
+import future.keywords
 
 mock_decode_verify("my-jwt", _) := [true, {}, {}]
-mock_decode_verify(x, _) := [false, {}, {}] {
-    x != "my-jwt"
-}
+mock_decode_verify(x, _)        := [false, {}, {}] if x != "my-jwt"
 
-test_allow {
+test_allow if {
     allow
       with input.headers["x-token"] as "my-jwt"
       with data.jwks.cert as "mock-cert"
@@ -363,7 +366,7 @@ PASS: 1/1
 In simple cases, a function can also be replaced with a value, as in
 
 ```live:with_keyword_builtins/tests/value:module:read_only
-test_allow_value {
+test_allow_value if {
     allow
       with input.headers["x-token"] as "my-jwt"
       with data.jwks.cert as "mock-cert"
@@ -381,12 +384,13 @@ function by a built-in function.
 
 ```live:with_keyword_funcs:module:read_only
 package authz
+import future.keywords
 
-replace_rule {
+replace_rule if {
     replace(input.label)
 }
 
-replace(label) {
+replace(label) if {
     label == "test_label"
 }
 ```
@@ -395,8 +399,9 @@ replace(label) {
 
 ```live:with_keyword_funcs/tests:module:read_only
 package authz
+import future.keywords
 
-test_replace_rule {
+test_replace_rule if {
     replace_rule with input.label as "does-not-matter" with replace as true
 }
 ```

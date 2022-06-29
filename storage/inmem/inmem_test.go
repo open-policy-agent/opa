@@ -11,6 +11,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/bundle"
+
+	"github.com/open-policy-agent/opa/internal/file/archive"
+
 	"github.com/open-policy-agent/opa/storage/internal/errors"
 
 	"github.com/open-policy-agent/opa/storage"
@@ -320,6 +324,136 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(jsn, result) {
 			t.Fatalf("Expected reader's read %v to be %v but got: %v (err: %v)", r.path, jsn, result, err)
 		}
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(map[string]interface{}{})
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	var archiveFiles = map[string]string{
+		"/a/b/c/data.json":   "[1,2,3]",
+		"/a/b/d/data.json":   "true",
+		"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}}`,
+		"/a/b/y/data.yaml":   `foo: 1`,
+		"/policy.rego":       "package foo\n p = 1",
+		"/roles/policy.rego": "package bar\n p = 1",
+	}
+
+	var files [][2]string
+	for name, content := range archiveFiles {
+		files = append(files, [2]string{name, content})
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterator := bundle.NewIterator(b.Raw)
+
+	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	if err != nil {
+		t.Fatalf("Unexpected truncate error: %v", err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, store)
+
+	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `
+{
+	"a": {
+		"b": {
+			"c": [1,2,3],
+			"d": true,
+			"y": {
+				"foo": 1
+			},
+			"z": true
+		}
+	},
+	"x": {
+		"y": true
+	}
+}
+`
+	jsn := util.MustUnmarshalJSON([]byte(expected))
+
+	if !reflect.DeepEqual(jsn, actual) {
+		t.Fatalf("Expected reader's read to be %v but got: %v", jsn, actual)
+	}
+
+	store.Abort(ctx, txn)
+
+	txn = storage.NewTransactionOrDie(ctx, store)
+	ids, err := store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedIds := map[string]struct{}{"/policy.rego": {}, "/roles/policy.rego": {}}
+
+	for _, id := range ids {
+		if _, ok := expectedIds[id]; !ok {
+			t.Fatalf("Expected list policies to contain %v but got: %v", id, expectedIds)
+		}
+	}
+
+	bs, err := store.GetPolicy(ctx, txn, "/policy.rego")
+	expectedBytes := []byte("package foo\n p = 1")
+	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
+	}
+
+	bs, err = store.GetPolicy(ctx, txn, "/roles/policy.rego")
+	expectedBytes = []byte("package bar\n p = 1")
+	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
+		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
+	}
+}
+
+func TestTruncateBadRootWrite(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(map[string]interface{}{})
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	var archiveFiles = map[string]string{
+		"/a/b/d/data.json":   "true",
+		"/data.json":         "[1,2,3]",
+		"/roles/policy.rego": "package bar\n p = 1",
+	}
+
+	var files [][2]string
+	for name, content := range archiveFiles {
+		files = append(files, [2]string{name, content})
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterator := bundle.NewIterator(b.Raw)
+
+	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	if err == nil {
+		t.Fatal("Expected truncate error but got nil")
+	}
+
+	expected := "storage_invalid_patch_error: root must be object"
+	if err.Error() != expected {
+		t.Fatalf("Expected error %v but got %v", expected, err.Error())
 	}
 }
 

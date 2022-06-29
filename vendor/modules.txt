@@ -42,7 +42,7 @@ github.com/containerd/containerd/remotes/docker/auth
 github.com/containerd/containerd/remotes/docker/schema1
 github.com/containerd/containerd/remotes/errors
 github.com/containerd/containerd/version
-# github.com/cpuguy83/go-md2man/v2 v2.0.1
+# github.com/cpuguy83/go-md2man/v2 v2.0.2
 github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
@@ -147,7 +147,7 @@ github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/proto
-# github.com/golang/glog v1.0.0
+# github.com/golang/glog v1.0.0 => ./build/replacements/github.com/golang/glog
 github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 github.com/golang/groupcache/lru
@@ -238,14 +238,14 @@ github.com/russross/blackfriday/v2
 # github.com/sirupsen/logrus v1.8.1
 ## explicit
 github.com/sirupsen/logrus
-# github.com/spf13/cobra v1.4.0
+# github.com/spf13/cobra v1.5.0
 ## explicit
 github.com/spf13/cobra
 github.com/spf13/cobra/doc
 # github.com/spf13/pflag v1.0.5
 ## explicit
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.7.2
+# github.com/stretchr/testify v1.7.5
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
@@ -468,3 +468,4 @@ oras.land/oras-go/pkg/auth/docker
 oras.land/oras-go/pkg/content
 oras.land/oras-go/pkg/oras
 oras.land/oras-go/pkg/target
+# github.com/golang/glog => ./build/replacements/github.com/golang/glog

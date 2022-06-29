@@ -1,0 +1,47 @@
+cases:
+# Leaving out floats as map keys until this is resolved:
+# https://github.com/open-policy-agent/opa/issues/4797
+- modules:
+  - |
+    package comparison
+
+    p {
+      1 == 1.0
+    }
+  note: 'comparisonexpr/numbers: int and float comparison'
+  query: data.comparison.p = x
+  want_result:
+    - x: true
+- modules:
+  - |
+    package comparison
+  
+    p {
+      [1] == [1.0]
+    }
+  note: 'comparisonexpr/numbers: int and float array comparison'
+  query: data.comparison.p = x
+  want_result:
+  - x: true
+- modules:
+    - |
+      package comparison
+      
+      p {
+        {1: 1} == {1: 1.0}
+      }
+  note: 'comparisonexpr/numbers: int and float object comparison'
+  query: data.comparison.p = x
+  want_result:
+    - x: true
+- modules:
+    - |
+      package comparison
+      
+      p {
+        {"x": [1, 2, {"b": 3.0}]} == {"x": [1, 2, {"b": 3}]}
+      }
+  note: 'comparisonexpr/numbers: int and float nested object comparison'
+  query: data.comparison.p = x
+  want_result:
+    - x: true

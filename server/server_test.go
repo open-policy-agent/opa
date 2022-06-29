@@ -3699,6 +3699,10 @@ func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) 
 
 }
 
+func (queryBindingErrStore) Truncate(context.Context, storage.Transaction, storage.TransactionParams, storage.Iterator) error {
+	return nil
+}
+
 func (queryBindingErrStore) Register(context.Context, storage.Transaction, storage.TriggerConfig) (storage.TriggerHandle, error) {
 	return nil, nil
 }

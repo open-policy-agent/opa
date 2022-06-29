@@ -54,6 +54,16 @@ type Bundle struct {
 	PlanModules []PlanModuleFile
 	Patch       Patch
 	Etag        string
+	Raw         []Raw
+
+	lazyLoadingMode bool
+	sizeLimitBytes  int64
+}
+
+// Raw contains raw bytes representing the bundle's content
+type Raw struct {
+	Path  string
+	Value []byte
 }
 
 // Patch contains an array of objects wherein each object represents the patch operation to be
@@ -286,6 +296,10 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 		}
 	}
 
+	if b.lazyLoadingMode {
+		return nil
+	}
+
 	// Validate data in bundle.
 	return dfs(b.Data, "", func(path string, node interface{}) (bool, error) {
 		path = strings.Trim(path, "/")
@@ -343,6 +357,8 @@ type Reader struct {
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
 	etag                  string
+	lazyLoadingMode       bool
+	name                  string
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -413,17 +429,36 @@ func (r *Reader) WithBundleEtag(etag string) *Reader {
 	return r
 }
 
+// WithBundleName specifies the bundle name
+func (r *Reader) WithBundleName(name string) *Reader {
+	r.name = name
+	return r
+}
+
+// WithLazyLoadingMode sets the bundle loading mode. If true,
+// bundles will be read in lazy mode. In this mode, data files in the bundle will not be
+// deserialized and the check to validate that the bundle data does not contain paths
+// outside the bundle's roots will not be performed while reading the bundle.
+func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
+	r.lazyLoadingMode = yes
+	return r
+}
+
 // Read returns a new Bundle loaded from the reader.
 func (r *Reader) Read() (Bundle, error) {
 
 	var bundle Bundle
 	var descriptors []*Descriptor
 	var err error
+	var raw []Raw
 
 	bundle.Signatures, bundle.Patch, descriptors, err = preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes)
 	if err != nil {
 		return bundle, err
 	}
+
+	bundle.lazyLoadingMode = r.lazyLoadingMode
+	bundle.sizeLimitBytes = r.sizeLimitBytes
 
 	if bundle.Type() == SnapshotBundleType {
 		err = r.checkSignaturesAndDescriptors(bundle.Signatures)
@@ -463,6 +498,17 @@ func (r *Reader) Read() (Bundle, error) {
 
 		if strings.HasSuffix(path, RegoExt) {
 			fullPath := r.fullPath(path)
+			bs := buf.Bytes()
+
+			if r.lazyLoadingMode {
+				p := fullPath
+				if r.name != "" {
+					p = modulePathWithPrefix(r.name, fullPath)
+				}
+
+				raw = append(raw, Raw{Path: p, Value: bs})
+			}
+
 			r.metrics.Timer(metrics.RegoModuleParse).Start()
 			module, err := ast.ParseModuleWithOpts(fullPath, buf.String(), ast.ParserOptions{ProcessAnnotation: r.processAnnotations})
 			r.metrics.Timer(metrics.RegoModuleParse).Stop()
@@ -473,11 +519,10 @@ func (r *Reader) Read() (Bundle, error) {
 			mf := ModuleFile{
 				URL:    f.URL(),
 				Path:   fullPath,
-				Raw:    buf.Bytes(),
+				Raw:    bs,
 				Parsed: module,
 			}
 			bundle.Modules = append(bundle.Modules, mf)
-
 		} else if filepath.Base(path) == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
@@ -491,6 +536,11 @@ func (r *Reader) Read() (Bundle, error) {
 				Raw:  buf.Bytes(),
 			})
 		} else if filepath.Base(path) == dataFile {
+			if r.lazyLoadingMode {
+				raw = append(raw, Raw{Path: path, Value: buf.Bytes()})
+				continue
+			}
+
 			var value interface{}
 
 			r.metrics.Timer(metrics.RegoDataParse).Start()
@@ -506,6 +556,10 @@ func (r *Reader) Read() (Bundle, error) {
 			}
 
 		} else if filepath.Base(path) == yamlDataFile {
+			if r.lazyLoadingMode {
+				raw = append(raw, Raw{Path: path, Value: buf.Bytes()})
+				continue
+			}
 
 			var value interface{}
 
@@ -592,6 +646,7 @@ func (r *Reader) Read() (Bundle, error) {
 	}
 
 	bundle.Etag = r.etag
+	bundle.Raw = raw
 
 	return bundle, nil
 }
@@ -1200,7 +1255,13 @@ func rootContains(root []string, other []string) bool {
 }
 
 func insertValue(b *Bundle, path string, value interface{}) error {
+	if err := b.insertData(getNormalizedPath(path), value); err != nil {
+		return fmt.Errorf("bundle load failed on %v: %w", path, err)
+	}
+	return nil
+}
 
+func getNormalizedPath(path string) []string {
 	// Remove leading / and . characters from the directory path. If the bundle
 	// was written with OPA then the paths will contain a leading slash. On the
 	// other hand, if the path is empty, filepath.Dir will return '.'.
@@ -1211,10 +1272,7 @@ func insertValue(b *Bundle, path string, value interface{}) error {
 	if dirpath != "" {
 		key = strings.Split(dirpath, "/")
 	}
-	if err := b.insertData(key, value); err != nil {
-		return fmt.Errorf("bundle load failed on %v: %w", path, err)
-	}
-	return nil
+	return key
 }
 
 func dfs(value interface{}, path string, fn func(string, interface{}) (bool, error)) error {

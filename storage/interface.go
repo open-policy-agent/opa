@@ -34,6 +34,11 @@ type Store interface {
 	// transaction must be automatically aborted by the Store implementation.
 	Commit(context.Context, Transaction) error
 
+	// Truncate is called to make a copy of the underlying store, write documents in the new store
+	// by creating multiple transactions in the new store as needed and finally swapping
+	// over to the new storage instance. This method must be called within a transaction on the original store.
+	Truncate(context.Context, Transaction, TransactionParams, Iterator) error
+
 	// Abort is called to cancel the transaction.
 	Abort(context.Context, Transaction)
 }
@@ -220,4 +225,17 @@ func (TriggersNotSupported) Register(context.Context, Transaction, TriggerConfig
 // been registered on a Store.
 type TriggerHandle interface {
 	Unregister(context.Context, Transaction)
+}
+
+// Iterator defines the interface that can be used to read files from a directory starting with
+// files at the base of the directory, then sub-directories etc.
+type Iterator interface {
+	Next() (*Update, error)
+}
+
+// Update contains information about a file
+type Update struct {
+	Path     Path
+	Value    []byte
+	IsPolicy bool
 }

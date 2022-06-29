@@ -27,9 +27,9 @@ require (
 	github.com/prometheus/client_golang v1.12.2
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.5
 	github.com/vektah/gqlparser/v2 v2.4.5
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
@@ -47,3 +47,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	oras.land/oras-go v1.2.0
 )
+
+// glog is only used through badger, and only for fatal log-and-exit. However, it comes
+// at a cost, its init function will lookup the current user, and on Windows, that's much
+// work.
+replace github.com/golang/glog => ./build/replacements/github.com/golang/glog
