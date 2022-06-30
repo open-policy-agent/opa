@@ -723,43 +723,78 @@ func TestCompilerCheckSafetyBodyReordering(t *testing.T) {
 }
 
 func TestCompilerCheckSafetyBodyReorderingClosures(t *testing.T) {
-	c := NewCompiler()
-	c.Modules = map[string]*Module{
-		"mod": MustParseModule(
-			`package compr
+	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
+	tests := []struct {
+		note string
+		mod  *Module
+		exp  Body
+	}{
+		{
+			note: "comprehensions-1",
+			mod: MustParseModule(`package compr
 
 import data.b
 import data.c
+p = true { v = [null | true]; xs = [x | a[i] = x; a = [y | y != 1; y = c[j]]]; xs[j] > 0; z = [true | data.a.b.d.t with input as i2; i2 = i]; b[i] = j }
+`),
+			exp: MustParseBody(`v = [null | true]; data.b[i] = j; xs = [x | a = [y | y = data.c[j]; y != 1]; a[i] = x]; xs[j] > 0; z = [true | i2 = i; data.a.b.d.t with input as i2]`),
+		},
+		{
+			note: "comprehensions-2",
+			mod: MustParseModule(`package compr
 
+import data.b
+import data.c
+q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }
+`),
+			exp: MustParseBody(`_ = [x | x = data.b[i]]; _ = data.b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _`),
+		},
+
+		{
+			note: "comprehensions-3",
+			mod: MustParseModule(`package compr
+
+import data.b
+import data.c
 fn(x) = y {
 	trim(x, ".", y)
 }
+r = true { a = [x | split(y, ".", z); x = z[i]; fn("...foo.bar..", y)] }
+`),
+			exp: MustParseBody(`a = [x | data.compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]`),
+		},
+		{
+			note: "closure over function output",
+			mod: MustParseModule(`package test
+import future.keywords
 
-p = true { v = [null | true]; xs = [x | a[i] = x; a = [y | y != 1; y = c[j]]]; xs[j] > 0; z = [true | data.a.b.d.t with input as i2; i2 = i]; b[i] = j }
-q = true { _ = [x | x = b[i]]; _ = b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _ }
-r = true { a = [x | split(y, ".", z); x = z[i]; fn("...foo.bar..", y)] }`,
-		),
+p {
+	object.get(input.subject.roles[_], comp, [""], output)
+	comp = [ 1 | true ]
+	every y in [2] {
+		y in output
+	}
+}`),
+			exp: MustParseBodyWithOpts(`comp = [1 | true]
+				__local2__ = [2]
+				object.get(input.subject.roles[_], comp, [""], output)
+				every __local0__, __local1__ in __local2__ { internal.member_2(__local1__, output) }`, opts),
+		},
 	}
 
-	compileStages(c, c.checkSafetyRuleBodies)
-	assertNotFailed(t, c)
-
-	result1 := c.Modules["mod"].Rules[1].Body
-	expected1 := MustParseBody(`v = [null | true]; data.b[i] = j; xs = [x | a = [y | y = data.c[j]; y != 1]; a[i] = x]; z = [true | i2 = i; data.a.b.d.t with input as i2]; xs[j] > 0`)
-	if !result1.Equal(expected1) {
-		t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", expected1, result1)
-	}
-
-	result2 := c.Modules["mod"].Rules[2].Body
-	expected2 := MustParseBody(`_ = [x | x = data.b[i]]; _ = data.b[j]; _ = [x | x = true; x != false]; true != false; _ = [x | data.foo[_] = x]; data.foo[_] = _`)
-	if !result2.Equal(expected2) {
-		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected2, result2)
-	}
-
-	result3 := c.Modules["mod"].Rules[3].Body
-	expected3 := MustParseBody(`a = [x | data.compr.fn("...foo.bar..", y); split(y, ".", z); x = z[i]]`)
-	if !result3.Equal(expected3) {
-		t.Errorf("Expected pre-ordered body to equal:\n%v\nBut got:\n%v", expected3, result3)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules = map[string]*Module{"mod": tc.mod}
+			compileStages(c, c.checkSafetyRuleBodies)
+			assertNotFailed(t, c)
+			last := len(c.Modules["mod"].Rules) - 1
+			actual := c.Modules["mod"].Rules[last].Body
+			if !actual.Equal(tc.exp) {
+				t.Errorf("Expected reordered body to be equal to:\n%v\nBut got:\n%v", tc.exp, actual)
+			}
+		})
 	}
 }
 
@@ -797,7 +832,7 @@ func TestCompilerCheckSafetyBodyErrors(t *testing.T) {
 		{"array-compr-mixed", `p { _ = [x | y = [a | a = z[i]]] }`, `{a, x, z, i}`},
 		{"array-compr-builtin", `p { [true | eq != 2] }`, `{eq,}`},
 		{"closure-self", `p { x = [x | x = 1] }`, `{x,}`},
-		{"closure-transitive", `p { x = y; x = [y | y = 1] }`, `{y,}`},
+		{"closure-transitive", `p { x = y; x = [y | y = 1] }`, `{x,y}`},
 		{"nested", `p { count(baz[i].attr[bar[dead.beef]], n) }`, `{dead,}`},
 		{"negated-import", `p { not foo; not bar; not baz }`, `set()`},
 		{"rewritten", `p[{"foo": dead[i]}] { true }`, `{dead, i}`},

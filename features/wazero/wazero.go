@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	opa.RegisterEngine("wazero", &factory{})
+	opa.RegisterEngine("wasm", &factory{})
 }
 
 // OPA is an implementation of the OPA SDK.
