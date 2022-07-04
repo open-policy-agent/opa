@@ -3039,9 +3039,12 @@ func (e evalEvery) eval(iter unifyIterator) error {
 }
 
 func (e *evalEvery) save(iter unifyIterator) error {
-	cpy := e.expr.Copy()
-	every := cpy.Terms.(*ast.Every)
+	return e.e.saveExpr(e.plug(e.expr), e.e.bindings, iter)
+}
 
+func (e *evalEvery) plug(expr *ast.Expr) *ast.Expr {
+	cpy := expr.Copy()
+	every := cpy.Terms.(*ast.Every)
 	for i := range every.Body {
 		switch t := every.Body[i].Terms.(type) {
 		case *ast.Term:
@@ -3050,6 +3053,8 @@ func (e *evalEvery) save(iter unifyIterator) error {
 			for j := 1; j < len(t); j++ { // don't plug operator, t[0]
 				t[j] = e.e.bindings.PlugNamespaced(t[j], e.e.caller.bindings)
 			}
+		case *ast.Every:
+			every.Body[i] = e.plug(every.Body[i])
 		}
 	}
 
@@ -3057,8 +3062,7 @@ func (e *evalEvery) save(iter unifyIterator) error {
 	every.Value = e.e.bindings.PlugNamespaced(every.Value, e.e.caller.bindings)
 	every.Domain = e.e.bindings.PlugNamespaced(every.Domain, e.e.caller.bindings)
 	cpy.Terms = every
-
-	return e.e.saveExpr(cpy, e.e.bindings, iter)
+	return cpy
 }
 
 func (e *eval) comprehensionIndex(term *ast.Term) *ast.ComprehensionIndex {
