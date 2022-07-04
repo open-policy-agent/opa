@@ -158,8 +158,6 @@ func New() *Server {
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.initRouters()
-	s.Handler = s.initHandlerAuth(s.Handler)
-	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -181,6 +179,10 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
+
+	// authorizer, if configured, needs the iCache to be set up already
+	s.Handler = s.initHandlerAuth(s.Handler)
+	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	return s, s.store.Commit(ctx, txn)
 }
