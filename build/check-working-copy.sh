@@ -26,5 +26,7 @@ if [[ "${HAS_CHANGES}" == "1" ]]; then
   echo ""
   echo "git status"
   git status
+  echo "git diff"
+  git diff
   exit 1
 fi
