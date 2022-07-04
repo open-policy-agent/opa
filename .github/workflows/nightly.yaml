@@ -87,7 +87,7 @@ jobs:
       # Equivalent to:
       # $ trivy fs .
       - name: Run Trivy scan on repo
-        uses: aquasecurity/trivy-action@0.5.0
+        uses: aquasecurity/trivy-action@0.5.1
         with:
           scan-type: fs
           format: table
@@ -98,7 +98,7 @@ jobs:
       # Equivalent to:
       # $ trivy image openpolicyagent/opa:edge
       - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@0.5.0
+        uses: aquasecurity/trivy-action@0.5.1
         with:
           image-ref: 'openpolicyagent/opa:edge'
           format: table

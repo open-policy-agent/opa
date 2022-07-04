@@ -3196,6 +3196,27 @@ func TestTopDownPartialEval(t *testing.T) {
 				}`},
 			wantQueries: []string{`every __local1__2, __local2__2 in [1] { a2 = input; 1 = __local2__2 }`},
 		},
+		{
+			note:  "every: nested and closing over function args",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					f(input)
+				}
+				f(x) {
+					every y in [1] {
+						every z in [2] {
+							a = x
+							z > y
+						}
+					}
+				}`},
+			wantQueries: []string{`every __local1__2, __local2__2 in [1] {
+				__local6__2 = [2]
+				every __local3__2, __local4__2 in __local6__2 {
+					a2 = input; __local4__2 > __local2__2 }
+				}`},
+		},
 	}
 
 	ctx := context.Background()
