@@ -3,7 +3,131 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.42.0
+
+This release contains a number of fixes and enhancements.
+
+### New built-in function: `object.subset`
+
+This function checks if a collection is a subset of another collection.
+It works on objects, sets, and arrays.
+
+If both arguments are objects, then the operation is recursive, e.g. `{"c": {"x": {10, 15, 20}}`
+is considered a subset of `{"a": "b", "c": {"x": {10, 15, 20, 25}, "y": "z"}`.
+
+See [the built-in functions docs for all details](https://www.openpolicyagent.org/docs/v0.42.0/policy-reference/#builtin-object-objectsubset)
+
+This implementation fixes [#4358](https://github.com/open-policy-agent/opa/issues/4358) and was authored by @charlesdaniels.
+
+### New keywords: "contains" and "if"
+
+These new keywords let you increase the expressiveness of your policy code:
+
+Before
+
+```rego
+package authz
+allow { not denied } # `denied` left out for presentation purposes
+
+deny[msg] {
+    count(violations) > 0
+    msg := sprintf("there are %d violations", [count(violations)])
+}
+```
+
+After
+
+```rego
+package authz
+import future.keywords
+
+allow if not denied # one expression only => no { ... } needed!
+
+deny contains msg if {
+    count(violations) > 0
+    msg := sprintf("there are %d violations", [count(violations)])
+}
+```
+
+Note that rule bodies containing only one expression can be abbreviated when using `if`.
+
+To use the new keywords, use `import future.keywords.contains` and `import future.keywords.if`; or
+import all of them at once via `import future.keywords`. When these future imports are present, the
+pretty printer (`opa fmt`) will introduce `contains` and `if` where applicable.
+
+`if` is allowed in all places to separate the rule head from the body, like
+```rego
+response[key] = value if { key := "open", y := "sesame" }
+```
+_but_ not for partial set rules, unless also using `contains`:
+```rego
+deny[msg]         if msg := "forbidden" # INVALID
+deny contains msg if msg := "forbidden" # VALID
+```
+
+### Tooling, SDK, and Runtime
+
+- Plugins:
+  - S3 Plugin: Allow multiple AWS credential providers at once, chained together ([#4791](https://github.com/open-policy-agent/opa/issues/4791)), reported and authored by @abhisek
+  - Discovery Plugin: Check for empty key config ([#4656](https://github.com/open-policy-agent/opa/issues/4656)) reported by @humbertoc-silva
+  - Logs Plugin: Update mechanism to escape field paths ([#4717](https://github.com/open-policy-agent/opa/issues/4717)) reported by @pauly4it
+  - Status Plugin: fix `bundle_failed_load_counter` metric for bundles without revisions ([#4822](https://github.com/open-policy-agent/opa/issues/4822)) reported and authored by @jkbschmid
+- Server: The `system.authz` policy now properly supports the interquery caching of `http.send` calls ([#4829](https://github.com/open-policy-agent/opa/issues/4829)), reported by @HarshPathakhp
+- `opa bench`: Passing `--e2e` makes the benchmark measure the performance of a query including the server's HTTP handlers and their processing.
+- `opa fmt`: Output list _and_ diff changes with `--fail` flag (#4710) (authored by @davidkuridza)
+- Disk Storage: Bundles are now streamed into the disk store, and not extracted completely in-memory ([#4539](https://github.com/open-policy-agent/opa/issues/4539))
+- Golang package `repl`: Add a `WithCapabilities` function (authored by @jaspervdj)
+- SDK: Allow configurable ID (authored by @rakshasa-1729)
+- Windows: User lookups in various code paths have been avoided. They had no use, but are costly, and removing them should increase
+  the performance of any CLI calls (even `opa version`) on Windows. Fixes [#4646](https://github.com/open-policy-agent/opa/issues/4646).
+- Server: Open read storage transaction in Query API handler (not write)
+
+### Rego and Topdown
+
+- Runtime Errors: Fix type error message in `count`, `object.filter`, and `object.remove` built-in functions ([#4767](https://github.com/open-policy-agent/opa/issues/4767))
+- Parser: Remove early MHS return in infix parsing, fixing confusing error messages ([#4672](https://github.com/open-policy-agent/opa/issues/4672)) authored by @philipaconrad
+- AST: Disallow shadowing of called functions in comprehension heads ([#4762](https://github.com/open-policy-agent/opa/issues/4762))
+- Planner/IR: shadow rule funcs if mocking functions ([#4746](https://github.com/open-policy-agent/opa/issues/4746))
+- Compiler: Fix "every" handling in partial eval: by reordering body for safety differently, and correctly plugging its terms on safe ([#4801](https://github.com/open-policy-agent/opa/pull/4801)), reported by @jguenther-va
+- Compiler: fix util.HashMap eq comparison ([#4759](https://github.com/open-policy-agent/opa/pull/4759))
+- Built-ins: use strings.Builder in glob.match() (authored by @charlesdaniels)
+
+### Documentation
+
+- Builtins: Fix documentation of `startswith` and `endswith` (authored by @whme)
+- Kubenetes Tutorial: Remove unused assignement in example ([#4778](https://github.com/open-policy-agent/opa/issues/4778)) authored by @Joffref
+- OCI: Update configuration docs for private images in OCI registries (authored by @carabasdaniel)
+- AWS S3 Signing: Fix profile_credentials docs (authored by @wangli1030)
+
+### Website + Ecosystem
+
+- Add "Edit on GitHub" button to docs ([#3784](https://github.com/open-policy-agent/opa/issues/3784)) authored by @avinashdesireddy
+- Wasm: fix function table markup ([#4664](https://github.com/open-policy-agent/opa/issues/4664))
+- Ecosystem: use location.hash to track open modal ([#4667](https://github.com/open-policy-agent/opa/issues/4667))
+
+Note that website changes like these become effective immediately and are not tied to a release.
+We still use our release notes to record the nice fixed contributed by our community.
+
+- Ecosystem Additions:
+  - Alfred, the self-hosted playground (authored by @dolevf)
+  - Java Spring tutorial (authored by @psevestre)
+  - Pulumi
+
+### Miscellaneous
+
+- Add Terminus to ADOPTERS.md (#4734) ([#4713](https://github.com/open-policy-agent/opa/issues/4713)) reported by @charlieflowers
+- Remove any data attributes not used in the "YAML tests" ([#4813](https://github.com/open-policy-agent/opa/issues/4813))
+- Dependency bumps, notably:
+  - github.com/prometheus/client_golang 1.12.2 ([#4697](https://github.com/open-policy-agent/opa/issues/4697))
+  - github.com/vektah/gqlparser/v2 2.4.5
+- Build process and CI:
+  - Use Trivy for vulnerability scans in code and container images (authored by @JAORMX)
+  - Bump golangci-lint to v1.46.2, fix some issues ([#4765](https://github.com/open-policy-agent/opa/issues/4765))
+  - Remove npm-opa-wasm test
+  - Skip flaky darwin tests on PR runs
+  - Fix flaky oci e2e test ([#4748](https://github.com/open-policy-agent/opa/issues/4748)) authored by @carabasdaniel
+  - Integrate builtin_metadata.json handling in release process ([#4754](https://github.com/open-policy-agent/opa/issues/4754))
+
 
 ## 0.41.0
 
