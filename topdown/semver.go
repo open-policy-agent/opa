@@ -40,8 +40,7 @@ func builtinSemVerCompare(bctx BuiltinContext, args []*ast.Term, iter func(*ast.
 func builtinSemVerIsValid(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	versionString, err := builtins.StringOperand(args[0].Value, 1)
 	if err != nil {
-		result := ast.BooleanTerm(false)
-		return iter(result)
+		return iter(ast.BooleanTerm(false))
 	}
 
 	result := true
