@@ -1844,6 +1844,13 @@ func TestBundleScope(t *testing.T) {
 						resp:   `{"code": "invalid_parameter", "message": "path a/b is owned by bundle \"test-bundle\""}`,
 					},
 					{
+						method: "PUT",
+						path:   "/policies/someid",
+						body:   `package other.path`,
+						code:   http.StatusBadRequest,
+						resp:   `{"code": "invalid_parameter", "message": "path x/y/z is owned by bundle \"test-bundle\""}`,
+					},
+					{
 						method: "DELETE",
 						path:   "/policies/someid",
 						code:   http.StatusBadRequest,
