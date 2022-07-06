@@ -54,6 +54,7 @@ To test this policy, we will create a separate Rego file that contains test case
 
 ```live:example/test:module:read_only
 package authz
+import future.keywords
 
 test_post_allowed if {
     allow with input as {"path": ["users"], "method": "POST"}
@@ -124,6 +125,7 @@ name is prefixed with `test_`.
 
 ```live:example_format:module:read_only
 package mypackage
+import future.keywords
 
 test_some_descriptive_name if {
     # test logic
@@ -155,6 +157,7 @@ by zero condition) the test result is marked as an `ERROR`. Tests prefixed with
 
 ```live:example_results:module:read_only
 package example
+import future.keywords
 
 # This test will pass.
 test_ok if true
