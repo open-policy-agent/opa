@@ -61,24 +61,32 @@ func getLastIP(cidr *net.IPNet) (net.IP, error) {
 	return lastIP, nil
 }
 
-func builtinNetCIDRIntersects(a, b ast.Value) (ast.Value, error) {
-	cidrnetA, err := getNetFromOperand(a)
+func builtinNetCIDRIntersects(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	cidrnetA, err := getNetFromOperand(args[0].Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	cidrnetB, err := getNetFromOperand(b)
+	cidrnetB, err := getNetFromOperand(args[1].Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// If either net contains the others starting IP they are overlapping
 	cidrsOverlap := cidrnetA.Contains(cidrnetB.IP) || cidrnetB.Contains(cidrnetA.IP)
 
-	return ast.Boolean(cidrsOverlap), nil
+	return iter(ast.BooleanTerm(cidrsOverlap))
 }
 
-func builtinNetCIDRContains(a, b ast.Value) (ast.Value, error) {
+func builtinNetCIDRContains(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+	result, err := getNetCIDRContains(args[0].Value, args[1].Value)
+	if err != nil {
+		return err
+	}
+	return iter(ast.NewTerm(result))
+}
+
+func getNetCIDRContains(a, b ast.Value) (ast.Value, error) {
 	cidrnetA, err := getNetFromOperand(a)
 	if err != nil {
 		return nil, err
@@ -167,11 +175,11 @@ func evalNetCIDRContainsMatchesOperand(operand int, a *ast.Term, iter func(cidr,
 	return nil
 }
 
-func builtinNetCIDRContainsMatches(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func builtinNetCIDRContainsMatches(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
 	result := ast.NewSet()
 	err := evalNetCIDRContainsMatchesOperand(1, args[0], func(cidr1 *ast.Term, index1 *ast.Term) error {
 		return evalNetCIDRContainsMatchesOperand(2, args[1], func(cidr2 *ast.Term, index2 *ast.Term) error {
-			if v, err := builtinNetCIDRContains(cidr1.Value, cidr2.Value); err != nil {
+			if v, err := getNetCIDRContains(cidr1.Value, cidr2.Value); err != nil {
 				return err
 			} else if vb, ok := v.(ast.Boolean); ok && bool(vb) {
 				result.Add(ast.ArrayTerm(index1, index2))
@@ -257,7 +265,7 @@ func (c cidrBlockRanges) Less(i, j int) bool {
 // builtinNetCIDRMerge merges the provided list of IP addresses and subnets into the smallest possible list of CIDRs.
 // It merges adjacent subnets where possible, those contained within others and also removes any duplicates.
 // Original Algorithm: https://github.com/netaddr/netaddr.
-func builtinNetCIDRMerge(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinNetCIDRMerge(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	networks := []*net.IPNet{}
 
 	switch v := operands[0].Value.(type) {
@@ -396,9 +404,9 @@ func incIP(ip net.IP) {
 }
 
 func init() {
-	RegisterFunctionalBuiltin2(ast.NetCIDROverlap.Name, builtinNetCIDRContains)
-	RegisterFunctionalBuiltin2(ast.NetCIDRIntersects.Name, builtinNetCIDRIntersects)
-	RegisterFunctionalBuiltin2(ast.NetCIDRContains.Name, builtinNetCIDRContains)
+	RegisterBuiltinFunc(ast.NetCIDROverlap.Name, builtinNetCIDRContains)
+	RegisterBuiltinFunc(ast.NetCIDRIntersects.Name, builtinNetCIDRIntersects)
+	RegisterBuiltinFunc(ast.NetCIDRContains.Name, builtinNetCIDRContains)
 	RegisterBuiltinFunc(ast.NetCIDRContainsMatches.Name, builtinNetCIDRContainsMatches)
 	RegisterBuiltinFunc(ast.NetCIDRExpand.Name, builtinNetCIDRExpand)
 	RegisterBuiltinFunc(ast.NetCIDRMerge.Name, builtinNetCIDRMerge)
