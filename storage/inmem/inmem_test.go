@@ -327,6 +327,60 @@ func TestInMemoryTxnMultipleWrites(t *testing.T) {
 	}
 }
 
+func TestTruncateNoExistingPath(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(map[string]interface{}{})
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	var archiveFiles = map[string]string{
+		"/a/b/c/data.json": "[1,2,3]",
+	}
+
+	var files [][2]string
+	for name, content := range archiveFiles {
+		files = append(files, [2]string{name, content})
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterator := bundle.NewIterator(b.Raw)
+
+	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	if err != nil {
+		t.Fatalf("Unexpected truncate error: %v", err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, store)
+
+	actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `
+{
+	"a": {
+		"b": {
+			"c": [1,2,3]
+		}
+	}
+}
+`
+	jsn := util.MustUnmarshalJSON([]byte(expected))
+
+	if !reflect.DeepEqual(jsn, actual) {
+		t.Fatalf("Expected reader's read to be %v but got: %v", jsn, actual)
+	}
+}
+
 func TestTruncate(t *testing.T) {
 	ctx := context.Background()
 	store := NewFromObject(map[string]interface{}{})
