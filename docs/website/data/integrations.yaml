@@ -1341,6 +1341,22 @@ integrations:
     inventors:
       - snowflake
 
+  rond:
+    title: Rönd
+    description: | 
+      Rönd is a lightweight container that distributes security policy enforcement throughout your application.
+    software:
+      - rond
+    labels:
+      category: authorization
+      layer: application
+    code: 
+      - https://github.com/rond-authz/rond
+    inventors:
+      - mia-platform
+    blogs:
+      - https://blog.mia-platform.eu/en/how-why-adopted-role-based-access-control-rbac
+
 organizations:
   styra:
     name: Styra
@@ -1483,6 +1499,9 @@ organizations:
   pulumi:
     name: Pulumi
     link: https://www.pulumi.com/
+  mia-platform:
+    name: Mia-Platform
+    link: https://mia-platform.eu/
 
 software:
   oauth:
@@ -1704,3 +1723,6 @@ software:
   alfred:
     name: alfred
     link: https://github.com/dolevf/Open-Policy-Agent-Alfred
+  rond:
+    name: Rönd
+    link: https://rond-authz.io/
