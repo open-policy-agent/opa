@@ -95,7 +95,7 @@ func builtinJWTDecode(a ast.Value) (ast.Value, error) {
 		// contents are quoted (behavior of https://jwt.io/). To fix
 		// this, remove leading and trailing quotes.
 		if ctyVal == headerJwt {
-			p, err = builtinTrim(p, ast.String(`"'`))
+			p, err = trimString(p, ast.String(`"'`))
 			if err != nil {
 				panic("not reached")
 			}
