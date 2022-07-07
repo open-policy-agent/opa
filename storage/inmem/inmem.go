@@ -121,6 +121,17 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storag
 					return err
 				}
 
+				_, err := underlying.Read(update.Path[:len(update.Path)-1])
+				if err != nil {
+					if !storage.IsNotFound(err) {
+						return err
+					}
+
+					if err := storage.MakeDir(ctx, db, txn, update.Path[:len(update.Path)-1]); err != nil {
+						return err
+					}
+				}
+
 				err = underlying.Write(storage.AddOp, update.Path, obj)
 				if err != nil {
 					return err
