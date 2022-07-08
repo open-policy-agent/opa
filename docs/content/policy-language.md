@@ -1284,6 +1284,81 @@ http_servers contains server if {
 }
 ```
 
+## Future Keywords
+
+To ensure backwards-compatibility, new keywords (like `every`) are introduced slowly.
+In the first stage, users can opt-in to using the new keywords via a special import:
+
+- `import future.keywords` introduces _all_ future keywords, and
+- `import future.keyword.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
+
+At some point in the future, the keyword will become _standard_, and the import will
+become a no-op that can safely be removed. This should give all users ample time to
+update their policies, so that the new keyword will not cause clashes with existing
+variable names.
+
+Note that some future keyword imports have consequences on pretty-printing:
+If `contains` or `if` are imported, the pretty-printer will use them as applicable
+when formatting the modules.
+
+This is the list of all future keywords known to OPA:
+
+### `future.keywords.in`
+
+More expressive membership and existential quantification keyword:
+
+```live:eg/kws/in:module:read_only
+deny {
+    some x in input.roles # iteration
+    x == "denylisted-role"
+}
+deny {
+    "denylisted-role" in input.roles # membership check
+}
+```
+
+`in` was introduced in [v0.34.0](https://github.com/open-policy-agent/opa/releases/tag/v0.34.0).
+See [the keywords docs](#membership-and-iteration-in) for details.
+
+### `future.keywords.every`
+
+Expressive _universal quantification_ keyword:
+
+```live:eg/kws/every:module:read_only
+allowed := {"customer", "admin"}
+
+allow {
+    every role in input.roles {
+        role.name in allowed
+    }
+}
+```
+
+There is no need to also import `future.keywords.in`, that is **implied** by importing `future.keywords.every`.
+
+`every` was introduced in [v0.38.0](https://github.com/open-policy-agent/opa/releases/tag/v0.38.0).
+See [Every Keyword](#every-keyword) for details.
+
+### `future.keywords.if`
+
+This keyword allows more expressive rule heads:
+
+```live:eg/kws/if:module:read_only
+deny if input.token != "secret"
+```
+
+`if` was introduced in [v0.42.0](https://github.com/open-policy-agent/opa/releases/tag/v0.42.0).
+
+### `future.keywords.contains`
+
+This keyword allows more expressive rule heads for partial set rules:
+
+```live:eg/kws/contains:module:read_only
+deny contains msg { msg := "forbdiden" }
+```
+
+`contains` was introduced in [v0.42.0](https://github.com/open-policy-agent/opa/releases/tag/v0.42.0).
+
 ## Some Keyword
 
 The `some` keyword allows queries to explicitly declare local variables. Use the
@@ -1339,18 +1414,9 @@ For using the `some` keyword with iteration, see
 ## Every Keyword
 
 {{< info >}}
-To ensure backwards-compatibility, new keywords (like `every`) are introduced slowly.
-In the first stage, users can opt-in to using the new keywords via a special import:
-`import future.keywords` introduces _all_ future keywords, and
+`every` is a future keyword and needs to be imported.
+
 `import future.keywords.every` introduces the `every` keyword described here.
-
-There is no need to also import `future.keywords.in`, that is **implied** by importing
-`future.keywords.every`.
-
-At some point in the future, the keyword will become _standard_, and the import will
-become a no-op that can safely be removed. This should give all users ample time to
-update their policies, so that the new keyword will not cause clashes with existing
-variable names.
 {{< /info >}}
 
 ```live:eg/data/every0:module:merge_down
