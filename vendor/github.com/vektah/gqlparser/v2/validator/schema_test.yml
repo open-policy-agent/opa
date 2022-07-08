@@ -668,3 +668,11 @@ type references:
     error:
       message: "Undefined type FooBar."
       locations: [{line: 1, column: 21}]
+
+  - name: Invalid enum value
+    input: |
+      enum Enum { true }
+
+    error:
+      message: "ENUM Enum: non-enum value true."
+      locations: [{line: 1, column: 6}]
