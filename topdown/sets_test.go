@@ -48,7 +48,7 @@ func TestSetUnionBuiltin(t *testing.T) {
 
 	for _, tc := range tests {
 		inputs := ast.MustParseTerm(tc.input)
-		result, err := getResult(functionalWrapper1("union", builtinSetUnion), inputs)
+		result, err := getResult(builtinSetUnion, inputs)
 		if err != nil {
 			t.Fatal(err)
 		}
