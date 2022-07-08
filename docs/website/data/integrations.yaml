@@ -1244,7 +1244,7 @@ integrations:
   alfred:
     title: Self-hosted Alternative to OPA Playground
     description:  |
-      Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally. 
+      Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally.
     labels:
       layer: network
       category: application
@@ -1356,6 +1356,32 @@ integrations:
       - mia-platform
     blogs:
       - https://blog.mia-platform.eu/en/how-why-adopted-role-based-access-control-rbac
+
+  waltid:
+    title: walt.id
+    description:  |
+      Verifying W3C Verifiable Credentials for building SSI (Self-Sovereign Identity) use cases.
+    labels:
+      category: authorization
+      layer: application
+      type: poweredbyopa
+    inventors:
+      - waltid
+      - blockchainlabum
+      - netis
+    software:
+      - ssikit
+    code:
+      - https://github.com/walt-id/waltid-ssikit
+    tutorials:
+      - https://docs.walt.id/v/ssikit/ssi-kit/open-policy-agent
+      - https://docs.walt.id/v/ssikit/concepts/verification-policies/dynamic-policies
+    videos:
+      - title: "Verifying W3C Verifiable Credentials with the SSI Kit using OPA (Open Policy Agent)"
+        speakers:
+          - name: Severin Stampler
+            organization: waltid
+        link: https://youtu.be/mue4UjzOZ3Q
 
 organizations:
   styra:
@@ -1502,6 +1528,15 @@ organizations:
   mia-platform:
     name: Mia-Platform
     link: https://mia-platform.eu/
+  waltid:
+    name: walt.id
+    link: https://walt.id
+  blockchainlabum:
+    name: Blockchain Lab:UM
+    link: https://blockchain-lab.um.si
+  netis:
+    name: Netis
+    link:  http://netis.si/en/
 
 software:
   oauth:
@@ -1726,3 +1761,6 @@ software:
   rond:
     name: Rönd
     link: https://rond-authz.io/
+  ssikit:
+    name: ssikit
+    link: https://walt.id/ssi-kit
