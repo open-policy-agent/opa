@@ -39,14 +39,12 @@ func builtinTimeNowNanos(bctx BuiltinContext, _ []*ast.Term, iter func(*ast.Term
 }
 
 func builtinTimeParseNanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	a := operands[0].Value
-	format, err := builtins.StringOperand(a, 1)
+	format, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	b := operands[1].Value
-	value, err := builtins.StringOperand(b, 2)
+	value, err := builtins.StringOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
 	}
@@ -60,8 +58,7 @@ func builtinTimeParseNanos(_ BuiltinContext, operands []*ast.Term, iter func(*as
 }
 
 func builtinTimeParseRFC3339Nanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	a := operands[0].Value
-	value, err := builtins.StringOperand(a, 1)
+	value, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -73,46 +70,45 @@ func builtinTimeParseRFC3339Nanos(_ BuiltinContext, operands []*ast.Term, iter f
 
 	return toSafeUnixNano(result, iter)
 }
-func builtinParseDurationNanos(a ast.Value) (ast.Value, error) {
-
-	duration, err := builtins.StringOperand(a, 1)
+func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	duration, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	value, err := time.ParseDuration(string(duration))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return ast.Number(int64ToJSONNumber(int64(value))), nil
+	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
 }
 
-func builtinDate(a ast.Value) (ast.Value, error) {
-	t, err := tzTime(a)
+func builtinDate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	t, err := tzTime(operands[0].Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	year, month, day := t.Date()
 	result := ast.NewArray(ast.IntNumberTerm(year), ast.IntNumberTerm(int(month)), ast.IntNumberTerm(day))
-	return result, nil
+	return iter(ast.NewTerm(result))
 }
 
-func builtinClock(a ast.Value) (ast.Value, error) {
-	t, err := tzTime(a)
+func builtinClock(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	t, err := tzTime(operands[0].Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	hour, minute, second := t.Clock()
 	result := ast.NewArray(ast.IntNumberTerm(hour), ast.IntNumberTerm(minute), ast.IntNumberTerm(second))
-	return result, nil
+	return iter(ast.NewTerm(result))
 }
 
-func builtinWeekday(a ast.Value) (ast.Value, error) {
-	t, err := tzTime(a)
+func builtinWeekday(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	t, err := tzTime(operands[0].Value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	weekday := t.Weekday().String()
-	return ast.String(weekday), nil
+	return iter(ast.StringTerm(weekday))
 }
 
 func builtinAddDate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -286,10 +282,10 @@ func init() {
 	RegisterBuiltinFunc(ast.NowNanos.Name, builtinTimeNowNanos)
 	RegisterBuiltinFunc(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
 	RegisterBuiltinFunc(ast.ParseNanos.Name, builtinTimeParseNanos)
-	RegisterFunctionalBuiltin1(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
-	RegisterFunctionalBuiltin1(ast.Date.Name, builtinDate)
-	RegisterFunctionalBuiltin1(ast.Clock.Name, builtinClock)
-	RegisterFunctionalBuiltin1(ast.Weekday.Name, builtinWeekday)
+	RegisterBuiltinFunc(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
+	RegisterBuiltinFunc(ast.Date.Name, builtinDate)
+	RegisterBuiltinFunc(ast.Clock.Name, builtinClock)
+	RegisterBuiltinFunc(ast.Weekday.Name, builtinWeekday)
 	RegisterBuiltinFunc(ast.AddDate.Name, builtinAddDate)
 	RegisterBuiltinFunc(ast.Diff.Name, builtinDiff)
 	tzCacheMutex = &sync.Mutex{}
