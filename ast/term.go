@@ -1792,7 +1792,7 @@ type Object interface {
 	MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool)
 	Filter(filter Object) (Object, error)
 	Keys() []*Term
-	Elem(i int) (*Term, *Term)
+	KeysIterator() ObjectKeysIterator
 	get(k *Term) *objectElem // To prevent external implementations
 }
 
@@ -1815,7 +1815,8 @@ type object struct {
 	keys   objectElemSlice
 	ground int // number of key and value grounds. Counting is
 	// required to support insert's key-value replace.
-	hash int
+	hash       int
+	numInserts int // number of inserts since last sorting.
 }
 
 func newobject(n int) *object {
@@ -1824,10 +1825,11 @@ func newobject(n int) *object {
 		keys = make(objectElemSlice, 0, n)
 	}
 	return &object{
-		elems:  make(map[int]*objectElem, n),
-		keys:   keys,
-		ground: 0,
-		hash:   0,
+		elems:      make(map[int]*objectElem, n),
+		keys:       keys,
+		ground:     0,
+		hash:       0,
+		numInserts: 0,
 	}
 }
 
@@ -1849,6 +1851,14 @@ func Item(key, value *Term) [2]*Term {
 	return [2]*Term{key, value}
 }
 
+func (obj *object) sortedKeys() objectElemSlice {
+	if obj.numInserts > 0 {
+		sort.Sort(obj.keys)
+		obj.numInserts = 0
+	}
+	return obj.keys
+}
+
 // Compare compares obj to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (obj *object) Compare(other Value) int {
@@ -1861,29 +1871,32 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	minLen := len(a.keys)
-	if len(b.keys) < len(a.keys) {
-		minLen = len(b.keys)
+	// Ensure that keys are in canonical sorted order before use!
+	akeys := a.sortedKeys()
+	bkeys := b.sortedKeys()
+	minLen := len(akeys)
+	if len(b.keys) < len(akeys) {
+		minLen = len(bkeys)
 	}
 	for i := 0; i < minLen; i++ {
-		keysCmp := Compare(a.keys[i].key, b.keys[i].key)
+		keysCmp := Compare(akeys[i].key, bkeys[i].key)
 		if keysCmp < 0 {
 			return -1
 		}
 		if keysCmp > 0 {
 			return 1
 		}
-		valA := a.keys[i].value
-		valB := b.keys[i].value
+		valA := akeys[i].value
+		valB := bkeys[i].value
 		valCmp := Compare(valA, valB)
 		if valCmp != 0 {
 			return valCmp
 		}
 	}
-	if len(a.keys) < len(b.keys) {
+	if len(akeys) < len(bkeys) {
 		return -1
 	}
-	if len(b.keys) < len(a.keys) {
+	if len(bkeys) < len(akeys) {
 		return 1
 	}
 	return 0
@@ -1959,7 +1972,7 @@ func (obj *object) Intersect(other Object) [][3]*Term {
 // Iter calls the function f for each key-value pair in the object. If f
 // returns an error, iteration stops and the error is returned.
 func (obj *object) Iter(f func(*Term, *Term) error) error {
-	for _, node := range obj.keys {
+	for _, node := range obj.sortedKeys() {
 		if err := f(node.key, node.value); err != nil {
 			return err
 		}
@@ -2011,21 +2024,22 @@ func (obj *object) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, erro
 func (obj *object) Keys() []*Term {
 	keys := make([]*Term, len(obj.keys))
 
-	for i, elem := range obj.keys {
+	for i, elem := range obj.sortedKeys() {
 		keys[i] = elem.key
 	}
 
 	return keys
 }
 
-func (obj *object) Elem(i int) (*Term, *Term) {
-	return obj.keys[i].key, obj.keys[i].value
+// Returns an iterator over the obj's keys.
+func (obj *object) KeysIterator() ObjectKeysIterator {
+	return newobjectKeysIterator(obj)
 }
 
 // MarshalJSON returns JSON encoded bytes representing obj.
 func (obj *object) MarshalJSON() ([]byte, error) {
 	sl := make([][2]*Term, obj.Len())
-	for i, node := range obj.keys {
+	for i, node := range obj.sortedKeys() {
 		sl[i] = Item(node.key, node.value)
 	}
 	return json.Marshal(sl)
@@ -2105,7 +2119,7 @@ func (obj object) String() string {
 	var b strings.Builder
 	b.WriteRune('{')
 
-	for i, elem := range obj.keys {
+	for i, elem := range obj.sortedKeys() {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -2308,15 +2322,9 @@ func (obj *object) insert(k, v *Term) {
 		next:  head,
 	}
 	obj.elems[hash] = elem
-	i := sort.Search(len(obj.keys), func(i int) bool { return Compare(elem.key, obj.keys[i].key) < 0 })
-	if i < len(obj.keys) {
-		// insert at position `i`:
-		obj.keys = append(obj.keys, nil)   // add some space
-		copy(obj.keys[i+1:], obj.keys[i:]) // move things over
-		obj.keys[i] = elem                 // drop it in position
-	} else {
-		obj.keys = append(obj.keys, elem)
-	}
+	// O(1) insertion, but we'll have to re-sort the keys later.
+	obj.keys = append(obj.keys, elem)
+	obj.numInserts++ // Track insertions since the last re-sorting.
 	obj.hash += hash + v.Hash()
 
 	if k.IsGround() {
@@ -2390,6 +2398,36 @@ func filterObject(o Value, filter Value) (Value, error) {
 	default:
 		return nil, fmt.Errorf("invalid object value type %q", v)
 	}
+}
+
+// NOTE(philipc): The only way to get an ObjectKeyIterator should be
+// from an Object. This ensures that the iterator can have implementation-
+// specific details internally, with no contracts except to the very
+// limited interface.
+type ObjectKeysIterator interface {
+	Next() (*Term, bool)
+}
+
+type objectKeysIterator struct {
+	obj     *object
+	numKeys int
+	index   int
+}
+
+func newobjectKeysIterator(o *object) ObjectKeysIterator {
+	return &objectKeysIterator{
+		obj:     o,
+		numKeys: o.Len(),
+		index:   0,
+	}
+}
+
+func (oki *objectKeysIterator) Next() (*Term, bool) {
+	if oki.index == oki.numKeys || oki.numKeys == 0 {
+		return nil, false
+	}
+	oki.index++
+	return oki.obj.sortedKeys()[oki.index-1].key, true
 }
 
 // ArrayComprehension represents an array comprehension as defined in the language.
