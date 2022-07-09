@@ -63,6 +63,24 @@ func bothArrays(t1, t2 *ast.Term) (bool, *ast.Array, *ast.Array) {
 	return true, array1, array2
 }
 
+func arraySet(t1, t2 *ast.Term) (bool, *ast.Array, ast.Set) {
+	if (t1 == nil) || (t2 == nil) {
+		return false, nil, nil
+	}
+
+	array, ok := t1.Value.(*ast.Array)
+	if !ok {
+		return false, nil, nil
+	}
+
+	set, ok := t2.Value.(ast.Set)
+	if !ok {
+		return false, nil, nil
+	}
+
+	return true, array, set
+}
+
 // objectSubset implements the subset operation on a pair of objects.
 //
 // This function will try to recursively apply the subset operation where it
@@ -194,6 +212,25 @@ func arraySubset(super, sub *ast.Array) bool {
 	}
 }
 
+// arraySetSubset implements the subset operation on array and set.
+//
+// This is defined to mean that the entire "sub" set must appear in
+// the "super" array with no consideration of ordering.
+// For the same rationale as setSubset(), we do not attempt
+// to recurse into values.
+func arraySetSubset(super *ast.Array, sub ast.Set) bool {
+	unmatched := sub.Len()
+	return super.Until(func(t *ast.Term) bool {
+		if sub.Contains(t) {
+			unmatched--
+		}
+		if unmatched == 0 {
+			return true
+		}
+		return false
+	})
+}
+
 func builtinObjectSubset(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	superTerm := operands[0]
 	subTerm := operands[1]
@@ -213,7 +250,12 @@ func builtinObjectSubset(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 		return iter(ast.BooleanTerm(arraySubset(superArray, subArray)))
 	}
 
-	return builtins.ErrOperand("both arguments object.subset must be of the same type")
+	if ok, superArray, subSet := arraySet(superTerm, subTerm); ok {
+		// Super operand is array and sub operand is set
+		return iter(ast.BooleanTerm(arraySetSubset(superArray, subSet)))
+	}
+
+	return builtins.ErrOperand("both arguments object.subset must be of the same type or array and set")
 }
 
 func init() {

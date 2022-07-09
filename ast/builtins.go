@@ -1431,12 +1431,14 @@ var ObjectSubset = &Builtin{
 	Description: "Determines if an object `sub` is a subset of another object `super`." +
 		"Object `sub` is a subset of object `super` if and only if every key in `sub` is also in `super`, " +
 		"**and** for all keys which `sub` and `super` share, they have the same value. " +
-		"This function works with objects, sets, and arrays. " +
+		"This function works with objects, sets, arrays and a set of array and set." +
 		"If both arguments are objects, then the operation is recursive, e.g. " +
 		"`{\"c\": {\"x\": {10, 15, 20}}` is a subset of `{\"a\": \"b\", \"c\": {\"x\": {10, 15, 20, 25}, \"y\": \"z\"}`. " +
 		"If both arguments are sets, then this function checks if every element of `sub` is a member of `super`, " +
 		"but does not attempt to recurse. If both arguments are arrays, " +
 		"then this function checks if `sub` appears contiguously in order within `super`, " +
+		"and also does not attempt to recurse. If `super` is array and `sub` is set, " +
+		"then this function checks if `super` contains every element of `sub` with no consideration of ordering, " +
 		"and also does not attempt to recurse.",
 	Decl: types.NewFunction(
 		types.Args(
