@@ -19,7 +19,7 @@
 {{ $version     := index (split .File.Path "/") 1 }}
 {{ $pageUrl     := .URL }}
 <nav class="navbar is-primary">
-  <div class="navbar-brand is-hidden-tablet">
+  <div class="navbar-brand is-hidden-desktop">
     <a class="navbar-item" href="{{ $home }}">
       <img src="{{ $logo }}">
     </a>
@@ -31,7 +31,7 @@
     </a>
   </div>
 
-  <div class="navbar-menu is-hidden-tablet" id="mobile-menu">
+  <div class="navbar-menu is-hidden-desktop" id="mobile-menu">
     <div class="navbar-start">
       <span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
         Core Docs
