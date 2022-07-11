@@ -11,3 +11,6 @@ CVE-2018-1098
 CVE-2019-11253
 CVE-2020-8558
 CVE-2021-25741
+
+# * github.com/emicklei/go-restful - we don't use its code in our handlers
+CVE-2022-1996
