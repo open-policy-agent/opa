@@ -472,7 +472,10 @@ opa test --coverage --format=json example.rego example_test.rego
             "row": 8
           }
         }
-      ]
+      ],
+      "covered_lines": 6,
+      "not_covered_lines": 1,
+      "coverage": 85.7
     },
     "example_test.rego": {
       "covered": [
@@ -500,8 +503,13 @@ opa test --coverage --format=json example.rego example_test.rego
             "row": 12
           }
         }
-      ]
-    }
+      ],
+      "covered_lines": 6,
+      "coverage": 100
+    },
+    "covered_lines": 12,
+    "not_covered_lines": 1,
+    "coverage": 92.3
   }
 }
 ```

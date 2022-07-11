@@ -86,14 +86,18 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 
 	for _, fr := range report.Files {
 		fr.Coverage = fr.computeCoveragePercentage()
-		coveredLoc += fr.locCovered()
-		notCoveredLoc += fr.locNotCovered()
+		fr.CoveredLines = fr.locCovered()
+		fr.NotCoveredLines = fr.locNotCovered()
+		coveredLoc += fr.CoveredLines
+		notCoveredLoc += fr.NotCoveredLines
 	}
 	totalLoc := coveredLoc + notCoveredLoc
 
 	if totalLoc != 0 {
 		overallCoverage = 100.0 * float64(coveredLoc) / float64(totalLoc)
 	}
+	report.CoveredLines = coveredLoc
+	report.NotCoveredLines = notCoveredLoc
 	report.Coverage = round(overallCoverage, 2)
 
 	return
@@ -158,9 +162,11 @@ func (r Range) In(row int) bool {
 
 // FileReport represents a coverage report for a single file.
 type FileReport struct {
-	Covered    []Range `json:"covered,omitempty"`
-	NotCovered []Range `json:"not_covered,omitempty"`
-	Coverage   float64 `json:"coverage,omitempty"`
+	Covered         []Range `json:"covered,omitempty"`
+	NotCovered      []Range `json:"not_covered,omitempty"`
+	CoveredLines    int     `json:"covered_lines,omitempty"`
+	NotCoveredLines int     `json:"not_covered_lines,omitempty"`
+	Coverage        float64 `json:"coverage,omitempty"`
 }
 
 // IsCovered returns true if the row is marked as covered in the report.
@@ -222,8 +228,10 @@ func (fr *FileReport) computeCoveragePercentage() float64 {
 
 // Report represents a coverage report for a set of files.
 type Report struct {
-	Files    map[string]*FileReport `json:"files"`
-	Coverage float64                `json:"coverage"`
+	Files           map[string]*FileReport `json:"files"`
+	CoveredLines    int                    `json:"covered_lines"`
+	NotCoveredLines int                    `json:"not_covered_lines"`
+	Coverage        float64                `json:"coverage"`
 }
 
 // IsCovered returns true if the row in the given file is covered.
