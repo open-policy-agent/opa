@@ -558,7 +558,7 @@ func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error 
 	}
 
 	for _, b := range bundles {
-		err := applyPatches(opts.Ctx, opts.Store, opts.Txn, b.Patch.Data)
+		err := ApplyPatches(opts.Ctx, opts.Store, opts.Txn, b.Patch.Data)
 		if err != nil {
 			return err
 		}
@@ -915,7 +915,7 @@ func hasRootsOverlap(ctx context.Context, store storage.Store, txn storage.Trans
 	return nil
 }
 
-func applyPatches(ctx context.Context, store storage.Store, txn storage.Transaction, patches []PatchOperation) error {
+func ApplyPatches(ctx context.Context, store storage.Store, txn storage.Transaction, patches []PatchOperation) error {
 	for _, pat := range patches {
 
 		// construct patch path
