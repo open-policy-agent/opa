@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,11 @@ import (
 
 	"github.com/open-policy-agent/opa/storage"
 )
+
+// splitSize is the breaking point for large bundle data values: if the byteslice's
+// len exceeds this, we'll attempt to break it into substructure values to avoid
+// too-big-txn errors.
+const splitSize = 1 << 10
 
 // Descriptor contains information about a file and
 // can be used to read the file contents.
@@ -283,7 +289,9 @@ func (it *iterator) Next() (*storage.Update, error) {
 			f := file{name: item.Path}
 
 			fpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(f.name)), "/.")
-			if strings.HasSuffix(f.name, RegoExt) {
+			isPolicy := strings.HasSuffix(f.name, RegoExt)
+
+			if isPolicy {
 				fpath = strings.Trim(f.name, "/")
 			}
 
@@ -294,8 +302,12 @@ func (it *iterator) Next() (*storage.Update, error) {
 			f.path = p
 
 			f.raw = item.Value
+			if isPolicy || isSmallEnough(item.Value) {
+				it.files = append(it.files, f)
+			} else {
+				it.files = append(it.files, splitFile(f)...)
+			}
 
-			it.files = append(it.files, f)
 		}
 
 		sortFilePathAscend(it.files)
@@ -310,16 +322,47 @@ func (it *iterator) Next() (*storage.Update, error) {
 	f := it.files[it.idx]
 	it.idx++
 
-	isPolicy := false
-	if strings.HasSuffix(f.name, RegoExt) {
-		isPolicy = true
-	}
+	isPolicy := strings.HasSuffix(f.name, RegoExt)
 
 	return &storage.Update{
 		Path:     f.path,
 		Value:    f.raw,
 		IsPolicy: isPolicy,
 	}, nil
+}
+
+func isSmallEnough(bs []byte) bool {
+	return len(bs) < splitSize
+}
+
+func splitFile(f file) []file {
+	obj := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(f.raw, &obj); err == nil {
+		ret := make([]file, 0, len(obj))
+		for k, v := range obj {
+			ret = append(ret, file{
+				name: f.name,
+				path: append(f.path, k),
+				raw:  v,
+			})
+		}
+		return ret
+	}
+
+	arr := make([]json.RawMessage, 0)
+	if err := json.Unmarshal(f.raw, &arr); err == nil {
+		ret := make([]file, 0, len(obj))
+		for i, v := range arr {
+			ret = append(ret, file{
+				name: f.name,
+				path: append(f.path, fmt.Sprint(i)),
+				raw:  v,
+			})
+		}
+		return ret
+	}
+
+	return []file{f} // try it anyways
 }
 
 type iterator struct {

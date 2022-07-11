@@ -320,10 +320,6 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 						return fmt.Errorf("storage path invalid: %v", newPath)
 					}
 
-					if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
-						return err
-					}
-
 					sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, obj[k])
 					if err != nil {
 						return wrapError(err)
