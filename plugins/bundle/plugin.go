@@ -653,10 +653,9 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 
 	bundleDir := filepath.Join(p.bundlePersistPath, name)
-	tmpFile := filepath.Join(bundleDir, ".bundle.tar.gz.tmp")
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
-	saveErr := saveCurrentBundleToDisk(bundleDir, ".bundle.tar.gz.tmp", raw)
+	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
 	if saveErr != nil {
 		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
 
@@ -674,26 +673,26 @@ func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 	return os.Rename(tmpFile, bundleFile)
 }
 
-func saveCurrentBundleToDisk(path, filename string, raw io.Reader) error {
+func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	if raw == nil {
-		return fmt.Errorf("no raw bundle bytes to persist to disk")
+		return "", fmt.Errorf("no raw bundle bytes to persist to disk")
 	}
 
-	dest, err := os.OpenFile(filepath.Join(path, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	dest, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer dest.Close()
 
 	_, err = io.Copy(dest, raw)
-	return err
+	return dest.Name(), err
 }
 
 func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
