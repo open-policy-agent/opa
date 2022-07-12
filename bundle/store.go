@@ -315,6 +315,7 @@ type DeactivateOpts struct {
 	Ctx         context.Context
 	Store       storage.Store
 	Txn         storage.Transaction
+	TxnCtx      *storage.Context
 	BundleNames map[string]struct{}
 }
 
@@ -330,7 +331,7 @@ func Deactivate(opts *DeactivateOpts) error {
 			erase[root] = struct{}{}
 		}
 	}
-	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.BundleNames, erase)
+	_, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, opts.BundleNames, erase)
 	return err
 }
 
@@ -343,9 +344,11 @@ func activateBundles(opts *ActivateOpts) error {
 	snapshotBundles := map[string]*Bundle{}
 
 	for name, b := range opts.Bundles {
-		if b.Type() == DeltaBundleType {
+		switch b.Type() {
+		case DeltaBundleType:
 			deltaBundles[name] = b
-		} else {
+
+		default:
 			snapshotBundles[name] = b
 			names[name] = struct{}{}
 
@@ -380,7 +383,7 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Erase data and policies at new + old roots, and remove the old
 	// manifests before activating a new snapshot bundle.
-	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, names, erase)
+	remaining, err := eraseBundles(opts.Ctx, opts.Store, opts.Txn, opts.TxnCtx, names, erase)
 	if err != nil {
 		return err
 	}
@@ -587,9 +590,9 @@ func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error 
 
 // erase bundles by name and roots. This will clear all policies and data at its roots and remove its
 // manifest from storage.
-func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
+func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
 
-	if err := eraseData(ctx, store, txn, roots); err != nil {
+	if err := eraseData(ctx, store, txn, txnCtx, roots); err != nil {
 		return nil, err
 	}
 
@@ -615,22 +618,18 @@ func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transact
 			return nil, err
 		}
 	}
-
 	return remaining, nil
 }
 
-func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction, roots map[string]struct{}) error {
-	for root := range roots {
-		path, ok := storage.ParsePathEscaped("/" + root)
-		if !ok {
-			return fmt.Errorf("manifest root path invalid: %v", root)
-		}
-
-		if len(path) > 0 {
-			if err := store.Write(ctx, txn, storage.RemoveOp, path, nil); suppressNotFound(err) != nil {
-				return err
-			}
-		}
+func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction, txnCtx *storage.Context, roots map[string]struct{}) error {
+	eraser, err := eraseIterator(roots)
+	if err != nil {
+		return err
+	}
+	params := storage.WriteParams
+	params.Context = txnCtx
+	if err := store.Truncate(ctx, txn, params, eraser); err != nil {
+		return fmt.Errorf("store truncate failed for reset of roots '%v': %v", roots, err)
 	}
 	return nil
 }
@@ -762,7 +761,7 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
-	modules := map[string]*ast.Module{}
+	modules := make(map[string]*ast.Module, len(compiler.Modules)+len(extraModules)+len(bundles))
 
 	// preserve any modules already on the compiler
 	for name, module := range compiler.Modules {

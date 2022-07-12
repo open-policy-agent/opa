@@ -1931,7 +1931,7 @@ func TestEraseData(t *testing.T) {
 				roots[root] = struct{}{}
 			}
 
-			err := eraseData(ctx, mockStore, txn, roots)
+			err := eraseData(ctx, mockStore, txn, nil, roots)
 			if !tc.expectErr && err != nil {
 				t.Fatalf("unepected error: %s", err)
 			} else if tc.expectErr && err == nil {

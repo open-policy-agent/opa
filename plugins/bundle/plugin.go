@@ -195,6 +195,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 			Ctx:         ctx,
 			Store:       p.manager.Store,
 			Txn:         txn,
+			TxnCtx:      params.Context,
 			BundleNames: deletedBundles,
 		}
 		err := bundle.Deactivate(opts)

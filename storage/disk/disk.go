@@ -275,7 +275,8 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 			return wrapError(err)
 		}
 
-		if update.IsPolicy {
+		switch {
+		case update.IsPolicy:
 			err = underlyingTxn.UpsertPolicy(ctx, update.Path.String(), update.Value)
 			if err != nil {
 				if err != badger.ErrTxnTooBig {
@@ -295,9 +296,10 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 					return wrapError(err)
 				}
 			}
-		} else {
+
+		default:
 			if len(update.Path) > 0 {
-				sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, update.Path, update.Value)
+				sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, update.Op, update.Path, update.Value)
 				if err != nil {
 					return wrapError(err)
 				}
@@ -320,7 +322,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 						return fmt.Errorf("storage path invalid: %v", newPath)
 					}
 
-					sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, obj[k])
+					sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, storage.AddOp, newPath, obj[k])
 					if err != nil {
 						return wrapError(err)
 					}
@@ -388,10 +390,16 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 	return wrapError(db.cleanup(oldDb, backupDir))
 }
 
-func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, badgerdb *badger.DB,
-	params storage.TransactionParams, path storage.Path, value interface{}) (*transaction, error) {
+func (db *Store) doTruncateData(
+	ctx context.Context,
+	underlying *transaction,
+	badgerdb *badger.DB,
+	params storage.TransactionParams,
+	op storage.PatchOp,
+	path storage.Path,
+	value interface{}) (*transaction, error) {
 
-	err := underlying.Write(ctx, storage.AddOp, path, value)
+	err := underlying.Write(ctx, op, path, value)
 	if err != nil {
 		if err != badger.ErrTxnTooBig {
 			return nil, wrapError(err)
@@ -406,7 +414,7 @@ func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, ba
 		xid := atomic.AddUint64(&db.xid, uint64(1))
 		sTxn := newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, nil)
 
-		if err = sTxn.Write(ctx, storage.AddOp, path, value); err != nil {
+		if err = sTxn.Write(ctx, op, path, value); err != nil {
 			return nil, wrapError(err)
 		}
 

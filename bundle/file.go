@@ -383,3 +383,35 @@ func sortFilePathAscend(files []file) {
 		return len(files[i].path) < len(files[j].path)
 	})
 }
+
+type eraser struct {
+	roots []storage.Path
+	idx   int
+}
+
+// eraseIterator is used to use storage.Truncate for resetting bundle roots in data
+func eraseIterator(roots map[string]struct{}) (storage.Iterator, error) {
+	it := eraser{
+		roots: make([]storage.Path, 0, len(roots)),
+	}
+	for r := range roots {
+		root, ok := storage.ParsePathEscaped("/" + r)
+		if !ok {
+			return nil, fmt.Errorf("manifest root path invalid: %v", r)
+		}
+		it.roots = append(it.roots, root)
+	}
+	return &it, nil
+}
+
+func (e *eraser) Next() (*storage.Update, error) {
+	if e.idx >= len(e.roots) {
+		return nil, io.EOF
+	}
+	next := storage.Update{
+		Op:   storage.RemoveOp,
+		Path: e.roots[e.idx],
+	}
+	e.idx++
+	return &next, nil
+}

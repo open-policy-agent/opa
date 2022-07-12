@@ -108,12 +108,26 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storag
 			break
 		}
 
-		if update.IsPolicy {
+		switch {
+		case update.IsPolicy:
 			err = underlying.UpsertPolicy(update.Path.String(), update.Value)
 			if err != nil {
 				return err
 			}
-		} else {
+
+		case update.Op == storage.RemoveOp:
+			_, err := underlying.Read(update.Path)
+			if err != nil {
+				if !storage.IsNotFound(err) {
+					return err
+				}
+			} else {
+				if err := underlying.Write(storage.RemoveOp, update.Path, nil); err != nil {
+					return err
+				}
+			}
+
+		case update.Op == storage.AddOp:
 			if len(update.Path) > 0 {
 				var obj interface{}
 				err = util.Unmarshal(update.Value, &obj)
@@ -132,8 +146,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storag
 					}
 				}
 
-				err = underlying.Write(storage.AddOp, update.Path, obj)
-				if err != nil {
+				if err := underlying.Write(storage.AddOp, update.Path, obj); err != nil {
 					return err
 				}
 			} else {
