@@ -695,7 +695,7 @@ func (r *Reader) verifyBundleFile(path string, data bytes.Buffer) error {
 
 func (r *Reader) fullPath(path string) string {
 	if r.baseDir != "" {
-		path = filepath.Join(r.baseDir, path)
+		path = filepath.ToSlash(filepath.Join(r.baseDir, path))
 	}
 	return path
 }

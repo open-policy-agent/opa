@@ -168,18 +168,18 @@ func testReadBundle(t *testing.T, baseDir string) {
 
 	modulePath := "/example/example.rego"
 	if baseDir != "" {
-		modulePath = filepath.Join(baseDir, modulePath)
+		modulePath = filepath.ToSlash(filepath.Join(baseDir, modulePath))
 	}
 
 	legacyWasmModulePath := "/policy.wasm"
 	if baseDir != "" {
-		legacyWasmModulePath = filepath.Join(baseDir, legacyWasmModulePath)
+		legacyWasmModulePath = filepath.ToSlash(filepath.Join(baseDir, legacyWasmModulePath))
 	}
 
 	wasmResolverPath := "/authz/allow/policy.wasm"
 	fullWasmResolverPath := wasmResolverPath
 	if baseDir != "" {
-		fullWasmResolverPath = filepath.Join(baseDir, wasmResolverPath)
+		fullWasmResolverPath = filepath.ToSlash(filepath.Join(baseDir, wasmResolverPath))
 	}
 
 	files := [][2]string{
@@ -683,7 +683,7 @@ func TestIsFileExcluded(t *testing.T) {
 		{
 			note:    "dir_no_match",
 			file:    "/a/b/c/data.json",
-			pattern: []string{"/a/b/*"},
+			pattern: []string{"/a/b/\\*"}, // On Windows, '\\' is treated as path separator.
 			exp:     false,
 		},
 	}
