@@ -277,6 +277,13 @@ func validateDefinition(schema *Schema, def *Definition) *gqlerror.Error {
 		if len(def.EnumValues) == 0 {
 			return gqlerror.ErrorPosf(def.Position, "%s %s: must define one or more unique enum values.", def.Kind, def.Name)
 		}
+		for _, value := range def.EnumValues {
+			for _, nonEnum := range [3]string{"true", "false", "null"} {
+				if value.Name == nonEnum {
+					return gqlerror.ErrorPosf(def.Position, "%s %s: non-enum value %s.", def.Kind, def.Name, value.Name)
+				}
+			}
+		}
 	case InputObject:
 		if len(def.Fields) == 0 {
 			return gqlerror.ErrorPosf(def.Position, "%s %s: must define one or more input fields.", def.Kind, def.Name)

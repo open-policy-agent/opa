@@ -223,7 +223,7 @@ opa_value *opa_base64_is_valid(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
     {
-        return NULL;
+        return opa_boolean(false);
     }
 
     opa_string_t *s = opa_cast_string(a);
@@ -323,7 +323,7 @@ opa_value *opa_json_is_valid(opa_value *a)
 {
     if (opa_value_type(a) != OPA_STRING)
     {
-        return NULL;
+        return opa_boolean(false);
     }
 
 

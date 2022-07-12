@@ -5,6 +5,7 @@
 package topdown
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
@@ -14,14 +15,14 @@ import (
 )
 
 // Binary Si unit constants are borrowed from topdown/parse_bytes
-const milli float64 = 0.001
+const siMilli = 0.001
 const (
-	k uint64 = 1000
-	m        = k * 1000
-	g        = m * 1000
-	t        = g * 1000
-	p        = t * 1000
-	e        = p * 1000
+	siK uint64 = 1000
+	siM        = siK * 1000
+	siG        = siM * 1000
+	siT        = siG * 1000
+	siP        = siT * 1000
+	siE        = siP * 1000
 )
 
 func parseUnitsError(msg string) error {
@@ -40,7 +41,7 @@ var (
 
 // Accepts both normal SI and binary SI units.
 func builtinUnits(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var x big.Float
+	var x big.Rat
 
 	raw, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
@@ -58,7 +59,6 @@ func builtinUnits(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 	num, unit := extractNumAndUnit(s)
 	if num == "" {
 		return errNoAmount
-
 	}
 
 	// Unlike in units.parse_bytes, we only lowercase after the first letter,
@@ -70,44 +70,49 @@ func builtinUnits(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 
 	switch unit {
 	case "m":
-		x.SetFloat64(milli)
+		x.SetFloat64(siMilli)
 	case "":
 		x.SetUint64(none)
 	case "k", "K":
-		x.SetUint64(k)
+		x.SetUint64(siK)
 	case "ki", "Ki":
 		x.SetUint64(ki)
 	case "M":
-		x.SetUint64(m)
+		x.SetUint64(siM)
 	case "mi", "Mi":
 		x.SetUint64(mi)
 	case "g", "G":
-		x.SetUint64(g)
+		x.SetUint64(siG)
 	case "gi", "Gi":
 		x.SetUint64(gi)
 	case "t", "T":
-		x.SetUint64(t)
+		x.SetUint64(siT)
 	case "ti", "Ti":
 		x.SetUint64(ti)
 	case "p", "P":
-		x.SetUint64(p)
+		x.SetUint64(siP)
 	case "pi", "Pi":
 		x.SetUint64(pi)
 	case "e", "E":
-		x.SetUint64(e)
+		x.SetUint64(siE)
 	case "ei", "Ei":
 		x.SetUint64(ei)
 	default:
 		return errUnitNotRecognized(unit)
 	}
 
-	numFloat, ok := new(big.Float).SetString(num)
+	numRat, ok := new(big.Rat).SetString(num)
 	if !ok {
 		return errNumConv
 	}
 
-	numFloat.Mul(numFloat, &x)
-	return iter(ast.NewTerm(builtins.FloatToNumber(numFloat)))
+	numRat.Mul(numRat, &x)
+
+	// When using just big.Float, we had floating-point precision
+	// issues because quantities like 0.001 are not exactly representable.
+	// Rationals (such as big.Rat) do not suffer this problem, but are
+	// more expensive to compute with in general.
+	return iter(ast.NumberTerm(json.Number(numRat.FloatString(10))))
 }
 
 func init() {

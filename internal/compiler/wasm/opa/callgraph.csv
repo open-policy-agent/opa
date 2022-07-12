@@ -227,9 +227,9 @@ opa_to_number,opa_number_int
 opa_to_number,opa_atof64
 opa_to_number,opa_number_ref
 opa_base64_is_valid,opa_value_type
+opa_base64_is_valid,opa_boolean
 opa_base64_is_valid,base64_gen_decode
 opa_base64_is_valid,free
-opa_base64_is_valid,opa_boolean
 base64_gen_decode,memset
 base64_gen_decode,malloc
 base64_gen_decode,free

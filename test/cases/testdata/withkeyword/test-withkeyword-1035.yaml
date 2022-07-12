@@ -1,6 +1,5 @@
 cases:
-- data:
-    a: testdata
+- data: {}
   modules:
   - |
     package generated

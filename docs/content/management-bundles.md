@@ -711,6 +711,34 @@ bundles:
 
 **NOTE:** the S3 `url` is the bucket's regional endpoint.
 
+##### Credential Provider Chaining
+
+Multiple AWS credential providers can be configured. OPA will follow an *internally defined* order to try each of the credential provider given in the configuration till success. Following order of precedence is followed when multiple credential provider is given in the configuration
+
+1. Environment Credential
+2. Web Identity Credential
+3. Profile Credential
+4. Metadata Credential
+
+```yaml
+services:
+  s3:
+    url: https://my-example-opa-bucket.s3.eu-north-1.amazonaws.com
+    credentials:
+      s3_signing:
+        metadata_credentials:
+          aws_region: eu-north-1
+          iam_role: my-opa-bucket-access-role
+        environment_credentials: {}
+
+bundles:
+  authz:
+    service: s3
+    resource: bundle.tar.gz
+```
+
+**NOTE:** In this example, OPA will look for AWS credentials in the environment first before trying metadata endpoint. S3 signing will fail if none of the providers are successful.
+
 ### Google Cloud Storage
 
 #### OPA Bundle Support

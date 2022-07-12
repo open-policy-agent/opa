@@ -769,6 +769,10 @@ func (*contextPropagationStore) Commit(context.Context, storage.Transaction) err
 func (*contextPropagationStore) Abort(context.Context, storage.Transaction) {
 }
 
+func (*contextPropagationStore) Truncate(context.Context, storage.Transaction, storage.TransactionParams, storage.Iterator) error {
+	return nil
+}
+
 func (m *contextPropagationStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	val := ctx.Value(contextPropagationMock{})
 	m.calls = append(m.calls, val)
@@ -824,6 +828,10 @@ func (*astStore) Commit(context.Context, storage.Transaction) error {
 }
 
 func (*astStore) Abort(context.Context, storage.Transaction) {}
+
+func (*astStore) Truncate(context.Context, storage.Transaction, storage.TransactionParams, storage.Iterator) error {
+	return nil
+}
 
 func (a *astStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	if path.String() == a.path {

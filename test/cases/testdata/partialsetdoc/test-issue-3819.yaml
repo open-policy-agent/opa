@@ -1,8 +1,8 @@
 cases:
 - data:
     a:
-      bananas: 1
       apples: 2
+      bananas: 1
       clementines: 3
   modules:
   - |

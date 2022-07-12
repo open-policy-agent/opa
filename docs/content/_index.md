@@ -108,18 +108,30 @@ Rego (pronounced "ray-go") is purpose-built for expressing policies over complex
 hierarchical data structures. For detailed information on Rego see the [Policy
 Language](policy-language) documentation.
 
-> 💡 The examples below are interactive! If you edit the input data above
+{{< info >}}
+💡 The examples below are interactive! If you edit the input data above
 containing servers, networks, and ports, the output will change below.
 Similarly, if you edit the queries or rules in the examples below the output
 will change. As you read through this section, try changing the input, queries,
 and rules and observe the difference in output.
->
-> 💻 They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
+
+💻 They can also be run locally on your machine using the [`opa eval` command, here are setup instructions.](#running-opa)
+
+Note that the examples in this section try to represent the best practices.
+As such, they make use of keywords that are meant to become standard keywords
+at some point in time, but have been introduced gradually. These _future
+keywords_ can be enabled using
+
+```live:eg/import:module:read_only
+import future.keywords
+```
+{{< /info >}}
 
 ### References
 
 ```live:example/refs:module:hidden
 package example
+import future.keywords
 ```
 
 When OPA evaluates policies it binds data provided in the query to a global
@@ -156,6 +168,7 @@ input.deadbeef
 
 ```live:example/exprs:module:hidden
 package example
+import future.keywords
 ```
 
 To produce policy decisions in Rego you write expressions against input and
@@ -214,6 +227,7 @@ input.servers[0].protocols[0] == "telnet"
 
 ```live:example/vars:module:hidden
 package example
+import future.keywords
 ```
 
 You can store values in intermediate variables using the `:=` (assignment)
@@ -265,6 +279,7 @@ x != y  # y has not been assigned a value
 
 ```live:example/iter:module:hidden
 package example
+import future.keywords
 ```
 
 Like other declarative languages (e.g., SQL), iteration in Rego happens
@@ -386,19 +401,17 @@ It introduces new bindings to the evaluation of the rest of the rule body.
 Using `some`, we can express the rules introduced above in different ways:
 
 ```live:example/iter/some1:module:merge_down
-import future.keywords.in
-
-public_network[net.id] {        # net.id is in the public_network set if...
-    some net in input.networks  # some network exists and..
-    net.public                  # it is public.
+public_network contains net.id if {
+    some net in input.networks # some network exists and..
+    net.public                 # it is public.
 }
 
-shell_accessible[server.id] {
+shell_accessible contains server.id if {
     some server in input.servers
     "telnet" in server.protocols
 }
 
-shell_accessible[server.id] {
+shell_accessible contains server.id if {
     some server in input.servers
     "ssh" in server.protocols
 }
@@ -417,9 +430,7 @@ Expanding on the examples above, `every` allows us to succinctly express that
 a condition holds for all elements of a domain.
 
 ```live:example/iter/every2:module:merge_down
-import future.keywords.every
-
-no_telnet_exposed {
+no_telnet_exposed if {
     every server in input.servers {
         every protocol in server.protocols {
             "telnet" != protocol
@@ -427,17 +438,17 @@ no_telnet_exposed {
     }
 }
 
-no_telnet_exposed_alt { # alternative: every + not-in
+no_telnet_exposed_alt if { # alternative: every + not-in
     every server in input.servers {
         not "telnet" in server.protocols
     }
 }
 
-no_telnet_exposed_alt2 { # alternative: not + rule + some
+no_telnet_exposed_alt2 if { # alternative: not + rule + some
     not any_telnet_exposed
 }
 
-any_telnet_exposed {
+any_telnet_exposed if {
     some server in input.servers
     "telnet" in server.protocols
 }
@@ -473,24 +484,27 @@ For all the details, see [Every Keyword](policy-language/#every-keyword).
 Rego lets you encapsulate and re-use logic with rules. Rules are just if-then
 logic statements. Rules can either be "complete" or "partial".
 
+```live:example/complete:module:hidden
+package example.rules
+import future.keywords
+```
+
 #### Complete Rules
 
 Complete rules are if-then statements that assign a single value to a variable.
 For example:
 
 ```live:example/complete/1:module:openable
-package example.rules
-
-any_public_networks := true {  # is true if...
-    net := input.networks[_]  # some network exists and..
-    net.public                # it is public.
+any_public_networks := true if {
+    some net in input.networks # some network exists and..
+    net.public                 # it is public.
 }
 ```
 
-Every rule consists of a _head_ and a _body_. In Rego we say the rule head is
-true _if_ the rule body is true for some set of variable assignments. In the
-example above `any_public_networks := true` is the head and `net :=
-input.networks[_]; net.public` is the body.
+Every rule consists of a _head_ and a _body_. In Rego we say the rule head
+is true _if_ the rule body is true for some set of variable assignments. In
+the example above `any_public_networks := true` is the head and `some net in
+input.networks; net.public` is the body.
 
 You can query for the value generated by rules just like any other value:
 
@@ -515,11 +529,9 @@ data.example.rules.any_public_networks
 If you omit the `= <value>` part of the rule head the value defaults to `true`.
 You could rewrite the example above as follows without changing the meaning:
 
-```live:example/complete_elided:module:read_only,openable
-package example.rules
-
-any_public_networks {
-    net := input.networks[_]
+```live:example/complete/elided:module:read_only,openable
+any_public_networks if {
+    some net in input.networks
     net.public
 }
 ```
@@ -563,15 +575,18 @@ any_public_networks
 
 #### Partial Rules
 
+```live:example/partial_set:module:hidden
+package example
+import future.keywords
+```
+
 Partial rules are if-then statements that generate a set of values and
 assign that set to a variable. For example:
 
-```live:example/partial_set:module:openable
-package example.rules
-
-public_network[net.id] {      # net.id is in the public_network set if...
-    net := input.networks[_]  # some network exists and...
-    net.public                # it is public.
+```live:example/partial_set/1:module:openable
+public_network contains net.id if {
+    some net in input.networks # some network exists and..
+    net.public                 # it is public.
 }
 ```
 
@@ -579,27 +594,44 @@ In the example above `public_network[net.id]` is the rule head and `net :=
 input.networks[_]; net.public` is the rule body. You can query for the entire
 set of values just like any other value:
 
-```live:example/partial_set/extent:query:merge_down
+```live:example/partial_set/1/extent:query:merge_down
 public_network
 ```
-```live:example/partial_set/extent:output
+```live:example/partial_set/1/extent:output
 ```
 
-You can iterate over the set of values by referencing the set elements with a
+Iteration over the set of values can be done with the `some ... in ...` expression:
+
+```live:example/partial_set/1/iteration_some:query:merge_down
+some net in public_network
+```
+```live:example/partial_set/1/iteration_some:output
+```
+
+With a literal, or a bound variable, you can check if the value exists in the set
+via `... in ...`:
+
+```live:example/partial_set/1/exists_in:query:merge_down
+"net3" in public_network
+```
+```live:example/partial_set/1/exists_in:output
+```
+
+You can also iterate over the set of values by referencing the set elements with a
 variable:
 
-```live:example/partial_set/iteration:query:merge_down
+```live:example/partial_set/1/iteration:query:merge_down
 some n; public_network[n]
 ```
-```live:example/partial_set/iteration:output
+```live:example/partial_set/1/iteration:output
 ```
 
 Lastly, you can check if a value exists in the set using the same syntax:
 
-```live:example/partial_set/exists:query:merge_down
+```live:example/partial_set/1/exists:query:merge_down
 public_network["net3"]
 ```
-```live:example/partial_set/exists:output
+```live:example/partial_set/1/exists:output
 ```
 
 In addition to partially defining sets, You can also partially define key/value

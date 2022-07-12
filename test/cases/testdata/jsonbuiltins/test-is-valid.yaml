@@ -12,6 +12,7 @@ cases:
     ]
 
     p = [x | doc = documents[_]; json.is_valid(doc, x)]
+  strict_error: true
   want_result:
   - x:
     - false
@@ -28,9 +29,9 @@ cases:
     }
   query: data.generated.p = x
   input: {"foo": 1}
-  want_error: operand 1 must be string but got number
-  want_error_code: eval_type_error
   strict_error: true
+  want_result:
+  - x: false
 
 - note: jsonbuiltins/yaml is_valid
   query: data.generated.p = x
@@ -49,6 +50,7 @@ cases:
     ]
 
     p = [x | doc = documents[_]; yaml.is_valid(doc, x)]
+  strict_error: true
   want_result:
   - x:
     - true
@@ -65,6 +67,6 @@ cases:
     }
   query: data.generated.p = x
   input: {"foo": 1}
-  want_error: operand 1 must be string but got number
-  want_error_code: eval_type_error
   strict_error: true
+  want_result:
+  - x: false

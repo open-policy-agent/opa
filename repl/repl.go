@@ -50,6 +50,7 @@ type REPL struct {
 	metrics             metrics.Metrics
 	profiler            bool
 	strictBuiltinErrors bool
+	capabilities        *ast.Capabilities
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -93,6 +94,7 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		output:       output,
 		store:        store,
 		modules:      map[string]*ast.Module{},
+		capabilities: ast.CapabilitiesForThisVersion(),
 		outputFormat: outputFormat,
 		explain:      explainOff,
 		historyPath:  historyPath,
@@ -103,6 +105,11 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 		prettyLimit:  defaultPrettyLimit,
 		target:       compile.TargetRego,
 	}
+}
+
+func (r *REPL) WithCapabilities(capabilities *ast.Capabilities) *REPL {
+	r.capabilities = capabilities
+	return r
 }
 
 func defaultModule() *ast.Module {
@@ -688,7 +695,10 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 		}
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
+	compiler := ast.NewCompiler().
+		SetErrorLimit(r.errLimit).
+		WithEnablePrintStatements(true).
+		WithCapabilities(r.capabilities)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)
@@ -754,7 +764,10 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
+	compiler := ast.NewCompiler().
+		SetErrorLimit(r.errLimit).
+		WithEnablePrintStatements(true).
+		WithCapabilities(r.capabilities)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)
@@ -871,7 +884,10 @@ func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
 		policies[id] = mod
 	}
 
-	compiler := ast.NewCompiler().SetErrorLimit(r.errLimit).WithEnablePrintStatements(true)
+	compiler := ast.NewCompiler().
+		SetErrorLimit(r.errLimit).
+		WithEnablePrintStatements(true).
+		WithCapabilities(r.capabilities)
 
 	if r.instrument {
 		compiler.WithMetrics(r.metrics)

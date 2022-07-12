@@ -19,17 +19,6 @@ Backup and restore, or repair procedures for data corruption are not provided
 at this time.
 {{< /info >}}
 
-While it's possible to load data larger than the allotted memory resources into OPA
-using disk storage, there are limitations to be aware of:
-
-{{< danger >}}
-[Bundles](../management-bundles/) are loaded into memory **entirely** even when
-disk storage is used: the decompressed, parsed bundle content is then inserted
-into the disk store.
-
-It is planned to fix this limitation in the future.
-{{< /danger >}}
-
 ## Partitions
 
 Partitions determine how the JSON data is split up when stored in the

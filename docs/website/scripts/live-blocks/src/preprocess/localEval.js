@@ -3,9 +3,10 @@ import util from 'util'
 import {promises as promFS} from 'fs'
 
 import tmp from 'tmp'
+import semver from 'semver'
 
 import {ChainedError, OPAErrors} from '../errors'
-import {EVAL_MODULE_NAME} from '../constants'
+import {EVAL_MODULE_NAME, VERSION_EDGE, VERSION_LATEST} from '../constants'
 import {getGroupData} from '../helpers'
 
 import {acquireOPAVersion} from './acquireOPAVersion'
@@ -21,7 +22,7 @@ const tmpFile = util.promisify(tmp.file)
 export default async function localEval(groups, groupName, opaVersion) {
   const opa = await acquireOPAVersion(opaVersion) // Get the path (and download if necessary) the required version of OPA.
 
-  const [args, moduleFilenameMap] = await prepEval(groups, groupName) // Save the group data to temporary files
+  const [args, moduleFilenameMap] = await prepEval(groups, groupName, opaVersion) // Save the group data to temporary files
 
   try {
     return (await execFile(opa, args('pretty'))).stdout.replace(/\n$/, '') // Evaluate, retrieving the pretty-formatted output
@@ -66,7 +67,7 @@ export default async function localEval(groups, groupName, opaVersion) {
 }
 
 // Returns 1st a function that consumes a string for the output format you want and produces an array of arguments and 2nd a map of module file names to strings that should be replaced in error messages. May throw a user-friendly error.
-async function prepEval(groups, groupName) {
+async function prepEval(groups, groupName, opaVersion) {
   const {module, package: pkg, query, input, included} = getGroupData(groups, groupName)
   const base = ['eval', '--fail'] // Fail on undefined
   const rest = []
@@ -91,6 +92,13 @@ async function prepEval(groups, groupName) {
     }
 
     if (query) {
+      // NOTE(sr): Only do this if the version is recent enough to understand it,
+      // and if we're rendering docs of a version where we actually started using
+      // queries that need this import.
+      if (opaVersion === VERSION_LATEST || opaVersion == VERSION_EDGE ||
+        semver.satisfies(semver.coerce(opaVersion), '>=0.42.0')) {
+        rest.push('--import', 'future.keywords') // queries may contain them
+      }
       rest.push(query)
     } else { // Simulate playground default behavior
       if (included) {

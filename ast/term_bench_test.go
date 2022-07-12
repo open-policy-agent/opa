@@ -32,6 +32,25 @@ func BenchmarkObjectLookup(b *testing.B) {
 	}
 }
 
+func BenchmarkObjectCreationAndLookup(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000, 50000, 500000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			obj := NewObject()
+			for i := 0; i < n; i++ {
+				obj.Insert(StringTerm(fmt.Sprint(i)), IntNumberTerm(i))
+			}
+			key := StringTerm(fmt.Sprint(n - 1))
+			for i := 0; i < b.N; i++ {
+				value := obj.Get(key)
+				if value == nil {
+					b.Fatal("expected hit")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetIntersection(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000}
 	for _, n := range sizes {
@@ -154,8 +173,45 @@ func BenchmarkObjectString(b *testing.B) {
 	}
 }
 
-func BenchmarkObjectConstruction(b *testing.B) {
+// This benchmark works similarly to BenchmarkObjectString, but with a key
+// difference: it benchmarks the String and MarshalJSON interface functions
+// for the Objec, instead of the underlying data structure. This ensures
+// that we catch the full performance properties of Object's implementation.
+func BenchmarkObjectStringInterfaces(b *testing.B) {
+	var err error
 	sizes := []int{5, 50, 500, 5000, 50000}
+
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+
+			obj := map[string]int{}
+			for i := 0; i < n; i++ {
+				obj[fmt.Sprint(i)] = i
+			}
+			valString := MustInterfaceToValue(obj)
+			valJSON := MustInterfaceToValue(obj)
+
+			b.Run("String()", func(b *testing.B) {
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					str = valString.String()
+				}
+			})
+			b.Run("json.Marshal", func(b *testing.B) {
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					bs, err = json.Marshal(valJSON)
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		})
+	}
+}
+
+func BenchmarkObjectConstruction(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000, 50000, 500000}
 	seed := time.Now().UnixNano()
 
 	b.Run("shuffled keys", func(b *testing.B) {
