@@ -199,7 +199,9 @@ services:
 
 Then run `docker-compose` to pull and run the containers.
 
-**NOTE:** if running "Docker Desktop" (Mac or Windows) you may instead use the `docker compose` command.
+{{< info >}}
+If running "Docker Desktop" (Mac or Windows) you may instead use the `docker compose` command.
+{{< /info >}}
 
 ```shell
 docker-compose -f docker-compose.yml up
