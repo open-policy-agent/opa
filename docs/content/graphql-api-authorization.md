@@ -4,14 +4,14 @@ kind: tutorial
 weight: 1
 ---
 
-GraphQL APIs have become a popular way to query a variety of datastores and microservices, and any application or service providing a GraphQL API generally needs to control which users can run queries, mutations, and so on. OPA makes it easy to write fine-grained, context-aware policies to implement GraphQL query authorization.
+GraphQL APIs have become a popular way to query a variety of datastores and microservices, and any application or service providing a GraphQL API generally needs to control which users can run queries, mutations, and so on.
+OPA makes it easy to write fine-grained, context-aware policies to implement GraphQL query authorization.
 
 ## Goals
 
-In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL
-request that you issue, and echoes the OPA decision back as text. OPA will fetch
-policy bundles from a simple bundle server. OPA, the bundle server, and the
-GraphQL server will all be run as containers.
+In this tutorial, you'll use a simple GraphQL server that accepts any GraphQL request that you issue, and echoes the OPA decision back as text.
+OPA will fetch policy bundles from a simple bundle server.
+OPA, the bundle server, and the GraphQL server will all be run as containers.
 
 For this tutorial, our desired policy is:
 
@@ -52,17 +52,12 @@ For our example above, we've defined exactly one query entry point, the paramete
 
 ### 2. Create a policy bundle.
 
-GraphQL APIs allow surprising flexibility in how queries can be constructed,
-which makes writing policies for them a bit more challenging than for a REST API,
-which usually has a more fixed structure.
+GraphQL APIs allow surprising flexibility in how queries can be constructed, which makes writing policies for them a bit more challenging than for a REST API, which usually has a more fixed structure.
 
-To protect a particular endpoint or field, we need to see if they are referenced
-in the incoming GraphQL query. By using `graphql.parse`, we can extract an
-[abstract syntax tree][wikipedia-ast] (AST) from the incoming query, and then
-walk down the tree to its leaves to see if our endpoint is the target of the query.
+To protect a particular endpoint or field, we need to see if they are referenced in the incoming GraphQL query.
+By using `graphql.parse`, we can extract an [abstract syntax tree][wikipedia-ast] (AST) from the incoming query, and then walk down the tree to its leaves to see if our endpoint is the target of the query.
 
-We can then use separate rules to enforce conditions around the `salary` field,
-and who is allowed to access it.
+We can then use separate rules to enforce conditions around the `salary` field, and who is allowed to access it.
 
 The policy below does all of the above in parts:
  - Obtains the query AST (and validates it against our schema with `graphql.parse`).
@@ -210,10 +205,8 @@ Then run `docker-compose` to pull and run the containers.
 docker-compose -f docker-compose.yml up
 ```
 
-Every time the demo GraphQL server receives an HTTP request, it
-asks OPA to decide whether an GraphQL query is authorized or not
-using a single RESTful API call.  An example codebase is **here**,
-but the crux of the (JavaScript, Apollo framework) code is shown below.
+Every time the demo GraphQL server receives an HTTP request, it asks OPA to decide whether an GraphQL query is authorized or not using a single RESTful API call.
+An example codebase is **here**, but the crux of the (JavaScript, Apollo framework) code is shown below.
 
 ```javascript
   // we assume user is passed in as part of the request context.
@@ -250,8 +243,8 @@ The following command will succeed.
 curl --user alice:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
-The GraphQL server queries OPA to authorize the request. In the query, the server
-includes JSON data describing the incoming request.
+The GraphQL server queries OPA to authorize the request.
+In the query, the server includes JSON data describing the incoming request.
 
 ```live:example:input
 {
@@ -291,9 +284,9 @@ curl --user bob:password -H "Content-Type: application/json" "localhost:5000/" -
 
 ### 6. Change the policy.
 
-Suppose the organization now includes an HR department. The organization wants
-members of HR to be able to see any salary. Let's extend the policy to handle
-this.
+Suppose the organization now includes an HR department.
+The organization wants members of HR to be able to see any salary.
+Let's extend the policy to handle this.
 
 **example-hr.rego**:
 
@@ -318,13 +311,11 @@ Build a new bundle with the new policy included.
 opa build example.rego example-hr.rego
 ```
 
-The updated bundle will automatically be served by the bundle server, but note that it  might take up to the
-configured `max_delay_seconds` for the new bundle to be downloaded by OPA. If you plan to make frequent policy
-changes you might want to adjust this value in `docker-compose.yml` accordingly.
+The updated bundle will automatically be served by the bundle server, but note that it  might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
+If you plan to make frequent policy changes you might want to adjust this value in `docker-compose.yml` accordingly.
 
-For the sake of the tutorial we included `manager_of` and `hr` data directly
-inside the policies. In real-world scenarios that information would be imported
-from external data sources.
+For the sake of the tutorial we included `manager_of` and `hr` data directly inside the policies.
+In real-world scenarios that information would be imported from external data sources.
 
 ### 7. Check that the new policy works.
 Check that `david` can see anyone's salary.
@@ -338,8 +329,7 @@ curl --user david:password -H "Content-Type: application/json" "localhost:5000/"
 
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data.
 OPA supports the parsing of JSON Web Tokens via the builtin function `io.jwt.decode`.
-To get a sense of one way the subordinate and HR data might be communicated in the
-real world, let's try a similar exercise utilizing the JWT utilities of OPA.
+To get a sense of one way the subordinate and HR data might be communicated in the real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 
 **example-jwt.rego**:
 
@@ -503,12 +493,9 @@ Congratulations for finishing the tutorial!
 
 You learned a number of things about API authorization with OPA:
 
-* OPA gives you fine-grained policy control over GraphQL APIs once you set up
-  the server to ask OPA for authorization.
-* You write allow/deny policies to control which endpoints and fields can be
-  accessed by whom.
-* You can import external data into OPA and write policies that depend on
-  that data.
+* OPA gives you fine-grained policy control over GraphQL APIs once you set up the server to ask OPA for authorization.
+* You write allow/deny policies to control which endpoints and fields can be accessed by whom.
+* You can import external data into OPA and write policies that depend on that data.
 * You can use OPA data structures to define abstractions over your data.
 * You can use a remote bundle server for distributing policy and data.
 
