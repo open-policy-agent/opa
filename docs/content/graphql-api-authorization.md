@@ -239,10 +239,18 @@ An example codebase is **here**, but the crux of the (JavaScript, Apollo framewo
 
 ### 4. Check that `alice` can see her own salary.
 
+We'll define a quick shell function to make the following examples cleaner on the command line:
+
+```shell
+gql-query() {
+   curl --user "$1" -H "Content-Type: application/json" "$2" --data-ascii "$3"
+}
+```
+
 The following command will succeed.
 
 ```shell
-curl --user alice:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query alice:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 The GraphQL server queries OPA to authorize the request.
@@ -273,7 +281,7 @@ The answer returned by OPA for the input above is:
 ### 4. Check that `bob` can see `alice`'s salary (because `bob` is `alice`'s manager.)
 
 ```shell
-curl --user bob:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query bob:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 ### 5. Check that `bob` CANNOT see `charlie`'s salary.
@@ -281,7 +289,7 @@ curl --user bob:password -H "Content-Type: application/json" "localhost:5000/" -
 `bob` is not `charlie`'s manager, so the following command will fail.
 
 ```shell
-curl --user bob:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
+gql-query bob:password "localhost:5000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
 ```
 
 ### 6. Change the policy.
@@ -323,10 +331,10 @@ In real-world scenarios that information would be imported from external data so
 Check that `david` can see anyone's salary.
 
 ```shell
-curl --user david:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
-curl --user david:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
-curl --user david:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
-curl --user david:password -H "Content-Type: application/json" "localhost:5000/" --data-ascii '{"query":"query { employeeByID(id: \"david\") { salary }}"}'
+gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
+gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
+gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"david\") { salary }}"}'
 ```
 
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data.
@@ -469,31 +477,31 @@ Let's try a few queries (note: you may need to escape the `?` characters in the 
 Check that `charlie` can't see `bob`'s salary.
 
 ```shell
-curl --user charlie:password -H "Content-Type: application/json" "localhost:5000/?token=$CHARLIE_TOKEN" --data-ascii '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
+gql-query charlie:password "localhost:5000/?token=$CHARLIE_TOKEN" '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
 ```
 
 Check that `charlie` can't pretend to be `bob` to see `alice`'s salary.
 
 ```shell
-curl --user charlie:password -H "Content-Type: application/json" "localhost:5000/?token=$BOB_TOKEN" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query charlie:password "localhost:5000/?token=$BOB_TOKEN" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 Check that `david` can see `betty`'s salary.
 
 ```shell
-curl --user david:password -H "Content-Type: application/json" "localhost:5000/?token=$DAVID_TOKEN" --data-ascii '{"query":"query { employeeByID(id: \"betty\") { salary }}"}'
+gql-query david:password "localhost:5000/?token=$DAVID_TOKEN" '{"query":"query { employeeByID(id: \"betty\") { salary }}"}'
 ```
 
 Check that `bob` can see `alice`'s salary.
 
 ```shell
-curl --user bob:password -H "Content-Type: application/json" "localhost:5000/?token=$BOB_TOKEN" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query bob:password "localhost:5000/?token=$BOB_TOKEN" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 Check that `alice` can see her own salary.
 
 ```shell
-curl --user alice:password -H "Content-Type: application/json" "localhost:5000/?token=$ALICE_TOKEN" --data-ascii '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query alice:password "localhost:5000/?token=$ALICE_TOKEN" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 ## Wrap Up
