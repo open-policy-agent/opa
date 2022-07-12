@@ -21,6 +21,31 @@ see the section below.
 
 See the [Configuration Reference](../configuration) for configuration details.
 
+### Bundle build
+
+The CLI command [`opa build`](https://www.openpolicyagent.org/docs/latest/cli/#opa-build) gives you the capability to build your own bundles.
+
+Here is a basic example on how to build a bundle from a folder called `foo`. The bundle will be named by default `bundle.tar.zg`.
+```
+$ ls
+example.rego
+
+$ opa build -b foo/
+```
+
+More, you can optimize the bundle by specifying the `--optimize` or `-O` flag.
+```
+opa build -b foo/ --optimize=1
+```
+
+Finally, you can also sign your bundle thanks to `opa build`.
+```
+opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
+```
+
+For more information, see the [`opa build` command documentation.](https://www.openpolicyagent.org/docs/latest/cli/#opa-build)
+
+
 ### Bundle Service API
 
 OPA expects the service to expose an API endpoint that serves bundles. The
