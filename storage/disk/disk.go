@@ -351,17 +351,20 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 
 	// update symlink to point to the active db
 	symlink := filepath.Join(path.Dir(newDB.Opts().Dir), symlinkKey)
+	// "active" -> "backupXXXX" is what we want, not
+	// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
+	target := filepath.Base(newDB.Opts().Dir)
 	if _, err := os.Lstat(symlink); err == nil {
 		if err := os.Remove(symlink); err != nil {
 			return wrapError(err)
 		}
 
-		err = os.Symlink(newDB.Opts().Dir, symlink)
+		err = os.Symlink(target, symlink)
 		if err != nil {
 			return wrapError(err)
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		err = os.Symlink(newDB.Opts().Dir, symlink)
+		err = os.Symlink(target, symlink)
 		if err != nil {
 			return wrapError(err)
 		}
