@@ -151,7 +151,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		d.files = []string{}
 		err := filepath.Walk(d.root, func(path string, info os.FileInfo, err error) error {
 			if info != nil && info.Mode().IsRegular() {
-				d.files = append(d.files, filepath.ToSlash(path))
+				d.files = append(d.files, path)
 			}
 			return nil
 		})
@@ -176,11 +176,11 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		cleanedPath = fileName
 	}
 
-	if !strings.HasPrefix(cleanedPath, "/") {
-		cleanedPath = "/" + cleanedPath
+	if !strings.HasPrefix(cleanedPath, string(filepath.Separator)) {
+		cleanedPath = string(filepath.Separator) + cleanedPath
 	}
 
-	f := newDescriptor(path.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
+	f := newDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
 	return f, nil
 }
 

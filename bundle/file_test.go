@@ -194,9 +194,9 @@ func testLoader(t *testing.T, loader DirectoryLoader, baseURL string, expectedFi
 			t.Fatalf("Attempted to read too much data")
 		}
 
-		expectedContent, found := expectedFiles[f.Path()]
+		expectedContent, found := expectedFiles[filepath.ToSlash(f.Path())]
 		if !found {
-			t.Fatalf("Found unexpected file %s", f.Path())
+			t.Fatalf("Found unexpected file %s", filepath.ToSlash(f.Path()))
 		}
 		if expectedContent != buf.String() {
 			t.Fatalf("Content mismatch for file %s\n\nExpected:\n%s\n\nActual:\n%s\n\n",

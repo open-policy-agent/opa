@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/util/test"
@@ -342,9 +343,11 @@ func TestGetClaimsErrors(t *testing.T) {
 			t.Fatal("Expected error but got nil")
 		}
 
-		errMsg := "open claims.json: no such file or directory"
-		if err.Error() != errMsg {
-			t.Fatalf("Expected error message %v but got %v", errMsg, err.Error())
+		errMsg1 := "open claims.json: no such file or directory"
+		errMsg2 := "open claims.json: The system cannot find the file specified" // windows
+
+		if !(strings.Contains(err.Error(), errMsg1) || strings.Contains(err.Error(), errMsg2)) {
+			t.Fatalf("Expected error message to be either %v or %v but got %v", errMsg1, errMsg2, err.Error())
 		}
 	})
 }
