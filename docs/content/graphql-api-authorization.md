@@ -30,7 +30,7 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 Most modern GraphQL frameworks encourage starting with a schema, so we'll follow suit, and begin by defining the schema for this example.
 
 **schema.gql**:
-```GraphQL
+```graphql
 type Employee {
   id: String!
   salary: Int!
@@ -220,7 +220,7 @@ An example codebase is **here**, but the crux of the (JavaScript, Apollo framewo
       schema: schema, // GraphQL schema text.
       query: query, // GraphQL query text.
       user: user,
-      variables: variables, // GraphQL variable bindings.
+      variables: variables // GraphQL variable bindings.
     }
   };
 
@@ -250,10 +250,10 @@ In the query, the server includes JSON data describing the incoming request.
 
 ```live:example:input
 {
-  schema: "type Employee {\n  id: ...",
-  query: "query { employeeByID(id: \"alice\") { salary }}",
-  user: "alice",
-  variables: {},
+  "schema": "type Employee {\n  id: ...",
+  "query": "query { employeeByID(id: \"alice\") { salary }}",
+  "user": "alice",
+  "variables": {}
 }
 ```
 
@@ -431,10 +431,10 @@ token = {"payload": payload} {
 ```live:jwt_example:input:hidden
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.rz3jTY033z-NrKfwrK89_dcLF7TN4gwCMj-fVBDyLoM",
-  schema: "type Employee {\n  id: ...",
-  query: "query { employeeByID(id: \"alice\") { salary }}",
-  user: "alice",
-  variables: {},
+  "schema": "type Employee {\n  id: ...",
+  "query": "query { employeeByID(id: \"alice\") { salary }}",
+  "user": "alice",
+  "variables": {}
 }
 ```
 
