@@ -186,6 +186,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 		{"/a/b/c/data.json", "[1,2,3]"},
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
+		{"/a/b/g/data.yml", "1"},
 		{"/example/example.rego", `package example`},
 		{"/policy.wasm", `legacy-wasm-module`},
 		{wasmResolverPath, `wasm-module`},
@@ -218,6 +219,7 @@ func testReadBundle(t *testing.T, baseDir string) {
 				"b": map[string]interface{}{
 					"c": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
 					"d": true,
+					"g": json.Number("1"),
 					"y": map[string]interface{}{
 						"foo": json.Number("1"),
 					},
