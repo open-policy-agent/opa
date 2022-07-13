@@ -5,6 +5,13 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.42.2
+
+This is a bug fix release that addresses the following:
+
+- storage/disk: make symlinks work with relative paths ([#4869](https://github.com/open-policy-agent/opa/issues/4869))
+- bundle: Normalize paths before bundle root check
+
 ## 0.42.1
 
 This is a bug fix release that addresses the following:
