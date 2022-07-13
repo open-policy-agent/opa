@@ -1287,8 +1287,9 @@ integrations:
       - aserto
     code:
       - https://github.com/aserto-dev
+      - https://github.com/opcr-io
     tutorials:
-      - https://docs.aserto.com/docs/
+      - https://docs.aserto.com/docs
     blogs:
       - https://www.aserto.com/blog/how-do-aserto-rego-policies-work
       - https://www.aserto.com/blog/testing-rego-policies
@@ -1296,7 +1297,7 @@ integrations:
       - https://www.aserto.com/blog/rego-getting-started
     videos:
       - https://www.youtube.com/watch?v=RJkgmdjJn_w
-      
+
   emissary-ingress:
     title: Emissary-Ingress
     description:  |
