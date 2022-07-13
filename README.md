@@ -9,7 +9,20 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 ## Want to connect with the community or get support for OPA?
 
 - Join the [OPA Slack](https://slack.openpolicyagent.org) for day-to-day conversations with the OPA community.
-- Need Support? Go to the [Discussions Board](https://github.com/open-policy-agent/feedback/discussions) to ask questions.
+- Need Support? Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
+
+## Join the OPA office hours
+
+**Every week at 10:00 PT / 19:00 CET**
+
+These sessions are open format for community members to ask questions. Use this time to get unblocked with your OPA deployments, learn more about the project, or to get more involved in the community.
+
+  * [Book a slot](https://calendly.com/peter-styra/opa-office-hours)
+
+Following each OPA release we will announce new features, the road map for the next release, and open the floor for community members to share what they're working on. Want to talk at one of these meetings simply add your topics to the meeting notes for the upcoming meeting. 
+
+  * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
+  * [Zoom](https://zoom.us/j/97827947600)
 
 ## Want to learn more about OPA?
 
@@ -35,12 +48,8 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 ## Want to contribute to OPA?
 
 * Read the [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/) to learn how to make your first contribution.
-* Use [#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to the OPA maintainers and other contributors.
+* Use [#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
 * File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
-* Join the OPA bi-weekly meetings every other Tuesday at 10:00 (Pacific Timezone):
-    * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
-    * [Zoom](https://zoom.us/j/97827947600)
-    * [Calendar Invite](https://calendar.google.com/event?action=TEMPLATE&tmeid=MnRvb2M4amtldXBuZ2E1azY0MTJndjh0ODRfMjAxODA5MThUMTcwMDAwWiBzdHlyYS5jb21fY28zOXVzc3VobnE2amUzN2l2dHQyYmNiZGdAZw&tmsrc=styra.com_co39ussuhnq6je37ivtt2bcbdg%40group.calendar.google.com&scp=ALL)
 
 ## How does OPA work?
 
@@ -73,6 +82,7 @@ For concrete examples of how to integrate OPA with systems like [Kubernetes](htt
 
 ## Presentations
 
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2022: [video](https://www.youtube.com/watch?v=MhyQxIp1H58)
 - Open Policy Agent Intro @ KubeCon EU 2021: [Video](https://www.youtube.com/watch?v=2CgeiWkliaw)
 - Using Open Policy Agent to Meet Evolving Policy Requirements @ KubeCon NA 2020: [video](https://www.youtube.com/watch?v=zVuM7F_BTyc)
 - Applying Policy Throughout The Application Lifecycle with Open Policy Agent @ CloudNativeCon 2019: [video](https://www.youtube.com/watch?v=cXfsaE6RKfc)
