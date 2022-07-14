@@ -59,17 +59,3 @@ func TestSetUnionBuiltin(t *testing.T) {
 		}
 	}
 }
-
-// Used to get older-style (ast.Term, error) tuples out of newer functions.
-func getResult(fn BuiltinFunc, operands ...*ast.Term) (*ast.Term, error) {
-	var result *ast.Term
-	extractionFn := func(r *ast.Term) error {
-		result = r
-		return nil
-	}
-	err := fn(BuiltinContext{}, operands, extractionFn)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
