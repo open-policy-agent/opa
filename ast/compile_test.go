@@ -2711,7 +2711,18 @@ func TestCompilerResolveAllRefsNewTests(t *testing.T) {
 		exp  string
 	}{
 		{
-			note: "comprehension in call",
+			note: "ref-rules referenced in body",
+			mod: `package test
+a.b.c = 1
+q if a.b.c == 1
+`,
+			exp: `package test
+a.b.c = 1 { true }
+q if data.test.a.b.c == 1
+`,
+		},
+		{
+			note: "single-value rule in comprehension in call", // NOTE(sr): this is TestRego/partialiter/objects_conflict
 			mod: `package test
 p := count([x | q[x]])
 q[1] = 1

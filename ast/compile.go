@@ -1513,6 +1513,15 @@ func checkKeywordOverrides(node interface{}, strict bool) Errors {
 // p[x] { bar[_] = x }
 //
 // The reference "bar[_]" would be resolved to "data.foo.bar[_]".
+//
+// Ref rules are resolved, too:
+//
+// package a.b
+// q { c.d.e == 1 }
+// c.d[e] := 1 if e := "e"
+//
+// The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
+
 func (c *Compiler) resolveAllRefs() {
 
 	rules := c.getExports()
