@@ -858,13 +858,15 @@ func (c *Compiler) checkRuleConflicts() {
 				defaultRules++
 			}
 
-			// Single-value rules may not have any other rules in their extent: this is invalid
-			//   data.p.q.r { true }
+			// Single-value rules may not have any other rules in their extent: these pairs are invalid:
+			//
+			//   data.p.q.r { true }          # data.p.q is { "r": true }
+			//   data.p.q.r.s { true }
+			//
+			//   data.p.q[r] { r := input.r } # data.p.q could be { "r": true }
 			//   data.p.q.r.s { true }
 			if len(node.Children) > 0 && r.Head.Value != nil {
-				if r.Head.Ref[len(r.Head.Ref)-1].IsGround() {
-					singleValueConflict = node
-				}
+				singleValueConflict = node
 			}
 		}
 

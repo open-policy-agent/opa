@@ -1540,6 +1540,7 @@ bar.baz contains "quz" if true`,
 		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
 		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:7",
 		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:8",
+		"rego_type_error: single-value rule data.badrules.r conflicts with [data.badrules.r.q]",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -1642,6 +1643,15 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r.s { true }
 				p.q.r.t { true }`),
 			err: "rego_type_error: single-value rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s data.pkg.p.q.r.t]",
+		},
+		{
+			note: "single-value with other rule overlap, unknown key",
+			modules: modules(
+				`package pkg
+				p.q[r] = x { r = input.key; x = input.foo }
+				p.q.r.s = x { true }
+				`),
+			err: "rego_type_error: single-value rule data.pkg.p.q conflicts with [data.pkg.p.q.r.s]",
 		},
 	}
 	for _, tc := range tests {
