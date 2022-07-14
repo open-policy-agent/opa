@@ -500,6 +500,18 @@ func TestPluginBadStatus(t *testing.T) {
 	}
 }
 
+func TestPlugin2xxStatus(t *testing.T) {
+	fixture := newTestFixture(t, nil)
+	ctx := context.Background()
+	fixture.server.expCode = 204
+	defer fixture.server.stop()
+	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
+	err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Expected no error")
+	}
+}
+
 func TestPluginReconfigure(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t, nil)

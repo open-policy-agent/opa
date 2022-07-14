@@ -252,7 +252,7 @@ the following additional fields.
 | `discovery.message` | `string` | Human readable messages describing the error(s). |
 | `discovery.errors` | `array` | Collection of detailed parse or compile errors that occurred during activation. |
 
-Services should reply with HTTP status `200 OK` if the status update is
+Services should reply with a `2xx` HTTP status if the status update is
 processed successfully.
 
 ### Local Status Logs
