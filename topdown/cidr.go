@@ -79,34 +79,26 @@ func builtinNetCIDRIntersects(_ BuiltinContext, args []*ast.Term, iter func(*ast
 }
 
 func builtinNetCIDRContains(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := getNetCIDRContains(args[0].Value, args[1].Value)
+	cidrnetA, err := getNetFromOperand(args[0].Value)
 	if err != nil {
 		return err
 	}
-	return iter(ast.NewTerm(result))
-}
-
-func getNetCIDRContains(a, b ast.Value) (ast.Value, error) {
-	cidrnetA, err := getNetFromOperand(a)
-	if err != nil {
-		return nil, err
-	}
 
 	// b could be either an IP addressor CIDR string, try to parse it as an IP first, fall back to CIDR
-	bStr, err := builtins.StringOperand(b, 1)
+	bStr, err := builtins.StringOperand(args[1].Value, 1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ip := net.ParseIP(string(bStr))
 	if ip != nil {
-		return ast.Boolean(cidrnetA.Contains(ip)), nil
+		return iter(ast.BooleanTerm(cidrnetA.Contains(ip)))
 	}
 
 	// It wasn't an IP, try and parse it as a CIDR
-	cidrnetB, err := getNetFromOperand(b)
+	cidrnetB, err := getNetFromOperand(args[1].Value)
 	if err != nil {
-		return nil, fmt.Errorf("not a valid textual representation of an IP address or CIDR: %s", string(bStr))
+		return fmt.Errorf("not a valid textual representation of an IP address or CIDR: %s", string(bStr))
 	}
 
 	// We can determine if cidr A contains cidr B if and only if A contains
@@ -116,12 +108,12 @@ func getNetCIDRContains(a, b ast.Value) (ast.Value, error) {
 		// Only spend time calculating the last IP if the starting IP is already verified to be in cidr A
 		lastIP, err := getLastIP(cidrnetB)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		cidrContained = cidrnetA.Contains(lastIP)
 	}
 
-	return ast.Boolean(cidrContained), nil
+	return iter(ast.BooleanTerm(cidrContained))
 }
 
 var errNetCIDRContainsMatchElementType = errors.New("element must be string or non-empty array")
@@ -179,9 +171,9 @@ func builtinNetCIDRContainsMatches(_ BuiltinContext, args []*ast.Term, iter func
 	result := ast.NewSet()
 	err := evalNetCIDRContainsMatchesOperand(1, args[0], func(cidr1 *ast.Term, index1 *ast.Term) error {
 		return evalNetCIDRContainsMatchesOperand(2, args[1], func(cidr2 *ast.Term, index2 *ast.Term) error {
-			if v, err := getNetCIDRContains(cidr1.Value, cidr2.Value); err != nil {
+			if v, err := getResult(builtinNetCIDRContains, cidr1, cidr2); err != nil {
 				return err
-			} else if vb, ok := v.(ast.Boolean); ok && bool(vb) {
+			} else if vb, ok := v.Value.(ast.Boolean); ok && bool(vb) {
 				result.Add(ast.ArrayTerm(index1, index2))
 			}
 			return nil

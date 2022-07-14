@@ -429,26 +429,17 @@ func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 }
 
 func builtinTrim(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	result, err := trimString(operands[0].Value, operands[1].Value)
+	s, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.NewTerm(result))
-}
-
-func trimString(a, b ast.Value) (ast.Value, error) {
-	s, err := builtins.StringOperand(a, 1)
+	c, err := builtins.StringOperand(operands[1].Value, 2)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	c, err := builtins.StringOperand(b, 2)
-	if err != nil {
-		return nil, err
-	}
-
-	return ast.String(strings.Trim(string(s), string(c))), nil
+	return iter(ast.StringTerm(strings.Trim(string(s), string(c))))
 }
 
 func builtinTrimLeft(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
