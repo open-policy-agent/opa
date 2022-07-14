@@ -354,21 +354,10 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 	// "active" -> "backupXXXX" is what we want, not
 	// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
 	target := filepath.Base(newDB.Opts().Dir)
-	if _, err := os.Lstat(symlink); err == nil {
-		if err := os.Remove(symlink); err != nil {
-			return wrapError(err)
-		}
 
-		err = os.Symlink(target, symlink)
-		if err != nil {
-			return wrapError(err)
-		}
-	} else if errors.Is(err, os.ErrNotExist) {
-		err = os.Symlink(target, symlink)
-		if err != nil {
-			return wrapError(err)
-		}
-	} else {
+	err = createSymlink(target, symlink)
+	if err != nil {
+		db.rmu.Unlock()
 		return wrapError(err)
 	}
 
@@ -379,6 +368,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 	// replace transaction on old badger store with new one
 	uTxn, err := db.underlying(txn)
 	if err != nil {
+		db.rmu.Unlock()
 		return err
 	}
 
@@ -941,4 +931,26 @@ func dataDir(dir string) (string, error) {
 	}
 
 	return filepath.Join(dir, "data"), nil
+}
+
+func createSymlink(target, symlink string) error {
+	var lerr error
+
+	if _, lerr = os.Lstat(symlink); lerr == nil {
+		if err := os.Remove(symlink); err != nil {
+			return err
+		}
+
+		if err := os.Symlink(target, symlink); err != nil {
+			return err
+		}
+	} else if errors.Is(lerr, os.ErrNotExist) {
+		if err := os.Symlink(target, symlink); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return lerr
 }
