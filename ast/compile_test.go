@@ -377,6 +377,24 @@ func TestCompilerGetExports(t *testing.T) {
 				"data.p.a.b":   {"x"},
 			},
 		},
+		{
+			note: "single-value rule with number key",
+			modules: modules(`package p
+				q[1] = 1
+				q[2] = 2`),
+			exports: map[string][]string{
+				"data.p": {"q"},
+			},
+		},
+		{
+			note: "single-value (ref) rule with number key",
+			modules: modules(`package p
+				a.b.q[1] = 1
+				a.b.q[2] = 2`),
+			exports: map[string][]string{
+				"data.p.a.b": {"q"},
+			},
+		},
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
@@ -2682,6 +2700,50 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 	if incorrectErrs {
 		t.Fatalf("Expected errors:\n\n%s\n\nGot:\n\n%s\n", expected.Error(), actual.Error())
+	}
+}
+
+// NOTE(sr): the tests below this function are unwieldy, let's keep adding new ones to this one
+func TestCompilerResolveAllRefsNewTests(t *testing.T) {
+	tests := []struct {
+		note string
+		mod  string
+		exp  string
+	}{
+		{
+			note: "comprehension in call",
+			mod: `package test
+p := count([x | q[x]])
+q[1] = 1
+`,
+			exp: `package test
+p := __local0__ { true; __local1__ = [x | data.test.q[x]]; count(__local1__, __local0__) }
+q[1] = 1
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			c := NewCompiler()
+			mod, err := ParseModuleWithOpts("test.rego", tc.mod, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exp, err := ParseModuleWithOpts("test.rego", tc.exp, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mods := map[string]*Module{"test": mod}
+			c.Compile(mods)
+			if err := c.Errors; len(err) > 0 {
+				t.Errorf("compile module: %v", err)
+			}
+			if act := c.Modules["test"]; !exp.Equal(act) {
+				t.Errorf("compiled: expected %v, got %v", exp, act)
+			}
+		})
 	}
 }
 

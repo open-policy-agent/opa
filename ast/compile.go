@@ -1400,6 +1400,16 @@ func (c *Compiler) getExports() *util.HashMap {
 
 		for _, rule := range mod.Rules {
 			ref := rule.Head.Ref.GroundPrefix()
+			// TODO(sr): add helper `stringPrefix(Ref) Ref`?
+			i := 0
+			for j := 1; j < len(ref); j++ {
+				_, ok := ref[j].Value.(String)
+				if !ok {
+					break
+				}
+				i = j
+			}
+			ref = ref[:i+1]
 			name := ref[len(ref)-1]
 			if len(ref) == 1 {
 				hashMapAdd(rules, mod.Package.Path, name.Value.(Var))
@@ -1417,13 +1427,17 @@ func (c *Compiler) getExports() *util.HashMap {
 	return rules
 }
 
-func hashMapAdd(rules *util.HashMap, ref Ref, rvs ...Var) {
-	// TODO(sr) we had been deduplicating here before
+func hashMapAdd(rules *util.HashMap, ref Ref, rv Var) {
 	prev, ok := rules.Get(ref)
 	if ok {
-		rules.Put(ref, append(prev.([]Var), rvs...))
+		for _, p := range prev.([]Var) {
+			if p.Equal(rv) {
+				return
+			}
+		}
+		rules.Put(ref, append(prev.([]Var), rv))
 	} else {
-		rules.Put(ref, rvs)
+		rules.Put(ref, []Var{rv})
 	}
 }
 
