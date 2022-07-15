@@ -1399,45 +1399,24 @@ func (c *Compiler) getExports() *util.HashMap {
 		mod := c.Modules[name]
 
 		for _, rule := range mod.Rules {
-			ref := rule.Head.Ref.GroundPrefix()
-			// TODO(sr): add helper `stringPrefix(Ref) Ref`?
-			i := 0
-			for j := 1; j < len(ref); j++ {
-				_, ok := ref[j].Value.(String)
-				if !ok {
-					break
-				}
-				i = j
-			}
-			ref = ref[:i+1]
-			name := ref[len(ref)-1]
-			if len(ref) == 1 {
-				hashMapAdd(rules, mod.Package.Path, name.Value.(Var))
-				continue
-			}
-			switch name := name.Value.(type) {
-			case Var:
-				hashMapAdd(rules, mod.Package.Path.Extend(ref[:len(ref)-1]), name)
-			case String:
-				hashMapAdd(rules, mod.Package.Path.Extend(ref[:len(ref)-1]), Var(name))
-			}
+			hashMapAdd(rules, mod.Package.Path, rule.Head.Ref.GroundPrefix())
 		}
 	}
 
 	return rules
 }
 
-func hashMapAdd(rules *util.HashMap, ref Ref, rv Var) {
-	prev, ok := rules.Get(ref)
+func hashMapAdd(rules *util.HashMap, pkg, rule Ref) {
+	prev, ok := rules.Get(pkg)
 	if ok {
-		for _, p := range prev.([]Var) {
-			if p.Equal(rv) {
+		for _, p := range prev.([]Ref) {
+			if p.Equal(rule) {
 				return
 			}
 		}
-		rules.Put(ref, append(prev.([]Var), rv))
+		rules.Put(pkg, append(prev.([]Ref), rule))
 	} else {
-		rules.Put(ref, []Var{rv})
+		rules.Put(pkg, []Ref{rule})
 	}
 }
 
@@ -1529,9 +1508,9 @@ func (c *Compiler) resolveAllRefs() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 
-		var ruleExports []Var
+		var ruleExports []Ref
 		if x, ok := rules.Get(mod.Package.Path); ok {
-			ruleExports = x.([]Var)
+			ruleExports = x.([]Ref)
 		}
 
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
@@ -2515,10 +2494,10 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			pkg = &Package{Path: RefTerm(VarTerm("")).Value.(Ref)}
 		}
 		if pkg != nil {
-			var ruleExports []Var
+			var ruleExports []Ref
 			rules := qc.compiler.getExports()
 			if exist, ok := rules.Get(pkg.Path); ok {
-				ruleExports = exist.([]Var)
+				ruleExports = exist.([]Ref)
 			}
 
 			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
@@ -3771,15 +3750,14 @@ func (l *localVarGenerator) Generate() Var {
 	}
 }
 
-func getGlobals(pkg *Package, rules []Var, imports []*Import) map[Var]*usedRef {
+func getGlobals(pkg *Package, rules []Ref, imports []*Import) map[Var]*usedRef {
 
-	globals := map[Var]*usedRef{}
+	globals := make(map[Var]*usedRef, len(rules)) // NB: might grow bigger with imports
 
 	// Populate globals with exports within the package.
-	for _, v := range rules {
-		global := append(Ref{}, pkg.Path...)
-		global = append(global, &Term{Value: String(v)})
-		globals[v] = &usedRef{ref: global}
+	for _, ref := range rules {
+		v := ref[0].Value.(Var)
+		globals[v] = &usedRef{ref: pkg.Path.Append(StringTerm(string(v)))}
 	}
 
 	// Populate globals with imports.

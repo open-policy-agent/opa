@@ -316,13 +316,13 @@ func TestCompilerGetExports(t *testing.T) {
 			note: "simple single-value ref rule",
 			modules: modules(`package p
 				q.r.s = 1`),
-			exports: map[string][]string{"data.p.q.r": {"s"}},
+			exports: map[string][]string{"data.p": {"q.r.s"}},
 		},
 		{
 			note: "var key single-value ref rule",
 			modules: modules(`package p
 				q.r[s] = 1 { s := "foo" }`),
-			exports: map[string][]string{"data.p.q": {"r"}},
+			exports: map[string][]string{"data.p": {"q.r"}},
 		},
 		{
 			note: "simple multi-value ref rule",
@@ -330,7 +330,7 @@ func TestCompilerGetExports(t *testing.T) {
 				import future.keywords
 
 				q.r.s contains 1 { true }`),
-			exports: map[string][]string{"data.p.q.r": {"s"}},
+			exports: map[string][]string{"data.p": {"q.r.s"}},
 		},
 		{
 			note: "var key multi-value ref rule",
@@ -338,7 +338,7 @@ func TestCompilerGetExports(t *testing.T) {
 				import future.keywords
 
 				q.r[s] contains 1 { s := "foo" }`),
-			exports: map[string][]string{"data.p.q": {"r"}},
+			exports: map[string][]string{"data.p": {"q.r"}},
 		},
 		{
 			note: "two simple, multiple rules",
@@ -360,8 +360,7 @@ func TestCompilerGetExports(t *testing.T) {
 				a.b.c.y = 22`),
 			exports: map[string][]string{
 				"data.p.a.b.c": {"r", "s"},
-				"data.q.a.b":   {"x"},
-				"data.q.a.b.c": {"y"},
+				"data.q":       {"a.b.x", "a.b.c.y"},
 			},
 		},
 		{
@@ -373,8 +372,8 @@ func TestCompilerGetExports(t *testing.T) {
 				a.b.x = 2
 				a.b.c.y = 22`),
 			exports: map[string][]string{
-				"data.p.a.b.c": {"r", "s", "y"},
-				"data.p.a.b":   {"x"},
+				"data.p.a.b.c": {"r", "s"},
+				"data.p":       {"a.b.x", "a.b.c.y"},
 			},
 		},
 		{
@@ -383,7 +382,7 @@ func TestCompilerGetExports(t *testing.T) {
 				q[1] = 1
 				q[2] = 2`),
 			exports: map[string][]string{
-				"data.p": {"q"},
+				"data.p": {"q[1]", "q[2]"}, // TODO(sr): is this really what we want?
 			},
 		},
 		{
@@ -392,7 +391,16 @@ func TestCompilerGetExports(t *testing.T) {
 				a.b.q[1] = 1
 				a.b.q[2] = 2`),
 			exports: map[string][]string{
-				"data.p.a.b": {"q"},
+				"data.p": {"a.b.q[1]", "a.b.q[2]"},
+			},
+		},
+		{
+			note: "single-value (ref) rule with var key",
+			modules: modules(`package p
+				a.b.q[x] = y { x := 1; y := true }
+				a.b.q[2] = 2`),
+			exports: map[string][]string{
+				"data.p": {"a.b.q", "a.b.q[2]"}, // TODO(sr): GroundPrefix? right thing here?
 			},
 		},
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
@@ -403,8 +411,8 @@ func TestCompilerGetExports(t *testing.T) {
 			switch a := a.(type) {
 			case Ref:
 				return a.Equal(b.(Ref))
-			case []Var:
-				b := b.([]Var)
+			case []Ref:
+				b := b.([]Ref)
 				if len(b) != len(a) {
 					return false
 				}
@@ -420,12 +428,12 @@ func TestCompilerGetExports(t *testing.T) {
 		}, func(v util.T) int {
 			return v.(Ref).Hash()
 		})
-		for r, vs := range ms {
-			vars := make([]Var, len(vs))
-			for i := range vs {
-				vars[i] = Var(vs[i])
+		for r, rs := range ms {
+			refs := make([]Ref, len(rs))
+			for i := range rs {
+				refs[i] = toRef(rs[i])
 			}
-			rules.Put(MustParseRef(r), vars)
+			rules.Put(MustParseRef(r), refs)
 		}
 		return rules
 	}
@@ -441,6 +449,17 @@ func TestCompilerGetExports(t *testing.T) {
 				t.Errorf("expected %v, got %v", exp, act)
 			}
 		})
+	}
+}
+
+func toRef(s string) Ref {
+	switch t := MustParseTerm(s).Value.(type) {
+	case Var:
+		return Ref{NewTerm(t)}
+	case Ref:
+		return t
+	default:
+		panic("unreachable")
 	}
 }
 
@@ -2706,9 +2725,10 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 // NOTE(sr): the tests below this function are unwieldy, let's keep adding new ones to this one
 func TestCompilerResolveAllRefsNewTests(t *testing.T) {
 	tests := []struct {
-		note string
-		mod  string
-		exp  string
+		note  string
+		mod   string
+		exp   string
+		extra string
 	}{
 		{
 			note: "ref-rules referenced in body",
@@ -2718,7 +2738,22 @@ q if a.b.c == 1
 `,
 			exp: `package test
 a.b.c = 1 { true }
-q if data.test.a.b.c == 1
+q if data.test.a.b.c = 1
+`,
+		},
+		{
+			// NOTE(sr): This is a conservative extension of how it worked before:
+			// we will not automatically extend references to other parts of the rule tree,
+			// only to ref rules defined on the same level.
+			note: "ref-rules from other module referenced in body",
+			mod: `package test
+q if a.b.c == 1
+`,
+			extra: `package test
+a.b.c = 1
+`,
+			exp: `package test
+q if data.test.a.b.c = 1
 `,
 		},
 		{
@@ -2747,6 +2782,13 @@ q[1] = 1
 				t.Fatal(err)
 			}
 			mods := map[string]*Module{"test": mod}
+			if tc.extra != "" {
+				extra, err := ParseModuleWithOpts("test.rego", tc.extra, opts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				mods["extra"] = extra
+			}
 			c.Compile(mods)
 			if err := c.Errors; len(err) > 0 {
 				t.Errorf("compile module: %v", err)
