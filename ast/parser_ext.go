@@ -241,7 +241,7 @@ func ParseCompleteDocRuleFromAssignmentExpr(module *Module, lhs, rhs *Term) (*Ru
 // ParseCompleteDocRuleFromEqExpr returns a rule if the expression can be
 // interpreted as a complete document definition.
 func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
-	head := &Head{}
+	var head *Head
 
 	if v, ok := lhs.Value.(Var); ok {
 		head = NewHead(v)
