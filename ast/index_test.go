@@ -60,6 +60,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.b = 1
 	}`, opts)
 
+	refMod := MustParseModuleWithOpts(`package test
+
+	ref.single.value.ground = x if x := input.x
+
+	ref.single.value.key[k] = v if { k := input.k; v := input.v }
+
+	ref.multi.value.ground contains x if x := input.x
+
+	ref.multi.value.key[k] contains v if { k := input.k; v := input.v }
+	`, opts)
+
 	module := MustParseModule(`
 	package test
 
@@ -209,6 +220,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		note       string
 		module     *Module
 		ruleset    string
+		ruleRef    Ref
 		input      string
 		unknowns   []string
 		args       []Value
@@ -632,6 +644,34 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{"a": [1]}`,
 			expectedRS: RuleSet([]*Rule{everyModWithDomain.Rules[0]}),
 		},
+		{
+			note:       "ref: single value, ground ref",
+			module:     refMod,
+			ruleRef:    MustParseRef("ref.single.value.ground"),
+			input:      `{"x": 1}`,
+			expectedRS: RuleSet([]*Rule{refMod.Rules[0]}),
+		},
+		{
+			note:       "ref: single value, var in ref",
+			module:     refMod,
+			ruleRef:    MustParseRef("ref.single.value.key[k]"),
+			input:      `{"k": 1, "v": 2}`,
+			expectedRS: RuleSet([]*Rule{refMod.Rules[1]}),
+		},
+		{
+			note:       "ref: multi value, ground ref",
+			module:     refMod,
+			ruleRef:    MustParseRef("ref.multi.value.ground"),
+			input:      `{"x": 1}`,
+			expectedRS: RuleSet([]*Rule{refMod.Rules[2]}),
+		},
+		{
+			note:       "ref: multi value, var in ref",
+			module:     refMod,
+			ruleRef:    MustParseRef("ref.multi.value.key[k]"),
+			input:      `{"k": 1, "v": 2}`,
+			expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
+		},
 	}
 
 	for _, tc := range tests {
@@ -642,9 +682,18 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			}
 			rules := []*Rule{}
 			for _, rule := range module.Rules {
-				if rule.Head.Name == Var(tc.ruleset) {
-					rules = append(rules, rule)
+				if tc.ruleRef == nil {
+					if rule.Head.Name == Var(tc.ruleset) {
+						rules = append(rules, rule)
+					}
+				} else {
+					if tc.ruleRef.Equal(rule.Head.Ref) {
+						rules = append(rules, rule)
+					}
 				}
+			}
+			if len(rules) == 0 {
+				t.Fatal("selected empty ruleset")
 			}
 
 			var input *Term
