@@ -1399,7 +1399,14 @@ func (c *Compiler) getExports() *util.HashMap {
 		mod := c.Modules[name]
 
 		for _, rule := range mod.Rules {
-			hashMapAdd(rules, mod.Package.Path, rule.Head.Ref.GroundPrefix())
+			var ref Ref
+			if len(rule.Head.Ref) > 0 { // TODO(sr): understand why Ref != nil doesn't do the trick here
+				ref = rule.Head.Ref.GroundPrefix()
+			} else {
+				ref = Ref{&Term{Value: rule.Head.Name}}
+			}
+
+			hashMapAdd(rules, mod.Package.Path, ref)
 		}
 	}
 
@@ -1408,16 +1415,16 @@ func (c *Compiler) getExports() *util.HashMap {
 
 func hashMapAdd(rules *util.HashMap, pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
-	if ok {
-		for _, p := range prev.([]Ref) {
-			if p.Equal(rule) {
-				return
-			}
-		}
-		rules.Put(pkg, append(prev.([]Ref), rule))
-	} else {
+	if !ok {
 		rules.Put(pkg, []Ref{rule})
+		return
 	}
+	for _, p := range prev.([]Ref) {
+		if p.Equal(rule) {
+			return
+		}
+	}
+	rules.Put(pkg, append(prev.([]Ref), rule))
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -1605,6 +1612,12 @@ func (c *Compiler) checkRuleHeadRefs() {
 func checkRuleHeadRefs(mod *Module) Errors {
 	var errs Errors
 	WalkRules(mod, func(r *Rule) bool {
+		// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
+		//           it's possible to construct Module{} instances from Golang code, so we need
+		//           to accommodate for that, too.
+		if len(r.Head.Ref) == 0 {
+			r.Head.Ref = Ref{(&Term{Value: r.Head.Name}).SetLocation(r.Head.Location)}
+		}
 		ref := r.Head.Ref
 		// NOTE(sr): In the first iteraion, dynamic values in the refs are forbidden
 		// except for the last postion, e.g.

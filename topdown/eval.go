@@ -2666,7 +2666,6 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 }
 
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
-	log.Printf("reduce: head: %v, key: %v, result: %v", head, head.Key, result)
 
 	var exists bool
 	var key0 *ast.Term

@@ -403,6 +403,17 @@ func TestCompilerGetExports(t *testing.T) {
 				"data.p": {"a.b.q", "a.b.q[2]"}, // TODO(sr): GroundPrefix? right thing here?
 			},
 		},
+		{ // NOTE(sr): An ast.Module can be constructed in various ways, this is to assert that
+			//         our compilation process doesn't explode here if we're fed a Rule that has no Ref.
+			note: "synthetic",
+			modules: func() []*Module {
+				ms := modules(`package p
+				r = 1`)
+				ms[0].Rules[0].Head.Ref = nil
+				return ms
+			}(),
+			exports: map[string][]string{"data.p": {"r"}},
+		},
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
