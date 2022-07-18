@@ -11,8 +11,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinCount(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		return iter(ast.IntNumberTerm(a.Len()))
 	case ast.Object:
@@ -22,11 +22,11 @@ func builtinCount(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error
 	case ast.String:
 		return iter(ast.IntNumberTerm(len([]rune(a))))
 	}
-	return builtins.NewOperandTypeErr(1, args[0].Value, "array", "object", "set", "string")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
 
-func builtinSum(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
@@ -56,11 +56,11 @@ func builtinSum(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) 
 		}
 		return iter(ast.NewTerm(builtins.FloatToNumber(sum)))
 	}
-	return builtins.NewOperandTypeErr(1, args[0].Value, "set", "array")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
 }
 
-func builtinProduct(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		product := big.NewFloat(1)
 		err := a.Iter(func(x *ast.Term) error {
@@ -90,11 +90,11 @@ func builtinProduct(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) err
 		}
 		return iter(ast.NewTerm(builtins.FloatToNumber(product)))
 	}
-	return builtins.NewOperandTypeErr(1, args[0].Value, "set", "array")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
 }
 
-func builtinMax(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		if a.Len() == 0 {
 			return nil
@@ -122,11 +122,11 @@ func builtinMax(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) 
 		return iter(max)
 	}
 
-	return builtins.NewOperandTypeErr(1, args[0].Value, "set", "array")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
 }
 
-func builtinMin(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		if a.Len() == 0 {
 			return nil
@@ -161,21 +161,21 @@ func builtinMin(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) 
 		return iter(min)
 	}
 
-	return builtins.NewOperandTypeErr(1, args[0].Value, "set", "array")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
 }
 
-func builtinSort(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinSort(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case *ast.Array:
 		return iter(ast.NewTerm(a.Sorted()))
 	case ast.Set:
 		return iter(ast.NewTerm(a.Sorted()))
 	}
-	return builtins.NewOperandTypeErr(1, args[0].Value, "set", "array")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "set", "array")
 }
 
-func builtinAll(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.Set:
 		res := true
 		match := ast.BooleanTerm(true)
@@ -199,12 +199,12 @@ func builtinAll(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) 
 		})
 		return iter(ast.BooleanTerm(res))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "array", "set")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
 }
 
-func builtinAny(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.Set:
 		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
 		return iter(ast.BooleanTerm(res))
@@ -220,13 +220,13 @@ func builtinAny(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) 
 		})
 		return iter(ast.BooleanTerm(res))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "array", "set")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
 }
 
-func builtinMember(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	containee := args[0]
-	switch c := args[1].Value.(type) {
+func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	containee := operands[0]
+	switch c := operands[1].Value.(type) {
 	case ast.Set:
 		return iter(ast.BooleanTerm(c.Contains(containee)))
 	case *ast.Array:
@@ -251,9 +251,9 @@ func builtinMember(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) erro
 	return iter(ast.BooleanTerm(false))
 }
 
-func builtinMemberWithKey(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	key, val := args[0], args[1]
-	switch c := args[2].Value.(type) {
+func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	key, val := operands[0], operands[1]
+	switch c := operands[2].Value.(type) {
 	case interface{ Get(*ast.Term) *ast.Term }:
 		ret := false
 		if act := c.Get(key); act != nil {

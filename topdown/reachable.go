@@ -31,15 +31,15 @@ func numberOfEdges(collection *ast.Term) int {
 	return 0
 }
 
-func builtinReachable(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func builtinReachable(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Error on wrong types for args.
-	graph, err := builtins.ObjectOperand(args[0].Value, 1)
+	graph, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
 
 	var queue []*ast.Term
-	switch initial := args[1].Value.(type) {
+	switch initial := operands[1].Value.(type) {
 	case *ast.Array, ast.Set:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)
@@ -98,9 +98,9 @@ func pathBuilder(graph ast.Object, root *ast.Term, path []*ast.Term, paths []*as
 	return paths
 }
 
-func builtinReachablePaths(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	// Error on wrong types for args.
-	graph, err := builtins.ObjectOperand(args[0].Value, 1)
+func builtinReachablePaths(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	// Return an error if the first argument is not an object.
+	graph, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func builtinReachablePaths(bctx BuiltinContext, args []*ast.Term, iter func(*ast
 	// This is a queue that holds all nodes we still need to visit.  It is
 	// initialised to the initial set of nodes we start out with.
 	var queue []*ast.Term
-	switch initial := args[1].Value.(type) {
+	switch initial := operands[1].Value.(type) {
 	case *ast.Array, ast.Set:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)

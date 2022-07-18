@@ -11,8 +11,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinToNumber(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch a := args[0].Value.(type) {
+func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch a := operands[0].Value.(type) {
 	case ast.Null:
 		return iter(ast.NumberTerm("0"))
 	case ast.Boolean:
@@ -29,12 +29,12 @@ func builtinToNumber(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) er
 		}
 		return iter(ast.NewTerm(ast.Number(a)))
 	}
-	return builtins.NewOperandTypeErr(1, args[0].Value, "null", "boolean", "number", "string")
+	return builtins.NewOperandTypeErr(1, operands[0].Value, "null", "boolean", "number", "string")
 }
 
 // Deprecated in v0.13.0.
-func builtinToArray(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case *ast.Array:
 		return iter(ast.NewTerm(val))
 	case ast.Set:
@@ -46,13 +46,13 @@ func builtinToArray(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) err
 		})
 		return iter(ast.NewTerm(ast.NewArray(arr...)))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "array", "set")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
 }
 
 // Deprecated in v0.13.0.
-func builtinToSet(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToSet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case *ast.Array:
 		s := ast.NewSet()
 		val.Foreach(func(v *ast.Term) {
@@ -62,47 +62,47 @@ func builtinToSet(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error
 	case ast.Set:
 		return iter(ast.NewTerm(val))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "array", "set")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "set")
 	}
 }
 
 // Deprecated in v0.13.0.
-func builtinToString(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToString(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.String:
 		return iter(ast.NewTerm(val))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "string")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "string")
 	}
 }
 
 // Deprecated in v0.13.0.
-func builtinToBoolean(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToBoolean(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.Boolean:
 		return iter(ast.NewTerm(val))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "boolean")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "boolean")
 	}
 }
 
 // Deprecated in v0.13.0.
-func builtinToNull(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToNull(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.Null:
 		return iter(ast.NewTerm(val))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "null")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "null")
 	}
 }
 
 // Deprecated in v0.13.0.
-func builtinToObject(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	switch val := args[0].Value.(type) {
+func builtinToObject(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	switch val := operands[0].Value.(type) {
 	case ast.Object:
 		return iter(ast.NewTerm(val))
 	default:
-		return builtins.NewOperandTypeErr(1, args[0].Value, "object")
+		return builtins.NewOperandTypeErr(1, operands[0].Value, "object")
 	}
 }
 

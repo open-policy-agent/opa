@@ -33,8 +33,8 @@ func compareEq(a, b ast.Value) bool {
 }
 
 func builtinCompare(cmp compareFunc) BuiltinFunc {
-	return func(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-		return iter(ast.BooleanTerm(cmp(args[0].Value, args[1].Value)))
+	return func(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		return iter(ast.BooleanTerm(cmp(operands[0].Value, operands[1].Value)))
 	}
 }
 

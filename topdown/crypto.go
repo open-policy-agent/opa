@@ -42,8 +42,8 @@ const (
 	blockTypePrivateKey = "PRIVATE KEY"
 )
 
-func builtinCryptoX509ParseCertificates(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	input, err := builtins.StringOperand(args[0].Value, 1)
+func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	input, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -61,9 +61,9 @@ func builtinCryptoX509ParseCertificates(_ BuiltinContext, args []*ast.Term, iter
 	return iter(ast.NewTerm(v))
 }
 
-func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
-	a := args[0].Value
+	a := operands[0].Value
 	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return err
@@ -97,8 +97,8 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, args []*ast.T
 	return iter(valid)
 }
 
-func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	input, err := builtins.StringOperand(args[0].Value, 1)
+func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	input, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
 	}
@@ -145,9 +145,9 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, args []*ast.Term
 	return iter(ast.NewTerm(v))
 }
 
-func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
-	a := args[0].Value
+	a := operands[0].Value
 	input, err := builtins.StringOperand(a, 1)
 	if err != nil {
 		return err
@@ -190,38 +190,38 @@ func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
 	return ast.String(h(s)), nil
 }
 
-func builtinCryptoMd5(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	res, err := hashHelper(args[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", md5.Sum([]byte(s))) })
+func builtinCryptoMd5(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	res, err := hashHelper(operands[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", md5.Sum([]byte(s))) })
 	if err != nil {
 		return err
 	}
 	return iter(ast.NewTerm(res))
 }
 
-func builtinCryptoSha1(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	res, err := hashHelper(args[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", sha1.Sum([]byte(s))) })
+func builtinCryptoSha1(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	res, err := hashHelper(operands[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", sha1.Sum([]byte(s))) })
 	if err != nil {
 		return err
 	}
 	return iter(ast.NewTerm(res))
 }
 
-func builtinCryptoSha256(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	res, err := hashHelper(args[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
+func builtinCryptoSha256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	res, err := hashHelper(operands[0].Value, func(s ast.String) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) })
 	if err != nil {
 		return err
 	}
 	return iter(ast.NewTerm(res))
 }
 
-func hmacHelper(args []*ast.Term, iter func(*ast.Term) error, h func() hash.Hash) error {
-	a1 := args[0].Value
+func hmacHelper(operands []*ast.Term, iter func(*ast.Term) error, h func() hash.Hash) error {
+	a1 := operands[0].Value
 	message, err := builtins.StringOperand(a1, 1)
 	if err != nil {
 		return err
 	}
 
-	a2 := args[1].Value
+	a2 := operands[1].Value
 	key, err := builtins.StringOperand(a2, 2)
 	if err != nil {
 		return err
@@ -234,20 +234,20 @@ func hmacHelper(args []*ast.Term, iter func(*ast.Term) error, h func() hash.Hash
 	return iter(ast.StringTerm(fmt.Sprintf("%x", messageDigest)))
 }
 
-func builtinCryptoHmacMd5(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	return hmacHelper(args, iter, md5.New)
+func builtinCryptoHmacMd5(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(operands, iter, md5.New)
 }
 
-func builtinCryptoHmacSha1(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	return hmacHelper(args, iter, sha1.New)
+func builtinCryptoHmacSha1(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(operands, iter, sha1.New)
 }
 
-func builtinCryptoHmacSha256(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	return hmacHelper(args, iter, sha256.New)
+func builtinCryptoHmacSha256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(operands, iter, sha256.New)
 }
 
-func builtinCryptoHmacSha512(_ BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	return hmacHelper(args, iter, sha512.New)
+func builtinCryptoHmacSha512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	return hmacHelper(operands, iter, sha512.New)
 }
 
 func init() {
