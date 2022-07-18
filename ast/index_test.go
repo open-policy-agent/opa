@@ -68,7 +68,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	ref.multi.value.ground contains x if x := input.x
 
-	ref.multi.value.key[k] contains v if { k := input.k; v := input.v }
+	# ref.multi.value.key[k] contains v if { k := input.k; v := input.v }
 	`, opts)
 
 	module := MustParseModule(`
@@ -666,13 +666,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:      `{"x": 1}`,
 			expectedRS: RuleSet([]*Rule{refMod.Rules[2]}),
 		},
-		{
-			note:       "ref: multi value, var in ref",
-			module:     refMod,
-			ruleRef:    MustParseRef("ref.multi.value.key[k]"),
-			input:      `{"k": 1, "v": 2}`,
-			expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
-		},
+		// {
+		// 	note:       "ref: multi value, var in ref",
+		// 	module:     refMod,
+		// 	ruleRef:    MustParseRef("ref.multi.value.key[k]"),
+		// 	input:      `{"k": 1, "v": 2}`,
+		// 	expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
+		// },
 	}
 
 	for _, tc := range tests {

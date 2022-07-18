@@ -567,13 +567,20 @@ func (p *Parser) parseRules() []*Rule {
 		return []*Rule{&rule}
 	}
 
+	if usesContains && !rule.Head.Ref.IsGround() {
+		p.error(p.s.Loc(), "multi-value rules need ground refs")
+		return nil
+	}
+
 	// back-compat with `p[x] { ... }``
 	hasIf := p.s.tok == tokens.If
 
+	// p[x] if ...         becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref) == 2 && rule.Head.Value == nil {
 		rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
 	}
 
+	// p[x]                becomes a multi-value rule p
 	if !hasIf && !usesContains &&
 		len(rule.Head.Args) == 0 && // not a function
 		len(rule.Head.Ref) == 2 { // ref like 'p[x]'

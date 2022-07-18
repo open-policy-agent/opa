@@ -60,18 +60,19 @@ cases:
   want_result:
   - x:
       b: [1, 2, 3]
-- modules:
-  - |
-    package test
-    import future.keywords
+# NOTE(sr): This isn't supported yet
+# - modules:
+#   - |
+#     package test
+#     import future.keywords
 
-    a.b[c] contains x if { c := "c"; some x in [1,2,3] }
-  note: refheads/multi-value with var in ref
-  query: data.test.a = x
-  want_result:
-  - x:
-      b:
-        c: [1, 2, 3]
+#     a.b[c] contains x if { c := "c"; some x in [1,2,3] }
+#   note: refheads/multi-value with var in ref
+#   query: data.test.a = x
+#   want_result:
+#   - x:
+#       b:
+#         c: [1, 2, 3]
 - modules:
   - |
     package test
