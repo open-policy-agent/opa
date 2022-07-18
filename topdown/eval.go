@@ -2255,7 +2255,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	}
 
 	switch ir.Kind {
-	case ast.PartialSetDoc:
+	case ast.MultiValue:
 		eval := evalVirtualPartial{
 			e:         e.e,
 			ref:       e.ref,
@@ -2268,20 +2268,25 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 			empty:     ast.SetTerm(),
 		}
 		return eval.eval(iter)
-	case ast.PartialObjectDoc:
-		eval := evalVirtualPartial{
-			e:         e.e,
-			ref:       e.ref,
-			plugged:   e.plugged,
-			pos:       e.pos,
-			ir:        ir,
-			bindings:  e.bindings,
-			rterm:     e.rterm,
-			rbindings: e.rbindings,
-			empty:     ast.ObjectTerm(),
+	case ast.SingleValue:
+		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
+		//           to start reworking things here
+		ref := ir.Rules[0].Head.Ref
+		if _, ok := ref[len(ref)-1].Value.(ast.String); len(ref) > 1 && !ok {
+			eval := evalVirtualPartial{
+				e:         e.e,
+				ref:       e.ref,
+				plugged:   e.plugged,
+				pos:       e.pos,
+				ir:        ir,
+				bindings:  e.bindings,
+				rterm:     e.rterm,
+				rbindings: e.rbindings,
+				empty:     ast.ObjectTerm(),
+			}
+			return eval.eval(iter)
 		}
-		return eval.eval(iter)
-	default:
+
 		eval := evalVirtualComplete{
 			e:         e.e,
 			ref:       e.ref,
@@ -2293,6 +2298,8 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 			rbindings: e.rbindings,
 		}
 		return eval.eval(iter)
+	default:
+		panic("unreachable")
 	}
 }
 
@@ -2656,9 +2663,19 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 }
 
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
+	log.Printf("reduce: head: %v, key: %v, result: %v", head, head.Key, result)
 
 	var exists bool
-	key := b.Plug(head.Key)
+	var key0 *ast.Term
+
+	switch e.ir.Kind {
+	case ast.SingleValue:
+		key0 = head.Ref[len(head.Ref)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
+	case ast.MultiValue:
+		key0 = head.Key
+	}
+
+	key := b.Plug(key0)
 
 	switch v := result.Value.(type) {
 	case ast.Set:

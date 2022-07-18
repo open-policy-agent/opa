@@ -718,6 +718,27 @@ func (head *Head) DocKind() DocKind {
 	return CompleteDoc
 }
 
+type RuleKind int
+
+const (
+	SingleValue = iota
+	MultiValue
+)
+
+// RuleKind returns the type of rule this is
+func (head *Head) RuleKind() RuleKind {
+	// NOTE(sr): This is bit verbose, since the key is irrelevant for single vs
+	//           multi value, but as good a spot as to assert the invariant.
+	switch {
+	case head.Value != nil:
+		return SingleValue
+	case head.Key != nil:
+		return MultiValue
+	default:
+		panic("unreachable")
+	}
+}
+
 // Compare returns an integer indicating whether head is less than, equal to,
 // or greater than other.
 func (head *Head) Compare(other *Head) int {

@@ -660,8 +660,6 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 func TestRuleTreeWithVars(t *testing.T) {
 	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
-	// 	mod2 := `package a
-	// b.c[v].e = 2 if true` // NOTE(sr): not allowed yet, but RuleTree should be able to deal with it
 	t.Run("simple single-value rule", func(t *testing.T) {
 		mod0 := `package a.b
 c.d.e = 1 if true`
@@ -776,8 +774,158 @@ b.c.d[e] contains 2 if e := "bar"`
 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := MustParseRef("b.c.d[e]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			// TODO(sr): we've got a sorting issue here, this randomly fails.
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+		if exp, act := MustParseRef("b.c.d[e]"), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two multi-value rules, back compat", func(t *testing.T) {
+		mod0 := `package a
+b[c] { c := "foo" }`
+		mod1 := `package a
+b[d] { d := "bar" }`
+
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 2, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := VarTerm("c"), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := VarTerm("d"), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two multi-value rules, back compat with short style", func(t *testing.T) {
+		mod0 := `package a
+b[1]`
+		mod1 := `package a
+b[2]`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 2, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two single-value rules, back compat with short style", func(t *testing.T) {
+		mod0 := `package a
+b[1] = 1`
+		mod1 := `package a
+b[2] = 2`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		// branch point
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 0, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 2, len(node.Children); exp != act {
+			t.Fatalf("expected %d children, found %d", exp, act)
+		}
+
+		// branch 1
+		node = tree.Find(MustParseRef("data.a.b[1]"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+			t.Errorf("expected rule value %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+
+		// branch 2
+		node = tree.Find(MustParseRef("data.a.b[2]"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+			t.Errorf("expected rule value %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
 }

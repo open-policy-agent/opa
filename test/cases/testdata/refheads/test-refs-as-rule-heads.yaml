@@ -31,8 +31,8 @@ cases:
 
     p {
       q == 0
-      data.test.a.b.c.p == 1
-      data.test.a.b.d == 3
+      a.b.c.p == 1
+      a.b.d == 3
     }
   note: refheads/complete+mixed
   query: data.test.p = x
@@ -42,8 +42,20 @@ cases:
   - |
     package test
 
-    a.b[x] { x := numbers.range(1,3)[_] }
-  note: refheads/partial set
+    a.b[x] = y { x := "c"; y := "d" }
+  note: refheads/single-value rule
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c: d
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b contains x if some x in [1,2,3]
+  note: refheads/multi-value
   query: data.test.a = x
   want_result:
   - x:
@@ -51,9 +63,22 @@ cases:
 - modules:
   - |
     package test
+    import future.keywords
 
-    a.b[x] = i { x := numbers.range(1,3)[i] }
-  note: refheads/partial object
+    a.b[c] contains x if { c := "c"; some x in [1,2,3] }
+  note: refheads/multi-value with var in ref
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c: [1, 2, 3]
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b[x] = i if some i, x in [1, 2, 3]
+  note: 'refheads/single-value: previously partial object'
   query: data.test.a = x
   want_result:
   - x:
@@ -61,11 +86,15 @@ cases:
 - modules:
   - |
     package test
-    a.b.c.d[1] { true }
+    import future.keywords
+
+    a.b.c.d contains 1 if true
   - |
     package test.a
-    b.c.d[2] { true }
-  note: 'refheads/partial set: same rule'
+    import future.keywords
+
+    b.c.d contains 2 if true
+  note: 'refheads/multi-value: same rule'
   query: data.test.a = x
   want_result:
   - x:
