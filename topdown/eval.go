@@ -1998,6 +1998,7 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 		if e.e.compiler.PassesTypeCheck(plugged) {
 			head := &ast.Head{
 				Name:  rule.Head.Name,
+				Ref:   rule.Head.Ref,
 				Value: child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
 				Args:  make([]*ast.Term, len(rule.Head.Args)),
 			}

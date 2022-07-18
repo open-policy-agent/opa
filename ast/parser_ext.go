@@ -622,14 +622,14 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 			rule, err := ParseRuleFromBody(mod, stmt)
 			if err != nil {
 				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
-			} else {
-				mod.Rules = append(mod.Rules, rule)
-
-				// NOTE(tsandall): the statement should now be interpreted as a
-				// rule so update the statement list. This is important for the
-				// logic below that associates annotations with statements.
-				stmts[i+1] = rule
+				continue
 			}
+			mod.Rules = append(mod.Rules, rule)
+
+			// NOTE(tsandall): the statement should now be interpreted as a
+			// rule so update the statement list. This is important for the
+			// logic below that associates annotations with statements.
+			stmts[i+1] = rule
 		case *Package:
 			errs = append(errs, NewError(ParseErr, stmt.Loc(), "unexpected package"))
 		case *Annotations:

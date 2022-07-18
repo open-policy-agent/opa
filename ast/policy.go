@@ -773,6 +773,7 @@ func (head *Head) Compare(other *Head) int {
 // Copy returns a deep copy of head.
 func (head *Head) Copy() *Head {
 	cpy := *head
+	cpy.Ref = head.Ref.Copy()
 	cpy.Args = head.Args.Copy()
 	cpy.Key = head.Key.Copy()
 	cpy.Value = head.Value.Copy()
