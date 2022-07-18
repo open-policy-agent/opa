@@ -2271,20 +2271,22 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	case ast.SingleValue:
 		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
 		//           to start reworking things here
-		ref := ir.Rules[0].Head.Ref
-		if _, ok := ref[len(ref)-1].Value.(ast.String); len(ref) > 1 && !ok {
-			eval := evalVirtualPartial{
-				e:         e.e,
-				ref:       e.ref,
-				plugged:   e.plugged,
-				pos:       e.pos,
-				ir:        ir,
-				bindings:  e.bindings,
-				rterm:     e.rterm,
-				rbindings: e.rbindings,
-				empty:     ast.ObjectTerm(),
+		if len(ir.Rules) > 0 {
+			ref := ir.Rules[0].Head.Ref
+			if _, ok := ref[len(ref)-1].Value.(ast.String); len(ref) > 1 && !ok {
+				eval := evalVirtualPartial{
+					e:         e.e,
+					ref:       e.ref,
+					plugged:   e.plugged,
+					pos:       e.pos,
+					ir:        ir,
+					bindings:  e.bindings,
+					rterm:     e.rterm,
+					rbindings: e.rbindings,
+					empty:     ast.ObjectTerm(),
+				}
+				return eval.eval(iter)
 			}
-			return eval.eval(iter)
 		}
 
 		eval := evalVirtualComplete{

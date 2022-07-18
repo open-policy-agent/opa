@@ -102,3 +102,14 @@ cases:
       b:
         c:
           d: [1, 2]
+- modules:
+  - |
+    package test
+
+    default a.b.c := "d"
+  note: refheads/single-value default rule
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c: d
