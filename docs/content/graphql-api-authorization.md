@@ -519,5 +519,5 @@ You learned a number of things about API authorization with OPA:
 * You can use a remote bundle server for distributing policy and data.
 
 The code for this tutorial can be found in the
-[open-policy-agent/contrib](https://github.com/open-policy-agent/contrib)
+[StyraInc/graphql-apollo-example][graphql-example-repo]
 repository.
