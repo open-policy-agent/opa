@@ -642,11 +642,13 @@ result_valid_hs256 := io.jwt.verify_hs256(result_hs256, "foo")
 ```live:jwt/verify/round_trip:output
 ```
 
-> Note that the resulting encoded token is different from the first example using
-> `io.jwt.encode_sign_raw`. The reason is that the `io.jwt.encode_sign` function
-> is using canonicalized formatting for the header and payload whereas
-> `io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
-> in. The decoded and parsed JSON values are still the same.
+{{< info >}}
+Note that the resulting encoded token is different from the first example using
+`io.jwt.encode_sign_raw`. The reason is that the `io.jwt.encode_sign` function
+is using canonicalized formatting for the header and payload whereas
+`io.jwt.encode_sign_raw` does not change the whitespace of the strings passed
+in. The decoded and parsed JSON values are still the same.
+{{< /info >}}
 
 {{< builtin-table time >}}
 
@@ -724,6 +726,40 @@ all_paths[entity_name]
 
 {{< builtin-table cat=graphql title="GraphQL" >}}
 
+{{< info >}}
+Custom [GraphQL `@directive`](http://spec.graphql.org/October2021/#sec-Language.Directives) definitions defined by your GraphQL framework will need to be included manually as part of your GraphQL schema string in order for validation to work correctly on GraphQL queries using those directives.
+
+Directives defined as part of the GraphQL specification (`@skip`, `@include`, `@deprecated`, and `@specifiedBy`) are supported by default, and do not need to be added to your schema manually.
+{{< /info >}}
+
+#### GraphQL Custom `@directive` Example
+
+New `@directive` definitions can be defined separately from your schema, so long as you `concat` them onto the schema definition before attempting to validate a query/schema using those custom directives.
+In the following example, a custom directive is defined, and then used in the schema to annotate an argument on one of the allowed query types.
+
+```live:graphql/custom_directive/example:module
+package graphql_custom_directive_example
+
+custom_directives := `
+directive @customDeprecatedArgs(
+  reason: String
+) on ARGUMENT_DEFINITION
+`
+
+schema := `
+type Query {
+    foo(name: String! @customDeprecatedArgs(reason: "example reason")): String,
+    bar: String!
+}
+`
+
+query := `query { foo(name: "example") }`
+
+p {
+    graphql.is_valid(query,  concat("", [custom_directives, schema]))
+}
+```
+
 {{< builtin-table cat=http title=HTTP >}}
 
 {{< danger >}}
@@ -771,7 +807,9 @@ When sending HTTPS requests with client certificates at least one the following 
  * ``tls_client_cert_file`` and ``tls_client_key_file``
  * ``tls_client_cert_env_variable`` and ``tls_client_key_env_variable``
 
-> To validate TLS server certificates, the user must also provide trusted root CA certificates through the ``tls_ca_cert``, ``tls_ca_cert_file`` and ``tls_ca_cert_env_variable`` fields. If the ``tls_use_system_certs`` field is ``true``, the system certificate pool will be used as well as any additional CA certificates.
+{{< info >}}
+To validate TLS server certificates, the user must also provide trusted root CA certificates through the ``tls_ca_cert``, ``tls_ca_cert_file`` and ``tls_ca_cert_env_variable`` fields. If the ``tls_use_system_certs`` field is ``true``, the system certificate pool will be used as well as any additional CA certificates.
+{{< /info >}}
 
 The `response` object parameter will contain the following fields:
 
