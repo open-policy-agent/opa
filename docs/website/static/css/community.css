@@ -154,21 +154,14 @@
 
 .divider {
     display: flex;
+    gap: 1em;
     z-index: 99;
 }
 
-.divider:before,
-.divider:after {
-    content: "";
-    flex: 1;
-}
-
 .line {
-    padding-left: 15%;
-    padding-right: 15%;
     align-items: center;
-    margin-left: -1em;
-    margin-right: -1em;
+    margin-left: 15%;
+    margin-right: 15%;
     margin-top: 1.5em;
     color: white;
     font-weight: 700;
@@ -178,7 +171,6 @@
 .line:before,
 .line:after {
     height: 1px;
-    margin: 0 1em;
 }
 
 .glow:before,
@@ -201,6 +193,12 @@
 @media screen and (min-width: 576px) {
     .grid-container {
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
+    .divider:before,
+    .divider:after {
+        content: "";
+        flex: 1;
     }
 }
 
