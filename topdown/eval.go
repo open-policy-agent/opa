@@ -2272,25 +2272,26 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	case ast.SingleValue:
 		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
 		//           to start reworking things here
-		if len(ir.Rules) > 0 {
-			ref := ir.Rules[0].Head.Ref
-			if _, ok := ref[len(ref)-1].Value.(ast.String); len(ref) > 1 && !ok {
-				eval := evalVirtualPartial{
-					e:         e.e,
-					ref:       e.ref,
-					plugged:   e.plugged,
-					pos:       e.pos,
-					ir:        ir,
-					bindings:  e.bindings,
-					rterm:     e.rterm,
-					rbindings: e.rbindings,
-					empty:     ast.ObjectTerm(),
-				}
-				return eval.eval(iter)
+		onlyGroundRefs := ir.Default == nil || ir.Default.Head.Ref.IsGround()
+		for i := range ir.Rules {
+			if !ir.Rules[i].Head.Ref.IsGround() {
+				onlyGroundRefs = false
 			}
 		}
-
-		eval := evalVirtualComplete{
+		if onlyGroundRefs {
+			eval := evalVirtualComplete{
+				e:         e.e,
+				ref:       e.ref,
+				plugged:   e.plugged,
+				pos:       e.pos,
+				ir:        ir,
+				bindings:  e.bindings,
+				rterm:     e.rterm,
+				rbindings: e.rbindings,
+			}
+			return eval.eval(iter)
+		}
+		eval := evalVirtualPartial{
 			e:         e.e,
 			ref:       e.ref,
 			plugged:   e.plugged,
@@ -2299,6 +2300,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 			bindings:  e.bindings,
 			rterm:     e.rterm,
 			rbindings: e.rbindings,
+			empty:     ast.ObjectTerm(),
 		}
 		return eval.eval(iter)
 	default:
@@ -2668,22 +2670,15 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
 
 	var exists bool
-	var key0 *ast.Term
-
-	switch e.ir.Kind {
-	case ast.SingleValue:
-		key0 = head.Ref[len(head.Ref)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
-	case ast.MultiValue:
-		key0 = head.Key
-	}
-
-	key := b.Plug(key0)
 
 	switch v := result.Value.(type) {
-	case ast.Set:
+	case ast.Set: // MultiValue
+		key := b.Plug(head.Key)
 		exists = v.Contains(key)
 		v.Add(key)
-	case ast.Object:
+	case ast.Object: // SingleValue
+		key := head.Ref[len(head.Ref)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
+		key = b.Plug(key)
 		value := b.Plug(head.Value)
 		if curr := v.Get(key); curr != nil {
 			if !curr.Equal(value) {
@@ -2790,6 +2785,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	var result *ast.Term
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+
 		result = child.bindings.Plug(rule.Head.Value)
 
 		if prev != nil {
@@ -2802,8 +2798,8 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 
 		prev = result
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], result)
-		term, termbindings := child.bindings.apply(rule.Head.Value)
 
+		term, termbindings := child.bindings.apply(rule.Head.Value)
 		err := e.evalTerm(iter, term, termbindings)
 		if err != nil {
 			return err

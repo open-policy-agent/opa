@@ -12,6 +12,15 @@ cases:
   - |
     package test
 
+    q = 0
+  note: 'refheads/complete: direct query q'
+  query: data.test.q = x
+  want_result:
+  - x: 0
+- modules:
+  - |
+    package test
+
     a.b.c.p { true }
   note: 'refheads/complete: full package extent'
   query: data.test = x
@@ -80,10 +89,12 @@ cases:
 
     a.b[x] = i if some i, x in [1, 2, 3]
   note: 'refheads/single-value: previously partial object'
-  query: data.test.a = x
+  query: data.test.a.b = x
   want_result:
   - x:
-      b: {"1": 0, "2": 1, "3": 2}
+      1: 0
+      2: 1
+      3: 2
 - modules:
   - |
     package test
@@ -113,3 +124,47 @@ cases:
   - x:
       b:
         c: d
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    q[7] = 8 if true
+    a[x] if q[x]
+  note: refheads/single-value example
+  query: data.test.a = x
+  want_result:
+  - x:
+      7: true
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    q[7] = 8 if false
+    a[x] if q[x]
+  note: refheads/single-value example, false
+  query: data.test.a = x
+  want_result:
+  - x: {}
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b.c = "d" if true
+    a.b.e = "f" if true
+    a.b.g contains x if some x in numbers.range(1, 3)
+    a.b.h[x] = 1 if x := "one"
+  note: refheads/mixed example, multiple rules
+  query: data.test.a.b = x
+  want_result:
+  - x:
+      c: d
+      e: f
+      g:
+      - 1
+      - 2
+      - 3
+      h:
+        one: 1
