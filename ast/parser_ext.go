@@ -183,11 +183,22 @@ func ParseRuleFromExpr(module *Module, expr *Expr) (*Rule, error) {
 		return rule, nil
 	}
 
-	if _, ok := BuiltinMap[expr.Operator().String()]; ok {
-		return nil, fmt.Errorf("rule name conflicts with built-in function")
+	rule, err := ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+	if err != nil {
+		return nil, err
 	}
+	return checkBuiltinConflict(rule)
+}
 
-	return ParseRuleFromCallExpr(module, expr.Terms.([]*Term))
+func checkBuiltinConflict(rule *Rule) (*Rule, error) {
+	if i, ok := BuiltinMap[string(rule.Head.Name)]; ok && !i.IsDeprecated() {
+		c := i.Name
+		if i.Infix != "" {
+			c = i.Infix
+		}
+		return nil, fmt.Errorf("rule '%v' conflicts with built-in function '%s'", rule.Head, c)
+	}
+	return rule, nil
 }
 
 func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error) {
@@ -208,17 +219,20 @@ func parseCompleteRuleFromEq(module *Module, expr *Expr) (rule *Rule, err error)
 	}
 
 	rule, err = ParseCompleteDocRuleFromEqExpr(module, lhs, rhs)
-
 	if err == nil {
-		return rule, nil
+		return checkBuiltinConflict(rule)
 	}
 
 	rule, err = ParseRuleFromCallEqExpr(module, lhs, rhs)
 	if err == nil {
-		return rule, nil
+		return checkBuiltinConflict(rule)
 	}
 
-	return ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+	rule, err = ParsePartialObjectDocRuleFromEqExpr(module, lhs, rhs)
+	if err == nil {
+		return checkBuiltinConflict(rule)
+	}
+	return nil, err
 }
 
 // ParseCompleteDocRuleFromAssignmentExpr returns a rule if the expression can

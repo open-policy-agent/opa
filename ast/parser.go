@@ -325,6 +325,10 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 		if rules := p.parseRules(); rules != nil {
 			for i := range rules {
+				if _, err := checkBuiltinConflict(rules[i]); err != nil {
+					p.error(rules[i].Loc(), err.Error())
+				}
+
 				stmts = append(stmts, rules[i])
 			}
 			continue

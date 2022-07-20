@@ -1589,6 +1589,62 @@ func TestRule(t *testing.T) {
 	})
 	assertParseError(t, "invalid rule body no separator", `p { a = "foo"bar }`)
 	assertParseError(t, "invalid rule body no newline", `p { a b c }`)
+
+	// shadowing built-ins
+	for _, tc := range []struct {
+		note string
+		rule string
+		err  string
+	}{
+		{
+			note: "function shadowing builtin",
+			rule: `plus(2, 2) = 3`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus(2, 2) = 3' conflicts with built-in function '+'",
+		},
+		{
+			note: "function shadowing builtin, with body",
+			rule: `plus(2, 2) = 3 { true }`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus(2, 2) = 3' conflicts with built-in function '+'",
+		},
+		{
+			note: "function shadowing builtin, call",
+			rule: `plus(2, 2)`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus(2, 2) = true' conflicts with built-in function '+'",
+		},
+		{
+			note: "function shadowing builtin, call, with body",
+			rule: `plus(2, 2) { true }`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus(2, 2) = true' conflicts with built-in function '+'",
+		},
+		{
+			note: "complete rule shadowing builtin",
+			rule: `plus = 3`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus = 3' conflicts with built-in function '+'",
+		},
+		{
+			note: "complete rule shadowing builtin, with body",
+			rule: `plus = 3 { true }`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus = 3' conflicts with built-in function '+'",
+		},
+		{
+			note: "object rule shadowing builtin",
+			rule: `plus[1] = 3`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus[1] = 3' conflicts with built-in function '+'",
+		},
+		{
+			note: "complete rule shadowing builtin, with body",
+			rule: `plus[1] = 3 { true }`,
+			err:  "1 error occurred: 2:1: rego_parse_error: rule 'plus[1] = 3' conflicts with built-in function '+'",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModule("", "package p\n"+tc.rule)
+			if err == nil || !strings.HasPrefix(err.Error(), tc.err) {
+				t.Errorf("expected error %q, got %q", tc.err, err)
+			}
+		})
+	}
+
 }
 
 func TestRuleContains(t *testing.T) {

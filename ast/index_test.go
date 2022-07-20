@@ -116,7 +116,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.y = {"foo": "bar", "bar": x}
 	}
 
-	equal {
+	equal_r {
 		input.x == 1
 	} {
 		input.x == 2
@@ -340,16 +340,16 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		},
 		{
 			note:    "match ==",
-			ruleset: "equal",
+			ruleset: "equal_r",
 			input:   `{"x": 2, "y": 3}`,
 			expectedRS: []string{
-				"equal { input.y == 3 }",
-				"equal { input.x == 2 }",
+				"equal_r { input.y == 3 }",
+				"equal_r { input.x == 2 }",
 			},
 		},
 		{
 			note:       "miss ==",
-			ruleset:    "equal",
+			ruleset:    "equal_r",
 			input:      `{"x": 1000, "y": 1000}`,
 			expectedRS: []string{},
 		},
