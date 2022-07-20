@@ -1229,6 +1229,7 @@ integrations:
       - graphene-graphql
     code:
       - https://github.com/dolevf/graphql-open-policy-agent
+
   rekor:
     title: Rekor transparency log monitoring and alerting
     description: |
@@ -1241,6 +1242,7 @@ integrations:
       - rekor
     code:
       - https://github.com/nsmith5/rekor-sidekick
+
   alfred:
     title: Self-hosted Alternative to OPA Playground
     description:  |
@@ -1382,6 +1384,20 @@ integrations:
           - name: Severin Stampler
             organization: waltid
         link: https://youtu.be/mue4UjzOZ3Q
+
+  graphql:
+    title: GraphQL
+    description:  |
+      GraphQL is a query language for APIs and a runtime for fulfilling those queries with your existing data.
+    labels:
+      category: network
+      layer: application
+    software:
+      - graphql
+    code:
+      - https://github.com/StyraInc/graphql-apollo-example
+    tutorials:
+      - https://www.openpolicyagent.org/docs/graphql-api-authorization/
 
 organizations:
   styra:
@@ -1764,3 +1780,6 @@ software:
   ssikit:
     name: ssikit
     link: https://walt.id/ssi-kit
+  graphql:
+    name: graphql
+    link: https://graphql.org/
