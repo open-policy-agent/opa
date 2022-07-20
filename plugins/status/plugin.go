@@ -415,15 +415,8 @@ func (p *Plugin) oneShot(ctx context.Context) error {
 
 		defer util.Close(resp)
 
-		switch resp.StatusCode {
-		case http.StatusOK:
-			return nil
-		case http.StatusNotFound:
-			return fmt.Errorf("status update failed, server replied with not found")
-		case http.StatusUnauthorized:
-			return fmt.Errorf("status update failed, server replied with not authorized")
-		default:
-			return fmt.Errorf("status update failed, server replied with HTTP %v", resp.StatusCode)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("status update failed, server replied with HTTP %v %v", resp.StatusCode, http.StatusText(resp.StatusCode))
 		}
 	}
 	return nil

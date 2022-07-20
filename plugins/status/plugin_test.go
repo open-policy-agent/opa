@@ -474,6 +474,9 @@ func TestPluginBadAuth(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error")
 	}
+	if err.Error() != "status update failed, server replied with HTTP 401 Unauthorized" {
+		t.Fatalf("Unexpected error contents: %v", err)
+	}
 }
 
 func TestPluginBadPath(t *testing.T) {
@@ -486,6 +489,9 @@ func TestPluginBadPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error")
 	}
+	if err.Error() != "status update failed, server replied with HTTP 404 Not Found" {
+		t.Fatalf("Unexpected error contents: %v", err)
+	}
 }
 
 func TestPluginBadStatus(t *testing.T) {
@@ -497,6 +503,36 @@ func TestPluginBadStatus(t *testing.T) {
 	err := fixture.plugin.oneShot(ctx)
 	if err == nil {
 		t.Fatal("Expected error")
+	}
+	if err.Error() != "status update failed, server replied with HTTP 500 Internal Server Error" {
+		t.Fatalf("Unexpected error contents: %v", err)
+	}
+}
+
+func TestPluginNonstandardStatus(t *testing.T) {
+	fixture := newTestFixture(t, nil)
+	ctx := context.Background()
+	fixture.server.expCode = 599
+	defer fixture.server.stop()
+	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
+	err := fixture.plugin.oneShot(ctx)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+	if err.Error() != "status update failed, server replied with HTTP 599 " {
+		t.Fatalf("Unexpected error contents: %v", err)
+	}
+}
+
+func TestPlugin2xxStatus(t *testing.T) {
+	fixture := newTestFixture(t, nil)
+	ctx := context.Background()
+	fixture.server.expCode = 204
+	defer fixture.server.stop()
+	fixture.plugin.lastBundleStatuses = map[string]*bundle.Status{}
+	err := fixture.plugin.oneShot(ctx)
+	if err != nil {
+		t.Fatal("Expected no error")
 	}
 }
 

@@ -76,10 +76,10 @@ Decision log updates contain the following fields:
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 | `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
 
-If the decision log was successfully uploaded to the remote service, it should respond with an HTTP 200 OK status. If the
-service responds with a non-200 OK status, OPA will requeue the last chunk containing decision log events and upload it
+If the decision log was successfully uploaded to the remote service, it should respond with an HTTP 2xx status. If the
+service responds with a non-2xx status, OPA will requeue the last chunk containing decision log events and upload it
 during the next upload event. OPA also performs an exponential backoff to calculate the delay in uploading the next chunk
-when the remote service responds with a non-200 OK status.
+when the remote service responds with a non-2xx status.
 
 OPA periodically uploads decision logs to the remote service. In order to conserve network and memory resources, OPA
 attempts to fill up each upload chunk with as many events as possible while respecting the user-specified
