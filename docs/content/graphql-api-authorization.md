@@ -165,7 +165,7 @@ Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the 
 ```yaml
 services:
   opa:
-    image: openpolicyagent/opa:0.41.0-rootless
+    image: openpolicyagent/opa:{{< current_docker_version >}}-rootless
     ports:
       - "8181:8181"
     command:
