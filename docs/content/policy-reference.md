@@ -1110,7 +1110,7 @@ import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
 rule-head       = var ( rule-head-set | rule-head-obj | rule-head-func | rule-head-comp )
-rule-head-comp  = [ ( ":=" | "=" ) term ]") [ "if" ]
+rule-head-comp  = [ ( ":=" | "=" ) term ]) [ "if" ]
 rule-head-obj   = [ "[" term "]" ] [ ( ":=" | "=" ) term ]) [ "if" ]
 rule-head-func  = [ "(" rule-args ")" ] [ ( ":=" | "=" ) term ]) [ "if" ]
 rule-head-set   = "contains" term [ "if" ] | "[" term "]"
