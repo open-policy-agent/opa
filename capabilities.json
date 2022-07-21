@@ -3803,11 +3803,6 @@
       "decl": {
         "args": [
           {
-            "of": [
-              {
-                "type": "any"
-              }
-            ],
             "type": "any"
           }
         ],

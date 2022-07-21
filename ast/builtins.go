@@ -2422,15 +2422,15 @@ var IsNull = &Builtin{
 
 // TypeNameBuiltin returns the type of the input.
 var TypeNameBuiltin = &Builtin{
-	Name: "type_name",
+	Name:        "type_name",
+	Description: "Returns the type of its input value.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.NewAny(
-				types.A,
-			),
+			types.Named("x", types.A),
 		),
-		types.S,
+		types.Named("type", types.S).Description(`one of "null", "boolean", "number", "string", "array", "object", "set"`),
 	),
+	Categories: typesCat,
 }
 
 /**
