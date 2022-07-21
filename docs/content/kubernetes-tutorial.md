@@ -70,33 +70,33 @@ certificate authority (CA) and certificate/key pair for OPA:
 
 ```bash
 openssl genrsa -out ca.key 2048
-openssl req -x509 -new -nodes -key ca.key -days 100000 -out ca.crt -subj "/CN=admission_ca"
+openssl req -x509 -new -nodes -sha256 -key ca.key -days 100000 -out ca.crt -subj "/CN=admission_ca"
 ```
 
 Generate the TLS key and certificate for OPA:
 
 ```bash
 cat >server.conf <<EOF
-[req]
-req_extensions = v3_req
-distinguished_name = req_distinguished_name
+[ req ]
 prompt = no
-[req_distinguished_name]
+req_extensions = v3_ext
+distinguished_name = dn
+
+[ dn ]
 CN = opa.opa.svc
-[ v3_req ]
+
+[ v3_ext ]
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = clientAuth, serverAuth
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = opa.opa.svc
+subjectAltName = DNS:opa.opa.svc,DNS:opa.opa.svc.cluster,DNS:opa.opa.svc.cluster.local
 EOF
 ```
 
 ```bash
 openssl genrsa -out server.key 2048
-openssl req -new -key server.key -out server.csr -config server.conf
-openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf
+openssl req -new -key server.key -sha256 -out server.csr -extensions v3_ext -config server.conf
+openssl x509 -req -in server.csr -sha256 -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 100000 -extensions v3_ext -extfile server.conf
 ```
 
 > Note: the Common Name value and Subject Alternative Name you give to openssl MUST match the name of the OPA service created below.
