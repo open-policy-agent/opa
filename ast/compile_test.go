@@ -7003,3 +7003,155 @@ func TestCompilerPassesTypeCheckNegative(t *testing.T) {
 		t.Fatal("Incorrectly detected a type-checking violation")
 	}
 }
+
+func TestKeepModules(t *testing.T) {
+
+	t.Run("no keep", func(t *testing.T) {
+		c := NewCompiler() // no keep is default
+
+		// This one is overwritten by c.Compile()
+		c.Modules["foo.rego"] = MustParseModule("package foo\np = true")
+
+		c.Compile(map[string]*Module{"bar.rego": MustParseModule("package bar\np = input")})
+
+		if len(c.Errors) != 0 {
+			t.Fatalf("expected no error; got %v", c.Errors)
+		}
+
+		mods := c.ParsedModules()
+		if mods != nil {
+			t.Errorf("expected ParsedModules == nil, got %v", mods)
+		}
+	})
+
+	t.Run("keep", func(t *testing.T) {
+
+		c := NewCompiler().WithKeepModules(true)
+
+		// This one is overwritten by c.Compile()
+		c.Modules["foo.rego"] = MustParseModule("package foo\np = true")
+
+		c.Compile(map[string]*Module{"bar.rego": MustParseModule("package bar\np = input")})
+		if len(c.Errors) != 0 {
+			t.Fatalf("expected no error; got %v", c.Errors)
+		}
+
+		mods := c.ParsedModules()
+		if exp, act := 1, len(mods); exp != act {
+			t.Errorf("expected %d modules, found %d: %v", exp, act, mods)
+		}
+		for k := range mods {
+			if k != "bar.rego" {
+				t.Errorf("unexpected key: %v, want 'bar.rego'", k)
+			}
+		}
+
+		for k := range mods {
+			compiled := c.Modules[k]
+			if compiled.Equal(mods[k]) {
+				t.Errorf("expected module %v to not be compiled: %v", k, mods[k])
+			}
+		}
+
+		// expect ParsedModules to be reset
+		c.Compile(map[string]*Module{"baz.rego": MustParseModule("package baz\np = input")})
+		mods = c.ParsedModules()
+		if exp, act := 1, len(mods); exp != act {
+			t.Errorf("expected %d modules, found %d: %v", exp, act, mods)
+		}
+		for k := range mods {
+			if k != "baz.rego" {
+				t.Errorf("unexpected key: %v, want 'baz.rego'", k)
+			}
+		}
+
+		for k := range mods {
+			compiled := c.Modules[k]
+			if compiled.Equal(mods[k]) {
+				t.Errorf("expected module %v to not be compiled: %v", k, mods[k])
+			}
+		}
+
+		// expect ParsedModules to be reset to nil
+		c = c.WithKeepModules(false)
+		c.Compile(map[string]*Module{"baz.rego": MustParseModule("package baz\np = input")})
+		mods = c.ParsedModules()
+		if mods != nil {
+			t.Errorf("expected ParsedModules == nil, got %v", mods)
+		}
+	})
+
+	t.Run("no copies", func(t *testing.T) {
+		extra := MustParseModule("package extra\np = input")
+		done := false
+		testLoader := func(map[string]*Module) (map[string]*Module, error) {
+			if done {
+				return nil, nil
+			}
+			done = true
+			return map[string]*Module{"extra.rego": extra}, nil
+		}
+
+		c := NewCompiler().WithModuleLoader(testLoader).WithKeepModules(true)
+
+		mod := MustParseModule("package bar\np = input")
+		c.Compile(map[string]*Module{"bar.rego": mod})
+		if len(c.Errors) != 0 {
+			t.Fatalf("expected no error; got %v", c.Errors)
+		}
+
+		mods := c.ParsedModules()
+		if exp, act := 2, len(mods); exp != act {
+			t.Errorf("expected %d modules, found %d: %v", exp, act, mods)
+		}
+		newName := Var("q")
+		mods["bar.rego"].Rules[0].Head.Name = newName
+		if exp, act := newName, mod.Rules[0].Head.Name; !exp.Equal(act) {
+			t.Errorf("expected modified rule name %v, found %v", exp, act)
+		}
+		mods["extra.rego"].Rules[0].Head.Name = newName
+		if exp, act := newName, extra.Rules[0].Head.Name; !exp.Equal(act) {
+			t.Errorf("expected modified rule name %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("keep, with loader", func(t *testing.T) {
+		extra := MustParseModule("package extra\np = input")
+		done := false
+		testLoader := func(map[string]*Module) (map[string]*Module, error) {
+			if done {
+				return nil, nil
+			}
+			done = true
+			return map[string]*Module{"extra.rego": extra}, nil
+		}
+
+		c := NewCompiler().WithModuleLoader(testLoader).WithKeepModules(true)
+
+		// This one is overwritten by c.Compile()
+		c.Modules["foo.rego"] = MustParseModule("package foo\np = true")
+
+		c.Compile(map[string]*Module{"bar.rego": MustParseModule("package bar\np = input")})
+
+		if len(c.Errors) != 0 {
+			t.Fatalf("expected no error; got %v", c.Errors)
+		}
+
+		mods := c.ParsedModules()
+		if exp, act := 2, len(mods); exp != act {
+			t.Errorf("expected %d modules, found %d: %v", exp, act, mods)
+		}
+		for k := range mods {
+			if k != "bar.rego" && k != "extra.rego" {
+				t.Errorf("unexpected key: %v, want 'extra.rego' and 'bar.rego'", k)
+			}
+		}
+
+		for k := range mods {
+			compiled := c.Modules[k]
+			if compiled.Equal(mods[k]) {
+				t.Errorf("expected module %v to not be compiled: %v", k, mods[k])
+			}
+		}
+	})
+}

@@ -113,6 +113,8 @@ type Compiler struct {
 	inputType             types.Type                    // global input type retrieved from schema set
 	annotationSet         *AnnotationSet                // hierarchical set of annotations
 	strict                bool                          // enforce strict compilation checks
+	keepModules           bool                          // whether to keep the unprocessed, parse modules (below)
+	parsedModules         map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -385,6 +387,22 @@ func (c *Compiler) WithStrict(strict bool) *Compiler {
 	return c
 }
 
+// WithKeepModules enables retaining unprocessed modules in the compiler.
+// Note that the modules aren't copied on the way in or out -- so when
+// accessing them via ParsedModules(), mutations will occur in the module
+// map that was passed into Compile().`
+func (c *Compiler) WithKeepModules(y bool) *Compiler {
+	c.keepModules = y
+	return c
+}
+
+// ParsedModules returns the parsed, unprocessed modules from the compiler.
+// It is `nil` if keeping modules wasn't enabled via `WithKeepModules(true)`.
+// The map includes all modules loaded via the ModuleLoader, if one was used.
+func (c *Compiler) ParsedModules() map[string]*Module {
+	return c.parsedModules
+}
+
 // QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
 	c.init()
@@ -400,10 +418,20 @@ func (c *Compiler) Compile(modules map[string]*Module) {
 	c.init()
 
 	c.Modules = make(map[string]*Module, len(modules))
+	c.sorted = make([]string, 0, len(modules))
+
+	if c.keepModules {
+		c.parsedModules = make(map[string]*Module, len(modules))
+	} else {
+		c.parsedModules = nil
+	}
 
 	for k, v := range modules {
 		c.Modules[k] = v.Copy()
 		c.sorted = append(c.sorted, k)
+		if c.parsedModules != nil {
+			c.parsedModules[k] = v
+		}
 	}
 
 	sort.Strings(c.sorted)
@@ -1441,6 +1469,9 @@ func (c *Compiler) resolveAllRefs() {
 		for id, module := range parsed {
 			c.Modules[id] = module.Copy()
 			c.sorted = append(c.sorted, id)
+			if c.parsedModules != nil {
+				c.parsedModules[id] = module
+			}
 		}
 
 		sort.Strings(c.sorted)
