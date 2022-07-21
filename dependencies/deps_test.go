@@ -511,7 +511,6 @@ func assertRefSliceEq(t *testing.T, exp, result []ast.Ref) {
 		r := result[i]
 		if e.Compare(r) != 0 {
 			t.Fatalf("Expected refs %v, got %v", exp, result)
-			break
 		}
 	}
 }
