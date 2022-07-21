@@ -567,7 +567,7 @@ func (p *Parser) parseRules() []*Rule {
 		return []*Rule{&rule}
 	}
 
-	if usesContains && !rule.Head.Ref.IsGround() {
+	if usesContains && !rule.Head.Reference.IsGround() {
 		p.error(p.s.Loc(), "multi-value rules need ground refs")
 		return nil
 	}
@@ -576,22 +576,22 @@ func (p *Parser) parseRules() []*Rule {
 	hasIf := p.s.tok == tokens.If
 
 	// p[x] if ...         becomes a single-value rule p[x]
-	if hasIf && !usesContains && len(rule.Head.Ref) == 2 && rule.Head.Value == nil {
+	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 && rule.Head.Value == nil {
 		rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
 	}
 
 	// p[x]                becomes a multi-value rule p
 	if !hasIf && !usesContains &&
 		len(rule.Head.Args) == 0 && // not a function
-		len(rule.Head.Ref) == 2 { // ref like 'p[x]'
-		v, ok := rule.Head.Ref[0].Value.(Var)
+		len(rule.Head.Ref()) == 2 { // ref like 'p[x]'
+		v, ok := rule.Head.Ref()[0].Value.(Var)
 		if !ok {
 			return nil
 		}
 		rule.Head.Name = v
-		rule.Head.Key = rule.Head.Ref[1]
+		rule.Head.Key = rule.Head.Ref()[1]
 		if rule.Head.Value == nil {
-			rule.Head.Ref = rule.Head.Ref[:len(rule.Head.Ref)-1]
+			rule.Head.SetRef(rule.Head.Ref()[:len(rule.Head.Ref())-1])
 		}
 	}
 
@@ -802,10 +802,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 		return nil, false
 	}
 
-	name := string(head.Name)
-	if len(head.Ref) > 0 {
-		name = head.Ref.String()
-	}
+	name := head.Ref().String()
 
 	switch p.s.tok {
 	case tokens.Contains: // NOTE: no Value for `contains` heads, we return here
@@ -844,7 +841,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 	}
 
 	if head.Value == nil && head.Key == nil {
-		if len(head.Ref) != 2 || len(head.Args) > 0 {
+		if len(head.Ref()) != 2 || len(head.Args) > 0 {
 			head.Value = BooleanTerm(true).SetLocation(head.Location)
 		}
 	}

@@ -895,7 +895,7 @@ func (c *Compiler) checkRuleConflicts() {
 	c.ModuleTree.DepthFirst(func(node *ModuleTreeNode) bool {
 		for _, mod := range node.Modules {
 			for _, rule := range mod.Rules {
-				ref := rule.Head.Ref.GroundPrefix()
+				ref := rule.Head.Ref().GroundPrefix()
 				childNode, tail := node.find(ref)
 				if childNode != nil {
 					for _, childMod := range childNode.Modules {
@@ -903,7 +903,7 @@ func (c *Compiler) checkRuleConflicts() {
 							continue // don't self-conflict
 						}
 						if len(tail) == 0 {
-							msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref, rule.Loc())
+							msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref(), rule.Loc())
 							c.err(NewError(TypeErr, mod.Package.Loc(), msg))
 						}
 					}
@@ -1399,14 +1399,7 @@ func (c *Compiler) getExports() *util.HashMap {
 		mod := c.Modules[name]
 
 		for _, rule := range mod.Rules {
-			var ref Ref
-			if len(rule.Head.Ref) > 0 { // TODO(sr): understand why Ref != nil doesn't do the trick here
-				ref = rule.Head.Ref.GroundPrefix()
-			} else {
-				ref = Ref{&Term{Value: rule.Head.Name}}
-			}
-
-			hashMapAdd(rules, mod.Package.Path, ref)
+			hashMapAdd(rules, mod.Package.Path, rule.Head.Ref().GroundPrefix())
 		}
 	}
 
@@ -1612,19 +1605,19 @@ func (c *Compiler) checkRuleHeadRefs() {
 func checkRuleHeadRefs(mod *Module) Errors {
 	var errs Errors
 	WalkRules(mod, func(r *Rule) bool {
+		ref := r.Head.Ref()
 		// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
 		//           it's possible to construct Module{} instances from Golang code, so we need
 		//           to accommodate for that, too.
-		if len(r.Head.Ref) == 0 {
-			r.Head.Ref = Ref{(&Term{Value: r.Head.Name}).SetLocation(r.Head.Location)}
+		if len(r.Head.Reference) == 0 {
+			r.Head.Reference = ref
 		}
-		ref := r.Head.Ref
 		// NOTE(sr): In the first iteraion, dynamic values in the refs are forbidden
 		// except for the last postion, e.g.
 		//     OK: p.q.r[s]
 		// NOT OK: p[q].r.s
 		if x := ref.Dynamic(); x != -1 && x != len(ref)-1 {
-			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", r.Head.Ref[x]))
+			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", ref[x]))
 		}
 		return true
 	})
@@ -1845,13 +1838,14 @@ func (c *Compiler) rewriteRefsInHead() {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
 
-			for i := 1; i < len(rule.Head.Ref); i++ {
-				if requiresEval(rule.Head.Ref[i]) {
-					expr := f.Generate(rule.Head.Ref[i])
-					if i == len(rule.Head.Ref)-1 && rule.Head.Key.Equal(rule.Head.Ref[i]) {
+			ref := rule.Head.Ref()
+			for i := 1; i < len(ref); i++ {
+				if requiresEval(ref[i]) {
+					expr := f.Generate(ref[i])
+					if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
 						rule.Head.Key = expr.Operand(0)
 					}
-					rule.Head.Ref[i] = expr.Operand(0)
+					rule.Head.Reference[i] = expr.Operand(0)
 					rule.Body.Append(expr)
 				}
 			}
@@ -2139,7 +2133,7 @@ func (c *Compiler) rewriteLocalVars() {
 			// Rewrite assignments in body.
 			used := NewVarSet()
 
-			last := rule.Head.Ref[len(rule.Head.Ref)-1]
+			last := rule.Head.Ref()[len(rule.Head.Ref())-1]
 			used.Update(last.Vars())
 
 			if rule.Head.Key != nil {
@@ -2174,8 +2168,8 @@ func (c *Compiler) rewriteLocalVars() {
 				rule.Head.Args[i], _ = transformTerm(localXform, rule.Head.Args[i])
 			}
 
-			for i := 1; i < len(rule.Head.Ref); i++ {
-				rule.Head.Ref[i], _ = transformTerm(localXform, rule.Head.Ref[i])
+			for i := 1; i < len(rule.Head.Ref()); i++ {
+				rule.Head.Reference[i], _ = transformTerm(localXform, rule.Head.Ref()[i])
 			}
 			if rule.Head.Key != nil {
 				rule.Head.Key, _ = transformTerm(localXform, rule.Head.Key)
@@ -3881,7 +3875,7 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 	ignore.Push(vars)
 	ignore.Push(declaredVars(rule.Body))
 
-	ref := rule.Head.Ref
+	ref := rule.Head.Ref()
 	for i := 1; i < len(ref); i++ {
 		ref[i] = resolveRefsInTerm(globals, ignore, ref[i])
 	}

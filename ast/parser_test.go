@@ -1413,10 +1413,10 @@ func TestRule(t *testing.T) {
 	assertParseRule(t, "default w/ assignment", `default allow := false`, &Rule{
 		Default: true,
 		Head: &Head{
-			Name:   "allow",
-			Ref:    Ref{VarTerm("allow")},
-			Value:  BooleanTerm(false),
-			Assign: true,
+			Name:      "allow",
+			Reference: Ref{VarTerm("allow")},
+			Value:     BooleanTerm(false),
+			Assign:    true,
 		},
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
@@ -1440,10 +1440,10 @@ func TestRule(t *testing.T) {
 		})
 
 	fxy := &Head{
-		Name:  Var("f"),
-		Ref:   Ref{VarTerm("f")},
-		Args:  Args{VarTerm("x")},
-		Value: VarTerm("y"),
+		Name:      Var("f"),
+		Reference: Ref{VarTerm("f")},
+		Args:      Args{VarTerm("x")},
+		Value:     VarTerm("y"),
 	}
 
 	assertParseRule(t, "identity", `f(x) = y { y = x }`, &Rule{
@@ -1455,10 +1455,10 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "composite arg", `f([x, y]) = z { split(x, y, z) }`, &Rule{
 		Head: &Head{
-			Name:  Var("f"),
-			Ref:   Ref{VarTerm("f")},
-			Args:  Args{ArrayTerm(VarTerm("x"), VarTerm("y"))},
-			Value: VarTerm("z"),
+			Name:      Var("f"),
+			Reference: Ref{VarTerm("f")},
+			Args:      Args{ArrayTerm(VarTerm("x"), VarTerm("y"))},
+			Value:     VarTerm("z"),
 		},
 		Body: NewBody(
 			Split.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z")),
@@ -1467,10 +1467,10 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "composite result", `f(1) = [x, y] { split("foo.bar", x, y) }`, &Rule{
 		Head: &Head{
-			Name:  Var("f"),
-			Ref:   Ref{VarTerm("f")},
-			Args:  Args{IntNumberTerm(1)},
-			Value: ArrayTerm(VarTerm("x"), VarTerm("y")),
+			Name:      Var("f"),
+			Reference: Ref{VarTerm("f")},
+			Args:      Args{IntNumberTerm(1)},
+			Value:     ArrayTerm(VarTerm("x"), VarTerm("y")),
 		},
 		Body: NewBody(
 			Split.Expr(StringTerm("foo.bar"), VarTerm("x"), VarTerm("y")),
@@ -1479,8 +1479,8 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "expr terms: key", `p[f(x) + g(x)] { true }`, &Rule{
 		Head: &Head{
-			Name: Var("p"),
-			Ref:  Ref{VarTerm("p")},
+			Name:      Var("p"),
+			Reference: Ref{VarTerm("p")},
 			Key: Plus.Call(
 				CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
 				CallTerm(RefTerm(VarTerm("g")), VarTerm("x")),
@@ -1491,8 +1491,8 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "expr terms: value", `p = f(x) + g(x) { true }`, &Rule{
 		Head: &Head{
-			Name: Var("p"),
-			Ref:  Ref{VarTerm("p")},
+			Name:      Var("p"),
+			Reference: Ref{VarTerm("p")},
 			Value: Plus.Call(
 				CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
 				CallTerm(RefTerm(VarTerm("g")), VarTerm("x")),
@@ -1503,8 +1503,8 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "expr terms: args", `p(f(x) + g(x)) { true }`, &Rule{
 		Head: &Head{
-			Name: Var("p"),
-			Ref:  Ref{VarTerm("p")},
+			Name:      Var("p"),
+			Reference: Ref{VarTerm("p")},
 			Args: Args{
 				Plus.Call(
 					CallTerm(RefTerm(VarTerm("f")), VarTerm("x")),
@@ -1518,28 +1518,28 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "assignment operator", `x := 1 { true }`, &Rule{
 		Head: &Head{
-			Name:   Var("x"),
-			Ref:    Ref{VarTerm("x")},
-			Value:  IntNumberTerm(1),
-			Assign: true,
+			Name:      Var("x"),
+			Reference: Ref{VarTerm("x")},
+			Value:     IntNumberTerm(1),
+			Assign:    true,
 		},
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
 	assertParseRule(t, "else assignment", `x := 1 { false } else := 2`, &Rule{
 		Head: &Head{
-			Name:   "x", // ha! clever!
-			Ref:    Ref{VarTerm("x")},
-			Value:  IntNumberTerm(1),
-			Assign: true,
+			Name:      "x", // ha! clever!
+			Reference: Ref{VarTerm("x")},
+			Value:     IntNumberTerm(1),
+			Assign:    true,
 		},
 		Body: NewBody(NewExpr(BooleanTerm(false))),
 		Else: &Rule{
 			Head: &Head{
-				Name:   "x",
-				Ref:    Ref{VarTerm("x")},
-				Value:  IntNumberTerm(2),
-				Assign: true,
+				Name:      "x",
+				Reference: Ref{VarTerm("x")},
+				Value:     IntNumberTerm(2),
+				Assign:    true,
 			},
 			Body: NewBody(NewExpr(BooleanTerm(true))),
 		},
@@ -1547,20 +1547,20 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "partial assignment", `p[x] := y { true }`, &Rule{
 		Head: &Head{
-			Name:   "p",
-			Ref:    MustParseRef("p[x]"),
-			Value:  VarTerm("y"),
-			Key:    VarTerm("x"),
-			Assign: true,
+			Name:      "p",
+			Reference: MustParseRef("p[x]"),
+			Value:     VarTerm("y"),
+			Key:       VarTerm("x"),
+			Assign:    true,
 		},
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 
 	assertParseRule(t, "function assignment", `f(x) := y { true }`, &Rule{
 		Head: &Head{
-			Name:  "f",
-			Ref:   Ref{VarTerm("f")},
-			Value: VarTerm("y"),
+			Name:      "f",
+			Reference: Ref{VarTerm("f")},
+			Value:     VarTerm("y"),
 			Args: Args{
 				VarTerm("x"),
 			},
@@ -1590,17 +1590,17 @@ func TestRule(t *testing.T) {
 	assertParseRule(t, "default missing value", `default a`, &Rule{
 		Default: true,
 		Head: &Head{
-			Name:  Var("a"),
-			Ref:   Ref{VarTerm("a")},
-			Value: BooleanTerm(true),
+			Name:      Var("a"),
+			Reference: Ref{VarTerm("a")},
+			Value:     BooleanTerm(true),
 		},
 		Body: NewBody(NewExpr(BooleanTerm(true))),
 	})
 	assertParseRule(t, "empty arguments", `f() { x := 1 }`, &Rule{
 		Head: &Head{
-			Name:  "f",
-			Ref:   Ref{VarTerm("f")},
-			Value: BooleanTerm(true),
+			Name:      "f",
+			Reference: Ref{VarTerm("f")},
+			Value:     BooleanTerm(true),
 		},
 		Body: MustParseBody(`x := 1`),
 	})
@@ -1615,19 +1615,19 @@ func TestRule(t *testing.T) {
 
 	assertParseRule(t, "wildcard name", `_ { x == 1 }`, &Rule{
 		Head: &Head{
-			Name:  "$0",
-			Ref:   Ref{VarTerm("$0")},
-			Value: BooleanTerm(true),
+			Name:      "$0",
+			Reference: Ref{VarTerm("$0")},
+			Value:     BooleanTerm(true),
 		},
 		Body: MustParseBody(`x == 1`),
 	})
 
 	assertParseRule(t, "partial object array key", `p[[a, 1, 2]] = x { a := 1; x := "foo" }`, &Rule{
 		Head: &Head{
-			Name:  "p",
-			Ref:   MustParseRef("p[[a,1,2]]"),
-			Key:   ArrayTerm(VarTerm("a"), NumberTerm("1"), NumberTerm("2")),
-			Value: VarTerm("x"),
+			Name:      "p",
+			Reference: MustParseRef("p[[a,1,2]]"),
+			Key:       ArrayTerm(VarTerm("a"), NumberTerm("1"), NumberTerm("2")),
+			Value:     VarTerm("x"),
 		},
 		Body: MustParseBody(`a := 1; x := "foo"`),
 	})
@@ -1664,8 +1664,8 @@ func TestRuleContains(t *testing.T) {
 			rule: `p.q contains "x"`,
 			exp: &Rule{
 				Head: &Head{
-					Ref: MustParseRef("p.q"),
-					Key: StringTerm("x"),
+					Reference: MustParseRef("p.q"),
+					Key:       StringTerm("x"),
 				},
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 			},
@@ -1675,8 +1675,8 @@ func TestRuleContains(t *testing.T) {
 			rule: `p.q contains "x" { true }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref: MustParseRef("p.q"),
-					Key: StringTerm("x"),
+					Reference: MustParseRef("p.q"),
+					Key:       StringTerm("x"),
 				},
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 			},
@@ -1739,8 +1739,8 @@ func TestRuleIf(t *testing.T) {
 			rule: `p.q if { true }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q"),
-					Value: BooleanTerm(true),
+					Reference: MustParseRef("p.q"),
+					Value:     BooleanTerm(true),
 				},
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 			},
@@ -1758,18 +1758,18 @@ func TestRuleIf(t *testing.T) {
 			rule: `p := "yes" if { 10 > y } else := "no" { 10 <= y }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:    Ref{VarTerm("p")},
-					Name:   Var("p"),
-					Value:  StringTerm("yes"),
-					Assign: true,
+					Reference: Ref{VarTerm("p")},
+					Name:      Var("p"),
+					Value:     StringTerm("yes"),
+					Assign:    true,
 				},
 				Body: MustParseBody(`10 > y`),
 				Else: &Rule{
 					Head: &Head{
-						Ref:    Ref{VarTerm("p")},
-						Name:   Var("p"),
-						Value:  StringTerm("no"),
-						Assign: true,
+						Reference: Ref{VarTerm("p")},
+						Name:      Var("p"),
+						Value:     StringTerm("no"),
+						Assign:    true,
 					},
 					Body: MustParseBody(`10 <= y`),
 				},
@@ -1845,9 +1845,9 @@ func TestRuleIf(t *testing.T) {
 				Body: MustParseBody(`1 > 2`),
 				Else: &Rule{
 					Head: &Head{
-						Ref:   Ref{VarTerm("p")},
-						Name:  Var("p"),
-						Value: NumberTerm("42"),
+						Reference: Ref{VarTerm("p")},
+						Name:      Var("p"),
+						Value:     NumberTerm("42"),
 					},
 					Body: MustParseBody(`2 > 1`),
 				},
@@ -1866,10 +1866,10 @@ func TestRuleIf(t *testing.T) {
 			rule: `f(x) = y if y := x + 1`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   Ref{VarTerm("f")},
-					Name:  Var("f"),
-					Args:  []*Term{VarTerm("x")},
-					Value: VarTerm("y"),
+					Reference: Ref{VarTerm("f")},
+					Name:      Var("f"),
+					Args:      []*Term{VarTerm("x")},
+					Value:     VarTerm("y"),
 				},
 				Body: MustParseBody(`y := x + 1`),
 			},
@@ -1879,10 +1879,10 @@ func TestRuleIf(t *testing.T) {
 			rule: `f(xs) if every x in xs { x != 0 }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   Ref{VarTerm("f")},
-					Name:  Var("f"),
-					Args:  []*Term{VarTerm("xs")},
-					Value: BooleanTerm(true),
+					Reference: Ref{VarTerm("f")},
+					Name:      Var("f"),
+					Args:      []*Term{VarTerm("xs")},
+					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBodyWithOpts(`every x in xs { x != 0 }`, opts),
 			},
@@ -1892,8 +1892,8 @@ func TestRuleIf(t *testing.T) {
 			rule: `p["foo"] = "bar" if { true }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.foo"),
-					Value: StringTerm("bar"),
+					Reference: MustParseRef("p.foo"),
+					Value:     StringTerm("bar"),
 				},
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 			},
@@ -1903,8 +1903,8 @@ func TestRuleIf(t *testing.T) {
 			rule: `p["foo"] = "bar" if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.foo"),
-					Value: StringTerm("bar"),
+					Reference: MustParseRef("p.foo"),
+					Value:     StringTerm("bar"),
 				},
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 			},
@@ -1917,8 +1917,8 @@ func TestRuleIf(t *testing.T) {
 			}`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p[x]"),
-					Value: VarTerm("y"),
+					Reference: MustParseRef("p[x]"),
+					Value:     VarTerm("y"),
 				},
 				Body: MustParseBody(`x := "foo"; y := "bar"`),
 			},
@@ -1952,8 +1952,8 @@ func TestRuleIf(t *testing.T) {
 			rule: `p[x] if x := 1`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p[x]"),
-					Value: BooleanTerm(true),
+					Reference: MustParseRef("p[x]"),
+					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x := 1`),
 			},
@@ -1963,8 +1963,8 @@ func TestRuleIf(t *testing.T) {
 			rule: `p[x] if { x := 1 }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p[x]"),
-					Value: BooleanTerm(true),
+					Reference: MustParseRef("p[x]"),
+					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x := 1`),
 			},
@@ -1992,8 +1992,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: "p.q.r = 1 if true",
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q.r"),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p.q.r"),
+					Value:     IntNumberTerm(1),
 				},
 				Body: trueBody,
 			},
@@ -2003,8 +2003,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q["r"] = 1 if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q.r"),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p.q.r"),
+					Value:     IntNumberTerm(1),
 				},
 				Body: trueBody,
 			},
@@ -2014,8 +2014,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q[2] = 1 if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q[2]"),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p.q[2]"),
+					Value:     IntNumberTerm(1),
 				},
 				Body: trueBody,
 			},
@@ -2025,8 +2025,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q[2] if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q[2]"),
-					Value: BooleanTerm(true),
+					Reference: MustParseRef("p.q[2]"),
+					Value:     BooleanTerm(true),
 				},
 				Body: trueBody,
 			},
@@ -2036,8 +2036,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q[x] = 1 if x := 2`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q[x]"),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p.q[x]"),
+					Value:     IntNumberTerm(1),
 				},
 				Body: MustParseBody("x := 2"),
 			},
@@ -2047,8 +2047,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p[x] = 1 if x := 2`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p[x]"),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p[x]"),
+					Value:     IntNumberTerm(1),
 				},
 				Body: MustParseBody("x := 2"),
 			},
@@ -2058,8 +2058,8 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q.r contains x if x := 2`,
 			exp: &Rule{
 				Head: &Head{
-					Ref: MustParseRef("p.q.r"),
-					Key: VarTerm("x"),
+					Reference: MustParseRef("p.q.r"),
+					Key:       VarTerm("x"),
 				},
 				Body: MustParseBody("x := 2"),
 			},
@@ -2069,9 +2069,9 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p[x] { x := 2 }`, // no "if", which triggers ref-interpretation
 			exp: &Rule{
 				Head: &Head{
-					Name: "p",
-					Ref:  Ref{VarTerm("p")}, // we're defining p as multi-val rule
-					Key:  VarTerm("x"),
+					Name:      "p",
+					Reference: Ref{VarTerm("p")}, // we're defining p as multi-val rule
+					Key:       VarTerm("x"),
 				},
 				Body: MustParseBody("x := 2"),
 			},
@@ -2081,10 +2081,10 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p[x] = 3 { x := 2 }`,
 			exp: &Rule{
 				Head: &Head{
-					Name:  "p",
-					Ref:   MustParseRef("p[x]"),
-					Key:   VarTerm("x"), // not used
-					Value: IntNumberTerm(3),
+					Name:      "p",
+					Reference: MustParseRef("p[x]"),
+					Key:       VarTerm("x"), // not used
+					Value:     IntNumberTerm(3),
 				},
 				Body: MustParseBody("x := 2"),
 			},
@@ -2094,10 +2094,10 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `partialobj[x] = {"foo": y} { y = "bar"; x = y }`,
 			exp: &Rule{
 				Head: &Head{
-					Name:  "partialobj",
-					Ref:   MustParseRef("partialobj[x]"),
-					Key:   VarTerm("x"), // not used
-					Value: MustParseTerm(`{"foo": y}`),
+					Name:      "partialobj",
+					Reference: MustParseRef("partialobj[x]"),
+					Key:       VarTerm("x"), // not used
+					Value:     MustParseTerm(`{"foo": y}`),
 				},
 				Body: MustParseBody(`y = "bar"; x = y`),
 			},
@@ -2107,9 +2107,9 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q.f(x) = 1 if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q.f"),
-					Args:  Args([]*Term{VarTerm("x")}),
-					Value: IntNumberTerm(1),
+					Reference: MustParseRef("p.q.f"),
+					Args:      Args([]*Term{VarTerm("x")}),
+					Value:     IntNumberTerm(1),
 				},
 				Body: trueBody,
 			},
@@ -2119,9 +2119,9 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q.f(x) if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q.f"),
-					Args:  Args([]*Term{VarTerm("x")}),
-					Value: BooleanTerm(true),
+					Reference: MustParseRef("p.q.f"),
+					Args:      Args([]*Term{VarTerm("x")}),
+					Value:     BooleanTerm(true),
 				},
 				Body: trueBody,
 			},
@@ -2131,9 +2131,9 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p.q.f(x) = x + 1 if true`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:   MustParseRef("p.q.f"),
-					Args:  Args([]*Term{VarTerm("x")}),
-					Value: Plus.Call(VarTerm("x"), IntNumberTerm(1)),
+					Reference: MustParseRef("p.q.f"),
+					Args:      Args([]*Term{VarTerm("x")}),
+					Value:     Plus.Call(VarTerm("x"), IntNumberTerm(1)),
 				},
 				Body: trueBody,
 			},
@@ -2202,7 +2202,7 @@ func TestRuleElseKeyword(t *testing.T) {
 	name := Var("p")
 	ref := Ref{VarTerm("p")}
 	tr := BooleanTerm(true)
-	head := &Head{Name: name, Ref: ref, Value: tr}
+	head := &Head{Name: name, Reference: ref, Value: tr}
 
 	expected := &Module{
 		Package: MustParsePackage(`package test`),
@@ -2219,16 +2219,16 @@ func TestRuleElseKeyword(t *testing.T) {
 					Body: MustParseBody(`"p1_e1"`),
 					Else: &Rule{
 						Head: &Head{
-							Name:  name,
-							Ref:   ref,
-							Value: ArrayTerm(NullTerm()),
+							Name:      name,
+							Reference: ref,
+							Value:     ArrayTerm(NullTerm()),
 						},
 						Body: MustParseBody(`"p1_e2"`),
 						Else: &Rule{
 							Head: &Head{
-								Name:  name,
-								Ref:   ref,
-								Value: VarTerm("x"),
+								Name:      name,
+								Reference: ref,
+								Value:     VarTerm("x"),
 							},
 							Body: MustParseBody(`x = "p1_e3"`),
 						},
@@ -2241,26 +2241,26 @@ func TestRuleElseKeyword(t *testing.T) {
 			},
 			{
 				Head: &Head{
-					Name:  Var("f"),
-					Ref:   Ref{VarTerm("f")},
-					Args:  Args{VarTerm("x")},
-					Value: BooleanTerm(true),
+					Name:      Var("f"),
+					Reference: Ref{VarTerm("f")},
+					Args:      Args{VarTerm("x")},
+					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x < 100`),
 				Else: &Rule{
 					Head: &Head{
-						Name:  Var("f"),
-						Ref:   Ref{VarTerm("f")},
-						Args:  Args{VarTerm("x")},
-						Value: BooleanTerm(false),
+						Name:      Var("f"),
+						Reference: Ref{VarTerm("f")},
+						Args:      Args{VarTerm("x")},
+						Value:     BooleanTerm(false),
 					},
 					Body: MustParseBody(`x > 200`),
 					Else: &Rule{
 						Head: &Head{
-							Name:  Var("f"),
-							Ref:   Ref{VarTerm("f")},
-							Args:  Args{VarTerm("x")},
-							Value: BooleanTerm(true),
+							Name:      Var("f"),
+							Reference: Ref{VarTerm("f")},
+							Args:      Args{VarTerm("x")},
+							Value:     BooleanTerm(true),
 						},
 						Body: MustParseBody(`x != 150`),
 					},
@@ -2269,23 +2269,23 @@ func TestRuleElseKeyword(t *testing.T) {
 
 			{
 				Head: &Head{
-					Name:  Var("$0"),
-					Ref:   Ref{VarTerm("$0")},
-					Value: BooleanTerm(true),
+					Name:      Var("$0"),
+					Reference: Ref{VarTerm("$0")},
+					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x > 0`),
 				Else: &Rule{
 					Head: &Head{
-						Name:  Var("$0"),
-						Ref:   Ref{VarTerm("$0")},
-						Value: BooleanTerm(true),
+						Name:      Var("$0"),
+						Reference: Ref{VarTerm("$0")},
+						Value:     BooleanTerm(true),
 					},
 					Body: MustParseBody(`x == -1`),
 					Else: &Rule{
 						Head: &Head{
-							Name:  Var("$0"),
-							Ref:   Ref{VarTerm("$0")},
-							Value: BooleanTerm(true),
+							Name:      Var("$0"),
+							Reference: Ref{VarTerm("$0")},
+							Value:     BooleanTerm(true),
 						},
 						Body: MustParseBody(`x > -100`),
 					},
@@ -2293,34 +2293,34 @@ func TestRuleElseKeyword(t *testing.T) {
 			},
 			{
 				Head: &Head{
-					Name:  Var("nobody"),
-					Ref:   Ref{VarTerm("nobody")},
-					Value: IntNumberTerm(1),
+					Name:      Var("nobody"),
+					Reference: Ref{VarTerm("nobody")},
+					Value:     IntNumberTerm(1),
 				},
 				Body: MustParseBody("false"),
 				Else: &Rule{
 					Head: &Head{
-						Name:  Var("nobody"),
-						Ref:   Ref{VarTerm("nobody")},
-						Value: IntNumberTerm(7),
+						Name:      Var("nobody"),
+						Reference: Ref{VarTerm("nobody")},
+						Value:     IntNumberTerm(7),
 					},
 					Body: MustParseBody("true"),
 				},
 			},
 			{
 				Head: &Head{
-					Name:  Var("nobody_f"),
-					Ref:   Ref{VarTerm("nobody_f")},
-					Args:  Args{VarTerm("x")},
-					Value: IntNumberTerm(1),
+					Name:      Var("nobody_f"),
+					Reference: Ref{VarTerm("nobody_f")},
+					Args:      Args{VarTerm("x")},
+					Value:     IntNumberTerm(1),
 				},
 				Body: MustParseBody("false"),
 				Else: &Rule{
 					Head: &Head{
-						Name:  Var("nobody_f"),
-						Ref:   Ref{VarTerm("nobody_f")},
-						Args:  Args{VarTerm("x")},
-						Value: IntNumberTerm(7),
+						Name:      Var("nobody_f"),
+						Reference: Ref{VarTerm("nobody_f")},
+						Args:      Args{VarTerm("x")},
+						Value:     IntNumberTerm(7),
 					},
 					Body: MustParseBody("true"),
 				},
@@ -2347,16 +2347,16 @@ func TestRuleElseKeyword(t *testing.T) {
 					Body: MustParseBody(`"p1_e1"`),
 					Else: &Rule{
 						Head: &Head{
-							Name:  Var("p"),
-							Ref:   Ref{VarTerm("p")},
-							Value: ArrayTerm(NullTerm()),
+							Name:      Var("p"),
+							Reference: Ref{VarTerm("p")},
+							Value:     ArrayTerm(NullTerm()),
 						},
 						Body: MustParseBody(`"p1_e2"`),
 						Else: &Rule{
 							Head: &Head{
-								Name:  name,
-								Ref:   ref,
-								Value: VarTerm("x"),
+								Name:      name,
+								Reference: ref,
+								Value:     VarTerm("x"),
 							},
 							Body: MustParseBody(`x = "p1_e4"`),
 						},
@@ -2826,8 +2826,8 @@ func TestRuleFromBodyRefs(t *testing.T) {
 			if r.Head.Name.Compare(mr.Head.Name) != 0 {
 				t.Errorf("rule.Head.Name differs:\n exp = %#v\nrule = %#v", r.Head.Name, mr.Head.Name)
 			}
-			if r.Head.Ref.Compare(mr.Head.Ref) != 0 {
-				t.Errorf("rule.Head.Ref differs:\n exp = %v\nrule = %v", r.Head.Ref, mr.Head.Ref)
+			if r.Head.Ref().Compare(mr.Head.Ref()) != 0 {
+				t.Errorf("rule.Head.Ref() differs:\n exp = %v\nrule = %v", r.Head.Ref(), mr.Head.Ref())
 			}
 			exp, err := ParseRuleWithOpts(tc.exp, opts)
 			if err != nil {
@@ -3064,8 +3064,8 @@ func TestWildcards(t *testing.T) {
 
 	assertParseRule(t, "functions", `f(_) = y { true }`, &Rule{
 		Head: &Head{
-			Name: Var("f"),
-			Ref:  Ref{VarTerm("f")},
+			Name:      Var("f"),
+			Reference: Ref{VarTerm("f")},
 			Args: Args{
 				VarTerm("$0"),
 			},
@@ -4787,8 +4787,8 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 		if rule.Head.Name != correct.Head.Name {
 			t.Errorf("Error on test \"%s\": rule heads not equal: name = %v (parsed), name = %v (correct)", msg, rule.Head.Name, correct.Head.Name)
 		}
-		if !rule.Head.Ref.Equal(correct.Head.Ref) {
-			t.Errorf("Error on test \"%s\": rule heads not equal: ref = %v (parsed), ref = %v (correct)", msg, rule.Head.Ref, correct.Head.Ref)
+		if !rule.Head.Ref().Equal(correct.Head.Ref()) {
+			t.Errorf("Error on test \"%s\": rule heads not equal: ref = %v (parsed), ref = %v (correct)", msg, rule.Head.Ref(), correct.Head.Ref())
 		}
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test \"%s\": rules not equal: %v (parsed), %v (correct)", msg, rule, correct)

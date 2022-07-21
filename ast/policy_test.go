@@ -20,6 +20,7 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 
 	mod, err := ParseModuleWithOpts("test.rego", `package a.b.c
 
+import future.keywords
 import data.x.y as z
 import data.u.i
 
@@ -42,6 +43,7 @@ a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
 b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
 call_values { f(x) != g(x) }
 assigned := 1
+rule.having.ref.head[1] = x if x := 2
 
 # METADATA
 # scope: rule
@@ -392,19 +394,61 @@ func TestExprEveryCopy(t *testing.T) {
 	}
 }
 
+func TestRuleHeadJSON(t *testing.T) {
+	// NOTE(sr): we may get to see Rule objects that aren't the result of parsing, but
+	// fed as-is into the compiler. We need to be able to make sense of their refs, too.
+	head := Head{
+		Name: Var("allow"),
+	}
+
+	rule := Rule{
+		Head: &head,
+	}
+	bs, err := json.Marshal(&rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := `{"head":{"name":"allow","ref":[{"type":"var","value":"allow"}]},"body":[]}`, string(bs); act != exp {
+		t.Errorf("expected %q, got %q", exp, act)
+	}
+
+	var readRule Rule
+	if err := json.Unmarshal(bs, &readRule); err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := 1, len(readRule.Head.Reference); act != exp {
+		t.Errorf("expected unmarshalled rule to have Reference, got %v", readRule.Head.Reference)
+	}
+	bs0, err := json.Marshal(&readRule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, act := string(bs), string(bs0); exp != act {
+		t.Errorf("expected json repr to match %q, got %q", exp, act)
+	}
+
+	var readAgainRule Rule
+	if err := json.Unmarshal(bs, &readAgainRule); err != nil {
+		t.Fatal(err)
+	}
+	if !readAgainRule.Equal(&readRule) {
+		t.Errorf("expected roundtripped rule reference to match %v, got %v", readRule.Head.Reference, readAgainRule.Head.Reference)
+	}
+}
+
 func TestRuleHeadEquals(t *testing.T) {
 	assertHeadsEqual(t, &Head{}, &Head{})
 
 	// Same name/ref/key/value
 	assertHeadsEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("p")})
-	assertHeadsEqual(t, &Head{Ref: Ref{VarTerm("p"), StringTerm("r")}}, &Head{Ref: Ref{VarTerm("p"), StringTerm("r")}}) // TODO: string for first section
+	assertHeadsEqual(t, &Head{Reference: Ref{VarTerm("p"), StringTerm("r")}}, &Head{Reference: Ref{VarTerm("p"), StringTerm("r")}}) // TODO: string for first section
 	assertHeadsEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("x")})
 	assertHeadsEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("x")})
 	assertHeadsEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})
 
 	// Different name/ref/key/value
 	assertHeadsNotEqual(t, &Head{Name: Var("p")}, &Head{Name: Var("q")})
-	assertHeadsNotEqual(t, &Head{Ref: Ref{VarTerm("p")}}, &Head{Ref: Ref{VarTerm("q")}}) // TODO: string for first section
+	assertHeadsNotEqual(t, &Head{Reference: Ref{VarTerm("p")}}, &Head{Reference: Ref{VarTerm("q")}}) // TODO: string for first section
 	assertHeadsNotEqual(t, &Head{Key: VarTerm("x")}, &Head{Key: VarTerm("y")})
 	assertHeadsNotEqual(t, &Head{Value: VarTerm("x")}, &Head{Value: VarTerm("y")})
 	assertHeadsNotEqual(t, &Head{Args: []*Term{VarTerm("x"), VarTerm("z")}}, &Head{Args: []*Term{VarTerm("x"), VarTerm("y")}})

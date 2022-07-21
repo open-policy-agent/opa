@@ -409,7 +409,7 @@ func TestCompilerGetExports(t *testing.T) {
 			modules: func() []*Module {
 				ms := modules(`package p
 				r = 1`)
-				ms[0].Rules[0].Head.Ref = nil
+				ms[0].Rules[0].Head.Reference = nil
 				return ms
 			}(),
 			exports: map[string][]string{"data.p": {"r"}},
@@ -688,7 +688,7 @@ c.d.e = 1 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -715,10 +715,10 @@ d.e = 2 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := MustParseRef("d.e"), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := MustParseRef("d.e"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -755,7 +755,7 @@ d.e = 2 if true`
 	// 		if exp, act := 1, len(node.Values); exp != act {
 	// 			t.Fatalf("expected %d values, found %d", exp, act)
 	// 		}
-	// 		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+	// 		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
 	// 		}
 	// 	})
@@ -782,14 +782,14 @@ d.e = 2 if true`
 	// 		if exp, act := 0, len(node.Children); exp != act {
 	// 			t.Errorf("expected %d children, found %d", exp, act)
 	// 		}
-	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
 	// 		}
 	// 		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
 	// 			// TODO(sr): we've got a sorting issue here, this randomly fails.
 	// 			t.Errorf("expected rule key %v, found %v", exp, act)
 	// 		}
-	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
 	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
 	// 		}
 	// 		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
@@ -819,7 +819,7 @@ b[d] { d := "bar" }`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if act := node.Values[0].(*Rule).Head.Value; act != nil {
@@ -828,7 +828,7 @@ b[d] { d := "bar" }`
 		if exp, act := VarTerm("c"), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if act := node.Values[1].(*Rule).Head.Value; act != nil {
@@ -860,7 +860,7 @@ b[2]`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if act := node.Values[0].(*Rule).Head.Value; act != nil {
@@ -869,7 +869,7 @@ b[2]`
 		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if act := node.Values[1].(*Rule).Head.Value; act != nil {
@@ -911,7 +911,7 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
@@ -929,7 +929,7 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref; !exp.Equal(act) {
+		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
@@ -3216,7 +3216,7 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	rule := mod.Rules[1]
 	body := rule.Body[0].Terms.(*Term)
 	assertTermEqual(t, body, MustParseTerm("data.heads_with_dots.this_is_not"))
-	if act, exp := rule.Head.Ref, MustParseRef("this.is.dotted"); act.Compare(exp) != 0 {
+	if act, exp := rule.Head.Ref(), MustParseRef("this.is.dotted"); act.Compare(exp) != 0 {
 		t.Errorf("expected %v to match %v", act, exp)
 	}
 }

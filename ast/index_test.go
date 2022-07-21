@@ -688,7 +688,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 						rules = append(rules, rule)
 					}
 				} else {
-					if tc.ruleRef.Equal(rule.Head.Ref) {
+					if tc.ruleRef.Equal(rule.Head.Ref()) {
 						rules = append(rules, rule)
 					}
 				}
