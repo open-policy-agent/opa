@@ -43,7 +43,7 @@ require (
 	go.uber.org/automaxprocs v1.5.1
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	gopkg.in/yaml.v2 v2.4.0
 	oras.land/oras-go v1.2.0
 )
