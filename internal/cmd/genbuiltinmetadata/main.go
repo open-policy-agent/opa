@@ -157,7 +157,7 @@ func builtinCategories(b *ast.Builtin) []string {
 	if !b.IsDeprecated() {
 		switch b.Name {
 		case "assign", "cast_array", "cast_boolean", "cast_null", "cast_object", "cast_set", "cast_string",
-			"eq", "print", "re_match", "set_diff", "type_name":
+			"eq", "print", "re_match", "set_diff":
 			// Do nothing.
 		default:
 			log.Printf("WARN: not categorized: %s", b.Name)

@@ -214,7 +214,8 @@
       "is_number",
       "is_object",
       "is_set",
-      "is_string"
+      "is_string",
+      "type_name"
     ],
     "units": [
       "units.parse",
@@ -12531,7 +12532,8 @@
   "type_name": {
     "args": [
       {
-        "type": "any\u003cany\u003e"
+        "name": "x",
+        "type": "any"
       }
     ],
     "available": [
@@ -12600,8 +12602,11 @@
       "v0.42.2",
       "edge"
     ],
+    "description": "Returns the type of its input value.",
     "introduced": "v0.17.0",
     "result": {
+      "description": "one of \"null\", \"boolean\", \"number\", \"string\", \"array\", \"object\", \"set\"",
+      "name": "type",
       "type": "string"
     },
     "wasm": true
