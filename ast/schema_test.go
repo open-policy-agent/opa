@@ -1,3 +1,7 @@
+// Copyright 2021 The OPA Authors.  All rights reserved.
+// Use of this source code is governed by an Apache2
+// license that can be found in the LICENSE file.
+
 package ast
 
 import (
@@ -574,3 +578,1045 @@ func kubeSchemaServer(t *testing.T) *httptest.Server {
 	}))
 	return ts
 }
+
+func TestCompilerCheckTypesWithSchema(t *testing.T) {
+	c := NewCompiler()
+	var schema interface{}
+	err := util.Unmarshal([]byte(objectSchema), &schema)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, schema)
+	c.WithSchemas(schemaSet)
+	compileStages(c, c.checkTypes)
+	assertNotFailed(t, c)
+}
+
+func TestCompilerCheckTypesWithRegexPatternInSchema(t *testing.T) {
+	c := NewCompiler()
+	var schema interface{}
+	// Negative lookahead is not supported in the Go regex dialect, but this is still a valid
+	// JSON schema. Since we don't rely on the "pattern" attribute for type checking, ensure
+	// that this still works (by being ignored)
+	err := util.Unmarshal([]byte(`{
+		"properties": {
+			"name": {
+				"pattern": "^(?!testing:.*)[a-z]+$",
+				"type": "string"
+			}
+		}
+	}`), &schema)
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, schema)
+	c.WithSchemas(schemaSet)
+	compileStages(c, c.checkTypes)
+	assertNotFailed(t, c)
+}
+
+func TestCompilerCheckTypesWithAllOfSchema(t *testing.T) {
+
+	tests := []struct {
+		note          string
+		schema        string
+		expectedError error
+	}{
+		{
+			note:          "allOf with mergeable Object types in schema",
+			schema:        allOfObjectSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema",
+			schema:        allOfArraySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf without a parent schema",
+			schema:        allOfSchemaParentVariation,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with empty schema",
+			schema:        emptySchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array of Object types in schema",
+			schema:        allOfArrayOfObjects,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object types in schema with type declaration missing",
+			schema:        allOfObjectMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with Array of mergeable different types in schema",
+			schema:        allOfArrayDifTypes,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Object containing Array types in schema",
+			schema:        allOfArrayInsideObject,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types in schema with type declaration missing",
+			schema:        allOfArrayMissing,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable types inside of core schema",
+			schema:        allOfInsideCoreSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable String types in schema",
+			schema:        allOfStringSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Integer types in schema",
+			schema:        allOfIntegerSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Boolean types in schema",
+			schema:        allOfBooleanSchema,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf with mergeable Array types with uneven numbers of items",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable Array of Arrays",
+			schema:        allOfArrayOfArrays,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array and Object types as siblings",
+			schema:        allOfObjectAndArray,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with Array type that contains different unmergeable types",
+			schema:        allOfArrayDifTypesWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema with different unmergeable types",
+			schema:        allOfTypeErrorSchema,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf unmergeable schema with different parent and items types",
+			schema:        allOfSchemaWithParentError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+		{
+			note:          "allOf schema of Array type with uneven numbers of items to merge",
+			schema:        allOfSchemaWithUnevenArray,
+			expectedError: nil,
+		},
+		{
+			note:          "allOf schema with unmergeable types String and Boolean",
+			schema:        allOfStringSchemaWithError,
+			expectedError: fmt.Errorf("unable to merge these schemas"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			var schema interface{}
+			err := util.Unmarshal([]byte(tc.schema), &schema)
+			if err != nil {
+				t.Fatal("Unexpected error:", err)
+			}
+			schemaSet := NewSchemaSet()
+			schemaSet.Put(SchemaRootRef, schema)
+			c.WithSchemas(schemaSet)
+			compileStages(c, c.checkTypes)
+			if tc.expectedError != nil {
+				if errors.Is(c.Errors, tc.expectedError) {
+					t.Fatal("Unexpected error:", err)
+				}
+			} else {
+				assertNotFailed(t, c)
+			}
+		})
+	}
+}
+
+func TestWithSchema(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, objectSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("WithSchema did not set the schema correctly in the compiler")
+	}
+}
+
+func TestAnyOfObjectSchema1(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfExtendCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf outside core schema")
+	}
+}
+
+func TestAnyOfObjectSchema2(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfInsideCoreSchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf inside core schema")
+	}
+}
+
+func TestAnyOfArraySchema(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArraySchema)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf")
+	}
+}
+
+func TestAnyOfObjectMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfObjectMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object type schema with anyOf where one of the props did not explicitly claim type")
+	}
+}
+
+func TestAnyOfArrayMissing(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, anyOfArrayMissing)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
+	}
+}
+
+const objectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"foo",
+		"b"
+	],
+	"properties": {
+		"foo": {
+			"$id": "#/properties/foo",
+			"type": "string",
+			"title": "The foo schema",
+			"description": "An explanation about the purpose of this instance."
+		},
+		"b": {
+			"$id": "#/properties/b",
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"additionalItems": false,
+			"items": {
+				"$id": "#/properties/b/items",
+				"type": "object",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance.",
+				"required": [
+					"a",
+					"b",
+					"c"
+				],
+				"properties": {
+					"a": {
+						"$id": "#/properties/b/items/properties/a",
+						"type": "integer",
+						"title": "The a schema",
+						"description": "An explanation about the purpose of this instance."
+					},
+					"b": {
+						"$id": "#/properties/b/items/properties/b",
+						"type": "array",
+						"title": "The b schema",
+						"description": "An explanation about the purpose of this instance.",
+						"additionalItems": false,
+						"items": {
+							"$id": "#/properties/b/items/properties/b/items",
+							"type": "integer",
+							"title": "The items schema",
+							"description": "An explanation about the purpose of this instance."
+						}
+					},
+					"c": {
+						"$id": "#/properties/b/items/properties/c",
+						"type": "null",
+						"title": "The c schema",
+						"description": "An explanation about the purpose of this instance."
+					}
+				},
+				"additionalProperties": false
+			}
+		}
+	},
+	"additionalProperties": false
+}`
+
+const arrayNoItemsSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"b"
+	],
+	"properties": {
+		"b": {
+			"$id": "#/properties/b",
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"additionalItems": true
+		}
+	},
+	"additionalProperties": false
+}`
+
+const noChildrenObjectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"additionalProperties": true
+}`
+
+const untypedFieldObjectSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"foo"
+	],
+	"properties": {
+		"foo": {
+			"$id": "#/properties/foo"
+		}
+	},
+	"additionalProperties": false
+}`
+
+const booleanSchema = `{
+	"$schema": "http://json-schema.org/draft-07/schema",
+	"$id": "http://example.com/example.json",
+	"type": "object",
+	"title": "The root schema",
+	"description": "The root schema comprises the entire JSON document.",
+	"required": [
+		"a"
+	],
+	"properties": {
+		"a": {
+			"$id": "#/properties/foo",
+			"type": "boolean",
+			"title": "The foo schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+	},
+	"additionalProperties": false
+}`
+
+const refSchema = `
+{
+    "description": "Pod is a collection of containers that can run on a host. This resource is created by clients and scheduled onto hosts.",
+	"type": "object",
+	"properties": {
+      "apiVersion": {
+        "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+        "type": [
+          "string",
+          "null"
+        ]
+	  },
+
+      "kind": {
+        "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "Pod"
+        ]
+      },
+      "metadata": {
+        "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+        "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+	  }
+	}
+}
+`
+const podSchema = `
+{
+    "description": "Pod is a collection of containers that can run on a host. This resource is created by clients and scheduled onto hosts.",
+    "properties": {
+      "apiVersion": {
+        "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "kind": {
+        "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "Pod"
+        ]
+      },
+      "metadata": {
+        "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+        "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+      },
+      "spec": {
+        "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSpec",
+        "description": "Specification of the desired behavior of the pod. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status"
+      },
+      "status": {
+        "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodStatus",
+        "description": "Most recently observed status of the pod. This data may not be up to date. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status"
+      }
+    },
+    "type": "object",
+    "x-kubernetes-group-version-kind": [
+      {
+        "group": "",
+        "kind": "Pod",
+        "version": "v1"
+      }
+    ],
+    "$schema": "http://json-schema.org/schema#"
+  }`
+
+const anyOfArraySchema = `{
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "object",
+						"properties": {
+							"age": { "type": "integer" },
+							"name": {"type": "string"}
+						}
+					},{
+						"type": "object",
+						"properties": {
+							"personality": { "type": "string" },
+							"nickname": { "type": "string"  }
+						}
+					}
+				]
+			}
+		}
+	}
+}`
+
+const anyOfExtendCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"type": "object",
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfObjectSchema = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "My schema",
+    "properties": {
+        "AddressLine1": { "type": "string" },
+        "AddressLine2": { "type": "string" },
+        "City":         { "type": "string" }
+    },
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const allOfArraySchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "integer",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance."
+	},
+	"allOf": [
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		},
+		{
+		"type": "array",
+		"title": "The b schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+		}
+	]
+}`
+
+const allOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+}`
+
+const emptySchema = `{
+	"allof" : []
+ }`
+
+const allOfArrayOfArrays = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "array",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"items": {
+			"type": "integer",
+			"title": "The items schema",
+			"description": "An explanation about the purpose of this instance."
+		}
+	},
+	"allOf": [{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "array",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance.",
+				"items": {
+					"type": "integer",
+					"title": "The items schema",
+					"description": "An explanation about the purpose of this instance."
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		}
+	]
+}`
+
+const anyOfInsideCoreSchema = ` {
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"anyOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "number", "minimum": 0 }
+			  ]
+		}
+	}
+}`
+
+const anyOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"anyOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfArrayOfObjects = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"items": {
+		"type": "object",
+		"title": "The items schema",
+		"description": "An explanation about the purpose of this instance.",
+		"properties": {
+			"State": {
+				"type": "string"
+			},
+			"ZipCode": {
+				"type": "string"
+			}
+		},
+		"allOf": [{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"County": {
+						"type": "string"
+					},
+					"PostCode": {
+						"type": "string"
+					}
+				}
+			},
+			{
+				"type": "object",
+				"title": "The b schema",
+				"description": "An explanation about the purpose of this instance.",
+				"properties": {
+					"Street": {
+						"type": "string"
+					},
+					"House": {
+						"type": "string"
+					}
+				}
+			}
+		]
+	}
+}`
+
+const allOfObjectAndArray = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "object",
+	"title": "My schema",
+	"properties": {
+		"AddressLine1": {
+			"type": "string"
+		},
+		"AddressLine2": {
+			"type": "string"
+		},
+		"City": {
+			"type": "string"
+		}
+	},
+	"allOf": [{
+			"type": "object",
+			"properties": {
+				"State": {
+					"type": "string"
+				},
+				"ZipCode": {
+					"type": "string"
+				}
+			}
+		},
+		{
+			"type": "array",
+			"title": "The b schema",
+			"description": "An explanation about the purpose of this instance.",
+			"items": {
+				"type": "integer",
+				"title": "The items schema",
+				"description": "An explanation about the purpose of this instance."
+			}
+		}
+	]
+}`
+
+const allOfObjectMissing = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" }
+	},
+	"allOf": [
+		{
+			"type": "object",
+			"properties": {
+				"State":   { "type": "string" },
+				"ZipCode": { "type": "string" }
+			}
+		},
+		{
+			"properties": {
+				"County":   { "type": "string" },
+				"PostCode": { "type": "integer" }
+			}
+		}
+	]
+}`
+
+const allOfArrayDifTypes = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfArrayInsideObject = `{
+	"type": "object",
+	"properties": {
+		"familyMembers": {
+			"type": "array",
+			"items": {
+				"allOf": [{
+					"type": "object",
+					"properties": {
+						"age": {
+							"type": "integer"
+						},
+						"name": {
+							"type": "string"
+						}
+					}
+				}, {
+					"type": "object",
+					"properties": {
+						"personality": {
+							"type": "string"
+						},
+						"nickname": {
+							"type": "string"
+						}
+					}
+				}]
+			}
+		}
+	}
+}`
+
+const anyOfArrayMissing = `{
+	"type": "array",
+	"anyOf": [
+		{
+			"items": [
+				{"type": "number"},
+				{"type": "string"}]
+            },
+		{	"items": [
+				{"type": "integer"}]
+		}
+	]
+}`
+
+const allOfArrayMissing = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			}]
+		}
+	]
+}`
+
+const anyOfSchemaParentVariation = `{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "State":   { "type": "string" },
+                "ZipCode": { "type": "string" }
+            },
+        },
+        {
+            "type": "object",
+            "properties": {
+                "County":   { "type": "string" },
+                "PostCode": { "type": "string" }
+            },
+        }
+    ]
+	}
+}`
+
+const allOfInsideCoreSchema = `{
+	"type": "object",
+	"properties": {
+		"AddressLine": { "type": "string" },
+		"RandomInfo": {
+			"allOf": [
+				{ "type": "object",
+				  "properties": {
+					  "accessMe": {"type": "string"}
+				  }
+				},
+				{ "type": "object",
+					"properties": {
+						"accessYou": {"type": "string"}
+					}}
+			  ]
+		}
+	}
+}`
+
+const allOfArrayDifTypesWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "array",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "array",
+			"items": [{
+					"type": "string"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"type": "array",
+			"items": [{
+					"type": "boolean"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		}
+	]
+}`
+
+const allOfStringSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		}
+	]
+}`
+
+const allOfIntegerSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "integer",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfBooleanSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "boolean",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "boolean",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfTypeErrorSchema = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfStringSchemaWithError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "string",
+		},
+		{
+			"type": "string",
+		},
+		{
+			"type": "boolean",
+		}
+	]
+}`
+
+const allOfSchemaWithParentError = `{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "string",
+	"title": "The b schema",
+	"description": "An explanation about the purpose of this instance.",
+	"allOf": [{
+			"type": "integer",
+		},
+		{
+			"type": "integer",
+		}
+	]
+}`
+
+const allOfSchemaWithUnevenArray = `{
+	"type": "array",
+	"allOf": [{
+			"items": [{
+					"type": "integer"
+				},
+				{
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"items": [{
+				"type": "integer"
+			},
+			{
+				"type": "integer"
+			},
+			{
+				"type": "string"
+			}]
+		}
+	]
+}`
