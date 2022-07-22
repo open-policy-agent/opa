@@ -476,6 +476,40 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestTruncateDataMergeError(t *testing.T) {
+	ctx := context.Background()
+	store := NewFromObject(map[string]interface{}{})
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+	var archiveFiles = map[string]string{
+		"/a/b/data.json": `{"c": "foo"}`,
+		"/data.json":     `{"a": {"b": {"c": "bar"}}}`,
+	}
+
+	var files [][2]string
+	for name, content := range archiveFiles {
+		files = append(files, [2]string{name, content})
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	b, err := bundle.NewReader(buf).WithLazyLoadingMode(true).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterator := bundle.NewIterator(b.Raw)
+
+	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	if err == nil {
+		t.Fatal("Expected truncate error but got nil")
+	}
+
+	expected := "failed to insert data file from path a/b"
+	if err.Error() != expected {
+		t.Fatalf("Expected error %v but got %v", expected, err.Error())
+	}
+}
+
 func TestTruncateBadRootWrite(t *testing.T) {
 	ctx := context.Background()
 	store := NewFromObject(map[string]interface{}{})

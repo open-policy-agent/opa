@@ -81,6 +81,14 @@ production users that have added themselves (in alphabetical order):
   RBAC, PV, and Quota resources that are central to the security and operation of
   these clusters. For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=lYHr_UaHsYQ).
 
+* [Google Cloud](https://cloud.google.com/) uses OPA to validate Google Cloud
+  product's configurations in several products and tools, including
+  [Anthos Config Management](https://cloud.google.com/anthos/config-management),
+  [GKE Policy Automation](https://github.com/google/gke-policy-automation) or
+  [Config Validator](https://github.com/GoogleCloudPlatform/policy-library). See
+  [Creating policy-compliant Google Cloud resources article](https://cloud.google.com/architecture/policy-compliant-resources)
+  for example use cases.
+
 * [Infracost](https://www.infracost.io/) shows cloud cost estimates for Terraform.
   It uses OPA to enable users to create cost policies, and setup guardrails such
   as "this change puts the monthly costs above $10K, which is the budget for this
