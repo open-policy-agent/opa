@@ -215,6 +215,64 @@ func TestCompilerLoadFilesystem(t *testing.T) {
 	})
 }
 
+func TestCompilerLoadFilesystemWithEnablePrintStatementsFalse(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+
+                        allow { print(1) }
+		`,
+		"data.json": `
+			{"b1": {"k": "v"}}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		compiler := New().
+			WithPaths(root).
+			WithTarget("plan").WithEntrypoints("test/allow").
+			WithEnablePrintStatements(false)
+
+		if err := compiler.Build(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		bundle := compiler.Bundle()
+
+		if strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
+			t.Fatalf("output different than expected:\n\ngot: %v\n\nfound: internal.print", string(bundle.PlanModules[0].Raw))
+		}
+	})
+}
+
+func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+
+                        allow { print(1) }
+		`,
+		"data.json": `
+			{"b1": {"k": "v"}}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		compiler := New().
+			WithPaths(root).
+			WithTarget("plan").WithEntrypoints("test/allow").
+			WithEnablePrintStatements(true)
+
+		if err := compiler.Build(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		bundle := compiler.Bundle()
+
+		if !strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
+			t.Fatalf("output different than expected:\n\ngot: %v\n\nmissing: internal.print", string(bundle.PlanModules[0].Raw))
+		}
+	})
+}
+
 func TestCompilerLoadHonorsFilter(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
