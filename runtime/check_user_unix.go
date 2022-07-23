@@ -1,3 +1,5 @@
+// +build !linux,!windows
+
 // Copyright 2022 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
@@ -10,7 +12,7 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 )
 
-// checkUserPrivileges on macos could not be running in Docker, so we only warn
+// checkUserPrivileges could not be running in Docker, so we only warn
 // if run as uid/gid 0.
 func checkUserPrivileges(logger logging.Logger) {
 	usr, err := user.Current()
