@@ -77,7 +77,7 @@ update_capabilities() {
 }
 
 update_metadata() {
-    cp $SOURCE_URL/builtin_metadata.json $OPA_DIR
+    make generate
     git add --intent-to-add builtin_metadata.json
 }
 
