@@ -1827,6 +1827,100 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "copy propagation: circular reference (bug 3559)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					q[_]
+				}
+				q[x] {
+					x = input[x]
+				}`,
+			},
+			wantQueries: []string{`x_term_1_01; x_term_1_01 = input[x_term_1_01]`},
+		},
+		{
+			note:  "copy propagation: circular reference (bug 3071)",
+			query: "data.test.p",
+			modules: []string{`package test
+				p[y] {
+					s := { i | input[i] }
+					s & set() != s
+					y := sprintf("%v", [s])
+				}`,
+			},
+			wantQueries: []string{`data.partial.test.p`},
+			wantSupport: []string{`package partial.test
+				p[__local1__1] { __local0__1 = {i1 | input[i1]}; neq(and(__local0__1, set()), __local0__1); sprintf("%v", [__local0__1], __local1__1) }
+			`},
+		},
+		{
+			note:        "copy propagation: tautology in query, input ref",
+			query:       "input.a == input.a",
+			wantQueries: []string{`__localq1__ = input.a`},
+		},
+		{
+			note:        "copy propagation: tautology in query, var ref, var is input",
+			query:       "x := input; x.a == x.a",
+			wantQueries: []string{`__localq2__ = input.a`},
+		},
+		{
+			note:  "copy propagation: tautology, input ref",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					input.a == input.a
+				}`,
+			},
+			wantQueries: []string{`__localcp0__ = input.a`},
+		},
+		{
+			note:  "copy propagation: tautology, var ref, ref is input",
+			query: "data.test.p",
+			modules: []string{`package test
+				p {
+					x := input
+					x.a == x.a
+				}`,
+			},
+			wantQueries: []string{`__localcp0__ = input.a`},
+		},
+		{
+			note:     "copy propagation: tautology, var ref, ref is unknown data",
+			query:    "data.test.p",
+			unknowns: []string{"data.bar.foo"},
+			modules: []string{`package test
+				p {
+					data.bar.foo.a == data.bar.foo.a
+				}`,
+			},
+			wantQueries: []string{`__localcp0__ = data.bar.foo.a`},
+		},
+		{
+			note: "copy propagation: tautology, var ref, ref is input, via unknown",
+			// NOTE(sr): If we were having unkowns: [input.foo] and the rule body was
+			// input.a == input.a, we'd never reach copy-propagation -- partial eval would
+			// have failed before.
+			query:    "data.test.p",
+			unknowns: []string{"input"},
+			modules: []string{`package test
+				p {
+					input.foo.a == input.foo.a
+				}`,
+			},
+			wantQueries: []string{`__localcp0__ = input.foo.a`},
+		},
+		{
+			note:  "copy propagation: tautology, var ref, ref is head var",
+			query: "data.test.p(input)",
+			modules: []string{`package test
+				p(x) {
+					x.a == x.a
+				}`,
+			},
+			wantQueries: []string{`__localcp1__ = input.a`},
+		},
+		{
 			note:  "save set vars are namespaced",
 			query: "input = x; data.test.f(1)",
 			modules: []string{
@@ -2985,7 +3079,12 @@ func TestTopDownPartialEval(t *testing.T) {
 					x = true
 				}`,
 			},
-			wantQueries: []string{"a1 = input.foo1; b1 = input.foo2; c1 = input.foo3; d1 = input.foo4; e1 = input.foo5"},
+			wantQueries: []string{`
+				e1 = input.foo5
+				d1 = input.foo4
+				c1 = input.foo3
+				b1 = input.foo2
+				a1 = input.foo1`},
 		},
 		{
 			note:  "partial object rules not memoized",
@@ -3053,34 +3152,6 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			shallow:              true,
 			skipPartialNamespace: true,
-		},
-		{
-			note:  "copypropagation: circular reference (bug 3559)",
-			query: "data.test.p",
-			modules: []string{`package test
-				p {
-					q[_]
-				}
-				q[x] {
-					x = input[x]
-				}`,
-			},
-			wantQueries: []string{`x_term_1_01; x_term_1_01 = input[x_term_1_01]`},
-		},
-		{
-			note:  "copypropagation: circular reference (bug 3071)",
-			query: "data.test.p",
-			modules: []string{`package test
-				p[y] {
-					s := { i | input[i] }
-					s & set() != s
-					y := sprintf("%v", [s])
-				}`,
-			},
-			wantQueries: []string{`data.partial.test.p`},
-			wantSupport: []string{`package partial.test
-				p[__local1__1] { __local0__1 = {i1 | input[i1]}; neq(and(__local0__1, set()), __local0__1); sprintf("%v", [__local0__1], __local1__1) }
-			`},
 		},
 		{
 			note:  "every: empty domain, no unknowns",

@@ -2147,9 +2147,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 
 	var unknowns []*ast.Term
 
-	if ectx.parsedUnknowns != nil {
+	switch {
+	case ectx.parsedUnknowns != nil:
 		unknowns = ectx.parsedUnknowns
-	} else if ectx.unknowns != nil {
+	case ectx.unknowns != nil:
 		unknowns = make([]*ast.Term, len(ectx.unknowns))
 		for i := range ectx.unknowns {
 			var err error
@@ -2158,7 +2159,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 				return nil, err
 			}
 		}
-	} else {
+	default:
 		// Use input document as unknown if caller has not specified any.
 		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
 	}
