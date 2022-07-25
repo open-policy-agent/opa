@@ -249,7 +249,7 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# github.com/vektah/gqlparser/v2 v2.4.6
+# github.com/vektah/gqlparser/v2 v2.4.7
 ## explicit
 github.com/vektah/gqlparser/v2
 github.com/vektah/gqlparser/v2/ast
