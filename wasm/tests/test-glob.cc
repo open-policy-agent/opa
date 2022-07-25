@@ -234,6 +234,7 @@ void test_glob_translate()
         for (int i = 0; i < sizeof(delimiters)/sizeof(const char*); i++) { \
             v.push_back(delimiters[i]);                                 \
         }                                                               \
+        if (v.empty()) { v.push_back(std::string(".")); }               \
         glob_translate(pattern, strlen(pattern), v, &re2);              \
         test_str_eq(test_case, expected, re2.c_str());                  \
         re2::RE2::Options options;                                      \
