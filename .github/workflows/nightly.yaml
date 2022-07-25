@@ -77,8 +77,29 @@ jobs:
           status: ${{ job.status }}
           fields: repo,workflow
 
-  trivy-scan:
-    name: Trivy security scan
+  trivy-scan-image:
+    name: Trivy security scan image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code # needed for .trivyignore file
+        uses: actions/checkout@v3
+
+      - run: "docker pull openpolicyagent/opa:edge-static"
+
+      # Equivalent to:
+      # $ trivy image openpolicyagent/opa:edge-static
+      - name: Run Trivy scan on image
+        uses: aquasecurity/trivy-action@0.6.0
+        with:
+          image-ref: 'openpolicyagent/opa:edge-static'
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+  trivy-scan-repo:
+    name: Trivy security scan repo
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -93,16 +114,5 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
-          severity: CRITICAL,HIGH
-
-      # Equivalent to:
-      # $ trivy image openpolicyagent/opa:edge
-      - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@0.6.0
-        with:
-          image-ref: 'openpolicyagent/opa:edge'
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
+          skip-dirs: vendor/ # don't check go deps' go.mod files
           severity: CRITICAL,HIGH
