@@ -19,6 +19,7 @@ integrations:
       - https://docs.styra.com/tutorials/ssh/introduction
       - https://docs.styra.com/tutorials/terraform/introduction
       - https://docs.styra.com/tutorials/entitlements/introduction
+      - https://academy.styra.com/courses/opa-rego
     code:
       - https://github.com/StyraInc/das-opa-samples
       - https://github.com/StyraInc/example-policy-management
@@ -29,6 +30,20 @@ integrations:
       - https://blog.styra.com/blog/six-of-my-favorite-styra-declarative-authorization-service-das-features
       - https://blog.styra.com/blog/styra-declarative-authorization-service-expands-service-mesh-use-case
       - https://blog.styra.com/blog/opa-styra-terraform-protect-your-cloud-investment
+      - https://www.styra.com/blog/how-to-write-your-first-rules-in-rego-the-policy-language-for-opa
+    videos:
+      - title: "Securing Microservices-Based Apps with Dynamic Traffic Authz"
+        speakers:
+          - name: Kurt Roekle
+            organization: styra
+        venue: online
+        link: https://www.youtube.com/watch?v=9F-Zyn9j25g
+      - title: "Policy Management Across the Cloud-Native Stack: Styra DAS for Terraform"
+        speakers:
+          - name: Kurt Roekle
+            organization: styra
+        venue: online
+        link: https://www.youtube.com/watch?v=3K0RqIvNfAc
 
   aws-cloudformation-hook:
     title: AWS CloudFormation Hook
@@ -1348,14 +1363,14 @@ integrations:
 
   rond:
     title: Rönd
-    description: | 
+    description: |
       Rönd is a lightweight container that distributes security policy enforcement throughout your application.
     software:
       - rond
     labels:
       category: authorization
       layer: application
-    code: 
+    code:
       - https://github.com/rond-authz/rond
     inventors:
       - mia-platform
