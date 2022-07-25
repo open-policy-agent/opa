@@ -32,7 +32,7 @@ func builtinGlobMatch(a, b, c ast.Value) (ast.Value, error) {
 			delimiters = []rune{'.'}
 		}
 	default:
-		delimiters = []rune{}
+		return nil, builtins.NewOperandTypeErr(2, b, "array", "null")
 	}
 	match, err := builtins.StringOperand(c, 3)
 	if err != nil {
