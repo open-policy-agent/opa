@@ -21,7 +21,7 @@ cases:
     p[x] {
       glob.match("foo*", null, "foo.bar", x)
     }
-  note: globmatch/glob match single without default delimiter
+  note: globmatch/glob match single without default delimiter, glob non-empty
   query: data.generated.p = x
   sort_bindings: true
   want_result:
