@@ -3679,7 +3679,7 @@
       {
         "description": "glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset.",
         "name": "delimiters",
-        "type": "array[string]"
+        "type": "any\u003cnull, array[string]\u003e"
       },
       {
         "name": "match",
