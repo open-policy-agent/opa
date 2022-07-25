@@ -128,7 +128,7 @@ std::string glob_translate(const char *glob, size_t n, const std::vector<std::st
 
     if (delimiters.empty())
     {
-        single_mark = "[^\\.]";
+        single_mark = ".";
     } else {
         single_mark = "[^";
 
