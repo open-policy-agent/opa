@@ -894,10 +894,18 @@
             "type": "string"
           },
           {
-            "dynamic": {
-              "type": "string"
-            },
-            "type": "array"
+            "of": [
+              {
+                "type": "null"
+              },
+              {
+                "dynamic": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "type": "any"
           },
           {
             "type": "string"
