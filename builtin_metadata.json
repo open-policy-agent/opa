@@ -3677,9 +3677,9 @@
         "type": "string"
       },
       {
-        "description": "glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset.",
+        "description": "glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset. If `delimiters` is `null`, glob match without delimiter.",
         "name": "delimiters",
-        "type": "array[string]"
+        "type": "any\u003cnull, array[string]\u003e"
       },
       {
         "name": "match",

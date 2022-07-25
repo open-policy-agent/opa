@@ -2604,7 +2604,10 @@ var GlobMatch = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("pattern", types.S),
-			types.Named("delimiters", types.NewArray(nil, types.S)).Description("glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset."),
+			types.Named("delimiters", types.NewAny(
+				types.NewArray(nil, types.S),
+				types.NewNull(),
+			)).Description("glob pattern delimiters, e.g. `[\".\", \":\"]`, defaults to `[\".\"]` if unset. If `delimiters` is `null`, glob match without delimiter."),
 			types.Named("match", types.S),
 		),
 		types.Named("result", types.B).Description("true if `match` can be found in `pattern` which is separated by `delimiters`"),
