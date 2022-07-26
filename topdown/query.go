@@ -340,6 +340,14 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	defer q.metrics.Timer(metrics.RegoPartialEval).Stop()
 
 	livevars := ast.NewVarSet()
+	for _, t := range q.unknowns {
+		switch v := t.Value.(type) {
+		case ast.Var:
+			livevars.Add(v)
+		case ast.Ref:
+			livevars.Add(v[0].Value.(ast.Var))
+		}
+	}
 
 	ast.WalkVars(q.query, func(x ast.Var) bool {
 		if !x.IsGenerated() {
