@@ -168,16 +168,6 @@ clean: wasm-lib-clean
 fuzz:
 	go test ./ast -fuzz FuzzParseStatementsAndCompileModules -fuzztime ${FUZZ_TIME} -v -run '^$$'
 
-.PHONY: update-builtin-metadata-release
-update-builtin-metadata-release:
-	build/update-version.sh "$(VERSION)"
-	make generate
-
-.PHONY: update-builtin-metadata-dev
-update-builtin-metadata-dev:
-	build/update-version.sh "$(VERSION)-dev"
-	make generate
-
 ######################################################
 #
 # Documentation targets
@@ -488,7 +478,7 @@ check-go-module:
 ######################################################
 
 .PHONY: release-patch
-release-patch: update-builtin-metadata-release
+release-patch:
 ifeq ($(GITHUB_TOKEN),)
 	@echo "\033[0;31mGITHUB_TOKEN environment variable missing.\033[33m Provide a GitHub Personal Access Token (PAT) with the 'read:org' scope.\033[0m"
 endif
@@ -496,14 +486,14 @@ endif
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
 		-v $(PWD):/_src \
-		python:2.7 \
+		cmd.cat/make/git/go/python2/perl \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
-dev-patch: update-builtin-metadata-dev
+dev-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-v $(PWD):/_src \
-		python:2.7 \
+		cmd.cat/make/git/go/python2/perl \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
