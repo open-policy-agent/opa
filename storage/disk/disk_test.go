@@ -220,20 +220,15 @@ func runTruncateTest(t *testing.T, dir string) {
 		t.Fatalf("Unexpected truncate error: %v", err)
 	}
 
-	// check if symlink is created
-	symlink := filepath.Join(dir, symlinkKey)
-	_, err = os.Lstat(symlink)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// check symlink target
-	_, err = filepath.EvalSymlinks(symlink)
-	if err != nil {
-		t.Fatalf("eval symlinks: %v", err)
-	}
-
 	if err := s.Commit(ctx, txn); err != nil {
 		t.Fatalf("Unexpected commit error: %v", err)
+	}
+
+	// check symlink not created
+	symlink := filepath.Join(dir, symlinkKey)
+	_, err = os.Lstat(symlink)
+	if err == nil {
+		t.Fatal("Expected error but got nil")
 	}
 
 	txn = storage.NewTransactionOrDie(ctx, s)

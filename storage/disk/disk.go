@@ -105,6 +105,7 @@ type Store struct {
 	triggers   map[*handle]struct{} // registered triggers
 	gcTicker   *time.Ticker         // gc ticker
 	close      chan struct{}        // close-only channel for stopping the GC goroutine
+	backupDB   *badger.DB           // backup of the underlying key-value store
 }
 
 const (
@@ -251,17 +252,30 @@ func (db *Store) NewTransaction(ctx context.Context, params ...storage.Transacti
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
 func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
-	var err error
 
-	newDB, backupDir, err := db.backupAndLoadDB()
+	// backup the existing store
+	currentDB, err := db.backupAndLoadDB()
 	if err != nil {
 		return wrapError(err)
 	}
 
-	// write new bundle policy and data into the new DB
-	underlying := newDB.NewTransaction(true)
+	db.backupDB = currentDB
+
+	// commit in-flight txn on the existing store
+	uTxn, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+
+	_, err = uTxn.Commit(ctx)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	// write new bundle policy and data into the existing DB
+	underlying := db.db.NewTransaction(true)
 	xid := atomic.AddUint64(&db.xid, uint64(1))
-	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, nil)
+	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
 	if params.RootOverwrite {
 		newPath, ok := storage.ParsePathEscaped("/")
@@ -269,7 +283,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 			return fmt.Errorf("storage path invalid: %v", newPath)
 		}
 
-		sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, map[string]interface{}{})
+		sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, map[string]interface{}{})
 		if err != nil {
 			return wrapError(err)
 		}
@@ -303,9 +317,9 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 					return wrapError(err)
 				}
 
-				underlying = newDB.NewTransaction(true)
+				underlying = db.db.NewTransaction(true)
 				xid = atomic.AddUint64(&db.xid, uint64(1))
-				underlyingTxn = newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, nil)
+				underlyingTxn = newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
 				if err = underlyingTxn.UpsertPolicy(ctx, strings.TrimLeft(update.Path.String(), "/"), update.Value); err != nil {
 					return wrapError(err)
@@ -313,7 +327,7 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 			}
 		} else {
 			if len(update.Path) > 0 {
-				sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, update.Path, update.Value)
+				sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, update.Path, update.Value)
 				if err != nil {
 					return wrapError(err)
 				}
@@ -336,11 +350,11 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 						return fmt.Errorf("storage path invalid: %v", newPath)
 					}
 
-					if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+					if err := storage.MakeDir(ctx, db, underlyingTxn, newPath[:len(newPath)-1]); err != nil {
 						return err
 					}
 
-					sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, obj[k])
+					sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, obj[k])
 					if err != nil {
 						return wrapError(err)
 					}
@@ -357,45 +371,18 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		return wrapError(err)
 	}
 
-	// commit active transaction on new store
+	// commit active transaction on existing store
 	_, err = underlyingTxn.Commit(ctx)
 	if err != nil {
 		return wrapError(err)
 	}
 
-	db.rmu.Lock()
-
-	// update symlink to point to the active db
-	symlink := filepath.Join(path.Dir(newDB.Opts().Dir), symlinkKey)
-	// "active" -> "backupXXXX" is what we want, not
-	// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
-	target := filepath.Base(newDB.Opts().Dir)
-
-	err = createSymlink(target, symlink)
-	if err != nil {
-		db.rmu.Unlock()
-		return wrapError(err)
-	}
-
-	// swap db
-	oldDb := db.db
-	db.db = newDB
-
-	// replace transaction on old badger store with new one
-	uTxn, err := db.underlying(txn)
-	if err != nil {
-		db.rmu.Unlock()
-		return err
-	}
-
-	uTxn.Abort(ctx)
-
+	// Open write txn on the existing store in-case there are more write operations.
+	// The caller will either commit or abort this transaction
 	uTxn.stale = false
-	uTxn.underlying = newDB.NewTransaction(true)
+	uTxn.underlying = db.db.NewTransaction(true)
 
-	db.rmu.Unlock()
-
-	return wrapError(db.cleanup(oldDb, backupDir))
+	return nil
 }
 
 func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, badgerdb *badger.DB,
@@ -414,7 +401,7 @@ func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, ba
 
 		txn := badgerdb.NewTransaction(true)
 		xid := atomic.AddUint64(&db.xid, uint64(1))
-		sTxn := newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, nil)
+		sTxn := newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, db)
 
 		if err = sTxn.Write(ctx, storage.AddOp, path, value); err != nil {
 			return nil, wrapError(err)
@@ -426,29 +413,29 @@ func (db *Store) doTruncateData(ctx context.Context, underlying *transaction, ba
 	return nil, nil
 }
 
-func (db *Store) backupAndLoadDB() (*badger.DB, string, error) {
+func (db *Store) backupAndLoadDB() (*badger.DB, error) {
 	currDir := db.db.Opts().Dir
 
 	// backup db
 	backupDir, err := ioutil.TempDir(path.Dir(currDir), "backup")
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
 	bak, err := ioutil.TempFile(backupDir, "badgerbak")
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
 	_, err = db.db.Backup(bak, 0)
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
 	// restore db
 	newDBDir, err := ioutil.TempDir(path.Dir(currDir), "backup")
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
 	opts := db.db.Opts().WithDir(newDBDir).WithValueDir(newDBDir)
@@ -456,35 +443,30 @@ func (db *Store) backupAndLoadDB() (*badger.DB, string, error) {
 	// open new db
 	newDB, err := badger.Open(opts)
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
 	bak, err = os.Open(bak.Name())
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer bak.Close()
 
 	err = newDB.Load(bak, 16)
 	if err != nil {
-		return nil, "", wrapError(err)
+		return nil, wrapError(err)
 	}
 
-	return newDB, backupDir, nil
+	return newDB, wrapError(os.RemoveAll(backupDir))
 }
 
-func (db *Store) cleanup(oldDB *badger.DB, backupDir string) error {
+func (db *Store) cleanup(oldDB *badger.DB) error {
 	err := oldDB.Close()
 	if err != nil {
 		return wrapError(err)
 	}
 
-	err = os.RemoveAll(oldDB.Opts().Dir)
-	if err != nil {
-		return wrapError(err)
-	}
-
-	return wrapError(os.RemoveAll(backupDir))
+	return wrapError(os.RemoveAll(oldDB.Opts().Dir))
 }
 
 // Commit implements the storage.Store interface.
@@ -506,6 +488,15 @@ func (db *Store) Commit(ctx context.Context, txn storage.Transaction) error {
 		for h := range db.triggers {
 			h.cb(ctx, readTxn, event)
 		}
+
+		// cleanup backup db
+		if db.backupDB != nil {
+			if err := db.cleanup(db.backupDB); err != nil {
+				panic(err)
+			}
+			db.backupDB = nil
+		}
+
 		db.rmu.Unlock()
 		db.wmu.Unlock()
 	} else { // committing read txn
@@ -522,7 +513,35 @@ func (db *Store) Abort(ctx context.Context, txn storage.Transaction) {
 		panic(err)
 	}
 	underlying.Abort(ctx)
+
 	if underlying.write {
+
+		if db.backupDB != nil {
+			db.rmu.Lock()
+
+			// update symlink to point to the backup db
+			symlink := filepath.Join(path.Dir(db.backupDB.Opts().Dir), symlinkKey)
+			// "active" -> "backupXXXX" is what we want, not
+			// "active" -> "DIR/backupXXX", since that won't work when using a relative directory
+			target := filepath.Base(db.backupDB.Opts().Dir)
+
+			err = createSymlink(target, symlink)
+			if err != nil {
+				panic(err)
+			}
+
+			// swap db
+			oldDb := db.db
+			db.db = db.backupDB
+
+			// cleanup existing db
+			if err := db.cleanup(oldDb); err != nil {
+				panic(err)
+			}
+
+			db.rmu.Unlock()
+		}
+
 		db.wmu.Unlock()
 	} else {
 		db.rmu.RUnlock()
