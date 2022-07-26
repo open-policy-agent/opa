@@ -1997,10 +1997,10 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
 			head := &ast.Head{
-				Name:  rule.Head.Name,
-				Ref:   rule.Head.Ref,
-				Value: child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
-				Args:  make([]*ast.Term, len(rule.Head.Args)),
+				Name:      rule.Head.Name,
+				Reference: rule.Head.Reference,
+				Value:     child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
+				Args:      make([]*ast.Term, len(rule.Head.Args)),
 			}
 			for i, a := range rule.Head.Args {
 				head.Args[i] = child.bindings.PlugNamespaced(a, e.e.caller.bindings)
@@ -2272,9 +2272,9 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	case ast.SingleValue:
 		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
 		//           to start reworking things here
-		onlyGroundRefs := ir.Default == nil || ir.Default.Head.Ref.IsGround()
+		onlyGroundRefs := ir.Default == nil || ir.Default.Head.Reference.IsGround()
 		for i := range ir.Rules {
-			if !ir.Rules[i].Head.Ref.IsGround() {
+			if !ir.Rules[i].Head.Reference.IsGround() {
 				onlyGroundRefs = false
 			}
 		}
@@ -2677,7 +2677,7 @@ func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term
 		exists = v.Contains(key)
 		v.Add(key)
 	case ast.Object: // SingleValue
-		key := head.Ref[len(head.Ref)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
+		key := head.Reference[len(head.Reference)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
 		key = b.Plug(key)
 		value := b.Plug(head.Value)
 		if curr := v.Get(key); curr != nil {

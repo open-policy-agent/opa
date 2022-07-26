@@ -805,7 +805,7 @@ func (head *Head) String() string {
 	switch {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
-	case head.Key != nil && head.Name != "": // backcompat `p[x] { .. }`
+	case len(head.Reference) == 1 && head.Key != nil:
 		buf.WriteRune('[')
 		buf.WriteString(head.Key.String())
 		buf.WriteRune(']')
