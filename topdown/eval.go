@@ -2551,7 +2551,8 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], path)
 			if err != nil {
 				return err
-			} else if ok {
+			}
+			if ok {
 				defined = true
 			}
 		}
@@ -2844,35 +2845,50 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 	path := e.e.namespaceRef(e.plugged[:e.pos+1])
 	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
-	if !e.e.saveSupport.Exists(path) {
+	var defined bool
 
+	if e.e.saveSupport.Exists(path) {
+		defined = true
+	} else {
 		for i := range e.ir.Rules {
-			err := e.partialEvalSupportRule(e.ir.Rules[i], path)
+			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], path)
 			if err != nil {
 				return err
+			}
+			if ok {
+				defined = true
 			}
 		}
 
 		if e.ir.Default != nil {
-			err := e.partialEvalSupportRule(e.ir.Default, path)
+			ok, err := e.partialEvalSupportRule(e.ir.Default, path)
 			if err != nil {
 				return err
 			}
+			if ok {
+				defined = true
+			}
 		}
+	}
+
+	if !defined {
+		return nil
 	}
 
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
+func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) (bool, error) {
 
 	child := e.e.child(rule.Body)
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
+	var defined bool
 
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+		defined = true
 
 		current := e.e.saveStack.PopQuery()
 		plugged := current.Plug(e.e.caller.bindings)
@@ -2899,7 +2915,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 		return nil
 	})
 	e.e.saveStack.PopQuery()
-	return err
+	return defined, err
 }
 
 func (e evalVirtualComplete) evalTerm(iter unifyIterator, term *ast.Term, termbindings *bindings) error {

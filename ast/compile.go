@@ -1613,7 +1613,7 @@ func checkRuleHeadRefs(mod *Module) Errors {
 			r.Head.Reference = ref
 		}
 		// NOTE(sr): In the first iteraion, dynamic values in the refs are forbidden
-		// except for the last postion, e.g.
+		// except for the last position, e.g.
 		//     OK: p.q.r[s]
 		// NOT OK: p[q].r.s
 		if x := ref.Dynamic(); x != -1 && x != len(ref)-1 {
