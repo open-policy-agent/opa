@@ -337,7 +337,7 @@ p = 7`)
 		t.Fatal("Expected error but got nil")
 	}
 
-	errMsg := "rego_type_error: conflicting rules named p found"
+	errMsg := "rego_type_error: conflicting rules data.b.p found"
 	if !strings.Contains(err.Error(), errMsg) {
 		t.Fatalf("Expected error message %v but got %v", errMsg, err.Error())
 	}
