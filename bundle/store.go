@@ -727,6 +727,16 @@ func writeDataAndModules(ctx context.Context, store storage.Store, txn storage.T
 				}
 			}
 		} else {
+			var rootOverwrite bool
+			for _, root := range *b.Manifest.Roots {
+				if root == "" {
+					rootOverwrite = true
+					break
+				}
+			}
+
+			params.RootOverwrite = rootOverwrite
+
 			err := store.Truncate(ctx, txn, params, NewIterator(b.Raw))
 			if err != nil {
 				return fmt.Errorf("store truncate failed for bundle '%s': %v", name, err)

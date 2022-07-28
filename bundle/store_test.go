@@ -662,6 +662,752 @@ func TestBundleLazyModeLifecycle(t *testing.T) {
 	mockStore.AssertValid(t)
 }
 
+func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
+	files := [][2]string{
+		{"/a/b/c/data.json", "[1,2,3]"},
+		{"/a/b/d/data.json", "true"},
+		{"/a/b/y/data.yaml", `foo: 1`},
+		{"/example/example.rego", `package example`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/.manifest", `{"revision": "rev-1"}`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+	loader := NewTarballLoaderWithBaseURL(buf, "")
+	br := NewCustomReader(loader).WithBundleEtag("foo").WithLazyLoadingMode(true)
+
+	bundle, err := br.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	mockStore := mock.New()
+
+	compiler := ast.NewCompiler()
+	m := metrics.New()
+
+	bundles := map[string]*Bundle{
+		"bundle1": &bundle,
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err = Activate(&ActivateOpts{
+		Ctx:      ctx,
+		Store:    mockStore,
+		Txn:      txn,
+		Compiler: compiler,
+		Metrics:  m,
+		Bundles:  bundles,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Ensure the bundle was activated
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+	names, err := ReadBundleNamesFromStore(ctx, mockStore, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(names) != len(bundles) {
+		t.Fatalf("expected %d bundles in store, found %d", len(bundles), len(names))
+	}
+	for _, name := range names {
+		if _, ok := bundles[name]; !ok {
+			t.Fatalf("unexpected bundle name found in store: %s", name)
+		}
+	}
+
+	for bundleName, bundle := range bundles {
+		for modName := range bundle.ParsedModules(bundleName) {
+			if _, ok := compiler.Modules[modName]; !ok {
+				t.Fatalf("expected module %s from bundle %s to have been compiled", modName, bundleName)
+			}
+		}
+	}
+
+	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedRaw := `
+{
+	"a": {
+		"b": {
+			"c": [1,2,3],
+			"d": true,
+			"y": {
+				"foo": 1
+			},
+			"z": true
+		}
+	},
+	"x": {
+		"y": true
+	},
+	"system": {
+		"bundles": {
+			"bundle1": {
+				"manifest": {
+					"revision": "rev-1",
+					"roots": [""]
+				},
+				"etag": "foo"
+			}
+		}
+	}
+}
+`
+	expected := loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	// Stop the "read" transaction
+	mockStore.Abort(ctx, txn)
+
+	files = [][2]string{
+		{"/c/data.json", `{"hello": "world"}`},
+		{"/.manifest", `{"revision": "rev-2"}`},
+	}
+
+	buf = archive.MustWriteTarGz(files)
+	loader = NewTarballLoaderWithBaseURL(buf, "")
+	br = NewCustomReader(loader).WithBundleEtag("bar").WithLazyLoadingMode(true)
+
+	bundle, err = br.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundles = map[string]*Bundle{
+		"bundle1": &bundle,
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err = Activate(&ActivateOpts{
+		Ctx:      ctx,
+		Store:    mockStore,
+		Txn:      txn,
+		Compiler: compiler,
+		Metrics:  m,
+		Bundles:  bundles,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+
+	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedRaw = `
+      {
+         "c": {
+            "hello": "world"
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-2",
+                     "roots": [""]
+                  },
+                  "etag": "bar"
+               }
+            }
+         }
+      }`
+
+	expected = loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	// Stop the "read" transaction
+	mockStore.Abort(ctx, txn)
+
+}
+
+func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
+	ctx := context.Background()
+
+	test.WithTempFS(nil, func(dir string) {
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := ast.NewCompiler()
+		m := metrics.New()
+
+		files := [][2]string{
+			{"/a/b/c/data.json", "[1,2,3]"},
+			{"/a/b/d/data.json", "true"},
+			{"/a/b/y/data.yaml", `foo: 1`},
+			{"/example/example.rego", `package example`},
+			{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+			{"/.manifest", `{"revision": "rev-1"}`},
+		}
+
+		buf := archive.MustWriteTarGz(files)
+		loader := NewTarballLoaderWithBaseURL(buf, "")
+		br := NewCustomReader(loader).WithBundleEtag("foo").WithLazyLoadingMode(true)
+
+		bundle, err := br.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		bundles := map[string]*Bundle{
+			"bundle1": &bundle,
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+		err = Activate(&ActivateOpts{
+			Ctx:      ctx,
+			Store:    store,
+			Txn:      txn,
+			Compiler: compiler,
+			Metrics:  m,
+			Bundles:  bundles,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		err = store.Commit(ctx, txn)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		// Ensure the bundle was activated
+		txn = storage.NewTransactionOrDie(ctx, store)
+		names, err := ReadBundleNamesFromStore(ctx, store, txn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(names) != len(bundles) {
+			t.Fatalf("expected %d bundles in store, found %d", len(bundles), len(names))
+		}
+		for _, name := range names {
+			if _, ok := bundles[name]; !ok {
+				t.Fatalf("unexpected bundle name found in store: %s", name)
+			}
+		}
+
+		for bundleName, bundle := range bundles {
+			for modName := range bundle.ParsedModules(bundleName) {
+				if _, ok := compiler.Modules[modName]; !ok {
+					t.Fatalf("expected module %s from bundle %s to have been compiled", modName, bundleName)
+				}
+			}
+		}
+
+		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		expectedRaw := `
+{
+	"a": {
+		"b": {
+			"c": [1,2,3],
+			"d": true,
+			"y": {
+				"foo": 1
+			},
+			"z": true
+		}
+	},
+	"x": {
+		"y": true
+	},
+	"system": {
+		"bundles": {
+			"bundle1": {
+				"manifest": {
+					"revision": "rev-1",
+					"roots": [""]
+				},
+				"etag": "foo"
+			}
+		}
+	}
+}
+`
+		expected := loadExpectedSortedResult(expectedRaw)
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+		}
+
+		// Stop the "read" transaction
+		store.Abort(ctx, txn)
+
+		files = [][2]string{
+			{"/c/data.json", `{"hello": "world"}`},
+			{"/.manifest", `{"revision": "rev-2"}`},
+		}
+
+		buf = archive.MustWriteTarGz(files)
+		loader = NewTarballLoaderWithBaseURL(buf, "")
+		br = NewCustomReader(loader).WithBundleEtag("bar").WithLazyLoadingMode(true)
+
+		bundle, err = br.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		bundles = map[string]*Bundle{
+			"bundle1": &bundle,
+		}
+
+		txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+		err = Activate(&ActivateOpts{
+			Ctx:      ctx,
+			Store:    store,
+			Txn:      txn,
+			Compiler: compiler,
+			Metrics:  m,
+			Bundles:  bundles,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		err = store.Commit(ctx, txn)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		txn = storage.NewTransactionOrDie(ctx, store)
+
+		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		expectedRaw = `
+      {
+         "c": {
+            "hello": "world"
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-2",
+                     "roots": [""]
+                  },
+                  "etag": "bar"
+               }
+            }
+         }
+      }`
+
+		expected = loadExpectedSortedResult(expectedRaw)
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+		}
+
+		// Stop the "read" transaction
+		store.Abort(ctx, txn)
+	})
+}
+
+func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
+	ctx := context.Background()
+	mockStore := mock.New()
+	compiler := ast.NewCompiler()
+	m := metrics.New()
+
+	mod1 := "package a\np = true"
+
+	b := Bundle{
+		Manifest: Manifest{Revision: "rev-1"},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"b": "foo",
+				"e": map[string]interface{}{
+					"f": "bar",
+				},
+				"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
+			},
+		},
+		Modules: []ModuleFile{
+			{
+				Path:   "a/policy.rego",
+				Raw:    []byte(mod1),
+				Parsed: ast.MustParseModule(mod1),
+			},
+		},
+		Etag: "foo",
+	}
+
+	var buf1 bytes.Buffer
+	if err := NewWriter(&buf1).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+	loader := NewTarballLoaderWithBaseURL(&buf1, "")
+	bundle1, err := NewCustomReader(loader).WithLazyLoadingMode(true).WithBundleName("bundle1").Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundles := map[string]*Bundle{
+		"bundle1": &bundle1,
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err = Activate(&ActivateOpts{
+		Ctx:      ctx,
+		Store:    mockStore,
+		Txn:      txn,
+		Compiler: compiler,
+		Metrics:  m,
+		Bundles:  bundles,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Ensure the patches were applied
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+
+	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedRaw := `
+      {
+         "a": {
+            "b": "foo",
+            "e": {
+               "f": "bar"
+            },
+            "x": [{"name": "john"}, {"name": "jane"}]
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-1",
+                     "roots": [""]
+                  },
+                  "etag": ""
+               }
+            }
+         }
+      }`
+
+	expected := loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	// Stop the "read" transaction
+	mockStore.Abort(ctx, txn)
+
+	// add a new bundle with no roots. this means all the data from the currently activated should be removed
+	b = Bundle{
+		Manifest: Manifest{Revision: "rev-2"},
+		Data: map[string]interface{}{
+			"c": map[string]interface{}{
+				"hello": "world",
+			},
+		},
+		Etag: "bar",
+	}
+
+	var buf2 bytes.Buffer
+	if err := NewWriter(&buf2).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	loader = NewTarballLoaderWithBaseURL(&buf2, "")
+	bundle2, err := NewCustomReader(loader).WithLazyLoadingMode(true).WithBundleName("bundle1").Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundles = map[string]*Bundle{
+		"bundle1": &bundle2,
+	}
+
+	txn = storage.NewTransactionOrDie(ctx, mockStore, storage.WriteParams)
+
+	err = Activate(&ActivateOpts{
+		Ctx:      ctx,
+		Store:    mockStore,
+		Txn:      txn,
+		Compiler: compiler,
+		Metrics:  m,
+		Bundles:  bundles,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Ensure the patches were applied
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+
+	actual, err = mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedRaw = `
+      {
+         "c": {
+            "hello": "world"
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-2",
+                     "roots": [""]
+                  },
+                  "etag": ""
+               }
+            }
+         }
+      }`
+
+	expected = loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+	}
+
+	// Stop the "read" transaction
+	mockStore.Abort(ctx, txn)
+}
+
+func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
+	ctx := context.Background()
+
+	test.WithTempFS(nil, func(dir string) {
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := ast.NewCompiler()
+		m := metrics.New()
+
+		mod1 := "package a\np = true"
+
+		b := Bundle{
+			Manifest: Manifest{Revision: "rev-1"},
+			Data: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": "foo",
+					"e": map[string]interface{}{
+						"f": "bar",
+					},
+					"x": []map[string]string{{"name": "john"}, {"name": "jane"}},
+				},
+			},
+			Modules: []ModuleFile{
+				{
+					Path:   "a/policy.rego",
+					Raw:    []byte(mod1),
+					Parsed: ast.MustParseModule(mod1),
+				},
+			},
+			Etag: "foo",
+		}
+
+		var buf1 bytes.Buffer
+		if err := NewWriter(&buf1).UseModulePath(true).Write(b); err != nil {
+			t.Fatal("Unexpected error:", err)
+		}
+		loader := NewTarballLoaderWithBaseURL(&buf1, "")
+		bundle1, err := NewCustomReader(loader).WithLazyLoadingMode(true).WithBundleName("bundle1").Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		bundles := map[string]*Bundle{
+			"bundle1": &bundle1,
+		}
+
+		txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+		err = Activate(&ActivateOpts{
+			Ctx:      ctx,
+			Store:    store,
+			Txn:      txn,
+			Compiler: compiler,
+			Metrics:  m,
+			Bundles:  bundles,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		err = store.Commit(ctx, txn)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		// Ensure the patches were applied
+		txn = storage.NewTransactionOrDie(ctx, store)
+
+		actual, err := store.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		expectedRaw := `
+      {
+         "a": {
+            "b": "foo",
+            "e": {
+               "f": "bar"
+            },
+            "x": [{"name": "john"}, {"name": "jane"}]
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-1",
+                     "roots": [""]
+                  },
+                  "etag": ""
+               }
+            }
+         }
+      }`
+
+		expected := loadExpectedSortedResult(expectedRaw)
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+		}
+
+		// Stop the "read" transaction
+		store.Abort(ctx, txn)
+
+		// add a new bundle with no roots. this means all the data from the currently activated should be removed
+		b = Bundle{
+			Manifest: Manifest{Revision: "rev-2"},
+			Data: map[string]interface{}{
+				"c": map[string]interface{}{
+					"hello": "world",
+				},
+			},
+			Etag: "bar",
+		}
+
+		var buf2 bytes.Buffer
+		if err := NewWriter(&buf2).UseModulePath(true).Write(b); err != nil {
+			t.Fatal("Unexpected error:", err)
+		}
+
+		loader = NewTarballLoaderWithBaseURL(&buf2, "")
+		bundle2, err := NewCustomReader(loader).WithLazyLoadingMode(true).WithBundleName("bundle1").Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		bundles = map[string]*Bundle{
+			"bundle1": &bundle2,
+		}
+
+		txn = storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+		err = Activate(&ActivateOpts{
+			Ctx:      ctx,
+			Store:    store,
+			Txn:      txn,
+			Compiler: compiler,
+			Metrics:  m,
+			Bundles:  bundles,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		err = store.Commit(ctx, txn)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		// Ensure the patches were applied
+		txn = storage.NewTransactionOrDie(ctx, store)
+
+		actual, err = store.Read(ctx, txn, storage.MustParsePath("/"))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		expectedRaw = `
+      {
+         "c": {
+            "hello": "world"
+         },
+         "system": {
+            "bundles": {
+               "bundle1": {
+                  "manifest": {
+                     "revision": "rev-2",
+                     "roots": [""]
+                  },
+                  "etag": ""
+               }
+            }
+         }
+      }`
+
+		expected = loadExpectedSortedResult(expectedRaw)
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
+		}
+
+		// Stop the "read" transaction
+		store.Abort(ctx, txn)
+	})
+}
+
 func TestDeltaBundleLazyModeLifecycleDiskStorage(t *testing.T) {
 	ctx := context.Background()
 

@@ -97,10 +97,10 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 }
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
-func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storage.TransactionParams, it storage.Iterator) error {
+func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params storage.TransactionParams, it storage.Iterator) error {
 	var update *storage.Update
 	var err error
-	var mergedData map[string]interface{}
+	mergedData := map[string]interface{}{}
 
 	underlying, err := db.underlying(txn)
 	if err != nil {
@@ -150,7 +150,14 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storag
 		return err
 	}
 
-	// write merged data to store
+	if params.RootOverwrite {
+		newPath, ok := storage.ParsePathEscaped("/")
+		if !ok {
+			return fmt.Errorf("storage path invalid: %v", newPath)
+		}
+		return underlying.Write(storage.AddOp, newPath, mergedData)
+	}
+
 	for k := range mergedData {
 		newPath, ok := storage.ParsePathEscaped("/" + k)
 		if !ok {

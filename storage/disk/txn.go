@@ -329,6 +329,12 @@ func (txn *transaction) partitionWriteMultiple(node *partitionTrie, path storage
 			return nil, err
 		}
 		return txn.doPartitionWriteMultiple(node, path, bs, result)
+	case map[string]json.RawMessage:
+		bs, err := serialize(v)
+		if err != nil {
+			return nil, err
+		}
+		return txn.doPartitionWriteMultiple(node, path, bs, result)
 	case json.RawMessage:
 		return txn.doPartitionWriteMultiple(node, path, v, result)
 	case []uint8:
