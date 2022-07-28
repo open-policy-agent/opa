@@ -344,6 +344,10 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`number_key`, `q[x] = y { a = ["a", "b"]; y = a[x] }`},
 		{`non_leaf`, `p[x] { data.prefix.i[x][_] }`},
 	}
+	ruleset2 := [][2]string{
+		{`ref_rule_single`, `p.q.r = true { true }`},
+		{`ref_rule_single_non_string_key`, `p.q.r[7] = true { true }`},
+	}
 
 	tests := []struct {
 		note     string
@@ -465,6 +469,27 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"non-leaf", ruleset1, "data.non_leaf.p", types.NewSet(
 			types.S,
 		)},
+
+		{"ref-rules single value, full ref", ruleset2, "data.ref_rule_single.p.q.r", types.B},
+
+		{"ref-rules single value, prefix", ruleset2, "data.ref_rule_single.p",
+			types.NewObject(
+				[]*types.StaticProperty{{
+					Key: "q", Value: types.NewObject(
+						[]*types.StaticProperty{{Key: "r", Value: types.B}},
+						types.NewDynamicProperty(types.S, types.A),
+					),
+				}},
+				types.NewDynamicProperty(types.S, types.A),
+			)},
+
+		{"ref-rules single value, number in ref, full ref", ruleset2, "data.ref_rule_single_non_string_key.p.q.r[7]", types.B},
+
+		{"ref-rules single value, number in ref, prefix", ruleset2, "data.ref_rule_single_non_string_key.p.q.r",
+			types.NewObject(
+				[]*types.StaticProperty{{Key: json.Number("7"), Value: types.B}},
+				types.NewDynamicProperty(types.S, types.A),
+			)},
 	}
 
 	for _, tc := range tests {

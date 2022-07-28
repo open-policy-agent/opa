@@ -5,6 +5,8 @@
 package ast
 
 import (
+	"encoding/json"
+
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -195,9 +197,12 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 		child := v.(*typeTreeNode)
 
 		tpe := env.getRefRecExtent(child)
-		// TODO(tsandall): handle non-string keys?
-		if s, ok := key.(String); ok {
-			children = append(children, types.NewStaticProperty(string(s), tpe))
+		// TODO(tsandall, sr): handle other non-string keys than number
+		switch key := key.(type) {
+		case String:
+			children = append(children, types.NewStaticProperty(string(key), tpe))
+		case Number:
+			children = append(children, types.NewStaticProperty(json.Number(key), tpe))
 		}
 		return false
 	})

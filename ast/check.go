@@ -200,7 +200,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 	cpy, err := tc.CheckBody(env, rule.Body)
 	env = env.next
-	path := rule.Path()
+	path := rule.Ref()
 
 	if len(err) > 0 {
 		// if the rule/function contains an error, add it to the type env so
@@ -235,23 +235,28 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		tpe = types.Or(exist, f)
 
 	} else {
-		switch rule.Head.DocKind() {
-		case CompleteDoc:
+		switch rule.Head.RuleKind() {
+		case SingleValue:
 			typeV := cpy.Get(rule.Head.Value)
-			if typeV != nil {
-				exist := env.tree.Get(path)
-				tpe = types.Or(typeV, exist)
+			if last := path[len(path)-1]; !last.IsGround() {
+
+				// e.g. store object[string: whatever] at data.p.q.r, not data.p.q.r[x]
+				path = path.GroundPrefix()
+
+				typeK := cpy.Get(last)
+				if typeK != nil && typeV != nil {
+					exist := env.tree.Get(path)
+					typeV = types.Or(types.Values(exist), typeV)
+					typeK = types.Or(types.Keys(exist), typeK)
+					tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
+				}
+			} else {
+				if typeV != nil {
+					exist := env.tree.Get(path)
+					tpe = types.Or(typeV, exist)
+				}
 			}
-		case PartialObjectDoc:
-			typeK := cpy.Get(rule.Head.Key)
-			typeV := cpy.Get(rule.Head.Value)
-			if typeK != nil && typeV != nil {
-				exist := env.tree.Get(path)
-				typeV = types.Or(types.Values(exist), typeV)
-				typeK = types.Or(types.Keys(exist), typeK)
-				tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
-			}
-		case PartialSetDoc:
+		case MultiValue:
 			typeK := cpy.Get(rule.Head.Key)
 			if typeK != nil {
 				exist := env.tree.Get(path)
