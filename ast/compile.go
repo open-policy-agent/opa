@@ -1617,9 +1617,10 @@ func checkRuleHeadRefs(mod *Module) Errors {
 		//     OK: p.q.r[s]
 		// NOT OK: p[q].r.s
 		if x := ref.Dynamic(); x != -1 && x != len(ref)-1 {
-			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", ref[x]))
+			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", ref[x])) // TODO(sr): error messsage is not on-the-spot enough
 		}
 		return true
+		// TODO(sr): only allow !ref.Nested() for now? Or only allow `_, err := ref.Ptr(); err == nil`? (i.e. strings)		return true
 	})
 	return errs
 }

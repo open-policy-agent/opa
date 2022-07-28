@@ -5,7 +5,7 @@
 package ast
 
 import (
-	"encoding/json"
+	"fmt"
 
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -197,13 +197,27 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 		child := v.(*typeTreeNode)
 
 		tpe := env.getRefRecExtent(child)
-		// TODO(tsandall, sr): handle other non-string keys than number
-		switch key := key.(type) {
-		case String:
-			children = append(children, types.NewStaticProperty(string(key), tpe))
-		case Number:
-			children = append(children, types.NewStaticProperty(json.Number(key), tpe))
+
+		// NOTE(sr): This is a limitation right now. We can't express ref-keys in static properties
+		if _, ok := key.(Ref); ok {
+			return false
 		}
+
+		// NOTE(sr): Can we put Object types into Key of StaticProperty without breaking everything?
+		// Backwards-compat would say that it's part of the dynamic properties.
+		if _, ok := key.(Object); ok {
+			return false
+		}
+
+		// NOTE(sr): Converting to Golang-native types here is an extension of what we did
+		// before -- only supporting strings. But since we cannot differentiate sets and arrays
+		// that way, we could reconsider.
+		propKey, err := JSON(key)
+		if err != nil {
+			panic(fmt.Errorf("unreachable, ValueToInterface: %w", err))
+		}
+
+		children = append(children, types.NewStaticProperty(propKey, tpe))
 		return false
 	})
 

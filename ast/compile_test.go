@@ -490,17 +490,74 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			err: "rego_type_error: rule head must not contain dynamic values: i",
 		},
 		{
-			note: "valid: ref is partial set",
+			note: "valid: ref is single-value rule with var key",
 			modules: modules(
 				`package x
 				p.q.r[i] { i := 10 }`,
 			),
 		},
 		{
-			note: "valid: ref is partial object",
+			note: "valid: ref is single-value rule with var key and value",
+			modules: modules(
+				`package x
+				p.q.r[i] = j { i := 10; j := 11 }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with var key and static value",
 			modules: modules(
 				`package x
 				p.q.r[i] = "ten" { i := 10 }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with number key",
+			modules: modules(
+				`package x
+				p.q.r[1] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with boolean key",
+			modules: modules(
+				`package x
+				p.q.r[true] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with null key",
+			modules: modules(
+				`package x
+				p.q.r[null] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with set literal key",
+			modules: modules(
+				`package x
+				p.q.r[set()] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with array literal key",
+			modules: modules(
+				`package x
+				p.q.r[[]] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with object literal key",
+			modules: modules(
+				`package x
+				p.q.r[{}] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with ref key",
+			modules: modules(
+				`package x
+				x := [1,2,3]
+				p.q.r[x[i]] { i := 0}`,
 			),
 		},
 		{
@@ -511,6 +568,7 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			),
 			err: "rego_type_error: rule head must not contain dynamic values: arr[0]",
 		},
+		// TODO(sr): multi-value test cases
 	}
 
 	for _, tc := range tests {
