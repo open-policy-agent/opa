@@ -1616,11 +1616,14 @@ func checkRuleHeadRefs(mod *Module) Errors {
 		// except for the last position, e.g.
 		//     OK: p.q.r[s]
 		// NOT OK: p[q].r.s
-		if x := ref.Dynamic(); x != -1 && x != len(ref)-1 {
-			errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must not contain dynamic values: %v", ref[x])) // TODO(sr): error messsage is not on-the-spot enough
+		// TODO(sr): This is stricter than necessary. We could allow any non-var values there,
+		// but we'll also have to adjust the type tree, for example.
+		for i := 1; i < len(ref)-1; i++ {
+			if _, ok := ref[i].Value.(String); !ok {
+				errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must only contain string terms (except for last): %v", ref[i]))
+			}
 		}
 		return true
-		// TODO(sr): only allow !ref.Nested() for now? Or only allow `_, err := ref.Ptr(); err == nil`? (i.e. strings)		return true
 	})
 	return errs
 }

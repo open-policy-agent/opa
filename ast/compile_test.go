@@ -487,7 +487,7 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				`package x
 				p.q[i].r = 1 { i := 10 }`,
 			),
-			err: "rego_type_error: rule head must not contain dynamic values: i",
+			err: "rego_type_error: rule head must only contain string terms (except for last): i",
 		},
 		{
 			note: "valid: ref is single-value rule with var key",
@@ -561,14 +561,44 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			),
 		},
 		{
-			note: "ref contains other ref",
+			note: "invalid: ref in ref",
 			modules: modules(
 				`package x
 				p.q[arr[0]].r { i := 10 }`,
 			),
-			err: "rego_type_error: rule head must not contain dynamic values: arr[0]",
+			err: "rego_type_error: rule head must only contain string terms (except for last): arr[0]",
 		},
-		// TODO(sr): multi-value test cases
+		{
+			note: "invalid: non-string in ref (not last position)",
+			modules: modules(
+				`package x
+				p.q[10].r { true }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
+		},
+		{
+			note: "valid: multi-value with var key",
+			modules: modules(
+				`package x
+				p.q.r contains i if i := 10`,
+			),
+		},
+		{
+			note: "invalid: multi-value with var in ref, last",
+			modules: modules(
+				`package x
+				p.q.r[j] contains i if { i := 10; j := 9 }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
+		},
+		{
+			note: "invalid: multi-value with var in ref, middle",
+			modules: modules(
+				`package x
+				p.q[j].r contains i if { i := 10; j := 9 }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): j",
+		},
 	}
 
 	for _, tc := range tests {
