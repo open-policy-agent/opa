@@ -119,12 +119,8 @@ and rules and observe the difference in output.
 
 Note that the examples in this section try to represent the best practices.
 As such, they make use of keywords that are meant to become standard keywords
-at some point in time, but have been introduced gradually. These _future
-keywords_ can be enabled using
-
-```live:eg/import:module:read_only
-import future.keywords
-```
+at some point in time, but have been introduced gradually.
+[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
 {{< /info >}}
 
 ### References
@@ -382,7 +378,6 @@ to express _FOR SOME_ and _FOR ALL_ more explicitly.
 {{< info >}}
 To ensure backwards-compatibility, the keywords discussed below introduced slowly.
 In the first stage, users can opt-in to using the new keywords via a special import:
-`import future.keywords` introduces _all_ future keywords, and
 `import future.keywords.every` introduces the `every` keyword described here.
 (Importing `every` means also importing `in` without an extra `import` statement.)
 
@@ -390,6 +385,7 @@ At some point in the future, the keyword will become _standard_, and the import 
 become a no-op that can safely be removed. This should give all users ample time to
 update their policies, so that the new keyword will not cause clashes with existing
 variable names.
+[See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
 
 ##### FOR SOME (`some`)
@@ -747,9 +743,9 @@ For example:
 
 ```live:example/final:module:openable,merge_down
 package example
-import future.keywords # we want "every" and "in"
+import future.keywords.every # "every" implies "in"
 
-allow := true {                                      # allow is true if...
+allow := true {                                     # allow is true if...
     count(violation) == 0                           # there are zero violations.
 }
 
@@ -763,7 +759,7 @@ violation[server.id] {                              # a server is in the violati
     "telnet" in server.protocols                    # it contains the "telnet" protocol.
 }
 
-public_servers[server] {                             # a server exists in the public_servers set if...
+public_servers[server] {                            # a server exists in the public_servers set if...
     some server in input.servers                    # it exists in the input.servers collection and...
 
     some port in server.ports                       # it references a port in the input.ports collection and...
