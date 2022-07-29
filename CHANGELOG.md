@@ -3,7 +3,93 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.43.0
+
+This release contains a number of fixes, enhancements, and performance improvements.
+
+### Object Insertion Optimization
+
+Rego Object insertion operations did not scale linearly ([#4625](https://github.com/open-policy-agent/opa/issues/4625))
+in the past, and experienced noticeable reallocation/memory movement
+overheads once the Object grew past 120k-150k keys in size.
+
+This release introduces different handling of Object internals during insert
+operations to avoid pathological reallocation behavior, and allows linear
+performance scaling up into the 500k key range and beyond.
+
+### Tooling, SDK, and Runtime
+
+- Add lines covered/not covered counts to test coverage report (authored by @FarisR99)
+- Plugins: Status and logs plugins now accept any HTTP 2xx status code (authored by @lvisterin)
+- Runtime: Generalize OS check for MacOS to other Unix-likes (authored by @iamleot)
+
+#### Bundles Fixes
+
+The Bundles system received several bugfixes and performance improvements in this release:
+
+  - Bundle: `opa bundle` command now supports `.yml` files ([#4859](https://github.com/open-policy-agent/opa/issues/4859)) authored by @Joffref reported by @rdrgmnzsakt
+  - Plugins/Bundle: Use unique temporary files for persisting activated bundles to disk ([#4782](https://github.com/open-policy-agent/opa/issues/4782)) authored by @FredrikAppelros reported by @FredrikAppelros
+  - Server: Old policy path is now checked for bundle ownership before update ([#4846](https://github.com/open-policy-agent/opa/issues/4846))
+  - Storage+Bundle: Old bundle data is now cleaned before new bundle activation ([#4940](https://github.com/open-policy-agent/opa/issues/4940))
+  - Bundle: Paths are now normalized before bundle root check occurs to ensure checks are os-independent
+
+#### Storage Fixes
+
+The Storage system received mostly bugfixes, with a notable performance improvement for large bundles in this release:
+
+  - storage/inmem: Speed up bundle activation by avoiding unnecessary read operations ([#4898](https://github.com/open-policy-agent/opa/issues/4898))
+  - storage/inmem: Paths are now created during truncate operations if they did not exist before
+  - storage/disk: Symlinks work with relative paths now ([#4869](https://github.com/open-policy-agent/opa/issues/4869))
+
+### Rego and Topdown
+
+The Rego compiler and runtime environment received a number of bugfixes, and a few new features this release, as well as a notable performance improvement for large Objects
+(covered above).
+
+- AST/Compiler: New method for obtaining parsed, but otherwise unprocessed modules is now available ([#4910](https://github.com/open-policy-agent/opa/issues/4910))
+- `object.subset`: Support array + set combination ([#4858](https://github.com/open-policy-agent/opa/issues/4858)) authored by @x-color
+- Compiler: Prevent erasure of `print()` statements in the compiler via a `WithEnablePrintStatements` option to `compiler.Compiler` and `compiler.optimizer` (authored by @kevinstyra)
+- Topdown fixes:
+  - AST/Builtins: `type_name` builtin now has more precise type metadata and improved docs
+  - Topdown/copypropagation: Ref-based tautologies like `input.a == input.a` are no longer eliminated during the copy-propagation pass ([#4848](https://github.com/open-policy-agent/opa/issues/4848)) reported by @johanneskra
+  - Topdown/parse_units: Use big.Rat for units parsing to avoid floating-point rounding issues on fractional units. ([#4856](https://github.com/open-policy-agent/opa/issues/4856)) reported by @tmos22
+  - Topdown: `is_valid` builtins no longer error, and should always return booleans ([#4760](https://github.com/open-policy-agent/opa/issues/4760))
+  - Topdown: `glob.match` now can be used without delimiters ([#4923](https://github.com/open-policy-agent/opa/issues/4923)) authored by @vinhph0906 reported by @vinhph0906
+
+### Documentation
+
+ - Docs: Add GraphQL API authorization tutorial
+ - Docs/bundles: Add bundle CLI command documentation  ([#3831](https://github.com/open-policy-agent/opa/issues/3831)) authored by @Joffref
+ - Docs/policy-reference: Remove extra quote in Grammar to fix formatting ([#4915](https://github.com/open-policy-agent/opa/issues/4915)) authored by @friedrichsenm reported by @friedrichsenm
+ - Docs/policy-testing: Add missing future.keywords imports ([#4849](https://github.com/open-policy-agent/opa/issues/4849)) reported by @robert-elles
+ - Docs: Add note about counter_server_query_cache_hit metric ([#4389](https://github.com/open-policy-agent/opa/issues/4389))
+ - Docs: Kube tutorial includes updated cert install procedure ([#4902](https://github.com/open-policy-agent/opa/issues/4902)) reported by @Imp
+ - Docs: GraphQL builtins section now includes a note about framework-specific `@directive` definitions in GraphQL schemas
+ - Docs: Add warning about name collisions in older policies from importing 'future.keywords'
+
+### Website + Ecosystem
+
+- Website: Show navbar on smaller devices ([#3353](https://github.com/open-policy-agent/opa/issues/3353)) authored by @Parsifal-M reported by @OBrienCommaJosh
+- Website/frontpage: Update front page examples to use the future.keywords imports
+- Website/live-blocks: Only pass 'import future.keywords' when needed and supported
+- Website/live-blocks: Update codemirror-rego to 1.3.0
+- Website: Fix community page layout/scrolling issues (authored by @mstade)
+
+- Ecosystem Additions:
+  - Rond (authored by @ugho16)
+  - walt.id
+
+### Miscellaneous
+
+- Dependency bumps, notably:
+  - aquasecurity/trivy-action from 0.5.1 to 0.6.1
+  - github.com/sirupsen/logrus from 1.8.1 to 1.9.0
+  - github.com/vektah/gqlparser/v2 from 2.4.5 to 2.4.6
+  - google.golang.org/grpc from 1.47.0 to 1.48.0
+  - terser in /docs/website/scripts/live-blocks
+  - glob-parent in /docs/website/scripts/live-blocks
+- Added GKE Policy Automation to ADOPTERS.md (authored by @mikouaj)
+- Fix minor code unreachability error (authored by @Abirdcfly)
 
 ## 0.42.2
 
@@ -123,7 +209,7 @@ deny contains msg if msg := "forbidden" # VALID
 - Ecosystem: use location.hash to track open modal ([#4667](https://github.com/open-policy-agent/opa/issues/4667))
 
 Note that website changes like these become effective immediately and are not tied to a release.
-We still use our release notes to record the nice fixed contributed by our community.
+We still use our release notes to record the nice fixes contributed by our community.
 
 - Ecosystem Additions:
   - Alfred, the self-hosted playground (authored by @dolevf)
