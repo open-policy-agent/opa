@@ -263,6 +263,22 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 	xid := atomic.AddUint64(&db.xid, uint64(1))
 	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, nil)
 
+	if params.RootOverwrite {
+		newPath, ok := storage.ParsePathEscaped("/")
+		if !ok {
+			return fmt.Errorf("storage path invalid: %v", newPath)
+		}
+
+		sTxn, err := db.doTruncateData(ctx, underlyingTxn, newDB, params, newPath, map[string]interface{}{})
+		if err != nil {
+			return wrapError(err)
+		}
+
+		if sTxn != nil {
+			underlyingTxn = sTxn
+		}
+	}
+
 	for {
 		var update *storage.Update
 

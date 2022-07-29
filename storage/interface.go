@@ -52,6 +52,9 @@ type MakeDirer interface {
 // TransactionParams describes a new transaction.
 type TransactionParams struct {
 
+	// RootOverwrite indicates if this transaction will overwrite data at root.
+	RootOverwrite bool
+
 	// Write indicates if this transaction will perform any write operations.
 	Write bool
 
