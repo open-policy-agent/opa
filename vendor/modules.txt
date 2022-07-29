@@ -8,7 +8,7 @@ github.com/OneOfOne/xxhash
 github.com/agnivade/levenshtein
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/bytecodealliance/wasmtime-go v0.36.0
+# github.com/bytecodealliance/wasmtime-go v0.39.0
 ## explicit
 github.com/bytecodealliance/wasmtime-go
 github.com/bytecodealliance/wasmtime-go/build/include
