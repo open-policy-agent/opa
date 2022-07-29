@@ -27,12 +27,8 @@ of the system.
 {{< info >}}
 The examples in this section try to represent the best practices. As such, they
 make use of keywords that are meant to become standard keywords at some point in
-time, but have been introduced gradually. These _future keywords_ can be enabled
-using
-
-```live:eg/import:module:read_only
-import future.keywords
-```
+time, but have been introduced gradually.
+[See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
 
 ## Why use Rego?
@@ -1292,6 +1288,16 @@ In the first stage, users can opt-in to using the new keywords via a special imp
 - `import future.keywords` introduces _all_ future keywords, and
 - `import future.keyword.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
 
+{{< danger >}}
+Using `import future.keywords` to import all future keywords means an **opt-out of a
+safety measure**:
+
+With a new version of OPA, the set of "all" future keywords can grow, and policies that
+worked with the previous version of OPA stop working.
+
+This **cannot happen** when you selectively import the future keywords as you need them.
+{{< /danger>}}
+
 At some point in the future, the keyword will become _standard_, and the import will
 become a no-op that can safely be removed. This should give all users ample time to
 update their policies, so that the new keyword will not cause clashes with existing
@@ -1417,6 +1423,8 @@ For using the `some` keyword with iteration, see
 `every` is a future keyword and needs to be imported.
 
 `import future.keywords.every` introduces the `every` keyword described here.
+
+[See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
 
 ```live:eg/data/every0:module:merge_down
@@ -1766,13 +1774,9 @@ limit imposed on the number of `else` clauses on a rule.
 {{< info >}}
 To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
 In the first stage, users can opt-in to using the new keywords via a special import:
-`import future.keywords` introduces _all_ future keywords, and
 `import future.keywords.in` introduces the `in` keyword described here.
 
-At some point in the future, the keyword will become _standard_, and the import will
-become a no-op that can safely be removed. This should give all users ample time to
-update their policies, so that the new keyword will not cause clashes with existing
-variable names.
+[See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
 
 The membership operator `in` lets you check if an element is part of a collection (array, set, or object). It always evaluates to `true` or `false`:

@@ -243,7 +243,7 @@ a := 100 if { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
-# alternatively, with future.keywords
+# alternatively, with future.keywords.contains and future.keywords.if
 a_set contains x if { ... }
 a_set contains y if { ... }
 
