@@ -2487,7 +2487,7 @@ WASM_EXPORT(test_builtin_graph_reachable)
 void test_builtin_graph_reachable(void)
 {
 
-    test("reachable/malformed graph", opa_value_compare(builtin_graph_reachable(opa_set(), opa_set()), opa_set()) == 0);
+    test("reachable/malformed graph", opa_value_compare(builtin_graph_reachable(opa_set(), opa_set()), NULL) == 0);
 
     opa_object_t *graph1 = opa_cast_object(opa_object());
     opa_set_t *initial1 = opa_cast_set(opa_set());
@@ -2577,7 +2577,7 @@ void test_builtin_graph_reachable(void)
 
     test("reachable/arrays", opa_value_compare(builtin_graph_reachable(&graph3->hdr, &initial3->hdr), &expected3->hdr) == 0);
 
-    test("reachable/malformed initial nodes", opa_value_compare(builtin_graph_reachable(&graph3->hdr, opa_string_terminated("foo")), opa_set()) == 0);
+    test("reachable/malformed initial nodes", opa_value_compare(builtin_graph_reachable(&graph3->hdr, opa_string_terminated("foo")), NULL) == 0);
 
     // graph -> {"a": null}
     opa_object_t *graph4 = opa_cast_object(opa_object());
