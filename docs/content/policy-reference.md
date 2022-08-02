@@ -1111,28 +1111,29 @@ import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
 rule-head       = var ( rule-head-set | rule-head-obj | rule-head-func | rule-head-comp )
-rule-head-comp  = [ ( ":=" | "=" ) term ]) [ "if" ]
-rule-head-obj   = [ "[" term "]" ] [ ( ":=" | "=" ) term ]) [ "if" ]
-rule-head-func  = [ "(" rule-args ")" ] [ ( ":=" | "=" ) term ]) [ "if" ]
+rule-head-comp  = [ assign-operator term ] [ "if" ]
+rule-head-obj   = "[" term "]" [ assign-operator term ] [ "if" ]
+rule-head-func  = "(" rule-args ")" [ assign-operator term ] [ "if" ]
 rule-head-set   = "contains" term [ "if" ] | "[" term "]"
 rule-args       = term { "," term }
-rule-body       = [ "else" [ ( ":=" | "=" ) term ] ] "{" query "}"
+rule-body       = [ "else" [ assign-operator term ] ] "{" query "}"
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
 some-decl       = "some" term { "," term } { "in" expr }
 expr            = term | expr-call | expr-infix | expr-every
 expr-call       = var [ "." var ] "(" [ expr { "," expr } ] ")"
-expr-infix      = [ term "=" ] expr infix-operator expr
+expr-infix      = expr infix-operator expr
 expr-every      = "every" var { "," var } "in" ( term | expr-call | expr-infix ) "{" query "}"
 term            = ref | var | scalar | array | object | set | array-compr | object-compr | set-compr
-array-compr     = "[" term "|" rule-body "]"
-set-compr       = "{" term "|" rule-body "}"
-object-compr    = "{" object-item "|" rule-body "}"
-infix-operator  = bool-operator | arith-operator | bin-operator
+array-compr     = "[" term "|" query "]"
+set-compr       = "{" term "|" query "}"
+object-compr    = "{" object-item "|" query "}"
+infix-operator  = assign-operator | bool-operator | arith-operator | bin-operator
 bool-operator   = "==" | "!=" | "<" | ">" | ">=" | "<="
 arith-operator  = "+" | "-" | "*" | "/"
 bin-operator    = "&" | "|"
+assign-operator = ":=" | "="
 ref             = ( var | array | object | set | array-compr | object-compr | set-compr | expr-call ) { ref-arg }
 ref-arg         = ref-arg-dot | ref-arg-brack
 ref-arg-brack   = "[" ( scalar | var | array | object | set | "_" ) "]"
