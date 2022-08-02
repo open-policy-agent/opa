@@ -38,17 +38,15 @@ func builtinReachable(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term
 		return err
 	}
 
-	initial, err := builtins.ArrayOperand(args[1].Value, 2)
-	if err != nil {
-		return err
+	var queue []*ast.Term
+	switch initial := args[1].Value.(type) {
+	case *ast.Array, ast.Set:
+		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
+			queue = append(queue, t)
+		})
+	default:
+		return builtins.NewOperandTypeErr(2, initial, "{array, set}")
 	}
-
-	// This is a queue that holds all nodes we still need to visit.  It is
-	// initialised to the initial set of nodes we start out with.
-	queue := []*ast.Term{}
-	foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
-		queue = append(queue, t)
-	})
 
 	// This is the set of nodes we have reached.
 	reached := ast.NewSet()
@@ -107,17 +105,17 @@ func builtinReachablePaths(bctx BuiltinContext, args []*ast.Term, iter func(*ast
 		return err
 	}
 
-	initial, err := builtins.ArrayOperand(args[1].Value, 2)
-	if err != nil {
-		return err
-	}
-
 	// This is a queue that holds all nodes we still need to visit.  It is
 	// initialised to the initial set of nodes we start out with.
 	var queue []*ast.Term
-	foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
-		queue = append(queue, t)
-	})
+	switch initial := args[1].Value.(type) {
+	case *ast.Array, ast.Set:
+		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
+			queue = append(queue, t)
+		})
+	default:
+		return builtins.NewOperandTypeErr(2, initial, "{array, set}")
+	}
 
 	results := ast.NewSet()
 
