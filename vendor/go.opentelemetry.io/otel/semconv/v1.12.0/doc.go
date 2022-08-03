@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package instrumentation provides an instrumentation library structure to be
-passed to both the OpenTelemetry Tracer and Meter components.
-
-For more information see
-[this](https://github.com/open-telemetry/oteps/blob/main/text/0083-component.md).
-*/
-package instrumentation // import "go.opentelemetry.io/otel/sdk/instrumentation"
-
-// Library represents the instrumentation library.
-// Deprecated: please use Scope instead.
-type Library = Scope
+// Package semconv implements OpenTelemetry semantic conventions.
+//
+// OpenTelemetry semantic conventions are agreed standardized naming
+// patterns for OpenTelemetry things. This package represents the conventions
+// as of the v1.12.0 version of the OpenTelemetry specification.
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"

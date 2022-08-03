@@ -118,8 +118,7 @@ func WithEnvCompression(n string, fn func(Compression)) func(e *envconfig.EnvOpt
 	return func(e *envconfig.EnvOptionsReader) {
 		if v, ok := e.GetEnvValue(n); ok {
 			cp := NoCompression
-			switch v {
-			case "gzip":
+			if v == "gzip" {
 				cp = GzipCompression
 			}
 
