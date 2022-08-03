@@ -1288,6 +1288,7 @@ var StringReverse = &Builtin{
  */
 
 // RandIntn returns a random number 0 - n
+// Marked non-deterministic because it relies on RNG internally.
 var RandIntn = &Builtin{
 	Name:        "rand.intn",
 	Description: "Returns a random integer between `0` and `n` (`n` exlusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
@@ -1298,7 +1299,8 @@ var RandIntn = &Builtin{
 		),
 		types.Named("y", types.N).Description("random integer in the range `[0, abs(n))`"),
 	),
-	Categories: number,
+	Categories:       number,
+	Nondeterministic: true,
 }
 
 var NumbersRange = &Builtin{
@@ -1353,6 +1355,7 @@ unit is optional and omitting it wil give the same result (e.g. Mi and MiB).`,
  */
 
 // UUIDRFC4122 returns a version 4 UUID string.
+// Marked non-deterministic because it relies on RNG internally.
 var UUIDRFC4122 = &Builtin{
 	Name:        "uuid.rfc4122",
 	Description: "Returns a new UUIDv4.",
@@ -1362,6 +1365,7 @@ var UUIDRFC4122 = &Builtin{
 		),
 		types.Named("output", types.S).Description("a version 4 UUID; for any given `k`, the output will be consistent throughout a query evaluation"),
 	),
+	Nondeterministic: true,
 }
 
 /**
@@ -1999,6 +2003,7 @@ var JWTVerifyHS512 = &Builtin{
 	Categories: tokensCat,
 }
 
+// Marked non-deterministic because it relies on time internally.
 var JWTDecodeVerify = &Builtin{
 	Name: "io.jwt.decode_verify",
 	Description: `Verifies a JWT signature under parameterized constraints and decodes the claims if it is valid.
@@ -2014,11 +2019,13 @@ Supports the following algorithms: HS256, HS384, HS512, RS256, RS384, RS512, ES2
 			types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 		}, nil)).Description("`[valid, header, payload]`:  if the input token is verified and meets the requirements of `constraints` then `valid` is `true`; `header` and `payload` are objects containing the JOSE header and the JWT claim set; otherwise, `valid` is `false`, `header` and `payload` are `{}`"),
 	),
-	Categories: tokensCat,
+	Categories:       tokensCat,
+	Nondeterministic: true,
 }
 
 var tokenSign = category("tokensign")
 
+// Marked non-deterministic because it relies on RNG internally.
 var JWTEncodeSignRaw = &Builtin{
 	Name:        "io.jwt.encode_sign_raw",
 	Description: "Encodes and optionally signs a JSON Web Token.",
@@ -2030,9 +2037,11 @@ var JWTEncodeSignRaw = &Builtin{
 		),
 		types.Named("output", types.S).Description("signed JWT"),
 	),
-	Categories: tokenSign,
+	Categories:       tokenSign,
+	Nondeterministic: true,
 }
 
+// Marked non-deterministic because it relies on RNG internally.
 var JWTEncodeSign = &Builtin{
 	Name:        "io.jwt.encode_sign",
 	Description: "Encodes and optionally signs a JSON Web Token. Inputs are taken as objects, not encoded strings (see `io.jwt.encode_sign_raw`).",
@@ -2044,13 +2053,15 @@ var JWTEncodeSign = &Builtin{
 		),
 		types.Named("output", types.S).Description("signed JWT"),
 	),
-	Categories: tokenSign,
+	Categories:       tokenSign,
+	Nondeterministic: true,
 }
 
 /**
  * Time
  */
 
+// Marked non-deterministic because it relies on time directly.
 var NowNanos = &Builtin{
 	Name:        "time.now_ns",
 	Description: "Returns the current time since epoch in nanoseconds.",
@@ -2058,6 +2069,7 @@ var NowNanos = &Builtin{
 		nil,
 		types.Named("now", types.N).Description("nanoseconds since epoch"),
 	),
+	Nondeterministic: true,
 }
 
 var ParseNanos = &Builtin{
@@ -2480,6 +2492,7 @@ var TypeNameBuiltin = &Builtin{
  * HTTP Request
  */
 
+// Marked non-deterministic because HTTP request results can be non-deterministic.
 var HTTPSend = &Builtin{
 	Name:        "http.send",
 	Description: "Returns a HTTP response to the given HTTP request.",
@@ -2489,6 +2502,7 @@ var HTTPSend = &Builtin{
 		),
 		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 	),
+	Nondeterministic: true,
 }
 
 /**
@@ -2610,6 +2624,7 @@ var RegoMetadataRule = &Builtin{
  * OPA
  */
 
+// Marked non-deterministic because of unpredictable config/environment-dependent results.
 var OPARuntime = &Builtin{
 	Name:        "opa.runtime",
 	Description: "Returns an object that describes the runtime environment where OPA is deployed.",
@@ -2618,6 +2633,7 @@ var OPARuntime = &Builtin{
 		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).
 			Description("includes a `config` key if OPA was started with a configuration file; an `env` key containing the environment variables that the OPA process was started with; includes `version` and `commit` keys containing the version and build commit of OPA."),
 	),
+	Nondeterministic: true,
 }
 
 /**
@@ -2756,6 +2772,7 @@ var netCidrContainsMatchesOperandType = types.NewAny(
 	)),
 )
 
+// Marked non-deterministic because DNS resolution results can be non-deterministic.
 var NetLookupIPAddr = &Builtin{
 	Name:        "net.lookup_ip_addr",
 	Description: "Returns the set of IP addresses (both v4 and v6) that the passed-in `name` resolves to using the standard name resolution mechanisms available.",
@@ -2765,6 +2782,7 @@ var NetLookupIPAddr = &Builtin{
 		),
 		types.Named("addrs", types.NewSet(types.S)).Description("IP addresses (v4 and v6) that `name` resolves to"),
 	),
+	Nondeterministic: true,
 }
 
 /**
@@ -2966,10 +2984,11 @@ type Builtin struct {
 	// "minus" for example, is part of two categories: numbers and sets. (NOTE(sr): aspirational)
 	Categories []string `json:"categories,omitempty"`
 
-	Decl       *types.Function `json:"decl"`               // Built-in function type declaration.
-	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
-	Relation   bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
-	deprecated bool            // Indicates if the built-in has been deprecated.
+	Decl             *types.Function `json:"decl"`               // Built-in function type declaration.
+	Infix            string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
+	Relation         bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
+	deprecated       bool            // Indicates if the built-in has been deprecated.
+	Nondeterministic bool            `json:"nondeterministic,omitempty"` // Indicates if the built-in returns non-deterministic results.
 }
 
 // category is a helper for specifying a Builtin's Categories
@@ -2980,6 +2999,11 @@ func category(cs ...string) []string {
 // IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.
 func (b *Builtin) IsDeprecated() bool {
 	return b.deprecated
+}
+
+// IsDeterministic returns true if the Builtin function returns non-deterministic results.
+func (b *Builtin) IsNondeterministic() bool {
+	return b.Nondeterministic
 }
 
 // Expr creates a new expression for the built-in with the given operands.

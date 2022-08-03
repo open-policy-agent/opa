@@ -30,6 +30,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -2007,6 +2008,132 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 
 	if len(requests) != 1 {
 		t.Fatal("Expected server to be called only once")
+	}
+}
+
+// We use http.send to ensure the NDBuiltinCache is involved.
+func TestEvalWithNDCache(t *testing.T) {
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		_, _ = w.Write([]byte(`{"x": 1}`))
+	}))
+	defer ts.Close()
+	query := fmt.Sprintf(`http.send({"method": "get", "url": "%s", "force_json_decode": true})`, ts.URL)
+
+	// Set up the ND cache, and put in some arbitrary constants for the first K/V pair.
+	arbitraryKey := ast.Number(strconv.Itoa(2015))
+	arbitraryValue := ast.String("First commit year")
+	ndBC := builtins.NDBCache{}
+	ndBC.Put("arbitrary_experiment", arbitraryKey, arbitraryValue)
+
+	// Query execution of http.send should add an entry to the NDBuiltinCache.
+	ctx := context.Background()
+	_, err := New(Query(query), NDBuiltinCache(ndBC)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check and make sure we got exactly 2x items back in the ND builtin cache.
+	// NDBuiltinsCache always has the structure: map[ast.String]map[ast.Array]ast.Value
+	if len(ndBC) != 2 {
+		t.Fatalf("Expected exactly 2 items in non-deterministic builtin cache. Found %d items.\n", len(ndBC))
+	}
+	// Check the cached k/v types for the HTTP section of the cache.
+	if cachedResults, ok := ndBC["http.send"]; ok {
+		err := cachedResults.Iter(func(k, v *ast.Term) error {
+			if _, ok := k.Value.(*ast.Array); !ok {
+				t.Fatalf("http.send failed to store Object key in the ND builtins cache")
+			}
+			if _, ok := v.Value.(ast.Object); !ok {
+				t.Fatalf("http.send failed to store Object value in the ND builtins cache")
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Ensure our original arbitrary data in the cache was preserved.
+	if v, ok := ndBC.Get("arbitrary_experiment", arbitraryKey); ok {
+		if v != arbitraryValue {
+			t.Fatalf("Non-deterministic builtins cache value was mangled. Expected: %v, got: %v\n", arbitraryValue, v)
+		}
+	} else {
+		t.Fatal("Non-deterministic builtins cache lookup failed.")
+	}
+}
+
+func TestEvalWithPrebuiltNDCache(t *testing.T) {
+	query := "time.now_ns()"
+	ndBC := builtins.NDBCache{}
+
+	// Populate the cache for time.now_ns with an arbitrary timestamp.
+	timeValue, err := time.Parse("2006-01-02T15:04:05Z", "2015-12-28T14:08:25Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Timestamp ns value will be: 1451311705000000000
+	ndBC.Put("time.now_ns", ast.NewArray(), ast.Number(json.Number(strconv.FormatInt(timeValue.UnixNano(), 10))))
+	// time.now_ns should use the cached entry instead of the current time.
+	ctx := context.Background()
+	rs, err := New(Query(query), NDBuiltinCache(ndBC)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that we got the correct time value in the result set.
+	assertResultSet(t, rs, "[[1451311705000000000]]")
+}
+
+func TestNDBCacheWithRuleBody(t *testing.T) {
+	ctx := context.Background()
+	ndBC := builtins.NDBCache{}
+	query := "data.foo.p = x"
+	_, err := New(
+		Query(query),
+		NDBuiltinCache(ndBC),
+		Module("test.rego", `package foo
+p {
+	http.send({"url": "http://httpbin.org", "method":"get"})
+}`),
+	).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := ndBC["http.send"]
+	if !ok {
+		t.Errorf("expected http.send cache entry")
+	}
+}
+
+// This test ensures that the NDBCache correctly serializes/deserializes.
+func TestNDBCacheMarshalUnmarshalJSON(t *testing.T) {
+	original := builtins.NDBCache{}
+
+	// Populate the cache for time.now_ns with an arbitrary timestamp.
+	original.Put("time.now_ns", ast.NewArray(), ast.Number(json.Number(strconv.FormatInt(1451311705000000000, 10))))
+	jOriginal, err := json.Marshal(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var other builtins.NDBCache
+	err = json.Unmarshal(jOriginal, &other)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jOther, err := json.Marshal(other)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the two NDBCache value's JSONified forms match exactly.
+	if !bytes.Equal(jOriginal, jOther) {
+		t.Fatalf("JSONified values of NDBCaches do not match; expected %s, got %s", string(jOriginal), string(jOther))
 	}
 }
 

@@ -1284,7 +1284,8 @@
           "type": "object"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "indexof",
@@ -1493,7 +1494,8 @@
           "type": "array"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "io.jwt.encode_sign",
@@ -1537,7 +1539,8 @@
           "type": "string"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "io.jwt.encode_sign_raw",
@@ -1557,7 +1560,8 @@
           "type": "string"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "io.jwt.verify_es256",
@@ -2529,7 +2533,8 @@
           "type": "set"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "numbers.range",
@@ -2819,7 +2824,8 @@
           "type": "object"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "or",
@@ -2918,7 +2924,8 @@
           "type": "number"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "re_match",
@@ -3690,7 +3697,8 @@
           "type": "number"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "time.parse_duration_ns",
@@ -4091,7 +4099,8 @@
           "type": "string"
         },
         "type": "function"
-      }
+      },
+      "nondeterministic": true
     },
     {
       "name": "walk",

@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/internal/wasm"
 	wasm_util "github.com/open-policy-agent/opa/internal/wasm/util"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -176,7 +177,7 @@ func ensurePoolResults(t *testing.T, ctx context.Context, testPool *wasm.Pool, p
 		toRelease = append(toRelease, vm)
 
 		cfg, _ := cache.ParseCachingConfig(nil)
-		result, err := vm.Eval(ctx, 0, input, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), nil, nil)
+		result, err := vm.Eval(ctx, 0, input, metrics.New(), rand.New(rand.NewSource(0)), time.Now(), cache.NewInterQueryCache(cfg), builtins.NDBCache{}, nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
