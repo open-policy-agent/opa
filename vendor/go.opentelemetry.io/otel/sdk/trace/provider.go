@@ -70,9 +70,11 @@ func (cfg tracerProviderConfig) MarshalLog() interface{} {
 	}
 }
 
+// TracerProvider is an OpenTelemetry TracerProvider. It provides Tracers to
+// instrumentation so it can trace operational flow through a system.
 type TracerProvider struct {
 	mu             sync.Mutex
-	namedTracer    map[instrumentation.Library]*tracer
+	namedTracer    map[instrumentation.Scope]*tracer
 	spanProcessors atomic.Value
 
 	// These fields are not protected by the lock mu. They are assumed to be
@@ -108,7 +110,7 @@ func NewTracerProvider(opts ...TracerProviderOption) *TracerProvider {
 	o = ensureValidTracerProviderConfig(o)
 
 	tp := &TracerProvider{
-		namedTracer: make(map[instrumentation.Library]*tracer),
+		namedTracer: make(map[instrumentation.Scope]*tracer),
 		sampler:     o.sampler,
 		idGenerator: o.idGenerator,
 		spanLimits:  o.spanLimits,
@@ -139,18 +141,18 @@ func (p *TracerProvider) Tracer(name string, opts ...trace.TracerOption) trace.T
 	if name == "" {
 		name = defaultTracerName
 	}
-	il := instrumentation.Library{
+	is := instrumentation.Scope{
 		Name:      name,
 		Version:   c.InstrumentationVersion(),
 		SchemaURL: c.SchemaURL(),
 	}
-	t, ok := p.namedTracer[il]
+	t, ok := p.namedTracer[is]
 	if !ok {
 		t = &tracer{
-			provider:               p,
-			instrumentationLibrary: il,
+			provider:             p,
+			instrumentationScope: is,
 		}
-		p.namedTracer[il] = t
+		p.namedTracer[is] = t
 		global.Info("Tracer created", "name", name, "version", c.InstrumentationVersion(), "schemaURL", c.SchemaURL())
 	}
 	return t
@@ -261,6 +263,7 @@ func (p *TracerProvider) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// TracerProviderOption configures a TracerProvider.
 type TracerProviderOption interface {
 	apply(tracerProviderConfig) tracerProviderConfig
 }
