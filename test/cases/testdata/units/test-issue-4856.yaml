@@ -10,6 +10,8 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
   - |
     package test
     p {
@@ -19,6 +21,8 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
+- data:
+  modules:
   - |
     package test
     p {
