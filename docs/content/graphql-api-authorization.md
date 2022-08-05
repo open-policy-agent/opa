@@ -151,7 +151,9 @@ selected_salary(value) := value.SelectionSet[_].Name == "salary"
 Then, build a bundle.
 
 ```shell
+mkdir bundles
 opa build example.rego
+mv bundle.tar.gz ./bundles
 ```
 
 You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
@@ -159,6 +161,7 @@ You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
 ### 3. Bootstrap the tutorial environment using Docker Compose.
 
 Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the demo GraphQL server.
+
 
 **docker-compose.yml**:
 
@@ -183,7 +186,7 @@ services:
   api_server:
     image: openpolicyagent/demo-graphql-api:0.1
     ports:
-      - "5000:5000"
+      - "6000:5000"
     environment:
       - OPA_ADDR=http://opa:8181
       - POLICY_PATH=/v1/data/graphqlapi/authz
@@ -194,7 +197,7 @@ services:
     ports:
       - 8888:80
     volumes:
-      - ../:/usr/share/nginx/html/
+      - ./bundles/:/usr/share/nginx/html/
 ```
 
 Then run `docker-compose` to pull and run the containers.
@@ -252,7 +255,7 @@ gql-query() {
 The following command will succeed.
 
 ```shell
-gql-query alice:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query alice:password "localhost:6000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 The GraphQL server queries OPA to authorize the request.
@@ -283,7 +286,7 @@ The answer returned by OPA for the input above is:
 ### 4. Check that `bob` can see `alice`'s salary (because `bob` is `alice`'s manager.)
 
 ```shell
-gql-query bob:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
 ```
 
 ### 5. Check that `bob` CANNOT see `charlie`'s salary.
@@ -291,7 +294,7 @@ gql-query bob:password "localhost:5000/" '{"query":"query { employeeByID(id: \"a
 `bob` is not `charlie`'s manager, so the following command will fail.
 
 ```shell
-gql-query bob:password "localhost:5000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
+gql-query bob:password "localhost:6000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
 ```
 
 ### 6. Change the policy.
@@ -321,6 +324,7 @@ Build a new bundle with the new policy included.
 
 ```shell
 opa build example.rego example-hr.rego
+mv bundle.tar.gz ./bundles
 ```
 
 The updated bundle will automatically be served by the bundle server, but note that it  might take up to the configured `max_delay_seconds` for the new bundle to be downloaded by OPA.
@@ -333,10 +337,10 @@ In real-world scenarios that information would be imported from external data so
 Check that `david` can see anyone's salary.
 
 ```shell
-gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
-gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
-gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
-gql-query david:password "localhost:5000/" '{"query":"query { employeeByID(id: \"david\") { salary }}"}'
+gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \"alice\") { salary }}"}'
+gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \"bob\") { salary }}"}'
+gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \"charlie\") { salary }}"}'
+gql-query david:password "localhost:6000/" '{"query":"query { employeeByID(id: \"david\") { salary }}"}'
 ```
 
 ### 8. (Optional) Use JSON Web Tokens to communicate policy data.
@@ -459,6 +463,7 @@ Build a new bundle for the new policy.
 
 ```shell
 opa build example-jwt.rego example-hr.rego
+mv bundle.tar.gz ./bundles
 ```
 
 For convenience, we'll want to store user tokens in environment variables (they're really long).
