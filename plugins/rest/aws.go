@@ -585,7 +585,7 @@ func signV4(req *http.Request, service string, credService awsCredentialService,
 	// that we're attempting to perform; in this case, a GET from an S3 bucket
 	canonicalReq := req.Method + "\n"            // HTTP method
 	canonicalReq += req.URL.EscapedPath() + "\n" // URI-escaped path
-	canonicalReq += "\n"                         // query string; not implemented
+	canonicalReq += req.URL.RawQuery + "\n"      // RAW Query String
 
 	// include the values for the signed headers
 	orderedKeys := sortKeys(headersToSign)
