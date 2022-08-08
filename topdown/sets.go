@@ -74,9 +74,7 @@ func builtinSetUnion(a ast.Value) (ast.Value, error) {
 		if err != nil {
 			return err
 		}
-		item.Foreach(func(y *ast.Term) {
-			result.Add(y)
-		})
+		item.Foreach(result.Add)
 		return nil
 	})
 
