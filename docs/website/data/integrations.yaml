@@ -1068,7 +1068,7 @@ integrations:
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
       
-    spire:
+  spire:
     title: SPIRE
     description: SPIRE is a production-ready implementation of the SPIFFE APIs that performs node and workload attestation in order to securely issue SPIFFE Verifiable Identity Documents (SVIDs) to workloads, and verify the SVIDs of other workloads, based on a predefined set of conditions.
     labels:
