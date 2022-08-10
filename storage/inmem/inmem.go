@@ -114,7 +114,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlying.UpsertPolicy(update.Path.String(), update.Value)
+			err = underlying.UpsertPolicy(strings.TrimLeft(update.Path.String(), "/"), update.Value)
 			if err != nil {
 				return err
 			}
