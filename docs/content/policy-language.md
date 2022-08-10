@@ -975,6 +975,15 @@ s(5, 3)
 ```live:eg/double_function_define_undefined/2:output:expect_undefined
 ```
 
+Functions definition may contain `if/else` semantics similarly to [rules](#else-keyword):
+```
+can_edit(entity) := true if {
+	entity.owner == input.user
+} else := true {
+	entity.public == true
+} else := false
+```
+
 ## Negation
 
 To generate the content of a [Virtual Document](../philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
