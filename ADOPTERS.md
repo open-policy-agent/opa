@@ -206,6 +206,11 @@ production users that have added themselves (in alphabetical order):
   across a fleet of microservices that evolved out of a monolithic architecture.
   For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=Z6aN3Smt-9M).
 
+* [VNG Cloud](https://www.vngcloud.vn/en/home) [Identity and Access Management (IAM)](https://iam.vngcloud.vn/)
+  use OPA as a policy-based decision engine for authorization. IAM provides administrators with fine-grained 
+  access control to VNG Cloud resources and help centralize and manage permissions to access resources. 
+  Specifically, OPA is integrated to evaluate policies to make the decision about denying or allowing incoming requests.
+  
 In addition, there are several production adopters that prefer to
 remain anonymous.
 
