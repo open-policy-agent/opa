@@ -28,7 +28,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/internal"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -63,8 +63,12 @@ type ReadOnlySpan interface {
 	Events() []Event
 	// Status returns the spans status.
 	Status() Status
+	// InstrumentationScope returns information about the instrumentation
+	// scope that created the span.
+	InstrumentationScope() instrumentation.Scope
 	// InstrumentationLibrary returns information about the instrumentation
 	// library that created the span.
+	// Deprecated: please use InstrumentationScope instead.
 	InstrumentationLibrary() instrumentation.Library
 	// Resource returns information about the entity that produced the span.
 	Resource() *resource.Resource
@@ -584,12 +588,20 @@ func (s *recordingSpan) Status() Status {
 	return s.status
 }
 
+// InstrumentationScope returns the instrumentation.Scope associated with
+// the Tracer that created this span.
+func (s *recordingSpan) InstrumentationScope() instrumentation.Scope {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.tracer.instrumentationScope
+}
+
 // InstrumentationLibrary returns the instrumentation.Library associated with
 // the Tracer that created this span.
 func (s *recordingSpan) InstrumentationLibrary() instrumentation.Library {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.tracer.instrumentationLibrary
+	return s.tracer.instrumentationScope
 }
 
 // Resource returns the Resource associated with the Tracer that created this
@@ -668,7 +680,7 @@ func (s *recordingSpan) snapshot() ReadOnlySpan {
 	defer s.mu.Unlock()
 
 	sd.endTime = s.endTime
-	sd.instrumentationLibrary = s.tracer.instrumentationLibrary
+	sd.instrumentationScope = s.tracer.instrumentationScope
 	sd.name = s.name
 	sd.parent = s.parent
 	sd.resource = s.tracer.provider.resource

@@ -23,8 +23,8 @@ import (
 )
 
 type tracer struct {
-	provider               *TracerProvider
-	instrumentationLibrary instrumentation.Library
+	provider             *TracerProvider
+	instrumentationScope instrumentation.Scope
 }
 
 var _ trace.Tracer = &tracer{}
