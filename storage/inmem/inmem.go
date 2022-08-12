@@ -150,6 +150,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		return err
 	}
 
+	// For backwards compatibility, check if `RootOverwrite` was configured.
 	if params.RootOverwrite {
 		newPath, ok := storage.ParsePathEscaped("/")
 		if !ok {
@@ -158,23 +159,23 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		return underlying.Write(storage.AddOp, newPath, mergedData)
 	}
 
-	for k := range mergedData {
-		newPath, ok := storage.ParsePathEscaped("/" + k)
+	for _, root := range params.BasePaths {
+		newPath, ok := storage.ParsePathEscaped("/" + root)
 		if !ok {
 			return fmt.Errorf("storage path invalid: %v", newPath)
 		}
 
-		if len(newPath) > 0 {
-			if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+		if value, ok := lookup(newPath, mergedData); ok {
+			if len(newPath) > 0 {
+				if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+					return err
+				}
+			}
+			if err := underlying.Write(storage.AddOp, newPath, value); err != nil {
 				return err
 			}
 		}
-
-		if err := underlying.Write(storage.AddOp, newPath, mergedData[k]); err != nil {
-			return err
-		}
 	}
-
 	return nil
 }
 
@@ -354,4 +355,23 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 	dir[path[0]] = value
 
 	return dir, nil
+}
+
+func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
+	if len(path) == 0 {
+		return data, true
+	}
+	for i := 0; i < len(path)-1; i++ {
+		value, ok := data[path[i]]
+		if !ok {
+			return nil, false
+		}
+		obj, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		data = obj
+	}
+	value, ok := data[path[len(path)-1]]
+	return value, ok
 }

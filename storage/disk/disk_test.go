@@ -215,7 +215,9 @@ func runTruncateTest(t *testing.T, dir string) {
 
 	iterator := bundle.NewIterator(b.Raw)
 
-	err = s.Truncate(ctx, txn, storage.WriteParams, iterator)
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+	err = s.Truncate(ctx, txn, params, iterator)
 	if err != nil {
 		t.Fatalf("Unexpected truncate error: %v", err)
 	}
@@ -345,7 +347,9 @@ func TestTruncateMultipleTxn(t *testing.T) {
 
 		iterator := bundle.NewIterator(b.Raw)
 
-		err = s.Truncate(ctx, txn, storage.WriteParams, iterator)
+		params := storage.WriteParams
+		params.BasePaths = []string{""}
+		err = s.Truncate(ctx, txn, params, iterator)
 		if err != nil {
 			t.Fatalf("Unexpected truncate error: %v", err)
 		}
@@ -1597,6 +1601,72 @@ func TestDiskTriggers(t *testing.T) {
 			t.Fatalf("Expected policy event %v, got %v", expPolicy, p)
 		}
 	})
+}
+
+func TestLookup(t *testing.T) {
+	cases := []struct {
+		note     string
+		input    []byte
+		path     string
+		expected []byte
+	}{
+		{
+			note:     "empty path",
+			input:    []byte(`{"hello": "world"}`),
+			path:     "",
+			expected: []byte(`{"hello": "world"}`),
+		},
+		{
+			note:     "single path",
+			input:    []byte(`{"a": {"b": {"c": "d"}}}`),
+			path:     "a",
+			expected: []byte(`{"b": {"c": "d"}}`),
+		},
+		{
+			note:     "nested path-1",
+			input:    []byte(`{"a": {"b": {"c": "d"}}}`),
+			path:     "a/b",
+			expected: []byte(`{"c": "d"}`),
+		},
+		{
+			note:     "nested path-2",
+			input:    []byte(`{"a": {"b": {"c": {"d": [1,2,3]}}}}`),
+			path:     "a/b/c",
+			expected: []byte(`{"d": [1,2,3]}`),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			path, ok := storage.ParsePathEscaped("/" + tc.path)
+			if !ok {
+				t.Fatalf("storage path invalid: %v", path)
+			}
+
+			result, _, err := lookup(path, tc.input)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			switch v := result.(type) {
+			case map[string]json.RawMessage:
+				var obj map[string]json.RawMessage
+				err := util.Unmarshal(tc.expected, &obj)
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if !reflect.DeepEqual(v, obj) {
+					t.Fatalf("Expected result %v, got %v", obj, result)
+				}
+			case json.RawMessage:
+				if !bytes.Equal(v, tc.expected) {
+					t.Fatalf("Expected result %v, got %v", tc.expected, result)
+				}
+			}
+		})
+	}
 }
 
 func TestDiskDiagnostics(t *testing.T) {

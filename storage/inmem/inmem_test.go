@@ -349,7 +349,10 @@ func TestTruncateNoExistingPath(t *testing.T) {
 
 	iterator := bundle.NewIterator(b.Raw)
 
-	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+
+	err = store.Truncate(ctx, txn, params, iterator)
 	if err != nil {
 		t.Fatalf("Unexpected truncate error: %v", err)
 	}
@@ -408,7 +411,10 @@ func TestTruncate(t *testing.T) {
 
 	iterator := bundle.NewIterator(b.Raw)
 
-	err = store.Truncate(ctx, txn, storage.WriteParams, iterator)
+	params := storage.WriteParams
+	params.BasePaths = []string{""}
+
+	err = store.Truncate(ctx, txn, params, iterator)
 	if err != nil {
 		t.Fatalf("Unexpected truncate error: %v", err)
 	}
