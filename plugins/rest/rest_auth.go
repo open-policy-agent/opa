@@ -82,6 +82,7 @@ func DefaultRoundTripperClient(t *tls.Config, timeout int64) *http.Client {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = time.Duration(timeout) * time.Second
 	tr.TLSClientConfig = t
+	tr.DisableKeepAlives = true
 
 	c := *http.DefaultClient
 	c.Transport = tr
