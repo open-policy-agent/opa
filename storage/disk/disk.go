@@ -277,7 +277,8 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 	xid := atomic.AddUint64(&db.xid, uint64(1))
 	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
 
-	if params.RootOverwrite {
+	// For backwards compatibility, check if `RootOverwrite` was configured.
+	if params.RootOverwrite || overwriteRoot(params.BasePaths) {
 		newPath, ok := storage.ParsePathEscaped("/")
 		if !ok {
 			return fmt.Errorf("storage path invalid: %v", newPath)
@@ -336,31 +337,32 @@ func (db *Store) Truncate(ctx context.Context, txn storage.Transaction, params s
 					underlyingTxn = sTxn
 				}
 			} else {
-				// write operation at root path
-
-				var obj map[string]json.RawMessage
-				err := util.Unmarshal(update.Value, &obj)
-				if err != nil {
-					return err
-				}
-
-				for k := range obj {
-					newPath, ok := storage.ParsePathEscaped("/" + k)
+				for _, root := range params.BasePaths {
+					newPath, ok := storage.ParsePathEscaped("/" + root)
 					if !ok {
 						return fmt.Errorf("storage path invalid: %v", newPath)
 					}
 
-					if err := storage.MakeDir(ctx, db, underlyingTxn, newPath[:len(newPath)-1]); err != nil {
+					value, ok, err := lookup(newPath, update.Value)
+					if err != nil {
 						return err
 					}
 
-					sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, obj[k])
-					if err != nil {
-						return wrapError(err)
-					}
+					if ok {
+						if len(newPath) > 0 {
+							if err := storage.MakeDir(ctx, db, underlyingTxn, newPath[:len(newPath)-1]); err != nil {
+								return err
+							}
+						}
 
-					if sTxn != nil {
-						underlyingTxn = sTxn
+						sTxn, err := db.doTruncateData(ctx, underlyingTxn, db.db, params, newPath, value)
+						if err != nil {
+							return wrapError(err)
+						}
+
+						if sTxn != nil {
+							underlyingTxn = sTxn
+						}
 					}
 				}
 			}
@@ -988,4 +990,43 @@ func createSymlink(target, symlink string) error {
 	}
 
 	return lerr
+}
+
+func lookup(path storage.Path, data []byte) (interface{}, bool, error) {
+	var obj map[string]json.RawMessage
+	err := util.Unmarshal(data, &obj)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if len(path) == 0 {
+		return obj, true, nil
+	}
+
+	for i := 0; i < len(path)-1; i++ {
+		value, ok := obj[path[i]]
+		if !ok {
+			return nil, false, nil
+		}
+
+		var next map[string]json.RawMessage
+		err := util.Unmarshal(value, &next)
+		if err != nil {
+			return nil, false, err
+		}
+
+		obj = next
+	}
+
+	value, ok := obj[path[len(path)-1]]
+	return value, ok, nil
+}
+
+func overwriteRoot(roots []string) bool {
+	for _, root := range roots {
+		if root == "" {
+			return true
+		}
+	}
+	return false
 }
