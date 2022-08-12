@@ -455,7 +455,7 @@ func TestTruncate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedIds := map[string]struct{}{"/policy.rego": {}, "/roles/policy.rego": {}}
+	expectedIds := map[string]struct{}{"policy.rego": {}, "roles/policy.rego": {}}
 
 	for _, id := range ids {
 		if _, ok := expectedIds[id]; !ok {
@@ -463,13 +463,13 @@ func TestTruncate(t *testing.T) {
 		}
 	}
 
-	bs, err := store.GetPolicy(ctx, txn, "/policy.rego")
+	bs, err := store.GetPolicy(ctx, txn, "policy.rego")
 	expectedBytes := []byte("package foo\n p = 1")
 	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
 	}
 
-	bs, err = store.GetPolicy(ctx, txn, "/roles/policy.rego")
+	bs, err = store.GetPolicy(ctx, txn, "roles/policy.rego")
 	expectedBytes = []byte("package bar\n p = 1")
 	if err != nil || !reflect.DeepEqual(expectedBytes, bs) {
 		t.Fatalf("Expected get policy to return %v but got: %v (err: %v)", expectedBytes, bs, err)
