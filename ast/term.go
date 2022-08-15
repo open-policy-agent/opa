@@ -1368,16 +1368,9 @@ func SetTerm(t ...*Term) *Term {
 	}
 }
 
-// sort.Sort expects an interface type, so we provide one here.
-type setKeySlice []*Term
-
-func (s setKeySlice) Less(i, j int) bool { return Compare(s[i].Value, s[j].Value) < 0 }
-func (s setKeySlice) Swap(i, j int)      { x := s[i]; s[i] = s[j]; s[j] = x }
-func (s setKeySlice) Len() int           { return len(s) }
-
 type set struct {
 	elems      map[int]*Term
-	keys       setKeySlice
+	keys       []*Term
 	hash       int
 	ground     bool
 	numInserts int // number of inserts since last sorting.
@@ -1422,7 +1415,7 @@ func (s *set) String() string {
 
 func (s *set) sortedKeys() []*Term {
 	if s.numInserts > 0 {
-		sort.Sort(s.keys)
+		sort.Sort(termSlice(s.keys))
 		s.numInserts = 0
 	}
 	return s.keys
