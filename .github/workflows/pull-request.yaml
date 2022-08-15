@@ -258,7 +258,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04, macos-latest]
-        version: ["1.17", "1.16"]
+        version: ["1.18", "1.17"]
     steps:
       - uses: actions/checkout@v3
       - name: Download generated artifacts
