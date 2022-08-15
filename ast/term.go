@@ -1352,10 +1352,11 @@ func newset(n int) *set {
 		keys = make([]*Term, 0, n)
 	}
 	return &set{
-		elems:  make(map[int]*Term, n),
-		keys:   keys,
-		hash:   0,
-		ground: true,
+		elems:      make(map[int]*Term, n),
+		keys:       keys,
+		hash:       0,
+		ground:     true,
+		numInserts: 0,
 	}
 }
 
@@ -1368,10 +1369,11 @@ func SetTerm(t ...*Term) *Term {
 }
 
 type set struct {
-	elems  map[int]*Term
-	keys   []*Term
-	hash   int
-	ground bool
+	elems      map[int]*Term
+	keys       []*Term
+	hash       int
+	ground     bool
+	numInserts int // number of inserts since last sorting.
 }
 
 // Copy returns a deep copy of s.
@@ -1401,7 +1403,7 @@ func (s *set) String() string {
 	}
 	var b strings.Builder
 	b.WriteRune('{')
-	for i := range s.keys {
+	for i := range s.sortedKeys() {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -1409,6 +1411,14 @@ func (s *set) String() string {
 	}
 	b.WriteRune('}')
 	return b.String()
+}
+
+func (s *set) sortedKeys() []*Term {
+	if s.numInserts > 0 {
+		sort.Sort(termSlice(s.keys))
+		s.numInserts = 0
+	}
+	return s.keys
 }
 
 // Compare compares s to other, return <0, 0, or >0 if it is less than, equal to,
@@ -1422,7 +1432,7 @@ func (s *set) Compare(other Value) int {
 		return 1
 	}
 	t := other.(*set)
-	return termSliceCompare(s.keys, t.keys)
+	return termSliceCompare(s.sortedKeys(), t.sortedKeys())
 }
 
 // Find returns the set or dereferences the element itself.
@@ -1488,7 +1498,7 @@ func (s *set) Add(t *Term) {
 // Iter calls f on each element in s. If f returns an error, iteration stops
 // and the return value is the error.
 func (s *set) Iter(f func(*Term) error) error {
-	for i := range s.keys {
+	for i := range s.sortedKeys() {
 		if err := f(s.keys[i]); err != nil {
 			return err
 		}
@@ -1564,20 +1574,19 @@ func (s *set) MarshalJSON() ([]byte, error) {
 	if s.keys == nil {
 		return []byte(`[]`), nil
 	}
-	return json.Marshal(s.keys)
+	return json.Marshal(s.sortedKeys())
 }
 
 // Sorted returns an Array that contains the sorted elements of s.
 func (s *set) Sorted() *Array {
 	cpy := make([]*Term, len(s.keys))
-	copy(cpy, s.keys)
-	sort.Sort(termSlice(cpy))
+	copy(cpy, s.sortedKeys())
 	return NewArray(cpy...)
 }
 
 // Slice returns a slice of terms contained in the set.
 func (s *set) Slice() []*Term {
-	return s.keys
+	return s.sortedKeys()
 }
 
 func (s *set) insert(x *Term) {
@@ -1670,15 +1679,9 @@ func (s *set) insert(x *Term) {
 	}
 
 	s.elems[insertHash] = x
-	i := sort.Search(len(s.keys), func(i int) bool { return Compare(x, s.keys[i]) < 0 })
-	if i < len(s.keys) {
-		// insert at position `i`:
-		s.keys = append(s.keys, nil)   // add some space
-		copy(s.keys[i+1:], s.keys[i:]) // move things over
-		s.keys[i] = x                  // drop it in position
-	} else {
-		s.keys = append(s.keys, x)
-	}
+	// O(1) insertion, but we'll have to re-sort the keys later.
+	s.keys = append(s.keys, x)
+	s.numInserts++ // Track insertions since the last re-sorting.
 
 	s.hash += hash
 	s.ground = s.ground && x.IsGround()
