@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
@@ -260,37 +259,6 @@ func TestObjectFilter(t *testing.T) {
 				t.Errorf("Expected:\n\n\t%s\n\nGot:\n\n\t%s\n\n", expected, actual)
 			}
 		})
-	}
-}
-
-func TestSetInsertKeepsKeysSorting(t *testing.T) {
-	keysSorted := func(s *set) func(int, int) bool {
-		return func(i, j int) bool {
-			return Compare(s.keys[i], s.keys[j]) < 0
-		}
-	}
-
-	s0 := NewSet(
-		StringTerm("d"),
-		StringTerm("b"),
-		StringTerm("a"),
-	)
-	s := s0.(*set)
-	act := sort.SliceIsSorted(s.keys, keysSorted(s))
-	if exp := true; act != exp {
-		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
-		for i := range s.keys {
-			t.Logf("elem[%d]: %v", i, s.keys[i])
-		}
-	}
-
-	s0.Add(StringTerm("c"))
-	act = sort.SliceIsSorted(s.keys, keysSorted(s))
-	if exp := true; act != exp {
-		t.Errorf("SliceIsSorted: expected %v, got %v", exp, act)
-		for i := range s.keys {
-			t.Logf("elem[%d]: %v", i, s.keys[i])
-		}
 	}
 }
 
