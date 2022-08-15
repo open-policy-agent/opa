@@ -975,6 +975,65 @@ s(5, 3)
 ```live:eg/double_function_define_undefined/2:output:expect_undefined
 ```
 
+#### Function overloading
+Rego does not currently support the overloading of functions by the number of parameters. If two function definitions are given with the same function name but different numbers of parameters, a compile-time type error is generated.
+
+```live:eg/function_overloading_error:module
+r(x) := result if {
+    result := 2*x
+}
+
+r(x, y) := result if {
+    result := 2*x + 3*y
+}
+```
+
+```live:eg/function_overloading_error:output:expect_rego_type_error
+```
+
+The error can be avoided by using different function names.
+```live:eg/function_overloading_naming:module
+r_1(x) := result if {
+    result := 2*x
+}
+
+r_2(x, y) := result if {
+    result := 2*x + 3*y
+}
+```
+
+```live:eg/function_overloading_naming:query:merge_down
+[
+  r_1(10),
+  r_2(10, 1)
+]
+```
+```live:eg/function_overloading_naming:output
+```
+
+In the unusual case that it is critical to use the same name, the function could be made to take the list of parameters as a single array. However, this approach is not generally recommended because it sacrifices some helpful compile-time checking and can be quite error-prone.
+
+```live:eg/function_overloading_array:module
+r(params) := result if {
+    count(params) == 1
+    result := 2*params[0]
+}
+
+r(params) := result if {
+    count(params) == 2
+    result := 2*params[0] + 3*params[1]
+}
+```
+
+```live:eg/function_overloading_array:query:merge_down
+[
+  r([10]),
+  r([10, 1])
+]
+```
+```live:eg/function_overloading_array:output
+```
+
 ## Negation
 
 To generate the content of a [Virtual Document](../philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
