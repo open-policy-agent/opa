@@ -919,6 +919,48 @@ func TestSetConcurrentReads(t *testing.T) {
 	wg.Wait()
 }
 
+func TestObjectConcurrentReads(t *testing.T) {
+	// Create array of numbers.
+	numbers := make([]*Term, 10000)
+	for i := 0; i < 10000; i++ {
+		numbers[i] = IntNumberTerm(i)
+	}
+	// Shuffle numbers array for random insertion order.
+	rand.Seed(10000)
+	rand.Shuffle(len(numbers), func(i, j int) {
+		numbers[i], numbers[j] = numbers[j], numbers[i]
+	})
+	// Build an object with numbers in unsorted order.
+	o := NewObject()
+	for i := 0; i < len(numbers); i++ {
+		o.Insert(numbers[i], NullTerm())
+	}
+	// In-place sort on numbers.
+	sort.Sort(termSlice(numbers))
+
+	// Check if race condition on key sorting is present.
+	var wg sync.WaitGroup
+	num := runtime.NumCPU()
+	wg.Add(num)
+	for i := 0; i < num; i++ {
+		go func() {
+			defer wg.Done()
+			var retrieved []*Term
+			o.Foreach(func(k, v *Term) {
+				retrieved = append(retrieved, k)
+			})
+			// Check for sortedness of retrieved results.
+			// This will hit a race condition around `s.sortedKeys`.
+			for n := 0; n < len(retrieved); n++ {
+				if retrieved[n] != numbers[n] {
+					t.Errorf("Expected: %v at iteration %d but got %v instead", numbers[n], n, retrieved[n])
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func TestArrayOperations(t *testing.T) {
 
 	arr := MustParseTerm(`[1,2,3,4]`).Value.(*Array)
