@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/pkg/errors"
@@ -1352,11 +1353,11 @@ func newset(n int) *set {
 		keys = make([]*Term, 0, n)
 	}
 	return &set{
-		elems:      make(map[int]*Term, n),
-		keys:       keys,
-		hash:       0,
-		ground:     true,
-		numInserts: 0,
+		elems:     make(map[int]*Term, n),
+		keys:      keys,
+		hash:      0,
+		ground:    true,
+		sortGuard: new(sync.Once),
 	}
 }
 
@@ -1369,11 +1370,11 @@ func SetTerm(t ...*Term) *Term {
 }
 
 type set struct {
-	elems      map[int]*Term
-	keys       []*Term
-	hash       int
-	ground     bool
-	numInserts int // number of inserts since last sorting.
+	elems     map[int]*Term
+	keys      []*Term
+	hash      int
+	ground    bool
+	sortGuard *sync.Once // prevents race condition around sorting.
 }
 
 // Copy returns a deep copy of s.
@@ -1414,10 +1415,9 @@ func (s *set) String() string {
 }
 
 func (s *set) sortedKeys() []*Term {
-	if s.numInserts > 0 {
+	s.sortGuard.Do(func() {
 		sort.Sort(termSlice(s.keys))
-		s.numInserts = 0
-	}
+	})
 	return s.keys
 }
 
@@ -1681,7 +1681,7 @@ func (s *set) insert(x *Term) {
 	s.elems[insertHash] = x
 	// O(1) insertion, but we'll have to re-sort the keys later.
 	s.keys = append(s.keys, x)
-	s.numInserts++ // Track insertions since the last re-sorting.
+	s.sortGuard = new(sync.Once) // Reset the sync.Once. See https://github.com/golang/go/issues/25955 for why we do it this way.
 
 	s.hash += hash
 	s.ground = s.ground && x.IsGround()
