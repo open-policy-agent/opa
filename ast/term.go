@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/pkg/errors"
@@ -1352,11 +1353,11 @@ func newset(n int) *set {
 		keys = make([]*Term, 0, n)
 	}
 	return &set{
-		elems:      make(map[int]*Term, n),
-		keys:       keys,
-		hash:       0,
-		ground:     true,
-		numInserts: 0,
+		elems:     make(map[int]*Term, n),
+		keys:      keys,
+		hash:      0,
+		ground:    true,
+		sortGuard: new(sync.Once),
 	}
 }
 
@@ -1369,11 +1370,11 @@ func SetTerm(t ...*Term) *Term {
 }
 
 type set struct {
-	elems      map[int]*Term
-	keys       []*Term
-	hash       int
-	ground     bool
-	numInserts int // number of inserts since last sorting.
+	elems     map[int]*Term
+	keys      []*Term
+	hash      int
+	ground    bool
+	sortGuard *sync.Once // Prevents race condition around sorting.
 }
 
 // Copy returns a deep copy of s.
@@ -1414,10 +1415,9 @@ func (s *set) String() string {
 }
 
 func (s *set) sortedKeys() []*Term {
-	if s.numInserts > 0 {
+	s.sortGuard.Do(func() {
 		sort.Sort(termSlice(s.keys))
-		s.numInserts = 0
-	}
+	})
 	return s.keys
 }
 
@@ -1589,6 +1589,8 @@ func (s *set) Slice() []*Term {
 	return s.sortedKeys()
 }
 
+// NOTE(philipc): We assume a many-readers, single-writer model here.
+// This method should NOT be used concurrently, or else we risk data races.
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
 	insertHash := hash
@@ -1681,7 +1683,9 @@ func (s *set) insert(x *Term) {
 	s.elems[insertHash] = x
 	// O(1) insertion, but we'll have to re-sort the keys later.
 	s.keys = append(s.keys, x)
-	s.numInserts++ // Track insertions since the last re-sorting.
+	// Reset the sync.Once instance.
+	// See https://github.com/golang/go/issues/25955 for why we do it this way.
+	s.sortGuard = new(sync.Once)
 
 	s.hash += hash
 	s.ground = s.ground && x.IsGround()
@@ -1818,8 +1822,8 @@ type object struct {
 	keys   objectElemSlice
 	ground int // number of key and value grounds. Counting is
 	// required to support insert's key-value replace.
-	hash       int
-	numInserts int // number of inserts since last sorting.
+	hash      int
+	sortGuard *sync.Once // Prevents race condition around sorting.
 }
 
 func newobject(n int) *object {
@@ -1828,11 +1832,11 @@ func newobject(n int) *object {
 		keys = make(objectElemSlice, 0, n)
 	}
 	return &object{
-		elems:      make(map[int]*objectElem, n),
-		keys:       keys,
-		ground:     0,
-		hash:       0,
-		numInserts: 0,
+		elems:     make(map[int]*objectElem, n),
+		keys:      keys,
+		ground:    0,
+		hash:      0,
+		sortGuard: new(sync.Once),
 	}
 }
 
@@ -1855,10 +1859,9 @@ func Item(key, value *Term) [2]*Term {
 }
 
 func (obj *object) sortedKeys() objectElemSlice {
-	if obj.numInserts > 0 {
+	obj.sortGuard.Do(func() {
 		sort.Sort(obj.keys)
-		obj.numInserts = 0
-	}
+	})
 	return obj.keys
 }
 
@@ -2222,6 +2225,8 @@ func (obj *object) get(k *Term) *objectElem {
 	return nil
 }
 
+// NOTE(philipc): We assume a many-readers, single-writer model here.
+// This method should NOT be used concurrently, or else we risk data races.
 func (obj *object) insert(k, v *Term) {
 	hash := k.Hash()
 	head := obj.elems[hash]
@@ -2327,7 +2332,9 @@ func (obj *object) insert(k, v *Term) {
 	obj.elems[hash] = elem
 	// O(1) insertion, but we'll have to re-sort the keys later.
 	obj.keys = append(obj.keys, elem)
-	obj.numInserts++ // Track insertions since the last re-sorting.
+	// Reset the sync.Once instance.
+	// See https://github.com/golang/go/issues/25955 for why we do it this way.
+	obj.sortGuard = new(sync.Once)
 	obj.hash += hash + v.Hash()
 
 	if k.IsGround() {
