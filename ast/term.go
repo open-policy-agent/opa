@@ -1589,6 +1589,8 @@ func (s *set) Slice() []*Term {
 	return s.sortedKeys()
 }
 
+// NOTE(philipc): We assume a many-readers, single-writer model here.
+// This method should NOT be used concurrently, or else we risk data races.
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
 	insertHash := hash
@@ -2223,6 +2225,8 @@ func (obj *object) get(k *Term) *objectElem {
 	return nil
 }
 
+// NOTE(philipc): We assume a many-readers, single-writer model here.
+// This method should NOT be used concurrently, or else we risk data races.
 func (obj *object) insert(k, v *Term) {
 	hash := k.Hash()
 	head := obj.elems[hash]
