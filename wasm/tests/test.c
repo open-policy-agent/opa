@@ -2592,6 +2592,104 @@ void test_builtin_graph_reachable(void)
 WASM_EXPORT(test_strings)
 void test_strings(void)
 {
+    opa_array_t *any_prefix_match_string_arr_1 = opa_cast_array(opa_array());
+    opa_array_append(any_prefix_match_string_arr_1, opa_string_terminated("a/b/c"));
+    opa_array_append(any_prefix_match_string_arr_1, opa_string_terminated("e/f/g"));
+
+    opa_array_t *any_prefix_match_prefixes_arr_11 = opa_cast_array(opa_array());
+    opa_array_append(any_prefix_match_prefixes_arr_11, opa_string_terminated("g/b"));
+    opa_array_append(any_prefix_match_prefixes_arr_11, opa_string_terminated("a/"));
+
+    opa_array_t *any_prefix_match_prefixes_arr_12 = opa_cast_array(opa_array());
+    opa_array_append(any_prefix_match_prefixes_arr_12, opa_string_terminated("g/b"));
+    opa_array_append(any_prefix_match_prefixes_arr_12, opa_string_terminated("b/"));
+
+    opa_array_t *any_prefix_match_string_arr_2 = opa_cast_array(opa_array());
+    opa_array_t *any_prefix_match_prefixes_arr_2 = opa_cast_array(opa_array());
+
+    opa_set_t *any_prefix_match_string_set_1 = opa_cast_set(opa_set());
+    opa_set_add(any_prefix_match_string_set_1, opa_string_terminated("a/b/c"));
+    opa_set_add(any_prefix_match_string_set_1, opa_string_terminated("e/f/g"));
+
+    opa_set_t *any_prefix_match_prefixes_set_11 = opa_cast_set(opa_set());
+    opa_set_add(any_prefix_match_prefixes_set_11, opa_string_terminated("g/b"));
+    opa_set_add(any_prefix_match_prefixes_set_11, opa_string_terminated("a/"));
+
+    opa_set_t *any_prefix_match_prefixes_set_12 = opa_cast_set(opa_set());
+    opa_set_add(any_prefix_match_prefixes_set_12, opa_string_terminated("g/b"));
+    opa_set_add(any_prefix_match_prefixes_set_12, opa_string_terminated("b/"));
+
+    opa_set_t *any_prefix_match_string_set_2 = opa_cast_set(opa_set());
+    opa_set_t *any_prefix_match_prefixes_set_2 = opa_cast_set(opa_set());
+
+    test("any_prefix_match/__", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated(""), opa_string_terminated("")), opa_boolean(true)) == 0);
+    test("any_prefix_match/_a", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated(""), opa_string_terminated("a")), opa_boolean(false)) == 0);
+    test("any_prefix_match/a_", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("a"), opa_string_terminated("")), opa_boolean(true)) == 0);
+    test("any_prefix_match/aa", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("a"), opa_string_terminated("a")), opa_boolean(true)) == 0);
+    test("any_prefix_match/ab", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("a"), opa_string_terminated("b")), opa_boolean(false)) == 0);
+    test("any_prefix_match/aab", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("a"), opa_string_terminated("ab")), opa_boolean(false)) == 0);
+    test("any_prefix_match/aba", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("ab"), opa_string_terminated("a")), opa_boolean(true)) == 0);
+    test("any_prefix_match/aab", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("aa"), opa_string_terminated("b")), opa_boolean(false)) == 0);
+    test("any_prefix_match/abab", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("ab"), opa_string_terminated("ab")), opa_boolean(true)) == 0);
+    test("any_prefix_match/abaa", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("ab"), opa_string_terminated("aa")), opa_boolean(false)) == 0);
+    test("any_prefix_match/abcab", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("abc"), opa_string_terminated("ab")), opa_boolean(true)) == 0);
+    test("any_prefix_match/abcac", opa_value_compare(opa_strings_any_prefix_match(opa_string_terminated("abc"), opa_string_terminated("ac")), opa_boolean(false)) == 0);
+    test("any_prefix_match/arr11", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_arr_1->hdr, &any_prefix_match_prefixes_arr_11->hdr), opa_boolean(true)) == 0);
+    test("any_prefix_match/arr12", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_arr_1->hdr, &any_prefix_match_prefixes_arr_12->hdr), opa_boolean(false)) == 0);
+    test("any_prefix_match/arr2", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_arr_2->hdr, &any_prefix_match_prefixes_arr_2->hdr), opa_boolean(false)) == 0);
+    test("any_prefix_match/set11", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_set_1->hdr, &any_prefix_match_prefixes_set_11->hdr), opa_boolean(true)) == 0);
+    test("any_prefix_match/set12", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_set_1->hdr, &any_prefix_match_prefixes_set_12->hdr), opa_boolean(false)) == 0);
+    test("any_prefix_match/set2", opa_value_compare(opa_strings_any_prefix_match(&any_prefix_match_string_set_2->hdr, &any_prefix_match_prefixes_set_2->hdr), opa_boolean(false)) == 0);
+
+    opa_array_t *any_suffix_match_string_arr_1 = opa_cast_array(opa_array());
+    opa_array_append(any_suffix_match_string_arr_1, opa_string_terminated("a/b/c"));
+    opa_array_append(any_suffix_match_string_arr_1, opa_string_terminated("e/f/g"));
+
+    opa_array_t *any_suffix_match_suffixes_arr_11 = opa_cast_array(opa_array());
+    opa_array_append(any_suffix_match_suffixes_arr_11, opa_string_terminated("g/b"));
+    opa_array_append(any_suffix_match_suffixes_arr_11, opa_string_terminated("/c"));
+
+    opa_array_t *any_suffix_match_suffixes_arr_12 = opa_cast_array(opa_array());
+    opa_array_append(any_suffix_match_suffixes_arr_12, opa_string_terminated("g/b"));
+    opa_array_append(any_suffix_match_suffixes_arr_12, opa_string_terminated("/b"));
+
+    opa_array_t *any_suffix_match_string_arr_2 = opa_cast_array(opa_array());
+    opa_array_t *any_suffix_match_suffixes_arr_2 = opa_cast_array(opa_array());
+
+    opa_set_t *any_suffix_match_string_set_1 = opa_cast_set(opa_set());
+    opa_set_add(any_suffix_match_string_set_1, opa_string_terminated("a/b/c"));
+    opa_set_add(any_suffix_match_string_set_1, opa_string_terminated("e/f/g"));
+
+    opa_set_t *any_suffix_match_suffixes_set_11 = opa_cast_set(opa_set());
+    opa_set_add(any_suffix_match_suffixes_set_11, opa_string_terminated("g/b"));
+    opa_set_add(any_suffix_match_suffixes_set_11, opa_string_terminated("/c"));
+
+    opa_set_t *any_suffix_match_suffixes_set_12 = opa_cast_set(opa_set());
+    opa_set_add(any_suffix_match_suffixes_set_12, opa_string_terminated("g/b"));
+    opa_set_add(any_suffix_match_suffixes_set_12, opa_string_terminated("/b"));
+
+    opa_set_t *any_suffix_match_string_set_2 = opa_cast_set(opa_set());
+    opa_set_t *any_suffix_match_suffixes_set_2 = opa_cast_set(opa_set());
+
+    test("any_suffix_match/__", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated(""), opa_string_terminated("")), opa_boolean(true)) == 0);
+    test("any_suffix_match/_a", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated(""), opa_string_terminated("a")), opa_boolean(false)) == 0);
+    test("any_suffix_match/a_", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("a"), opa_string_terminated("")), opa_boolean(true)) == 0);
+    test("any_suffix_match/aa", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("a"), opa_string_terminated("a")), opa_boolean(true)) == 0);
+    test("any_suffix_match/ab", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("a"), opa_string_terminated("b")), opa_boolean(false)) == 0);
+    test("any_suffix_match/aab", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("a"), opa_string_terminated("ab")), opa_boolean(false)) == 0);
+    test("any_suffix_match/abb", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("ab"), opa_string_terminated("b")), opa_boolean(true)) == 0);
+    test("any_suffix_match/aab", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("aa"), opa_string_terminated("b")), opa_boolean(false)) == 0);
+    test("any_suffix_match/abab", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("ab"), opa_string_terminated("ab")), opa_boolean(true)) == 0);
+    test("any_suffix_match/abaa", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("ab"), opa_string_terminated("aa")), opa_boolean(false)) == 0);
+    test("any_suffix_match/abcbc", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("abc"), opa_string_terminated("bc")), opa_boolean(true)) == 0);
+    test("any_suffix_match/abcbd", opa_value_compare(opa_strings_any_suffix_match(opa_string_terminated("abc"), opa_string_terminated("bd")), opa_boolean(false)) == 0);
+    test("any_suffix_match/arr11", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_arr_1->hdr, &any_suffix_match_suffixes_arr_11->hdr), opa_boolean(true)) == 0);
+    test("any_suffix_match/arr12", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_arr_1->hdr, &any_suffix_match_suffixes_arr_12->hdr), opa_boolean(false)) == 0);
+    test("any_suffix_match/arr2", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_arr_2->hdr, &any_suffix_match_suffixes_arr_2->hdr), opa_boolean(false)) == 0);
+    test("any_suffix_match/set11", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_set_1->hdr, &any_suffix_match_suffixes_set_11->hdr), opa_boolean(true)) == 0);
+    test("any_suffix_match/set12", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_set_1->hdr, &any_suffix_match_suffixes_set_12->hdr), opa_boolean(false)) == 0);
+    test("any_suffix_match/set2", opa_value_compare(opa_strings_any_suffix_match(&any_suffix_match_string_set_2->hdr, &any_suffix_match_suffixes_set_2->hdr), opa_boolean(false)) == 0);
+
     opa_value *join = opa_string_terminated("--");
 
     opa_array_t *arr0 = opa_cast_array(opa_array());

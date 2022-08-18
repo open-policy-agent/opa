@@ -7,6 +7,207 @@
 #include "unicode.h"
 
 OPA_BUILTIN
+opa_value *opa_strings_any_prefix_match(opa_value *a, opa_value *b)
+{
+    // If the first argument is a string, continue to matching.
+    // Otherwise, if it's an array or set, recur for each element.
+    // In other words if opa_strings_any_prefix_match(["test", "test2"], x) is called,
+    // then this will result in two recurrent calls:
+    // - opa_strings_any_prefix_match("test", x)
+    // - opa_strings_any_prefix_match("test2", x)
+    switch (opa_value_type(a))
+    {
+    case OPA_STRING: {
+        break;
+    }
+    case OPA_ARRAY:
+    case OPA_SET: {
+        opa_value *prev = NULL;
+        opa_value *curr = NULL;
+        while ((curr = opa_value_iter(a, prev)) != NULL)
+        {
+            opa_value *elem = opa_value_get(a, curr);
+            if (opa_value_type(elem) != OPA_STRING)
+            {
+                return NULL;
+            }
+
+            opa_value *res = opa_strings_any_prefix_match(elem, b);
+            if (res == NULL) {
+                return NULL;
+            }
+            opa_boolean_t *res_b = opa_cast_boolean(res);
+            if (res_b->v) {
+                return res;
+            }
+            opa_value_free(res);
+
+            prev = curr;
+        }
+        return opa_boolean(false);
+    }
+    default:
+        return NULL;
+    }
+
+    // If the second argument is a string, continue to matching.
+    // Otherwise, if it's an array or set, recur for each element.
+    // In other words if opa_strings_any_prefix_match(x, ["test", "test2"]) is called,
+    // then this will result in two recurrent calls:
+    // - opa_strings_any_prefix_match(x, "test")
+    // - opa_strings_any_prefix_match(x, "test2")
+    switch (opa_value_type(b))
+    {
+    case OPA_STRING: {
+        break;
+    }
+    case OPA_ARRAY:
+    case OPA_SET: {
+        opa_value *prev = NULL;
+        opa_value *curr = NULL;
+        while ((curr = opa_value_iter(b, prev)) != NULL)
+        {
+            opa_value *elem = opa_value_get(b, curr);
+            if (opa_value_type(elem) != OPA_STRING)
+            {
+                return NULL;
+            }
+
+            opa_value *res = opa_strings_any_prefix_match(a, elem);
+            if (res == NULL) {
+                return NULL;
+            }
+            opa_boolean_t *res_b = opa_cast_boolean(res);
+            if (res_b->v) {
+                return res;
+            }
+            opa_value_free(res);
+
+            prev = curr;
+        }
+        return opa_boolean(false);
+    }
+    default:
+        return NULL;
+    }
+
+    opa_string_t *s = opa_cast_string(a);
+    opa_string_t *prefix = opa_cast_string(b);
+
+    if (s->len < prefix->len)
+    {
+        return opa_boolean(false);
+    }
+
+    return opa_boolean(opa_strncmp(s->v, prefix->v, prefix->len) == 0);
+}
+
+OPA_BUILTIN
+opa_value *opa_strings_any_suffix_match(opa_value *a, opa_value *b)
+{
+
+    // If the first argument is a string, continue to matching.
+    // Otherwise, if it's an array or set, recur for each element.
+    // In other words if opa_strings_any_suffix_match(["test", "test2"], x) is called,
+    // then this will result in two recurrent calls:
+    // - opa_strings_any_suffix_match("test", x)
+    // - opa_strings_any_suffix_match("test2", x)
+    switch (opa_value_type(a))
+    {
+    case OPA_STRING: {
+        break;
+    }
+    case OPA_ARRAY:
+    case OPA_SET: {
+        opa_value *prev = NULL;
+        opa_value *curr = NULL;
+        while ((curr = opa_value_iter(a, prev)) != NULL)
+        {
+            opa_value *elem = opa_value_get(a, curr);
+            if (opa_value_type(elem) != OPA_STRING)
+            {
+                return NULL;
+            }
+
+            opa_value *res = opa_strings_any_suffix_match(elem, b);
+            if (res == NULL) {
+                return NULL;
+            }
+            opa_boolean_t *res_b = opa_cast_boolean(res);
+            if (res_b->v) {
+                return res;
+            }
+            opa_value_free(res);
+
+            prev = curr;
+        }
+        return opa_boolean(false);
+    }
+    default:
+        return NULL;
+    }
+
+    // If the second argument is a string, continue to matching.
+    // Otherwise, if it's an array or set, recur for each element.
+    // In other words if opa_strings_any_suffix_match(x, ["test", "test2"]) is called,
+    // then this will result in two recurrent calls:
+    // - opa_strings_any_suffix_match(x, "test")
+    // - opa_strings_any_suffix_match(x, "test2")
+    switch (opa_value_type(b))
+    {
+    case OPA_STRING: {
+        break;
+    }
+    case OPA_ARRAY:
+    case OPA_SET: {
+        opa_value *prev = NULL;
+        opa_value *curr = NULL;
+        while ((curr = opa_value_iter(b, prev)) != NULL)
+        {
+            opa_value *elem = opa_value_get(b, curr);
+            if (opa_value_type(elem) != OPA_STRING)
+            {
+                return NULL;
+            }
+
+            opa_value *res = opa_strings_any_suffix_match(a, elem);
+            if (res == NULL) {
+                return NULL;
+            }
+            opa_boolean_t *res_b = opa_cast_boolean(res);
+            if (res_b->v) {
+                return res;
+            }
+            opa_value_free(res);
+
+            prev = curr;
+        }
+        return opa_boolean(false);
+    }
+    default:
+        return NULL;
+    }
+
+    opa_string_t *s = opa_cast_string(a);
+    opa_string_t *suffix = opa_cast_string(b);
+
+    if (s->len < suffix->len)
+    {
+        return opa_boolean(false);
+    }
+
+    for (int i = 0; i < suffix->len; i++)
+    {
+        if (s->v[s->len - suffix->len + i] != suffix->v[i])
+        {
+            return opa_boolean(false);
+        }
+    }
+
+    return opa_boolean(true);
+}
+
+OPA_BUILTIN
 opa_value *opa_strings_concat(opa_value *a, opa_value *b)
 {
     if (opa_value_type(a) != OPA_STRING)

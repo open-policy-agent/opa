@@ -109,6 +109,8 @@ var DefaultBuiltins = [...]*Builtin{
 	Union,
 
 	// Strings
+	AnyPrefixMatch,
+	AnySuffixMatch,
 	Concat,
 	FormatInt,
 	IndexOf,
@@ -269,7 +271,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// UUIDs
 	UUIDRFC4122,
 
-	//SemVers
+	// SemVers
 	SemVerIsValid,
 	SemVerCompare,
 
@@ -958,6 +960,48 @@ The set of regex symbols is limited for this builtin: only ` + "`.`, `*`, `+`, `
  * Strings
  */
 var stringsCat = category("strings")
+
+var AnyPrefixMatch = &Builtin{
+	Name:        "strings.any_prefix_match",
+	Description: "Returns true if any of the search strings begins with any of the base strings.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("search", types.NewAny(
+				types.S,
+				types.NewSet(types.S),
+				types.NewArray(nil, types.S),
+			)).Description("search string(s)"),
+			types.Named("base", types.NewAny(
+				types.S,
+				types.NewSet(types.S),
+				types.NewArray(nil, types.S),
+			)).Description("base string(s)"),
+		),
+		types.Named("result", types.B).Description("result of the prefix check"),
+	),
+	Categories: stringsCat,
+}
+
+var AnySuffixMatch = &Builtin{
+	Name:        "strings.any_suffix_match",
+	Description: "Returns true if any of the search strings ends with any of the base strings.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("search", types.NewAny(
+				types.S,
+				types.NewSet(types.S),
+				types.NewArray(nil, types.S),
+			)).Description("search string(s)"),
+			types.Named("base", types.NewAny(
+				types.S,
+				types.NewSet(types.S),
+				types.NewArray(nil, types.S),
+			)).Description("base string(s)"),
+		),
+		types.Named("result", types.B).Description("result of the suffix check"),
+	),
+	Categories: stringsCat,
+}
 
 var Concat = &Builtin{
 	Name:        "concat",
