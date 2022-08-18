@@ -7,7 +7,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 )
 
 func TestNetCIDRExpandCancellation(t *testing.T) {
@@ -22,7 +22,7 @@ func TestNetCIDRExpandCancellation(t *testing.T) {
 		`,
 	})
 
-	store := inmem.NewFromObject(map[string]interface{}{})
+	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
 	cancel := NewCancel()
 

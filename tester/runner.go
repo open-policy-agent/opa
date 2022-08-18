@@ -306,7 +306,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	})
 
 	if r.store == nil {
-		r.store = inmem.New()
+		r.store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
 	if r.bundles != nil && len(r.bundles) > 0 {

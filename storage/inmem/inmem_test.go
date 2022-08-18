@@ -12,10 +12,8 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/bundle"
-
 	"github.com/open-policy-agent/opa/internal/file/archive"
-
-	"github.com/open-policy-agent/opa/storage/internal/errors"
+	storageerrors "github.com/open-policy-agent/opa/storage/internal/errors"
 
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -39,12 +37,12 @@ func TestInMemoryRead(t *testing.T) {
 		{"/d/e/1", "baz"},
 		{"/d/e", []interface{}{"bar", "baz"}},
 		{"/c/0/z", map[string]interface{}{"p": true, "q": false}},
-		{"/a/0/beef", errors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
-		{"/d/100", errors.NewNotFoundError(storage.MustParsePath("/d/100"))},
-		{"/dead/beef", errors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
-		{"/a/str", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), errors.ArrayIndexTypeMsg)},
-		{"/a/100", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), errors.OutOfRangeMsg)},
-		{"/a/-1", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), errors.OutOfRangeMsg)},
+		{"/a/0/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/a/0/beef"))},
+		{"/d/100", storageerrors.NewNotFoundError(storage.MustParsePath("/d/100"))},
+		{"/dead/beef", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef"))},
+		{"/a/str", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/str"), storageerrors.ArrayIndexTypeMsg)},
+		{"/a/100", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/100"), storageerrors.OutOfRangeMsg)},
+		{"/a/-1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg)},
 	}
 
 	store := NewFromObject(data)
@@ -99,7 +97,7 @@ func TestInMemoryWrite(t *testing.T) {
 		{"append err", "remove", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 		{"append err-2", "replace", "/c/0/x/-", "", invalidPatchError("/c/0/x/-: invalid patch path"), "", nil},
 
-		{"remove", "remove", "/a", "", nil, "/a", errors.NewNotFoundError(storage.MustParsePath("/a"))},
+		{"remove", "remove", "/a", "", nil, "/a", storageerrors.NewNotFoundError(storage.MustParsePath("/a"))},
 		{"remove arr", "remove", "/a/1", "", nil, "/a", "[1,3,4]"},
 		{"remove obj/arr", "remove", "/c/0/x/1", "", nil, "/c/0/x", `[true,"foo"]`},
 		{"remove arr/arr", "remove", "/h/0/1", "", nil, "/h/0", "[1,3]"},
@@ -112,21 +110,21 @@ func TestInMemoryWrite(t *testing.T) {
 
 		{"err: bad root type", "add", "/", "[1,2,3]", invalidPatchError(rootMustBeObjectMsg), "", nil},
 		{"err: remove root", "remove", "/", "", invalidPatchError(rootCannotBeRemovedMsg), "", nil},
-		{"err: add arr (non-integer)", "add", "/a/foo", "1", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/foo"), errors.ArrayIndexTypeMsg), "", nil},
-		{"err: add arr (non-integer)", "add", "/a/3.14", "1", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/3.14"), errors.ArrayIndexTypeMsg), "", nil},
-		{"err: add arr (out of range)", "add", "/a/5", "1", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/5"), errors.OutOfRangeMsg), "", nil},
-		{"err: add arr (out of range)", "add", "/a/-1", "1", errors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), errors.OutOfRangeMsg), "", nil},
-		{"err: add arr (missing root)", "add", "/dead/beef/0", "1", errors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-		{"err: add non-coll", "add", "/a/1/2", "1", errors.NewNotFoundError(storage.MustParsePath("/a/1/2")), "", nil},
-		{"err: append (missing)", "add", `/dead/beef/-`, "1", errors.NewNotFoundError(storage.MustParsePath("/dead/beef/-")), "", nil},
-		{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, errors.NewNotFoundError(storage.MustParsePath("/c/0/deadbeef/-")), "", nil},
-		{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, errors.NewNotFoundErrorWithHint(storage.MustParsePath("/h/9999/-"), errors.OutOfRangeMsg), "", nil},
-		{"err: append append+add", "add", `/a/-/b/-`, `"x"`, errors.NewNotFoundErrorWithHint(storage.MustParsePath(`/a/-/b/-`), errors.ArrayIndexTypeMsg), "", nil},
-		{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", errors.NewNotFoundError(storage.MustParsePath("/b/v1/-")), "", nil},
-		{"err: remove missing", "remove", "/dead/beef/0", "", errors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
-		{"err: remove obj (missing)", "remove", "/b/deadbeef", "", errors.NewNotFoundError(storage.MustParsePath("/b/deadbeef")), "", nil},
-		{"err: replace root (missing)", "replace", "/deadbeef", "1", errors.NewNotFoundError(storage.MustParsePath("/deadbeef")), "", nil},
-		{"err: replace missing", "replace", "/dead/beef/1", "1", errors.NewNotFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
+		{"err: add arr (non-integer)", "add", "/a/foo", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/foo"), storageerrors.ArrayIndexTypeMsg), "", nil},
+		{"err: add arr (non-integer)", "add", "/a/3.14", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/3.14"), storageerrors.ArrayIndexTypeMsg), "", nil},
+		{"err: add arr (out of range)", "add", "/a/5", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/5"), storageerrors.OutOfRangeMsg), "", nil},
+		{"err: add arr (out of range)", "add", "/a/-1", "1", storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/a/-1"), storageerrors.OutOfRangeMsg), "", nil},
+		{"err: add arr (missing root)", "add", "/dead/beef/0", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
+		{"err: add non-coll", "add", "/a/1/2", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/a/1/2")), "", nil},
+		{"err: append (missing)", "add", `/dead/beef/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/-")), "", nil},
+		{"err: append obj/arr", "add", `/c/0/deadbeef/-`, `"x"`, storageerrors.NewNotFoundError(storage.MustParsePath("/c/0/deadbeef/-")), "", nil},
+		{"err: append arr/arr (out of range)", "add", `/h/9999/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath("/h/9999/-"), storageerrors.OutOfRangeMsg), "", nil},
+		{"err: append append+add", "add", `/a/-/b/-`, `"x"`, storageerrors.NewNotFoundErrorWithHint(storage.MustParsePath(`/a/-/b/-`), storageerrors.ArrayIndexTypeMsg), "", nil},
+		{"err: append arr/arr (non-array)", "add", `/b/v1/-`, "1", storageerrors.NewNotFoundError(storage.MustParsePath("/b/v1/-")), "", nil},
+		{"err: remove missing", "remove", "/dead/beef/0", "", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/0")), "", nil},
+		{"err: remove obj (missing)", "remove", "/b/deadbeef", "", storageerrors.NewNotFoundError(storage.MustParsePath("/b/deadbeef")), "", nil},
+		{"err: replace root (missing)", "replace", "/deadbeef", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/deadbeef")), "", nil},
+		{"err: replace missing", "replace", "/dead/beef/1", "1", storageerrors.NewNotFoundError(storage.MustParsePath("/dead/beef/1")), "", nil},
 	}
 
 	ctx := context.Background()
@@ -907,4 +905,71 @@ func loadSmallTestData() map[string]interface{} {
 		panic(err)
 	}
 	return data
+}
+
+func TestOptRoundTripOnWrite(t *testing.T) {
+	validObject := map[string]string{"foo": "bar"}
+
+	// self-referential objects are not serializable to JSON.
+	invalidObject := map[string]interface{}{}
+	invalidObject["foo"] = invalidObject
+
+	tests := []struct {
+		name    string
+		opts    []Opt
+		obj     interface{}
+		wantErr bool
+	}{{
+		name:    "success on valid object no Opts",
+		opts:    nil,
+		obj:     validObject,
+		wantErr: false,
+	}, {
+		name:    "success on valid object round trip enabled",
+		opts:    []Opt{OptRoundTripOnWrite(true)},
+		obj:     validObject,
+		wantErr: false,
+	}, {
+		name:    "success on valid object round trip disabled",
+		opts:    []Opt{OptRoundTripOnWrite(false)},
+		obj:     validObject,
+		wantErr: false,
+	}, {
+		// Ensure the setting defaults to "true".
+		name:    "failure on invalid object no Opts",
+		opts:    nil,
+		obj:     invalidObject,
+		wantErr: true,
+	}, {
+		name:    "failure on invalid object round trip enabled",
+		opts:    []Opt{OptRoundTripOnWrite(true)},
+		obj:     invalidObject,
+		wantErr: true,
+	}, {
+		// While this represents a bad use case, it's how we know the round-tripping
+		// has been disabled.
+		name:    "success on invalid object round trip disabled",
+		opts:    []Opt{OptRoundTripOnWrite(false)},
+		obj:     invalidObject,
+		wantErr: false,
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := NewWithOpts(tt.opts...)
+			ctx := context.Background()
+
+			txn, err := db.NewTransaction(ctx, storage.WriteParams)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = db.Write(ctx, txn, storage.AddOp, []string{"data"}, tt.obj)
+			if tt.wantErr && err == nil {
+				t.Fatal("got Write error = nil, want error")
+			} else if !tt.wantErr && err != nil {
+				t.Fatalf("got Write error, want nil")
+			}
+		})
+	}
 }
