@@ -189,24 +189,30 @@ func IntToNumber(i *big.Int) ast.Number {
 
 // StringSliceOperand converts x to a []string. If the cast fails, a descriptive error is
 // returned.
-func StringSliceOperand(x ast.Value, pos int) ([]string, error) {
-	a, err := ArrayOperand(x, pos)
-	if err != nil {
+func StringSliceOperand(a ast.Value, pos int) ([]string, error) {
+	type iterable interface {
+		Iter(func(*ast.Term) error) error
+		Len() int
+	}
+
+	strs, ok := a.(iterable)
+	if !ok {
+		return nil, NewOperandTypeErr(pos, a, "array", "set")
+	}
+
+	var outStrs = make([]string, 0, strs.Len())
+	if err := strs.Iter(func(x *ast.Term) error {
+		s, ok := x.Value.(ast.String)
+		if !ok {
+			return NewOperandElementErr(pos, a, x.Value, "string")
+		}
+		outStrs = append(outStrs, string(s))
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	var f = make([]string, a.Len())
-	for k := 0; k < a.Len(); k++ {
-		b := a.Elem(k)
-		c, ok := b.Value.(ast.String)
-		if !ok {
-			return nil, NewOperandElementErr(pos, x, b.Value, "[]string")
-		}
-
-		f[k] = string(c)
-	}
-
-	return f, nil
+	return outStrs, nil
 }
 
 // RuneSliceOperand converts x to a []rune. If the cast fails, a descriptive error is

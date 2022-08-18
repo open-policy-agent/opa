@@ -3,6 +3,8 @@
 
 #include "value.h"
 
+opa_value *opa_strings_any_prefix_match(opa_value *a, opa_value *b);
+opa_value *opa_strings_any_suffix_match(opa_value *a, opa_value *b);
 opa_value *opa_strings_concat(opa_value *a, opa_value *b);
 opa_value *opa_strings_contains(opa_value *a, opa_value *b);
 opa_value *opa_strings_endswith(opa_value *a, opa_value *b);

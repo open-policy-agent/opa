@@ -27,6 +27,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
+	github.com/tchap/go-patricia/v2 v2.3.1
 	github.com/vektah/gqlparser/v2 v2.4.6
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
 	github.com/yashtewari/glob-intersection v0.1.0
