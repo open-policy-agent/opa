@@ -549,7 +549,7 @@ integrations:
     tutorials:
       - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
-      - https://github.com/anderseknert/opa-kafka-plugin
+      - https://github.com/StyraInc/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
     inventors:
       - ticketmaster
@@ -579,7 +579,7 @@ integrations:
     code:
       - https://github.com/strimzi/strimzi-kafka-operator
       - https://github.com/scholzj/demo-opa-kafka-authorization
-      - https://github.com/anderseknert/opa-kafka-plugin
+      - https://github.com/StyraInc/opa-kafka-plugin
     inventors:
       - redhat
 
