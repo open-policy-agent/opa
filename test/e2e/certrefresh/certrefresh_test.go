@@ -160,8 +160,7 @@ func copy(from, to string) error {
 	}
 
 	// Ensure that our writes get committed to disk, even on slower systems.
-	err = dst.Sync()
-	return err
+	return dst.Sync()
 }
 
 func getCert(t *testing.T) *x509.Certificate {
