@@ -168,6 +168,8 @@ jobs:
             test/wasm/
             test/cases/
 
+      - run: echo '${{ toJSON(steps.changed-files.outputs) }}'
+
       - name: Download generated artifacts
         uses: actions/download-artifact@v3
         with:
