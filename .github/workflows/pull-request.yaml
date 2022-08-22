@@ -120,13 +120,21 @@ jobs:
   go-perf:
     name: Go Perf
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
       - name: Benchmark Test Golang
         run: make ci-go-perf
         timeout-minutes: 30
+        env:
+          DOCKER_RUNNING: 0
 
   go-lint:
     name: Go Lint
@@ -142,6 +150,7 @@ jobs:
   wasm:
     name: WASM
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -159,36 +168,61 @@ jobs:
             test/wasm/
             test/cases/
 
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
       - name: Build and Test Wasm
         run: make ci-wasm
         timeout-minutes: 15
         if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          DOCKER_RUNNING: 0
 
       - name: Build and Test Wasm SDK
         run: make ci-go-wasm-sdk-e2e-test
         timeout-minutes: 30
         if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          DOCKER_RUNNING: 0
 
   check-generated:
     name: Check Generated
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
 
       - name: Check Working Copy
         run: make ci-check-working-copy
         timeout-minutes: 15
+        env:
+          DOCKER_RUNNING: 0
 
   race-detector:
     name: Go Race Detector
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
       - name: Test with Race Detector
         run: make ci-go-race-detector
+        env:
+          DOCKER_RUNNING: 0
 
   smoke-test-docker-images:
     name: docker image smoke test
