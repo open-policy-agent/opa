@@ -2,6 +2,12 @@ name: PR Check
 
 on: [pull_request]
 
+# When a new revision is pushed to a PR, cancel all in-progress CI runs for that
+# PR. See https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # All jobs essentially re-create the `ci-release-test` make target, but are split
   # up for parallel runners for faster PR feedback and a nicer UX.
@@ -114,24 +120,21 @@ jobs:
   go-perf:
     name: Go Perf
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
 
       - name: Benchmark Test Golang
         run: make ci-go-perf
         timeout-minutes: 30
-
-  go-quick-fuzz:
-    name: Go quick fuzz
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Run fuzz check (3m)
-        run: make ci-go-fuzz FUZZ_TIME=180s
-        timeout-minutes: 30
+        env:
+          DOCKER_RUNNING: 0
 
   go-lint:
     name: Go Lint
@@ -147,45 +150,79 @@ jobs:
   wasm:
     name: WASM
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Build and Test WASM
+      - id: changed-files
+        uses: tj-actions/changed-files@v28.0.0
+        with:
+          files: |
+            Makefile
+            wasm/
+            ast/
+            internal/compiler/
+            internal/planner/
+            internal/wasm/
+            test/wasm/
+            test/cases/
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Build and Test Wasm
         run: make ci-wasm
         timeout-minutes: 15
-
-  check-generated:
-    name: Check Generated
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Check Working Copy
-        run: make ci-check-working-copy
-        timeout-minutes: 15
-
-  wasm-go-sdk-e2e:
-    name: OPA Wasm SDK e2e
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          DOCKER_RUNNING: 0
 
       - name: Build and Test Wasm SDK
         run: make ci-go-wasm-sdk-e2e-test
         timeout-minutes: 30
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          DOCKER_RUNNING: 0
 
-  race-detector:
-    name: Go Race Detector
+  check-generated:
+    name: Check Generated
     runs-on: ubuntu-22.04
+    needs: generate
     steps:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Check Working Copy
+        run: make ci-check-working-copy
+        timeout-minutes: 15
+        env:
+          DOCKER_RUNNING: 0
+
+  race-detector:
+    name: Go Race Detector
+    runs-on: ubuntu-22.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
       - name: Test with Race Detector
         run: make ci-go-race-detector
+        env:
+          DOCKER_RUNNING: 0
 
   smoke-test-docker-images:
     name: docker image smoke test
