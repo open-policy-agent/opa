@@ -122,17 +122,6 @@ jobs:
         run: make ci-go-perf
         timeout-minutes: 30
 
-  go-quick-fuzz:
-    name: Go quick fuzz
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Run fuzz check (3m)
-        run: make ci-go-fuzz FUZZ_TIME=180s
-        timeout-minutes: 30
-
   go-lint:
     name: Go Lint
     runs-on: ubuntu-22.04
@@ -151,9 +140,28 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Build and Test WASM
+      - id: changed-files
+        uses: tj-actions/changed-files@v28.0.0
+        with:
+          files: |
+            Makefile
+            wasm/
+            ast/
+            internal/compiler/
+            internal/planner/
+            internal/wasm/
+            test/wasm/
+            test/cases/
+
+      - name: Build and Test Wasm
         run: make ci-wasm
         timeout-minutes: 15
+        if: steps.changed-files.outputs.any_changed == 'true'
+
+      - name: Build and Test Wasm SDK
+        run: make ci-go-wasm-sdk-e2e-test
+        timeout-minutes: 30
+        if: steps.changed-files.outputs.any_changed == 'true'
 
   check-generated:
     name: Check Generated
@@ -165,17 +173,6 @@ jobs:
       - name: Check Working Copy
         run: make ci-check-working-copy
         timeout-minutes: 15
-
-  wasm-go-sdk-e2e:
-    name: OPA Wasm SDK e2e
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Build and Test Wasm SDK
-        run: make ci-go-wasm-sdk-e2e-test
-        timeout-minutes: 30
 
   race-detector:
     name: Go Race Detector
