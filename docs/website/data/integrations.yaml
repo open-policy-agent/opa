@@ -146,6 +146,21 @@ integrations:
     inventors:
       - fig
 
+  fiber:
+    title: fiber
+    description: |
+      Fiber is an Express inspired web framework built on top of Fasthttp, the fastest HTTP engine for Go.
+      Designed to ease things up for fast development with zero memory allocation and performance in mind.
+      With Open Policy Agent integration, you can run your Rego policies as part of the request lifecycle in the middleware.
+    labels:
+      category: application
+      layer: library
+    software:
+      - golang
+      - fiber
+    code:
+      - https://github.com/gofiber/contrib/tree/main/opafiber
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -1624,6 +1639,12 @@ software:
   cloudformation:
     name: AWS CloudFormation
     link: https://aws.amazon.com/cloudformation/
+  fiber:
+    name: Fiber
+    link: https://docs.gofiber.io
+  golang:
+    name: golang
+    link: https://golang.org/
   java:
     name: Java
     link: https://www.java.com/
