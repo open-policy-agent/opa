@@ -7,7 +7,7 @@ jobs:
   # up for parallel runners for faster PR feedback and a nicer UX.
   generate:
     name: Generate Code
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -32,15 +32,15 @@ jobs:
       matrix:
         include:
           - os: linux
-            run: ubuntu-18.04
+            run: ubuntu-22.04
             targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
             arch: amd64
           - os: linux
-            run: ubuntu-18.04
+            run: ubuntu-22.04
             targets: ci-go-ci-build-linux-static
             arch: arm64
           - os: windows
-            run: ubuntu-18.04
+            run: ubuntu-22.04
             targets: ci-go-ci-build-windows
           - os: darwin
             run: macos-latest
@@ -86,7 +86,7 @@ jobs:
       matrix:
         include:
           - os: linux
-            run: ubuntu-18.04
+            run: ubuntu-22.04
           - os: darwin
             run: macos-latest
     steps:
@@ -113,7 +113,7 @@ jobs:
 
   go-perf:
     name: Go Perf
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -124,7 +124,7 @@ jobs:
 
   go-quick-fuzz:
     name: Go quick fuzz
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -135,7 +135,7 @@ jobs:
 
   go-lint:
     name: Go Lint
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -146,7 +146,7 @@ jobs:
 
   wasm:
     name: WASM
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -157,7 +157,7 @@ jobs:
 
   check-generated:
     name: Check Generated
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -168,7 +168,7 @@ jobs:
 
   wasm-go-sdk-e2e:
     name: OPA Wasm SDK e2e
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -179,7 +179,7 @@ jobs:
 
   race-detector:
     name: Go Race Detector
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -189,7 +189,7 @@ jobs:
 
   smoke-test-docker-images:
     name: docker image smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: go-build
     steps:
       - name: Check out code
@@ -223,9 +223,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             exec: opa_linux_amd64
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             exec: opa_linux_amd64_static
             wasm: disabled
           - os: macos-latest
@@ -257,7 +257,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, macos-latest]
+        os: [ubuntu-22.04, macos-latest]
         version: ["1.18", "1.17"]
     steps:
       - uses: actions/checkout@v3
@@ -279,7 +279,7 @@ jobs:
   # Run PR metadata against Rego policies
   rego-check-pr:
     name: Rego PR checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
