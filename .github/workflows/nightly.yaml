@@ -8,7 +8,7 @@ on:
 jobs:
   race-detector:
     name: Go Race Detector
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -27,7 +27,7 @@ jobs:
 
   native-fuzzer:
     name: Go Fuzzer (native)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
 
   go-proxy-check:
     name: Go mod check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -79,7 +79,7 @@ jobs:
 
   trivy-scan-image:
     name: Trivy security scan image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code # needed for .trivyignore file
         uses: actions/checkout@v3
@@ -100,7 +100,7 @@ jobs:
 
   trivy-scan-repo:
     name: Trivy security scan repo
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
