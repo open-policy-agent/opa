@@ -1849,3 +1849,6 @@ software:
   spacelift:
     name: Spacelift
     link: https://spacelift.io
+ ansible
+    name: Ansible
+    link: https://www.ansible.com
