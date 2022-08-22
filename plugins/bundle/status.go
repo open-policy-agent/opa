@@ -27,6 +27,7 @@ type Status struct {
 	ActiveRevision           string          `json:"active_revision,omitempty"`
 	LastSuccessfulActivation time.Time       `json:"last_successful_activation,omitempty"`
 	Type                     string          `json:"type,omitempty"`
+	Size                     int             `json:"size,omitempty"`
 	LastSuccessfulDownload   time.Time       `json:"last_successful_download,omitempty"`
 	LastSuccessfulRequest    time.Time       `json:"last_successful_request,omitempty"`
 	LastRequest              time.Time       `json:"last_request,omitempty"`
@@ -53,6 +54,10 @@ func (s *Status) SetDownloadSuccess() {
 // SetRequest updates the status object to reflect a download attempt.
 func (s *Status) SetRequest() {
 	s.LastRequest = time.Now().UTC()
+}
+
+func (s *Status) SetBundleSize(size int) {
+	s.Size = size
 }
 
 // SetError updates the status object to reflect a failure to download or

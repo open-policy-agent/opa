@@ -25,23 +25,40 @@ import (
 	"sync/atomic"
 
 	"github.com/open-policy-agent/opa/internal/merge"
-
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 )
 
 // New returns an empty in-memory store.
 func New() storage.Store {
-	return &store{
-		data:     map[string]interface{}{},
-		triggers: map[*handle]storage.TriggerConfig{},
-		policies: map[string][]byte{},
+	return NewWithOpts()
+}
+
+// NewWithOpts returns an empty in-memory store, with extra options passed.
+func NewWithOpts(opts ...Opt) storage.Store {
+	s := &store{
+		data:             map[string]interface{}{},
+		triggers:         map[*handle]storage.TriggerConfig{},
+		policies:         map[string][]byte{},
+		roundTripOnWrite: true,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // NewFromObject returns a new in-memory store from the supplied data object.
 func NewFromObject(data map[string]interface{}) storage.Store {
-	db := New()
+	return NewFromObjectWithOpts(data)
+}
+
+// NewFromObject returns a new in-memory store from the supplied data object, with the
+// options passed.
+func NewFromObjectWithOpts(data map[string]interface{}, opts ...Opt) storage.Store {
+	db := NewWithOpts(opts...)
 	ctx := context.Background()
 	txn, err := db.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -59,12 +76,18 @@ func NewFromObject(data map[string]interface{}) storage.Store {
 // NewFromReader returns a new in-memory store from a reader that produces a
 // JSON serialized object. This function is for test purposes.
 func NewFromReader(r io.Reader) storage.Store {
+	return NewFromReaderWithOpts(r)
+}
+
+// NewFromReader returns a new in-memory store from a reader that produces a
+// JSON serialized object, with extra options. This function is for test purposes.
+func NewFromReaderWithOpts(r io.Reader, opts ...Opt) storage.Store {
 	d := util.NewJSONDecoder(r)
 	var data map[string]interface{}
 	if err := d.Decode(&data); err != nil {
 		panic(err)
 	}
-	return NewFromObject(data)
+	return NewFromObjectWithOpts(data, opts...)
 }
 
 type store struct {
@@ -74,6 +97,10 @@ type store struct {
 	data     map[string]interface{}            // raw data
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
+
+	// roundTripOnWrite, if true, means that every call to Write round trips the
+	// data through JSON before adding the data to the store. Defaults to true.
+	roundTripOnWrite bool
 }
 
 type handle struct {
@@ -82,10 +109,10 @@ type handle struct {
 
 func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	var write bool
-	var context *storage.Context
+	var ctx *storage.Context
 	if len(params) > 0 {
 		write = params[0].Write
-		context = params[0].Context
+		ctx = params[0].Context
 	}
 	xid := atomic.AddUint64(&db.xid, uint64(1))
 	if write {
@@ -93,7 +120,7 @@ func (db *store) NewTransaction(_ context.Context, params ...storage.Transaction
 	} else {
 		db.rmu.RLock()
 	}
-	return newTransaction(xid, write, context, db), nil
+	return newTransaction(xid, write, ctx, db), nil
 }
 
 // Truncate implements the storage.Store interface. This method must be called within a transaction.
@@ -114,7 +141,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		}
 
 		if update.IsPolicy {
-			err = underlying.UpsertPolicy(update.Path.String(), update.Value)
+			err = underlying.UpsertPolicy(strings.TrimLeft(update.Path.String(), "/"), update.Value)
 			if err != nil {
 				return err
 			}
@@ -150,6 +177,7 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		return err
 	}
 
+	// For backwards compatibility, check if `RootOverwrite` was configured.
 	if params.RootOverwrite {
 		newPath, ok := storage.ParsePathEscaped("/")
 		if !ok {
@@ -158,23 +186,23 @@ func (db *store) Truncate(ctx context.Context, txn storage.Transaction, params s
 		return underlying.Write(storage.AddOp, newPath, mergedData)
 	}
 
-	for k := range mergedData {
-		newPath, ok := storage.ParsePathEscaped("/" + k)
+	for _, root := range params.BasePaths {
+		newPath, ok := storage.ParsePathEscaped("/" + root)
 		if !ok {
 			return fmt.Errorf("storage path invalid: %v", newPath)
 		}
 
-		if len(newPath) > 0 {
-			if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+		if value, ok := lookup(newPath, mergedData); ok {
+			if len(newPath) > 0 {
+				if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+					return err
+				}
+			}
+			if err := underlying.Write(storage.AddOp, newPath, value); err != nil {
 				return err
 			}
 		}
-
-		if err := underlying.Write(storage.AddOp, newPath, mergedData[k]); err != nil {
-			return err
-		}
 	}
-
 	return nil
 }
 
@@ -187,7 +215,7 @@ func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
 		db.rmu.Lock()
 		event := underlying.Commit()
 		db.runOnCommitTriggers(ctx, txn, event)
-		// Mark the transaction stale after executing triggers so they can
+		// Mark the transaction stale after executing triggers, so they can
 		// perform store operations if needed.
 		underlying.stale = true
 		db.rmu.Unlock()
@@ -276,8 +304,10 @@ func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.Pa
 		return err
 	}
 	val := util.Reference(value)
-	if err := util.RoundTrip(val); err != nil {
-		return err
+	if db.roundTripOnWrite {
+		if err := util.RoundTrip(val); err != nil {
+			return err
+		}
 	}
 	return underlying.Write(op, path, *val)
 }
@@ -354,4 +384,23 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 	dir[path[0]] = value
 
 	return dir, nil
+}
+
+func lookup(path storage.Path, data map[string]interface{}) (interface{}, bool) {
+	if len(path) == 0 {
+		return data, true
+	}
+	for i := 0; i < len(path)-1; i++ {
+		value, ok := data[path[i]]
+		if !ok {
+			return nil, false
+		}
+		obj, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		data = obj
+	}
+	value, ok := data[path[len(path)-1]]
+	return value, ok
 }

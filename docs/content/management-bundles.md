@@ -1034,3 +1034,179 @@ bundles:
     service: nginx
     resource: /bundle.tar.gz
 ```
+
+### OCI Registry
+
+OPA is able to interact with [OCI](https://opencontainers.org/) compatible registries to be able to download and use policies stored as containers.
+To configure OPA to use an OCI repository see the [service configuration section](../configuration/#services)
+
+**Structure**
+The bundle container is composed of 3 layers:
+- the manifest layer - contains the information about the tarball layer of the container(the digest, size, mediatype and annotations) and the config layer
+- the bundle tarball layer - the actual bundle tarball
+- the configuration layer - currently empty
+
+For OCI compatible registries an ***oci*** folder is created in the [persistence directory](../configuration/#miscellaneous). If this value is not set, because the OCI downloader plugin requires a storage path, the system's temporary folder location will be used instead. This folder should be maintained by the user. We recommend backing-up or cleaning up this folder periodically as this acts as a local cache for the OCI downloader. 
+
+**Current Limitations**
+The OCI Downloader plugin used by OPA has a couple of limitation:
+- it accepts only **one** layer per image that contains the bundle tarball
+- it can download only the following application media types: 
+    - `application/vnd.oci.image.layer.v1.tar+gzip`
+    - `application/vnd.oci.image.manifest.v1+json`
+    - `application/vnd.oci.image.config.v1+json`
+
+#### Building and Publishing Policy Containers
+
+There are multiple ways to build an image from a policy code base using different tools.
+
+##### Using OPA and ORAS CLIs
+
+To build and push a policy bundle to a remote OCI registry with the [OPA CLI](../cli/) and [ORAS CLI](https://oras.land/cli/) you can  use the following commands:
+
+- `opa build <path_to_src>` will allow you to build a bundle tarball from your OPA policy and data files
+
+Now that we have the tarball we will need to provide a config manifest to the ORAS CLI and the tarball itself: 
+- `oras push <registry>/<org>/<repo>:<tag> --manifest-config <you_config_json>:application/vnd.oci.image.config.v1+json <the_tarball_obtained_from_opa_build>:application/vnd.oci.image.layer.v1.tar+gzip`
+
+Using an empty(`{}`) `manifest-config` json file should be sufficient to be able to push and allow the OCI downloader to use the remote policy image. 
+
+#### Maintaining a policy-as-code repository
+
+One of the easiest method of managing your policy bundles is to store your code base in a hosted repository service like Github or Gitlab and set up an automated way to build and publish your code as a container to the desired registry using a CI(ex. Github Action). 
+
+#### Example 
+
+In this example we are using the [ghcr.io](https://ghcr.io) OCI registry as the upstream repository and the OPA and ORAS CLI as our build and publishing tool.
+
+###### Starting from scratch
+
+Let's set up a basic policy example structured as:
+```
+└── src
+    ├── data.json
+    ├── .manifest
+    └── policies
+        └── hello.rego
+```
+
+Here our *hello.rego* file contains a very simple example:
+```
+package policies.play
+
+default hello = false
+
+hello {
+    m := input.message
+    m == "world"
+}
+```
+The *.manifest* file specifies the root only as:
+```
+{
+    "roots": ["policies"],
+    "metadata": {
+      "required_builtins": {
+          "builtin1": [
+          ],
+      }
+    }
+}
+```
+And the *data.json* file is empty json:
+```
+{}
+```
+
+###### Building your policy
+
+To build my bundle tarball I'm going to use the OPA CLI and run the following command:
+```bash
+opa build .src/ 
+```
+
+###### Pushing the container to a remote registry
+
+I'll prepare an empty config.json file that contains:
+```
+{}
+```
+
+To push the build image to an upstream registry we first need to login using:
+```bash
+ oras login ghcr.io
+```
+
+And now we can push our policy using:
+```bash
+oras push ghcr.io/someorg/policy-hello:1.0.0 --manifest-config config.json:application/vnd.oci.image.config.v1+json bundle.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
+```
+
+###### Spin up the policy with OPA CLI
+
+Now that our image is pushed we prepare the OPA configuration. 
+
+In this example the configuration.yaml looks like this as the pushed image is private we need credentials for OPA to download it:
+```
+services:
+  ghcr-registry:
+    url: https://ghcr.io
+    type: oci
+    credentials:
+      bearer:
+        schema: "Bearer"
+        token: "<mytoken>"
+
+bundles:
+  authz:
+    service: ghcr-registry
+    resource: ghcr.io/someorg/policy-hello:1.0.0
+    persist: true
+    polling:
+      min_delay_seconds: 30
+      max_delay_seconds: 120
+```
+
+In the above configuration we pinned the configuration to use the 1.0.0 tag of the image. OPA will identify this image by the tag and the descriptor SHA. If the SHA of the image is changed upstream, OPA will redownload and activate the changes. 
+
+If we run the *opa CLI* with this configuration using the command it will open an interactive terminal (REPL) where we can see the loaded bundle:
+```bash
+opa run -c configuration.yaml
+```
+The terminal should show that the bundle has been loaded and activated:
+```
+> {"level":"info","msg":"Bundle loaded and activated successfully.","name":"authz","plugin":"bundle","time":"2022-06-15T16:50:53+03:00"}
+> data
+{
+  "policies": {
+    "play": {
+      "hello": false
+    }
+  }
+}
+> exit
+```
+We can now start OPA as a server using:
+```bash
+opa run --server --set default_decision=policies -c configuration.yaml
+```
+To interact with the server you can do a simple **curl** to verify if it works as inteded:
+```bash
+curl localhost:8181 -i -d '{ "message":"world"}' -H 'Content-Type:application/json'
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Wed, 15 Jun 2022 13:55:19 GMT
+Content-Length: 23
+
+{"play":{"hello":true}}
+```
+```bash
+curl localhost:8181 -i -d '{ "message":"other"}' -H 'Content-Type:application/json'
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Wed, 15 Jun 2022 13:56:13 GMT
+Content-Length: 24
+
+{"play":{"hello":false}}
+```

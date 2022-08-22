@@ -686,7 +686,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 		data = map[string]interface{}{}
 	}
 
-	store := inmem.NewFromObject(data)
+	store := inmem.NewFromObjectWithOpts(data, inmem.OptRoundTripOnWrite(false))
 	resultsym := ast.VarTerm(o.resultsymprefix + "__result__")
 	usedFilenames := map[string]int{}
 	var unknowns []*ast.Term

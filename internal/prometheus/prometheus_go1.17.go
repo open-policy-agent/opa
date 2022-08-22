@@ -16,5 +16,9 @@ import (
 )
 
 func collector() prometheus.Collector {
-	return collectors.NewGoCollector(collectors.WithGoCollections(collectors.GoRuntimeMemStatsCollection | collectors.GoRuntimeMetricsCollection))
+	return collectors.NewGoCollector(
+		collectors.WithGoCollectorRuntimeMetrics(
+			collectors.MetricsAll,
+		),
+	)
 }

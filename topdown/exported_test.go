@@ -15,7 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/test/cases"
 )
 

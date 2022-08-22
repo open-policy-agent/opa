@@ -149,7 +149,7 @@ allow {
 
 ```live:rego/metadata/related_resources2:module:read_only
 # METADATA
-# organizations:
+# related_resources:
 # - https://example.com/foo
 # ...
 # - https://example.com/bar

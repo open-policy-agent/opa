@@ -34,9 +34,14 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
+)
+
+const (
+	deltaBundleSize    = 128
+	snapshotBundleSize = 1024
 )
 
 func TestPluginOneShot(t *testing.T) {
@@ -67,7 +72,7 @@ func TestPluginOneShot(t *testing.T) {
 
 	b.Manifest.Init()
 
-	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -75,6 +80,8 @@ func TestPluginOneShot(t *testing.T) {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.SnapshotBundleType {
 		t.Fatalf("expected snapshot bundle but got %v", status.Type)
+	} else if status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -395,7 +402,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	p2 := bundle.PatchOperation{
 		Op:    "upsert",
 		Path:  "/a/foo",
-		Value: []string{"hello", "world"},
+		Value: []interface{}{"hello", "world"},
 	}
 
 	b2 := bundle.Bundle{
@@ -404,7 +411,7 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		Etag:     "foo",
 	}
 
-	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New()})
+	plugin.process(ctx, bundleName, download.Update{Bundle: &b2, Metrics: metrics.New(), Size: deltaBundleSize})
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
@@ -412,6 +419,8 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.DeltaBundleType {
 		t.Fatalf("expected delta bundle but got %v", status.Type)
+	} else if status.Size != deltaBundleSize {
+		t.Fatalf("expected delta bundle size %d but got %d", deltaBundleSize, status.Size)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -420,25 +429,27 @@ func TestPluginOneShotDeltaBundle(t *testing.T) {
 	ids, err := manager.Store.ListPolicies(ctx, txn)
 	if err != nil {
 		t.Fatal(err)
-	} else if len(ids) != 1 {
-		t.Fatal("Expected 1 policy")
+	}
+	if len(ids) != 1 {
+		t.Fatalf("Expected 1 policy, got %d", len(ids))
 	}
 
 	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
-	exp := []byte("package a\n\ncorge=1")
 	if err != nil {
 		t.Fatal(err)
-	} else if !bytes.Equal(bs, exp) {
+	}
+	exp := []byte("package a\n\ncorge=1")
+	if !bytes.Equal(bs, exp) {
 		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 	}
 
 	data, err := manager.Store.Read(ctx, txn, storage.Path{})
-	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
-
 	if err != nil {
 		t.Fatal(err)
-	} else if !reflect.DeepEqual(data, expData) {
-		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+	expData := util.MustUnmarshalJSON([]byte(`{"a": {"baz": "bux", "foo": ["hello", "world"]}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "delta", "roots": ["a"]}}}}}`))
+	if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
 }
 
@@ -559,7 +570,6 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	// download a bundle and persist to disk. Then verify the bundle persisted to disk
 	module := "package foo\n\ncorge=1"
-
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
 		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
@@ -575,6 +585,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	}
 
 	b.Manifest.Init()
+	expBndl := b.Copy() // We're opting out of roundtripping in storage/inmem, so we copy ourselves.
 
 	var buf bytes.Buffer
 	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
@@ -590,8 +601,8 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	if !result.Equal(b) {
-		t.Fatal("expected the downloaded bundle to be equal to the one loaded from disk")
+	if !result.Equal(expBndl) {
+		t.Fatalf("expected the downloaded bundle to be equal to the one loaded from disk: result=%v, exp=%v", result, expBndl)
 	}
 
 	// simulate a bundle download error and verify that the bundle on disk is activated
@@ -684,6 +695,8 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
+	// We've opted out of having storage/inmem roundtrip our data, so we need to copy ourselves.
+	expBndl := b.Copy()
 
 	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &dup})
 
@@ -695,7 +708,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	if !result.Equal(b) {
+	if !result.Equal(expBndl) {
 		t.Fatal("expected the downloaded bundle to be equal to the one loaded from disk")
 	}
 
@@ -1413,7 +1426,7 @@ func validateStatus(t *testing.T, actual Status, expected string, expectStatusEr
 	if expectStatusErr && !isErrStatus(actual) {
 		t.Errorf("Expected status to be in an error state, but no error has occurred.")
 	} else if !expectStatusErr && isErrStatus(actual) {
-		t.Errorf("Unexpected error status %s", actual)
+		t.Errorf("Unexpected error status %v", actual)
 	}
 
 	if actual.ActiveRevision != expected {

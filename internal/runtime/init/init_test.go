@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
