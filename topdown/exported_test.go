@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -19,27 +18,8 @@ import (
 	"github.com/open-policy-agent/opa/test/cases"
 )
 
-var x508Exceptions = []string{
-	"cryptox509parsecertificates/invalid DER or PEM data, b64",
-}
-
-func isException(note string) bool {
-	for _, exc := range x508Exceptions {
-		if note == exc {
-			return true
-		}
-	}
-	return false
-}
-
 func TestRego(t *testing.T) {
 	for _, tc := range cases.MustLoad("../test/cases/testdata").Sorted().Cases {
-		if strings.HasPrefix(runtime.Version(), "go1.16") && isException(tc.Note) {
-			t.Run(tc.Note, func(t *testing.T) {
-				t.Skip("skipped for go1.16, x509 errors differ")
-			})
-			continue
-		}
 		t.Run(tc.Note, func(t *testing.T) {
 			testRun(t, tc)
 		})
