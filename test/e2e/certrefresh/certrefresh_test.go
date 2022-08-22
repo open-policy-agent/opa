@@ -155,6 +155,12 @@ func copy(from, to string) error {
 	defer dst.Close()
 
 	_, err = io.Copy(dst, src)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that our writes get committed to disk, even on slower systems.
+	err = dst.Sync()
 	return err
 }
 
