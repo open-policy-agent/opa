@@ -530,9 +530,6 @@ func TestCheckInferenceRules(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if tc.note != "ref-rules single value, full ref" {
-			// continue
-		}
 		t.Run(tc.note, func(t *testing.T) {
 			var elems []util.T
 
