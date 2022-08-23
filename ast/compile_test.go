@@ -332,14 +332,6 @@ func TestCompilerGetExports(t *testing.T) {
 				q.r.s contains 1 { true }`),
 			exports: map[string][]string{"data.p": {"q.r.s"}},
 		},
-		// {
-		// 	note: "var key multi-value ref rule",
-		// 	modules: modules(`package p
-		// 		import future.keywords
-
-		// 		q.r[s] contains 1 { s := "foo" }`),
-		// 	exports: map[string][]string{"data.p": {"q.r"}},
-		// },
 		{
 			note: "two simple, multiple rules",
 			modules: modules(`package p
@@ -583,22 +575,15 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				p.q.r contains i if i := 10`,
 			),
 		},
-		{
-			note: "invalid: multi-value with var in ref, last",
-			modules: modules(
-				`package x
-				p.q.r[j] contains i if { i := 10; j := 9 }`,
-			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
-		},
-		{
-			note: "invalid: multi-value with var in ref, middle",
-			modules: modules(
-				`package x
-				p.q[j].r contains i if { i := 10; j := 9 }`,
-			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): j",
-		},
+		// {
+		// 	note: "invalid: multi-value with var in ref, middle",
+		// 	modules: modules(
+		// 		`package x
+		// 		p.q[j].r contains i if { i := 10; j := 9 }`,
+		// 	),
+		// 	err: "rego_type_error: rule head must only contain string terms (except for last): j",
+		// },
+		// TODO(sr) This fails parsing now
 	}
 
 	for _, tc := range tests {
@@ -811,79 +796,40 @@ d.e = 2 if true`
 		}
 	})
 
-	// 	t.Run("one multi-value rule, one single-value, with var", func(t *testing.T) {
-	// 		// NOTE(sr): this is a conflict, but we need the rule tree to represent the
-	// 		// module setup
-	// 		mod0 := `package a.b
-	// c.d.e[k] contains 1 if true`
-	// 		mod1 := `package a.b.c
-	// d.e.f = 2 if true`
+	t.Run("one multi-value rule, one single-value, with var", func(t *testing.T) {
+		mod0 := `package a.b
+c.d.e.g contains 1 if true`
+		mod1 := `package a.b.c
+d.e.f = 2 if true`
 
-	// 		mods := map[string]*Module{
-	// 			"0.rego": MustParseModuleWithOpts(mod0, opts),
-	// 			"1.rego": MustParseModuleWithOpts(mod1, opts),
-	// 		}
-	// 		tree := NewRuleTree(NewModuleTree(mods))
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
 
-	// 		// var-key rules should be included in the results
-	// 		node := tree.Find(MustParseRef("data.a.b.c.d.e"))
-	// 		if node == nil {
-	// 			t.Fatal("expected non-nil leaf node")
-	// 		}
-	// 		if exp, act := 1, len(node.Values); exp != act {
-	// 			t.Fatalf("expected %d values, found %d", exp, act)
-	// 		}
-	// 		if exp, act := 1, len(node.Children); exp != act {
-	// 			t.Fatalf("expected %d children, found %d", exp, act)
-	// 		}
-	// 		node = tree.Find(MustParseRef("data.a.b.c.d.e.f"))
-	// 		if node == nil {
-	// 			t.Fatal("expected non-nil leaf node")
-	// 		}
-	// 		if exp, act := 1, len(node.Values); exp != act {
-	// 			t.Fatalf("expected %d values, found %d", exp, act)
-	// 		}
-	// 		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
-	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
-	// 		}
-	// 	})
-
-	// 	t.Run("two multi-value rules, var keys", func(t *testing.T) {
-	// 		mod0 := `package a
-	// b.c.d[e] contains 1 if e := "foo"`
-	// 		mod1 := `package a
-	// b.c.d[e] contains 2 if e := "bar"`
-
-	// 		mods := map[string]*Module{
-	// 			"0.rego": MustParseModuleWithOpts(mod0, opts),
-	// 			"1.rego": MustParseModuleWithOpts(mod1, opts),
-	// 		}
-	// 		tree := NewRuleTree(NewModuleTree(mods))
-
-	// 		node := tree.Find(MustParseRef("data.a.b.c.d")) // NOTE(sr): allow/disallow d[e] queries
-	// 		if node == nil {
-	// 			t.Fatal("expected non-nil leaf node")
-	// 		}
-	// 		if exp, act := 2, len(node.Values); exp != act {
-	// 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
-	// 		}
-	// 		if exp, act := 0, len(node.Children); exp != act {
-	// 			t.Errorf("expected %d children, found %d", exp, act)
-	// 		}
-	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
-	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
-	// 		}
-	// 		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
-	// 			// TODO(sr): we've got a sorting issue here, this randomly fails.
-	// 			t.Errorf("expected rule key %v, found %v", exp, act)
-	// 		}
-	// 		if exp, act := MustParseRef("b.c.d[e]"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
-	// 			t.Errorf("expected rule ref %v, found %v", exp, act)
-	// 		}
-	// 		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
-	// 			t.Errorf("expected rule key %v, found %v", exp, act)
-	// 		}
-	// 	})
+		// var-key rules should be included in the results
+		node := tree.Find(MustParseRef("data.a.b.c.d.e.g"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Fatalf("expected %d children, found %d", exp, act)
+		}
+		node = tree.Find(MustParseRef("data.a.b.c.d.e.f"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+	})
 
 	t.Run("two multi-value rules, back compat", func(t *testing.T) {
 		mod0 := `package a
@@ -1818,13 +1764,12 @@ bar.baz contains "quz" if true`,
 		"rego_type_error: conflicting rules data.badrules.arity.g found",
 		"rego_type_error: conflicting rules data.badrules.arity.p.q.h found",
 		"rego_type_error: conflicting rules data.badrules.arity.p.q.i found",
-		"rego_type_error: conflicting rules data.badrules.p found",
+		"rego_type_error: conflicting rules data.badrules.p[x] found",
 		"rego_type_error: conflicting rules data.badrules.q found",
 		"rego_type_error: multiple default rules data.badrules.defkw.foo found",
 		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
 		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:7",
 		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:8",
-		"rego_type_error: single-value rule data.badrules.r conflicts with [data.badrules.r.q]",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -1877,23 +1822,23 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				q.w.r = 2`),
 			err: "rego_type_error: multiple default rules data.pkg.p.q.w.r found",
 		},
-		// {
-		// 	note: "two multi-value rules, both with same ref",
-		// 	modules: modules(
-		// 		`package pkg
-		// 		p.q.w[x] = 1 if x := "foo"`,
-		// 		`package pkg
-		// 		p.q.w[x] contains "bar" if x := "foo"`),
-		// 	err: "rego_type_error: conflicting rules data.pkg.p.q.w found",
-		// }v
-		// v
-		// 	note: "two multi-value rules, both with same ref", // no errov
-		// 	modules: modulesv
-		// 		`package pkv
-		// 		p.q.w[x] contains "baz" if x := "fox"`v
-		// 		`package pkv
-		// 		p.q.w[x] contains "bar" if x := "foo"`),
-		// },
+		{
+			note: "multi-value + single-value rules, both with same ref prefix",
+			modules: modules(
+				`package pkg
+				p.q.w[x] = 1 if x := "foo"`,
+				`package pkg
+				p.q.w contains "bar"`),
+			err: "rego_type_error: conflicting rules data.pkg.p.q.w[x] found",
+		},
+		{
+			note: "two multi-value rules, both with same ref",
+			modules: modules(
+				`package pkg
+				p.q.w contains "baz"`,
+				`package pkg
+				p.q.w contains "bar"`),
+		},
 		{
 			note: "module conflict: non-ref rule",
 			modules: modules(
@@ -1935,7 +1880,15 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q[r] = x { r = input.key; x = input.foo }
 				p.q.r.s = x { true }
 				`),
-			err: "rego_type_error: single-value rule data.pkg.p.q conflicts with [data.pkg.p.q.r.s]",
+			err: "rego_type_error: single-value rule data.pkg.p.q[r] conflicts with [data.pkg.p.q.r.s]",
+		},
+		{
+			note: "single-value rule with known and unknown key",
+			modules: modules(
+				`package pkg
+				p.q[r] = x { r = input.key; x = input.foo }
+				p.q.s = "x" { true }
+				`),
 		},
 	}
 	for _, tc := range tests {
@@ -4393,26 +4346,6 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				}
 			`,
 		},
-		// {
-		// 	note: "multi-value rule with ref head",
-		// 	module: `
-		// 		package test
-		// 		import future.keywords
-
-		// 		p.r.q[s] contains t {
-		// 			t := 1
-		// 			s := input.foo
-		// 		}
-		// 	`,
-		// 	exp: `
-		// 		package test
-
-		// 		p.r.q[__local1__] contains __local0__ {
-		// 			__local0__ = 1
-		// 			__local1__ = input.foo
-		// 		}
-		// 	`,
-		// },
 		{
 			note: "rewrite some x in xs",
 			module: `

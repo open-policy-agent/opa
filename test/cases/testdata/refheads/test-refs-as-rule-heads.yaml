@@ -3,6 +3,32 @@ cases:
   - |
     package test
 
+    p.q.r = 1
+    p.q.s = 2
+  note: 'refheads/single-value'
+  query: data.test.p = x
+  want_result:
+  - x:
+      q:
+        r: 1
+        s: 2
+- modules:
+  - |
+    package test
+
+    p.q.r = 1
+    p.q[s] = 2 { s := "s" }
+  note: 'refheads/single-value, with var'
+  query: data.test.p = x
+  want_result:
+  - x:
+      q:
+        r: 1
+        s: 2
+- modules:
+  - |
+    package test
+
     a.b.c.p { true }
   note: 'refheads/complete: direct query'
   query: data.test.a.b.c.p = x

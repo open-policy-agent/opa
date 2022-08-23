@@ -578,9 +578,10 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 	return rules
 }
 
-func extractRules(s []util.T) (rules []*Rule) {
-	for _, r := range s {
-		rules = append(rules, r.(*Rule))
+func extractRules(s []util.T) []*Rule {
+	rules := make([]*Rule, len(s))
+	for i := range s {
+		rules[i] = s[i].(*Rule)
 	}
 	return rules
 }
@@ -776,13 +777,31 @@ func (c *Compiler) buildRuleIndices() {
 		if len(node.Values) == 0 {
 			return false
 		}
+		// TODO(sr): test this
+		rules := extractRules(node.Values)
+		hasNonGroundKey := false
+		for _, r := range rules {
+			if ref := r.Head.Ref(); len(ref) > 1 {
+				if !ref[len(ref)-1].IsGround() {
+					hasNonGroundKey = true
+				}
+			}
+		}
+		if hasNonGroundKey {
+			// collect children: as of now, this cannot go deeper than one level,
+			// so we grab those, and abort the DepthFirst processing for this branch
+			for _, n := range node.Children {
+				rules = append(rules, extractRules(n.Values)...)
+			}
+		}
+
 		index := newBaseDocEqIndex(func(ref Ref) bool {
 			return isVirtual(c.RuleTree, ref.GroundPrefix())
 		})
-		if rules := extractRules(node.Values); index.Build(rules) {
-			c.ruleIndices.Put(rules[0].Path(), index)
+		if index.Build(rules) {
+			c.ruleIndices.Put(rules[0].Ref().GroundPrefix(), index)
 		}
-		return false
+		return hasNonGroundKey // currently, we don't allow those branches to go deeper
 	})
 
 }
@@ -838,21 +857,24 @@ func astNodeToString(x interface{}) string {
 
 // checkRuleConflicts ensures that rules definitions are not in conflict.
 func (c *Compiler) checkRuleConflicts() {
+	rw := rewriteVarsInRef(c.RewrittenVars)
+
 	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
 		if len(node.Values) == 0 {
 			return false // go deeper
 		}
 
-		kinds := map[DocKind]struct{}{}
+		kinds := map[RuleKind]struct{}{}
 		defaultRules := 0
 		arities := map[int]struct{}{}
 		name := ""
-		var singleValueConflict *TreeNode
+		var singleValueConflicts []Ref
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
-			name = r.Ref().GroundPrefix().String()
-			kinds[r.Head.DocKind()] = struct{}{}
+			ref := r.Ref()
+			name = rw(ref).String()
+			kinds[r.Head.RuleKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {
 				defaultRules++
@@ -865,15 +887,28 @@ func (c *Compiler) checkRuleConflicts() {
 			//
 			//   data.p.q[r] { r := input.r } # data.p.q could be { "r": true }
 			//   data.p.q.r.s { true }
-			if len(node.Children) > 0 && r.Head.Value != nil {
-				singleValueConflict = node
+
+			// But this is allowed:
+			//   data.p.q[r] = 1 { r := "r" }
+			//   data.p.q.s = 2
+
+			if r.Head.RuleKind() == SingleValue && len(node.Children) > 0 {
+				if len(ref) > 1 && !ref[len(ref)-1].IsGround() { // p.q[x] and p.q.s.t => check grandchildren
+					for _, c := range node.Children {
+						if len(c.Children) > 0 {
+							singleValueConflicts = node.flattenChildren()
+							break
+						}
+					}
+				} else { // p.q.s and p.q.s.t => any children are in conflict
+					singleValueConflicts = node.flattenChildren()
+				}
 			}
 		}
 
 		switch {
-		case singleValueConflict != nil:
-			others := singleValueConflict.flattenChildren()
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "single-value rule %v conflicts with %v", name, others))
+		case singleValueConflicts != nil:
+			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "single-value rule %v conflicts with %v", name, singleValueConflicts))
 
 		case len(kinds) > 1 || len(arities) > 1:
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))
@@ -3111,8 +3146,6 @@ func (n *TreeNode) sort() {
 }
 
 func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
-	// cut off the last bit if it's not ground
-	ref = ref.GroundPrefix()
 	depth := len(ref) - 1
 	key := ref[depth].Value
 	node := &TreeNode{
@@ -3137,7 +3170,7 @@ func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 // flattenChildren flattens all children's rule refs into a sorted array.
 func (n *TreeNode) flattenChildren() []Ref {
 	ret := newRefSet()
-	for _, sub := range n.Children {
+	for _, sub := range n.Children { // we only want the children, so don't use n.DepthFirst() right away
 		sub.DepthFirst(func(x *TreeNode) bool {
 			for _, r := range x.Values {
 				rule := r.(*Rule)
