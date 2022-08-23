@@ -272,7 +272,7 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params bench
 
 func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams, w io.Writer) error {
 	host := "localhost"
-	port := 18181
+	port := 0
 
 	logger := logging.New()
 	logger.SetLevel(logging.Error)
@@ -285,33 +285,22 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	// Because of test concurrency, several instances of this function can be
 	// running simultaneously, which will result in occasional collisions when
 	// two goroutines wish to bind the same port for the runtime.
-	// We fix the issue here by simply incrementing the port number if an
-	// "address already in use" error happens.
-	var rt *runtime.Runtime
-	var err error
-	for {
-		rtParams := runtime.Params{
-			Addrs:                  &[]string{fmt.Sprintf("%s:%s", host, strconv.Itoa(port))},
-			Paths:                  paths,
-			Logger:                 logger,
-			BundleMode:             params.bundlePaths.isFlagSet(),
-			SkipBundleVerification: true,
-			EnableVersionCheck:     false,
-			GracefulShutdownPeriod: params.gracefulShutdownPeriod,
-			ShutdownWaitPeriod:     params.shutdownWaitPeriod,
-		}
+	// We fix the issue here by binding port 0; this will result in the OS
+	// allocating us an open port.
+	rtParams := runtime.Params{
+		Addrs:                  &[]string{fmt.Sprintf("%s:0", host)},
+		Paths:                  paths,
+		Logger:                 logger,
+		BundleMode:             params.bundlePaths.isFlagSet(),
+		SkipBundleVerification: true,
+		EnableVersionCheck:     false,
+		GracefulShutdownPeriod: params.gracefulShutdownPeriod,
+		ShutdownWaitPeriod:     params.shutdownWaitPeriod,
+	}
 
-		rt, err = runtime.NewRuntime(ctx, rtParams)
-		if err != nil {
-			// Increment the port number and try again if address was in use.
-			if strings.Contains(err.Error(), "bind: address already in use") {
-				port = (port + 1) % 65535
-				continue
-			}
-			return err
-		}
-		// Break out of the loop when we finally land on an open port.
-		break
+	rt, err := runtime.NewRuntime(ctx, rtParams)
+	if err != nil {
+		return err
 	}
 
 	cctx, cancel := context.WithCancel(ctx)
@@ -330,6 +319,19 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 			return err
 		}
 	case <-initChannel:
+		break
+	}
+
+	// Busy loop until server has truly come online to recover the bound port.
+	// This takes a few hundred microseconds on most systems.
+	for {
+		if len(rt.Addrs()) == 0 {
+			continue
+		}
+		port, err = strconv.Atoi(strings.Split(rt.Addrs()[0], ":")[1])
+		if err != nil {
+			return err
+		}
 		break
 	}
 
