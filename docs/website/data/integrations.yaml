@@ -1270,8 +1270,31 @@ integrations:
       layer: application
     software:
       - rekor
+    inventors:
+      - sigstore
     code:
       - https://github.com/nsmith5/rekor-sidekick
+    videos:
+      - https://www.youtube.com/watch?v=lHSLPIo1pz8
+  
+  cosign:
+    title: Container Signing, Verification and Storage in an OCI registry
+    description: |
+      Cosign is a tool for container image signing and verifying maintained under the Project Sigstore
+      in collaboration with the Linux Foundation. Among other features, Cosign supports KMS signing,
+      built-in binary transparency, and timestamping service with Rekor and Kubernetes policy enforcement.
+    labels:
+      category: security
+      layer: application
+    software:
+      - cosign
+    inventors:
+      - sigstore
+    code:
+      - https://docs.sigstore.dev/cosign/attestation#validate-in-toto-attestations
+      - https://github.com/sigstore/cosign-gatekeeper-provider
+    vides:
+      - https://www.youtube.com/watch?v=gCi9_4NYyR0
 
   alfred:
     title: Self-hosted Alternative to OPA Playground
@@ -1532,6 +1555,9 @@ organizations:
   scalr:
     name: Scalr
     link: https://www.scalr.com/
+  sigstore:
+    name: Sigstore
+    link: https://sigstore.dev/
   build.security:
     name: build.security
     link: https://build.security
@@ -1627,6 +1653,9 @@ software:
   clojure:
     name: Clojure
     link: https://clojure.org
+  cosign:
+    name: Cosign
+    link: https://github.com/sigstore/cosign
   aws:
     name: Amazon Public Cloud
     link: https://aws.com
