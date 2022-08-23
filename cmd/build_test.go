@@ -220,3 +220,71 @@ func TestBuildVerificationConfigError(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildPlanWithPruneUnused(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+			
+			p[1]
+			
+			f(x) { p[x] }
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		if err := params.target.Set("plan"); err != nil {
+			t.Fatal(err)
+		}
+		params.pruneUnused = true
+		params.entrypoints.v = []string{"test"}
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+
+		err := dobuild(params, []string{root})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check that manifest is not written given no input manifest and no other flags
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tr := tar.NewReader(gr)
+
+		found := false // for plan.json
+
+		for {
+			f, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			switch {
+			case f.Name == "/plan.json":
+				found = true
+			case f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego"): // expected
+			default:
+				t.Errorf("unexpected file: %s", f.Name)
+			}
+		}
+		if !found {
+			t.Error("plan.json not found")
+		}
+	})
+}
