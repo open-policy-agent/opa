@@ -124,6 +124,11 @@ The 'build' command supports targets (specified by -t):
             the input files for each specified entrypoint. The bundle may contain the
             original policy or data files.
 
+    plan    The plan target emits a bundle containing a plan, i.e., an intermediate
+			representation compiled from the input files for each specified entrypoint.
+			This is for further processing, OPA cannot evaluate a "plan bundle" like it
+			can evaluate a wasm or rego bundle.
+
 The -e flag tells the 'build' command which documents will be queried by the software
 asking for policy decisions, so that it can focus optimization efforts and ensure
 that document is not eliminated by the optimizer.
@@ -231,6 +236,7 @@ opa build <path> [<path> [...]] [flags]
       --ignore strings                 set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -O, --optimize int                   set optimization level
   -o, --output string                  set the output filename (default "bundle.tar.gz")
+      --prune-unused                   exclude dependents of entrypoints
   -r, --revision string                set output bundle revision
       --scope string                   scope to use for bundle signature verification
       --signing-alg string             name of the signing algorithm (default "RS256")
