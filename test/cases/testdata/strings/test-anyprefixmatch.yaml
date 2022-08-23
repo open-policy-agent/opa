@@ -1,0 +1,340 @@
+cases:
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["a/", "d/"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["f/", "d/"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["a/b/", "a/"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["d/", "e/f/g"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    prefixes: ["aa/b", "e/f"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    prefixes: ["a/b", "e/f"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    prefixes: ["b/cc"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: []
+    prefixes: ["a/b", "e/f"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: []
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: []
+    prefixes: []
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_prefix_match(input.strings, input.prefixes)
+    }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefix: "a/"
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefix)
+      }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefix: "d/"
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefix)
+      }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    string: "a/b/c"
+    prefixes: ["a/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.string, input.prefixes)
+      }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    string: "a/b/c"
+    prefixes: ["g/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.string, input.prefixes)
+      }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["a/", "d/"]
+  modules:
+    - |
+      package test
+      
+      strings_set[str] {
+        str := input.strings[_]
+      }
+      
+      prefixes_set[prefix] {
+        prefix := input.prefixes[_]
+      }
+      
+      p {
+        strings.any_prefix_match(strings_set, prefixes_set)
+      }
+  note: strings/any_prefix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      strings_set[str] {
+        str := input.strings[_]
+      }
+      
+      prefixes_set[prefix] {
+        prefix := input.prefixes[_]
+      }
+      
+      p {
+        strings.any_prefix_match(strings_set, prefixes_set)
+      }
+  note: strings/any_prefix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: [1, 2, 3]
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: 1
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: [1, 2]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: 1
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: [1, 2, 3]
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 1 must be array of strings but got array containing number"
+- input:
+    strings: 1
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 1 must be one of {string, set, array} but got number"
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: [1, 2]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 2 must be array of strings but got array containing number"
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: 1
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_prefix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_prefix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_prefix_match: operand 2 must be one of {string, set, array} but got number"

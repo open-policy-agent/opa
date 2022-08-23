@@ -146,6 +146,21 @@ integrations:
     inventors:
       - fig
 
+  fiber:
+    title: fiber
+    description: |
+      Fiber is an Express inspired web framework built on top of Fasthttp, the fastest HTTP engine for Go.
+      Designed to ease things up for fast development with zero memory allocation and performance in mind.
+      With Open Policy Agent integration, you can run your Rego policies as part of the request lifecycle in the middleware.
+    labels:
+      category: application
+      layer: library
+    software:
+      - golang
+      - fiber
+    code:
+      - https://github.com/gofiber/contrib/tree/main/opafiber
+
   sphinx-rego:
     title: Automatically document Rego policies
     description: Sphinx extension that automatically documents Open Policy Agent Rego policies using meta properties.
@@ -549,7 +564,7 @@ integrations:
     tutorials:
       - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
-      - https://github.com/anderseknert/opa-kafka-plugin
+      - https://github.com/StyraInc/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
     inventors:
       - ticketmaster
@@ -579,7 +594,7 @@ integrations:
     code:
       - https://github.com/strimzi/strimzi-kafka-operator
       - https://github.com/scholzj/demo-opa-kafka-authorization
-      - https://github.com/anderseknert/opa-kafka-plugin
+      - https://github.com/StyraInc/opa-kafka-plugin
     inventors:
       - redhat
 
@@ -1255,8 +1270,31 @@ integrations:
       layer: application
     software:
       - rekor
+    inventors:
+      - sigstore
     code:
       - https://github.com/nsmith5/rekor-sidekick
+    videos:
+      - https://www.youtube.com/watch?v=lHSLPIo1pz8
+  
+  cosign:
+    title: Container Signing, Verification and Storage in an OCI registry
+    description: |
+      Cosign is a tool for container image signing and verifying maintained under the Project Sigstore
+      in collaboration with the Linux Foundation. Among other features, Cosign supports KMS signing,
+      built-in binary transparency, and timestamping service with Rekor and Kubernetes policy enforcement.
+    labels:
+      category: security
+      layer: application
+    software:
+      - cosign
+    inventors:
+      - sigstore
+    code:
+      - https://docs.sigstore.dev/cosign/attestation#validate-in-toto-attestations
+      - https://github.com/sigstore/cosign-gatekeeper-provider
+    vides:
+      - https://www.youtube.com/watch?v=gCi9_4NYyR0
 
   alfred:
     title: Self-hosted Alternative to OPA Playground
@@ -1517,6 +1555,9 @@ organizations:
   scalr:
     name: Scalr
     link: https://www.scalr.com/
+  sigstore:
+    name: Sigstore
+    link: https://sigstore.dev/
   build.security:
     name: build.security
     link: https://build.security
@@ -1612,6 +1653,9 @@ software:
   clojure:
     name: Clojure
     link: https://clojure.org
+  cosign:
+    name: Cosign
+    link: https://github.com/sigstore/cosign
   aws:
     name: Amazon Public Cloud
     link: https://aws.com
@@ -1624,6 +1668,12 @@ software:
   cloudformation:
     name: AWS CloudFormation
     link: https://aws.amazon.com/cloudformation/
+  fiber:
+    name: Fiber
+    link: https://docs.gofiber.io
+  golang:
+    name: golang
+    link: https://golang.org/
   java:
     name: Java
     link: https://www.java.com/

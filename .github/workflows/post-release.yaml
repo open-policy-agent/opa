@@ -10,7 +10,7 @@ permissions:
 jobs:
   kick-netlify:
     name: Kick Netlify
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Trigger Netlify Deploy
         env:

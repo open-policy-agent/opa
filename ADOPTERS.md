@@ -190,6 +190,11 @@ production users that have added themselves (in alphabetical order):
   [part 1](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment),
   [part 2](https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permissions-system-in-a-distributed-environment).
 
+* [VNG Cloud](https://www.vngcloud.vn/en/home) [Identity and Access Management (IAM)](https://iam.vngcloud.vn/)
+  use OPA as a policy-based decision engine for authorization. IAM provides administrators with fine-grained 
+  access control to VNG Cloud resources and help centralize and manage permissions to access resources. 
+  Specifically, OPA is integrated to evaluate policies to make the decision about denying or allowing incoming requests.
+  
 * [Wiz](https://www.wiz.io/) helps every organization rapidly remove the most critical
   risks in their cloud estate. It simply connects in minutes, requires zero agents, and
   automatically correlates the entire security stack to uncover the most pressing issues.
@@ -205,7 +210,7 @@ production users that have added themselves (in alphabetical order):
 * [Yelp](https://www.yelp.com/) use OPA and Envoy to enforce authorization policies
   across a fleet of microservices that evolved out of a monolithic architecture.
   For more information see this talk from [KubeCon US 2019](https://www.youtube.com/watch?v=Z6aN3Smt-9M).
-
+  
 In addition, there are several production adopters that prefer to
 remain anonymous.
 

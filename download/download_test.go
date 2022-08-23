@@ -53,6 +53,10 @@ func TestStartStop(t *testing.T) {
 		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
 	}
 
+	if u1.Size == 0 {
+		t.Fatal("expected non-0 size")
+	}
+
 	d.Stop(ctx)
 }
 
@@ -88,6 +92,10 @@ func TestStartStopWithBundlePersistence(t *testing.T) {
 
 	if u1.Raw == nil {
 		t.Fatal("expected bundle reader to be non-nil")
+	}
+
+	if u1.Size == 0 {
+		t.Fatal("expected non-0 size")
 	}
 
 	r := bundle.NewReader(u1.Raw)
@@ -215,6 +223,10 @@ func TestStartStopWithDeltaBundleMode(t *testing.T) {
 
 	if u1.Bundle == nil || u1.Bundle.Manifest.Revision != deltaBundleMode {
 		t.Fatal("expected delta bundle but got:", u1)
+	}
+
+	if u1.Size == 0 {
+		t.Fatal("expected non-0 size")
 	}
 
 	d.Stop(ctx)

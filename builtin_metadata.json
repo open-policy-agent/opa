@@ -162,6 +162,8 @@
       "split",
       "sprintf",
       "startswith",
+      "strings.any_prefix_match",
+      "strings.any_suffix_match",
       "strings.replace_n",
       "strings.reverse",
       "substring",
@@ -10972,6 +10974,56 @@
       "type": "boolean"
     },
     "wasm": true
+  },
+  "strings.any_prefix_match": {
+    "args": [
+      {
+        "description": "search string(s)",
+        "name": "search",
+        "type": "any\u003cstring, array[string], set[string]\u003e"
+      },
+      {
+        "description": "base string(s)",
+        "name": "base",
+        "type": "any\u003cstring, array[string], set[string]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns true if any of the search strings begins with any of the base strings.",
+    "introduced": "edge",
+    "result": {
+      "description": "result of the prefix check",
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
+  "strings.any_suffix_match": {
+    "args": [
+      {
+        "description": "search string(s)",
+        "name": "search",
+        "type": "any\u003cstring, array[string], set[string]\u003e"
+      },
+      {
+        "description": "base string(s)",
+        "name": "base",
+        "type": "any\u003cstring, array[string], set[string]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns true if any of the search strings ends with any of the base strings.",
+    "introduced": "edge",
+    "result": {
+      "description": "result of the suffix check",
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
   },
   "strings.replace_n": {
     "args": [

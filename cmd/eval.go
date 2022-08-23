@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -65,6 +67,8 @@ type evalCommandParams struct {
 	schema              *schemaFlags
 	target              *util.EnumFlag
 	timeout             time.Duration
+	optimizationLevel   int
+	entrypoints         repeatedStringFlag
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -111,6 +115,13 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 	} else if !p.partial && of == evalSourceOutput {
 		return errors.New("invalid output format for evaluation")
 	}
+
+	if p.optimizationLevel > 0 {
+		if len(p.dataPaths.v) > 0 && p.bundlePaths.isFlagSet() {
+			return fmt.Errorf("specify either --data or --bundle flag with optimization level greater than 0")
+		}
+	}
+
 	if p.profileLimit.isFlagSet() || p.profileCriteria.isFlagSet() {
 		p.profile = true
 	}
@@ -201,6 +212,13 @@ on bundle directory structures.
 The --data flag can be used to recursively load ALL *.rego, *.json, and
 *.yaml files under the specified directory.
 
+The -O flag controls the optimization level. By default, optimization is disabled (-O=0).
+When optimization is enabled the 'eval' command generates a bundle from the files provided
+with either the --bundle or --data flag. This bundle is semantically equivalent to the input
+files however the structure of the files in the bundle may have been changed by rewriting, inlining,
+pruning, etc. This resulting optimized bundle is used to evaluate the query. If optimization is enabled
+at least one entrypoint (-e) must be supplied.
+
 Output Formats
 --------------
 
@@ -278,6 +296,9 @@ access.
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 	evalCommand.Flags().DurationVar(&params.timeout, "timeout", 0, "set eval timeout (default unlimited)")
+
+	evalCommand.Flags().IntVarP(&params.optimizationLevel, "optimize", "O", 0, "set optimization level")
+	evalCommand.Flags().VarP(&params.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
 
 	// Shared flags
 	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
@@ -493,12 +514,31 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		f := loaderFilter{
 			Ignore: params.ignore,
 		}
-		regoArgs = append(regoArgs, rego.Load(params.dataPaths.v, f.Apply))
+
+		if params.optimizationLevel <= 0 {
+			regoArgs = append(regoArgs, rego.Load(params.dataPaths.v, f.Apply))
+		} else {
+			b, err := generateOptimizedBundle(params, false, f.Apply, params.dataPaths.v)
+			if err != nil {
+				return nil, err
+			}
+
+			regoArgs = append(regoArgs, rego.ParsedBundle("optimized", b))
+		}
 	}
 
 	if params.bundlePaths.isFlagSet() {
-		for _, bundleDir := range params.bundlePaths.v {
-			regoArgs = append(regoArgs, rego.LoadBundle(bundleDir))
+		if params.optimizationLevel <= 0 {
+			for _, bundleDir := range params.bundlePaths.v {
+				regoArgs = append(regoArgs, rego.LoadBundle(bundleDir))
+			}
+		} else {
+			b, err := generateOptimizedBundle(params, true, buildCommandLoaderFilter(true, params.ignore), params.bundlePaths.v)
+			if err != nil {
+				return nil, err
+			}
+
+			regoArgs = append(regoArgs, rego.ParsedBundle("optimized", b))
 		}
 	}
 
@@ -739,4 +779,32 @@ func (vis *astLocationResetVisitor) visit(x interface{}) bool {
 		vis.n++
 	}
 	return false
+}
+
+func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loader.Filter, paths []string) (*bundle.Bundle, error) {
+	buf := bytes.NewBuffer(nil)
+
+	var capabilities *ast.Capabilities
+	if params.capabilities.C != nil {
+		capabilities = params.capabilities.C
+	} else {
+		capabilities = ast.CapabilitiesForThisVersion()
+	}
+
+	compiler := compile.New().
+		WithCapabilities(capabilities).
+		WithTarget(params.target.String()).
+		WithAsBundle(asBundle).
+		WithOptimizationLevel(params.optimizationLevel).
+		WithOutput(buf).
+		WithEntrypoints(params.entrypoints.v...).
+		WithPaths(paths...).
+		WithFilter(filter)
+
+	err := compiler.Build(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	return compiler.Bundle(), nil
 }

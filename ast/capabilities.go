@@ -108,7 +108,7 @@ func LoadCapabilitiesVersions() ([]string, error) {
 		return nil, err
 	}
 
-	var capabilitiesVersions []string
+	capabilitiesVersions := make([]string, 0, len(ents))
 	for _, ent := range ents {
 		capabilitiesVersions = append(capabilitiesVersions, strings.Replace(ent.Name(), ".json", "", 1))
 	}

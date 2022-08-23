@@ -47,7 +47,11 @@ opa_value *builtin_graph_reachable(opa_value *graph, opa_value *initial)
 {
     if (opa_value_type(graph) != OPA_OBJECT)
     {
-        return opa_set();
+        return NULL;
+    }
+    if (opa_value_type(initial) != OPA_SET && opa_value_type(initial) != OPA_ARRAY)
+    {
+        return NULL;
     }
 
     // This is a queue that holds all nodes we still need to visit. It is

@@ -28,6 +28,16 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 	git fetch --tags upstream
 	```
 
+	Note: This stage can fail if you have not registered an [SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+	on your Github account.
+
+1. Create a release branch off of `main`, to ensure you don't mangle your
+   fork while creating the release:
+
+	```
+	git checkout -b release-v<version> origin/main
+	```
+
 1. Create a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
    for GitHub with the 'read:org' scope. Export it to the `GITHUB_TOKEN` environment variable.
 
@@ -53,7 +63,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 	```
 	git add .
 	git commit -s -m "Prepare v<version> release"
-	git push origin main
+	git push origin release-v<version>
 	```
 
 1. Create a Pull Request for the release preparation commit.
@@ -66,6 +76,12 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
     ```
 
     > Note: Ensure that tag is pointing to the correct commit ID! It must be the merged release preparation commit.
+
+1. Create a new branch for the dev-patch work:
+
+    ```
+	git checkout -b dev-v<next_semvar> origin/main
+	```
 
 1. Execute the dev-patch target to generate boilerplate patch. Give the semantic version of the next release:
 
@@ -86,7 +102,7 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 
 	```
 	git commit -a -s -m "Prepare v<next_semvar> development"
-	git push origin main
+	git push origin dev-v<next_semvar>
 	```
 
 1. Create a Pull Request for the development preparation commit.

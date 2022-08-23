@@ -1,0 +1,341 @@
+cases:
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/c", "/a"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/f", "/a"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/b/c", "/d"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/a", "e/f/g"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    suffixes: ["b/cc", "f/g"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    suffixes: ["b/c", "f/g"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["aa/bb/cc", "aa/bb/dd", "ee/ff/gg"]
+    suffixes: ["aa/b"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: []
+    suffixes: ["a/b", "e/f"]
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: []
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: []
+    suffixes: []
+  modules:
+  - |
+    package test
+
+    p {
+      strings.any_suffix_match(input.strings, input.suffixes)
+    }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffix: "/c"
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.suffix)
+      }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffix: "/h"
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.suffix)
+      }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    string: "a/b/c"
+    suffixes: ["/c", "/a"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.string, input.suffixes)
+      }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    string: "a/b/g"
+    suffixes: ["/c", "/a"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.string, input.suffixes)
+      }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/c", "/a"]
+  modules:
+    - |
+      package test
+        
+      strings_set[str] {
+        str := input.strings[_]
+      }
+
+      suffixes_set[suffix] {
+        suffix := input.suffixes[_]
+      }
+      
+      p {
+        strings.any_suffix_match(strings_set, suffixes_set)
+      }
+  note: strings/any_suffix_match/match
+  query: data.test.p = x
+  want_result:
+    - x: true
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    suffixes: ["/f", "/a"]
+  modules:
+    - |
+      package test
+
+      strings_set[str] {
+        str := input.strings[_]
+      }
+
+      suffixes_set[suffix] {
+        suffix := input.suffixes[_]
+      }
+
+      p {
+        strings.any_suffix_match(strings_set, suffixes_set)
+      }
+  note: strings/any_suffix_match/nomatch
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: [1, 2, 3]
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: 1
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: [1, 2]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: 1
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_nostrict
+  query: data.test.p = x
+  want_result: []
+- input:
+    strings: [1, 2, 3]
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 1 must be array of strings but got array containing number"
+- input:
+    strings: 1
+    prefixes: ["f/", "d/"]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 1 must be one of {string, set, array} but got number"
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: [1, 2]
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 2 must be array of strings but got array containing number"
+- input:
+    strings: ["a/b/c", "a/b/d", "e/f/g"]
+    prefixes: 1
+  modules:
+    - |
+      package test
+      
+      p {
+        strings.any_suffix_match(input.strings, input.prefixes)
+      }
+  note: strings/any_suffix_match/type_error_strict
+  query: data.test.p = x
+  strict_error: true
+  want_error: "test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 2 must be one of {string, set, array} but got number"
+

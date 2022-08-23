@@ -1,6 +1,8 @@
 [build]
 publish = "docs/website/public"
 command = "make netlify-prod WASM_ENABLED=0 CGO_ENABLED=0"
+ignore = "./build/docs-build-needed.sh"
+
 
 [build.environment]
 HUGO_VERSION = "0.88.1"

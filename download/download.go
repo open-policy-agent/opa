@@ -39,6 +39,7 @@ type Update struct {
 	Error   error
 	Metrics metrics.Metrics
 	Raw     io.Reader
+	Size    int
 }
 
 // Downloader implements low-level OPA bundle downloading. Downloader can be
@@ -71,6 +72,7 @@ type downloaderResponse struct {
 	raw      io.Reader
 	etag     string
 	longPoll bool
+	size     int
 }
 
 // New returns a new Downloader that can be started.
@@ -266,7 +268,7 @@ func (d *Downloader) oneShot(ctx context.Context) error {
 	d.longPollingEnabled = resp.longPoll
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
+		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw, Size: resp.size})
 	}
 	return nil
 }
@@ -313,13 +315,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			defer m.Timer(metrics.RegoLoadBundles).Stop()
 			baseURL := path.Join(d.client.Config().URL, d.path)
 
-			var loader bundle.DirectoryLoader
-			if d.persist {
-				tee := io.TeeReader(resp.Body, &buf)
-				loader = bundle.NewTarballLoaderWithBaseURL(tee, baseURL)
-			} else {
-				loader = bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
-			}
+			loader := bundle.NewTarballLoaderWithBaseURL(io.TeeReader(resp.Body, &buf), baseURL)
 
 			etag := resp.Header.Get("ETag")
 
@@ -360,6 +356,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				raw:      &buf,
 				etag:     etag,
 				longPoll: isLongPollSupported(resp.Header),
+				size:     buf.Len(),
 			}, nil
 		}
 

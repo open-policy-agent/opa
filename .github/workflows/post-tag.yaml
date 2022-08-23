@@ -8,7 +8,7 @@ on:
 jobs:
   generate:
     name: Generate Code
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -20,7 +20,7 @@ jobs:
 
   release-build:
     name: Release Build (linux, windows)
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     needs: generate
     steps:
       - name: Check out code
@@ -79,7 +79,7 @@ jobs:
   build:
     name: Push Latest Release
     needs: [release-build, release-build-darwin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out code
         uses: actions/checkout@v3

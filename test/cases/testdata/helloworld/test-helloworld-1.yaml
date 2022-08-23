@@ -1,3 +1,29 @@
+# If you are adding new built-in functions to Rego, you must include test cases in this format.
+#
+# Each test file contains a set of test 'cases'. Each test case includes a globally unique
+# name that identifies the test case ('note'), a policy 'query' to execute, and a set of
+# expectations (e.g., 'want_result'). Test cases can also assert on error conditions (e.g.,
+# built-in function errors like divide-by-zero).
+#
+#  * Test cases may include zero or more Rego modules that support the test case.
+#  * Test cases may set the value of the base documents loaded under 'data' and 'input'.
+#
+# The result set is unordered. Each element in the result set specifies variable assignments to
+# expect from the query. The example below finds a single assignment of the number '7' to the
+# variable 'x'.
+#
+# If you adding tests for a built-in function, prefix the note with the built-in function name.
+# Use snake_case_for_the_note.
+#
+# Many of the test cases include a large blob of generic JSON data. This is an artifact
+# of the source code where those cases were exported from. Do not copy the blob into new
+# test cases.
+#
+# The OPA test suite (which is implemented using Go's standard testing framework) discovers tests
+# added under ./topdown/testdata/cases. For example, to run only the tests in this file:
+#
+#   go test ./topdown -v -run 'TestRego/helloworld'
+#
 cases:
 - data:
     foo: bar

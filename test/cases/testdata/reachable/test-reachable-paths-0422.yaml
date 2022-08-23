@@ -138,8 +138,8 @@ cases:
         }
     note: reachable_paths/malformed 3
     query: data.reachable.p = x
-    want_result:
-      - x: []
+    want_error_code: eval_type_error
+    strict_error: true
   - data: {}
     input_term: '{
       "graph": {
