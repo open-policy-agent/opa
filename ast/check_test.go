@@ -346,11 +346,6 @@ func TestCheckInferenceRules(t *testing.T) {
 	}
 	ruleset2 := [][2]string{
 		{`ref_rule_single`, `p.q.r { true }`},
-		{`ref_rule_single_number_key`, `p.q.r[7] { true }`},
-		{`ref_rule_single_boolean_key`, `p.q.r[true] { true }`},
-		{`ref_rule_single_set_key`, `p.q.r[{"x"}] { true }`},
-		{`ref_rule_single_array_key`, `p.q.r[["x"]] { true }`},
-		{`ref_rule_single_obj_key`, `p.q.r[{"x":"y"}] { true }`},
 	}
 
 	tests := []struct {
@@ -485,48 +480,6 @@ func TestCheckInferenceRules(t *testing.T) {
 				}},
 				types.NewDynamicProperty(types.S, types.A),
 			)},
-
-		{"ref-rules single value, number in ref, full ref", ruleset2, "data.ref_rule_single_number_key.p.q.r[7]", types.B},
-		{"ref-rules single value, number in ref, prefix", ruleset2, "data.ref_rule_single_number_key.p.q.r",
-			types.NewObject(
-				[]*types.StaticProperty{{Key: json.Number("7"), Value: types.B}},
-				types.NewDynamicProperty(types.S, types.A),
-			)},
-
-		{"ref-rules single value, bool in ref, full ref", ruleset2, "data.ref_rule_single_boolean_key.p.q.r[true]", types.B},
-		{"ref-rules single value, bool in ref, prefix", ruleset2, "data.ref_rule_single_boolean_key.p.q.r",
-			types.NewObject(
-				[]*types.StaticProperty{{Key: true, Value: types.B}},
-				types.NewDynamicProperty(types.S, types.A),
-			)},
-
-		{"ref-rules single value, set in ref, full ref", ruleset2, `data.ref_rule_single_set_key.p.q.r[{"x"}]`, types.B},
-		{"ref-rules single value, set in ref, prefix", ruleset2, "data.ref_rule_single_set_key.p.q.r",
-			types.NewObject(
-				[]*types.StaticProperty{{Key: []interface{}{"x"}, Value: types.B}},
-				types.NewDynamicProperty(types.S, types.A),
-			)},
-
-		{"ref-rules single value, array in ref, full ref", ruleset2, `data.ref_rule_single_array_key.p.q.r[["x"]]`, types.B},
-		{"ref-rules single value, array in ref, prefix", ruleset2, "data.ref_rule_single_array_key.p.q.r",
-			types.NewObject(
-				[]*types.StaticProperty{{Key: []interface{}{"x"}, Value: types.B}},
-				types.NewDynamicProperty(types.S, types.A),
-			)},
-
-		{"ref-rules single value, object in ref, full ref", ruleset2, `data.ref_rule_single_obj_key.p.q.r[{"x":"y"}]`, types.B},
-		{"ref-rules single value, object in ref, prefix", ruleset2, "data.ref_rule_single_obj_key.p.q.r",
-			types.NewObject(
-				nil,
-				types.NewDynamicProperty(types.S, types.A),
-				// types.NewDynamicProperty(types.NewObject([]*types.StaticProperty{{Key: []interface{}{"x"}, Value: types.B}}, nil), types.A),
-			)},
-
-		// {"ref-rules single value, ref in ref, prefix", ruleset2, "data.ref_rule_single_ref_key.p.q.r",
-		// 	types.NewObject( // TODO(sr): is this accurate enough? It feels like we're missing an `any: any` here
-		// 		nil,
-		// 		types.NewDynamicProperty(types.S, types.A),
-		// 	)},
 	}
 
 	for _, tc := range tests {
