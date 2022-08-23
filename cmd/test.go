@@ -163,7 +163,7 @@ func opaTest(args []string) int {
 
 	if testParams.bundleMode {
 		bundles, err = tester.LoadBundles(args, filter.Apply)
-		store = inmem.New()
+		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
 		modules, store, err = tester.Load(args, filter.Apply)
 	}

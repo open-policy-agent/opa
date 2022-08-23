@@ -951,7 +951,7 @@ package example
 
 # METADATA
 # title: Deny invalid numbers
-# description: Numbers may not be higer than 5
+# description: Numbers may not be higher than 5
 # custom:
 #  severity: MEDIUM
 deny[format(rego.metadata.rule())] {

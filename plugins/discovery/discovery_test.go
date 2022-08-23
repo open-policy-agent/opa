@@ -34,7 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/server"
-	"github.com/open-policy-agent/opa/storage/inmem"
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"

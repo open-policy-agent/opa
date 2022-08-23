@@ -332,7 +332,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
 	} else {
-		store = inmem.New()
+		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
 	manager, err := plugins.New(config,
