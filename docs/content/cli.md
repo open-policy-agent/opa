@@ -453,6 +453,13 @@ on bundle directory structures.
 The --data flag can be used to recursively load ALL *.rego, *.json, and
 *.yaml files under the specified directory.
 
+The -O flag controls the optimization level. By default, optimization is disabled (-O=0).
+When optimization is enabled the 'eval' command generates a bundle from the files provided
+with either the --bundle or --data flag. This bundle is semantically equivalent to the input
+files however the structure of the files in the bundle may have been changed by rewriting, inlining,
+pruning, etc. This resulting optimized bundle is used to evaluate the query. If optimization is enabled
+at least one entrypoint (-e) must be supplied.
+
 ### Output Formats
 
 
@@ -512,6 +519,7 @@ opa eval <query> [flags]
       --disable-early-exit                                disable 'early exit' optimizations
       --disable-indexing                                  disable indexing optimizations
       --disable-inlining stringArray                      set paths of documents to exclude from inlining
+  -e, --entrypoint string                                 set slash separated entrypoint path
       --explain {off,full,notes,fails}                    enable query explanations (default off)
       --fail                                              exits with non-zero exit code on undefined/empty result and errors
       --fail-defined                                      exits with non-zero exit code on defined/non-empty result and errors
@@ -522,6 +530,7 @@ opa eval <query> [flags]
   -i, --input string                                      set input file path
       --instrument                                        enable query instrumentation metrics (implies --metrics)
       --metrics                                           report query performance metrics
+  -O, --optimize int                                      set optimization level
       --package string                                    set query package
   -p, --partial                                           perform partial evaluation
       --pretty-limit int                                  set limit after which pretty output gets truncated (default 80)

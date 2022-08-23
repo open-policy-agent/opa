@@ -122,6 +122,108 @@ p = 1`,
 	})
 }
 
+func TestEvalWithOptimizeErrors(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.bundlePaths = repeatedStringFlag{
+			v:     []string{path},
+			isSet: true,
+		}
+
+		err := validateEvalParams(&params, []string{"data"})
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+
+		expected := "specify either --data or --bundle flag with optimization level greater than 0"
+		if err.Error() != expected {
+			t.Fatalf("Expected error %v but got %v", expected, err.Error())
+		}
+
+		params = newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+
+		var buf bytes.Buffer
+
+		_, err = eval([]string{"data.test"}, params, &buf)
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+
+		expected = "bundle optimizations require at least one entrypoint"
+		if err.Error() != expected {
+			t.Fatalf("Expected error %v but got %v", expected, err.Error())
+		}
+	})
+}
+
+func TestEvalWithOptimize(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+			default p = false
+			p { q }
+			q { input.x = data.foo }`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"test/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestEvalWithOptimizeBundleData(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+			package test
+			default p = false
+			p { q }
+			q { input.x = data.foo }`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.bundlePaths = repeatedStringFlag{
+			v:     []string{path},
+			isSet: true,
+		}
+		params.entrypoints = newrepeatedStringFlag([]string{"test/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
 func testEvalWithInputFile(t *testing.T, input string, query string, params evalCommandParams) error {
 	files := map[string]string{
 		"input.json": input,
