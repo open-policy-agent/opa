@@ -61,6 +61,7 @@ type Compiler struct {
 	bundle                *bundle.Bundle             // the bundle that the compiler operates on
 	revision              *string                    // the revision to set on the output bundle
 	asBundle              bool                       // whether to assume bundle layout on file loading or not
+	pruneUnused           bool                       // whether to extend the entrypoint set for semantic equivalence of built bundles
 	filter                loader.Filter              // filter to apply to file loader
 	paths                 []string                   // file paths to load. TODO(tsandall): add support for supplying readers for embedded users.
 	entrypoints           orderedStringSet           // policy entrypoints required for optimization and certain targets
@@ -97,6 +98,20 @@ func (c *Compiler) WithRevision(r string) *Compiler {
 // WithAsBundle sets file loading mode on the compiler.
 func (c *Compiler) WithAsBundle(enabled bool) *Compiler {
 	c.asBundle = enabled
+	return c
+}
+
+// WithPruneUnused will make rules be ignored that are defined on the same
+// package as the entrypoint, but that are not in the entrypoint set.
+//
+// Notably this includes functions (they can't be entrypoints) and causes
+// the built bundle to no longer be semantically equivalent to the bundle built
+// without wasm.
+//
+// This affects the 'wasm' and 'plan' targets only. It has no effect on
+// building 'rego' bundles, i.e., "ordinary bundles".
+func (c *Compiler) WithPruneUnused(enabled bool) *Compiler {
+	c.pruneUnused = enabled
 	return c
 }
 
@@ -189,7 +204,7 @@ func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
 	return c
 }
 
-//WithMetadata sets the additional data to be included in .manifest
+// WithMetadata sets the additional data to be included in .manifest
 func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
 	c.metadata = metadata
 	return c
@@ -415,32 +430,34 @@ func (c *Compiler) compilePlan(ctx context.Context) error {
 		}
 	}
 
-	// Find transitive dependents of entrypoints and add them to the set to compile.
-	//
-	// NOTE(tsandall): We compile entrypoints because the evaluator does not support
-	// evaluation of wasm-compiled rules when 'with' statements are in-scope. Compiling
-	// out the dependents avoids the need to support that case for now.
-	deps := map[*ast.Rule]struct{}{}
-	for i := range c.entrypointrefs {
-		transitiveDocumentDependents(c.compiler, c.entrypointrefs[i], deps)
-	}
-
-	extras := ast.NewSet()
-	for rule := range deps {
-		extras.Add(ast.NewTerm(rule.Path()))
-	}
-
-	sorted := extras.Sorted()
-
-	for i := 0; i < sorted.Len(); i++ {
-		p, err := sorted.Elem(i).Value.(ast.Ref).Ptr()
-		if err != nil {
-			return err
+	if !c.pruneUnused {
+		// Find transitive dependents of entrypoints and add them to the set to compile.
+		//
+		// NOTE(tsandall): We compile entrypoints because the evaluator does not support
+		// evaluation of wasm-compiled rules when 'with' statements are in-scope. Compiling
+		// out the dependents avoids the need to support that case for now.
+		deps := map[*ast.Rule]struct{}{}
+		for i := range c.entrypointrefs {
+			transitiveDocumentDependents(c.compiler, c.entrypointrefs[i], deps)
 		}
 
-		if !c.entrypoints.Contains(p) {
-			c.entrypoints = append(c.entrypoints, p)
-			c.entrypointrefs = append(c.entrypointrefs, sorted.Elem(i))
+		extras := ast.NewSet()
+		for rule := range deps {
+			extras.Add(ast.NewTerm(rule.Path()))
+		}
+
+		sorted := extras.Sorted()
+
+		for i := 0; i < sorted.Len(); i++ {
+			p, err := sorted.Elem(i).Value.(ast.Ref).Ptr()
+			if err != nil {
+				return err
+			}
+
+			if !c.entrypoints.Contains(p) {
+				c.entrypoints = append(c.entrypoints, p)
+				c.entrypointrefs = append(c.entrypointrefs, sorted.Elem(i))
+			}
 		}
 	}
 

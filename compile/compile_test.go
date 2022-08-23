@@ -3,6 +3,7 @@ package compile
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/format"
+	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
@@ -736,6 +738,45 @@ func TestCompilerPlanTarget(t *testing.T) {
 
 		if len(compiler.bundle.PlanModules) == 0 {
 			t.Fatal("expected to find compiled plan module")
+		}
+	})
+}
+
+func TestCompilerPlanTargetPruneUnused(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+		p[1]
+		f(x) { p[x] }`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().
+			WithPaths(root).
+			WithTarget("plan").
+			WithEntrypoints("test").
+			WithPruneUnused(true)
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.PlanModules) == 0 {
+			t.Fatal("expected to find compiled plan module")
+		}
+
+		plan := compiler.bundle.PlanModules[0].Raw
+		var policy ir.Policy
+
+		if err := json.Unmarshal(plan, &policy); err != nil {
+			t.Fatal(err)
+		}
+		if exp, act := 1, len(policy.Funcs.Funcs); act != exp {
+			t.Fatalf("expected %d funcs, got %d", exp, act)
+		}
+		f := policy.Funcs.Funcs[0]
+		if exp, act := "g0.data.test.p", f.Name; act != exp {
+			t.Fatalf("expected func named %v, got %v", exp, act)
 		}
 	})
 }
