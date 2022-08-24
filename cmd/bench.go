@@ -328,7 +328,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	// typically comes online very quickly.
 	baseDelay := time.Duration(100) * time.Millisecond
 	maxDelay := time.Duration(60) * time.Second
-	retries := 8 // Max of around 1 minute total wait time.
+	retries := 3 // Max of around 1 minute total wait time.
 	for i := 0; i < retries; i++ {
 		if len(rt.Addrs()) == 0 {
 			delay := util.DefaultBackoff(float64(baseDelay), float64(maxDelay), i)
