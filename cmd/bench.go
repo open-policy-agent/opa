@@ -326,12 +326,13 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 	// Busy loop until server has truly come online to recover the bound port.
 	// We do this with exponential backoff for wait times, since the server
 	// typically comes online very quickly.
-	delay := time.Duration(10) * time.Microsecond
-	retries := 7 // Max of 11 seconds total wait time.
+	baseDelay := time.Duration(10) * time.Microsecond
+	maxDelay := time.Duration(10) * time.Second
+	retries := 7 // Max of around 10 seconds total wait time.
 	for i := 0; i < retries; i++ {
 		if len(rt.Addrs()) == 0 {
+			delay := util.DefaultBackoff(float64(baseDelay), float64(maxDelay), i)
 			time.Sleep(delay)
-			delay *= 10 // Up the next wait interval by 10x.
 			continue
 		}
 		// We have an address to parse the port from.
@@ -340,6 +341,10 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 			return err
 		}
 		break
+	}
+	// Check for port still being unbound after retry loop.
+	if len(rt.Addrs()) == 0 {
+		return fmt.Errorf("unable to bind a port for bench testing")
 	}
 
 	query, err := readQuery(params, args)
