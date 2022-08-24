@@ -343,7 +343,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		break
 	}
 	// Check for port still being unbound after retry loop.
-	if len(rt.Addrs()) == 0 {
+	if port == 0 {
 		return fmt.Errorf("unable to bind a port for bench testing")
 	}
 
