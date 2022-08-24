@@ -9,7 +9,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: no byte amount provided"
+  want_error: "units.parse_bytes: no byte amount provided"
   strict_error: true
 - data:
   modules:
@@ -21,7 +21,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: no byte amount provided"
+  want_error: "units.parse_bytes: no byte amount provided"
   strict_error: true
 - data:
   modules:
@@ -33,7 +33,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: no byte amount provided"
+  want_error: "units.parse_bytes: no byte amount provided"
   strict_error: true
 - data:
   modules:
@@ -45,7 +45,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: could not parse byte amount to a number"
+  want_error: "units.parse_bytes: could not parse byte amount to a number"
   strict_error: true
 - data:
   modules:
@@ -57,7 +57,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: could not parse byte amount to a number"
+  want_error: "units.parse_bytes: could not parse byte amount to a number"
   strict_error: true
 - data:
   modules:
@@ -69,7 +69,7 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: spaces not allowed in resource strings"
+  want_error: "units.parse_bytes: spaces not allowed in resource strings"
   strict_error: true
 - data:
   modules:
@@ -81,5 +81,5 @@ cases:
   note: units_parse_bytes/failure
   query: data.test.p = x
   want_error_code: eval_builtin_error
-  want_error: "units.parse_bytes error: spaces not allowed in resource strings"
+  want_error: "units.parse_bytes: spaces not allowed in resource strings"
   strict_error: true
