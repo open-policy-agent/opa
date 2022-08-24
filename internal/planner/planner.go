@@ -332,15 +332,14 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 									return nil
 								})
 							})
-						} else {
-							return p.planTerm(rule.Head.Value, func() error {
-								p.appendStmt(&ir.AssignVarOnceStmt{
-									Target: lresult,
-									Source: p.ltarget,
-								})
-								return nil
-							})
 						}
+						return p.planTerm(rule.Head.Value, func() error {
+							p.appendStmt(&ir.AssignVarOnceStmt{
+								Target: lresult,
+								Source: p.ltarget,
+							})
+							return nil
+						})
 					case ast.MultiValue:
 						return p.planTerm(rule.Head.Key, func() error {
 							p.appendStmt(&ir.SetAddStmt{
