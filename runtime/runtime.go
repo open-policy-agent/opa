@@ -213,8 +213,9 @@ type Params struct {
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
 type LoggingConfig struct {
-	Level  string
-	Format string
+	Level           string
+	Format          string
+	TimestampFormat string
 }
 
 // NewParams returns a new Params object.
@@ -267,7 +268,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	// that the logging configuration is applied. Once we remove all usage of
 	// the global logger and we remove the API that allows callers to access the
 	// global logger, we can remove this.
-	logging.Get().SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+	logging.Get().SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
 	logging.Get().SetLevel(level)
 
 	var logger logging.Logger
@@ -277,7 +278,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	} else {
 		stdLogger := logging.New()
 		stdLogger.SetLevel(level)
-		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
 		logger = stdLogger
 	}
 
@@ -308,7 +309,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	consoleLogger := params.ConsoleLogger
 	if consoleLogger == nil {
 		l := logging.New()
-		l.SetFormatter(internal_logging.GetFormatter(params.Logging.Format))
+		l.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
 		consoleLogger = l
 	}
 
