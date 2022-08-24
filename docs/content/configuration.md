@@ -254,6 +254,25 @@ multiple services.
 | `services[_].allow_insecure_tls` | `bool` | No | Allow insecure TLS. |
 | `services[_].type` | `string` | No (default: empty) | Optional parameter that allows to use an "OCI" service type. This will allow bundle and discovery plugins to download bundles from an OCI registry. |
 
+> Services can be defined as an array or object. When defined as an object, the
+> object keys override the `services[_].name` fields.
+> For example:
+> ```yaml
+> services:
+>   s1:
+>     url: https://s1/example/
+>   s2:
+>     url: https://s2/
+> ```
+> Is equivalent to
+> ```yaml
+> services:
+>   - name: s1
+>     url: https://s1/example/
+>   - name: s2
+>     url: https://s2/
+> ```
+
 Each service may optionally specify a credential mechanism by which OPA will authenticate
 itself to the service.
 
@@ -452,7 +471,6 @@ Please note that if you are using temporary IAM credentials (e.g. assumed IAM ro
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.environment_credentials` | `{}` | Yes | Enables AWS signing using environment variables to source the configuration and credentials |
 
-
 ##### Using Named Profile Credentials
 If specifying `profile_credentials`, OPA will expect to find the `access key id`, `secret access key` and
 `session token` from the [named profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
@@ -476,9 +494,9 @@ be specified as `iam_role` and `aws_region` respectively.
 To use the ECS metadata service, specify only the AWS region for the resource as `aws_region`. ECS
 containers have at most one associated IAM role.
 
-**N.B.** Providing a value for `iam_role` will cause OPA to use the EC2 metadata service even
-if running inside an ECS container. This may result in unexpected problems if, for example,
-there is no route to the EC2 metadata service from inside the container or if the IAM role is only available within the container and not from the hosting EC2 instance.
+> Providing a value for `iam_role` will cause OPA to use the EC2 metadata service even
+> if running inside an ECS container. This may result in unexpected problems if, for example,
+> there is no route to the EC2 metadata service from inside the container or if the IAM role is only available within the container and not from the hosting EC2 instance.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -486,31 +504,12 @@ there is no route to the EC2 metadata service from inside the container or if th
 | `services[_].credentials.s3_signing.metadata_credentials.iam_role` | `string` | No | The IAM role to use for the AWS signing service credential method |
 
 ##### Using EKS IAM Roles for Service Account (Web Identity) Credentials
-If specifying `web_identity_credentials`, OPA will expect to find environment variables for `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`, in accordance with the convention used by the [AWS EKS IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts-technical-overview.html#pod-configuration).
+If specifying `web_identity_credentials`, OPA will expect to find environment variables for `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`, in accordance with the convention used by the [AWS EKS IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.web_identity_credentials.aws_region` | `string` | Yes | The AWS region to use for the sts regional endpoint. Uses the global endpoint by default |
 | `services[_].credentials.s3_signing.web_identity_credentials.session_name` | `string` | No | The session name used to identify the assumed role session. Default: `open-policy-agent` |
-
-> Services can be defined as an array or object. When defined as an object, the
-> object keys override the `services[_].name` fields.
-> For example:
-```yaml
-services:
-  s1:
-    url: https://s1/example/
-  s2:
-    url: https://s2/
-```
-Is equivalent to
-```yaml
-services:
-  - name: s1
-    url: https://s1/example/
-  - name: s2
-    url: https://s2/
-```
 
 #### GCP Metadata Token
 
