@@ -389,7 +389,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		}
 	}
 
-	url := fmt.Sprintf("http://%s:%s/v1/%v", host, strconv.Itoa(port), path)
+	url := fmt.Sprintf("http://%s:%d/v1/%v", host, port, path)
 	if params.metrics {
 		url += "?metrics=true"
 	}
