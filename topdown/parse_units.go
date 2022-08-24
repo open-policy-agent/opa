@@ -26,7 +26,7 @@ const (
 )
 
 func parseUnitsError(msg string) error {
-	return fmt.Errorf("%s error: %s", ast.UnitsParse.Name, msg)
+	return fmt.Errorf("%s: %s", ast.UnitsParse.Name, msg)
 }
 
 func errUnitNotRecognized(unit string) error {

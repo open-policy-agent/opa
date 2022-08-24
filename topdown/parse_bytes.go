@@ -32,7 +32,7 @@ const (
 )
 
 func parseNumBytesError(msg string) error {
-	return fmt.Errorf("%s error: %s", ast.UnitsParseBytes.Name, msg)
+	return fmt.Errorf("%s: %s", ast.UnitsParseBytes.Name, msg)
 }
 
 func errBytesUnitNotRecognized(unit string) error {
