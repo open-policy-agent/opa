@@ -7,10 +7,13 @@ package init
 import (
 	"context"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/open-policy-agent/opa/storage"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
@@ -248,6 +251,42 @@ func TestWalkPaths(t *testing.T) {
 			if _, ok := files[path]; !ok {
 				t.Fatalf("unexpected file %v", path)
 			}
+		}
+	})
+}
+
+func TestLoadPathsBundleModeWithFilter(t *testing.T) {
+	files := map[string]string{
+		"a/data.json":      `{"foo": "not-bar"}`,
+		"policy.rego":      "package foo\n p = 1",
+		"policy_test.rego": "package foo\n test_p { p }",
+		"a/.manifest":      `{"roots": ["a", "foo"]}`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+
+		paths := []string{rootDir}
+
+		// bundle mode
+		loaded, err := LoadPaths(paths, func(abspath string, info os.FileInfo, depth int) bool {
+			return loader.GlobExcludeName("*_test.rego", 1)(abspath, info, depth)
+		}, true, nil, true)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if len(loaded.Bundles) != len(paths) {
+			t.Fatalf("Expected %v bundle loaders but got %v", len(paths), len(loaded.Bundles))
+		}
+
+		b, ok := loaded.Bundles[rootDir]
+		if !ok {
+			t.Fatalf("expected bundle %v", rootDir)
+		}
+
+		expected := 1
+		if len(b.Modules) != expected {
+			t.Fatalf("expected %v module but got %v", expected, len(b.Modules))
 		}
 	})
 }

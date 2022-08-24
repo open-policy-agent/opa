@@ -122,7 +122,7 @@ func LoadPaths(paths []string, filter loader.Filter, asBundle bool, bvc *bundle.
 		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
 		for _, path := range paths {
 			result.Bundles[path], err = loader.NewFileLoader().WithBundleVerificationConfig(bvc).
-				WithSkipBundleVerification(skipVerify).AsBundle(path)
+				WithSkipBundleVerification(skipVerify).WithFilter(filter).AsBundle(path)
 			if err != nil {
 				return nil, err
 			}
