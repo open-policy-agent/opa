@@ -2899,7 +2899,15 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
-			head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
+			var name ast.Var
+			switch ref := rule.Head.Ref().GroundPrefix(); len(ref) {
+			case 1:
+				name = ref[0].Value.(ast.Var)
+			default:
+				s := ref[len(ref)-1].Value.(ast.String)
+				name = ast.Var(s)
+			}
+			head := ast.NewHead(name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
 			if !e.e.inliningControl.shallow {
 				cp := copypropagation.New(head.Vars()).

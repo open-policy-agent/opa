@@ -1073,6 +1073,36 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 		},
 		{
+			note:        "support rules, ref heads",
+			entrypoints: []string{"data.test.p.q.r"},
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					default p.q.r = false
+					p.q.r { q[input.x] }
+
+					q[1]
+					q[2]`,
+			},
+			wantModules: map[string]string{
+				"optimized/test/p/q.rego": `
+					package test.p.q
+
+					default r = false
+					r = true { 1 = input.x }
+					r = true { 2 = input.x }
+
+				`,
+				"test.rego": `
+					package test
+
+					q[1]
+					q[2]
+				`,
+			},
+		},
+		{
 			note:        "multiple entrypoints",
 			entrypoints: []string{"data.test.p", "data.test.r", "data.test.s"},
 			modules: map[string]string{
@@ -1526,7 +1556,6 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile {
 
 	keys := make([]string, 0, len(src))
-
 	for k := range src {
 		keys = append(keys, k)
 	}
