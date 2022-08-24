@@ -3283,9 +3283,11 @@ func TestCompilerResolveErrors(t *testing.T) {
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
 	c := NewCompiler()
 	c.Modules["head"] = MustParseModule(`package head
-
+import future.keywords
 import data.doc1 as bar
 import data.doc2 as corge
 import input.x.y.foo
@@ -3301,6 +3303,9 @@ elsekw {
 } else = baz {
 	true
 }
+
+x.y.z[bar[i]] = true
+x.y.w contains bar[i] if true
 `)
 
 	compileStages(c, c.rewriteRefsInHead)
@@ -3325,6 +3330,17 @@ elsekw {
 	rule5 := c.Modules["head"].Rules[4]
 	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
+
+	rule6 := c.Modules["head"].Rules[5]
+	expected6 := MustParseRule(`x.y.z[__local6__] = true { true; __local6__ = data.doc1[i] }`)
+	assertRulesEqual(t, rule6, expected6)
+
+	rule7 := c.Modules["head"].Rules[6]
+	expected7, err := ParseRuleWithOpts(`x.y.w contains __local7__ if {true; __local7__ = data.doc1[i] }`, popts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRulesEqual(t, rule7, expected7)
 }
 
 func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {

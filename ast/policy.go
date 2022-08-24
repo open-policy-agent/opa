@@ -799,6 +799,7 @@ func (head *Head) Equal(other *Head) bool {
 }
 
 func (head *Head) String() string {
+	// TODO(sr): for multi-value rules, this still looks like `p[x]`
 	buf := strings.Builder{}
 	buf.WriteString(head.Ref().String())
 

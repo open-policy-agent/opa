@@ -287,7 +287,27 @@ cases:
           "name": "cranky_euclid"
       }
     ]
-  note: refheads/website-example
+  note: refheads/website-example/partial-obj
   query: data.example.apps_by_hostname.helium = x
   want_result:
   - x: web
+- modules:
+  - |
+    package example
+    import future.keywords
+
+    public_network contains net.id if {
+      some net in input.networks
+      net.public
+    }
+  note: refheads/website-example/partial-set
+  query: data.example.public_network = x
+  input:
+    networks:
+    - id: n1
+      public: true
+    - id: n2
+      public: false
+  want_result:
+  - x:
+    - n1

@@ -1888,6 +1888,11 @@ func (c *Compiler) rewriteRefsInHead() {
 					rule.Body.Append(expr)
 				}
 			}
+			if requiresEval(rule.Head.Key) {
+				expr := f.Generate(rule.Head.Key)
+				rule.Head.Key = expr.Operand(0)
+				rule.Body.Append(expr)
+			}
 			if requiresEval(rule.Head.Value) {
 				expr := f.Generate(rule.Head.Value)
 				rule.Head.Value = expr.Operand(0)
