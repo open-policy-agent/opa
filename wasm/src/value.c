@@ -1629,8 +1629,13 @@ opa_errc opa_value_remove_path(opa_value *data, opa_value *path)
 // be found, or of there's no function index leaf when we've run out
 // of path pieces.
 int opa_lookup(opa_value *mapping, opa_value *path) {
-    int path_len = _validate_json_path(path);
-    if (path_len < 1)
+    if (path == NULL || opa_value_type(path) != OPA_ARRAY)
+    {
+        return 0;
+    }
+
+    int path_len = opa_value_length(path);
+    if (path_len == 0)
     {
         return 0;
     }

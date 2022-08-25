@@ -176,7 +176,7 @@ func (p *Planner) planRules(rules []*ast.Rule, cut bool) (string, error) {
 			pathPieces = append(pathPieces, fmt.Sprintf("[%s]", q))
 		default:
 			// Needs to be fixed if we allow non-string ref pieces, like `p.q[3][4].r = x`
-			panic("todo")
+			pathPieces = append(pathPieces, q.String())
 		}
 	}
 
