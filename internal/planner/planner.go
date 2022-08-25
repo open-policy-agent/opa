@@ -1726,26 +1726,25 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 
 		var rules []*ast.Rule
 
-		// If there's any non-ground key among the virtual.Children, like
-		// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
-		// plan them, and dereference from the result including ref[index]
-		// If there aren't, such as only a data.pkg.p.a rule matching the
-		// ref, we'll plan those rules, and keep dereferencing from index+1.
-		anyKeyNonGround := false
-
 		if virtual != nil {
-			for _, key := range virtual.Children() {
+			// If there's any non-ground key among the vchild.Children, like
+			// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
+			// plan them.
+			anyKeyNonGround := false
+
+			vchild = virtual.Get(ref[index].Value)
+
+			for _, key := range vchild.Children() {
 				if !key.IsGround() {
 					anyKeyNonGround = true
 					break
 				}
 			}
 			if anyKeyNonGround {
-				for _, key := range virtual.Children() {
-					rules = append(rules, virtual.Get(key).Rules()...)
+				for _, key := range vchild.Children() {
+					rules = append(rules, vchild.Get(key).Rules()...)
 				}
 			} else {
-				vchild = virtual.Get(ref[index].Value)
 				rules = vchild.Rules() // hit or miss
 			}
 		}
@@ -1764,9 +1763,6 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 				Result: p.ltarget.Value.(ir.Local),
 			})
 
-			if anyKeyNonGround {
-				return p.planRefRec(ref, index, iter)
-			}
 			return p.planRefRec(ref, index+1, iter)
 		}
 
