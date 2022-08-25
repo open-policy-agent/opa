@@ -155,14 +155,20 @@ func (p *Planner) buildFunctrie() error {
 	return nil
 }
 
-func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
-	pathRef := rules[0].Ref() // NOTE(sr): no longer the same for all those rules
+func (p *Planner) planRules(rules []*ast.Rule, cut bool) (string, error) {
+	pathRef := rules[0].Ref() // NOTE(sr): no longer the same for all those rules, respect `cut`?
 	path := pathRef.String()
 
 	var pathPieces []string
 	// TODO(sr): this has to change when allowing `p[v].q.r[w]` ref rules
 	// including the mapping lookup structure and lookup functions
-	for i := 1; /* skip `data` */ i < len(pathRef); i++ {
+
+	// if we're planning both p.q.r and p.q[s], we'll name the function p.q (for the mapping table)
+	pieces := len(pathRef)
+	if cut {
+		pieces--
+	}
+	for i := 1; /* skip `data` */ i < pieces; i++ {
 		switch q := pathRef[i].Value.(type) {
 		case ast.String:
 			pathPieces = append(pathPieces, string(q))
@@ -863,7 +869,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				// replacement is a function (rule)
 				if node := p.rules.Lookup(r); node != nil {
 					p.mocks.Push() // new scope
-					name, err = p.planRules(node.Rules())
+					name, err = p.planRules(node.Rules(), false)
 					if err != nil {
 						return err
 					}
@@ -884,7 +890,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		}
 
 		if node := p.rules.Lookup(op); node != nil {
-			name, err = p.planRules(node.Rules())
+			name, err = p.planRules(node.Rules(), false)
 			if err != nil {
 				return err
 			}
@@ -1636,7 +1642,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			}
 			// plan rules
 			for _, rules := range rulesets {
-				if _, err := p.planRules(rules); err != nil {
+				if _, err := p.planRules(rules, false); err != nil {
 					return err
 				}
 			}
@@ -1723,14 +1729,14 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	if ref[index].IsGround() {
 
 		var vchild *ruletrie
-
 		var rules []*ast.Rule
 
+		// If there's any non-ground key among the vchild.Children, like
+		// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
+		// plan them.
+		anyKeyNonGround := false
+
 		if virtual != nil {
-			// If there's any non-ground key among the vchild.Children, like
-			// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
-			// plan them.
-			anyKeyNonGround := false
 
 			vchild = virtual.Get(ref[index].Value)
 
@@ -1752,7 +1758,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 		if len(rules) > 0 {
 			p.ltarget = p.newOperand()
 
-			funcName, err := p.planRules(rules)
+			funcName, err := p.planRules(rules, anyKeyNonGround)
 			if err != nil {
 				return err
 			}
@@ -1890,7 +1896,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 				rules = append(rules, virtual.Get(key).Rules()...)
 			}
 
-			funcName, err := p.planRules(rules)
+			funcName, err := p.planRules(rules, true)
 			if err != nil {
 				return err
 			}
@@ -1934,7 +1940,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 				// Generate virtual document for leaf.
 				lvalue := p.newLocal()
 
-				funcName, err := p.planRules(rules)
+				funcName, err := p.planRules(rules, false)
 				if err != nil {
 					return err
 				}
