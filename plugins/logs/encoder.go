@@ -55,7 +55,7 @@ func newChunkEncoder(limit int64, format *string, elasticIndex *string) *chunkEn
 	var postfixFunction func() []byte
 
 	switch *format {
-	case formatJson:
+	case formatJSON:
 		prefixFunction = func(first bool, event EventV1) []byte {
 			if first {
 				return []byte("[")
@@ -72,9 +72,8 @@ func newChunkEncoder(limit int64, format *string, elasticIndex *string) *chunkEn
 		prefixFunction = func(first bool, event EventV1) []byte {
 			if first {
 				return []byte("")
-			} else {
-				return []byte("")
 			}
+			return []byte("")
 		}
 
 		postfixFunction = func() []byte {

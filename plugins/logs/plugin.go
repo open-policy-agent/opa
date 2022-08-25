@@ -228,7 +228,7 @@ const (
 	logDropCounterName          = "decision_logs_dropped"
 	defaultResourcePath         = "/logs"
 	defaultFormat               = "json"
-	formatJson                  = "json"
+	formatJSON                  = "json"
 	formatNdjson                = "ndjson"
 	formatElastic               = "elastic"
 )
@@ -367,8 +367,8 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		c.Format = &format
 	}
 
-	if *c.Format != formatJson && *c.Format != formatNdjson && *c.Format != formatElastic {
-		return fmt.Errorf("invalid format in decision_logs: %s", c.Format)
+	if *c.Format != formatJSON && *c.Format != formatNdjson && *c.Format != formatElastic {
+		return fmt.Errorf("invalid format in decision_logs: %s", *c.Format)
 	}
 
 	if *c.Format == formatElastic && c.ElasticIndex == nil {
