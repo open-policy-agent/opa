@@ -833,6 +833,8 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.mask_decision` | `string` | No (default: `system/log/mask`) | Set path of masking decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
 | `decision_logs.console` | `boolean` | No (default: `false`) | Log the decisions locally to the console. When enabled alongside a remote decision logging API the `service` must be configured, the default `service` selection will be disabled. |
+| `decision_logs.format` | `string` | No (default: `json`) | Format of the decision logs: `json`, `ndjson` or `elastic` |
+| `decision_logs.elastic_index` | `string` | Only for format=`elastic`) | Name of the index to add the logs to. |
 
 ### Discovery
 

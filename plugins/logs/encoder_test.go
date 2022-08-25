@@ -14,7 +14,9 @@ import (
 
 func TestChunkEncoder(t *testing.T) {
 
-	enc := newChunkEncoder(1000)
+	format := "json"
+
+	enc := newChunkEncoder(1000, &format, nil)
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
@@ -55,7 +57,8 @@ func TestChunkEncoder(t *testing.T) {
 
 func TestChunkEncoderAdaptive(t *testing.T) {
 
-	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
+	format := "json"
+	enc := newChunkEncoder(1000, &format, nil).WithMetrics(metrics.New())
 	var result interface{} = false
 	var expInput interface{} = map[string]interface{}{"method": "GET"}
 	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")

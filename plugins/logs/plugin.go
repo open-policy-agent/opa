@@ -227,6 +227,10 @@ const (
 	defaultMaskDecisionPath     = "/system/log/mask"
 	logDropCounterName          = "decision_logs_dropped"
 	defaultResourcePath         = "/logs"
+	defaultFormat               = "json"
+	formatJson                  = "json"
+	formatNdjson                = "ndjson"
+	formatElastic               = "elastic"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -248,6 +252,8 @@ type Config struct {
 	MaskDecision    *string         `json:"mask_decision"`
 	ConsoleLogs     bool            `json:"console"`
 	Resource        *string         `json:"resource"`
+	Format          *string         `json:"format"`
+	ElasticIndex    *string         `json:"elastic_index"`
 	maskDecisionRef ast.Ref
 }
 
@@ -356,6 +362,19 @@ func (c *Config) validateAndInjectDefaults(services []string, pluginsList []stri
 		}
 	}
 
+	if c.Format == nil {
+		format := defaultFormat
+		c.Format = &format
+	}
+
+	if *c.Format != formatJson && *c.Format != formatNdjson && *c.Format != formatElastic {
+		return fmt.Errorf("invalid format in decision_logs: %s", c.Format)
+	}
+
+	if *c.Format == formatElastic && c.ElasticIndex == nil {
+		return fmt.Errorf("no elastic_index set, but format is 'elastic'")
+	}
+
 	return nil
 }
 
@@ -460,7 +479,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		config:   *parsedConfig,
 		stop:     make(chan chan struct{}),
 		buffer:   newLogBuffer(*parsedConfig.Reporting.BufferSizeLimitBytes),
-		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
+		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes, parsedConfig.Format, parsedConfig.ElasticIndex),
 		reconfig: make(chan reconfigure),
 		logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 	}
@@ -732,7 +751,7 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 	oldChunkEnc := p.enc
 	oldBuffer := p.buffer
 	p.buffer = newLogBuffer(*p.config.Reporting.BufferSizeLimitBytes)
-	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes).WithMetrics(p.metrics)
+	p.enc = newChunkEncoder(*p.config.Reporting.UploadSizeLimitBytes, p.config.Format, p.config.ElasticIndex).WithMetrics(p.metrics)
 	p.mtx.Unlock()
 
 	// Along with uploading the compressed events in the buffer
@@ -751,9 +770,14 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 		return false, nil
 	}
 
+	var contentType = "application/json"
+	if *p.config.Format == formatElastic {
+		contentType = "application/x-ndjson"
+	}
+
 	for bs := oldBuffer.Pop(); bs != nil; bs = oldBuffer.Pop() {
 		if err == nil {
-			err = uploadChunk(ctx, p.manager.Client(p.config.Service), *p.config.Resource, bs)
+			err = uploadChunk(ctx, p.manager.Client(p.config.Service), *p.config.Resource, contentType, bs)
 		}
 		if err != nil {
 			if p.limiter != nil {
@@ -894,10 +918,10 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 	return nil
 }
 
-func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, data []byte) error {
+func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, contentType string, data []byte) error {
 
 	resp, err := client.
-		WithHeader("Content-Type", "application/json").
+		WithHeader("Content-Type", contentType).
 		WithHeader("Content-Encoding", "gzip").
 		WithBytes(data).
 		Do(ctx, "POST", uploadPath)

@@ -35,14 +35,85 @@ type chunkEncoder struct {
 	buf                        *bytes.Buffer
 	w                          *gzip.Writer
 	metrics                    metrics.Metrics
+	prefix                     func(bool, EventV1) []byte
+	postfix                    func() []byte
 }
 
-func newChunkEncoder(limit int64) *chunkEncoder {
+type BulkInsertMetaData struct {
+	Index BulkInsertIndex `json:"index"`
+}
+
+type BulkInsertIndex struct {
+	Index string `json:"_index"`
+	Type  string `json:"_type"`
+	ID    string `json:"_id"`
+}
+
+func newChunkEncoder(limit int64, format *string, elasticIndex *string) *chunkEncoder {
+
+	var prefixFunction func(bool, EventV1) []byte
+	var postfixFunction func() []byte
+
+	switch *format {
+	case formatJson:
+		prefixFunction = func(first bool, event EventV1) []byte {
+			if first {
+				return []byte("[")
+			} else {
+				return []byte(",")
+			}
+		}
+
+		postfixFunction = func() []byte {
+			return []byte("]")
+		}
+
+	case formatNdjson:
+		prefixFunction = func(first bool, event EventV1) []byte {
+			if first {
+				return []byte("")
+			} else {
+				return []byte("")
+			}
+		}
+
+		postfixFunction = func() []byte {
+			return []byte("\n")
+		}
+
+	case formatElastic:
+		prefixFunction = func(first bool, event EventV1) []byte {
+
+			bulkInsert := BulkInsertMetaData{
+				Index: BulkInsertIndex{
+					Index: *elasticIndex,
+					Type:  "_doc",
+					ID:    event.DecisionID,
+				},
+			}
+
+			var bulkInsertBuf bytes.Buffer
+
+			if err := json.NewEncoder(&bulkInsertBuf).Encode(bulkInsert); err != nil {
+				// FIXME this would omit the bulk operation line. error handling? error even possible?
+				return []byte("\n")
+			}
+
+			return bulkInsertBuf.Bytes()
+		}
+
+		postfixFunction = func() []byte {
+			return []byte("")
+		}
+	}
+
 	enc := &chunkEncoder{
 		limit:                      limit,
 		softLimit:                  limit,
 		softLimitScaleUpExponent:   0,
 		softLimitScaleDownExponent: 0,
+		prefix:                     prefixFunction,
+		postfix:                    postfixFunction,
 	}
 	enc.update()
 
@@ -64,11 +135,15 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 
 	if len(bs) == 0 {
 		return nil, nil
-	} else if int64(len(bs)+2) > enc.limit {
+	}
+
+	ps := enc.prefix(enc.bytesWritten == 0, event)
+
+	if int64(len(bs)+len(ps)+1) > enc.limit {
 		return nil, fmt.Errorf("upload chunk size too small")
 	}
 
-	if int64(len(bs)+enc.bytesWritten+1) > enc.softLimit {
+	if int64(len(bs)+len(ps)+enc.bytesWritten+1) > enc.softLimit {
 		if err := enc.writeClose(); err != nil {
 			return nil, err
 		}
@@ -79,31 +154,29 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 		}
 	}
 
-	if enc.bytesWritten == 0 {
-		n, err := enc.w.Write([]byte(`[`))
-		if err != nil {
-			return nil, err
-		}
-		enc.bytesWritten += n
-	} else {
-		n, err := enc.w.Write([]byte(`,`))
-		if err != nil {
-			return nil, err
-		}
-		enc.bytesWritten += n
+	p, err := enc.w.Write(ps)
+	if err != nil {
+		return nil, err
 	}
+	enc.bytesWritten += p
 
 	n, err := enc.w.Write(bs)
 	if err != nil {
 		return nil, err
 	}
-
 	enc.bytesWritten += n
+
+	eol, err := enc.w.Write([]byte("\n"))
+	if err != nil {
+		return nil, err
+	}
+	enc.bytesWritten += eol
+
 	return
 }
 
 func (enc *chunkEncoder) writeClose() error {
-	if _, err := enc.w.Write([]byte(`]`)); err != nil {
+	if _, err := enc.w.Write([]byte(enc.postfix())); err != nil {
 		return err
 	}
 	return enc.w.Close()

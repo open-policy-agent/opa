@@ -108,6 +108,18 @@ decision_logs:
 This will dump all decisions to the console. See
 [Configuration Reference](../configuration) for more details.
 
+### Logging to ELK
+
+To log directly to your ELK cluster use:
+```yaml
+decision_logs:
+    format: elastic
+    elastic_index: myindex_name
+    resource: my_index_name/_bulk
+```
+
+Authorization is configured in the referenced service's config. For basic auth add an `Authorization` header there.
+
 ### Masking Sensitive Data
 
 Policy queries may contain sensitive information in the `input` document that
