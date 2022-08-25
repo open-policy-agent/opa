@@ -246,6 +246,25 @@ to track **remove** vs **upsert** mask operations.
 }
 ```
 
+### Dropping decisions
+
+Drop rules filters all decisions, which evaluate to `true`, before logging them.
+
+This rule will only log denied requests:
+```ruby
+package system.log
+
+drop {
+  input.result
+}
+```
+
+The name of the drop rules by default is `drop` in the package `system.log`. It can be changed with the configuration property `decision_logs.mask_decision`.
+```yaml
+decision_logs:
+    drop_decision: /system/log/drop
+```
+
 ### Rate Limiting Decision Logs
 
 There are scenarios where OPA may be uploading decisions faster than what the remote service is able to consume. Although
