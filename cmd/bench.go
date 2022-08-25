@@ -15,8 +15,10 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 
@@ -271,7 +273,7 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params bench
 
 func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams, w io.Writer) error {
 	host := "localhost"
-	port := "18181"
+	port := 0
 
 	logger := logging.New()
 	logger.SetLevel(logging.Error)
@@ -281,8 +283,13 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		paths = append(paths, params.bundlePaths.v...)
 	}
 
+	// Because of test concurrency, several instances of this function can be
+	// running simultaneously, which will result in occasional collisions when
+	// two goroutines wish to bind the same port for the runtime.
+	// We fix the issue here by binding port 0; this will result in the OS
+	// allocating us an open port.
 	rtParams := runtime.Params{
-		Addrs:                  &[]string{fmt.Sprintf("%s:%s", host, port)},
+		Addrs:                  &[]string{fmt.Sprintf("%s:0", host)},
 		Paths:                  paths,
 		Logger:                 logger,
 		BundleMode:             params.bundlePaths.isFlagSet(),
@@ -314,6 +321,30 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		}
 	case <-initChannel:
 		break
+	}
+
+	// Busy loop until server has truly come online to recover the bound port.
+	// We do this with exponential backoff for wait times, since the server
+	// typically comes online very quickly.
+	baseDelay := time.Duration(100) * time.Millisecond
+	maxDelay := time.Duration(60) * time.Second
+	retries := 3 // Max of around 1 minute total wait time.
+	for i := 0; i < retries; i++ {
+		if len(rt.Addrs()) == 0 {
+			delay := util.DefaultBackoff(float64(baseDelay), float64(maxDelay), i)
+			time.Sleep(delay)
+			continue
+		}
+		// We have an address to parse the port from.
+		port, err = strconv.Atoi(strings.Split(rt.Addrs()[0], ":")[1])
+		if err != nil {
+			return err
+		}
+		break
+	}
+	// Check for port still being unbound after retry loop.
+	if port == 0 {
+		return fmt.Errorf("unable to bind a port for bench testing")
 	}
 
 	query, err := readQuery(params, args)
@@ -358,7 +389,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		}
 	}
 
-	url := fmt.Sprintf("http://%s:%s/v1/%v", host, port, path)
+	url := fmt.Sprintf("http://%s:%d/v1/%v", host, port, path)
 	if params.metrics {
 		url += "?metrics=true"
 	}
