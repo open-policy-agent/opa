@@ -253,6 +253,36 @@ to track **remove** vs **upsert** mask operations.
 }
 ```
 
+### Dropping decisions
+
+Drop rules filters all decisions, which evaluate to `true`, before logging them.
+
+This rule will drop all requests to the _allow_ rule in the _kafka_ package, that returned _true_:
+```ruby
+package system.log
+
+drop {
+  input.path = "kafka/allow"
+  input.result
+}
+```
+
+Log only requests for _delete_ and _alter_ operations (Kafka with opa-kafka-authorizer):
+
+```ruby
+package system.log
+
+drop {
+  input.path = "kafka/allow"
+  not input.input.action.operation = ["DELETE", "ALTER"][_]
+```
+
+The name of the drop rules by default is `drop` in the package `system.log`. It can be changed with the configuration property `decision_logs.drop_decision`.
+```yaml
+decision_logs:
+    drop_decision: /system/log/drop
+```
+
 ### Rate Limiting Decision Logs
 
 There are scenarios where OPA may be uploading decisions faster than what the remote service is able to consume. Although
