@@ -1632,7 +1632,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// NOTE(sr): we do it on the first index because later on, the recursion
 	// on subtrees of virtual already lost parts of the path we've taken.
 	if index == 1 && virtual != nil {
-		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref)
+		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref.GroundPrefix())
 		if optimize {
 			// If there are no rulesets in a situation that otherwise would
 			// allow for a call_indirect optimization, then there's nothing
