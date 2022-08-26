@@ -2763,7 +2763,13 @@ func NewModuleTree(mods map[string]*Module) *ModuleTreeNode {
 	root := &ModuleTreeNode{
 		Children: map[Value]*ModuleTreeNode{},
 	}
-	for _, m := range mods {
+	names := make([]string, 0, len(mods))
+	for name := range mods {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		m := mods[name]
 		node := root
 		for i, x := range m.Package.Path {
 			c, ok := node.Children[x.Value]

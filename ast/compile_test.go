@@ -294,6 +294,28 @@ func TestModuleTree(t *testing.T) {
 
 }
 
+func TestModuleTreeFilenameOrder(t *testing.T) {
+	// NOTE(sr): It doesn't matter that these are conflicting; but that's where it
+	// becomes very apparent: before this change, the rule that was reported as
+	// "conflicting" was that of either one of the input files, randomly.
+	mods := map[string]*Module{
+		"0.rego": MustParseModule("package p\nr = 1 { true }"),
+		"1.rego": MustParseModule("package p\nr = 2 { true }"),
+	}
+	tree := NewModuleTree(mods)
+	vals := tree.Children[Var("data")].Children[String("p")].Modules
+	if exp, act := 2, len(vals); exp != act {
+		t.Fatalf("expected %d rules, found %d", exp, act)
+	}
+	mod0 := vals[0]
+	mod1 := vals[1]
+	if exp, act := IntNumberTerm(1), mod0.Rules[0].Head.Value; !exp.Equal(act) {
+		t.Errorf("expected value %v, got %v", exp, act)
+	}
+	if exp, act := IntNumberTerm(2), mod1.Rules[0].Head.Value; !exp.Equal(act) {
+		t.Errorf("expected value %v, got %v", exp, act)
+	}
+}
 func TestRuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
