@@ -85,6 +85,7 @@ cases:
           p == data.z
         }
     want_error: "test-0.rego:3: eval_conflict_error: complete rules must not produce multiple outputs"
+    want_error_code: eval_conflict_error
   - note: wasm/object dereference
     query: 'data.x.q = x'
     modules:
