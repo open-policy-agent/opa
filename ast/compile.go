@@ -3059,8 +3059,10 @@ func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
 	})
 
 	// ensure that data.system's TreeNode is hidden
-	node, _ := root.find(DefaultRootRef.Append(NewTerm(SystemDocumentKey)))
-	node.Hide = true
+	node, tail := root.find(DefaultRootRef.Append(NewTerm(SystemDocumentKey)))
+	if len(tail) == 0 { // found
+		node.Hide = true
+	}
 
 	root.DepthFirst(func(x *TreeNode) bool {
 		x.sort()

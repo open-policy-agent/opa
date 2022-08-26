@@ -973,6 +973,28 @@ b[2] = 2`
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
+
+	// NOTE(sr): Now this test seems obvious, but it's a bug that had snuck into the
+	// NewRuleTree code during development.
+	t.Run("root node and data node unhidden if there are no system nodes", func(t *testing.T) {
+		mod0 := `package a
+p = 1`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		if exp, act := false, tree.Hide; act != exp {
+			t.Errorf("expected tree.Hide=%v, got %v", exp, act)
+		}
+		dataNode := tree.Child(Var("data"))
+		if dataNode == nil {
+			t.Fatal("expected data node")
+		}
+		if exp, act := false, dataNode.Hide; act != exp {
+			t.Errorf("expected dataNode.Hide=%v, got %v", exp, act)
+		}
+	})
 }
 
 func depth(n *TreeNode) int {
@@ -1044,6 +1066,11 @@ func TestRuleTree(t *testing.T) {
 	node := tree.Children[Var("data")].Children[String("a")].Children[String("b")].Children[String("empty")]
 	if node == nil || len(node.Children) != 0 || len(node.Values) != 0 {
 		t.Fatalf("Unexpected nil value or non-empty leaf of non-leaf node: %v", node)
+	}
+
+	// Check that root node is not hidden
+	if exp, act := false, tree.Hide; act != exp {
+		t.Errorf("expected tree.Hide=%v, got %v", exp, act)
 	}
 
 	system := tree.Child(Var("data")).Child(String("system"))
@@ -6887,6 +6914,7 @@ func TestCompilerGetRulesDynamic(t *testing.T) {
 		"mod1": `package a.b.c.d
 r1 = 1`,
 		"mod2": `package a.b.c.e
+default r2 = false
 r2 = 2`,
 		"mod3": `package a.b
 r3 = 3`,
@@ -6897,7 +6925,8 @@ r4 = 4`,
 	compileStages(compiler, nil)
 
 	rule1 := compiler.Modules["mod1"].Rules[0]
-	rule2 := compiler.Modules["mod2"].Rules[0]
+	rule2d := compiler.Modules["mod2"].Rules[0]
+	rule2 := compiler.Modules["mod2"].Rules[1]
 	rule3 := compiler.Modules["mod3"].Rules[0]
 	rule4 := compiler.Modules["hidden"].Rules[0]
 
@@ -6907,15 +6936,16 @@ r4 = 4`,
 		excludeHidden bool
 	}{
 		{input: "data.a.b.c.d.r1", expected: []*Rule{rule1}},
-		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
 		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
-		{input: "data.a.b.c", expected: []*Rule{rule1, rule2}},
+		{input: "data.a.b.c", expected: []*Rule{rule1, rule2d, rule2}},
 		{input: "data.a.b.d"},
-		{input: "data[x]", expected: []*Rule{rule1, rule2, rule3, rule4}},
-		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2, rule3}},
-		{input: "data[x][y].c.e", expected: []*Rule{rule2}},
+		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
+		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
+		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
+		{input: "data[x][y].c.e", expected: []*Rule{rule2d, rule2}},
 		{input: "data[x][y].r3", expected: []*Rule{rule3}},
-		{input: "data[x][y]", expected: []*Rule{rule1, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
 	}
 
 	for _, tc := range tests {
