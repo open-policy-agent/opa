@@ -1856,7 +1856,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.w[x] = 1 if x := "foo"`,
 				`package pkg
 				p.q.w contains "bar"`),
-			err: "rego_type_error: conflicting rules data.pkg.p.q.w[x] found",
+			err: "rego_type_error: conflicting rules data.pkg.p.q.w found",
 		},
 		{
 			note: "two multi-value rules, both with same ref",

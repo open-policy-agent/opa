@@ -3147,9 +3147,6 @@ func (n *TreeNode) sort() {
 	sort.Slice(n.Sorted, func(i, j int) bool {
 		return n.Sorted[i].Compare(n.Sorted[j]) < 0
 	})
-	sort.Slice(n.Values, func(i, j int) bool {
-		return n.Values[i].(*Rule).Compare(n.Values[j].(*Rule)) < 0
-	})
 }
 
 func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
