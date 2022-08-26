@@ -247,7 +247,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 		head = NewHead(v)
 	} else if r, ok := lhs.Value.(Ref); ok { // groundness ?
 		head = RefHead(r)
-		if !r[len(r)-1].IsGround() {
+		if len(r) > 1 && !r[len(r)-1].IsGround() {
 			return nil, fmt.Errorf("ref not ground")
 		}
 	} else {
