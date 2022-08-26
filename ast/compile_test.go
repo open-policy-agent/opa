@@ -706,6 +706,18 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 			size:  2,
 			depth: 6,
 		},
+		{
+			note: "last ref term != string",
+			modules: modules(
+				`package x
+				p.q.w[1] = 2
+				p.q.w[{"foo": "baz"}] = 20
+				p.q.x[true] = false
+				p.q.x[y] = y { y := "y" }`,
+			),
+			size:  4,
+			depth: 6,
+		},
 	}
 
 	for _, tc := range tests {

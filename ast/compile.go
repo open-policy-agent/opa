@@ -3100,10 +3100,11 @@ func (n *TreeNode) Size() int {
 // Child returns n's child with key k.
 func (n *TreeNode) Child(k Value) *TreeNode {
 	switch k.(type) {
-	case String, Var, Number: // TODO(sr): worry about back compat?]
+	case Ref:
+		return nil
+	default:
 		return n.Children[k]
 	}
-	return nil
 }
 
 // Find dereferences ref along the tree

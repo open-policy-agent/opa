@@ -32,8 +32,8 @@ func checkDocumentConflicts(node *TreeNode, exists func([]string) (bool, error),
 		path = append(path, string(key))
 	case Number:
 		path = append(path, string(key))
-	default:
-		panic("unreachable")
+	default: // other key types cannot conflict with data
+		return nil
 	}
 
 	if len(node.Values) > 0 {
