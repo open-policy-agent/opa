@@ -10470,7 +10470,7 @@
     "description": "Compares valid SemVer formatted version strings.",
     "introduced": "v0.22.0",
     "result": {
-      "description": "`-1` if `a \u003c b`; `1` if `b \u003e a`; `0` if `a == b`",
+      "description": "`-1` if `a \u003c b`; `1` if `a \u003e b`; `0` if `a == b`",
       "name": "result",
       "type": "number"
     },
