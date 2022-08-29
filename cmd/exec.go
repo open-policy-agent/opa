@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
@@ -19,7 +21,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/util"
-	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -69,13 +70,14 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	cmd.Flags().StringVarP(&params.Decision, "decision", "", "", "set decision to evaluate")
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
+	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 
 	RootCommand.AddCommand(cmd)
 }
 
 func runExec(params *exec.Params) error {
 
-	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String())
+	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String(), params.LogTimestampFormat)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
 	}
@@ -126,22 +128,26 @@ func triggerPlugins(ctx context.Context, opa *sdk.OPA, names []string) error {
 	return nil
 }
 
-func setupLogging(level, format string) (logging.Logger, logging.Logger, error) {
+func setupLogging(level, format, timestampFormat string) (logging.Logger, logging.Logger, error) {
 
 	lvl, err := internal_logging.GetLevel(level)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	logging.Get().SetFormatter(internal_logging.GetFormatter(format))
+	if timestampFormat == "" {
+		timestampFormat = os.Getenv("OPA_LOG_TIMESTAMP_FORMAT")
+	}
+
+	logging.Get().SetFormatter(internal_logging.GetFormatter(format, timestampFormat))
 	logging.Get().SetLevel(lvl)
 
 	stdLogger := logging.New()
 	stdLogger.SetLevel(lvl)
-	stdLogger.SetFormatter(internal_logging.GetFormatter(format))
+	stdLogger.SetFormatter(internal_logging.GetFormatter(format, timestampFormat))
 
 	consoleLogger := logging.New()
-	consoleLogger.SetFormatter(internal_logging.GetFormatter(format))
+	consoleLogger.SetFormatter(internal_logging.GetFormatter(format, timestampFormat))
 
 	return stdLogger, consoleLogger, nil
 }

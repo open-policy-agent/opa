@@ -10,8 +10,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/open-policy-agent/opa/logging"
 	"github.com/sirupsen/logrus"
+
+	"github.com/open-policy-agent/opa/logging"
 )
 
 func GetLevel(level string) (logging.Level, error) {
@@ -29,14 +30,14 @@ func GetLevel(level string) (logging.Level, error) {
 	}
 }
 
-func GetFormatter(format string) logrus.Formatter {
+func GetFormatter(format, timestampFormat string) logrus.Formatter {
 	switch format {
 	case "text":
 		return &prettyFormatter{}
 	case "json-pretty":
-		return &logrus.JSONFormatter{PrettyPrint: true}
+		return &logrus.JSONFormatter{PrettyPrint: true, TimestampFormat: timestampFormat}
 	default:
-		return &logrus.JSONFormatter{}
+		return &logrus.JSONFormatter{TimestampFormat: timestampFormat}
 	}
 }
 
