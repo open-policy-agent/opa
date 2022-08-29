@@ -469,9 +469,10 @@ func toRef(s string) Ref {
 func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 
 	tests := []struct {
-		note    string
-		modules []*Module
-		err     string
+		note     string
+		modules  []*Module
+		expected *Rule
+		err      string
 	}{
 		{
 			note: "ref contains var",
@@ -575,15 +576,14 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				p.q.r contains i if i := 10`,
 			),
 		},
-		// {
-		// 	note: "invalid: multi-value with var in ref, middle",
-		// 	modules: modules(
-		// 		`package x
-		// 		p.q[j].r contains i if { i := 10; j := 9 }`,
-		// 	),
-		// 	err: "rego_type_error: rule head must only contain string terms (except for last): j",
-		// },
-		// TODO(sr) This fails parsing now
+		{
+			note: "rewrite: single-value with non-var key (ref)",
+			modules: modules(
+				`package x
+				p.q.r[y.z] if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
 	}
 
 	for _, tc := range tests {
@@ -594,12 +594,15 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			}
 			c := NewCompiler()
 			c.Modules = mods
-			compileStages(c, c.checkRuleHeadRefs)
+			compileStages(c, c.rewriteRuleHeadRefs)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
 			} else {
 				if len(c.Errors) > 0 {
-					t.Errorf("expected no errors, got %v", c.Errors)
+					t.Fatalf("expected no errors, got %v", c.Errors)
+				}
+				if tc.expected != nil {
+					assertRulesEqual(t, tc.expected, mods["0"].Rules[0])
 				}
 			}
 		})
@@ -3351,27 +3354,27 @@ x.y.w contains bar[i] if true
 	assertNotFailed(t, c)
 
 	rule1 := c.Modules["head"].Rules[0]
-	expected1 := MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`)
+	expected1 := MustParseRule(`p[__local0__] = __local2__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local2__ = {"baz": input.qux, "corge": data.doc2} }`)
 	assertRulesEqual(t, rule1, expected1)
 
 	rule2 := c.Modules["head"].Rules[1]
-	expected2 := MustParseRule(`q = __local2__ { true; __local2__ = [true | true] }`)
+	expected2 := MustParseRule(`q = __local3__ { true; __local3__ = [true | true] }`)
 	assertRulesEqual(t, rule2, expected2)
 
 	rule3 := c.Modules["head"].Rules[2]
-	expected3 := MustParseRule(`r = __local3__ { true; __local3__ = {"true": true | true} }`)
+	expected3 := MustParseRule(`r = __local4__ { true; __local4__ = {"true": true | true} }`)
 	assertRulesEqual(t, rule3, expected3)
 
 	rule4 := c.Modules["head"].Rules[3]
-	expected4 := MustParseRule(`s = __local4__ { true; __local4__ = {true | true} }`)
+	expected4 := MustParseRule(`s = __local5__ { true; __local5__ = {true | true} }`)
 	assertRulesEqual(t, rule4, expected4)
 
 	rule5 := c.Modules["head"].Rules[4]
-	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
+	expected5 := MustParseRule(`elsekw { false } else = __local6__ { true; __local6__ = input.qux }`)
 	assertRulesEqual(t, rule5, expected5)
 
 	rule6 := c.Modules["head"].Rules[5]
-	expected6 := MustParseRule(`x.y.z[__local6__] = true { true; __local6__ = data.doc1[i] }`)
+	expected6 := MustParseRule(`x.y.z[__local1__] = true { true; __local1__ = data.doc1[i] }`)
 	assertRulesEqual(t, rule6, expected6)
 
 	rule7 := c.Modules["head"].Rules[6]

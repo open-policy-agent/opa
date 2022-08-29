@@ -272,16 +272,16 @@ func NewCompiler() *Compiler {
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
 		{"ResolveRefs", "compile_stage_resolve_refs", c.resolveAllRefs},
-		{"CheckRuleHeadRefs", "compile_stage_check_rule_head_refs", c.checkRuleHeadRefs},
-		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
-		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
-		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
-		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
-		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree},
 		// The local variable generator must be initialized after references are
 		// resolved and the dynamic module loader has run but before subsequent
 		// stages that need to generate variables.
 		{"InitLocalVarGen", "compile_stage_init_local_var_gen", c.initLocalVarGen},
+		{"RewriteRuleHeadRefs", "compile_stage_rewrite_rule_head_refs", c.rewriteRuleHeadRefs},
+		{"CheckKeywordOverrides", "compile_stage_check_keyword_overrides", c.checkKeywordOverrides},
+		{"CheckDuplicateImports", "compile_stage_check_duplicate_imports", c.checkDuplicateImports},
+		{"RemoveImports", "compile_stage_remove_imports", c.removeImports},
+		{"SetModuleTree", "compile_stage_set_module_tree", c.setModuleTree},
+		{"SetRuleTree", "compile_stage_set_rule_tree", c.setRuleTree}, // depends on RewriteRuleHeadRefs
 		{"RewriteLocalVars", "compile_stage_rewrite_local_vars", c.rewriteLocalVars},
 		{"CheckVoidCalls", "compile_stage_check_void_calls", c.checkVoidCalls},
 		{"RewritePrintCalls", "compile_stage_rewrite_print_calls", c.rewritePrintCalls},
@@ -1628,39 +1628,50 @@ func (c *Compiler) rewriteExprTerms() {
 	}
 }
 
-func (c *Compiler) checkRuleHeadRefs() {
+func (c *Compiler) rewriteRuleHeadRefs() {
+	f := newEqualityFactory(c.localvargen)
 	for _, name := range c.sorted {
-		mod := c.Modules[name]
-		for _, err := range checkRuleHeadRefs(mod) {
-			c.err(err)
-		}
-	}
-}
+		WalkRules(c.Modules[name], func(rule *Rule) bool {
 
-func checkRuleHeadRefs(mod *Module) Errors {
-	var errs Errors
-	WalkRules(mod, func(r *Rule) bool {
-		ref := r.Head.Ref()
-		// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
-		//           it's possible to construct Module{} instances from Golang code, so we need
-		//           to accommodate for that, too.
-		if len(r.Head.Reference) == 0 {
-			r.Head.Reference = ref
-		}
-		// NOTE(sr): In the first iteraion, dynamic values in the refs are forbidden
-		// except for the last position, e.g.
-		//     OK: p.q.r[s]
-		// NOT OK: p[q].r.s
-		// TODO(sr): This is stricter than necessary. We could allow any non-var values there,
-		// but we'll also have to adjust the type tree, for example.
-		for i := 1; i < len(ref)-1; i++ {
-			if _, ok := ref[i].Value.(String); !ok {
-				errs = append(errs, NewError(TypeErr, r.Loc(), "rule head must only contain string terms (except for last): %v", ref[i]))
+			ref := rule.Head.Ref()
+			// NOTE(sr): We're backfilling Refs here -- all parser code paths would have them, but
+			//           it's possible to construct Module{} instances from Golang code, so we need
+			//           to accommodate for that, too.
+			if len(rule.Head.Reference) == 0 {
+				rule.Head.Reference = ref
 			}
-		}
-		return true
-	})
-	return errs
+
+			for i := 1; i < len(ref); i++ {
+				// NOTE(sr): In the first iteration, non-string values in the refs are forbidden
+				// except for the last position, e.g.
+				//     OK: p.q.r[s]
+				// NOT OK: p[q].r.s
+				// TODO(sr): This is stricter than necessary. We could allow any non-var values there,
+				// but we'll also have to adjust the type tree, for example.
+				if i != len(ref)-1 { // last
+					if _, ok := ref[i].Value.(String); !ok {
+						c.err(NewError(TypeErr, rule.Loc(), "rule head must only contain string terms (except for last): %v", ref[i]))
+						continue
+					}
+				}
+
+				// Rewrite so that any elements that in the last position of the rule
+				// are vars:
+				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
+				// because that's what the RuleTree knows how to deal with.
+				if requiresEval(ref[i]) {
+					expr := f.Generate(ref[i])
+					if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
+						rule.Head.Key = expr.Operand(0)
+					}
+					rule.Head.Reference[i] = expr.Operand(0)
+					rule.Body.Append(expr)
+				}
+			}
+
+			return true
+		})
+	}
 }
 
 func (c *Compiler) checkVoidCalls() {
@@ -1876,18 +1887,6 @@ func (c *Compiler) rewriteRefsInHead() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
-
-			ref := rule.Head.Ref()
-			for i := 1; i < len(ref); i++ {
-				if requiresEval(ref[i]) {
-					expr := f.Generate(ref[i])
-					if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
-						rule.Head.Key = expr.Operand(0)
-					}
-					rule.Head.Reference[i] = expr.Operand(0)
-					rule.Body.Append(expr)
-				}
-			}
 			if requiresEval(rule.Head.Key) {
 				expr := f.Generate(rule.Head.Key)
 				rule.Head.Key = expr.Operand(0)

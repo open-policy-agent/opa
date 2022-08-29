@@ -911,7 +911,7 @@ func assertPackagesNotEqual(t *testing.T, a, b *Package) {
 func assertRulesEqual(t *testing.T, a, b *Rule) {
 	t.Helper()
 	if !a.Equal(b) {
-		t.Errorf("Rules are not equal (expected equal): a=%v b=%v", a, b)
+		t.Errorf("Rules are not equal (expected equal):\na=%v\nb=%v", a, b)
 	}
 }
 

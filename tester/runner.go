@@ -299,7 +299,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	}
 
 	// rewrite duplicate test_* rule names as we compile modules
-	r.compiler.WithStageAfter("CheckRuleHeadRefs", ast.CompilerStageDefinition{
+	r.compiler.WithStageAfter("RewriteRuleHeadRefs", ast.CompilerStageDefinition{
 		Name:       "RewriteDuplicateTestNames",
 		MetricName: "rewrite_duplicate_test_names",
 		Stage:      rewriteDuplicateTestNames,
