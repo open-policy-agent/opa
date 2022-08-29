@@ -594,6 +594,7 @@ opa exec <path> [<path> [...]] [flags]
   -h, --help                                 help for exec
       --log-format {text,json,json-pretty}   set log format (default json)
   -l, --log-level {debug,info,error}         set log level (default error)
+      --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
       --set stringArray                      override config values on the command line (use commas to specify multiple values)
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
 ```
@@ -824,6 +825,7 @@ opa run [flags]
       --ignore strings                       set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
       --log-format {text,json,json-pretty}   set log format (default json)
   -l, --log-level {debug,info,error}         set log level (default info)
+      --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
   -m, --max-errors int                       set the number of errors to allow before compilation fails early (default 10)
       --min-tls-version {1.0,1.1,1.2,1.3}    set minimum TLS version to be used by OPA's server (default 1.2)
       --pprof                                enables pprof endpoints
@@ -1071,5 +1073,3 @@ opa version [flags]
   -c, --check   check for latest OPA release
   -h, --help    help for version
 ```
-
-
