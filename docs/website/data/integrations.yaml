@@ -1454,6 +1454,21 @@ integrations:
       - https://github.com/StyraInc/graphql-apollo-example
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
+      
+gitgat:
+    title: GitGat
+    description:  |
+      GitGat is a set of self-contained OPA policies. It evaluates the security settings of your SCM account and 
+      provides you with a status report and actionable recommendations.
+    labels:
+      category: security
+      layer: application
+    software:
+      - GitGat
+    code:
+      - https://github.com/scribe-public/gitgat
+    blogs:
+      - https://scribesecurity.com/blog/evaluate-your-source-control-security-posture-with-gitgat/
 
 organizations:
   styra:
@@ -1612,6 +1627,9 @@ organizations:
   netis:
     name: Netis
     link:  http://netis.si/en/
+  scribesecurity:
+    name: Scribe Security
+    link: https://scribesecurity.com/
 
 software:
   oauth:
@@ -1851,3 +1869,6 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
+  gitgat:
+    name: GitGat
+    link: https://github.com/scribe-public/gitgat
