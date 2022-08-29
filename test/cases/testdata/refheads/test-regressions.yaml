@@ -1,0 +1,21 @@
+# NOTE(sr): These tests are not really related to ref heads, but collection
+# regressions found when introducing ref heads.
+cases:
+- note: regression/ref-not-hashable
+  modules:
+  - |
+    package test
+
+    ms[m.z] = m {
+      m := input.xs[y]
+    }
+  input:
+    xs:
+      something:
+        z: a
+  query: data.test = x
+  want_result:
+  - x:
+      ms:
+        a:
+          z: a
