@@ -346,6 +346,7 @@ func TestCheckInferenceRules(t *testing.T) {
 	}
 	ruleset2 := [][2]string{
 		{`ref_rule_single`, `p.q.r { true }`},
+		{`ref_rule_single_with_number_key`, `p.q[3] { true }`},
 	}
 
 	tests := []struct {
@@ -475,6 +476,18 @@ func TestCheckInferenceRules(t *testing.T) {
 				[]*types.StaticProperty{{
 					Key: "q", Value: types.NewObject(
 						[]*types.StaticProperty{{Key: "r", Value: types.B}},
+						types.NewDynamicProperty(types.S, types.A),
+					),
+				}},
+				types.NewDynamicProperty(types.S, types.A),
+			)},
+
+		{"ref-rules single value, number key, full ref", ruleset2, "data.ref_rule_single_with_number_key.p.q[3]", types.B},
+		{"ref-rules single value, number key, prefix", ruleset2, "data.ref_rule_single_with_number_key.p",
+			types.NewObject(
+				[]*types.StaticProperty{{
+					Key: "q", Value: types.NewObject(
+						[]*types.StaticProperty{{Key: json.Number("3"), Value: types.B}},
 						types.NewDynamicProperty(types.S, types.A),
 					),
 				}},

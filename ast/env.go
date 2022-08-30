@@ -198,26 +198,17 @@ func (env *TypeEnv) getRefRecExtent(node *typeTreeNode) types.Type {
 
 		tpe := env.getRefRecExtent(child)
 
-		// NOTE(sr): This is a limitation right now. We can't express ref-keys in static properties
-		if _, ok := key.(Ref); ok {
-			return false
-		}
-
-		// NOTE(sr): Can we put Object types into Key of StaticProperty without breaking everything?
-		// Backwards-compat would say that it's part of the dynamic properties.
-		if _, ok := key.(Object); ok {
-			return false
-		}
-
 		// NOTE(sr): Converting to Golang-native types here is an extension of what we did
 		// before -- only supporting strings. But since we cannot differentiate sets and arrays
 		// that way, we could reconsider.
-		propKey, err := JSON(key)
-		if err != nil {
-			panic(fmt.Errorf("unreachable, ValueToInterface: %w", err))
+		switch key.(type) {
+		case String, Number, Boolean: // skip anything else
+			propKey, err := JSON(key)
+			if err != nil {
+				panic(fmt.Errorf("unreachable, ValueToInterface: %w", err))
+			}
+			children = append(children, types.NewStaticProperty(propKey, tpe))
 		}
-
-		children = append(children, types.NewStaticProperty(propKey, tpe))
 		return false
 	})
 
