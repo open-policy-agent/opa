@@ -4,43 +4,43 @@
 OPA_BUILTIN
 opa_value *opa_types_is_number(opa_value *v)
 {
-    return opa_value_type(v) == OPA_NUMBER ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_NUMBER);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_string(opa_value *v)
 {
-    return opa_value_type(v) == OPA_STRING ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_STRING);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_boolean(opa_value *v)
 {
-    return opa_value_type(v) == OPA_BOOLEAN ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_BOOLEAN);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_array(opa_value *v)
 {
-    return opa_value_type(v) == OPA_ARRAY ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_ARRAY);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_set(opa_value *v)
 {
-    return opa_value_type(v) == OPA_SET ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_SET);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_object(opa_value *v)
 {
-    return opa_value_type(v) == OPA_OBJECT ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_OBJECT);
 }
 
 OPA_BUILTIN
 opa_value *opa_types_is_null(opa_value *v)
 {
-    return opa_value_type(v) == OPA_NULL ? opa_boolean(true) : NULL;
+    return opa_boolean(opa_value_type(v) == OPA_NULL);
 }
 
 OPA_BUILTIN
