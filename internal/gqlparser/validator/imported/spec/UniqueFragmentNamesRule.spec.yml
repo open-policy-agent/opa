@@ -1,0 +1,110 @@
+- name: no fragments
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            field
+          }
+
+  errors: []
+- name: one fragment
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+          }
+          
+          fragment fragA on Type {
+            field
+          }
+
+  errors: []
+- name: many fragments
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+            ...fragB
+            ...fragC
+          }
+          fragment fragA on Type {
+            fieldA
+          }
+          fragment fragB on Type {
+            fieldB
+          }
+          fragment fragC on Type {
+            fieldC
+          }
+
+  errors: []
+- name: inline fragments are always unique
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            ...on Type {
+              fieldA
+            }
+            ...on Type {
+              fieldB
+            }
+          }
+
+  errors: []
+- name: fragment and operation named the same
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            ...Foo
+          }
+          fragment Foo on Type {
+            field
+          }
+
+  errors: []
+- name: fragments named the same
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+          }
+          fragment fragA on Type {
+            fieldA
+          }
+          fragment fragA on Type {
+            fieldB
+          }
+
+  errors:
+    - message: There can be only one fragment named "fragA".
+      locations:
+        - {line: 5, column: 16}
+        - {line: 8, column: 16}
+- name: fragments named the same without being referenced
+  rule: UniqueFragmentNames
+  schema: 0
+  query: |2-
+
+          fragment fragA on Type {
+            fieldA
+          }
+          fragment fragA on Type {
+            fieldB
+          }
+
+  errors:
+    - message: There can be only one fragment named "fragA".
+      locations:
+        - {line: 2, column: 16}
+        - {line: 5, column: 16}

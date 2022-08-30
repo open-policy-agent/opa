@@ -1,0 +1,209 @@
+- name: no deprecated fields/ignores fields that are not deprecated
+  rule: NoDeprecatedCustom
+  schema: 4
+  query: |2-
+
+            {
+              normalField
+            }
+
+  errors: []
+- name: no deprecated fields/ignores unknown fields
+  rule: NoDeprecatedCustom
+  schema: 4
+  query: |2-
+
+            {
+              unknownField
+            }
+            
+            fragment UnknownFragment on UnknownType {
+              deprecatedField
+            }
+
+  errors: []
+- name: no deprecated fields/reports error when a deprecated field is selected
+  rule: NoDeprecatedCustom
+  schema: 4
+  query: |2-
+
+            {
+              deprecatedField
+            }
+            
+            fragment QueryFragment on Query {
+              deprecatedField
+            }
+
+  errors:
+    - message: The field Query.deprecatedField is deprecated. Some field reason.
+      locations:
+        - {line: 3, column: 11}
+    - message: The field Query.deprecatedField is deprecated. Some field reason.
+      locations:
+        - {line: 7, column: 11}
+- name: no deprecated arguments on fields/ignores arguments that are not deprecated
+  rule: NoDeprecatedCustom
+  schema: 5
+  query: |2-
+
+            {
+              normalField(normalArg: "")
+            }
+
+  errors: []
+- name: no deprecated arguments on fields/ignores unknown arguments
+  rule: NoDeprecatedCustom
+  schema: 5
+  query: |2-
+
+            {
+              someField(unknownArg: "")
+              unknownField(deprecatedArg: "")
+            }
+
+  errors: []
+- name: no deprecated arguments on fields/reports error when a deprecated argument is used
+  rule: NoDeprecatedCustom
+  schema: 5
+  query: |2-
+
+            {
+              someField(deprecatedArg: "")
+            }
+
+  errors:
+    - message: Field "Query.someField" argument "deprecatedArg" is deprecated. Some arg reason.
+      locations:
+        - {line: 3, column: 21}
+- name: no deprecated arguments on directives/ignores arguments that are not deprecated
+  rule: NoDeprecatedCustom
+  schema: 6
+  query: |2-
+
+            {
+              someField @someDirective(normalArg: "")
+            }
+
+  errors: []
+- name: no deprecated arguments on directives/ignores unknown arguments
+  rule: NoDeprecatedCustom
+  schema: 6
+  query: |2-
+
+            {
+              someField @someDirective(unknownArg: "")
+              someField @unknownDirective(deprecatedArg: "")
+            }
+
+  errors: []
+- name: no deprecated arguments on directives/reports error when a deprecated argument is used
+  rule: NoDeprecatedCustom
+  schema: 6
+  query: |2-
+
+            {
+              someField @someDirective(deprecatedArg: "")
+            }
+
+  errors:
+    - message: Directive "@someDirective" argument "deprecatedArg" is deprecated. Some arg reason.
+      locations:
+        - {line: 3, column: 36}
+- name: no deprecated input fields/ignores input fields that are not deprecated
+  rule: NoDeprecatedCustom
+  schema: 7
+  query: |2-
+
+            {
+              someField(
+                someArg: { normalField: "" }
+              ) @someDirective(someArg: { normalField: "" })
+            }
+
+  errors: []
+- name: no deprecated input fields/ignores unknown input fields
+  rule: NoDeprecatedCustom
+  schema: 7
+  query: |2-
+
+            {
+              someField(
+                someArg: { unknownField: "" }
+              )
+            
+              someField(
+                unknownArg: { unknownField: "" }
+              )
+            
+              unknownField(
+                unknownArg: { unknownField: "" }
+              )
+            }
+
+  errors: []
+- name: no deprecated input fields/reports error when a deprecated input field is used
+  rule: NoDeprecatedCustom
+  schema: 7
+  query: |2-
+
+            {
+              someField(
+                someArg: { deprecatedField: "" }
+              ) @someDirective(someArg: { deprecatedField: "" })
+            }
+
+  errors:
+    - message: The input field InputType.deprecatedField is deprecated. Some input field reason.
+      locations:
+        - {line: 4, column: 24}
+    - message: The input field InputType.deprecatedField is deprecated. Some input field reason.
+      locations:
+        - {line: 5, column: 39}
+- name: no deprecated enum values/ignores enum values that are not deprecated
+  rule: NoDeprecatedCustom
+  schema: 8
+  query: |2-
+
+            {
+              normalField(enumArg: NORMAL_VALUE)
+            }
+
+  errors: []
+- name: no deprecated enum values/ignores unknown enum values
+  rule: NoDeprecatedCustom
+  schema: 8
+  query: |2-
+
+            query (
+              $unknownValue: EnumType = UNKNOWN_VALUE
+              $unknownType: UnknownType = UNKNOWN_VALUE
+            ) {
+              someField(enumArg: UNKNOWN_VALUE)
+              someField(unknownArg: UNKNOWN_VALUE)
+              unknownField(unknownArg: UNKNOWN_VALUE)
+            }
+            
+            fragment SomeFragment on Query {
+              someField(enumArg: UNKNOWN_VALUE)
+            }
+
+  errors: []
+- name: no deprecated enum values/reports error when a deprecated enum value is used
+  rule: NoDeprecatedCustom
+  schema: 8
+  query: |2-
+
+            query (
+              $variable: EnumType = DEPRECATED_VALUE
+            ) {
+              someField(enumArg: DEPRECATED_VALUE)
+            }
+
+  errors:
+    - message: The enum value "EnumType.DEPRECATED_VALUE" is deprecated. Some enum reason.
+      locations:
+        - {line: 3, column: 33}
+    - message: The enum value "EnumType.DEPRECATED_VALUE" is deprecated. Some enum reason.
+      locations:
+        - {line: 5, column: 30}

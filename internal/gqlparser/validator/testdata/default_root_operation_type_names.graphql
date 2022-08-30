@@ -1,0 +1,16 @@
+schema {
+    query: Query
+}
+
+type Query {
+    mutation: Mutation!
+    subscription: Subscription!
+}
+
+type Mutation {
+    name: String!
+}
+
+type Subscription {
+    name: String!
+}

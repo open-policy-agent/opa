@@ -1,0 +1,80 @@
+- name: with only operation
+  rule: ExecutableDefinitions
+  schema: 0
+  query: |2-
+
+          query Foo {
+            dog {
+              name
+            }
+          }
+
+  errors: []
+- name: with operation and fragment
+  rule: ExecutableDefinitions
+  schema: 0
+  query: |2-
+
+          query Foo {
+            dog {
+              name
+              ...Frag
+            }
+          }
+          
+          fragment Frag on Dog {
+            name
+          }
+
+  errors: []
+- name: with type definition
+  rule: ExecutableDefinitions
+  schema: 0
+  query: |2-
+
+          query Foo {
+            dog {
+              name
+            }
+          }
+          
+          type Cow {
+            name: String
+          }
+          
+          extend type Dog {
+            color: String
+          }
+
+  errors:
+    - message: The "Cow" definition is not executable.
+      locations:
+        - {line: 8, column: 7}
+    - message: The "Dog" definition is not executable.
+      locations:
+        - {line: 12, column: 7}
+- name: with schema definition
+  rule: ExecutableDefinitions
+  schema: 0
+  query: |2-
+
+          schema {
+            query: Query
+          }
+          
+          type Query {
+            test: String
+          }
+          
+          extend schema @directive
+
+  errors:
+    - message: The schema definition is not executable.
+      locations:
+        - {line: 2, column: 7}
+    - message: The "Query" definition is not executable.
+      locations:
+        - {line: 6, column: 7}
+    - message: The schema definition is not executable.
+      locations:
+        - {line: 10, column: 7}

@@ -1,0 +1,20 @@
+- name: Undefined type assertions
+  schema: 0
+  query: |
+    query panic{
+      panic{
+        ...PanicInput
+        __typename
+      }
+    }
+    fragment PanicInput on Panic {
+      __typename
+    }
+
+  errors:
+    - message: Unknown type "Panic". Did you mean "Canine"?
+      locations:
+      - {line: 7, column: 7}
+    - message: Cannot query field "panic" on type "QueryRoot".
+      locations:
+      - {line: 2, column: 14}

@@ -1,0 +1,244 @@
+- name: Object field selection
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment objectFieldSelection on Dog {
+            __typename
+            name
+          }
+
+  errors: []
+- name: Aliased object field selection
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment aliasedObjectFieldSelection on Dog {
+            tn : __typename
+            otherName : name
+          }
+
+  errors: []
+- name: Interface field selection
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment interfaceFieldSelection on Pet {
+            __typename
+            name
+          }
+
+  errors: []
+- name: Aliased interface field selection
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment interfaceFieldSelection on Pet {
+            otherName : name
+          }
+
+  errors: []
+- name: Lying alias selection
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment lyingAliasSelection on Dog {
+            name : nickname
+          }
+
+  errors: []
+- name: Ignores fields on unknown type
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment unknownSelection on UnknownType {
+            unknownField
+          }
+
+  errors: []
+- name: reports errors when type is known again
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment typeKnownAgain on Pet {
+            unknown_pet_field {
+              ... on Cat {
+                unknown_cat_field
+              }
+            }
+          }
+
+  errors:
+    - message: Cannot query field "unknown_pet_field" on type "Pet".
+      locations:
+        - {line: 3, column: 9}
+    - message: Cannot query field "unknown_cat_field" on type "Cat".
+      locations:
+        - {line: 5, column: 13}
+- name: Field not defined on fragment
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment fieldNotDefined on Dog {
+            meowVolume
+          }
+
+  errors:
+    - message: Cannot query field "meowVolume" on type "Dog". Did you mean "barkVolume"?
+      locations:
+        - {line: 3, column: 9}
+- name: Ignores deeply unknown field
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment deepFieldNotDefined on Dog {
+            unknown_field {
+              deeper_unknown_field
+            }
+          }
+
+  errors:
+    - message: Cannot query field "unknown_field" on type "Dog".
+      locations:
+        - {line: 3, column: 9}
+- name: Sub-field not defined
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment subFieldNotDefined on Human {
+            pets {
+              unknown_field
+            }
+          }
+
+  errors:
+    - message: Cannot query field "unknown_field" on type "Pet".
+      locations:
+        - {line: 4, column: 11}
+- name: Field not defined on inline fragment
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment fieldNotDefined on Pet {
+            ... on Dog {
+              meowVolume
+            }
+          }
+
+  errors:
+    - message: Cannot query field "meowVolume" on type "Dog". Did you mean "barkVolume"?
+      locations:
+        - {line: 4, column: 11}
+- name: Aliased field target not defined
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment aliasedFieldTargetNotDefined on Dog {
+            volume : mooVolume
+          }
+
+  errors:
+    - message: Cannot query field "mooVolume" on type "Dog". Did you mean "barkVolume"?
+      locations:
+        - {line: 3, column: 9}
+- name: Aliased lying field target not defined
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment aliasedLyingFieldTargetNotDefined on Dog {
+            barkVolume : kawVolume
+          }
+
+  errors:
+    - message: Cannot query field "kawVolume" on type "Dog". Did you mean "barkVolume"?
+      locations:
+        - {line: 3, column: 9}
+- name: Not defined on interface
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment notDefinedOnInterface on Pet {
+            tailLength
+          }
+
+  errors:
+    - message: Cannot query field "tailLength" on type "Pet".
+      locations:
+        - {line: 3, column: 9}
+- name: Defined on implementors but not on interface
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment definedOnImplementorsButNotInterface on Pet {
+            nickname
+          }
+
+  errors:
+    - message: Cannot query field "nickname" on type "Pet". Did you mean to use an inline fragment on "Cat" or "Dog"?
+      locations:
+        - {line: 3, column: 9}
+- name: Meta field selection on union
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment directFieldSelectionOnUnion on CatOrDog {
+            __typename
+          }
+
+  errors: []
+- name: Direct field selection on union
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment directFieldSelectionOnUnion on CatOrDog {
+            directField
+          }
+
+  errors:
+    - message: Cannot query field "directField" on type "CatOrDog".
+      locations:
+        - {line: 3, column: 9}
+- name: Defined on implementors queried on union
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment definedOnImplementorsQueriedOnUnion on CatOrDog {
+            name
+          }
+
+  errors:
+    - message: Cannot query field "name" on type "CatOrDog". Did you mean to use an inline fragment on "Pet", "Cat", or "Dog"?
+      locations:
+        - {line: 3, column: 9}
+- name: valid field in inline fragment
+  rule: FieldsOnCorrectType
+  schema: 1
+  query: |2-
+
+          fragment objectFieldSelection on Pet {
+            ... on Dog {
+              name
+            }
+            ... {
+              name
+            }
+          }
+
+  errors: []

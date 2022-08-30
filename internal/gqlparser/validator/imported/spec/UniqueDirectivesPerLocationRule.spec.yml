@@ -1,0 +1,143 @@
+- name: no directives
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type {
+            field
+          }
+
+  errors: []
+- name: unique directives in different locations
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type @directiveA {
+            field @directiveB
+          }
+
+  errors: []
+- name: unique directives in same locations
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type @directiveA @directiveB {
+            field @directiveA @directiveB
+          }
+
+  errors: []
+- name: same directives in different locations
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type @directiveA {
+            field @directiveA
+          }
+
+  errors: []
+- name: same directives in similar locations
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type {
+            field @directive
+            field @directive
+          }
+
+  errors: []
+- name: repeatable directives in same location
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type @repeatable @repeatable {
+            field @repeatable @repeatable
+          }
+
+  errors: []
+- name: unknown directives must be ignored
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          type Test @unknown @unknown {
+            field: String! @unknown @unknown
+          }
+          
+          extend type Test @unknown {
+            anotherField: String!
+          }
+
+  errors: []
+- name: duplicate directives in one location
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type {
+            field @directive @directive
+          }
+
+  errors:
+    - message: The directive "@directive" can only be used once at this location.
+      locations:
+        - {line: 3, column: 15}
+        - {line: 3, column: 26}
+- name: many duplicate directives in one location
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type {
+            field @directive @directive @directive
+          }
+
+  errors:
+    - message: The directive "@directive" can only be used once at this location.
+      locations:
+        - {line: 3, column: 15}
+        - {line: 3, column: 26}
+    - message: The directive "@directive" can only be used once at this location.
+      locations:
+        - {line: 3, column: 15}
+        - {line: 3, column: 37}
+- name: different duplicate directives in one location
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type {
+            field @directiveA @directiveB @directiveA @directiveB
+          }
+
+  errors:
+    - message: The directive "@directiveA" can only be used once at this location.
+      locations:
+        - {line: 3, column: 15}
+        - {line: 3, column: 39}
+    - message: The directive "@directiveB" can only be used once at this location.
+      locations:
+        - {line: 3, column: 27}
+        - {line: 3, column: 51}
+- name: duplicate directives in many locations
+  rule: UniqueDirectivesPerLocation
+  schema: 17
+  query: |2-
+
+          fragment Test on Type @directive @directive {
+            field @directive @directive
+          }
+
+  errors:
+    - message: The directive "@directive" can only be used once at this location.
+      locations:
+        - {line: 2, column: 29}
+        - {line: 2, column: 40}
+    - message: The directive "@directive" can only be used once at this location.
+      locations:
+        - {line: 3, column: 15}
+        - {line: 3, column: 26}

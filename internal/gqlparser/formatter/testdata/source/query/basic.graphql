@@ -1,0 +1,7 @@
+query FooBarQuery ($after: String!) {
+    fizzList(first: 100, after: $after) {
+        nodes {
+            id
+        }
+    }
+}

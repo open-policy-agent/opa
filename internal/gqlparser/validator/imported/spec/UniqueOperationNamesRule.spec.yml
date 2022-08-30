@@ -1,0 +1,126 @@
+- name: no operations
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          fragment fragA on Type {
+            field
+          }
+
+  errors: []
+- name: one anon operation
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          {
+            field
+          }
+
+  errors: []
+- name: one named operation
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            field
+          }
+
+  errors: []
+- name: multiple operations
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            field
+          }
+          
+          query Bar {
+            field
+          }
+
+  errors: []
+- name: multiple operations of different types
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            field
+          }
+          
+          mutation Bar {
+            field
+          }
+          
+          subscription Baz {
+            field
+          }
+
+  errors: []
+- name: fragment and operation named the same
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            ...Foo
+          }
+          fragment Foo on Type {
+            field
+          }
+
+  errors: []
+- name: multiple operations of same name
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            fieldA
+          }
+          query Foo {
+            fieldB
+          }
+
+  errors:
+    - message: There can be only one operation named "Foo".
+      locations:
+        - {line: 2, column: 13}
+        - {line: 5, column: 13}
+- name: multiple ops of same name of different types (mutation)
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            fieldA
+          }
+          mutation Foo {
+            fieldB
+          }
+
+  errors:
+    - message: There can be only one operation named "Foo".
+      locations:
+        - {line: 2, column: 13}
+        - {line: 5, column: 16}
+- name: multiple ops of same name of different types (subscription)
+  rule: UniqueOperationNames
+  schema: 0
+  query: |2-
+
+          query Foo {
+            fieldA
+          }
+          subscription Foo {
+            fieldB
+          }
+
+  errors:
+    - message: There can be only one operation named "Foo".
+      locations:
+        - {line: 2, column: 13}
+        - {line: 5, column: 20}

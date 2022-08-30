@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"strings"
 
-	gqltop "github.com/vektah/gqlparser/v2"
-	gqlast "github.com/vektah/gqlparser/v2/ast"
-	gqlparser "github.com/vektah/gqlparser/v2/parser"
-	gqlvalidator "github.com/vektah/gqlparser/v2/validator"
+	gqltop "github.com/open-policy-agent/opa/internal/gqlparser"
+
+	gqlast "github.com/open-policy-agent/opa/internal/gqlparser/ast"
+	gqlparser "github.com/open-policy-agent/opa/internal/gqlparser/parser"
+	gqlvalidator "github.com/open-policy-agent/opa/internal/gqlparser/validator"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"

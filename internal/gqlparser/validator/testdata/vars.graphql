@@ -1,0 +1,38 @@
+type Query {
+    optionalIntArg(i: Int): Boolean!
+    intArg(i: Int!): Boolean!
+    stringArg(i: String): Boolean!
+    boolArg(i: Boolean!): Boolean!
+    floatArg(i: Float!): Boolean!
+    idArg(i: ID!): Boolean!
+    scalarArg(i: Custom!): Boolean!
+    structArg(i: InputType!): Boolean!
+    defaultStructArg(i: InputType! = {name: "foo"}): Boolean!
+    arrayArg(i: [InputType!]): Boolean!
+    intArrayArg(i: [Int]): Boolean!
+    stringArrayArg(i: [String]): Boolean!
+    boolArrayArg(i: [Boolean]): Boolean!
+    typeArrayArg(i: [CustomType]): Boolean!
+}
+
+input InputType {
+    name: String!
+    nullName: String
+    nullEmbedded: Embedded
+    enum: Enum
+    defaultName: String! = "defaultFoo"
+}
+
+input Embedded {
+    name: String!
+}
+
+input CustomType {
+    and: [Int!]
+}
+
+enum Enum {
+    A
+}
+
+scalar Custom
