@@ -1259,10 +1259,10 @@ func (c *Compiler) compile() {
 		if c.Failed() {
 			return
 		}
-		for _, s := range c.after[s.name] {
-			err := c.runStageAfter(s.MetricName, s.Stage)
-			if err != nil {
+		for _, a := range c.after[s.name] {
+			if err := c.runStageAfter(a.MetricName, a.Stage); err != nil {
 				c.err(err)
+				return
 			}
 		}
 	}
