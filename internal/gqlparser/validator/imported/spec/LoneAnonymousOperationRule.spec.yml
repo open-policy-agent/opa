@@ -1,0 +1,98 @@
+- name: no operations
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          fragment fragA on Type {
+            field
+          }
+
+  errors: []
+- name: one anon operation
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          {
+            field
+          }
+
+  errors: []
+- name: multiple named operations
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          query Foo {
+            field
+          }
+          
+          query Bar {
+            field
+          }
+
+  errors: []
+- name: anon operation with fragment
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          {
+            ...Foo
+          }
+          fragment Foo on Type {
+            field
+          }
+
+  errors: []
+- name: multiple anon operations
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          {
+            fieldA
+          }
+          {
+            fieldB
+          }
+
+  errors:
+    - message: This anonymous operation must be the only defined operation.
+      locations:
+        - {line: 2, column: 7}
+    - message: This anonymous operation must be the only defined operation.
+      locations:
+        - {line: 5, column: 7}
+- name: anon operation with a mutation
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          {
+            fieldA
+          }
+          mutation Foo {
+            fieldB
+          }
+
+  errors:
+    - message: This anonymous operation must be the only defined operation.
+      locations:
+        - {line: 2, column: 7}
+- name: anon operation with a subscription
+  rule: LoneAnonymousOperation
+  schema: 0
+  query: |2-
+
+          {
+            fieldA
+          }
+          subscription Foo {
+            fieldB
+          }
+
+  errors:
+    - message: This anonymous operation must be the only defined operation.
+      locations:
+        - {line: 2, column: 7}

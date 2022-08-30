@@ -1,0 +1,14 @@
+interface Mammal {
+  mother: Mammal
+  father: Mammal
+}
+
+interface Pet {
+  name(surname: Boolean): String
+}
+
+interface Canine implements Mammal {
+  name(surname: Boolean): String
+  mother: Canine
+  father: Canine
+}

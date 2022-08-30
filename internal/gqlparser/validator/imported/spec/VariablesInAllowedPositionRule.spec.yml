@@ -1,0 +1,348 @@
+- name: Boolean => Boolean
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($booleanArg: Boolean)
+          {
+            complicatedArgs {
+              booleanArgField(booleanArg: $booleanArg)
+            }
+          }
+
+  errors: []
+- name: Boolean => Boolean within fragment
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          fragment booleanArgFrag on ComplicatedArgs {
+            booleanArgField(booleanArg: $booleanArg)
+          }
+          query Query($booleanArg: Boolean)
+          {
+            complicatedArgs {
+              ...booleanArgFrag
+            }
+          }
+
+  errors: []
+- name: Boolean => Boolean within fragment
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($booleanArg: Boolean)
+          {
+            complicatedArgs {
+              ...booleanArgFrag
+            }
+          }
+          fragment booleanArgFrag on ComplicatedArgs {
+            booleanArgField(booleanArg: $booleanArg)
+          }
+
+  errors: []
+- name: Boolean! => Boolean
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($nonNullBooleanArg: Boolean!)
+          {
+            complicatedArgs {
+              booleanArgField(booleanArg: $nonNullBooleanArg)
+            }
+          }
+
+  errors: []
+- name: Boolean! => Boolean within fragment
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          fragment booleanArgFrag on ComplicatedArgs {
+            booleanArgField(booleanArg: $nonNullBooleanArg)
+          }
+          
+          query Query($nonNullBooleanArg: Boolean!)
+          {
+            complicatedArgs {
+              ...booleanArgFrag
+            }
+          }
+
+  errors: []
+- name: '[String] => [String]'
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringListVar: [String])
+          {
+            complicatedArgs {
+              stringListArgField(stringListArg: $stringListVar)
+            }
+          }
+
+  errors: []
+- name: '[String!] => [String]'
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringListVar: [String!])
+          {
+            complicatedArgs {
+              stringListArgField(stringListArg: $stringListVar)
+            }
+          }
+
+  errors: []
+- name: String => [String] in item position
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringVar: String)
+          {
+            complicatedArgs {
+              stringListArgField(stringListArg: [$stringVar])
+            }
+          }
+
+  errors: []
+- name: String! => [String] in item position
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringVar: String!)
+          {
+            complicatedArgs {
+              stringListArgField(stringListArg: [$stringVar])
+            }
+          }
+
+  errors: []
+- name: ComplexInput => ComplexInput
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($complexVar: ComplexInput)
+          {
+            complicatedArgs {
+              complexArgField(complexArg: $complexVar)
+            }
+          }
+
+  errors: []
+- name: ComplexInput => ComplexInput in field position
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($boolVar: Boolean = false)
+          {
+            complicatedArgs {
+              complexArgField(complexArg: {requiredArg: $boolVar})
+            }
+          }
+
+  errors: []
+- name: Boolean! => Boolean! in directive
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($boolVar: Boolean!)
+          {
+            dog @include(if: $boolVar)
+          }
+
+  errors: []
+- name: Int => Int!
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($intArg: Int) {
+            complicatedArgs {
+              nonNullIntArgField(nonNullIntArg: $intArg)
+            }
+          }
+
+  errors:
+    - message: Variable "$intArg" of type "Int" used in position expecting type "Int!".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 4, column: 45}
+- name: Int => Int! within fragment
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          fragment nonNullIntArgFieldFrag on ComplicatedArgs {
+            nonNullIntArgField(nonNullIntArg: $intArg)
+          }
+          
+          query Query($intArg: Int) {
+            complicatedArgs {
+              ...nonNullIntArgFieldFrag
+            }
+          }
+
+  errors:
+    - message: Variable "$intArg" of type "Int" used in position expecting type "Int!".
+      locations:
+        - {line: 6, column: 19}
+        - {line: 3, column: 43}
+- name: Int => Int! within nested fragment
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          fragment outerFrag on ComplicatedArgs {
+            ...nonNullIntArgFieldFrag
+          }
+          
+          fragment nonNullIntArgFieldFrag on ComplicatedArgs {
+            nonNullIntArgField(nonNullIntArg: $intArg)
+          }
+          
+          query Query($intArg: Int) {
+            complicatedArgs {
+              ...outerFrag
+            }
+          }
+
+  errors:
+    - message: Variable "$intArg" of type "Int" used in position expecting type "Int!".
+      locations:
+        - {line: 10, column: 19}
+        - {line: 7, column: 43}
+- name: String over Boolean
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringVar: String) {
+            complicatedArgs {
+              booleanArgField(booleanArg: $stringVar)
+            }
+          }
+
+  errors:
+    - message: Variable "$stringVar" of type "String" used in position expecting type "Boolean".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 4, column: 39}
+- name: String => [String]
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringVar: String) {
+            complicatedArgs {
+              stringListArgField(stringListArg: $stringVar)
+            }
+          }
+
+  errors:
+    - message: Variable "$stringVar" of type "String" used in position expecting type "[String]".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 4, column: 45}
+- name: Boolean => Boolean! in directive
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($boolVar: Boolean) {
+            dog @include(if: $boolVar)
+          }
+
+  errors:
+    - message: Variable "$boolVar" of type "Boolean" used in position expecting type "Boolean!".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 3, column: 26}
+- name: String => Boolean! in directive
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringVar: String) {
+            dog @include(if: $stringVar)
+          }
+
+  errors:
+    - message: Variable "$stringVar" of type "String" used in position expecting type "Boolean!".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 3, column: 26}
+- name: '[String] => [String!]'
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+          query Query($stringListVar: [String])
+          {
+            complicatedArgs {
+              stringListNonNullArgField(stringListNonNullArg: $stringListVar)
+            }
+          }
+
+  errors:
+    - message: Variable "$stringListVar" of type "[String]" used in position expecting type "[String!]".
+      locations:
+        - {line: 2, column: 19}
+        - {line: 5, column: 59}
+- name: Allows optional (nullable) variables with default values/Int => Int! fails when variable provides null default value
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+            query Query($intVar: Int = null) {
+              complicatedArgs {
+                nonNullIntArgField(nonNullIntArg: $intVar)
+              }
+            }
+
+  errors:
+    - message: Variable "$intVar" of type "Int" used in position expecting type "Int!".
+      locations:
+        - {line: 2, column: 21}
+        - {line: 4, column: 47}
+- name: Allows optional (nullable) variables with default values/Int => Int! when variable provides non-null default value
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+            query Query($intVar: Int = 1) {
+              complicatedArgs {
+                nonNullIntArgField(nonNullIntArg: $intVar)
+              }
+            }
+  errors: []
+- name: Allows optional (nullable) variables with default values/Int => Int! when optional argument provides default value
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+            query Query($intVar: Int) {
+              complicatedArgs {
+                nonNullFieldWithDefault(nonNullIntArg: $intVar)
+              }
+            }
+  errors: []
+- name: Allows optional (nullable) variables with default values/Boolean => Boolean! in directive with default value with option
+  rule: VariablesInAllowedPosition
+  schema: 0
+  query: |2-
+
+            query Query($boolVar: Boolean = false) {
+              dog @include(if: $boolVar)
+            }
+  errors: []

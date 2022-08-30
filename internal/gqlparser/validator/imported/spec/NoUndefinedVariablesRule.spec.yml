@@ -1,0 +1,356 @@
+- name: all variables defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String, $c: String) {
+            field(a: $a, b: $b, c: $c)
+          }
+
+  errors: []
+- name: all variables deeply defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String, $c: String) {
+            field(a: $a) {
+              field(b: $b) {
+                field(c: $c)
+              }
+            }
+          }
+
+  errors: []
+- name: all variables deeply in inline fragments defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String, $c: String) {
+            ... on Type {
+              field(a: $a) {
+                field(b: $b) {
+                  ... on Type {
+                    field(c: $c)
+                  }
+                }
+              }
+            }
+          }
+
+  errors: []
+- name: all variables in fragments deeply defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String, $c: String) {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a) {
+              ...FragB
+            }
+          }
+          fragment FragB on Type {
+            field(b: $b) {
+              ...FragC
+            }
+          }
+          fragment FragC on Type {
+            field(c: $c)
+          }
+
+  errors: []
+- name: variable within single fragment defined in multiple operations
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String) {
+            ...FragA
+          }
+          query Bar($a: String) {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a)
+          }
+
+  errors: []
+- name: variable within fragments defined in operations
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String) {
+            ...FragA
+          }
+          query Bar($b: String) {
+            ...FragB
+          }
+          fragment FragA on Type {
+            field(a: $a)
+          }
+          fragment FragB on Type {
+            field(b: $b)
+          }
+
+  errors: []
+- name: variable within recursive fragment defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String) {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a) {
+              ...FragA
+            }
+          }
+
+  errors: []
+- name: variable not defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String, $c: String) {
+            field(a: $a, b: $b, c: $c, d: $d)
+          }
+
+  errors:
+    - message: Variable "$d" is not defined by operation "Foo".
+      locations:
+        - {line: 3, column: 39}
+        - {line: 2, column: 7}
+- name: variable not defined by un-named query
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          {
+            field(a: $a)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined.
+      locations:
+        - {line: 3, column: 18}
+        - {line: 2, column: 7}
+- name: multiple variables not defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($b: String) {
+            field(a: $a, b: $b, c: $c)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 3, column: 18}
+        - {line: 2, column: 7}
+    - message: Variable "$c" is not defined by operation "Foo".
+      locations:
+        - {line: 3, column: 32}
+        - {line: 2, column: 7}
+- name: variable in fragment not defined by un-named query
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined.
+      locations:
+        - {line: 6, column: 18}
+        - {line: 2, column: 7}
+- name: variable in fragment not defined by operation
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: String) {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a) {
+              ...FragB
+            }
+          }
+          fragment FragB on Type {
+            field(b: $b) {
+              ...FragC
+            }
+          }
+          fragment FragC on Type {
+            field(c: $c)
+          }
+
+  errors:
+    - message: Variable "$c" is not defined by operation "Foo".
+      locations:
+        - {line: 16, column: 18}
+        - {line: 2, column: 7}
+- name: multiple variables in fragments not defined
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($b: String) {
+            ...FragA
+          }
+          fragment FragA on Type {
+            field(a: $a) {
+              ...FragB
+            }
+          }
+          fragment FragB on Type {
+            field(b: $b) {
+              ...FragC
+            }
+          }
+          fragment FragC on Type {
+            field(c: $c)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 6, column: 18}
+        - {line: 2, column: 7}
+    - message: Variable "$c" is not defined by operation "Foo".
+      locations:
+        - {line: 16, column: 18}
+        - {line: 2, column: 7}
+- name: single variable in fragment not defined by multiple operations
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($a: String) {
+            ...FragAB
+          }
+          query Bar($a: String) {
+            ...FragAB
+          }
+          fragment FragAB on Type {
+            field(a: $a, b: $b)
+          }
+
+  errors:
+    - message: Variable "$b" is not defined by operation "Foo".
+      locations:
+        - {line: 9, column: 25}
+        - {line: 2, column: 7}
+    - message: Variable "$b" is not defined by operation "Bar".
+      locations:
+        - {line: 9, column: 25}
+        - {line: 5, column: 7}
+- name: variables in fragment not defined by multiple operations
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($b: String) {
+            ...FragAB
+          }
+          query Bar($a: String) {
+            ...FragAB
+          }
+          fragment FragAB on Type {
+            field(a: $a, b: $b)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 9, column: 18}
+        - {line: 2, column: 7}
+    - message: Variable "$b" is not defined by operation "Bar".
+      locations:
+        - {line: 9, column: 25}
+        - {line: 5, column: 7}
+- name: variable in fragment used by other operation
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($b: String) {
+            ...FragA
+          }
+          query Bar($a: String) {
+            ...FragB
+          }
+          fragment FragA on Type {
+            field(a: $a)
+          }
+          fragment FragB on Type {
+            field(b: $b)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 9, column: 18}
+        - {line: 2, column: 7}
+    - message: Variable "$b" is not defined by operation "Bar".
+      locations:
+        - {line: 12, column: 18}
+        - {line: 5, column: 7}
+- name: multiple undefined variables produce multiple errors
+  rule: NoUndefinedVariables
+  schema: 0
+  query: |2-
+
+          query Foo($b: String) {
+            ...FragAB
+          }
+          query Bar($a: String) {
+            ...FragAB
+          }
+          fragment FragAB on Type {
+            field1(a: $a, b: $b)
+            ...FragC
+            field3(a: $a, b: $b)
+          }
+          fragment FragC on Type {
+            field2(c: $c)
+          }
+
+  errors:
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 9, column: 19}
+        - {line: 2, column: 7}
+    - message: Variable "$a" is not defined by operation "Foo".
+      locations:
+        - {line: 11, column: 19}
+        - {line: 2, column: 7}
+    - message: Variable "$c" is not defined by operation "Foo".
+      locations:
+        - {line: 14, column: 19}
+        - {line: 2, column: 7}
+    - message: Variable "$b" is not defined by operation "Bar".
+      locations:
+        - {line: 9, column: 26}
+        - {line: 5, column: 7}
+    - message: Variable "$b" is not defined by operation "Bar".
+      locations:
+        - {line: 11, column: 26}
+        - {line: 5, column: 7}
+    - message: Variable "$c" is not defined by operation "Bar".
+      locations:
+        - {line: 14, column: 19}
+        - {line: 5, column: 7}

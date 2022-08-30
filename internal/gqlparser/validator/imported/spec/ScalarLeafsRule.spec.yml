@@ -1,0 +1,111 @@
+- name: valid scalar selection
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelection on Dog {
+            barks
+          }
+
+  errors: []
+- name: object type missing selection
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          query directQueryOnObjectWithoutSubFields {
+            human
+          }
+
+  errors:
+    - message: Field "human" of type "Human" must have a selection of subfields. Did you mean "human { ... }"?
+      locations:
+        - {line: 3, column: 9}
+- name: interface type missing selection
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          {
+            human { pets }
+          }
+
+  errors:
+    - message: Field "pets" of type "[Pet]" must have a selection of subfields. Did you mean "pets { ... }"?
+      locations:
+        - {line: 3, column: 17}
+- name: valid scalar selection with args
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionWithArgs on Dog {
+            doesKnowCommand(dogCommand: SIT)
+          }
+
+  errors: []
+- name: scalar selection not allowed on Boolean
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionsNotAllowedOnBoolean on Dog {
+            barks { sinceWhen }
+          }
+
+  errors:
+    - message: Field "barks" must not have a selection since type "Boolean" has no subfields.
+      locations:
+        - {line: 3, column: 15}
+- name: scalar selection not allowed on Enum
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionsNotAllowedOnEnum on Cat {
+            furColor { inHexDec }
+          }
+
+  errors:
+    - message: Field "furColor" must not have a selection since type "FurColor" has no subfields.
+      locations:
+        - {line: 3, column: 18}
+- name: scalar selection not allowed with args
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionsNotAllowedWithArgs on Dog {
+            doesKnowCommand(dogCommand: SIT) { sinceWhen }
+          }
+
+  errors:
+    - message: Field "doesKnowCommand" must not have a selection since type "Boolean" has no subfields.
+      locations:
+        - {line: 3, column: 42}
+- name: Scalar selection not allowed with directives
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionsNotAllowedWithDirectives on Dog {
+            name @include(if: true) { isAlsoHumanName }
+          }
+
+  errors:
+    - message: Field "name" must not have a selection since type "String" has no subfields.
+      locations:
+        - {line: 3, column: 33}
+- name: Scalar selection not allowed with directives and args
+  rule: ScalarLeafs
+  schema: 0
+  query: |2-
+
+          fragment scalarSelectionsNotAllowedWithDirectivesAndArgs on Dog {
+            doesKnowCommand(dogCommand: SIT) @include(if: true) { sinceWhen }
+          }
+
+  errors:
+    - message: Field "doesKnowCommand" must not have a selection since type "Boolean" has no subfields.
+      locations:
+        - {line: 3, column: 61}

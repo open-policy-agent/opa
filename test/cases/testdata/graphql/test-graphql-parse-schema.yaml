@@ -680,6 +680,6 @@ cases:
         }
     note: graphql_parse_schema/failure-fuzzer 2
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Unexpected <Invalid> in GraphQL string at location 1:5'
+    want_error: 'graphql.parse_schema: Unexpected <Invalid> in GraphQL string at location 2:1'
     want_error_code: eval_builtin_error
     strict_error: true

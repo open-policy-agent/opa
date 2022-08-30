@@ -1,0 +1,120 @@
+- name: object is valid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on Dog {
+            barks
+          }
+
+  errors: []
+- name: interface is valid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on Pet {
+            name
+          }
+
+  errors: []
+- name: object is valid inline fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on Pet {
+            ... on Dog {
+              barks
+            }
+          }
+
+  errors: []
+- name: interface is valid inline fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on Mammal {
+            ... on Canine {
+              name
+            }
+          }
+
+  errors: []
+- name: inline fragment without type is valid
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on Pet {
+            ... {
+              name
+            }
+          }
+
+  errors: []
+- name: union is valid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment validFragment on CatOrDog {
+            __typename
+          }
+
+  errors: []
+- name: scalar is invalid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment scalarFragment on Boolean {
+            bad
+          }
+
+  errors:
+    - message: Fragment "scalarFragment" cannot condition on non composite type "Boolean".
+      locations:
+        - {line: 2, column: 34}
+- name: enum is invalid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment scalarFragment on FurColor {
+            bad
+          }
+
+  errors:
+    - message: Fragment "scalarFragment" cannot condition on non composite type "FurColor".
+      locations:
+        - {line: 2, column: 34}
+- name: input object is invalid fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment inputFragment on ComplexInput {
+            stringField
+          }
+
+  errors:
+    - message: Fragment "inputFragment" cannot condition on non composite type "ComplexInput".
+      locations:
+        - {line: 2, column: 33}
+- name: scalar is invalid inline fragment type
+  rule: FragmentsOnCompositeTypes
+  schema: 0
+  query: |2-
+
+          fragment invalidFragment on Pet {
+            ... on String {
+              barks
+            }
+          }
+
+  errors:
+    - message: Fragment cannot condition on non composite type "String".
+      locations:
+        - {line: 3, column: 16}

@@ -1,0 +1,13 @@
+directive @foo on OBJECT | UNION | ENUM
+interface Named {
+	name: String!
+}
+type Person implements Named @foo {
+	name: String!
+}
+enum ConnectionStatus @foo {
+	ONLINE
+	OFFLINE
+	ERROR
+}
+union PersonUnion @foo = Person
