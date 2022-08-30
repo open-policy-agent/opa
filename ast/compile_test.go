@@ -294,6 +294,28 @@ func TestModuleTree(t *testing.T) {
 
 }
 
+func TestModuleTreeFilenameOrder(t *testing.T) {
+	// NOTE(sr): It doesn't matter that these are conflicting; but that's where it
+	// becomes very apparent: before this change, the rule that was reported as
+	// "conflicting" was that of either one of the input files, randomly.
+	mods := map[string]*Module{
+		"0.rego": MustParseModule("package p\nr = 1 { true }"),
+		"1.rego": MustParseModule("package p\nr = 2 { true }"),
+	}
+	tree := NewModuleTree(mods)
+	vals := tree.Children[Var("data")].Children[String("p")].Modules
+	if exp, act := 2, len(vals); exp != act {
+		t.Fatalf("expected %d rules, found %d", exp, act)
+	}
+	mod0 := vals[0]
+	mod1 := vals[1]
+	if exp, act := IntNumberTerm(1), mod0.Rules[0].Head.Value; !exp.Equal(act) {
+		t.Errorf("expected value %v, got %v", exp, act)
+	}
+	if exp, act := IntNumberTerm(2), mod1.Rules[0].Head.Value; !exp.Equal(act) {
+		t.Errorf("expected value %v, got %v", exp, act)
+	}
+}
 func TestRuleTree(t *testing.T) {
 
 	mods := getCompilerTestModules()
@@ -373,16 +395,61 @@ func TestCompilerExample(t *testing.T) {
 }
 
 func TestCompilerWithStageAfter(t *testing.T) {
-	c := NewCompiler().WithStageAfter(
-		"CheckRecursion",
-		CompilerStageDefinition{"MockStage", "mock_stage", mockStageFunctionCall},
-	)
-	m := MustParseModule(testModule)
-	c.Compile(map[string]*Module{"testMod": m})
+	t.Run("after failing means overall failure", func(t *testing.T) {
+		c := NewCompiler().WithStageAfter(
+			"CheckRecursion",
+			CompilerStageDefinition{"MockStage", "mock_stage",
+				func(*Compiler) *Error { return NewError(CompileErr, &Location{}, "mock stage error") }},
+		)
+		m := MustParseModule(testModule)
+		c.Compile(map[string]*Module{"testMod": m})
 
-	if !c.Failed() {
-		t.Errorf("Expected compilation error")
-	}
+		if !c.Failed() {
+			t.Errorf("Expected compilation error")
+		}
+	})
+
+	t.Run("first 'after' failure inhibits other 'after' stages", func(t *testing.T) {
+		c := NewCompiler().
+			WithStageAfter("CheckRecursion",
+				CompilerStageDefinition{"MockStage", "mock_stage",
+					func(*Compiler) *Error { return NewError(CompileErr, &Location{}, "mock stage error") }}).
+			WithStageAfter("CheckRecursion",
+				CompilerStageDefinition{"MockStage2", "mock_stage2",
+					func(*Compiler) *Error { return NewError(CompileErr, &Location{}, "mock stage error two") }},
+			)
+		m := MustParseModule(`package p
+q := true`)
+
+		c.Compile(map[string]*Module{"testMod": m})
+
+		if !c.Failed() {
+			t.Errorf("Expected compilation error")
+		}
+		if exp, act := 1, len(c.Errors); exp != act {
+			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
+		}
+	})
+
+	t.Run("'after' failure inhibits other ordinary stages", func(t *testing.T) {
+		c := NewCompiler().
+			WithStageAfter("CheckRecursion",
+				CompilerStageDefinition{"MockStage", "mock_stage",
+					func(*Compiler) *Error { return NewError(CompileErr, &Location{}, "mock stage error") }})
+		m := MustParseModule(`package p
+q {
+	1 == "a" # would fail "CheckTypes", the next stage
+}
+`)
+		c.Compile(map[string]*Module{"testMod": m})
+
+		if !c.Failed() {
+			t.Errorf("Expected compilation error")
+		}
+		if exp, act := 1, len(c.Errors); exp != act {
+			t.Errorf("expected %d errors, got %d: %v", exp, act, c.Errors)
+		}
+	})
 }
 
 func TestCompilerFunctions(t *testing.T) {
@@ -6033,7 +6100,7 @@ func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
 	m := metrics.New()
 	c := NewCompiler().WithStageAfter(
 		"CheckRecursion",
-		CompilerStageDefinition{"MockStage", "mock_stage", mockStageFunctionCallNoErr},
+		CompilerStageDefinition{"MockStage", "mock_stage", func(*Compiler) *Error { return nil }},
 	)
 
 	c.WithMetrics(m)
@@ -6580,7 +6647,7 @@ func TestQueryCompilerWithStageAfterWithMetrics(t *testing.T) {
 		QueryCompilerStageDefinition{
 			"MockStage",
 			"mock_stage",
-			func(qc QueryCompiler, b Body) (Body, error) {
+			func(_ QueryCompiler, b Body) (Body, error) {
 				return b, nil
 			},
 		})
@@ -6726,14 +6793,6 @@ func assertNotFailed(t *testing.T, c *Compiler) {
 	if c.Failed() {
 		t.Fatalf("Unexpected compilation error: %v", c.Errors)
 	}
-}
-
-func mockStageFunctionCall(c *Compiler) *Error {
-	return NewError(CompileErr, &Location{}, "mock stage error")
-}
-
-func mockStageFunctionCallNoErr(c *Compiler) *Error {
-	return nil
 }
 
 func getCompilerWithParsedModules(mods map[string]string) *Compiler {

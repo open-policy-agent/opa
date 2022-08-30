@@ -23,6 +23,7 @@ type Params struct {
 	OutputFormat        *util.EnumFlag // output format (default: pretty)
 	LogLevel            *util.EnumFlag // log level for plugins
 	LogFormat           *util.EnumFlag // log format for plugins
+	LogTimestampFormat  string         // log timestamp format for plugins
 	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
 	Decision            string         // decision to evaluate (overrides default decision set by configuration)
 }
@@ -40,7 +41,7 @@ func NewParams(w io.Writer) *Params {
 //
 // NOTE(tsandall): consider expanding functionality:
 //
-//	* specialized output formats (e.g., pretty/non-JSON outputs)
+//  * specialized output formats (e.g., pretty/non-JSON outputs)
 //  * exit codes set by convention or policy (e.g,. non-empty set => error)
 //  * support for new input file formats beyond JSON and YAML
 func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {

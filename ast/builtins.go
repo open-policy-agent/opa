@@ -2792,7 +2792,7 @@ var SemVerCompare = &Builtin{
 			types.Named("a", types.S),
 			types.Named("b", types.S),
 		),
-		types.Named("result", types.N).Description("`-1` if `a < b`; `1` if `b > a`; `0` if `a == b`"),
+		types.Named("result", types.N).Description("`-1` if `a < b`; `1` if `a > b`; `0` if `a == b`"),
 	),
 }
 

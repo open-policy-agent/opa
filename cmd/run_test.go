@@ -7,8 +7,12 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/test/e2e"
 )
 
@@ -97,6 +101,74 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	exp := "enable bundle mode (ie. --bundle) to verify bundle files or directories"
 	if err.Error() != exp {
 		t.Fatalf("expected error message %v but got %v", exp, err.Error())
+	}
+}
+
+func TestRunServerCheckLogTimestampFormat(t *testing.T) {
+	for _, format := range []string{time.Kitchen, time.RFC3339Nano} {
+		t.Run(format, func(t *testing.T) {
+			t.Run("parameter", func(t *testing.T) {
+				params := newTestRunParams()
+				params.logTimestampFormat = format
+				checkLogTimeStampFormat(t, params, format)
+			})
+			t.Run("environment variable", func(t *testing.T) {
+				t.Setenv("OPA_LOG_TIMESTAMP_FORMAT", format)
+				params := newTestRunParams()
+				checkLogTimeStampFormat(t, params, format)
+			})
+		})
+	}
+}
+
+func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	rt, err := initRuntime(ctx, params, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	var buf bytes.Buffer
+	logger := rt.Manager.Logger().(*logging.StandardLogger)
+	logger.SetOutput(&buf)
+	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
+
+	done := make(chan bool)
+	go func() {
+		err := rt.Serve(ctx)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		done <- true
+	}()
+
+	err = testRuntime.WaitForServer()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	validateBasicServe(t, testRuntime)
+
+	cancel()
+	<-done
+
+	for _, line := range strings.Split(buf.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var rec struct {
+			Time string `json:"time"`
+		}
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Fatalf("incorrect log message %s: %v", line, err)
+		}
+		if rec.Time == "" {
+			t.Fatalf("the time field is empty in log message: %s", line)
+		}
+		if _, err := time.Parse(format, rec.Time); err != nil {
+			t.Fatalf("incorrect timestamp format %q: %v", rec.Time, err)
+		}
 	}
 }
 

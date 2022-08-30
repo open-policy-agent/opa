@@ -40,6 +40,7 @@ type runCmdParams struct {
 	minTLSVersion      *util.EnumFlag
 	logLevel           *util.EnumFlag
 	logFormat          *util.EnumFlag
+	logTimestampFormat string
 	algorithm          string
 	scope              string
 	pubKey             string
@@ -186,6 +187,7 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().Var(cmdParams.minTLSVersion, "min-tls-version", "set minimum TLS version to be used by OPA's server")
 	runCommand.Flags().VarP(cmdParams.logLevel, "log-level", "l", "set log level")
 	runCommand.Flags().Var(cmdParams.logFormat, "log-format", "set log format")
+	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
@@ -254,9 +256,15 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	params.rt.Authorization = authorizationScheme[params.authorization.String()]
 	params.rt.MinTLSVersion = minTLSVersions[params.minTLSVersion.String()]
 	params.rt.Certificate = cert
+
+	timestampFormat := params.logTimestampFormat
+	if timestampFormat == "" {
+		timestampFormat = os.Getenv("OPA_LOG_TIMESTAMP_FORMAT")
+	}
 	params.rt.Logging = runtime.LoggingConfig{
-		Level:  params.logLevel.String(),
-		Format: params.logFormat.String(),
+		Level:           params.logLevel.String(),
+		Format:          params.logFormat.String(),
+		TimestampFormat: timestampFormat,
 	}
 	params.rt.Paths = args
 	params.rt.Filter = loaderFilter{
