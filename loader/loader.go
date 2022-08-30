@@ -8,6 +8,7 @@ package loader
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -79,7 +80,7 @@ type Filter = filter.LoaderFilter
 // GlobExcludeName excludes files and directories whose names do not match the
 // shell style pattern at minDepth or greater.
 func GlobExcludeName(pattern string, minDepth int) Filter {
-	return func(abspath string, info os.FileInfo, depth int) bool {
+	return func(abspath string, info fs.FileInfo, depth int) bool {
 		match, _ := filepath.Match(pattern, info.Name())
 		return match && depth >= minDepth
 	}
@@ -91,6 +92,7 @@ type FileLoader interface {
 	All(paths []string) (*Result, error)
 	Filtered(paths []string, filter Filter) (*Result, error)
 	AsBundle(path string) (*bundle.Bundle, error)
+	WithFS(fsys fs.FS) FileLoader
 	WithMetrics(m metrics.Metrics) FileLoader
 	WithFilter(filter Filter) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
@@ -113,6 +115,15 @@ type fileLoader struct {
 	skipVerify bool
 	files      map[string]bundle.FileInfo
 	opts       ast.ParserOptions
+	fsys       fs.FS
+}
+
+// WithFS provides an fs.FS to use for loading files. You can pass nil to
+// use plain IO calls (e.g. os.Open, os.Stat, etc.), this is the default
+// behaviour.
+func (fl *fileLoader) WithFS(fsys fs.FS) FileLoader {
+	fl.fsys = fsys
+	return fl
 }
 
 // WithMetrics provides the metrics instance to use while loading
@@ -154,9 +165,17 @@ func (fl fileLoader) All(paths []string) (*Result, error) {
 // paths while applying the given filters. If any filter returns true, the
 // file/directory is excluded.
 func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
-	return all(paths, filter, func(curr *Result, path string, depth int) error {
+	return all(fl.fsys, paths, filter, func(curr *Result, path string, depth int) error {
 
-		bs, err := ioutil.ReadFile(path)
+		var (
+			bs  []byte
+			err error
+		)
+		if fl.fsys != nil {
+			bs, err = fs.ReadFile(fl.fsys, path)
+		} else {
+			bs, err = ioutil.ReadFile(path)
+		}
 		if err != nil {
 			return err
 		}
@@ -266,13 +285,19 @@ func GetBundleDirectoryLoaderWithFilter(path string, filter Filter) (bundle.Dire
 	return bundleLoader, fi.IsDir(), nil
 }
 
-// FilteredPaths return a list of files from the specified
+// FilteredPaths is the same as FilterPathsFS using the current diretory file
+// system
+func FilteredPaths(paths []string, filter Filter) ([]string, error) {
+	return FilteredPathsFS(nil, paths, filter)
+}
+
+// FilteredPathsFS return a list of files from the specified
 // paths while applying the given filters. If any filter returns true, the
 // file/directory is excluded.
-func FilteredPaths(paths []string, filter Filter) ([]string, error) {
+func FilteredPathsFS(fsys fs.FS, paths []string, filter Filter) ([]string, error) {
 	result := []string{}
 
-	_, err := all(paths, filter, func(_ *Result, path string, _ int) error {
+	_, err := all(fsys, paths, filter, func(_ *Result, path string, _ int) error {
 		result = append(result, path)
 		return nil
 	})
@@ -549,7 +574,7 @@ func newResult() *Result {
 	}
 }
 
-func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Result, error) {
+func all(fsys fs.FS, paths []string, filter Filter, f func(*Result, string, int) error) (*Result, error) {
 	errs := Errors{}
 	root := newResult()
 
@@ -566,7 +591,7 @@ func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Re
 			}
 		}
 
-		allRec(path, filter, &errs, loaded, 0, f)
+		allRec(fsys, path, filter, &errs, loaded, 0, f)
 	}
 
 	if len(errs) > 0 {
@@ -576,7 +601,7 @@ func all(paths []string, filter Filter, f func(*Result, string, int) error) (*Re
 	return root, nil
 }
 
-func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth int, f func(*Result, string, int) error) {
+func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Result, depth int, f func(*Result, string, int) error) {
 
 	path, err := fileurl.Clean(path)
 	if err != nil {
@@ -584,7 +609,12 @@ func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth in
 		return
 	}
 
-	info, err := os.Stat(path)
+	var info fs.FileInfo
+	if fsys != nil {
+		info, err = fs.Stat(fsys, path)
+	} else {
+		info, err = os.Stat(path)
+	}
 	if err != nil {
 		errors.add(err)
 		return
@@ -607,14 +637,19 @@ func allRec(path string, filter Filter, errors *Errors, loaded *Result, depth in
 		loaded = loaded.withParent(info.Name())
 	}
 
-	files, err := ioutil.ReadDir(path)
+	var files []fs.DirEntry
+	if fsys != nil {
+		files, err = fs.ReadDir(fsys, path)
+	} else {
+		files, err = os.ReadDir(path)
+	}
 	if err != nil {
 		errors.add(err)
 		return
 	}
 
 	for _, file := range files {
-		allRec(filepath.Join(path, file.Name()), filter, errors, loaded, depth+1, f)
+		allRec(fsys, filepath.Join(path, file.Name()), filter, errors, loaded, depth+1, f)
 	}
 }
 
