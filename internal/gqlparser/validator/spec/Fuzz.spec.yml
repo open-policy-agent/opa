@@ -1,0 +1,34 @@
+- name: 01
+  schema: 0
+  query: '{r{__typename(s:0)}}'
+  errors:
+    - message: Cannot query field "r" on type "QueryRoot".
+
+- name: 02 - infinit loop occured in OverlappingFieldsCanBeMerged rule
+  schema: |
+    type Query {
+      fieldA: A
+    }
+    type A {
+      s: String
+    }
+  query: |
+    { ...F }
+    fragment F on Query {
+      fieldA { s }
+      ...{
+        ...{
+          ...F
+        }
+        fieldA {
+          ...notExists
+        }
+      }
+    }
+  errors:
+    # from KnownFragmentNames rule
+    - message: Unknown fragment "notExists".
+    - message: Unknown fragment "notExists".
+    - message: Unknown fragment "notExists".
+    # from NoFragmentCycles rule
+    - message: Cannot spread fragment "F" within itself.

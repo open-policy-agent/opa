@@ -1,0 +1,162 @@
+- name: with no directives
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          query Foo {
+            name
+            ...Frag
+          }
+          
+          fragment Frag on Dog {
+            name
+          }
+
+  errors: []
+- name: with standard directives
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          {
+            human @skip(if: false) {
+              name
+              pets {
+                ... on Dog @include(if: true) {
+                  name
+                }
+              }
+            }
+          }
+
+  errors: []
+- name: with unknown directive
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          {
+            human @unknown(directive: "value") {
+              name
+            }
+          }
+
+  errors:
+    - message: Unknown directive "@unknown".
+      locations:
+        - {line: 3, column: 15}
+- name: with many unknown directives
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          {
+            __typename @unknown
+            human @unknown {
+              name
+              pets @unknown {
+                name
+              }
+            }
+          }
+
+  errors:
+    - message: Unknown directive "@unknown".
+      locations:
+        - {line: 3, column: 20}
+    - message: Unknown directive "@unknown".
+      locations:
+        - {line: 4, column: 15}
+    - message: Unknown directive "@unknown".
+      locations:
+        - {line: 6, column: 16}
+- name: with well placed directives
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          query ($var: Boolean @onVariableDefinition) @onQuery {
+            human @onField {
+              ...Frag @onFragmentSpread
+              ... @onInlineFragment {
+                name @onField
+              }
+            }
+          }
+          
+          mutation @onMutation {
+            someField @onField
+          }
+          
+          subscription @onSubscription {
+            someField @onField
+          }
+          
+          fragment Frag on Human @onFragmentDefinition {
+            name @onField
+          }
+
+  errors: []
+- name: with misplaced directives
+  rule: KnownDirectives
+  schema: 2
+  query: |2-
+
+          query ($var: Boolean @onQuery) @onMutation {
+            human @onQuery {
+              ...Frag @onQuery
+              ... @onQuery {
+                name @onQuery
+              }
+            }
+          }
+          
+          mutation @onQuery {
+            someField @onQuery
+          }
+          
+          subscription @onQuery {
+            someField @onQuery
+          }
+          
+          fragment Frag on Human @onQuery {
+            name @onQuery
+          }
+
+  errors:
+    - message: Directive "@onQuery" may not be used on VARIABLE_DEFINITION.
+      locations:
+        - {line: 2, column: 28}
+    - message: Directive "@onMutation" may not be used on QUERY.
+      locations:
+        - {line: 2, column: 38}
+    - message: Directive "@onQuery" may not be used on FIELD.
+      locations:
+        - {line: 3, column: 15}
+    - message: Directive "@onQuery" may not be used on FRAGMENT_SPREAD.
+      locations:
+        - {line: 4, column: 19}
+    - message: Directive "@onQuery" may not be used on INLINE_FRAGMENT.
+      locations:
+        - {line: 5, column: 15}
+    - message: Directive "@onQuery" may not be used on FIELD.
+      locations:
+        - {line: 6, column: 18}
+    - message: Directive "@onQuery" may not be used on MUTATION.
+      locations:
+        - {line: 11, column: 16}
+    - message: Directive "@onQuery" may not be used on FIELD.
+      locations:
+        - {column: 19, line: 12}
+    - message: Directive "@onQuery" may not be used on SUBSCRIPTION.
+      locations:
+        - {column: 20, line: 15}
+    - message: Directive "@onQuery" may not be used on FIELD.
+      locations:
+        - {column: 19, line: 16}
+    - message: Directive "@onQuery" may not be used on FRAGMENT_DEFINITION.
+      locations:
+        - {column: 30, line: 19}
+    - message: Directive "@onQuery" may not be used on FIELD.
+      locations:
+        - {column: 14, line: 20}

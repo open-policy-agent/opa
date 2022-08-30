@@ -1,0 +1,241 @@
+- name: valid subscription
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+          }
+
+  errors: []
+- name: valid subscription with fragment
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription sub {
+            ...newMessageFields
+          }
+          
+          fragment newMessageFields on SubscriptionRoot {
+            newMessage {
+              body
+              sender
+            }
+          }
+
+  errors: []
+- name: valid subscription with fragment and field
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription sub {
+            newMessage {
+              body
+            }
+            ...newMessageFields
+          }
+          
+          fragment newMessageFields on SubscriptionRoot {
+            newMessage {
+              body
+              sender
+            }
+          }
+
+  errors: []
+- name: fails with more than one root field
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+            notImportantEmails
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must select only one top level field.
+      locations:
+        - {line: 4, column: 9}
+- name: fails with more than one root field including introspection
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+            __typename
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must select only one top level field.
+      locations:
+        - {line: 4, column: 9}
+    - message: Subscription "ImportantEmails" must not select an introspection top level field.
+      locations:
+        - {line: 4, column: 9}
+- name: fails with more than one root field including aliased introspection via fragment
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+            ...Introspection
+          }
+          fragment Introspection on SubscriptionRoot {
+            typename: __typename
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must select only one top level field.
+      locations:
+        - {line: 7, column: 9}
+    - message: Subscription "ImportantEmails" must not select an introspection top level field.
+      locations:
+        - {line: 7, column: 9}
+- name: fails with many more than one root field
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+            notImportantEmails
+            spamEmails
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must select only one top level field.
+      locations:
+        - {line: 4, column: 9}
+        - {line: 5, column: 9}
+- name: fails with many more than one root field via fragments
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            importantEmails
+            ... {
+              more: moreImportantEmails
+            }
+            ...NotImportantEmails
+          }
+          fragment NotImportantEmails on SubscriptionRoot {
+            notImportantEmails
+            deleted: deletedEmails
+            ...SpamEmails
+          }
+          fragment SpamEmails on SubscriptionRoot {
+            spamEmails
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must select only one top level field.
+      locations:
+        - {line: 5, column: 11}
+        - {line: 10, column: 9}
+        - {line: 11, column: 9}
+        - {line: 15, column: 9}
+- name: does not infinite loop on recursive fragments
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription NoInfiniteLoop {
+            ...A
+          }
+          fragment A on SubscriptionRoot {
+            ...A
+          }
+
+  errors: []
+- name: fails with many more than one root field via fragments (anonymous)
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription {
+            importantEmails
+            ... {
+              more: moreImportantEmails
+              ...NotImportantEmails
+            }
+            ...NotImportantEmails
+          }
+          fragment NotImportantEmails on SubscriptionRoot {
+            notImportantEmails
+            deleted: deletedEmails
+            ... {
+              ... {
+                archivedEmails
+              }
+            }
+            ...SpamEmails
+          }
+          fragment SpamEmails on SubscriptionRoot {
+            spamEmails
+            ...NonExistentFragment
+          }
+
+  errors:
+    - message: Anonymous Subscription must select only one top level field.
+      locations:
+        - {line: 5, column: 11}
+        - {line: 11, column: 9}
+        - {line: 12, column: 9}
+        - {line: 15, column: 13}
+        - {line: 21, column: 9}
+- name: fails with more than one root field in anonymous subscriptions
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription {
+            importantEmails
+            notImportantEmails
+          }
+
+  errors:
+    - message: Anonymous Subscription must select only one top level field.
+      locations:
+        - {line: 4, column: 9}
+- name: fails with introspection field
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription ImportantEmails {
+            __typename
+          }
+
+  errors:
+    - message: Subscription "ImportantEmails" must not select an introspection top level field.
+      locations:
+        - {line: 3, column: 9}
+- name: fails with introspection field in anonymous subscription
+  rule: SingleFieldSubscriptions
+  schema: 15
+  query: |2-
+
+          subscription {
+            __typename
+          }
+
+  errors:
+    - message: Anonymous Subscription must not select an introspection top level field.
+      locations:
+        - {line: 3, column: 9}
+- name: skips if not subscription type
+  rule: SingleFieldSubscriptions
+  schema: 16
+  query: |2-
+
+            subscription {
+              __typename
+            }
+
+  errors: []

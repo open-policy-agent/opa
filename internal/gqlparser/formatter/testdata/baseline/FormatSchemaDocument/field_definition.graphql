@@ -1,0 +1,3 @@
+input CatInput {
+	food: String = "fish & meat"
+}

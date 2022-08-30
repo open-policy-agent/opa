@@ -1,0 +1,9 @@
+- name: Undefined type assertions
+  schema: 0
+  query: |
+    fragment c on Float
+    {...c}
+
+  errors:
+    - message: Fragment "c" cannot condition on non composite type "Float".
+    - message: Cannot spread fragment "c" within itself.

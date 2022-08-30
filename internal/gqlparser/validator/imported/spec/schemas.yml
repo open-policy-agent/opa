@@ -1,0 +1,490 @@
+- |-
+  schema {
+    query: QueryRoot
+  }
+
+  directive @onField on FIELD
+
+  interface Mammal {
+    mother: Mammal
+    father: Mammal
+  }
+
+  interface Pet {
+    name(surname: Boolean): String
+  }
+
+  interface Canine implements Mammal {
+    name(surname: Boolean): String
+    mother: Canine
+    father: Canine
+  }
+
+  enum DogCommand {
+    SIT
+    HEEL
+    DOWN
+  }
+
+  type Dog implements Pet & Mammal & Canine {
+    name(surname: Boolean): String
+    nickname: String
+    barkVolume: Int
+    barks: Boolean
+    doesKnowCommand(dogCommand: DogCommand): Boolean
+    isHouseTrained(atOtherHomes: Boolean = true): Boolean
+    isAtLocation(x: Int, y: Int): Boolean
+    mother: Dog
+    father: Dog
+  }
+
+  type Cat implements Pet {
+    name(surname: Boolean): String
+    nickname: String
+    meows: Boolean
+    meowsVolume: Int
+    furColor: FurColor
+  }
+
+  union CatOrDog = Cat | Dog
+
+  type Human {
+    name(surname: Boolean): String
+    pets: [Pet]
+    relatives: [Human]
+  }
+
+  enum FurColor {
+    BROWN
+    BLACK
+    TAN
+    SPOTTED
+    NO_FUR
+    UNKNOWN
+  }
+
+  input ComplexInput {
+    requiredField: Boolean!
+    nonNullField: Boolean! = false
+    intField: Int
+    stringField: String
+    booleanField: Boolean
+    stringListField: [String]
+  }
+
+  type ComplicatedArgs {
+    intArgField(intArg: Int): String
+    nonNullIntArgField(nonNullIntArg: Int!): String
+    stringArgField(stringArg: String): String
+    booleanArgField(booleanArg: Boolean): String
+    enumArgField(enumArg: FurColor): String
+    floatArgField(floatArg: Float): String
+    idArgField(idArg: ID): String
+    stringListArgField(stringListArg: [String]): String
+    stringListNonNullArgField(stringListNonNullArg: [String!]): String
+    complexArgField(complexArg: ComplexInput): String
+    multipleReqs(req1: Int!, req2: Int!): String
+    nonNullFieldWithDefault(arg: Int! = 0): String
+    multipleOpts(opt1: Int = 0, opt2: Int = 0): String
+    multipleOptAndReq(req1: Int!, req2: Int!, opt1: Int = 0, opt2: Int = 0): String
+  }
+
+  type QueryRoot {
+    human(id: ID): Human
+    dog: Dog
+    cat: Cat
+    pet: Pet
+    catOrDog: CatOrDog
+    complicatedArgs: ComplicatedArgs
+  }
+  # injected becuase upstream spec is missing some types
+  extend type QueryRoot {
+      field: T
+      f1: Type
+      f2: Type
+      f3: Type
+  }
+
+  type Type {
+      a: String
+      b: String
+      c: String
+  }
+  type T {
+      a: String
+      b: String
+      c: String
+      d: String
+      y: String
+      deepField: T
+      deeperField: T
+  }
+- |-
+  interface Pet {
+    name: String
+  }
+
+  type Dog implements Pet {
+    name: String
+    nickname: String
+    barkVolume: Int
+  }
+
+  type Cat implements Pet {
+    name: String
+    nickname: String
+    meowVolume: Int
+  }
+
+  union CatOrDog = Cat | Dog
+
+  type Human {
+    name: String
+    pets: [Pet]
+  }
+
+  type Query {
+    human: Human
+  }
+- |-
+  directive @onQuery on QUERY
+
+  directive @onMutation on MUTATION
+
+  directive @onSubscription on SUBSCRIPTION
+
+  directive @onField on FIELD
+
+  directive @onFragmentDefinition on FRAGMENT_DEFINITION
+
+  directive @onFragmentSpread on FRAGMENT_SPREAD
+
+  directive @onInlineFragment on INLINE_FRAGMENT
+
+  directive @onVariableDefinition on VARIABLE_DEFINITION
+
+  type Query {
+    dummy: String
+  }
+- |-
+  type Query {
+    foo: String
+  }
+- |-
+  type Query {
+    normalField: String
+    deprecatedField: String @deprecated(reason: "Some field reason.")
+  }
+- |-
+  type Query {
+    someField(normalArg: String, deprecatedArg: String @deprecated(reason: "Some arg reason.")): String
+  }
+- |-
+  directive @someDirective(normalArg: String, deprecatedArg: String @deprecated(reason: "Some arg reason.")) on FIELD
+
+  type Query {
+    someField: String
+  }
+- |-
+  directive @someDirective(someArg: InputType) on FIELD
+
+  input InputType {
+    normalField: String
+    deprecatedField: String @deprecated(reason: "Some input field reason.")
+  }
+
+  type Query {
+    someField(someArg: InputType): String
+  }
+- |-
+  enum EnumType {
+    NORMAL_VALUE
+    DEPRECATED_VALUE @deprecated(reason: "Some enum reason.")
+  }
+
+  type Query {
+    someField(enumArg: EnumType): String
+  }
+- |-
+  type Query {
+    someQuery: SomeType
+  }
+
+  type SomeType {
+    someField: String
+    introspectionField: __EnumValue
+  }
+- |-
+  type Query {
+    someField(a: String, b: String): String
+  }
+- |-
+  input SomeInput {
+    a: String
+    b: String
+  }
+
+  type Query {
+    someField(arg: SomeInput): String
+  }
+- |-
+  interface SomeBox {
+    deepBox: SomeBox
+    unrelatedField: String
+  }
+
+  type StringBox implements SomeBox {
+    scalar: String
+    deepBox: StringBox
+    unrelatedField: String
+    listStringBox: [StringBox]
+    stringBox: StringBox
+    intBox: IntBox
+  }
+
+  type IntBox implements SomeBox {
+    scalar: Int
+    deepBox: IntBox
+    unrelatedField: String
+    listStringBox: [StringBox]
+    stringBox: StringBox
+    intBox: IntBox
+  }
+
+  interface NonNullStringBox1 {
+    scalar: String!
+  }
+
+  type NonNullStringBox1Impl implements SomeBox & NonNullStringBox1 {
+    scalar: String!
+    unrelatedField: String
+    deepBox: SomeBox
+  }
+
+  interface NonNullStringBox2 {
+    scalar: String!
+  }
+
+  type NonNullStringBox2Impl implements SomeBox & NonNullStringBox2 {
+    scalar: String!
+    unrelatedField: String
+    deepBox: SomeBox
+  }
+
+  type Connection {
+    edges: [Edge]
+  }
+
+  type Edge {
+    node: Node
+  }
+
+  type Node {
+    id: ID
+    name: String
+  }
+
+  type Query {
+    someBox: SomeBox
+    connection: Connection
+  }
+- |-
+  type Foo {
+    constructor: String
+  }
+
+  type Query {
+    foo: Foo
+  }
+- |-
+  interface Being {
+    name: String
+  }
+
+  interface Pet implements Being {
+    name: String
+  }
+
+  type Dog implements Being & Pet {
+    name: String
+    barkVolume: Int
+  }
+
+  type Cat implements Being & Pet {
+    name: String
+    meowVolume: Int
+  }
+
+  union CatOrDog = Cat | Dog
+
+  interface Intelligent {
+    iq: Int
+  }
+
+  type Human implements Being & Intelligent {
+    name: String
+    pets: [Pet]
+    iq: Int
+  }
+
+  type Alien implements Being & Intelligent {
+    name: String
+    iq: Int
+  }
+
+  union DogOrHuman = Dog | Human
+
+  union HumanOrAlien = Human | Alien
+
+  type Query {
+    catOrDog: CatOrDog
+    dogOrHuman: DogOrHuman
+    humanOrAlien: HumanOrAlien
+  }
+- |-
+  schema {
+    query: QueryRoot
+    subscription: SubscriptionRoot
+  }
+
+  type Message {
+    body: String
+    sender: String
+  }
+
+  type SubscriptionRoot {
+    importantEmails: [String]
+    notImportantEmails: [String]
+    moreImportantEmails: [String]
+    spamEmails: [String]
+    deletedEmails: [String]
+    newMessage: Message
+  }
+
+  type QueryRoot {
+    dummy: String
+  }
+- |-
+  type Query {
+    dummy: String
+  }
+- |-
+  schema {
+    query: QueryRoot
+  }
+
+  directive @onField on FIELD
+
+  directive @directive on FIELD | FRAGMENT_DEFINITION
+
+  directive @directiveA on FIELD | FRAGMENT_DEFINITION
+
+  directive @directiveB on FIELD | FRAGMENT_DEFINITION
+
+  directive @repeatable repeatable on FIELD | FRAGMENT_DEFINITION
+
+  interface Mammal {
+    mother: Mammal
+    father: Mammal
+  }
+
+  interface Pet {
+    name(surname: Boolean): String
+  }
+
+  interface Canine implements Mammal {
+    name(surname: Boolean): String
+    mother: Canine
+    father: Canine
+  }
+
+  enum DogCommand {
+    SIT
+    HEEL
+    DOWN
+  }
+
+  type Dog implements Pet & Mammal & Canine {
+    name(surname: Boolean): String
+    nickname: String
+    barkVolume: Int
+    barks: Boolean
+    doesKnowCommand(dogCommand: DogCommand): Boolean
+    isHouseTrained(atOtherHomes: Boolean = true): Boolean
+    isAtLocation(x: Int, y: Int): Boolean
+    mother: Dog
+    father: Dog
+  }
+
+  type Cat implements Pet {
+    name(surname: Boolean): String
+    nickname: String
+    meows: Boolean
+    meowsVolume: Int
+    furColor: FurColor
+  }
+
+  union CatOrDog = Cat | Dog
+
+  type Human {
+    name(surname: Boolean): String
+    pets: [Pet]
+    relatives: [Human]
+  }
+
+  enum FurColor {
+    BROWN
+    BLACK
+    TAN
+    SPOTTED
+    NO_FUR
+    UNKNOWN
+  }
+
+  input ComplexInput {
+    requiredField: Boolean!
+    nonNullField: Boolean! = false
+    intField: Int
+    stringField: String
+    booleanField: Boolean
+    stringListField: [String]
+  }
+
+  type ComplicatedArgs {
+    intArgField(intArg: Int): String
+    nonNullIntArgField(nonNullIntArg: Int!): String
+    stringArgField(stringArg: String): String
+    booleanArgField(booleanArg: Boolean): String
+    enumArgField(enumArg: FurColor): String
+    floatArgField(floatArg: Float): String
+    idArgField(idArg: ID): String
+    stringListArgField(stringListArg: [String]): String
+    stringListNonNullArgField(stringListNonNullArg: [String!]): String
+    complexArgField(complexArg: ComplexInput): String
+    multipleReqs(req1: Int!, req2: Int!): String
+    nonNullFieldWithDefault(arg: Int! = 0): String
+    multipleOpts(opt1: Int = 0, opt2: Int = 0): String
+    multipleOptAndReq(req1: Int!, req2: Int!, opt1: Int = 0, opt2: Int = 0): String
+  }
+
+  type QueryRoot {
+    human(id: ID): Human
+    dog: Dog
+    cat: Cat
+    pet: Pet
+    catOrDog: CatOrDog
+    complicatedArgs: ComplicatedArgs
+  }
+- |-
+  type Query {
+    invalidArg(arg: CustomScalar): String
+  }
+
+  scalar CustomScalar
+- |-
+  type Query {
+    anyArg(arg: Any): String
+  }
+
+  scalar Any
+- ""

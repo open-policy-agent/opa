@@ -1,0 +1,909 @@
+- name: unique fields
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment uniqueFields on Dog {
+            name
+            nickname
+          }
+
+  errors: []
+- name: identical fields
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment mergeIdenticalFields on Dog {
+            name
+            name
+          }
+
+  errors: []
+- name: identical fields with identical args
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment mergeIdenticalFieldsWithIdenticalArgs on Dog {
+            doesKnowCommand(dogCommand: SIT)
+            doesKnowCommand(dogCommand: SIT)
+          }
+
+  errors: []
+- name: identical fields with identical directives
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment mergeSameFieldsWithSameDirectives on Dog {
+            name @include(if: true)
+            name @include(if: true)
+          }
+
+  errors: []
+- name: different args with different aliases
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment differentArgsWithDifferentAliases on Dog {
+            knowsSit: doesKnowCommand(dogCommand: SIT)
+            knowsDown: doesKnowCommand(dogCommand: DOWN)
+          }
+
+  errors: []
+- name: different directives with different aliases
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment differentDirectivesWithDifferentAliases on Dog {
+            nameIfTrue: name @include(if: true)
+            nameIfFalse: name @include(if: false)
+          }
+
+  errors: []
+- name: different skip/include directives accepted
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment differentDirectivesWithDifferentAliases on Dog {
+            name @include(if: true)
+            name @include(if: false)
+          }
+
+  errors: []
+- name: Same aliases with different field targets
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment sameAliasesWithDifferentFieldTargets on Dog {
+            fido: name
+            fido: nickname
+          }
+
+  errors:
+    - message: Fields "fido" conflict because "name" and "nickname" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: Same aliases allowed on non-overlapping fields
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment sameAliasesWithDifferentFieldTargets on Pet {
+            ... on Dog {
+              name
+            }
+            ... on Cat {
+              name: nickname
+            }
+          }
+
+  errors: []
+- name: Alias masking direct field access
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment aliasMaskingDirectFieldAccess on Dog {
+            name: nickname
+            name
+          }
+
+  errors:
+    - message: Fields "name" conflict because "nickname" and "name" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: different args, second adds an argument
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment conflictingArgs on Dog {
+            doesKnowCommand
+            doesKnowCommand(dogCommand: HEEL)
+          }
+
+  errors:
+    - message: Fields "doesKnowCommand" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: different args, second missing an argument
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment conflictingArgs on Dog {
+            doesKnowCommand(dogCommand: SIT)
+            doesKnowCommand
+          }
+
+  errors:
+    - message: Fields "doesKnowCommand" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: conflicting arg values
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment conflictingArgs on Dog {
+            doesKnowCommand(dogCommand: SIT)
+            doesKnowCommand(dogCommand: HEEL)
+          }
+
+  errors:
+    - message: Fields "doesKnowCommand" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: conflicting arg names
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment conflictingArgs on Dog {
+            isAtLocation(x: 0)
+            isAtLocation(y: 0)
+          }
+
+  errors:
+    - message: Fields "isAtLocation" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 9}
+- name: allows different args where no conflict is possible
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment conflictingArgs on Pet {
+            ... on Dog {
+              name(surname: true)
+            }
+            ... on Cat {
+              name
+            }
+          }
+
+  errors: []
+- name: allows different order of args
+  rule: OverlappingFieldsCanBeMerged
+  schema: 10
+  query: |2-
+
+            {
+              someField(a: null, b: null)
+              someField(b: null, a: null)
+            }
+
+  errors: []
+- name: allows different order of input object fields in arg values
+  rule: OverlappingFieldsCanBeMerged
+  schema: 11
+  query: |2-
+
+            {
+              someField(arg: { a: null, b: null })
+              someField(arg: { b: null, a: null })
+            }
+
+  errors: []
+- name: encounters conflict in fragments
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            ...A
+            ...B
+          }
+          fragment A on Type {
+            x: a
+          }
+          fragment B on Type {
+            x: b
+          }
+
+  errors:
+    - message: Fields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 7, column: 9}
+        - {line: 10, column: 9}
+- name: reports each conflict once
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            f1 {
+              ...A
+              ...B
+            }
+            f2 {
+              ...B
+              ...A
+            }
+            f3 {
+              ...A
+              ...B
+              x: c
+            }
+          }
+          fragment A on Type {
+            x: a
+          }
+          fragment B on Type {
+            x: b
+          }
+
+  errors:
+    - message: Fields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 18, column: 9}
+        - {line: 21, column: 9}
+    - message: Fields "x" conflict because "c" and "a" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 14, column: 11}
+        - {line: 18, column: 9}
+    - message: Fields "x" conflict because "c" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 14, column: 11}
+        - {line: 21, column: 9}
+- name: deep conflict
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              x: a
+            },
+            field {
+              x: b
+            }
+          }
+
+  errors:
+    - message: Fields "field" conflict because subfields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 11}
+        - {line: 6, column: 9}
+        - {line: 7, column: 11}
+- name: deep conflict with multiple issues
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              x: a
+              y: c
+            },
+            field {
+              x: b
+              y: d
+            }
+          }
+
+  errors:
+    - message: Fields "field" conflict because subfields "x" conflict because "a" and "b" are different fields and subfields "y" conflict because "c" and "d" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 11}
+        - {line: 5, column: 11}
+        - {line: 7, column: 9}
+        - {line: 8, column: 11}
+        - {line: 9, column: 11}
+- name: very deep conflict
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              deepField {
+                x: a
+              }
+            },
+            field {
+              deepField {
+                x: b
+              }
+            }
+          }
+
+  errors:
+    - message: Fields "field" conflict because subfields "deepField" conflict because subfields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 4, column: 11}
+        - {line: 5, column: 13}
+        - {line: 8, column: 9}
+        - {line: 9, column: 11}
+        - {line: 10, column: 13}
+- name: reports deep conflict to nearest common ancestor
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              deepField {
+                x: a
+              }
+              deepField {
+                x: b
+              }
+            },
+            field {
+              deepField {
+                y
+              }
+            }
+          }
+
+  errors:
+    - message: Fields "deepField" conflict because subfields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 4, column: 11}
+        - {line: 5, column: 13}
+        - {line: 7, column: 11}
+        - {line: 8, column: 13}
+- name: reports deep conflict to nearest common ancestor in fragments
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              ...F
+            }
+            field {
+              ...F
+            }
+          }
+          fragment F on T {
+            deepField {
+              deeperField {
+                x: a
+              }
+              deeperField {
+                x: b
+              }
+            },
+            deepField {
+              deeperField {
+                y
+              }
+            }
+          }
+
+  errors:
+    - message: Fields "deeperField" conflict because subfields "x" conflict because "a" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 12, column: 11}
+        - {line: 13, column: 13}
+        - {line: 15, column: 11}
+        - {line: 16, column: 13}
+- name: reports deep conflict in nested fragments
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field {
+              ...F
+            }
+            field {
+              ...I
+            }
+          }
+          fragment F on T {
+            x: a
+            ...G
+          }
+          fragment G on T {
+            y: c
+          }
+          fragment I on T {
+            y: d
+            ...J
+          }
+          fragment J on T {
+            x: b
+          }
+
+  errors:
+    - message: Fields "field" conflict because subfields "x" conflict because "a" and "b" are different fields and subfields "y" conflict because "c" and "d" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 11, column: 9}
+        - {line: 15, column: 9}
+        - {line: 6, column: 9}
+        - {line: 22, column: 9}
+        - {line: 18, column: 9}
+- name: ignores unknown fragments
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            field
+            ...Unknown
+            ...Known
+          }
+          
+          fragment Known on T {
+            field
+            ...OtherUnknown
+          }
+
+  errors: []
+- name: return types must be unambiguous/conflicting return types which potentially overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ...on IntBox {
+                    scalar
+                  }
+                  ...on NonNullStringBox1 {
+                    scalar
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "scalar" conflict because they return conflicting types "Int" and "String!". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 8, column: 17}
+- name: return types must be unambiguous/compatible return shapes on different return types
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on SomeBox {
+                    deepBox {
+                      unrelatedField
+                    }
+                  }
+                  ... on StringBox {
+                    deepBox {
+                      unrelatedField
+                    }
+                  }
+                }
+              }
+
+  errors: []
+- name: return types must be unambiguous/disallows differing return types despite no overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    scalar
+                  }
+                  ... on StringBox {
+                    scalar
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "scalar" conflict because they return conflicting types "Int" and "String". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 8, column: 17}
+- name: return types must be unambiguous/reports correctly when a non-exclusive follows an exclusive
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    deepBox {
+                      ...X
+                    }
+                  }
+                }
+                someBox {
+                  ... on StringBox {
+                    deepBox {
+                      ...Y
+                    }
+                  }
+                }
+                memoed: someBox {
+                  ... on IntBox {
+                    deepBox {
+                      ...X
+                    }
+                  }
+                }
+                memoed: someBox {
+                  ... on StringBox {
+                    deepBox {
+                      ...Y
+                    }
+                  }
+                }
+                other: someBox {
+                  ...X
+                }
+                other: someBox {
+                  ...Y
+                }
+              }
+              fragment X on SomeBox {
+                scalar
+              }
+              fragment Y on SomeBox {
+                scalar: unrelatedField
+              }
+
+  errors:
+    - message: Fields "other" conflict because subfields "scalar" conflict because "scalar" and "unrelatedField" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 31, column: 13}
+        - {line: 39, column: 13}
+        - {line: 34, column: 13}
+        - {line: 42, column: 13}
+- name: return types must be unambiguous/disallows differing return type nullability despite no overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on NonNullStringBox1 {
+                    scalar
+                  }
+                  ... on StringBox {
+                    scalar
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "scalar" conflict because they return conflicting types "String!" and "String". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 8, column: 17}
+- name: return types must be unambiguous/disallows differing return type list despite no overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    box: listStringBox {
+                      scalar
+                    }
+                  }
+                  ... on StringBox {
+                    box: stringBox {
+                      scalar
+                    }
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "box" conflict because they return conflicting types "[StringBox]" and "StringBox". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 10, column: 17}
+- name: return types must be unambiguous/disallows differing return type list despite no overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    box: stringBox {
+                      scalar
+                    }
+                  }
+                  ... on StringBox {
+                    box: listStringBox {
+                      scalar
+                    }
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "box" conflict because they return conflicting types "StringBox" and "[StringBox]". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 10, column: 17}
+- name: return types must be unambiguous/disallows differing subfields
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    box: stringBox {
+                      val: scalar
+                      val: unrelatedField
+                    }
+                  }
+                  ... on StringBox {
+                    box: stringBox {
+                      val: scalar
+                    }
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "val" conflict because "scalar" and "unrelatedField" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 6, column: 19}
+        - {line: 7, column: 19}
+- name: return types must be unambiguous/disallows differing deep return types despite no overlap
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    box: stringBox {
+                      scalar
+                    }
+                  }
+                  ... on StringBox {
+                    box: intBox {
+                      scalar
+                    }
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "box" conflict because subfields "scalar" conflict because they return conflicting types "String" and "Int". Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 17}
+        - {line: 6, column: 19}
+        - {line: 10, column: 17}
+        - {line: 11, column: 19}
+- name: return types must be unambiguous/allows non-conflicting overlapping types
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ... on IntBox {
+                    scalar: unrelatedField
+                  }
+                  ... on StringBox {
+                    scalar
+                  }
+                }
+              }
+
+  errors: []
+- name: return types must be unambiguous/same wrapped scalar return types
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ...on NonNullStringBox1 {
+                    scalar
+                  }
+                  ...on NonNullStringBox2 {
+                    scalar
+                  }
+                }
+              }
+
+  errors: []
+- name: return types must be unambiguous/allows inline fragments without type condition
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                a
+                ... {
+                  a
+                }
+              }
+
+  errors: []
+- name: return types must be unambiguous/compares deep types including list
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                connection {
+                  ...edgeID
+                  edges {
+                    node {
+                      id: name
+                    }
+                  }
+                }
+              }
+              
+              fragment edgeID on Connection {
+                edges {
+                  node {
+                    id
+                  }
+                }
+              }
+
+  errors:
+    - message: Fields "edges" conflict because subfields "node" conflict because subfields "id" conflict because "name" and "id" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 5, column: 15}
+        - {line: 6, column: 17}
+        - {line: 7, column: 19}
+        - {line: 14, column: 13}
+        - {line: 15, column: 15}
+        - {line: 16, column: 17}
+- name: return types must be unambiguous/ignores unknown types
+  rule: OverlappingFieldsCanBeMerged
+  schema: 12
+  query: |2-
+
+              {
+                someBox {
+                  ...on UnknownType {
+                    scalar
+                  }
+                  ...on NonNullStringBox2 {
+                    scalar
+                  }
+                }
+              }
+
+  errors: []
+- name: return types must be unambiguous/works for field names that are JS keywords
+  rule: OverlappingFieldsCanBeMerged
+  schema: 13
+  query: |2-
+
+              {
+                foo {
+                  constructor
+                }
+              }
+
+  errors: []
+- name: does not infinite loop on recursive fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+          }
+          
+          fragment fragA on Human { name, relatives { name, ...fragA } }
+
+  errors: []
+- name: does not infinite loop on immediately recursive fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+          }
+          
+          fragment fragA on Human { name, ...fragA }
+
+  errors: []
+- name: does not infinite loop on recursive fragment with a field named after fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+            fragA
+          }
+          
+          fragment fragA on Query { ...fragA }
+
+  errors: []
+- name: finds invalid cases even with field named after fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            fragA
+            ...fragA
+          }
+          
+          fragment fragA on Type {
+            fragA: b
+          }
+
+  errors:
+    - message: Fields "fragA" conflict because "fragA" and "b" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 3, column: 9}
+        - {line: 8, column: 9}
+- name: does not infinite loop on transitively recursive fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          {
+            ...fragA
+            fragB
+          }
+          
+          fragment fragA on Human { name, ...fragB }
+          fragment fragB on Human { name, ...fragC }
+          fragment fragC on Human { name, ...fragA }
+
+  errors: []
+- name: finds invalid case even with immediately recursive fragment
+  rule: OverlappingFieldsCanBeMerged
+  schema: 0
+  query: |2-
+
+          fragment sameAliasesWithDifferentFieldTargets on Dog {
+            ...sameAliasesWithDifferentFieldTargets
+            fido: name
+            fido: nickname
+          }
+
+  errors:
+    - message: Fields "fido" conflict because "name" and "nickname" are different fields. Use different aliases on the fields to fetch both if this was intentional.
+      locations:
+        - {line: 4, column: 9}
+        - {line: 5, column: 9}

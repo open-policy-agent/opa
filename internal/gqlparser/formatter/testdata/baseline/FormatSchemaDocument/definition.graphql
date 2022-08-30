@@ -1,0 +1,24 @@
+scalar Cat0
+type Cat1 {
+	name: String
+}
+interface Cat2 {
+	name: String
+}
+type Cat3_0 {
+	name: String
+}
+type Cat3_1 {
+	name: String
+}
+type Cat3_2 {
+	name: String
+}
+union Cat3 = Cat3_0 | Cat3_1 | Cat3_2
+enum Cat4 {
+	NFC
+	MAINECOON
+}
+input Cat5 {
+	name: String
+}
