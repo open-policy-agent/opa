@@ -1,5 +1,5 @@
 package filter
 
-import "os"
+import "io/fs"
 
-type LoaderFilter func(abspath string, info os.FileInfo, depth int) bool
+type LoaderFilter func(abspath string, info fs.FileInfo, depth int) bool

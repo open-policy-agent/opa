@@ -37,17 +37,29 @@ dump_response_on_error(response) := response {
 }
 
 dump_response_on_error(response) := response {
+	#print(response)
 	not http_error(response)
 }
 
-get_file_in_pr(filename) := dump_response_on_error(http.send({
-	"url": changes[filename].raw_url,
-	"method": "GET",
-	"headers": {"Authorization": sprintf("Bearer %v", [opa.runtime().env.GITHUB_TOKEN])},
-	"cache": true,
-	"enable_redirect": true,
-	"raise_error": false,
-})).raw_body
+get_file_in_pr(filename) := raw_body {
+	print("fetching file", filename)
+	print("raw_url", changes[filename].raw_url)
+
+	response := http.send({
+		"url": changes[filename].raw_url,
+		"method": "GET",
+		"headers": {"Authorization": sprintf("Bearer %v", [opa.runtime().env.GITHUB_TOKEN])},
+		"cache": false,
+		"enable_redirect": true,
+		"raise_error": false,
+	})
+
+	print("response", response)
+
+	raw_body := dump_response_on_error(response).raw_body
+
+	print("raw_body returned", raw_body)
+}
 
 deny["Logo must be placed in docs/website/static/img/logos/integrations"] {
 	"docs/website/data/integrations.yaml" in filenames
@@ -108,6 +120,10 @@ deny[sprintf("%s is an invalid YAML file: %s", [filename, content])] {
 }
 
 deny[sprintf("%s is an invalid JSON file: %s", [filename, content])] {
+	print("filenames", filenames)
+	print("changes", changes)
+	print("json_file_contents", json_file_contents)
+
 	some filename, content in json_file_contents
 	changes[filename].status in {"added", "modified"}
 	not json.is_valid(content)
