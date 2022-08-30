@@ -7,6 +7,7 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -2672,6 +2673,8 @@ func TestLocation(t *testing.T) {
 }
 
 func TestRuleFromBodyRefs(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"if", "contains"}}
+
 	// NOTE(sr): These tests assert that the other code path, parsing a module, and
 	// then interpreting naked expressions into (shortcut) rule definitions, works
 	// the same as parsing the string as a Rule directly. Without also passing
@@ -2810,7 +2813,6 @@ func TestRuleFromBodyRefs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := ParserOptions{FutureKeywords: []string{"if", "contains"}}
 			r, err := ParseRuleWithOpts(tc.exp, opts)
 			if err != nil {
 				t.Fatal(err)
@@ -2838,6 +2840,33 @@ func TestRuleFromBodyRefs(t *testing.T) {
 				Rules:   []*Rule{exp},
 			}, opts)
 		})
+	}
+
+	// edge cases
+	t.Run("errors", func(t *testing.T) {
+		t.Run("naked 'data' ref", func(t *testing.T) {
+			_, err := ParseModuleWithOpts("", "package a.b.c\ndata", opts)
+			assertErrorWithMessage(t, err, "refs cannot be used for rule head")
+		})
+		t.Run("naked 'input' ref", func(t *testing.T) {
+			_, err := ParseModuleWithOpts("", "package a.b.c\ninput", opts)
+			assertErrorWithMessage(t, err, "refs cannot be used for rule head")
+		})
+	})
+}
+
+func assertErrorWithMessage(t *testing.T, err error, msg string) {
+	t.Helper()
+	var errs Errors
+	if !errors.As(err, &errs) {
+		t.Fatalf("expected Errors, got %v %[1]T", err)
+	}
+	if exp, act := 1, len(errs); exp != act {
+		t.Fatalf("expected %d errors, got %d", exp, act)
+	}
+	e := errs[0]
+	if exp, act := msg, e.Message; exp != act {
+		t.Fatalf("expected error message %q, got %q", exp, act)
 	}
 }
 

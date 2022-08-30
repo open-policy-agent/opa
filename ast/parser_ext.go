@@ -321,13 +321,13 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 
 	ref, ok := term.Value.(Ref)
-	if !ok {
+	if !ok || len(ref) == 1 {
 		return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
 	}
 
 	head := RefHead(ref)
 	if len(ref) == 2 {
-		v, ok := ref[0].Value.(Var) // XXX
+		v, ok := ref[0].Value.(Var)
 		if !ok {
 			return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
 		}
