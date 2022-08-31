@@ -187,7 +187,7 @@ type (
 	// Head represents the head of a rule.
 	Head struct {
 		Location  *Location `json:"-"`
-		Name      Var       `json:"name"`
+		Name      Var       `json:"name,omitempty"`
 		Reference Ref       `json:"ref,omitempty"`
 		Args      Args      `json:"args,omitempty"`
 		Key       *Term     `json:"key,omitempty"`

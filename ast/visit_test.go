@@ -393,12 +393,12 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 		})
 	vis.Walk(rule)
 
-	if len(before) != 246 {
-		t.Errorf("Expected exactly 246 before elements in AST but got %d: %v", len(before), before)
+	if exp, act := 256, len(before); exp != act {
+		t.Errorf("Expected exactly %d before elements in AST but got %d: %v", exp, act, before)
 	}
 
-	if len(after) != 246 {
-		t.Errorf("Expected exactly 246 after elements in AST but got %d: %v", len(after), after)
+	if exp, act := 256, len(before); exp != act {
+		t.Errorf("Expected exactly %d after elements in AST but got %d: %v", exp, act, after)
 	}
 }
 
