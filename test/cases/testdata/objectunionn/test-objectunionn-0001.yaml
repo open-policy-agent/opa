@@ -65,3 +65,15 @@ cases:
   query: data.test.x = x
   want_result:
     - x: {"foo": "baz", "a": "final A!", "b": 2, "c": 3, "d": 4, "e": 5.0}
+
+- note: "# 5073 regression test"
+  input_term: '[{"foo": 1}, {"bar": 2}, "baz"]'
+  modules:
+    - |
+      package test
+
+      x := object.union_n(input)
+
+  query: data.test.x = x
+  want_error_code: eval_type_error
+  strict_error: true

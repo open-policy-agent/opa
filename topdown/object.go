@@ -33,10 +33,14 @@ func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	}
 
 	r := ast.NewObject()
-	arr.Foreach(func(t *ast.Term) {
+	err = arr.Iter(func(t *ast.Term) error {
 		var o ast.Object
 		o, err = builtins.ObjectOperand(t.Value, 1)
+		if err != nil {
+			return err
+		}
 		r = mergeWithOverwrite(r, o)
+		return nil
 	})
 	if err != nil {
 		return err
