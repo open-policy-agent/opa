@@ -9,4 +9,5 @@ cases:
     }
   note: typebuiltin/is_object
   query: data.generated.p = x
-  want_result: []
+  want_result:
+  - x: false

@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/loader/filter"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
@@ -73,7 +74,7 @@ type RegoFile struct {
 
 // Filter defines the interface for filtering files during loading. If the
 // filter returns true, the file should be excluded from the result.
-type Filter func(abspath string, info os.FileInfo, depth int) bool
+type Filter = filter.LoaderFilter
 
 // GlobExcludeName excludes files and directories whose names do not match the
 // shell style pattern at minDepth or greater.
@@ -91,6 +92,7 @@ type FileLoader interface {
 	Filtered(paths []string, filter Filter) (*Result, error)
 	AsBundle(path string) (*bundle.Bundle, error)
 	WithMetrics(m metrics.Metrics) FileLoader
+	WithFilter(filter Filter) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
 	WithSkipBundleVerification(skipVerify bool) FileLoader
 	WithProcessAnnotation(processAnnotation bool) FileLoader
@@ -106,6 +108,7 @@ func NewFileLoader() FileLoader {
 
 type fileLoader struct {
 	metrics    metrics.Metrics
+	filter     Filter
 	bvc        *bundle.VerificationConfig
 	skipVerify bool
 	files      map[string]bundle.FileInfo
@@ -115,6 +118,12 @@ type fileLoader struct {
 // WithMetrics provides the metrics instance to use while loading
 func (fl *fileLoader) WithMetrics(m metrics.Metrics) FileLoader {
 	fl.metrics = m
+	return fl
+}
+
+// WithFilter specifies the filter object to use to filter files while loading
+func (fl *fileLoader) WithFilter(filter Filter) FileLoader {
+	fl.filter = filter
 	return fl
 }
 
@@ -178,7 +187,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	bundleLoader, isDir, err := GetBundleDirectoryLoader(path)
+	bundleLoader, isDir, err := GetBundleDirectoryLoaderWithFilter(path, fl.filter)
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +235,33 @@ func GetBundleDirectoryLoader(path string) (bundle.DirectoryLoader, bool, error)
 			return nil, false, err
 		}
 		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path)
+	}
+	return bundleLoader, fi.IsDir(), nil
+}
+
+// GetBundleDirectoryLoaderWithFilter returns a bundle directory loader which can be used to load
+// files in the directory after applying the given filter.
+func GetBundleDirectoryLoaderWithFilter(path string, filter Filter) (bundle.DirectoryLoader, bool, error) {
+	path, err := fileurl.Clean(path)
+	if err != nil {
+		return nil, false, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, false, fmt.Errorf("error reading %q: %s", path, err)
+	}
+
+	var bundleLoader bundle.DirectoryLoader
+
+	if fi.IsDir() {
+		bundleLoader = bundle.NewDirectoryLoader(path).WithFilter(filter)
+	} else {
+		fh, err := os.Open(path)
+		if err != nil {
+			return nil, false, err
+		}
+		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path).WithFilter(filter)
 	}
 	return bundleLoader, fi.IsDir(), nil
 }

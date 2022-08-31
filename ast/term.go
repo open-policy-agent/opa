@@ -893,19 +893,16 @@ func (ref Ref) Append(term *Term) Ref {
 // existing elements are shifted to the right. If pos > len(ref)+1 this
 // function panics.
 func (ref Ref) Insert(x *Term, pos int) Ref {
-	if pos == len(ref) {
+	switch {
+	case pos == len(ref):
 		return ref.Append(x)
-	} else if pos > len(ref)+1 {
+	case pos > len(ref)+1:
 		panic("illegal index")
 	}
 	cpy := make(Ref, len(ref)+1)
-	for i := 0; i < pos; i++ {
-		cpy[i] = ref[i]
-	}
+	copy(cpy, ref[:pos])
 	cpy[pos] = x
-	for i := pos; i < len(ref); i++ {
-		cpy[i+1] = ref[i]
-	}
+	copy(cpy[pos+1:], ref[pos:])
 	return cpy
 }
 
@@ -919,9 +916,8 @@ func (ref Ref) Extend(other Ref) Ref {
 	head.Value = String(head.Value.(Var))
 	offset := len(ref)
 	dst[offset] = head
-	for i := range other[1:] {
-		dst[offset+i+1] = other[i+1]
-	}
+
+	copy(dst[offset+1:], other[1:])
 	return dst
 }
 
@@ -932,10 +928,7 @@ func (ref Ref) Concat(terms []*Term) Ref {
 	}
 	cpy := make(Ref, len(ref)+len(terms))
 	copy(cpy, ref)
-
-	for i := range terms {
-		cpy[len(ref)+i] = terms[i]
-	}
+	copy(cpy[len(ref):], terms)
 	return cpy
 }
 
@@ -1079,7 +1072,7 @@ func (ref Ref) String() string {
 }
 
 // OutputVars returns a VarSet containing variables that would be bound by evaluating
-//  this expression in isolation.
+// this expression in isolation.
 func (ref Ref) OutputVars() VarSet {
 	vis := NewVarVisitor().WithParams(VarVisitorParams{SkipRefHead: true})
 	vis.Walk(ref)

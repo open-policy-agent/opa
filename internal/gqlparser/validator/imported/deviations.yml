@@ -1,0 +1,29 @@
+- rule: 'ExecutableDefinitionsRule/.*'
+  skip: "These are impossible to generate because the parser is split between Query and Schema"
+
+- rule: 'FieldsOnCorrectType/Defined on implementors but not on interface'
+  errors:
+    - message: Cannot query field "nickname" on type "Pet". Did you mean to use an inline fragment on "Cat" or "Dog"?
+      locations:
+        - {line: 3, column: 9}
+
+- rule: 'KnownDirectivesRule/within schema language/with misplaced directives'
+  skip: "When the syntax of schema is mixed in query, parser can't consume schema syntax and ignore it"
+
+- rule: 'KnownTypeNamesRule/ignores type definitions'
+  skip: "When the syntax of schema is mixed in query, parser can't consume schema syntax and ignore it"
+
+- rule: 'OverlappingFieldsCanBeMergedRule/return types must be unambiguous/reports correctly when a non-exclusive follows an exclusive'
+  skip: "Spec issue? scalar is not exists on SomeBox"
+
+- rule: 'ValuesOfCorrectTypeRule/.*custom scalar.*'
+  skip: "Custom scalars are a runtime feature, maybe they dont belong in here?"
+
+- rule: 'NoDeprecatedCustomRule/.*'
+  skip: "This rule is optional and is not part of the Validation section of the GraphQL Specification"
+
+- rule: 'NoSchemaIntrospectionCustomRule/.*'
+  skip: "This rule is optional and is not part of the Validation section of the GraphQL Specification"
+
+- rule: 'KnownTypeNamesRule/references to standard scalars that are missing in schema'
+  skip: "standard scalars must be exists in schema"

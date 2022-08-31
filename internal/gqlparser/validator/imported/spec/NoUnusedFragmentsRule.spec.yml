@@ -1,0 +1,150 @@
+- name: all fragment names are used
+  rule: NoUnusedFragments
+  schema: 0
+  query: |2-
+
+          {
+            human(id: 4) {
+              ...HumanFields1
+              ... on Human {
+                ...HumanFields2
+              }
+            }
+          }
+          fragment HumanFields1 on Human {
+            name
+            ...HumanFields3
+          }
+          fragment HumanFields2 on Human {
+            name
+          }
+          fragment HumanFields3 on Human {
+            name
+          }
+
+  errors: []
+- name: all fragment names are used by multiple operations
+  rule: NoUnusedFragments
+  schema: 0
+  query: |2-
+
+          query Foo {
+            human(id: 4) {
+              ...HumanFields1
+            }
+          }
+          query Bar {
+            human(id: 4) {
+              ...HumanFields2
+            }
+          }
+          fragment HumanFields1 on Human {
+            name
+            ...HumanFields3
+          }
+          fragment HumanFields2 on Human {
+            name
+          }
+          fragment HumanFields3 on Human {
+            name
+          }
+
+  errors: []
+- name: contains unknown fragments
+  rule: NoUnusedFragments
+  schema: 0
+  query: |2-
+
+          query Foo {
+            human(id: 4) {
+              ...HumanFields1
+            }
+          }
+          query Bar {
+            human(id: 4) {
+              ...HumanFields2
+            }
+          }
+          fragment HumanFields1 on Human {
+            name
+            ...HumanFields3
+          }
+          fragment HumanFields2 on Human {
+            name
+          }
+          fragment HumanFields3 on Human {
+            name
+          }
+          fragment Unused1 on Human {
+            name
+          }
+          fragment Unused2 on Human {
+            name
+          }
+
+  errors:
+    - message: Fragment "Unused1" is never used.
+      locations:
+        - {line: 22, column: 7}
+    - message: Fragment "Unused2" is never used.
+      locations:
+        - {line: 25, column: 7}
+- name: contains unknown fragments with ref cycle
+  rule: NoUnusedFragments
+  schema: 0
+  query: |2-
+
+          query Foo {
+            human(id: 4) {
+              ...HumanFields1
+            }
+          }
+          query Bar {
+            human(id: 4) {
+              ...HumanFields2
+            }
+          }
+          fragment HumanFields1 on Human {
+            name
+            ...HumanFields3
+          }
+          fragment HumanFields2 on Human {
+            name
+          }
+          fragment HumanFields3 on Human {
+            name
+          }
+          fragment Unused1 on Human {
+            name
+            ...Unused2
+          }
+          fragment Unused2 on Human {
+            name
+            ...Unused1
+          }
+
+  errors:
+    - message: Fragment "Unused1" is never used.
+      locations:
+        - {line: 22, column: 7}
+    - message: Fragment "Unused2" is never used.
+      locations:
+        - {line: 26, column: 7}
+- name: contains unknown and undef fragments
+  rule: NoUnusedFragments
+  schema: 0
+  query: |2-
+
+          query Foo {
+            human(id: 4) {
+              ...bar
+            }
+          }
+          fragment foo on Human {
+            name
+          }
+
+  errors:
+    - message: Fragment "foo" is never used.
+      locations:
+        - {line: 7, column: 7}

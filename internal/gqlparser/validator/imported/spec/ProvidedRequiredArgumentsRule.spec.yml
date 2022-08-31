@@ -1,0 +1,235 @@
+- name: ignores unknown arguments
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+          {
+            dog {
+              isHouseTrained(unknownArgument: true)
+            }
+          }
+
+  errors: []
+- name: Valid non-nullable value/Arg on optional arg
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                isHouseTrained(atOtherHomes: true)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/No Arg on optional arg
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                isHouseTrained
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/No arg on non-null field with default
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                nonNullFieldWithDefault
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple args
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req1: 1, req2: 2)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple args reverse order
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req2: 2, req1: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/No args on multiple optional
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/One arg on multiple optional
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts(opt1: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Second arg on multiple optional
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts(opt2: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple required args on mixedList
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple required and one optional arg on mixedList
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4, opt1: 5)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/All required and optional args on mixedList
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4, opt1: 5, opt2: 6)
+              }
+            }
+
+  errors: []
+- name: Invalid non-nullable value/Missing one non-nullable argument
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req2: 2)
+              }
+            }
+
+  errors:
+    - message: Field "multipleReqs" argument "req1" of type "Int!" is required, but it was not provided.
+      locations:
+        - {line: 4, column: 13}
+- name: Invalid non-nullable value/Missing multiple non-nullable arguments
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs
+              }
+            }
+
+  errors:
+    - message: Field "multipleReqs" argument "req1" of type "Int!" is required, but it was not provided.
+      locations:
+        - {line: 4, column: 13}
+    - message: Field "multipleReqs" argument "req2" of type "Int!" is required, but it was not provided.
+      locations:
+        - {line: 4, column: 13}
+- name: Invalid non-nullable value/Incorrect value and missing argument
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req1: "one")
+              }
+            }
+
+  errors:
+    - message: Field "multipleReqs" argument "req2" of type "Int!" is required, but it was not provided.
+      locations:
+        - {line: 4, column: 13}
+- name: Directive arguments/ignores unknown directives
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              dog @unknown
+            }
+
+  errors: []
+- name: Directive arguments/with directives of valid types
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              dog @include(if: true) {
+                name
+              }
+              human @skip(if: false) {
+                name
+              }
+            }
+
+  errors: []
+- name: Directive arguments/with directive with missing types
+  rule: ProvidedRequiredArguments
+  schema: 0
+  query: |2-
+
+            {
+              dog @include {
+                name @skip
+              }
+            }
+
+  errors:
+    - message: Directive "@include" argument "if" of type "Boolean!" is required, but it was not provided.
+      locations:
+        - {line: 3, column: 15}
+    - message: Directive "@skip" argument "if" of type "Boolean!" is required, but it was not provided.
+      locations:
+        - {line: 4, column: 18}

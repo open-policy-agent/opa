@@ -1,0 +1,56 @@
+- name: known fragment names are valid
+  rule: KnownFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            human(id: 4) {
+              ...HumanFields1
+              ... on Human {
+                ...HumanFields2
+              }
+              ... {
+                name
+              }
+            }
+          }
+          fragment HumanFields1 on Human {
+            name
+            ...HumanFields3
+          }
+          fragment HumanFields2 on Human {
+            name
+          }
+          fragment HumanFields3 on Human {
+            name
+          }
+
+  errors: []
+- name: unknown fragment names are invalid
+  rule: KnownFragmentNames
+  schema: 0
+  query: |2-
+
+          {
+            human(id: 4) {
+              ...UnknownFragment1
+              ... on Human {
+                ...UnknownFragment2
+              }
+            }
+          }
+          fragment HumanFields on Human {
+            name
+            ...UnknownFragment3
+          }
+
+  errors:
+    - message: Unknown fragment "UnknownFragment1".
+      locations:
+        - {line: 4, column: 14}
+    - message: Unknown fragment "UnknownFragment2".
+      locations:
+        - {line: 6, column: 16}
+    - message: Unknown fragment "UnknownFragment3".
+      locations:
+        - {line: 12, column: 12}

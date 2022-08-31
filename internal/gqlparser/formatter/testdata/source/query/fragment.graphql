@@ -1,0 +1,19 @@
+query FooBarQuery ($after: String!) {
+    fizzList(first: 100, after: $after) {
+        nodes {
+            id
+            ... FooFragment
+            ... on Foo {
+                id
+            }
+            ... {
+                id
+            }
+            name
+        }
+    }
+}
+
+fragment FooFragment on Foo {
+    id
+}

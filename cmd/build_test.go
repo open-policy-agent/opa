@@ -288,3 +288,65 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildBundleModeIgnoreFlag(t *testing.T) {
+
+	files := map[string]string{
+		"/a/b/d/data.json":                              `{"e": "f"}`,
+		"/policy.rego":                                  "package foo\n p = 1",
+		"/policy_test.rego":                             "package foo\n test_p { p }",
+		"/roles/policy.rego":                            "package bar\n p = 1",
+		"/roles/policy_test.rego":                       "package bar\n test_p { p }",
+		"/deeper/dir/path/than/others/policy.rego":      "package baz\n p = 1",
+		"/deeper/dir/path/than/others/policy_test.rego": "package baz\n test_p { p }",
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+		params.bundleMode = true
+		params.ignore = []string{"*_test.rego"}
+
+		err := dobuild(params, []string{root})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check that test files are not included in the output bundle
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tr := tar.NewReader(gr)
+
+		files := []string{}
+
+		for {
+			f, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+
+			files = append(files, filepath.Base(f.Name))
+		}
+
+		expected := 4
+		if len(files) != expected {
+			t.Fatalf("expected %v files but got %v", expected, len(files))
+		}
+	})
+}
