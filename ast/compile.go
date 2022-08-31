@@ -873,7 +873,7 @@ func (c *Compiler) checkRuleConflicts() {
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
 			ref := r.Ref()
-			name = rw(ref).String()
+			name = rw(ref.Copy()).String() // varRewriter operates in-place
 			kinds[r.Head.RuleKind()] = struct{}{}
 			arities[len(r.Head.Args)] = struct{}{}
 			if r.Default {

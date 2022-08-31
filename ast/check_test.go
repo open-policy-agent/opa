@@ -347,6 +347,8 @@ func TestCheckInferenceRules(t *testing.T) {
 	ruleset2 := [][2]string{
 		{`ref_rule_single`, `p.q.r { true }`},
 		{`ref_rule_single_with_number_key`, `p.q[3] { true }`},
+		{`ref_regression_array_key`,
+			`walker[[p, v]] = o { l = input; walk(l, k); [p, v] = k; o = {} }`},
 	}
 
 	tests := []struct {
@@ -493,6 +495,13 @@ func TestCheckInferenceRules(t *testing.T) {
 				}},
 				types.NewDynamicProperty(types.S, types.A),
 			)},
+
+		{"ref_regression_array_key", ruleset2, "data.ref_regression_array_key.walker",
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
+					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+			)},
 	}
 
 	for _, tc := range tests {
@@ -517,7 +526,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 			ref := MustParseRef(tc.ref)
 			checker := newTypeChecker()
-			env, err := checker.CheckTypes(nil, elems, nil)
+			env, err := checker.CheckTypes(newTypeChecker().Env(map[string]*Builtin{"walk": BuiltinMap["walk"]}), elems, nil)
 
 			if err != nil {
 				t.Fatalf("Unexpected error %v:", err)
