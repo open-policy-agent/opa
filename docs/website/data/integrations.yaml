@@ -1458,8 +1458,8 @@ integrations:
 gitgat:
     title: GitGat
     description:  |
-      GitGat is a set of self-contained OPA policies. It evaluates the security settings of your SCM account and 
-      provides you with a status report and actionable recommendations.
+      GitGat is a set of self-contained OPA policies.
+      It evaluates the security settings of your SCM account and provides you with a status report and actionable recommendations.
     labels:
       category: security
       layer: application
