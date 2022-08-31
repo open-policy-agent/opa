@@ -650,7 +650,7 @@ integrations:
       layer: data
       category: authorization
     tutorials:
-      - https://github.com/minio/minio/blob/master/docs/sts/opa.md
+      - https://github.com/minio/minio/blob/master/docs/iam/opa.md
     inventors:
       - minio
       - styra
