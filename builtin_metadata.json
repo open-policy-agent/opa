@@ -383,6 +383,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "boolean"
@@ -550,6 +551,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "boolean"
@@ -1869,6 +1871,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "array[any]"
@@ -1948,6 +1951,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "boolean"
@@ -2027,6 +2031,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "null"
@@ -2106,6 +2111,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "object[any: any]"
@@ -2185,6 +2191,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "set[any]"
@@ -2264,6 +2271,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "string"
@@ -8402,6 +8410,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "boolean"
@@ -9411,6 +9420,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "boolean"
@@ -10618,6 +10628,7 @@
       "v0.43.0",
       "edge"
     ],
+    "deprecated": true,
     "introduced": "v0.17.0",
     "result": {
       "type": "set[any]"

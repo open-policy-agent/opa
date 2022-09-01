@@ -1317,7 +1317,6 @@ var NumbersRange = &Builtin{
  * Units
  */
 
-// UnitsParse
 var UnitsParse = &Builtin{
 	Name: "units.parse",
 	Description: `Converts strings like "10G", "5K", "4M", "1500m" and the like into a number.
@@ -2658,7 +2657,6 @@ var GlobMatch = &Builtin{
 	),
 }
 
-// GlobQuoteMeta
 var GlobQuoteMeta = &Builtin{
 	Name:        "glob.quote_meta",
 	Description: "Returns a string which represents a version of the pattern where all asterisks have been escaped.",
@@ -2831,6 +2829,7 @@ var SetDiff = &Builtin{
 		),
 		types.NewSet(types.A),
 	),
+	deprecated: true,
 }
 
 // NetCIDROverlap has been replaced by the `net.cidr_contains` built-in.
@@ -2843,6 +2842,7 @@ var NetCIDROverlap = &Builtin{
 		),
 		types.B,
 	),
+	deprecated: true,
 }
 
 // CastArray checks the underlying type of the input. If it is array or set, an array
@@ -2853,6 +2853,7 @@ var CastArray = &Builtin{
 		types.Args(types.A),
 		types.NewArray(nil, types.A),
 	),
+	deprecated: true,
 }
 
 // CastSet checks the underlying type of the input.
@@ -2865,6 +2866,7 @@ var CastSet = &Builtin{
 		types.Args(types.A),
 		types.NewSet(types.A),
 	),
+	deprecated: true,
 }
 
 // CastString returns input if it is a string; if not returns error.
@@ -2875,6 +2877,7 @@ var CastString = &Builtin{
 		types.Args(types.A),
 		types.S,
 	),
+	deprecated: true,
 }
 
 // CastBoolean returns input if it is a boolean; if not returns error.
@@ -2884,6 +2887,7 @@ var CastBoolean = &Builtin{
 		types.Args(types.A),
 		types.B,
 	),
+	deprecated: true,
 }
 
 // CastNull returns null if input is null; if not returns error.
@@ -2893,6 +2897,7 @@ var CastNull = &Builtin{
 		types.Args(types.A),
 		types.NewNull(),
 	),
+	deprecated: true,
 }
 
 // CastObject returns the given object if it is null; throws an error otherwise
@@ -2902,6 +2907,7 @@ var CastObject = &Builtin{
 		types.Args(types.A),
 		types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 	),
+	deprecated: true,
 }
 
 // RegexMatchDeprecated declares `re_match` which has been deprecated. Use `regex.match` instead.
@@ -2914,6 +2920,7 @@ var RegexMatchDeprecated = &Builtin{
 		),
 		types.B,
 	),
+	deprecated: true,
 }
 
 // All takes a list and returns true if all of the items

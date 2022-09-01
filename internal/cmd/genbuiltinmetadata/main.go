@@ -74,6 +74,9 @@ func main() {
 		if latest.Description != "" {
 			md["description"] = latest.Description
 		}
+		if latest.IsDeprecated() {
+			md["deprecated"] = true
+		}
 		mdata[bi.Name] = md
 	}
 
@@ -156,8 +159,7 @@ func builtinCategories(b *ast.Builtin) []string {
 	}
 	if !b.IsDeprecated() {
 		switch b.Name {
-		case "assign", "cast_array", "cast_boolean", "cast_null", "cast_object", "cast_set", "cast_string",
-			"eq", "print", "re_match", "set_diff":
+		case "assign", "eq", "print":
 			// Do nothing.
 		default:
 			log.Printf("WARN: not categorized: %s", b.Name)
