@@ -67,3 +67,14 @@ cases:
   - x:
       buz: {}
       x: 3
+- note: regression/type checking with ref rules
+  modules:
+  - |
+    package test
+    all[0] = [2]
+    level := 1
+
+    p := y { y := all[level-1][_] }
+  query: data.test.p = x
+  want_result:
+  - x: 2

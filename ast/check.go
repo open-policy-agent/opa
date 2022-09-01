@@ -688,8 +688,9 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 	case Var:
 
 		if exist := rc.env.Get(value); exist != nil {
-			if !unifies(types.S, exist) {
-				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, types.S, getOneOfForNode(node))
+			tpe := types.Keys(rc.env.getRefRecExtent(node))
+			if !unifies(tpe, exist) {
+				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, tpe, getOneOfForNode(node))
 			}
 		} else {
 			rc.env.tree.PutOne(value, types.S)

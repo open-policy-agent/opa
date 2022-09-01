@@ -818,6 +818,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	env := newTestEnv([]string{
 		`p { true }`,
 		`q = {"foo": 1, "bar": 2} { true }`,
+		`a.b.c[3] = [4] { true }`,
 	})
 
 	tests := []struct {
@@ -836,7 +837,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   2,
 			have:  types.N,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
 		},
 		{
 			note:  "bad non-leaf ref",
@@ -845,7 +846,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   2,
 			have:  types.N,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
 		},
 		{
 			note:  "bad leaf ref",
@@ -855,6 +856,15 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			have:  types.N,
 			want:  types.S,
 			oneOf: []Value{String("bar"), String("foo")},
+		},
+		{
+			note:  "bad ref hitting last term",
+			query: `x = true; data.test.a.b.c[x][_]`,
+			ref:   `data.test.a.b.c[x][_]`,
+			pos:   5,
+			have:  types.B,
+			want:  types.Any{types.N, types.S},
+			oneOf: []Value{Number("3")},
 		},
 		{
 			note:  "bad leaf var",
@@ -893,7 +903,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			ref:   "data.test[1]",
 			pos:   2,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
 		},
 		{
 			note:  "composite ref operand",
