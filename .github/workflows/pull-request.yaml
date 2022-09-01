@@ -177,8 +177,6 @@ jobs:
         run: make ci-wasm
         timeout-minutes: 15
         if: steps.changed-files.outputs.any_changed == 'true'
-        env:
-          DOCKER_RUNNING: 0
 
       - name: Build and Test Wasm SDK
         run: make ci-go-wasm-sdk-e2e-test
