@@ -1471,19 +1471,19 @@ WASM_EXPORT(test_types)
 void test_types(void)
 {
     test("is_number", opa_value_compare(opa_types_is_number(opa_number_int(0)), opa_boolean(true)) == 0);
-    test("is_number", opa_types_is_number(opa_null()) == NULL);
+    test("is_number", opa_value_compare(opa_types_is_number(opa_null()), opa_boolean(false)) == 0);
     test("is_string", opa_value_compare(opa_types_is_string(opa_string("a", 1)), opa_boolean(true)) == 0);
-    test("is_string", opa_types_is_string(opa_null()) == NULL);
+    test("is_string", opa_value_compare(opa_types_is_string(opa_null()), opa_boolean(false)) == 0);
     test("is_boolean", opa_value_compare(opa_types_is_boolean(opa_boolean(true)), opa_boolean(true)) == 0);
-    test("is_boolean", opa_types_is_boolean(opa_null()) == NULL);
+    test("is_boolean", opa_value_compare(opa_types_is_boolean(opa_null()), opa_boolean(false)) == 0);
     test("is_array", opa_value_compare(opa_types_is_array(opa_array()), opa_boolean(true)) == 0);
-    test("is_array", opa_types_is_array(opa_null()) == NULL);
+    test("is_array", opa_value_compare(opa_types_is_array(opa_null()), opa_boolean(false)) == 0);
     test("is_set", opa_value_compare(opa_types_is_set(opa_set()), opa_boolean(true)) == 0);
-    test("is_set", opa_types_is_set(opa_null()) == NULL);
+    test("is_set", opa_value_compare(opa_types_is_set(opa_null()), opa_boolean(false)) == 0);
     test("is_object", opa_value_compare(opa_types_is_object(opa_object()), opa_boolean(true)) == 0);
-    test("is_object", opa_types_is_object(opa_null()) == NULL);
+    test("is_object", opa_value_compare(opa_types_is_object(opa_null()), opa_boolean(false)) == 0);
     test("is_null", opa_value_compare(opa_types_is_null(opa_null()), opa_boolean(true)) == 0);
-    test("is_null", opa_types_is_null(opa_number_int(0)) == NULL);
+    test("is_null", opa_value_compare(opa_types_is_null(opa_number_int(0)), opa_boolean(false)) == 0);
 
     test("name/null", opa_value_compare(opa_types_name(opa_null()), opa_string("null", 4)) == 0);
     test("name/boolean", opa_value_compare(opa_types_name(opa_boolean(true)), opa_string("boolean", 7)) == 0);
