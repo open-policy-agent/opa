@@ -1,8 +1,6 @@
 DOCKER := docker
-
-DEBUG ?= 0
-
 DOCKER_FLAGS := --rm -e DEBUG
+DEBUG ?= 0
 
 ifeq ($(shell tty > /dev/null && echo 1 || echo 0), 1)
 DOCKER_FLAGS += -it
