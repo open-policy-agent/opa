@@ -1995,9 +1995,21 @@ func TestCompilerCheckDeprecatedMethods(t *testing.T) {
 			note: "user-defined any()",
 			module: `package test
 				import future.keywords.in
-				any(arr) = true in arr
+				any(arr) := true in arr
 				p := any([true, false])
 			`,
+		},
+		{
+			note: "re_match built-in",
+			module: `package test
+				p := re_match("[a]", "a")
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte(`re_match("[a]", "a")`), "", 2, 10),
+					Message:  "deprecated built-in function calls in expression: re_match",
+				},
+			},
 		},
 	}
 
