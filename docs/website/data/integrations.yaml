@@ -561,11 +561,14 @@ integrations:
     labels:
       category: streaming
       layer: data
+    blogs:
+      - https://opencredo.com/blogs/controlling-kafka-data-flows-using-open-policy-agent/
     tutorials:
       - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
       - https://github.com/StyraInc/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
+      - https://github.com/opencredo/opa-single-message-transformer
     inventors:
       - ticketmaster
       - styra
@@ -1276,7 +1279,7 @@ integrations:
       - https://github.com/nsmith5/rekor-sidekick
     videos:
       - https://www.youtube.com/watch?v=lHSLPIo1pz8
-  
+
   cosign:
     title: Container Signing, Verification and Storage in an OCI registry
     description: |
@@ -1454,7 +1457,7 @@ integrations:
       - https://github.com/StyraInc/graphql-apollo-example
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
-  
+
   spacelift:
      title: Spacelift
      description: Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.
@@ -1878,6 +1881,6 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
-  ansible:  
+  ansible:
     name: Ansible
     link: https://www.ansible.com
