@@ -43,6 +43,7 @@ type (
 		Runtime                *ast.Term             // runtime information on the OPA instance
 		Cache                  builtins.Cache        // built-in function state cache
 		InterQueryBuiltinCache cache.InterQueryCache // cross-query built-in function state cache
+		NDBuiltinCache         builtins.NDBCache     // cache for non-deterministic built-in state
 		Location               *ast.Location         // location of built-in call
 		Tracers                []Tracer              // Deprecated: Use QueryTracers instead
 		QueryTracers           []QueryTracer         // tracer objects for trace() built-in function

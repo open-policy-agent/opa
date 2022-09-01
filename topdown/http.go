@@ -136,7 +136,7 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 		return nil, err
 	}
 
-	// check if cache already has a response for this query
+	// Check if cache already has a response for this query
 	resp, err := reqExecutor.CheckCache()
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 			return nil, err
 		}
 		defer util.Close(httpResp)
-		// add result to cache
+		// Add result to intra/inter-query cache.
 		resp, err = reqExecutor.InsertIntoCache(httpResp)
 		if err != nil {
 			return nil, err

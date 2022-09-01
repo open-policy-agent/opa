@@ -78,6 +78,7 @@ type eval struct {
 	instr                  *Instrumentation
 	builtins               map[string]*Builtin
 	builtinCache           builtins.Cache
+	ndBuiltinCache         builtins.NDBCache
 	functionMocks          *functionMocksStack
 	virtualCache           *virtualCache
 	comprehensionCache     *comprehensionCache
@@ -793,6 +794,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Runtime:                e.runtime,
 		Cache:                  e.builtinCache,
 		InterQueryBuiltinCache: e.interQueryBuiltinCache,
+		NDBuiltinCache:         e.ndBuiltinCache,
 		Location:               e.query[e.index].Location,
 		QueryTracers:           e.tracers,
 		TraceEnabled:           e.traceEnabled,
@@ -810,6 +812,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		f:     f,
 		terms: terms[1:],
 	}
+
 	return eval.eval(iter)
 }
 
@@ -1671,6 +1674,11 @@ type evalBuiltin struct {
 	terms []*ast.Term
 }
 
+// Is this builtin non-deterministic, and did the caller provide an NDBCache?
+func (e *evalBuiltin) canUseNDBCache(bi *ast.Builtin) bool {
+	return bi.Nondeterministic && e.bctx.NDBuiltinCache != nil
+}
+
 func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
@@ -1682,21 +1690,70 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
 
 	e.e.instr.startTimer(evalOpBuiltinCall)
+	var err error
 
-	err := e.f(e.bctx, operands, func(output *ast.Term) error {
+	// NOTE(philipc): We sometimes have to drop the very last term off
+	// the args list for cases where a builtin's result is used/assigned,
+	// because the last term will be a generated term, not an actual
+	// argument to the builtin.
+	endIndex := len(operands)
+	if len(operands) > numDeclArgs {
+		endIndex--
+	}
+
+	// We skip evaluation of the builtin entirely if the NDBCache is
+	// present, and we have a non-deterministic builtin already cached.
+	if e.canUseNDBCache(e.bi) {
+		e.e.instr.stopTimer(evalOpBuiltinCall)
+
+		// Unify against the NDBCache result if present.
+		if v, ok := e.bctx.NDBuiltinCache.Get(e.bi.Name, ast.NewArray(e.terms[:endIndex]...)); ok {
+			switch {
+			case e.bi.Decl.Result() == nil:
+				err = iter()
+			case len(operands) == numDeclArgs:
+				if v.Compare(ast.Boolean(false)) != 0 {
+					err = iter()
+				} // else: nothing to do, don't iter()
+			default:
+				err = e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
+			}
+
+			if err != nil {
+				return Halt{Err: err}
+			}
+
+			return nil
+		}
+
+		e.e.instr.startTimer(evalOpBuiltinCall)
+
+		// Otherwise, we'll need to go through the normal unify flow.
+	}
+
+	// Normal unification flow for builtins:
+	err = e.f(e.bctx, operands, func(output *ast.Term) error {
 
 		e.e.instr.stopTimer(evalOpBuiltinCall)
 
 		var err error
 
-		if e.bi.Decl.Result() == nil {
+		switch {
+		case e.bi.Decl.Result() == nil:
 			err = iter()
-		} else if len(operands) == numDeclArgs {
+		case len(operands) == numDeclArgs:
 			if output.Value.Compare(ast.Boolean(false)) != 0 {
 				err = iter()
-			}
-		} else {
-			err = e.e.unify(e.terms[len(e.terms)-1], output, iter)
+			} // else: nothing to do, don't iter()
+		default:
+			err = e.e.unify(e.terms[endIndex], output, iter)
+		}
+
+		// If the NDBCache is present, we can assume this builtin
+		// call was not cached earlier.
+		if e.canUseNDBCache(e.bi) {
+			// Populate the NDBCache from the output term.
+			e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(e.terms[:endIndex]...), output.Value)
 		}
 
 		if err != nil {

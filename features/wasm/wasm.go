@@ -64,6 +64,7 @@ func (o *OPA) Eval(ctx context.Context, opts opa.EvalOpts) (*opa.Result, error) 
 		Time:                   opts.Time,
 		Seed:                   opts.Seed,
 		InterQueryBuiltinCache: opts.InterQueryBuiltinCache,
+		NDBuiltinCache:         opts.NDBuiltinCache,
 		PrintHook:              opts.PrintHook,
 		Capabilities:           opts.Capabilities,
 	}
