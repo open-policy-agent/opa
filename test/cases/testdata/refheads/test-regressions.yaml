@@ -19,3 +19,51 @@ cases:
       ms:
         a:
           z: a
+- note: regression/function refs and package extent
+  modules:
+  - |
+    package test
+    import future.keywords.if
+
+    foo.bar(x) = x+1
+    x := foo.bar(2)
+  query: data.test = x
+  want_result:
+  - x:
+      foo: {}
+      x: 3
+
+- note: regression/rule refs and package extent
+  modules:
+  - |
+    package test
+    import future.keywords.if
+
+    buz.quz = 3 if input == 3
+    x := y {
+      y := buz.quz with input as 3
+    }
+  query: data.test = x
+  want_result:
+  - x:
+      buz: {}
+      x: 3
+- note: regression/rule refs and package extents, multiple modules
+  modules:
+  - |
+    package test
+    import future.keywords.if
+
+    x := y {
+      y := data.test.buz.quz with input as 3
+    }
+  - |
+    package test.buz
+    import future.keywords.if
+
+    quz = 3 if input == 3
+  query: data.test = x
+  want_result:
+  - x:
+      buz: {}
+      x: 3
