@@ -601,6 +601,20 @@ integrations:
     inventors:
       - redhat
 
+  ccbr:
+    title: ccbr 
+    description: CCBR is a policy management system project. It uses the policy language Rego to implement the CIS benchmark test of cloud native kubernetes. In addition, it integrates gatekeeper, manages its constraint templates, constraints and policies, and supports policy deployment and audit inspection.
+    software:
+      - ccbr
+    labels:
+      category: ZTA
+      layer: Policy Management
+    code:
+      - https://github.com/niuzhi/ccbr
+    inventors:
+      - niuzhi
+
+
   ceph:
     title: Ceph Object Storage Authorization
     description: Ceph is a highly scalable distributed storage solution that uniquely delivers object, block, and file storage in one unified system.  OPA provides fine-grained, context-aware authorization of the information stored within Ceph.
@@ -1884,3 +1898,6 @@ software:
   ansible:
     name: Ansible
     link: https://www.ansible.com
+  ccbr:
+    name: ccbr
+    link: https://github.com/niuzhi/ccbr
