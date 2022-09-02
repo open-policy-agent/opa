@@ -418,7 +418,7 @@ func (c *Compiler) optimize(ctx context.Context) error {
 	return nil
 }
 
-func (c *Compiler) compilePlan(ctx context.Context) error {
+func (c *Compiler) compilePlan(context.Context) error {
 
 	// Lazily compile the modules if needed. If optimizations were run, the
 	// AST compiler will not be set because the default target does not require it.
@@ -464,6 +464,7 @@ func (c *Compiler) compilePlan(ctx context.Context) error {
 	// Create query sets for each of the entrypoints.
 	resultSym := ast.NewTerm(resultVar)
 	queries := make([]planner.QuerySet, len(c.entrypointrefs))
+	var unmappedEntrypoints []string
 
 	for i := range c.entrypointrefs {
 
@@ -474,11 +475,20 @@ func (c *Compiler) compilePlan(ctx context.Context) error {
 			return err
 		}
 
+		if len(c.compiler.GetRules(c.entrypointrefs[i].Value.(ast.Ref))) == 0 {
+			unmappedEntrypoints = append(unmappedEntrypoints, c.entrypoints[i])
+		}
+
 		queries[i] = planner.QuerySet{
 			Name:          c.entrypoints[i],
 			Queries:       []ast.Body{compiled},
 			RewrittenVars: qc.RewrittenVars(),
 		}
+	}
+
+	if len(unmappedEntrypoints) > 0 {
+		return fmt.Errorf("entrypoint %q does not refer to a rule or policy decision", unmappedEntrypoints[0])
+
 	}
 
 	// Prepare modules and builtins for the planner.
@@ -503,7 +513,7 @@ func (c *Compiler) compilePlan(ctx context.Context) error {
 		return err
 	}
 
-	// dump policy IR (if "debug" wasn't requested, debug.Witer will discard it)
+	// dump policy IR (if "debug" wasn't requested, debug.Writer will discard it)
 	err = ir.Pretty(c.debug.Writer(), policy)
 	if err != nil {
 		return err

@@ -941,8 +941,8 @@ var RegexFind = &Builtin{
 // GlobsMatch takes two strings regexp-style strings and evaluates to true if their
 // intersection matches a non-empty set of non-empty strings.
 // Examples:
-//  - "a.a." and ".b.b" -> true.
-//  - "[a-z]*" and [0-9]+" -> not true.
+//   - "a.a." and ".b.b" -> true.
+//   - "[a-z]*" and [0-9]+" -> not true.
 var GlobsMatch = &Builtin{
 	Name: "regex.globs_match",
 	Description: `Checks if the intersection of two glob-style regular expressions matches a non-empty set of non-empty strings.

@@ -55,6 +55,11 @@ func TestCompilerInitErrors(t *testing.T) {
 			c:    New().WithTarget("wasm"),
 			want: errors.New("wasm compilation requires at least one entrypoint"),
 		},
+		{
+			note: "plan compilation requires at least one entrypoint",
+			c:    New().WithTarget("plan"),
+			want: errors.New("plan compilation requires at least one entrypoint"),
+		},
 	}
 
 	for _, tc := range tests {
@@ -777,6 +782,41 @@ func TestCompilerPlanTargetPruneUnused(t *testing.T) {
 		f := policy.Funcs.Funcs[0]
 		if exp, act := "g0.data.test.p", f.Name; act != exp {
 			t.Fatalf("expected func named %v, got %v", exp, act)
+		}
+	})
+}
+
+func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		p := 7
+		q := p + 1`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("test/p", "test/q", "test/no")
+		err := compiler.Build(context.Background())
+		if err == nil {
+			t.Error("expected error from unmatched entrypoint")
+		}
+		expectError := "entrypoint \"test/no\" does not refer to a rule or policy decision"
+		if err.Error() != expectError {
+			t.Errorf("expected error %s, got: %s", expectError, err.Error())
+		}
+	})
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("foo", "foo.bar", "test/no")
+		err := compiler.Build(context.Background())
+		if err == nil {
+			t.Error("expected error from unmatched entrypoints")
+		}
+		expectError := "entrypoint \"foo\" does not refer to a rule or policy decision"
+		if err.Error() != expectError {
+			t.Errorf("expected error %s, got: %s", expectError, err.Error())
 		}
 	})
 }
