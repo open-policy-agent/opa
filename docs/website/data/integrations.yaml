@@ -561,14 +561,11 @@ integrations:
     labels:
       category: streaming
       layer: data
-    blogs:
-      - https://opencredo.com/blogs/controlling-kafka-data-flows-using-open-policy-agent/
     tutorials:
       - https://www.openpolicyagent.org/docs/latest/kafka-authorization/
     code:
       - https://github.com/StyraInc/opa-kafka-plugin
       - https://github.com/llofberg/kafka-authorizer-opa
-      - https://github.com/opencredo/opa-single-message-transformer
     inventors:
       - ticketmaster
       - styra
@@ -600,6 +597,19 @@ integrations:
       - https://github.com/StyraInc/opa-kafka-plugin
     inventors:
       - redhat
+
+  ccbr:
+    title: ccbr 
+    description: CCBR is a policy management system project. It uses the policy language Rego to implement the CIS benchmark test of cloud native kubernetes. In addition, it integrates gatekeeper, manages its constraint templates, constraints and policies, and supports policy deployment and audit inspection.
+    software:
+      - ccbr
+    labels:
+      category: ZTA
+      layer: Policy Management
+    code:
+      - https://github.com/niuzhi/ccbr
+    inventors:
+      - niuzhi
 
   ceph:
     title: Ceph Object Storage Authorization
@@ -1279,7 +1289,7 @@ integrations:
       - https://github.com/nsmith5/rekor-sidekick
     videos:
       - https://www.youtube.com/watch?v=lHSLPIo1pz8
-
+  
   cosign:
     title: Container Signing, Verification and Storage in an OCI registry
     description: |
@@ -1458,30 +1468,6 @@ integrations:
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
 
-  spacelift:
-     title: Spacelift
-     description: Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.
-     labels:
-       category: Infrastructure as Code
-       layer: cicd
-     software:
-       - terraform
-       - pulumi
-       - cloudformation
-       - kubernetes
-       - ansible
-       - aws
-       - gcp
-       - azure
-     tutorials:
-       - https://docs.spacelift.io/concepts/policy
-     code:
-       - https://github.com/spacelift-io/spacelift-policies-example-library
-     inventors:
-       - spacelift
-     blogs:
-       - https://spacelift.io/blog/what-is-open-policy-agent-and-how-it-works
-
 organizations:
   styra:
     name: Styra
@@ -1639,9 +1625,6 @@ organizations:
   netis:
     name: Netis
     link:  http://netis.si/en/
-  spacelift:
-    name: Spacelift
-    link: https://spacelift.io
 
 software:
   oauth:
@@ -1881,6 +1864,6 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
-  ansible:
-    name: Ansible
-    link: https://www.ansible.com
+  ccbr:
+    name: ccbr
+    link: https://github.com/niuzhi/ccbr
