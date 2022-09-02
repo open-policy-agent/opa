@@ -685,8 +685,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 	// Handle dynamic ref operands.
 	switch value := head.Value.(type) {
 
-	case Var:
-
+	case Var, Number, Boolean:
 		if exist := rc.env.Get(value); exist != nil {
 			tpe := types.Keys(rc.env.getRefRecExtent(node))
 			if !unifies(tpe, exist) {
@@ -696,7 +695,7 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 			rc.env.tree.PutOne(value, types.S)
 		}
 
-	case Ref:
+	case Ref: // TODO(sr): Can this happen? Aren't refs in refs rewritten to the Var case above?
 
 		exist := rc.env.Get(value)
 		if exist == nil {
@@ -705,13 +704,14 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 			return nil
 		}
 
-		if !unifies(types.S, exist) {
+		if !unifies(types.S, exist) { // NOTE(sr): types.S ok here?
 			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, types.S, getOneOfForNode(node))
 		}
 
 	// Catch other ref operand types here. Non-leaf nodes must be referred to
 	// with string values.
 	default:
+		// NOTE(sr): types.S ok here?
 		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, types.S, getOneOfForNode(node))
 	}
 

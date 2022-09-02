@@ -902,6 +902,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			query: `data.test[1]`,
 			ref:   "data.test[1]",
 			pos:   2,
+			have:  types.N,
 			want:  types.S,
 			oneOf: []Value{String("a"), String("p"), String("q")},
 		},

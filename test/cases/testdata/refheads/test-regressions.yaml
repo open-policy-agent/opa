@@ -78,3 +78,19 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 2
+- note: regression/type checking with ref rules, number
+  modules:
+  - |
+    package test
+    p[0] = 1
+  query: 'data.test.p[0] = x'
+  want_result:
+  - x: 1
+- note: regression/type checking with ref rules, bool
+  modules:
+  - |
+    package test
+    p[true] = 1
+  query: 'data.test.p[true] = x'
+  want_result:
+  - x: 1
