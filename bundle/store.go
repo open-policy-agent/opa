@@ -390,10 +390,6 @@ func activateBundles(opts *ActivateOpts) error {
 
 		if b.lazyLoadingMode {
 
-			if len(b.Raw) == 0 {
-				return fmt.Errorf("raw bundle bytes not set on bundle object")
-			}
-
 			for _, item := range b.Raw {
 				path := filepath.ToSlash(item.Path)
 
