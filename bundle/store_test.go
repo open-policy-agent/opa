@@ -219,7 +219,7 @@ func verifyReadLegacyRevision(ctx context.Context, t *testing.T, store storage.S
 	}
 }
 
-func TestBundleLazyModeNoRaw(t *testing.T) {
+func TestBundleLazyModeNoPolicyOrData(t *testing.T) {
 	ctx := context.Background()
 	mockStore := mock.New()
 
@@ -229,12 +229,8 @@ func TestBundleLazyModeNoRaw(t *testing.T) {
 	bundles := map[string]*Bundle{
 		"bundle1": {
 			Manifest: Manifest{
-				Roots: &[]string{"a"},
-			},
-			Data: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": "foo",
-				},
+				Roots:    &[]string{"a"},
+				Revision: "foo",
 			},
 			Etag:            "foo",
 			lazyLoadingMode: true,
@@ -252,13 +248,55 @@ func TestBundleLazyModeNoRaw(t *testing.T) {
 		Bundles:  bundles,
 	})
 
-	if err == nil {
-		t.Fatal("expected error but got nil")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	errMsg := "raw bundle bytes not set on bundle object"
-	if err.Error() != errMsg {
-		t.Fatalf("expected error %v but got %v", errMsg, err.Error())
+	err = mockStore.Commit(ctx, txn)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Ensure the bundle was activated
+	txn = storage.NewTransactionOrDie(ctx, mockStore)
+	names, err := ReadBundleNamesFromStore(ctx, mockStore, txn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(names) != len(bundles) {
+		t.Fatalf("expected %d bundles in store, found %d", len(bundles), len(names))
+	}
+
+	for _, name := range names {
+		if _, ok := bundles[name]; !ok {
+			t.Fatalf("unexpected bundle name found in store: %s", name)
+		}
+	}
+
+	actual, err := mockStore.Read(ctx, txn, storage.MustParsePath("/"))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedRaw := `
+{
+	"system": {
+		"bundles": {
+			"bundle1": {
+				"manifest": {
+					"revision": "foo",
+					"roots": ["a"]
+				},
+				"etag": "foo"
+			}
+		}
+	}
+}
+`
+	expected := loadExpectedSortedResult(expectedRaw)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %v, got %v", expectedRaw, string(util.MustMarshalJSON(actual)))
 	}
 }
 
