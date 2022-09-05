@@ -2196,7 +2196,7 @@ func (c *Compiler) rewriteWithModifiers() {
 			if !ok {
 				return x, nil
 			}
-			body, err := rewriteWithModifiersInBody(c, f, body)
+			body, err := rewriteWithModifiersInBody(c, c.unsafeBuiltinsMap, f, body)
 			if err != nil {
 				c.err(err)
 			}
@@ -2475,17 +2475,18 @@ func (qc *queryCompiler) checkTypes(_ *QueryContext, body Body) (Body, error) {
 }
 
 func (qc *queryCompiler) checkUnsafeBuiltins(_ *QueryContext, body Body) (Body, error) {
-	var unsafe map[string]struct{}
-	if qc.unsafeBuiltins != nil {
-		unsafe = qc.unsafeBuiltins
-	} else {
-		unsafe = qc.compiler.unsafeBuiltinsMap
-	}
-	errs := checkUnsafeBuiltins(unsafe, body)
+	errs := checkUnsafeBuiltins(qc.unsafeBuiltinsMap(), body)
 	if len(errs) > 0 {
 		return nil, errs
 	}
 	return body, nil
+}
+
+func (qc *queryCompiler) unsafeBuiltinsMap() map[string]struct{} {
+	if qc.unsafeBuiltins != nil {
+		return qc.unsafeBuiltins
+	}
+	return qc.compiler.unsafeBuiltinsMap
 }
 
 func (qc *queryCompiler) checkDeprecatedBuiltins(_ *QueryContext, body Body) (Body, error) {
@@ -2498,7 +2499,7 @@ func (qc *queryCompiler) checkDeprecatedBuiltins(_ *QueryContext, body Body) (Bo
 
 func (qc *queryCompiler) rewriteWithModifiers(_ *QueryContext, body Body) (Body, error) {
 	f := newEqualityFactory(newLocalVarGenerator("q", body))
-	body, err := rewriteWithModifiersInBody(qc.compiler, f, body)
+	body, err := rewriteWithModifiersInBody(qc.compiler, qc.unsafeBuiltinsMap(), f, body)
 	if err != nil {
 		return nil, Errors{err}
 	}
@@ -4785,10 +4786,10 @@ func rewriteDeclaredVar(g *localVarGenerator, stack *localDeclaredVars, v Var, o
 // rewriteWithModifiersInBody will rewrite the body so that with modifiers do
 // not contain terms that require evaluation as values. If this function
 // encounters an invalid with modifier target then it will raise an error.
-func rewriteWithModifiersInBody(c *Compiler, f *equalityFactory, body Body) (Body, *Error) {
+func rewriteWithModifiersInBody(c *Compiler, unsafeBuiltinsMap map[string]struct{}, f *equalityFactory, body Body) (Body, *Error) {
 	var result Body
 	for i := range body {
-		exprs, err := rewriteWithModifier(c, f, body[i])
+		exprs, err := rewriteWithModifier(c, unsafeBuiltinsMap, f, body[i])
 		if err != nil {
 			return nil, err
 		}
@@ -4803,11 +4804,11 @@ func rewriteWithModifiersInBody(c *Compiler, f *equalityFactory, body Body) (Bod
 	return result, nil
 }
 
-func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
+func rewriteWithModifier(c *Compiler, unsafeBuiltinsMap map[string]struct{}, f *equalityFactory, expr *Expr) ([]*Expr, *Error) {
 
 	var result []*Expr
 	for i := range expr.With {
-		eval, err := validateWith(c, expr, i)
+		eval, err := validateWith(c, unsafeBuiltinsMap, expr, i)
 		if err != nil {
 			return nil, err
 		}
@@ -4822,7 +4823,7 @@ func rewriteWithModifier(c *Compiler, f *equalityFactory, expr *Expr) ([]*Expr, 
 	return append(result, expr), nil
 }
 
-func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
+func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr, i int) (bool, *Error) {
 	target, value := expr.With[i].Target, expr.With[i].Value
 
 	// Ensure that values that are built-ins are rewritten to Ref (not Var)
@@ -4830,6 +4831,10 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 		if _, ok := c.builtins[v.String()]; ok {
 			value.Value = Ref([]*Term{NewTerm(v)})
 		}
+	}
+	isBuiltinRefOrVar, err := isBuiltinRefOrVar(c.builtins, unsafeBuiltinsMap, target)
+	if err != nil {
+		return false, err
 	}
 
 	switch {
@@ -4854,15 +4859,15 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 			if child := node.Child(ref[len(ref)-1].Value); child != nil {
 				for _, v := range child.Values {
 					if len(v.(*Rule).Head.Args) > 0 {
-						if validateWithFunctionValue(c.builtins, c.RuleTree, value) {
-							return false, nil
+						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
+							return false, err // may be nil
 						}
 					}
 				}
 			}
 		}
 	case isInputRef(target): // ok, valid
-	case isBuiltinRefOrVar(c.builtins, target):
+	case isBuiltinRefOrVar:
 
 		// NOTE(sr): first we ensure that parsed Var builtins (`count`, `concat`, etc)
 		// are rewritten to their proper Ref convention
@@ -4876,8 +4881,8 @@ func validateWith(c *Compiler, expr *Expr, i int) (bool, *Error) {
 			return false, err
 		}
 
-		if validateWithFunctionValue(c.builtins, c.RuleTree, value) {
-			return false, nil
+		if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
+			return false, err // may be nil
 		}
 	default:
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a function", InputRootDocument, DefaultRootDocument)
@@ -4906,13 +4911,13 @@ func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) 
 	return nil
 }
 
-func validateWithFunctionValue(bs map[string]*Builtin, ruleTree *TreeNode, value *Term) bool {
+func validateWithFunctionValue(bs map[string]*Builtin, unsafeMap map[string]struct{}, ruleTree *TreeNode, value *Term) (bool, *Error) {
 	if v, ok := value.Value.(Ref); ok {
 		if ruleTree.Find(v) != nil { // ref exists in rule tree
-			return true
+			return true, nil
 		}
 	}
-	return isBuiltinRefOrVar(bs, value)
+	return isBuiltinRefOrVar(bs, unsafeMap, value)
 }
 
 func isInputRef(term *Term) bool {
@@ -4933,13 +4938,16 @@ func isDataRef(term *Term) bool {
 	return false
 }
 
-func isBuiltinRefOrVar(bs map[string]*Builtin, term *Term) bool {
+func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]struct{}, term *Term) (bool, *Error) {
 	switch v := term.Value.(type) {
 	case Ref, Var:
+		if _, ok := unsafeBuiltinsMap[v.String()]; ok {
+			return false, NewError(CompileErr, term.Location, "with keyword replacing built-in function: target must not be unsafe: %q", v)
+		}
 		_, ok := bs[v.String()]
-		return ok
+		return ok, nil
 	}
-	return false
+	return false, nil
 }
 
 func isVirtual(node *TreeNode, ref Ref) bool {
