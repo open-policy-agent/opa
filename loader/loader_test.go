@@ -6,7 +6,9 @@ package loader
 
 import (
 	"bytes"
+	"embed"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -529,6 +531,7 @@ func TestLoadRooted(t *testing.T) {
 		paths[0] = "one.two:" + paths[0]
 		paths[1] = "three:" + paths[1]
 		paths[2] = "four:" + paths[2]
+		t.Log(paths)
 		loaded, err := NewFileLoader().All(paths)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -540,6 +543,48 @@ func TestLoadRooted(t *testing.T) {
 			t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
 		}
 	})
+}
+
+//go:embed internal/embedtest
+var embedTestFS embed.FS
+
+func TestLoadFS(t *testing.T) {
+	paths := []string{
+		"four:foo.json",
+		"one.two:bar",
+		"three:baz",
+	}
+
+	fsys, err := fs.Sub(embedTestFS, "internal/embedtest")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	loaded, err := NewFileLoader().WithFS(fsys).All(paths)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expectedRegoBytes, err := fs.ReadFile(fsys, "bar/bar.rego")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expectedRego := ast.MustParseModule(string(expectedRegoBytes))
+	moduleFile := "bar/bar.rego"
+	if !expectedRego.Equal(loaded.Modules[moduleFile].Parsed) {
+		t.Fatalf(
+			"Expected:\n%v\n\nGot:\n%v",
+			expectedRego,
+			loaded.Modules[moduleFile],
+		)
+	}
+
+	expected := parseJSON(`
+	{"four": [1,2,3], "one": {"two": "abc"}, "three": {"qux": null}}
+	`)
+	if !reflect.DeepEqual(loaded.Documents, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, loaded.Documents)
+	}
 }
 
 func TestGlobExcludeName(t *testing.T) {
