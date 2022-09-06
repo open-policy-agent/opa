@@ -604,7 +604,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.Error = decision.Error
 	}
 
-	err := p.maskEvent(ctx, decision.Txn, &event)
+	err = p.maskEvent(ctx, decision.Txn, &event)
 	if err != nil {
 		// TODO(tsandall): see note below about error handling.
 		p.logger.Error("Log event masking failed: %v.", err)
@@ -976,11 +976,9 @@ func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, event *
 
 	if err != nil {
 		return false, err
-	} else if len(rs) == 0 {
-		return false, nil
 	}
 
-	return true, nil
+	return rs.Allowed(), nil
 }
 
 func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, data []byte) error {
