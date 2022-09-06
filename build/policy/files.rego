@@ -23,13 +23,31 @@ changes := {filename: attributes |
 	attributes := object.remove(change, ["filename"])
 }
 
-get_file_in_pr(filename) = http.send({
+http_error(response) {
+	response.status_code == 0
+}
+
+http_error(response) {
+	response.status_code >= 400
+}
+
+dump_response_on_error(response) := response {
+	http_error(response)
+	print("unexpected error in response", response)
+}
+
+dump_response_on_error(response) := response {
+	not http_error(response)
+}
+
+get_file_in_pr(filename) := dump_response_on_error(http.send({
 	"url": changes[filename].raw_url,
 	"method": "GET",
 	"headers": {"Authorization": sprintf("Bearer %v", [opa.runtime().env.GITHUB_TOKEN])},
 	"cache": true,
 	"enable_redirect": true,
-}).raw_body
+	"raise_error": false,
+})).raw_body
 
 deny["Logo must be placed in docs/website/static/img/logos/integrations"] {
 	"docs/website/data/integrations.yaml" in filenames
@@ -83,13 +101,13 @@ deny[sprintf("Integration '%v' references unknown software '%v' (i.e. not in 'so
 	not software in software_list
 }
 
-deny[sprintf("%s is an invalid YAML file", [filename])] {
+deny[sprintf("%s is an invalid YAML file: %s", [filename, content])] {
 	some filename, content in yaml_file_contents
 	changes[filename].status in {"added", "modified"}
 	not yaml.is_valid(content)
 }
 
-deny[sprintf("%s is an invalid JSON file", [filename])] {
+deny[sprintf("%s is an invalid JSON file: %s", [filename, content])] {
 	some filename, content in json_file_contents
 	changes[filename].status in {"added", "modified"}
 	not json.is_valid(content)
@@ -97,7 +115,6 @@ deny[sprintf("%s is an invalid JSON file", [filename])] {
 
 integrations_file := get_file_in_pr("docs/website/data/integrations.yaml")
 
-# Helper rules to work around not being able to mock functions yet
 yaml_file_contents := {filename: get_file_in_pr(filename) |
 	some filename in filenames
 	extension(filename) in {"yml", "yaml"}
