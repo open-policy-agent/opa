@@ -1021,7 +1021,7 @@ var Concat = &Builtin{
 
 var FormatInt = &Builtin{
 	Name:        "format_int",
-	Description: "Returns the string representation of the number in the given base after converting it to an integer value.",
+	Description: "Returns the string representation of the number in the given base after rounding it down to an integer value.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("number", types.N).Description("number to format"),
