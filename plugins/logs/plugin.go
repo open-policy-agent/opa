@@ -586,9 +586,13 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		inputAST:     decision.InputAST,
 	}
 
-	d, e := p.dropEvent(ctx, decision.Txn, &event)
+	drop, err := p.dropEvent(ctx, decision.Txn, &event)
+	if err != nil {
+		p.logger.Error("Log drop decision failed: %v.", err)
+		return nil
+	}
 
-	if d || e != nil {
+	if drop {
 		return nil
 	}
 
