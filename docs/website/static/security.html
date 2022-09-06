@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+
+    <title>Open Policy Agent | Security Policy</title>
+    <link rel="stylesheet" href="css/home.css">
+    <link rel="stylesheet" href="css/community.css">
+    <link rel="stylesheet" href="css/security.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+  </head>
+
+  <body data-spy="scroll" data-target=".navbar" data-offset="90">
+
+
+    <div class="support-bg">
+      <div id="navigation">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
+          <div class="container">
+
+            <a class="navbar-brand" href="/" aria-label="Open Policy Agent home"><img
+              title="OPA logo" src="./img/logo-white.png" class="img-fluid"></a>
+            <button class="navbar-toggler navbar-toggler-right collapsed"
+                    type="button" data-toggle="collapse"
+                    data-target="#navb" aria-expanded="false">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="navbar-collapse collapse" id="navb">
+              <ul class="navbar-nav mr-auto">
+              </ul>
+
+              <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="./docs/">Docs</a></li>
+                <li class="nav-item"><a class="nav-link" href="./docs/#running-opa">Download</a></li>
+                <li class="nav-item"><a class="nav-link" href="./docs/latest/ecosystem/">Ecosystem</a></li>
+                <li class="nav-item"><a class="nav-link" href="./security">Security</a></li>
+                <li class="nav-item"><a class="nav-link" href="./support">Support</a></li>
+                <li class="nav-item"><a class="nav-link" href="./community">Community</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://play.openpolicyagent.org/">Play</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://blog.openpolicyagent.org/">Blog</a></li>
+                <li class="nav-item social-nav-item">
+                  <a class="nav-link social-icon-link" href="https://twitter.com/openpolicyagent">
+                    <img src="./img/twitter-icon.png" alt="Twitter">
+                    <div class="nav-link social-icon-title">Twitter</div>
+                  </a>
+                </li>
+                <li class="nav-item social-nav-item">
+                  <a class="nav-link social-icon-link" href="https://slack.openpolicyagent.org/">
+                    <img src="./img/slack-icon.png" alt="Slack">
+                    <div class="nav-link social-icon-title">Slack</div>
+                  </a>
+                </li>
+                <li class="nav-item social-nav-item">
+                  <a class="nav-link social-icon-link" href="https://github.com/open-policy-agent/opa">
+                    <img src="./img/github-icon.png" alt="GitHub">
+                    <div class="social-icon-title">GitHub</div>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <main class="support-content">
+        <section id="homebackground">
+          <h1 class="banner-content text-center">
+            Security Policy
+          </h1>
+          <div class="banner-subcontent">
+            The Open Policy Agent (OPA) community has adopted this security disclosures and response policy to ensure we responsibly handle critical issues.
+          </div>
+          <h2 class="divider line glow">Reporting a Security Bug</h2>
+          <div class="banner-subcontent">
+            <ul>
+              <li>If you think you have found a security issue in an OPA project, please send an
+                email to <a href="mailto:open-policy-agent-security@googlegroups.com">open-policy-agent-security</a>.
+                This list is delivered to a small security team. We will then acknowledge receipt
+                of your report and prioritize initial analysis of severity.</li>
+
+              <li>After the initial reply to your report, the security team will endeavor to keep you informed
+                of the progress being made towards a fix and full announcement, and may ask for additional
+                information or guidance surrounding the reported issue.</p>
+
+              <li>If you have not received a reply to your report within two days, please reach out on our
+               <a href="https://slack.openpolicyagent.org/">Slack</a>
+               by posting a message in the <code>#contributors</code> channel.</li>
+
+              <li>Note that the <code>#conributors</code> channel is public, so please don't discuss details of your
+                issue there. Instead, simply say that you're trying to get a hold of someone from the security team.</li>
+            </ul>
+          </div>
+          <h2 class="divider line glow">Disclosure Policy</h2>
+          <div class="banner-subcontent">
+            <ol>
+              <li>The security report is received and is assigned a primary handler.
+                This person will coordinate the fix and release process.
+                The problem is confirmed and a list of all affected versions is determined.
+                Code is audited to find any potential similar problems.
+                Fixes are prepared for all releases which are still under maintenance.
+                These fixes are not committed to the public repository but rather held locally or in a private fork pending the announcement.</li>
+
+              <li>A suggested embargo date for this vulnerability is chosen and a CVE
+                (Common Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability,
+                through the GitHub Advisory database.</li>
+
+              <li>A prenotification may be published on the security announcements channels listed below,
+                providing information about affected projects, severity, and the embargo date.</li>
+
+              <li>On the embargo date, the announcement is published.
+                The changes are pushed to the public repository and new builds are deployed.
+              </li>
+
+              <li>Typically the embargo date will be set 72 hours from the time the CVE is issued.
+                However, this may vary depending on the severity of the bug or difficulty in applying a fix.</li>
+
+              <li>This process can take some time, especially when coordination is required with maintainers of
+                other projects. Every effort will be made to handle the bug in as timely a manner as possible;
+                however, it’s important that we follow the release process above to ensure that the disclosure
+                is handled in a consistent manner.</li>
+            <ol>
+          </div>
+          <h2 class="divider line glow">Receiving Security Updates</h2>
+          <div class="banner-subcontent">
+            <ul>
+              <li><a href="https://github.com/open-policy-agent/opa/security/advisories">Security Advistories for OPA</a></li>
+              <li><a href="https://github.com/open-policy-agent/community/discussions/categories/announcements">GitHub Discussions</a> Announcements</li>
+              <li><a href="https://slack.openpolicyagent.org/">Slack</a> <code>#annoucements</code> channel</li>
+              <li><a href="https://nvd.nist.gov/vuln/search/results?form_type=Advanced&results_type=overview&search_type=all&isCpeNameSearch=false&cpe_vendor=cpe%3A%2F%3Aopenpolicyagent&cpe_product=cpe%3A%2F%3Aopenpolicyagent%3Aopen_policy_agent">NIST Vulnerability Data Base: Search Results for OPA</a></li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+  </body>
+
+</html>
