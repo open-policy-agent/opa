@@ -3718,7 +3718,7 @@
       "v0.43.0",
       "edge"
     ],
-    "description": "Returns the string representation of the number in the given base after converting it to an integer value.",
+    "description": "Returns the string representation of the number in the given base after rounding it down to an integer value.",
     "introduced": "v0.17.0",
     "result": {
       "description": "formatted number",
