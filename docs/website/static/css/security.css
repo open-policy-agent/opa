@@ -1,0 +1,11 @@
+ol {
+  list-style: roman;
+}
+
+ul {
+  list-style: square;
+}
+
+section {
+  padding-bottom: 200px;
+}
