@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.43.1
+
+This is a security release fixing the following vulnerabilities:
+
+- CVE-2022-36085 TBA
+- CVE-2022-27664 and CVE-2022-32190.
+
+  Fixed by updating the Go version used in our builds to 1.19.1 (#5099),
+  see https://groups.google.com/g/golang-announce/c/x49AQzIVX-s.
+  Note that CVE-2022-32190 is most likely not relevant for OPA's usage of net/url.
+  But since these CVEs tend to come up in security assessment tooling regardless,
+  it's better to get it out of the way.
+
 ## 0.43.0
 
 This release contains a number of fixes, enhancements, and performance improvements.
