@@ -1032,27 +1032,67 @@ z = [ i | [x,y] = arr  # comment in comprehension
 			exp: MustParseBody(`x = 1; y = 2; z = [i | [x,y] = arr; arr[_] = i]`),
 		},
 		{
-			note:  "whitespace following call",
-			input: "f(x)\t\n [1]",
+			note:  "array following call w/ whitespace",
+			input: "f(x)\n [1]",
 			exp: NewBody(
 				NewExpr([]*Term{RefTerm(VarTerm("f")), VarTerm("x")}),
 				NewExpr(ArrayTerm(IntNumberTerm(1))),
 			),
 		},
 		{
-			note:  "whitespace following array",
-			input: "[1]\t\n [2]",
+			note:  "set following call w/ semicolon",
+			input: "f(x);{1}",
+			exp: NewBody(
+				NewExpr([]*Term{RefTerm(VarTerm("f")), VarTerm("x")}),
+				NewExpr(SetTerm(IntNumberTerm(1))),
+			),
+		},
+		{
+			note:  "array following array w/ whitespace",
+			input: "[1]\n [2]",
 			exp: NewBody(
 				NewExpr(ArrayTerm(IntNumberTerm(1))),
 				NewExpr(ArrayTerm(IntNumberTerm(2))),
 			),
 		},
 		{
-			note:  "whitespace following set",
-			input: "{1}\t\n [2]",
+			note:  "array following set w/ whitespace",
+			input: "{1}\n [2]",
 			exp: NewBody(
 				NewExpr(SetTerm(IntNumberTerm(1))),
 				NewExpr(ArrayTerm(IntNumberTerm(2))),
+			),
+		},
+		{
+			note:  "set following call w/ whitespace",
+			input: "f(x)\n {1}",
+			exp: NewBody(
+				NewExpr([]*Term{RefTerm(VarTerm("f")), VarTerm("x")}),
+				NewExpr(SetTerm(IntNumberTerm(1))),
+			),
+		},
+		{
+			note:  "set following ref w/ whitespace",
+			input: "data.p.q\n {1}",
+			exp: NewBody(
+				NewExpr(&Term{Value: MustParseRef("data.p.q")}),
+				NewExpr(SetTerm(IntNumberTerm(1))),
+			),
+		},
+		{
+			note:  "set following variable w/ whitespace",
+			input: "input\n {1}",
+			exp: NewBody(
+				NewExpr(&Term{Value: MustParseRef("input")}),
+				NewExpr(SetTerm(IntNumberTerm(1))),
+			),
+		},
+		{
+			note:  "set following equality w/ whitespace",
+			input: "input = 2 \n {1}",
+			exp: NewBody(
+				Equality.Expr(&Term{Value: MustParseRef("input")}, IntNumberTerm(2)),
+				NewExpr(SetTerm(IntNumberTerm(1))),
 			),
 		},
 	}

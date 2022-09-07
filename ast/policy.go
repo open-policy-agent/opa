@@ -948,6 +948,11 @@ func (body Body) Vars(params VarVisitorParams) VarSet {
 
 // NewExpr returns a new Expr object.
 func NewExpr(terms interface{}) *Expr {
+	switch terms.(type) {
+	case *SomeDecl, *Every, *Term, []*Term: // ok
+	default:
+		panic("unreachable")
+	}
 	return &Expr{
 		Negated: false,
 		Terms:   terms,

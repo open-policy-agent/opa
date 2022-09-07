@@ -435,6 +435,9 @@ func ParseBody(input string) (Body, error) {
 }
 
 func ParseBodyWithOpts(input string, popts ParserOptions) (Body, error) {
+	// We want to parse a body, so we skip all else
+	popts.SkipRules = true
+
 	stmts, _, err := ParseStatementsWithOpts("", input, popts)
 	if err != nil {
 		return nil, err
@@ -563,6 +566,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		WithFutureKeywords(popts.FutureKeywords...).
 		WithAllFutureKeywords(popts.AllFutureKeywords).
 		WithCapabilities(popts.Capabilities).
+		WithSkipRules(popts.SkipRules).
 		withUnreleasedKeywords(popts.unreleasedKeywords)
 
 	stmts, comments, errs := parser.Parse()
@@ -582,14 +586,14 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 
 	var errs Errors
 
-	_package, ok := stmts[0].(*Package)
+	pkg, ok := stmts[0].(*Package)
 	if !ok {
 		loc := stmts[0].Loc()
 		errs = append(errs, NewError(ParseErr, loc, "package expected"))
 	}
 
 	mod := &Module{
-		Package: _package,
+		Package: pkg,
 		stmts:   stmts,
 	}
 
