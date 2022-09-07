@@ -431,12 +431,12 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 // ParseBody returns exactly one body.
 // If multiple bodies are parsed, an error is returned.
 func ParseBody(input string) (Body, error) {
-	return ParseBodyWithOpts(input, ParserOptions{})
+	return ParseBodyWithOpts(input, ParserOptions{SkipRules: true})
 }
 
+// ParseBodyWithOpts returns exactly one body. It does _not_ set SkipRules: true on its own,
+// but respects whatever ParserOptions it's been given.
 func ParseBodyWithOpts(input string, popts ParserOptions) (Body, error) {
-	// We want to parse a body, so we skip all else
-	popts.SkipRules = true
 
 	stmts, _, err := ParseStatementsWithOpts("", input, popts)
 	if err != nil {
