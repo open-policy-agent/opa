@@ -1707,7 +1707,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		e.e.instr.stopTimer(evalOpBuiltinCall)
 
 		// Unify against the NDBCache result if present.
-		if v, ok := e.bctx.NDBuiltinCache.Get(e.bi.Name, ast.NewArray(e.terms[:endIndex]...)); ok {
+		if v, ok := e.bctx.NDBuiltinCache.Get(e.bi.Name, ast.NewArray(operands[:endIndex]...)); ok {
 			switch {
 			case e.bi.Decl.Result() == nil:
 				err = iter()
@@ -1753,7 +1753,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		// call was not cached earlier.
 		if e.canUseNDBCache(e.bi) {
 			// Populate the NDBCache from the output term.
-			e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(e.terms[:endIndex]...), output.Value)
+			e.bctx.NDBuiltinCache.Put(e.bi.Name, ast.NewArray(operands[:endIndex]...), output.Value)
 		}
 
 		if err != nil {

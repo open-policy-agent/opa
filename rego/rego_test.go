@@ -2105,7 +2105,47 @@ p {
 	}
 	_, ok := ndBC["http.send"]
 	if !ok {
-		t.Errorf("expected http.send cache entry")
+		t.Fatalf("expected http.send cache entry")
+	}
+}
+
+// Catches issues around iteration with ND builtins.
+func TestNDBCacheWithRuleBodyAndIteration(t *testing.T) {
+	ctx := context.Background()
+	ndBC := builtins.NDBCache{}
+	query := "data.foo.results = x"
+	_, err := New(
+		Query(query),
+		NDBuiltinCache(ndBC),
+		Module("test.rego", `package foo
+
+import future.keywords
+
+urls := [
+	"https://httpbin.org/headers",
+	"https://httpbin.org/ip",
+	"https://httpbin.org/user-agent"
+]
+
+results[response] {
+	some url in urls
+	response := http.send({
+		"method": "GET",
+		"url": url
+	})
+}`),
+	).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure that the cache exists, and has exactly 3 entries.
+	entries, ok := ndBC["http.send"]
+	if !ok {
+		t.Fatalf("expected http.send cache entry")
+	}
+	if entries.Len() != 3 {
+		t.Fatalf("expected 3 http.send cache entries, received:\n%v", ndBC)
 	}
 }
 

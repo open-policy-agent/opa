@@ -320,7 +320,6 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		compiledQuery:    compiledQuery{},
 		indexing:         true,
 		earlyExit:        true,
-		ndBuiltinCache:   builtins.NDBCache{},
 		resolvers:        pq.r.resolvers,
 		printHook:        pq.r.printHook,
 		capabilities:     pq.r.capabilities,
@@ -1112,7 +1111,6 @@ func New(options ...func(r *Rego)) *Rego {
 		builtinDecls:    map[string]*ast.Builtin{},
 		builtinFuncs:    map[string]*topdown.Builtin{},
 		bundles:         map[string]*bundle.Bundle{},
-		ndBuiltinCache:  builtins.NDBCache{},
 	}
 
 	for _, option := range options {
