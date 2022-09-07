@@ -416,6 +416,7 @@ endif
 .PHONY: ci-binary-smoke-test-%
 ci-binary-smoke-test-%:
 	chmod +x "$(RELEASE_DIR)/$(BINARY)"
+	"$(RELEASE_DIR)/$(BINARY)" version
 	"$(RELEASE_DIR)/$(BINARY)" eval -t "$*" 'time.now_ns()'
 
 .PHONY: push-binary-edge
