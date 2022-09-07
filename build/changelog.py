@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 """
 changelog.py helps generate the CHANGELOG.md message for a particular release.
 """
@@ -8,7 +8,7 @@ import os
 import subprocess
 import shlex
 import re
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import sys
 import json
 
@@ -31,17 +31,17 @@ def get_commit_message(commit_id):
 
 
 def fetch(url, token):
-    req = urllib2.Request(url)
+    req = urllib.request.Request(url)
     if token:
         req.add_header('Authorization', "token {}".format(token))
     try:
-        rsp = urllib2.urlopen(req)
+        rsp = urllib.request.urlopen(req)
         result = json.loads(rsp.read())
     except Exception as e:
         if hasattr(e, 'reason'):
-            print >> sys.stderr, 'Failed to fetch URL {}: {}'.format(url, e.reason)
+            print('Failed to fetch URL {}: {}'.format(url, e.reason), file=sys.stderr)
         elif hasattr(e, 'code'):
-            print >> sys.stderr, 'Failed to fetch URL {}: Code {}'.format(url, e.code)
+            print('Failed to fetch URL {}: Code {}'.format(url, e.code), file=sys.stderr)
         return {}
     else:
         return result
