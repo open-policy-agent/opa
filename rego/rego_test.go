@@ -1437,6 +1437,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 	ctx := context.Background()
 
 	unsafeCountExpr := "unsafe built-in function calls in expression: count"
+	unsafeCountExprWith := `with keyword replacing built-in function: target must not be unsafe: "count"`
 
 	t.Run("unsafe query", func(t *testing.T) {
 		r := New(
@@ -1444,6 +1445,16 @@ func TestUnsafeBuiltins(t *testing.T) {
 			UnsafeBuiltins(map[string]struct{}{"count": {}}),
 		)
 		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("unsafe query, 'with' replacement", func(t *testing.T) {
+		r := New(
+			Query(`is_array([1, 2, 3]) with is_array as count`),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExprWith) {
 			t.Fatalf("Expected unsafe built-in error but got %v", err)
 		}
 	})
@@ -1463,12 +1474,52 @@ func TestUnsafeBuiltins(t *testing.T) {
 		}
 	})
 
+	t.Run("unsafe module, 'with' replacement in query", func(t *testing.T) {
+		r := New(
+			Query(`data.pkg.deny with is_array as count`),
+			Module("pkg.rego", `package pkg
+			deny {
+				is_array(input.requests) > 10
+			}
+			`),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExprWith) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("unsafe module, 'with' replacement in module", func(t *testing.T) {
+		r := New(
+			Query(`data.pkg.deny`),
+			Module("pkg.rego", `package pkg
+			deny {
+				is_array(input.requests) > 10 with is_array as count
+			}
+			`),
+			UnsafeBuiltins(map[string]struct{}{"count": {}}),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExprWith) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
 	t.Run("inherit in query", func(t *testing.T) {
 		r := New(
 			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}})),
 			Query("count([])"),
 		)
 		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExpr) {
+			t.Fatalf("Expected unsafe built-in error but got %v", err)
+		}
+	})
+
+	t.Run("inherit in query, 'with' replacement", func(t *testing.T) {
+		r := New(
+			Compiler(ast.NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}})),
+			Query("is_array([]) with is_array as count"),
+		)
+		if _, err := r.Eval(ctx); err == nil || !strings.Contains(err.Error(), unsafeCountExprWith) {
 			t.Fatalf("Expected unsafe built-in error but got %v", err)
 		}
 	})

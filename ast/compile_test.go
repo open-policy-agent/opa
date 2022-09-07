@@ -4049,6 +4049,7 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	tests := []struct {
 		note         string
 		input        string
+		opts         func(*Compiler) *Compiler
 		expected     string
 		expectedRule *Rule
 		wantErr      error
@@ -4155,6 +4156,26 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			}(),
 		},
 		{
+			note: "built-in function: replaced by another built-in that's marked unsafe",
+			input: `
+				q := is_object({"url": "https://httpbin.org", "method": "GET"})
+				p { q with is_object as http.send }
+			`,
+			opts:    func(c *Compiler) *Compiler { return c.WithUnsafeBuiltins(map[string]struct{}{"http.send": {}}) },
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
+		},
+		{
+			note: "non-built-in function: replaced by another built-in that's marked unsafe",
+			input: `
+			r(_) = {}
+			q := r({"url": "https://httpbin.org", "method": "GET"})
+			p {
+				q with r as http.send
+			}`,
+			opts:    func(c *Compiler) *Compiler { return c.WithUnsafeBuiltins(map[string]struct{}{"http.send": {}}) },
+			wantErr: fmt.Errorf("rego_compile_error: with keyword replacing built-in function: target must not be unsafe: \"http.send\""),
+		},
+		{
 			note: "built-in function: valid, arity 1, non-compound name",
 			input: `
 				p { concat("/", input) with concat as mock_concat }
@@ -4171,6 +4192,9 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
+			if tc.opts != nil {
+				c = tc.opts(c)
+			}
 			module := fixture + tc.input
 			c.Modules["test"] = MustParseModule(module)
 			compileStages(c, c.rewriteWithModifiers)
@@ -6676,13 +6700,63 @@ func TestQueryCompilerWithStageAfterWithMetrics(t *testing.T) {
 }
 
 func TestQueryCompilerWithUnsafeBuiltins(t *testing.T) {
-	c := NewCompiler().WithUnsafeBuiltins(map[string]struct{}{
-		"count": {},
-	})
+	tests := []struct {
+		note     string
+		query    string
+		compiler *Compiler
+		opts     func(QueryCompiler) QueryCompiler
+		err      string
+	}{
+		{
+			note:     "builtin unsafe via compiler",
+			query:    "count([])",
+			compiler: NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}}),
+			err:      "unsafe built-in function calls in expression: count",
+		},
+		{
+			note:     "builtin unsafe via query compiler",
+			query:    "count([])",
+			compiler: NewCompiler(),
+			opts: func(qc QueryCompiler) QueryCompiler {
+				return qc.WithUnsafeBuiltins(map[string]struct{}{"count": {}})
+			},
+			err: "unsafe built-in function calls in expression: count",
+		},
+		{
+			note:     "builtin unsafe via compiler, 'with' mocking",
+			query:    "is_array([]) with is_array as count",
+			compiler: NewCompiler().WithUnsafeBuiltins(map[string]struct{}{"count": {}}),
+			err:      `with keyword replacing built-in function: target must not be unsafe: "count"`,
+		},
+		{
+			note:     "builtin unsafe via query compiler,  'with' mocking",
+			query:    "is_array([]) with is_array as count",
+			compiler: NewCompiler(),
+			opts: func(qc QueryCompiler) QueryCompiler {
+				return qc.WithUnsafeBuiltins(map[string]struct{}{"count": {}})
+			},
+			err: `with keyword replacing built-in function: target must not be unsafe: "count"`,
+		},
+	}
 
-	_, err := c.QueryCompiler().WithUnsafeBuiltins(map[string]struct{}{}).Compile(MustParseBody("count([])"))
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			qc := tc.compiler.QueryCompiler()
+			if tc.opts != nil {
+				qc = tc.opts(qc)
+			}
+			_, err := qc.Compile(MustParseBody(tc.query))
+			var errs Errors
+			if !errors.As(err, &errs) {
+				t.Fatalf("expected error type %T, got %v %[2]T", errs, err)
+			}
+			if exp, act := 1, len(errs); exp != act {
+				t.Fatalf("expected %d error(s), got %d", exp, act)
+			}
+			if exp, act := tc.err, errs[0].Message; exp != act {
+				t.Errorf("expected message %q, got %q", exp, act)
+			}
+		})
 	}
 }
 
