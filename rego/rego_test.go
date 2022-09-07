@@ -2090,15 +2090,18 @@ func TestEvalWithPrebuiltNDCache(t *testing.T) {
 
 func TestNDBCacheWithRuleBody(t *testing.T) {
 	ctx := context.Background()
+	ts := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer ts.Close()
+
 	ndBC := builtins.NDBCache{}
 	query := "data.foo.p = x"
 	_, err := New(
 		Query(query),
 		NDBuiltinCache(ndBC),
-		Module("test.rego", `package foo
+		Module("test.rego", fmt.Sprintf(`package foo
 p {
-	http.send({"url": "http://httpbin.org", "method":"get"})
-}`),
+	http.send({"url": "%s", "method":"get"})
+}`, ts.URL)),
 	).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2112,19 +2115,23 @@ p {
 // Catches issues around iteration with ND builtins.
 func TestNDBCacheWithRuleBodyAndIteration(t *testing.T) {
 	ctx := context.Background()
+	ts := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	}))
+	defer ts.Close()
+
 	ndBC := builtins.NDBCache{}
 	query := "data.foo.results = x"
 	_, err := New(
 		Query(query),
 		NDBuiltinCache(ndBC),
-		Module("test.rego", `package foo
+		Module("test.rego", fmt.Sprintf(`package foo
 
 import future.keywords
 
 urls := [
-	"https://httpbin.org/headers",
-	"https://httpbin.org/ip",
-	"https://httpbin.org/user-agent"
+	"%[1]s/headers",
+	"%[1]s/ip",
+	"%[1]s/user-agent"
 ]
 
 results[response] {
@@ -2133,7 +2140,7 @@ results[response] {
 		"method": "GET",
 		"url": url
 	})
-}`),
+}`, ts.URL)),
 	).Eval(ctx)
 	if err != nil {
 		t.Fatal(err)
