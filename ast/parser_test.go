@@ -1006,71 +1006,62 @@ func TestChainedCall(t *testing.T) {
 }
 
 func TestMultiLineBody(t *testing.T) {
-
-	input1 := `
-		x = 1
-		y = 2
-		z = [ i | [x,y] = arr
-				   arr[_] = i]
-	`
-
-	body1, err := ParseBody(input1)
-	if err != nil {
-		t.Fatalf("Unexpected parse error on enclosed body: %v", err)
+	tests := []struct {
+		note  string
+		input string
+		exp   Body
+	}{
+		{
+			note: "three definitions",
+			input: `
+x = 1
+y = 2
+z = [ i | [x,y] = arr
+	arr[_] = i]
+`,
+			exp: MustParseBody(`x = 1; y = 2; z = [i | [x,y] = arr; arr[_] = i]`),
+		},
+		{
+			note: "three definitions, with comments and w/o enclosing braces",
+			input: `
+x = 1 ; # comment after semicolon
+y = 2   # comment without semicolon
+z = [ i | [x,y] = arr  # comment in comprehension
+	arr[_] = i]
+`,
+			exp: MustParseBody(`x = 1; y = 2; z = [i | [x,y] = arr; arr[_] = i]`),
+		},
+		{
+			note:  "whitespace following call",
+			input: "f(x)\t\n [1]",
+			exp: NewBody(
+				NewExpr([]*Term{RefTerm(VarTerm("f")), VarTerm("x")}),
+				NewExpr(ArrayTerm(IntNumberTerm(1))),
+			),
+		},
+		{
+			note:  "whitespace following array",
+			input: "[1]\t\n [2]",
+			exp: NewBody(
+				NewExpr(ArrayTerm(IntNumberTerm(1))),
+				NewExpr(ArrayTerm(IntNumberTerm(2))),
+			),
+		},
+		{
+			note:  "whitespace following set",
+			input: "{1}\t\n [2]",
+			exp: NewBody(
+				NewExpr(SetTerm(IntNumberTerm(1))),
+				NewExpr(ArrayTerm(IntNumberTerm(2))),
+			),
+		},
 	}
 
-	expected1 := MustParseBody(`x = 1; y = 2; z = [i | [x,y] = arr; arr[_] = i]`)
-
-	if !body1.Equal(expected1) {
-		t.Errorf("Expected enclosed body to equal %v but got: %v", expected1, body1)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseOneBody(t, tc.note, tc.input, tc.exp)
+		})
 	}
-
-	// Check that parser can handle multiple expressions w/o enclosing braces.
-	input2 := `
-		x = 1 ; # comment after semicolon
-		y = 2   # comment without semicolon
-		z = [ i | [x,y] = arr  # comment in comprehension
-				   arr[_] = i]
-	`
-
-	body2, err := ParseBody(input2)
-	if err != nil {
-		t.Fatalf("Unexpected parse error on enclosed body: %v", err)
-	}
-
-	if !body2.Equal(expected1) {
-		t.Errorf("Expected unenclosed body to equal %v but got: %v", expected1, body1)
-	}
-
-	assertParseOneBody(t, "whitespace following call", "f(x)\t\n [1]", NewBody(
-		NewExpr(
-			[]*Term{
-				RefTerm(VarTerm("f")),
-				VarTerm("x"),
-			},
-		),
-		NewExpr(
-			ArrayTerm(IntNumberTerm(1)),
-		),
-	))
-
-	assertParseOneBody(t, "whitespace following array", "[1]\t\n [2]", NewBody(
-		NewExpr(
-			ArrayTerm(IntNumberTerm(1)),
-		),
-		NewExpr(
-			ArrayTerm(IntNumberTerm(2)),
-		),
-	))
-
-	assertParseOneBody(t, "whitespace following set", "{1}\t\n {2}", NewBody(
-		NewExpr(
-			SetTerm(IntNumberTerm(1)),
-		),
-		NewExpr(
-			SetTerm(IntNumberTerm(2)),
-		),
-	))
 }
 
 func TestBitwiseOrVsComprehension(t *testing.T) {
