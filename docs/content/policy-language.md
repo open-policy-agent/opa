@@ -695,6 +695,19 @@ document that is defined by the rule.
 
 The sample code in this section make use of the data defined in [Examples](#example-data).
 
+{{< info >}}
+Rule definitions can be more expressive when using the _future keywords_ `contains` and
+`if`. They are optional, and you will find examples below of defining rules without them.
+
+To follow along as-is, please import the keywords:
+```live:eg/data/info:module:read_only
+import future.keywords.if
+import future.keywords.contains
+```
+
+[See the docs on _future keywords_](#future-keywords) for more information.
+{{< /info >}}
+
 ### Generating Sets
 
 The following rule defines a set containing the hostnames of all servers:
@@ -704,7 +717,15 @@ hostnames contains name if {
     name := sites[_].servers[_].hostname
 }
 ```
-Note that the (future) keyword `if` is optional here.
+
+Note that the [(future) keywords `contains` and `if`](#future-keywords) are optional here.
+If future keywords are not available to you, you can define the same rule as follows:
+
+```live:eg/data/rules2:module:read_only
+hostnames[name] {
+    name := sites[_].servers[_].hostname
+}
+```
 
 When we query for the content of `hostnames` we see the same data as we would if we queried using the `sites[_].servers[_].hostname` reference directly:
 
@@ -752,6 +773,19 @@ apps_by_hostname["helium"]
 ```live:eg/data/rule_objects:output
 ```
 
+Using the [(future) keyword `if`](#future-keywords) is optional here.
+The same rule can be defined as follows:
+
+```live:eg/data/rule_objects2:module
+apps_by_hostname[hostname] := app {
+    some i
+    server := sites[_].servers[_]
+    hostname := server.hostname
+    apps[i].servers[_] == server.name
+    app := apps[i].name
+}
+```
+
 ### Incremental Definitions
 
 A rule may be defined multiple times with the same name. When a rule is defined
@@ -797,6 +831,21 @@ instances[x]
 ```live:eg/data/incremental_rule:output
 ```
 
+Note that the [(future) keywords `contains` and `if`](#future-keywords) are optional here.
+If future keywords are not available to you, you can define the same rule as follows:
+
+```live:eg/data/incremental_rule2:module
+instances[instance] {
+    server := sites[_].servers[_]
+    instance := {"address": server.hostname, "name": server.name}
+}
+
+instances[instance] {
+    container := containers[_]
+    instance := {"address": container.ipaddress, "name": container.name}
+}
+```
+
 ### Complete Definitions
 
 In addition to rules that *partially* define sets and objects, Rego also
@@ -808,8 +857,9 @@ commonly used for constants:
 pi := 3.14159
 ```
 
-> Rego allows authors to omit the body of rules. If the body is omitted, it
-> defaults to true.
+{{< info >}}
+Rego allows authors to omit the body of rules. If the body is omitted, it defaults to true.
+{{< /info >}}
 
 Documents produced by rules with complete definitions can only have one value at
 a time. If evaluation produces multiple values for the same document, an error
@@ -838,7 +888,8 @@ Error:
 ```live:eg/conflicting_rules:output:expect_conflict
 ```
 
-OPA returns an error in this case because the rule definitions are in *conflict*. The value produced by max_memory cannot be 32 and 4 **at the same time**.
+OPA returns an error in this case because the rule definitions are in *conflict*.
+The value produced by max_memory cannot be 32 and 4 **at the same time**.
 
 The documents produced by rules with complete definitions may still be undefined:
 
@@ -849,6 +900,14 @@ max_memory with user as "johnson"
 ```
 
 In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
+
+Note that the [(future) keyword `if`](#future-keywords) is optional here.
+If future keywords are not available to you, you can define complete rules like this:
+
+```live:eg/conflicting_rules2:module
+max_memory := 32 { power_users[user] }
+max_memory := 4 { restricted_users[user] }
+```
 
 ### Functions
 
@@ -866,6 +925,16 @@ trim_and_split(s) := x if {
 trim_and_split("   foo.bar ")
 ```
 ```live:eg/basic_function:output
+```
+
+Note that the [(future) keyword `if`](#future-keywords) is optional here.
+If future keywords are not available to you, you can define the same function as follows:
+
+```live:eg/basic_function2:module:read_only
+trim_and_split(s) := x {
+     t := trim(s, " ")
+     x := split(t, ".")
+}
 ```
 
 Functions may have an arbitrary number of inputs, but exactly one output. Function arguments may be any kind of term. For example, suppose we have the following function:
