@@ -60,8 +60,6 @@ S3_RELEASE_BUCKET ?= opa-releases
 FUZZ_TIME ?= 1h
 TELEMETRY_URL ?= #Default empty
 
-BUILD_COMMIT := $(shell ./build/get-build-commit.sh)
-BUILD_TIMESTAMP := $(shell ./build/get-build-timestamp.sh)
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
 RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
@@ -73,9 +71,6 @@ TELEMETRY_FLAG := -X github.com/open-policy-agent/opa/internal/report.ExternalSe
 endif
 
 LDFLAGS := "$(TELEMETRY_FLAG) \
-	-X github.com/open-policy-agent/opa/version.Version=$(VERSION) \
-	-X github.com/open-policy-agent/opa/version.Vcs=$(BUILD_COMMIT) \
-	-X github.com/open-policy-agent/opa/version.Timestamp=$(BUILD_TIMESTAMP) \
 	-X github.com/open-policy-agent/opa/version.Hostname=$(BUILD_HOSTNAME)"
 
 
