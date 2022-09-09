@@ -332,27 +332,27 @@ image-quick-%: ensure-executable-bin
 ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
-		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg BASE=distroless.dev/busybox \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
-		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -363,14 +363,14 @@ endif
 push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$* \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
-		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg BASE=distroless.dev/busybox \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
@@ -378,14 +378,14 @@ push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-rootless \
 		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
-		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BASE=distroless.dev/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
