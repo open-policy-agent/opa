@@ -36,3 +36,6 @@ GHSA-qq97-vm5h-rrhg
 
 # github.com/dgrijalva/jwt-go -- vulnerable version used by docker/distribution above
 CVE-2020-26160
+
+# github.com/bytecodealliance/wasmtime-go - we don't enable wasm on arm64 builds
+CVE-2022-31169
