@@ -98,6 +98,15 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
+
   trivy-scan-repo:
     name: Trivy security scan repo
     runs-on: ubuntu-22.04
@@ -117,6 +126,15 @@ jobs:
           skip-dirs: vendor/ # don't check go deps' go.mod files
           severity: CRITICAL,HIGH
 
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
+
   govulncheck:
     name: Go vulnerability check
     runs-on: ubuntu-22.04
@@ -133,3 +151,12 @@ jobs:
 
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: govulncheck ./...
+
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
