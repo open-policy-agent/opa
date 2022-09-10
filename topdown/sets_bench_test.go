@@ -14,6 +14,119 @@ import (
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 )
 
+func genNxMSetBenchmarkData(n, m int) ast.Value {
+	setOfSets := ast.NewSet()
+	for i := 0; i < n; i++ {
+		v := ast.NewSet()
+		for j := 0; j < m; j++ {
+			v.Add(ast.StringTerm(fmt.Sprintf("%d,%d", i, j)))
+		}
+		setOfSets.Add(ast.NewTerm(v))
+	}
+	return setOfSets
+}
+
+func BenchmarkSetIntersection(b *testing.B) {
+	ctx := context.Background()
+
+	sizes := []int{10, 100, 1000}
+
+	for _, n := range sizes {
+		for _, m := range sizes {
+			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
+				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+
+				module := `package test
+
+				combined := intersection({s | s := data.sets[_]})`
+
+				query := ast.MustParseBody("data.test.combined")
+				compiler := ast.MustCompileModules(map[string]string{
+					"test.rego": module,
+				})
+
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+
+					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+						q := NewQuery(query).
+							WithCompiler(compiler).
+							WithStore(store).
+							WithTransaction(txn)
+
+						_, err := q.Run(ctx)
+						if err != nil {
+							return err
+						}
+
+						return nil
+					})
+
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkSetIntersectionSlow(b *testing.B) {
+	ctx := context.Background()
+
+	sizes := []int{10, 50, 100}
+
+	for _, n := range sizes {
+		for _, m := range sizes {
+			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
+				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
+
+				module := `package test
+				import future.keywords.every
+				import future.keywords.in
+
+				combined[z] {
+					data.sets[m][z]
+					every ss in data.sets {
+						ss[z]
+					}
+				}`
+
+				query := ast.MustParseBody("data.test.combined")
+				compiler := ast.MustCompileModules(map[string]string{
+					"test.rego": module,
+				})
+
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+
+					err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+
+						q := NewQuery(query).
+							WithCompiler(compiler).
+							WithStore(store).
+							WithTransaction(txn)
+
+						_, err := q.Run(ctx)
+						if err != nil {
+							return err
+						}
+
+						return nil
+					})
+
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkSetUnion(b *testing.B) {
 	ctx := context.Background()
 
@@ -22,21 +135,14 @@ func BenchmarkSetUnion(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"nsets": n, "nsize": m})
+				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
 
 				// Code is lifted from here:
 				// https://github.com/open-policy-agent/opa/issues/4979#issue-1332019382
 
 				module := `package test
 
-				nums := numbers.range(0, data.nsets)
-				sizes := numbers.range(0, data.nsize)
-
-				sets[n] = x {
-					nums[n]
-					x := {sprintf("%d,%d", [n, i]) | sizes[i]}
-				}
-				combined := union({s | s := sets[_]})`
+				combined := union({s | s := data.sets[_]})`
 
 				query := ast.MustParseBody("data.test.combined")
 				compiler := ast.MustCompileModules(map[string]string{
@@ -82,21 +188,14 @@ func BenchmarkSetUnionSlow(b *testing.B) {
 	for _, n := range sizes {
 		for _, m := range sizes {
 			b.Run(fmt.Sprintf("%dx%d", n, m), func(b *testing.B) {
-				store := inmem.NewFromObject(map[string]interface{}{"nsets": n, "nsize": m})
+				store := inmem.NewFromObject(map[string]interface{}{"sets": genNxMSetBenchmarkData(n, m)})
 
 				// Code is lifted from here:
 				// https://github.com/open-policy-agent/opa/issues/4979#issue-1332019382
 
 				module := `package test
 
-				nums := numbers.range(0, data.nsets)
-				sizes := numbers.range(0, data.nsize)
-
-				sets[n] = x {
-					nums[n]
-					x := {sprintf("%d,%d", [n, i]) | sizes[i]}
-				}
-				combined := {t | s := sets[_]; s[t]}`
+				combined := {t | s := data.sets[_]; s[t]}`
 
 				query := ast.MustParseBody("data.test.combined")
 				compiler := ast.MustCompileModules(map[string]string{
