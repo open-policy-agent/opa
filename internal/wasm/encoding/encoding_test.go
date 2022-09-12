@@ -63,11 +63,7 @@ func TestRoundtrip(t *testing.T) {
 
 func TestRoundtripOPA(t *testing.T) {
 
-	bs, err := opa.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	bs := opa.Bytes()
 	module1, err := ReadModule(bytes.NewBuffer(bs))
 	if err != nil {
 		t.Fatal(err)

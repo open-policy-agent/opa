@@ -113,10 +113,7 @@ func unquote(s string) (string, error) {
 }
 
 func (c *Compiler) removeUnusedCode() error {
-	cgCSV, err := opa.CallGraphCSV()
-	if err != nil {
-		return fmt.Errorf("csv unpack: %w", err)
-	}
+	cgCSV := opa.CallGraphCSV()
 	r := csv.NewReader(bytes.NewReader(cgCSV))
 	r.LazyQuotes = true
 	cg, err := r.ReadAll()

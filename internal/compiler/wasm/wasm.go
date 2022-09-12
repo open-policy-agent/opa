@@ -322,11 +322,8 @@ func (c *Compiler) Compile() (*module.Module, error) {
 // are about to be compiled.
 func (c *Compiler) initModule() error {
 
-	bs, err := opa.Bytes()
-	if err != nil {
-		return err
-	}
-
+	bs := opa.Bytes()
+	var err error
 	c.module, err = encoding.ReadModule(bytes.NewReader(bs))
 	if err != nil {
 		return err
