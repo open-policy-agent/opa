@@ -16,7 +16,7 @@ cases:
     # Grab all cases from the modules inside `data.json_patch_cases` and
     # construct an object with readable index names.
     all_cases[k] = t {
-      t := data.json_patch_cases[p]["cases"][i]
+      t := data.json_patch_cases[p].cases[i]
       k := sprintf("%s/%d", [p, i])
     }
 

@@ -818,7 +818,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	env := newTestEnv([]string{
 		`p { true }`,
 		`q = {"foo": 1, "bar": 2} { true }`,
-		`a.b.c[3] = [4] { true }`,
+		`a.b.c[3] = x { x = {"x": {"y": 2}} }`,
 	})
 
 	tests := []struct {
@@ -867,6 +867,15 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			oneOf: []Value{Number("3")},
 		},
 		{
+			note:  "bad ref hitting dynamic part",
+			query: `s = true; data.test.a.b.c[3].x[s][_] = _`,
+			ref:   `data.test.a.b.c[3].x[s][_]`,
+			pos:   7,
+			have:  types.B,
+			want:  types.S,
+			oneOf: []Value{String("y")},
+		},
+		{
 			note:  "bad leaf var",
 			query: `x = 1; data.test.q[x]`,
 			ref:   `data.test.q[x]`,
@@ -898,6 +907,9 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			oneOf: []Value{String("a"), String("c")},
 		},
 		{
+			// NOTE(sr): Thins one and the next are special: it cannot work with ref heads, either, since we need at
+			// least ONE string term after data.test: a module needs a package line, and the shortest head ref
+			// possible is thus data.x.y.
 			note:  "bad non-leaf value",
 			query: `data.test[1]`,
 			ref:   "data.test[1]",
@@ -905,6 +917,15 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			have:  types.N,
 			want:  types.S,
 			oneOf: []Value{String("a"), String("p"), String("q")},
+		},
+		{
+			note:  "bad non-leaf value (package)", // See note above ^^
+			query: `data[1]`,
+			ref:   "data[1]",
+			pos:   1,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("test")},
 		},
 		{
 			note:  "composite ref operand",

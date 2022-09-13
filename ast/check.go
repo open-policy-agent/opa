@@ -657,73 +657,50 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 
 	head := ref[idx]
 
-	// Handle constant ref operands, i.e., strings or the ref head.
-	if _, ok := head.Value.(String); ok || idx == 0 {
-
-		child := node.Child(head.Value)
-		if child == nil {
-
-			if curr.next != nil {
-				next := curr.next
-				return rc.checkRef(next, next.tree, ref, 0)
-			}
-
-			if RootDocumentNames.Contains(ref[0]) {
-				return rc.checkRefLeaf(types.A, ref, 1)
-			}
-
-			return rc.checkRefLeaf(types.A, ref, 0)
+	// NOTE(sr): as long as package statements are required, this isn't possible:
+	// the shortest possible rule ref is data.a.b (b is idx 2), idx 1 and 2 need to
+	// be strings or vars.
+	if idx == 1 || idx == 2 {
+		switch head.Value.(type) {
+		case Var, String: // OK
+		default:
+			have := rc.env.Get(head.Value)
+			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, have, types.S, getOneOfForNode(node))
 		}
-
-		if child.Leaf() {
-			return rc.checkRefLeaf(child.Value(), ref, idx+1)
-		}
-
-		return rc.checkRef(curr, child, ref, idx+1)
 	}
 
-	// Handle dynamic ref operands.
-	switch value := head.Value.(type) {
-
-	case Var, Number, Boolean:
-		if exist := rc.env.Get(value); exist != nil {
-			tpe := types.Keys(rc.env.getRefRecExtent(node))
+	if v, ok := head.Value.(Var); ok && idx != 0 {
+		tpe := types.Keys(rc.env.getRefRecExtent(node))
+		if exist := rc.env.Get(v); exist != nil {
 			if !unifies(tpe, exist) {
 				return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, tpe, getOneOfForNode(node))
 			}
 		} else {
-			rc.env.tree.PutOne(value, types.S)
+			rc.env.tree.PutOne(v, tpe)
 		}
-
-	case Ref: // TODO(sr): Can this happen? Aren't refs in refs rewritten to the Var case above?
-
-		exist := rc.env.Get(value)
-		if exist == nil {
-			// If ref type is unknown, an error will already be reported so
-			// stop here.
-			return nil
-		}
-
-		if !unifies(types.S, exist) { // NOTE(sr): types.S ok here?
-			return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, exist, types.S, getOneOfForNode(node))
-		}
-
-	// Catch other ref operand types here. Non-leaf nodes must be referred to
-	// with string values.
-	default:
-		// NOTE(sr): types.S ok here?
-		return newRefErrInvalid(ref[0].Location, rc.varRewriter(ref), idx, nil, types.S, getOneOfForNode(node))
 	}
 
-	// Run checking on remaining portion of the ref. Note, since the ref
-	// potentially refers to data for which no type information exists,
-	// checking should never fail.
-	node.Children().Iter(func(_, child util.T) bool {
-		_ = rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1) // ignore error
-		return false
-	})
+	child := node.Child(head.Value)
+	if child == nil {
+		// NOTE(sr): idx is reset on purpose: we start over
+		switch {
+		case curr.next != nil:
+			next := curr.next
+			return rc.checkRef(next, next.tree, ref, 0)
 
-	return nil
+		case RootDocumentNames.Contains(ref[0]):
+			return rc.checkRefLeaf(types.A, ref, 1)
+
+		default:
+			return rc.checkRefLeaf(types.A, ref, 0)
+		}
+	}
+
+	if child.Leaf() {
+		return rc.checkRefLeaf(child.Value(), ref, idx+1)
+	}
+
+	return rc.checkRef(curr, child, ref, idx+1)
 }
 
 func (rc *refChecker) checkRefLeaf(tpe types.Type, ref Ref, idx int) *Error {
