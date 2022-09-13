@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-policy-agent/opa/ast"
 	gqltop "github.com/open-policy-agent/opa/internal/gqlparser"
-
 	gqlast "github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	gqlparser "github.com/open-policy-agent/opa/internal/gqlparser/parser"
 	gqlvalidator "github.com/open-policy-agent/opa/internal/gqlparser/validator"
-
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
@@ -82,6 +80,18 @@ func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 		// NOTE(philipc): We know the error location will be in the query string,
 		// because schema validation always happens before this function is called.
 		return fmt.Errorf("%s in GraphQL query string at location %d:%d", strings.TrimSuffix(err[0].Message, "."), err[0].Locations[0].Line, err[0].Locations[0].Column)
+	}
+	return nil
+}
+
+// Validates a GraphQL schema.
+// NOTE(philipc): The error type here is a gqlerror.Error struct,
+// which requires us to treat it specially, since the returned value
+// will *always* be non-null.
+// See: https://staticcheck.io/docs/checks#SA4023 for details.
+func validateSchemaDocument(schema string) error {
+	if _, err := gqltop.LoadSchema(&gqlast.Source{Input: string(schema)}); err != nil {
+		return err
 	}
 	return nil
 }
@@ -324,6 +334,11 @@ func builtinGraphQLParseSchema(_ BuiltinContext, operands []*ast.Term, iter func
 	// Get the highly-nested AST struct, along with any errors generated.
 	schema, err := parseSchema(string(raw))
 	if err != nil {
+		return err
+	}
+
+	// Additional schema validation alongside with just syntax checking.
+	if err := validateSchemaDocument(string(raw)); err != nil {
 		return err
 	}
 
