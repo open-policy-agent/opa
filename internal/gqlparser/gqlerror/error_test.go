@@ -3,8 +3,8 @@ package gqlerror
 import (
 	"testing"
 
-	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/stretchr/testify/require"
+	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 )
 
 func TestErrorFormatting(t *testing.T) {

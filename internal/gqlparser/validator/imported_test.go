@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/open-policy-agent/opa/internal/gqlparser"
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -88,7 +88,7 @@ func runSpec(t *testing.T, schemas []*ast.Schema, deviations []*Deviation, filen
 				// idx := spec.Schema
 				var schema *ast.Schema
 				if idx, err := strconv.Atoi(spec.Schema); err != nil {
-					var gqlErr *gqlerror.Error
+					var gqlErr error
 					schema, gqlErr = gqlparser.LoadSchema(&ast.Source{Input: spec.Schema, Name: spec.Name})
 					if gqlErr != nil {
 						t.Fatal(err)
@@ -96,9 +96,9 @@ func runSpec(t *testing.T, schemas []*ast.Schema, deviations []*Deviation, filen
 				} else {
 					schema = schemas[idx]
 				}
-				_, err := gqlparser.LoadQuery(schema, spec.Query)
+				_, errList := gqlparser.LoadQuery(schema, spec.Query)
 				var finalErrors gqlerror.List
-				for _, err := range err {
+				for _, err := range errList {
 					// ignore errors from other rules
 					if spec.Rule != "" && err.Rule != spec.Rule {
 						continue

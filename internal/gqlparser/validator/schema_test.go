@@ -1,12 +1,13 @@
 package validator
 
 import (
+	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser/testrunner"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLoadSchema(t *testing.T) {
@@ -97,9 +98,12 @@ func TestLoadSchema(t *testing.T) {
 
 	testrunner.Test(t, "./schema_test.yml", func(t *testing.T, input string) testrunner.Spec {
 		_, err := LoadSchema(Prelude, &ast.Source{Input: input})
-		return testrunner.Spec{
-			Error: err,
+		if err != nil {
+			return testrunner.Spec{
+				Error: err.(*gqlerror.Error),
+			}
 		}
+		return testrunner.Spec{}
 	})
 }
 

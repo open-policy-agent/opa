@@ -1,20 +1,5 @@
-# gqlparser (Details of library residing in OPA's internal)
-
-## Description
-
-https://github.com/vektah/gqlparser was duplicated into `internal/gqlparser` folder, so that we no longer have to track the external library 1-to-1, and so that OPA library users who want to use newer/older gqlparser versions won't have to match our GraphQL parser's version.
-
-The current version we have forked from is the [`v2.4.8`](https://github.com/vektah/gqlparser/releases/tag/v2.4.8) release. (Commit: `6d97050` on `master`)
-
-## Rewriter script
-
-The `rewrite-deps.sh` can be run from this directory, and it will do the grunt work of rewriting all import path prefixes for `gqlparser` sub-packages, so that they import this package.
-It also will add some linter ignore annotations on the validator rules, since those are tedious to do by hand.
-
-The script thus should alleviate around 40-60% of the linter-fixup work required during a version bump.
-
-
-## Original README
+gqlparser [![CircleCI](https://badgen.net/circleci/github/vektah/gqlparser/master)](https://circleci.com/gh/vektah/gqlparser) [![Go Report Card](https://goreportcard.com/badge/github.com/vektah/gqlparser/v2)](https://goreportcard.com/report/github.com/vektah/gqlparser/v2) [![Coverage Status](https://badgen.net/coveralls/c/github/vektah/gqlparser)](https://coveralls.io/github/vektah/gqlparser?branch=master)
+===
 
 This is a parser for graphql, written to mirror the graphql-js reference implementation as closely while remaining idiomatic and easy to use.
 

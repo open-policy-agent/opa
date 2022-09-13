@@ -3,11 +3,11 @@ package validator_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/open-policy-agent/opa/internal/gqlparser"
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser"
 	"github.com/open-policy-agent/opa/internal/gqlparser/validator"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExtendingNonExistantTypes(t *testing.T) {

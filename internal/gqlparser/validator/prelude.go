@@ -2,7 +2,6 @@ package validator
 
 import (
 	_ "embed"
-
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 )
 

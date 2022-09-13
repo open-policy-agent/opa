@@ -15,7 +15,6 @@ type Formatter interface {
 	FormatQueryDocument(doc *ast.QueryDocument)
 }
 
-//nolint:revive // Revive is being too aggressive here.
 type FormatterOption func(*formatter)
 
 func WithIndent(indent string) FormatterOption {

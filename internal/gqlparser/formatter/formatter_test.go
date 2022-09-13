@@ -8,11 +8,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/open-policy-agent/opa/internal/gqlparser"
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/formatter"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser"
-	"github.com/stretchr/testify/assert"
 )
 
 var update = flag.Bool("u", false, "update golden files")

@@ -239,6 +239,8 @@ var DefaultBuiltins = [...]*Builtin{
 	GraphQLParseQuery,
 	GraphQLParseSchema,
 	GraphQLIsValid,
+	GraphQLIsValidSchema,
+	GraphQLValidateSchema,
 
 	// Rego
 	RegoParseModule,
@@ -2579,6 +2581,36 @@ var GraphQLIsValid = &Builtin{
 			types.Named("schema", types.S),
 		),
 		types.Named("output", types.B).Description("`true` if the query is valid under the given schema. `false` otherwise."),
+	),
+}
+
+// GraphQLIsValidSchema returns true if a GraphQL schema is valid.
+var GraphQLIsValidSchema = &Builtin{
+	Name:        "graphql.is_valid_schema",
+	Description: "Checks that a GraphQL schema is valid.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.B).Description("`true` if the schema is valid. `false` otherwise."),
+	),
+}
+
+// GraphQLValidateSchema returns object with validation flag and error representation for GraphQL schema.
+var GraphQLValidateSchema = &Builtin{
+	Name:        "graphql.validate_schema",
+	Description: "Checks that a GraphQL schema is valid with error.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.S),
+		),
+		types.Named("output", types.NewObject(
+			[]*types.StaticProperty{
+				types.NewStaticProperty("error", types.S),
+				types.NewStaticProperty("is_valid", types.B),
+			},
+			types.NewDynamicProperty(types.A, types.A),
+		)).Description(" `output` is of the form `{error: string, is_valid: bool}`. If the schema is valid given the provided schema, then `valid` is `true` and `error` is empty string. If `false` then `error` contains error specific message."),
 	),
 }
 

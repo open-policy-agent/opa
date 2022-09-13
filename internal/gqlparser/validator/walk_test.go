@@ -3,9 +3,9 @@ package validator
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser"
-	"github.com/stretchr/testify/require"
 )
 
 func TestWalker(t *testing.T) {
