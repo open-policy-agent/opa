@@ -99,6 +99,7 @@ type ParserOptions struct {
 	ProcessAnnotation  bool
 	AllFutureKeywords  bool
 	FutureKeywords     []string
+	SkipRules          bool
 	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
@@ -135,12 +136,12 @@ func (p *Parser) WithProcessAnnotation(processAnnotation bool) *Parser {
 // WithFutureKeywords enables "future" keywords, i.e., keywords that can
 // be imported via
 //
-//     import future.keywords.kw
-//     import future.keywords.other
+//	import future.keywords.kw
+//	import future.keywords.other
 //
 // but in a more direct way. The equivalent of this import would be
 //
-//     WithFutureKeywords("kw", "other")
+//	WithFutureKeywords("kw", "other")
 func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
 	p.po.FutureKeywords = kws
 	return p
@@ -149,7 +150,7 @@ func (p *Parser) WithFutureKeywords(kws ...string) *Parser {
 // WithAllFutureKeywords enables all "future" keywords, i.e., the
 // ParserOption equivalent of
 //
-//     import future.keywords
+//	import future.keywords
 func (p *Parser) WithAllFutureKeywords(yes bool) *Parser {
 	p.po.AllFutureKeywords = yes
 	return p
@@ -166,6 +167,12 @@ func (p *Parser) withUnreleasedKeywords(yes bool) *Parser {
 // WithCapabilities sets the capabilities structure on the parser.
 func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
 	p.po.Capabilities = c
+	return p
+}
+
+// WithSkipRules instructs the parser not to attempt to parse Rule statements.
+func (p *Parser) WithSkipRules(skip bool) *Parser {
+	p.po.SkipRules = skip
 	return p
 }
 
@@ -212,7 +219,7 @@ func (p *Parser) futureParser() *Parser {
 // cache, and a scanner that knows none of the future keywords.
 // It is used to successfully parse keyword imports, like
 //
-//  import future.keywords.in
+//	import future.keywords.in
 //
 // even when the parser has already been informed about the
 // future keyword "in". This parser won't error out because
@@ -321,18 +328,21 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 
 		p.restore(s)
-		s = p.save()
 
-		if rules := p.parseRules(); rules != nil {
-			for i := range rules {
-				stmts = append(stmts, rules[i])
+		if !p.po.SkipRules {
+			s = p.save()
+
+			if rules := p.parseRules(); rules != nil {
+				for i := range rules {
+					stmts = append(stmts, rules[i])
+				}
+				continue
+			} else if len(p.s.errors) > 0 {
+				break
 			}
-			continue
-		} else if len(p.s.errors) > 0 {
-			break
-		}
 
-		p.restore(s)
+			p.restore(s)
+		}
 
 		if body := p.parseQuery(true, tokens.EOF); body != nil {
 			stmts = append(stmts, body)
