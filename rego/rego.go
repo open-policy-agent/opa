@@ -1793,6 +1793,7 @@ func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.B
 	if err != nil {
 		return nil, err
 	}
+	popts.SkipRules = true
 	return ast.ParseBodyWithOpts(r.query, popts)
 }
 
