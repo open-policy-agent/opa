@@ -32,21 +32,30 @@ func builtinObjectUnionN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 		return err
 	}
 
-	r := ast.NewObject()
-	err = arr.Iter(func(t *ast.Term) error {
-		var o ast.Object
-		o, err = builtins.ObjectOperand(t.Value, 1)
+	// Because we need merge-with-overwrite behavior, we can iterate
+	// back-to-front, and get a mostly correct set of key assignments that
+	// give us the "last assignment wins, with merges" behavior we want.
+	// However, if a non-object overwrites an object value anywhere in the
+	// chain of assignments for a key, we have to "freeze" that key to
+	// prevent accidentally picking up nested objects that could merge with
+	// it from earlier in the input array.
+	// Example:
+	//   Input: [{"a": {"b": 2}}, {"a": 4}, {"a": {"c": 3}}]
+	//   Want Output: {"a": {"c": 3}}
+	result := ast.NewObject()
+	frozenKeys := map[*ast.Term]struct{}{}
+	for i := arr.Len() - 1; i >= 0; i-- {
+		o, ok := arr.Elem(i).Value.(ast.Object)
+		if !ok {
+			return builtins.NewOperandElementErr(1, arr, arr.Elem(i).Value, "object")
+		}
+		mergewithOverwriteInPlace(result, o, frozenKeys)
 		if err != nil {
 			return err
 		}
-		r = mergeWithOverwrite(r, o)
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
-	return iter(ast.NewTerm(r))
+	return iter(ast.NewTerm(result))
 }
 
 func builtinObjectRemove(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -171,6 +180,32 @@ func mergeWithOverwrite(objA, objB ast.Object) ast.Object {
 		return ast.NewTerm(merged), false
 	})
 	return merged
+}
+
+// Modifies obj with any new keys from other, and recursively
+// merges any keys where the values are both objects.
+func mergewithOverwriteInPlace(obj, other ast.Object, frozenKeys map[*ast.Term]struct{}) {
+	other.Foreach(func(k, v *ast.Term) {
+		v2 := obj.Get(k)
+		// The key didn't exist in other, keep the original value.
+		if v2 == nil {
+			obj.Insert(k, v)
+			return
+		}
+		// The key exists in both. Merge or reject change.
+		updateValueObj, ok2 := v.Value.(ast.Object)
+		originalValueObj, ok1 := v2.Value.(ast.Object)
+		// Both are objects? Merge recursively.
+		if ok1 && ok2 {
+			// Check to make sure that this key isn't frozen before merging.
+			if _, ok := frozenKeys[v2]; !ok {
+				mergewithOverwriteInPlace(originalValueObj, updateValueObj, frozenKeys)
+			}
+		} else {
+			// Else, original value wins. Freeze the key.
+			frozenKeys[v2] = struct{}{}
+		}
+	})
 }
 
 func init() {
