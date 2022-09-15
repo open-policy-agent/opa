@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/ir"
+	"github.com/open-policy-agent/opa/ir"
 )
 
 func TestPlannerHelloWorld(t *testing.T) {
@@ -386,7 +386,9 @@ func (*cmpWalker) Before(interface{}) {}
 func (*cmpWalker) After(interface{})  {}
 
 // Visit takes, for example,
-//     *ir.MakeNullStmt{Location: ir.Location{Index:0, Col:1, Row:1}},
+//
+//	*ir.MakeNullStmt{Location: ir.Location{Index:0, Col:1, Row:1}},
+//
 // and for the first MakeNullStmt it finds, extracts its location,
 // and compares it to the one passed was needle. Other fields of the
 // struct, such as Target for ir.MakeNullStmt, are ignored.
