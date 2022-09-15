@@ -111,6 +111,9 @@ func Txn(ctx context.Context, store Store, params TransactionParams, f func(Tran
 // path is non-empty if a Read on the path returns a value or a Read
 // on any of the path prefixes returns a non-object value.
 func NonEmpty(ctx context.Context, store Store, txn Transaction) func([]string) (bool, error) {
+	if md, ok := store.(NonEmptyer); ok {
+		return md.NonEmpty(ctx, txn)
+	}
 	return func(path []string) (bool, error) {
 		if _, err := store.Read(ctx, txn, Path(path)); err == nil {
 			return true, nil
