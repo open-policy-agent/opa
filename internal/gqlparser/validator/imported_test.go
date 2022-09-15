@@ -43,7 +43,7 @@ func TestValidation(t *testing.T) {
 		d.pattern = regexp.MustCompile("^" + d.Rule + "$")
 	}
 
-	var schemas []*ast.Schema
+	schemas := make([]*ast.Schema, 0, len(rawSchemas))
 	for i, schema := range rawSchemas {
 		schema, err := gqlparser.LoadSchema(&ast.Source{Input: schema, Name: fmt.Sprintf("schemas.yml[%d]", i)})
 		if err != nil {

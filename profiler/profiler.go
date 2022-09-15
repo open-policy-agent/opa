@@ -240,7 +240,7 @@ func aggregate(stats ...ExprStats) ExprStatsAggregated {
 		NumRedo:  stats[0].NumRedo,
 		Location: stats[0].Location,
 	}
-	var timeNs []int64
+	timeNs := make([]int64, 0, len(stats))
 	for _, s := range stats {
 		timeNs = append(timeNs, s.ExprTimeNs)
 	}

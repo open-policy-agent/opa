@@ -38,7 +38,8 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 
 	dirty := false
 	var pass, fail, skip, errs int
-	var results, failures []*Result
+	results := make([]*Result, 0, len(ch))
+	var failures []*Result
 
 	for tr := range ch {
 		if tr.Pass() {
@@ -161,7 +162,7 @@ type JSONReporter struct {
 
 // Report prints the test report to the reporter's output.
 func (r JSONReporter) Report(ch chan *Result) error {
-	var report []*Result
+	report := make([]*Result, 0, len(ch))
 	for tr := range ch {
 		report = append(report, tr)
 	}

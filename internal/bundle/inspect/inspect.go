@@ -39,7 +39,7 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 	bi := &Info{Manifest: b.Manifest}
 
 	namespaces := make(map[string][]string, len(b.Modules))
-	var modules []*ast.Module
+	modules := make([]*ast.Module, 0, len(b.Modules))
 	for _, m := range b.Modules {
 		namespaces[m.Parsed.Package.Path.String()] = append(namespaces[m.Parsed.Package.Path.String()], filepath.Clean(m.Path))
 		modules = append(modules, m.Parsed)

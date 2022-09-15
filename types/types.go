@@ -684,7 +684,7 @@ type FuncArgs struct {
 }
 
 func (a FuncArgs) String() string {
-	var buf []string
+	buf := make([]string, 0, len(a.Args)+1)
 	for i := range a.Args {
 		buf = append(buf, Sprint(a.Args[i]))
 	}

@@ -43,11 +43,12 @@ func getSuggestedTypeNames(walker *Walker, parent *ast.Definition, name string) 
 		return nil
 	}
 
-	var suggestedObjectTypes []string
+	possibleTypes := walker.Schema.GetPossibleTypes(parent)
+	suggestedObjectTypes := make([]string, 0, len(possibleTypes))
 	var suggestedInterfaceTypes []string
 	interfaceUsageCount := map[string]int{}
 
-	for _, possibleType := range walker.Schema.GetPossibleTypes(parent) {
+	for _, possibleType := range possibleTypes {
 		field := possibleType.Fields.ForName(name)
 		if field == nil {
 			continue
@@ -87,7 +88,7 @@ func getSuggestedFieldNames(parent *ast.Definition, name string) []string {
 		return nil
 	}
 
-	var possibleFieldNames []string
+	possibleFieldNames := make([]string, 0, len(parent.Fields))
 	for _, field := range parent.Fields {
 		possibleFieldNames = append(possibleFieldNames, field.Name)
 	}

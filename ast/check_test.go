@@ -1255,7 +1255,9 @@ func newTestEnv(rs []string) *TypeEnv {
 		package test
 	`)
 
-	var elems []util.T
+	// We preallocate enough for at least the base rules.
+	// Else cases will cause reallocs, but that's okay.
+	elems := make([]util.T, 0, len(rs))
 
 	for i := range rs {
 		rule := MustParseRule(rs[i])

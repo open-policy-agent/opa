@@ -49,7 +49,7 @@ func TestTarballLoader(t *testing.T) {
 
 func TestIterator(t *testing.T) {
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -91,7 +91,7 @@ func TestIteratorOrder(t *testing.T) {
 		"/roles/policy.rego":   "package bar\n p = 1",
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archFiles))
 	for name, content := range archFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -170,7 +170,7 @@ func TestTarballLoaderWithFilter(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		var gzFiles [][2]string
+		gzFiles := make([][2]string, 0, len(files))
 		for name, content := range files {
 			gzFiles = append(gzFiles, [2]string{name, content})
 		}
@@ -222,7 +222,7 @@ func TestTarballLoaderWithFilterDir(t *testing.T) {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
-		var gzFiles [][2]string
+		gzFiles := make([][2]string, 0, len(files))
 		for name, content := range files {
 			gzFiles = append(gzFiles, [2]string{name, content})
 		}
@@ -389,7 +389,7 @@ func testGetTarballFile(t *testing.T, root string) *os.File {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	var gzFiles [][2]string
+	gzFiles := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		gzFiles = append(gzFiles, [2]string{name, content})
 	}
