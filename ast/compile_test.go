@@ -676,7 +676,7 @@ func TestCompilerErrorLimit(t *testing.T) {
 		"rego_compile_error: error limit reached",
 	}
 
-	var result = make([]string, 0, len(errs))
+	result := make([]string, 0, len(errs))
 	for _, err := range errs {
 		result = append(result, err.Error())
 	}

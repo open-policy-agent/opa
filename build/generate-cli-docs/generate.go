@@ -73,7 +73,7 @@ func main() {
 
 	heading := regexp.MustCompile(`^[\\-]+$`)
 	lines := strings.Split(builder.String(), "\n")
-	var document = make([]string, 0, len(lines))
+	document := make([]string, 0, len(lines))
 	removed := 0
 
 	// The document may contain "----" for headings, which will be converted to h1

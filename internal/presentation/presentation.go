@@ -224,7 +224,7 @@ func (e OutputErrors) Error() string {
 	}
 
 	// We preallocate for at least the minimum number of strings.
-	var s = make([]string, 0, len(e))
+	s := make([]string, 0, len(e))
 	for _, err := range e {
 		s = append(s, err.Error())
 		if l, ok := err.Details.(string); ok {
@@ -599,7 +599,7 @@ func generateTableMetrics(writer io.Writer) *tablewriter.Table {
 func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
 	aligns := make([]int, 0, len(keys))
-	var hdrs = make([]string, 0, len(keys))
+	hdrs := make([]string, 0, len(keys))
 	for _, k := range keys {
 		hdrs = append(hdrs, strings.Title(k)) //nolint:staticcheck // SA1019, no unicode here
 		aligns = append(aligns, tablewriter.ALIGN_LEFT)

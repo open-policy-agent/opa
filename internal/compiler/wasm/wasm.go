@@ -897,7 +897,7 @@ func mapFunc(mapping ast.Object, fn *ir.Func, index int) (ast.Object, bool) {
 }
 
 func (c *Compiler) emitMappingAndStartFunc() error {
-	var indices = make([]uint32, 0, len(c.policy.Funcs.Funcs))
+	indices := make([]uint32, 0, len(c.policy.Funcs.Funcs))
 	var ok bool
 	mapping := ast.NewObject()
 

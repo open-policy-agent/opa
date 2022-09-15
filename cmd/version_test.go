@@ -78,7 +78,7 @@ func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 	t.Helper()
 
 	lines := strings.Split(strings.Trim(stdout, "\n"), "\n")
-	var gotKeys = make([]string, 0, len(lines))
+	gotKeys := make([]string, 0, len(lines))
 
 	for _, line := range lines {
 		gotKeys = append(gotKeys, strings.Split(line, ":")[0])

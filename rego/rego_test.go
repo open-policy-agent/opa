@@ -1571,7 +1571,7 @@ func TestPreparedQueryGetModules(t *testing.T) {
 		"c.rego": "package c\nr = 1",
 	}
 
-	var regoArgs = make([]func(r *Rego), 0, len(mods)+1)
+	regoArgs := make([]func(r *Rego), 0, len(mods)+1)
 
 	for name, mod := range mods {
 		regoArgs = append(regoArgs, Module(name, mod))
