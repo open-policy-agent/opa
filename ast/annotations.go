@@ -639,7 +639,8 @@ func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 // Flatten returns a flattened list view of this AnnotationSet.
 // The returned slice is sorted, first by the annotations' target path, then by their target location
 func (as *AnnotationSet) Flatten() []*AnnotationsRef {
-	var refs []*AnnotationsRef
+	// This preallocation often won't be optimal, but it's superior to starting with a nil slice.
+	refs := make([]*AnnotationsRef, 0, len(as.byPath.Children)+len(as.byRule)+len(as.byPackage))
 
 	refs = as.byPath.flatten(refs)
 

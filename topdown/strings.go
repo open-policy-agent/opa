@@ -405,7 +405,7 @@ func builtinReplaceN(a, b ast.Value) (ast.Value, error) {
 		return nil, err
 	}
 
-	var oldnewArr []string
+	oldnewArr := make([]string, 0, len(keys)*2)
 	for _, k := range keys {
 		keyVal, ok := k.Value.(ast.String)
 		if !ok {

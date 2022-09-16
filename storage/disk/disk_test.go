@@ -202,7 +202,7 @@ func runTruncateTest(t *testing.T, dir string) {
 		"/roles/policy.rego": "package bar\n p = 1",
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -334,7 +334,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 		// additional data file at root
 		archiveFiles["/data.json"] = `{"a": {"b": {"z": true}}}}`
 
-		var files [][2]string
+		files := make([][2]string, 0, len(archiveFiles))
 		for name, content := range archiveFiles {
 			files = append(files, [2]string{name, content})
 		}

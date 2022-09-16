@@ -334,7 +334,7 @@ func TestTruncateNoExistingPath(t *testing.T) {
 		"/a/b/c/data.json": "[1,2,3]",
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -396,7 +396,7 @@ func TestTruncate(t *testing.T) {
 		"/roles/policy.rego": "package bar\n p = 1",
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -490,7 +490,7 @@ func TestTruncateDataMergeError(t *testing.T) {
 		"/data.json":     `{"a": {"b": {"c": "bar"}}}`,
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}
@@ -525,7 +525,7 @@ func TestTruncateBadRootWrite(t *testing.T) {
 		"/roles/policy.rego": "package bar\n p = 1",
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(archiveFiles))
 	for name, content := range archiveFiles {
 		files = append(files, [2]string{name, content})
 	}

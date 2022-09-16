@@ -372,7 +372,7 @@ func (c *Compiler) initBundle() error {
 	result.Manifest.Init()
 	result.Data = load.Files.Documents
 
-	var modules []string
+	modules := make([]string, 0, len(load.Files.Modules))
 
 	for k := range load.Files.Modules {
 		modules = append(modules, k)
@@ -824,7 +824,7 @@ func (o *optimizer) findRequiredDocuments(ref *ast.Term) []string {
 		})
 	}
 
-	var result []string
+	result := make([]string, 0, len(keep))
 
 	for k := range keep {
 		result = append(result, k)

@@ -1525,14 +1525,14 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 
 func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile {
 
-	var keys []string
+	keys := make([]string, 0, len(src))
 
 	for k := range src {
 		keys = append(keys, k)
 	}
 
 	sort.Strings(keys)
-	var modules []bundle.ModuleFile
+	modules := make([]bundle.ModuleFile, 0, len(keys))
 
 	for _, k := range keys {
 		module, err := ast.ParseModule(k, src[k])

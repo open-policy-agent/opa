@@ -854,7 +854,7 @@ func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.B
 }
 
 func (w *writer) writeComprehensionBody(open, close byte, body ast.Body, term, compr *ast.Location, comments []*ast.Comment) []*ast.Comment {
-	var exprs []interface{}
+	exprs := make([]interface{}, 0, len(body))
 	for _, expr := range body {
 		exprs = append(exprs, expr)
 	}
@@ -1004,7 +1004,7 @@ func groupIterable(elements []interface{}, last *ast.Location) [][]interface{} {
 	})
 
 	var lines [][]interface{}
-	var cur []interface{}
+	cur := make([]interface{}, 0, len(elements))
 	for i, t := range elements {
 		elem := t
 		loc := getLoc(elem)

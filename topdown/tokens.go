@@ -309,7 +309,7 @@ func getKeysFromCertOrJWK(certificate string) ([]verificationKey, error) {
 		return nil, fmt.Errorf("failed to parse a JWK key (set): %w", err)
 	}
 
-	var keys []verificationKey
+	keys := make([]verificationKey, 0, len(jwks.Keys))
 	for _, k := range jwks.Keys {
 		key, err := k.Materialize()
 		if err != nil {

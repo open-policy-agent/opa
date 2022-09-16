@@ -77,9 +77,10 @@ func TestCheckOPAUpdateBadURL(t *testing.T) {
 func expectOutputKeys(t *testing.T, stdout string, expectedKeys []string) {
 	t.Helper()
 
-	var gotKeys []string
+	lines := strings.Split(strings.Trim(stdout, "\n"), "\n")
+	gotKeys := make([]string, 0, len(lines))
 
-	for _, line := range strings.Split(strings.Trim(stdout, "\n"), "\n") {
+	for _, line := range lines {
 		gotKeys = append(gotKeys, strings.Split(line, ":")[0])
 	}
 
