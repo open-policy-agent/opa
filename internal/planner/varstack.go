@@ -6,7 +6,7 @@ package planner
 
 import (
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/ir"
+	"github.com/open-policy-agent/opa/ir"
 )
 
 type varstack []map[ast.Var]ir.Local

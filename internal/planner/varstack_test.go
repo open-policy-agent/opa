@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/ir"
+	"github.com/open-policy-agent/opa/ir"
 )
 
 func TestVarStackPushPop(t *testing.T) {
