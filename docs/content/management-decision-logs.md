@@ -75,6 +75,7 @@ Decision log updates contain the following fields:
 | `[_].metrics` | `object` | Key-value pairs of [performance metrics](../rest-api#performance-metrics). |
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 | `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
+| `[_].nd_builtin_cache` | `object` | Key-value pairs of non-deterministic builtin names, paired with objects specifying the input/output mappings for each unique invocation of that builtin during policy evaluation. Intended for use in debugging and decision replay. Receivers will need to decode the JSON using Rego's JSON decoders. |
 
 If the decision log was successfully uploaded to the remote service, it should respond with an HTTP 2xx status. If the
 service responds with a non-2xx status, OPA will requeue the last chunk containing decision log events and upload it
@@ -94,6 +95,12 @@ soft limit. The exponential function is 2^x where x has a minimum value of 1
 the last chunk.
 
 `Equilibrium`: If the chunk size is between 90% and 100% of the user-configured limit, maintain soft limit value.
+
+When an event containing `nd_builtin_cache` cannot fit into a chunk smaller than `upload_size_limit_bytes`, OPA will
+drop the `nd_builtin_cache` key from the event, and will retry encoding the chunk without the non-deterministic
+builtins cache information. This best-effort approach ensures that OPA reports decision log events as much as possible,
+and bounds how large decision log events can get. This size-bounding is necessary, because some non-deterministic builtins
+(such as `http.send`) can increase the decision log event size by a potentially unbounded amount.
 
 ### Local Decision Logs
 
@@ -172,7 +179,7 @@ from the decision log event. The erased paths are recorded on the event itself:
 
 There are a few restrictions on the JSON Pointers that OPA will erase:
 
-* Pointers must be prefixed with `/input` or `/result`.
+* Pointers must be prefixed with `/input`, `/result`, or `/nd_builtin_cache`.
 * Pointers may be undefined. For example `/input/name/first` in the example
   above would be undefined. Undefined pointers are ignored.
 * Pointers must refer to object keys. Pointers to array elements will be treated

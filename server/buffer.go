@@ -15,21 +15,22 @@ import (
 
 // Info contains information describing a policy decision.
 type Info struct {
-	Txn           storage.Transaction
-	Revision      string // Deprecated: Use `Bundles` instead
-	Bundles       map[string]BundleInfo
-	DecisionID    string
-	RemoteAddr    string
-	Query         string
-	Path          string
-	Timestamp     time.Time
-	Input         *interface{}
-	InputAST      ast.Value
-	Results       *interface{}
-	MappedResults *interface{}
-	Error         error
-	Metrics       metrics.Metrics
-	Trace         []*topdown.Event
+	Txn            storage.Transaction
+	Revision       string // Deprecated: Use `Bundles` instead
+	Bundles        map[string]BundleInfo
+	DecisionID     string
+	RemoteAddr     string
+	Query          string
+	Path           string
+	Timestamp      time.Time
+	Input          *interface{}
+	InputAST       ast.Value
+	Results        *interface{}
+	MappedResults  *interface{}
+	NDBuiltinCache *interface{}
+	Error          error
+	Metrics        metrics.Metrics
+	Trace          []*topdown.Event
 }
 
 // BundleInfo contains information describing a bundle.
