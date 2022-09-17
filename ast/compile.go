@@ -4689,6 +4689,9 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 			}
 			return false
 		})
+		for _, t := range v[1:] {
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, t, errs, strict)
+		}
 		return false, errs
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {

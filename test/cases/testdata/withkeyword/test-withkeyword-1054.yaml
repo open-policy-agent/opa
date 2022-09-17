@@ -1,0 +1,21 @@
+cases:
+- data:
+  modules:
+    - |
+      package generated
+      
+      allow {
+        input.x > 0
+      }
+      
+      test_allow {
+        base_test_case := {"x": 1}
+      
+        allow with input as object.union(base_test_case, {"x": 2})
+        allow with input as object.union(base_test_case, object.union(base_test_case, {"x": 2}))
+        not allow with input as object.union(base_test_case, object.union(base_test_case, {"x": -1}))
+      }
+  note: withkeyword/rewrite declared variables nested in function call
+  query: data.generated.test_allow = x
+  want_result:
+    - x: true
