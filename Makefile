@@ -12,7 +12,6 @@ WASM_ENABLED ?= 1
 # > executables. Packages not named main are ignored.
 GO := CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="-buildmode=exe" go
 GO_TEST_TIMEOUT := -timeout 30m
-
 GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
