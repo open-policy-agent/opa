@@ -3,7 +3,6 @@
 # license that can be found in the LICENSE file.
 
 VERSION := $(shell ./build/get-build-version.sh)
-
 CGO_ENABLED ?= 1
 WASM_ENABLED ?= 1
 
