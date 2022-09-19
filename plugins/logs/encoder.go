@@ -65,7 +65,8 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 	if len(bs) == 0 {
 		return nil, nil
 	} else if int64(len(bs)+2) > enc.limit {
-		return nil, fmt.Errorf("upload chunk size too small")
+		return nil, fmt.Errorf("upload chunk size (%d) exceeds upload_size_limit_bytes (%d)",
+			int64(len(bs)+2), enc.limit)
 	}
 
 	if int64(len(bs)+enc.bytesWritten+1) > enc.softLimit {
