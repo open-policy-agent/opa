@@ -111,7 +111,7 @@ func (s *Server) URL() string {
 // Builds the tarball from the supplied policies and prepares the layers in a temporary directory
 func (s *Server) buildBundles(ref string, policies map[string]string) error {
 	// Prepare the modules to include in the bundle. Sort them so bundles are deterministic.
-	var modules []bundle.ModuleFile
+	modules := make([]bundle.ModuleFile, 0, len(policies))
 	for url, str := range policies {
 		module, err := ast.ParseModule(url, str)
 		if err != nil {
@@ -364,7 +364,7 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare the modules to include in the bundle. Sort them so bundles are deterministic.
-	var modules []bundle.ModuleFile
+	modules := make([]bundle.ModuleFile, 0, len(b))
 	for url, str := range b {
 		module, err := ast.ParseModule(url, str)
 		if err != nil {

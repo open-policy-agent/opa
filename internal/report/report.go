@@ -137,9 +137,10 @@ func (dr *DataResponse) Pretty() string {
 		return ""
 	}
 
-	var lines []string
+	pairs := dr.Slice()
+	lines := make([]string, 0, len(pairs))
 
-	for _, pair := range dr.Slice() {
+	for _, pair := range pairs {
 		lines = append(lines, fmt.Sprintf("%v: %v", pair[0], pair[1]))
 	}
 

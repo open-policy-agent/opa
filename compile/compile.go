@@ -20,11 +20,11 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm"
 	"github.com/open-policy-agent/opa/internal/debug"
-	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
 	"github.com/open-policy-agent/opa/internal/ref"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
+	"github.com/open-policy-agent/opa/ir"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage"
@@ -372,7 +372,7 @@ func (c *Compiler) initBundle() error {
 	result.Manifest.Init()
 	result.Data = load.Files.Documents
 
-	var modules []string
+	modules := make([]string, 0, len(load.Files.Modules))
 
 	for k := range load.Files.Modules {
 		modules = append(modules, k)
@@ -824,7 +824,7 @@ func (o *optimizer) findRequiredDocuments(ref *ast.Term) []string {
 		})
 	}
 
-	var result []string
+	result := make([]string, 0, len(keep))
 
 	for k := range keep {
 		result = append(result, k)

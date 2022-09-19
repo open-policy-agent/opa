@@ -300,7 +300,7 @@ func evalNetCIDRMerge(networks []*net.IPNet) []*net.IPNet {
 		return nil
 	}
 
-	var ranges cidrBlockRanges
+	ranges := make(cidrBlockRanges, 0, len(networks))
 
 	// For each CIDR, create an IP range. Sort them and merge when possible.
 	for _, network := range networks {

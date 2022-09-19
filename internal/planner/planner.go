@@ -14,7 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/internal/debug"
-	"github.com/open-policy-agent/opa/internal/ir"
+	"github.com/open-policy-agent/opa/ir"
 )
 
 // QuerySet represents the input to the planner.
@@ -2133,11 +2133,11 @@ func rewrittenVar(vars map[ast.Var]ast.Var, k ast.Var) ast.Var {
 // allow for optimization using CallDynamicStmt.
 //
 // It's possible if all of these conditions hold:
-// - all vars in ref have been seen
-// - all ground terms (strings) match some child key on their respective
-//   layer of the ruletrie
-// - there are no child trees left (only rulesets) if we're done checking
-//   ref
+//   - all vars in ref have been seen
+//   - all ground terms (strings) match some child key on their respective
+//     layer of the ruletrie
+//   - there are no child trees left (only rulesets) if we're done checking
+//     ref
 //
 // The last condition is necessary because we don't deal with _which key a
 // var actually matched_ -- so we don't know which subtree to evaluate

@@ -25,4 +25,5 @@ linters:
     - structcheck
     - staticcheck
     - gosimple
+    - prealloc
     # - gosec # too many false positives

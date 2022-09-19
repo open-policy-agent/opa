@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/planner"
+	"github.com/open-policy-agent/opa/ir"
 )
 
 func TestRoundTrip(t *testing.T) {

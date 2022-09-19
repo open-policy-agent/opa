@@ -42,7 +42,7 @@ type compiledTestCase struct {
 }
 
 func compileTestCases(ctx context.Context, tests cases.Set) (*compiledTestCaseSet, error) {
-	var result []compiledTestCase
+	result := make([]compiledTestCase, 0, len(tests.Cases))
 	for _, tc := range tests.Cases {
 
 		var numExpects int

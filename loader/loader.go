@@ -501,7 +501,7 @@ func Dirs(paths []string) []string {
 		unique[dir] = struct{}{}
 	}
 
-	var u []string
+	u := make([]string, 0, len(unique))
 	for k := range unique {
 		u = append(u, k)
 	}

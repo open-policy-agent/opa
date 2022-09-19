@@ -787,7 +787,7 @@ func (a Args) Copy() Args {
 }
 
 func (a Args) String() string {
-	var buf []string
+	buf := make([]string, 0, len(a))
 	for _, t := range a {
 		buf = append(buf, t.String())
 	}
@@ -931,7 +931,7 @@ func (body Body) SetLoc(loc *Location) {
 }
 
 func (body Body) String() string {
-	var buf []string
+	buf := make([]string, 0, len(body))
 	for _, v := range body {
 		buf = append(buf, v.String())
 	}
@@ -1238,7 +1238,7 @@ func (expr *Expr) SetLoc(loc *Location) {
 }
 
 func (expr *Expr) String() string {
-	var buf []string
+	buf := make([]string, 0, 2+len(expr.With))
 	if expr.Negated {
 		buf = append(buf, "not")
 	}

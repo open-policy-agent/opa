@@ -15,12 +15,12 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/compiler/wasm/opa"
 	"github.com/open-policy-agent/opa/internal/debug"
-	"github.com/open-policy-agent/opa/internal/ir"
 	"github.com/open-policy-agent/opa/internal/wasm/encoding"
 	"github.com/open-policy-agent/opa/internal/wasm/instruction"
 	"github.com/open-policy-agent/opa/internal/wasm/module"
 	"github.com/open-policy-agent/opa/internal/wasm/types"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
+	"github.com/open-policy-agent/opa/ir"
 	opatypes "github.com/open-policy-agent/opa/types"
 )
 
@@ -897,7 +897,7 @@ func mapFunc(mapping ast.Object, fn *ir.Func, index int) (ast.Object, bool) {
 }
 
 func (c *Compiler) emitMappingAndStartFunc() error {
-	var indices []uint32
+	indices := make([]uint32, 0, len(c.policy.Funcs.Funcs))
 	var ok bool
 	mapping := ast.NewObject()
 

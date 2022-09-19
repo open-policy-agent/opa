@@ -223,7 +223,8 @@ func (e OutputErrors) Error() string {
 		prefix = fmt.Sprintf("%d errors occurred:\n", len(e))
 	}
 
-	var s []string
+	// We preallocate for at least the minimum number of strings.
+	s := make([]string, 0, len(e))
 	for _, err := range e {
 		s = append(s, err.Error())
 		if l, ok := err.Details.(string); ok {
@@ -597,8 +598,8 @@ func generateTableMetrics(writer io.Writer) *tablewriter.Table {
 
 func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table {
 	table := tablewriter.NewWriter(writer)
-	aligns := []int{}
-	var hdrs []string
+	aligns := make([]int, 0, len(keys))
+	hdrs := make([]string, 0, len(keys))
 	for _, k := range keys {
 		hdrs = append(hdrs, strings.Title(k)) //nolint:staticcheck // SA1019, no unicode here
 		aligns = append(aligns, tablewriter.ALIGN_LEFT)
