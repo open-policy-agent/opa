@@ -1,0 +1,57 @@
+cases:
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        input.x > 0
+      }
+      
+      test_allow {
+        base_test_case := {"x": 0}
+      
+        not allow with input as base_test_case
+      }
+  note: withkeyword/rewrite declared variables
+  query: data.test.test_allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        input.x > 0
+      }
+      
+      test_allow {
+        base_test_case := {"x": 0}
+      
+        allow with input as object.union(base_test_case, {"x": 1})
+        not allow with input as object.union(base_test_case, {"x": -1})
+      }
+  note: withkeyword/rewrite declared variables nested in function call
+  query: data.test.test_allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        input.x > 0
+      }
+      
+      test_allow {
+        base_test_case := {"x": 0}
+      
+        allow with input as object.union(base_test_case, object.union(base_test_case, {"x": 2}))
+        not allow with input as object.union(base_test_case, object.union(base_test_case, {"x": -2}))
+      }
+  note: withkeyword/rewrite declared variables twice nested in function call
+  query: data.test.test_allow = x
+  want_result:
+    - x: true
