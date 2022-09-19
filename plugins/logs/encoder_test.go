@@ -53,6 +53,36 @@ func TestChunkEncoder(t *testing.T) {
 	}
 }
 
+func TestChunkEncoderSizeLimit(t *testing.T) {
+	enc := newChunkEncoder(1).WithMetrics(metrics.New())
+	var result interface{} = false
+	var expInput interface{} = map[string]interface{}{"method": "GET"}
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := EventV1{
+		Labels: map[string]string{
+			"id":  "test-instance-id",
+			"app": "example-app",
+		},
+		DecisionID:  "123",
+		Path:        "foo/bar",
+		Input:       &expInput,
+		Result:      &result,
+		RequestedBy: "test",
+		Timestamp:   ts,
+	}
+	_, err = enc.Write(event)
+	if err == nil {
+		t.Error("Expected error as upload chunk size exceeds configured limit")
+	}
+	expected := "upload chunk size (200) exceeds upload_size_limit_bytes (1)"
+	if err.Error() != expected {
+		t.Errorf("expected: '%s', got: '%s'", expected, err.Error())
+	}
+}
+
 func TestChunkEncoderAdaptive(t *testing.T) {
 
 	enc := newChunkEncoder(1000).WithMetrics(metrics.New())
