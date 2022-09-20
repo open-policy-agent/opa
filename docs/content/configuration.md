@@ -306,8 +306,7 @@ If persistence is not configured the OCI downloader will store the layers in the
 OPA will authenticate using the specified bearer token and schema; to enable bearer token
 authentication, either the token or the path to the token must be specified. If the latter is provided, on each request OPA will re-read the token from the file and use that token for authentication.
 
-The schema is optional and will default to `Bearer`
-if unspecified.
+The `scheme` attribute is optional, and will default to `Bearer` if unspecified.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
