@@ -1038,6 +1038,7 @@ opa test <path> [path [...]] [flags]
       --bench                          benchmark the unit tests
       --benchmem                       report memory allocations with benchmark results (default true)
   -b, --bundle                         load paths as bundle files or root directories
+      --capabilities string            set capabilities version or capabilities.json file path
       --count int                      number of times to repeat each test (default 1)
   -c, --coverage                       report coverage (overrides debug tracing)
   -z, --exit-zero-on-skipped           skipped tests return status 0
