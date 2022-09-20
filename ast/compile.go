@@ -4584,7 +4584,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)
 		case *With:
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, x.Value, errs, strict)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, x.Value, errs, strict)
 			stop = true
 		}
 		return stop
@@ -4689,9 +4689,6 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 			}
 			return false
 		})
-		for _, t := range v[1:] {
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, t, errs, strict)
-		}
 		return false, errs
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
@@ -4725,7 +4722,7 @@ func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclar
 		var stop bool
 		switch n := n.(type) {
 		case *With:
-			_, errs = rewriteDeclaredVarsInTerm(g, stack, n.Value, errs, strict)
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, n.Value, errs, strict)
 			stop = true
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs, strict)
