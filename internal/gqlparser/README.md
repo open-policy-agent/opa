@@ -8,6 +8,8 @@ The current version we have forked from is commit [`b3be96f` on branch `master`]
 We picked this specific commit because the two commits after the 2.5.1 release dramatically improve the linter state of the library to be as strict or stricter than OPA's linting, allowing for nearly drop-in integration.
 
 We currently modify `gqlparser/gqlerror/error.go` to provide the line and column of the error location, so as to keep our `graphql` builtin error messages consistent.
+This requires either modifying all the library tests, or removing them.
+For now, at least until upstream adds columns to error messages, we will just remove tests from the imported library with the `remove-tests.sh` script.
 
 ## Rewriter script
 
