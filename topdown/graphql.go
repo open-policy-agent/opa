@@ -27,7 +27,9 @@ import (
 func loadSchema(schema string) (*gqlast.Schema, error) {
 	loadedSchema, err := gqltop.LoadSchema(&gqlast.Source{Input: schema})
 	if err != nil {
-		return nil, fmt.Errorf("%s in GraphQL schema string at location %d:%d", err.Message, err.Locations[0].Line, err.Locations[0].Column)
+		errorParts := strings.SplitN(err.Error(), ":", 4)
+		msg := strings.TrimLeft(errorParts[3], " ")
+		return nil, fmt.Errorf("%s in GraphQL schema string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
 	return loadedSchema, nil
 }
@@ -46,7 +48,9 @@ func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 	// definitions.
 	schemaAST, err := gqlparser.ParseSchema(&gqlast.Source{Input: schema})
 	if err != nil {
-		return nil, fmt.Errorf("%s in GraphQL string at location %d:%d", err.Message, err.Locations[0].Line, err.Locations[0].Column)
+		errorParts := strings.SplitN(err.Error(), ":", 4)
+		msg := strings.TrimLeft(errorParts[3], " ")
+		return nil, fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
 	return schemaAST, nil
 }
@@ -59,7 +63,9 @@ func parseSchema(schema string) (*gqlast.SchemaDocument, error) {
 func parseQuery(query string) (*gqlast.QueryDocument, error) {
 	queryAST, err := gqlparser.ParseQuery(&gqlast.Source{Input: query})
 	if err != nil {
-		return nil, fmt.Errorf("%s in GraphQL string at location %d:%d", err.Message, err.Locations[0].Line, err.Locations[0].Column)
+		errorParts := strings.SplitN(err.Error(), ":", 4)
+		msg := strings.TrimLeft(errorParts[3], " ")
+		return nil, fmt.Errorf("%s in GraphQL string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
 	return queryAST, nil
 }
@@ -81,7 +87,9 @@ func validateQuery(schema *gqlast.Schema, query *gqlast.QueryDocument) error {
 		// this affects only the last character(s) in the string.
 		// NOTE(philipc): We know the error location will be in the query string,
 		// because schema validation always happens before this function is called.
-		return fmt.Errorf("%s in GraphQL query string at location %d:%d", strings.TrimSuffix(err[0].Message, "."), err[0].Locations[0].Line, err[0].Locations[0].Column)
+		errorParts := strings.SplitN(err.Error(), ":", 4)
+		msg := strings.TrimSuffix(strings.TrimLeft(errorParts[3], " "), ".\n")
+		return fmt.Errorf("%s in GraphQL query string at location %s:%s", msg, errorParts[1], errorParts[2])
 	}
 	return nil
 }
