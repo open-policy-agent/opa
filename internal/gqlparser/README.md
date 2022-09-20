@@ -7,6 +7,8 @@ https://github.com/vektah/gqlparser was duplicated into `internal/gqlparser` fol
 The current version we have forked from is commit [`b3be96f` on branch `master`](https://github.com/vektah/gqlparser/commit/b3be96ff69fa97682c43570dcb6f75d08fdf8586), which is 2 commits past the [`v2.5.1`](https://github.com/vektah/gqlparser/releases/tag/v2.5.1) release tag.
 We picked this specific commit because the two commits after the 2.5.1 release dramatically improve the linter state of the library to be as strict or stricter than OPA's linting, allowing for nearly drop-in integration.
 
+We currently modify `gqlparser/gqlerror/error.go` to provide the line and column of the error location, so as to keep our `graphql` builtin error messages consistent.
+
 ## Rewriter script
 
 The `rewrite-deps.sh` can be run from this directory, and it will do the grunt work of rewriting all import path prefixes for `gqlparser` sub-packages, so that they import this package.
