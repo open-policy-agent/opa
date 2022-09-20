@@ -5,13 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	//nolint:revive // Original library used dot imports for convenience.
+	//nolint:revive
 	. "github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser"
 )
 
-func LoadSchema(inputs ...*Source) (*Schema, *gqlerror.Error) {
+func LoadSchema(inputs ...*Source) (*Schema, error) {
 	ast, err := parser.ParseSchemas(inputs...)
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func LoadSchema(inputs ...*Source) (*Schema, *gqlerror.Error) {
 	return ValidateSchemaDocument(ast)
 }
 
-func ValidateSchemaDocument(ast *SchemaDocument) (*Schema, *gqlerror.Error) {
+func ValidateSchemaDocument(ast *SchemaDocument) (*Schema, error) {
 	schema := Schema{
 		Types:         map[string]*Definition{},
 		Directives:    map[string]*DirectiveDefinition{},

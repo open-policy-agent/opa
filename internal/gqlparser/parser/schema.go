@@ -1,13 +1,12 @@
 package parser
 
 import (
-	//nolint:revive // Original library used dot imports for convenience.
+	//nolint:revive
 	. "github.com/open-policy-agent/opa/internal/gqlparser/ast"
-	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 	"github.com/open-policy-agent/opa/internal/gqlparser/lexer"
 )
 
-func ParseSchema(source *Source) (*SchemaDocument, *gqlerror.Error) {
+func ParseSchema(source *Source) (*SchemaDocument, error) {
 	p := parser{
 		lexer: lexer.New(source),
 	}
@@ -26,7 +25,7 @@ func ParseSchema(source *Source) (*SchemaDocument, *gqlerror.Error) {
 	return ast, nil
 }
 
-func ParseSchemas(inputs ...*Source) (*SchemaDocument, *gqlerror.Error) {
+func ParseSchemas(inputs ...*Source) (*SchemaDocument, error) {
 	ast := &SchemaDocument{}
 	for _, input := range inputs {
 		inputAst, err := ParseSchema(input)

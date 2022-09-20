@@ -3,6 +3,8 @@ package lexer
 import (
 	"testing"
 
+	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
+
 	"github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/parser/testrunner"
 )
@@ -16,7 +18,7 @@ func TestLexer(t *testing.T) {
 			tok, err := l.ReadToken()
 
 			if err != nil {
-				ret.Error = err
+				ret.Error = err.(*gqlerror.Error)
 				break
 			}
 

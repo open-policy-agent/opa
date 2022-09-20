@@ -1,14 +1,13 @@
 package parser
 
 import (
-	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 	"github.com/open-policy-agent/opa/internal/gqlparser/lexer"
 
-	//nolint:revive // Original library used dot imports for convenience.
+	//nolint:revive
 	. "github.com/open-policy-agent/opa/internal/gqlparser/ast"
 )
 
-func ParseQuery(source *Source) (*QueryDocument, *gqlerror.Error) {
+func ParseQuery(source *Source) (*QueryDocument, error) {
 	p := parser{
 		lexer: lexer.New(source),
 	}
@@ -338,7 +337,6 @@ func (p *parser) parseTypeReference() *Type {
 	}
 
 	if p.skip(lexer.Bang) {
-		typ.Position = p.peekPos()
 		typ.NonNull = true
 	}
 	return &typ
