@@ -2973,18 +2973,50 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		{
 			module: `
 				package test
-				rewrite_value_in_assignment {
+				rewrite_with_value_in_assignment {
 					a := 1
 					b := 1 with input as [a]
 				}
 			`,
 			exp: `
 				package test
-				rewrite_value_in_assignment = true { __local0__ = 1; __local1__ = 1 with input as [__local0__] }
+				rewrite_with_value_in_assignment = true { __local0__ = 1; __local1__ = 1 with input as [__local0__] }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("a"),
 				Var("__local1__"): Var("b"),
+			},
+		},
+		{
+			module: `
+				package test
+				rewrite_with_value_in_expr {
+					a := 1
+					a > 0 with input as [a]
+				}
+			`,
+			exp: `
+				package test
+				rewrite_with_value_in_expr = true { __local0__ = 1; gt(__local0__, 0) with input as [__local0__] }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
+			},
+		},
+		{
+			module: `
+				package test
+				rewrite_nested_with_value_in_expr {
+					a := 1
+					a > 0 with input as object.union({"a": a}, {"max_a": max([a])})
+				}
+			`,
+			exp: `
+				package test
+				rewrite_nested_with_value_in_expr = true { __local0__ = 1; gt(__local0__, 0) with input as object.union({"a": __local0__}, {"max_a": max([__local0__])}) }
+			`,
+			expRewrittenMap: map[Var]Var{
+				Var("__local0__"): Var("a"),
 			},
 		},
 		{
