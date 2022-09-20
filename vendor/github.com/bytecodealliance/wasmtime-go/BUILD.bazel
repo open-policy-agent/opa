@@ -68,29 +68,9 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "config_test.go",
-        "doc_test.go",
-        "engine_test.go",
-        "exporttype_test.go",
-        "func_test.go",
-        "functype_test.go",
-        "global_test.go",
-        "globaltype_test.go",
-        "importtype_test.go",
-        "instance_test.go",
-        "linker_test.go",
-        "memorytype_test.go",
-        "module_test.go",
-        "reftypes_test.go",
-        "slab_test.go",
-        "store_test.go",
-        "table_test.go",
-        "tabletype_test.go",
-        "trap_test.go",
-        "valtype_test.go",
-        "wasi_test.go",
-        "wasm2wat_test.go",
-    ],
+    srcs = glob(["**/*_test.go"]),
     embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//require:go_default_library",
+    ]
 )

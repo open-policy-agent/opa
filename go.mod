@@ -6,7 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/agnivade/levenshtein v1.1.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-	github.com/bytecodealliance/wasmtime-go v0.36.0
+	github.com/bytecodealliance/wasmtime-go v1.0.0
 	github.com/containerd/containerd v1.6.8
 	github.com/dgraph-io/badger/v3 v3.2103.2
 	github.com/fortytw2/leaktest v1.3.0

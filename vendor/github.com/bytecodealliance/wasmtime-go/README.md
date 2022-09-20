@@ -25,7 +25,7 @@
 ## Installation
 
 ```sh
-go get -u github.com/bytecodealliance/wasmtime-go@v0.36.0
+go get -u github.com/bytecodealliance/wasmtime-go@v1.0.0
 ```
 
 Be sure to check out the [API documentation][api]!
@@ -48,7 +48,7 @@ If you are a bazel user, add following to your WORKSPACE file:
 go_repository(
     name = "com_github_bytecodealliance_wasmtime_go",
     importpath = "github.com/bytecodealliance/wasmtime-go",
-    version = "v0.36.0",
+    version = "v1.0.0",
 )
 ```
 

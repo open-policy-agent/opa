@@ -14,8 +14,8 @@ github.com/andreyvit/diff
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bytecodealliance/wasmtime-go v0.36.0
-## explicit; go 1.14
+# github.com/bytecodealliance/wasmtime-go v1.0.0
+## explicit; go 1.18
 github.com/bytecodealliance/wasmtime-go
 github.com/bytecodealliance/wasmtime-go/build/include
 github.com/bytecodealliance/wasmtime-go/build/include/wasmtime
