@@ -132,7 +132,7 @@ into OPA when the state of the world changes. This can happen periodically or wh
 event (like a database change notification) occurs. Base documents loaded asynchronously
 are always accessed under the `data` global variable. On the other hand, base documents can
 also be pushed or pulled into OPA _synchronously_ when your software queries OPA for policy
-decisions. We say refer to base documents pushed synchronously as "input". Policies can
+decisions. We refer to base documents pushed synchronously as "input". Policies can
 access these inputs under the `input` global variable. To pull base documents during
 policy evaluation, OPA exposes (and can be extended with custom) built-in functions like
 `http.send`. Built-in function return values can be assigned to local variables and
