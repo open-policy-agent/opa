@@ -168,11 +168,11 @@ Examples
 
 To evaluate a simple query:
 
-    $ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x := 1; y := 2; x < y'
 
 To evaluate a query against JSON data:
 
-    $ opa eval --data data.json 'data.names[_] = name'
+    $ opa eval --data data.json 'name := data.names[_]'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 

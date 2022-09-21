@@ -80,20 +80,23 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	allow {
-		input.path = ["users"]
-		input.method = "POST"
+	import future.keywords.if
+
+	allow if {
+		input.path == ["users"]
+		input.method == "POST"
 	}
 
-	allow {
-		input.path = ["users", profile_id]
-		input.method = "GET"
-		profile_id = input.user_id
+	allow if {
+		input.path == ["users", input.user_id]
+		input.method == "GET"
 	}
 
 Example test (example/authz_test.rego):
 
-	package authz
+	package authz_test
+
+	import data.authz.allow
 
 	test_post_allowed {
 		allow with input as {"path": ["users"], "method": "POST"}

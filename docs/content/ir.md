@@ -201,7 +201,7 @@ Parameter | Input/Output | Type | Description
 
 Parameter | Input/Output | Type | Description
 --- | --- | --- | ---
-`source` | `input` | `operand` | The value ato assign to the target.
+`source` | `input` | `operand` | The value to assign to the target.
 `target` | `output` | `local` | The local variable to assign the operand to.
 
 {{< danger >}}
@@ -454,4 +454,4 @@ example.
 The following examples show how the test suite is used internally:
 
 * [`github.com/open-policy-agent/opa/topdown#TestRego`](https://github.com/open-policy-agent/opa/blob/main/topdown/exported_test.go)
-* [`github.com/open-policy-agent/opa/test/wasm/cmd/wasm-rego-testgen`](https://github.com/open-policy-agent/opa/blob/main/test/wasm/cmd/wasm-rego-testgen/main.go)
+* [`github.com/open-policy-agent/opa/internal/wasm/sdk/test/e2e/external_test`](https://github.com/open-policy-agent/opa/blob/main/internal/wasm/sdk/test/e2e/external_test.go)
