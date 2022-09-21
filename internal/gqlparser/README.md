@@ -4,7 +4,12 @@
 
 https://github.com/vektah/gqlparser was duplicated into `internal/gqlparser` folder, so that we no longer have to track the external library 1-to-1, and so that OPA library users who want to use newer/older gqlparser versions won't have to match our GraphQL parser's version.
 
-The current version we have forked from is the [`v2.4.8`](https://github.com/vektah/gqlparser/releases/tag/v2.4.8) release. (Commit: `6d97050` on `master`)
+The current version we have forked from is commit [`b3be96f` on branch `master`](https://github.com/vektah/gqlparser/commit/b3be96ff69fa97682c43570dcb6f75d08fdf8586), which is 2 commits past the [`v2.5.1`](https://github.com/vektah/gqlparser/releases/tag/v2.5.1) release tag.
+We picked this specific commit because the two commits after the 2.5.1 release dramatically improve the linter state of the library to be as strict or stricter than OPA's linting, allowing for nearly drop-in integration.
+
+We currently modify `gqlparser/gqlerror/error.go` to provide the line and column of the error location, so as to keep our `graphql` builtin error messages consistent.
+This requires either modifying all the library tests, or removing them.
+For now, at least until upstream adds columns to error messages, we will just remove tests from the imported library with the `remove-tests.sh` script.
 
 ## Rewriter script
 
@@ -12,7 +17,6 @@ The `rewrite-deps.sh` can be run from this directory, and it will do the grunt w
 It also will add some linter ignore annotations on the validator rules, since those are tedious to do by hand.
 
 The script thus should alleviate around 40-60% of the linter-fixup work required during a version bump.
-
 
 ## Original README
 

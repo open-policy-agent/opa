@@ -11,10 +11,10 @@ import (
 	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 )
 
-var ErrorUnexpectedType = fmt.Errorf("Unexpected Type")
+var ErrUnexpectedType = fmt.Errorf("Unexpected Type")
 
 // VariableValues coerces and validates variable values
-func VariableValues(schema *ast.Schema, op *ast.OperationDefinition, variables map[string]interface{}) (map[string]interface{}, *gqlerror.Error) {
+func VariableValues(schema *ast.Schema, op *ast.OperationDefinition, variables map[string]interface{}) (map[string]interface{}, error) {
 	coercedVars := map[string]interface{}{}
 
 	validator := varValidator{
@@ -53,8 +53,8 @@ func VariableValues(schema *ast.Schema, op *ast.OperationDefinition, variables m
 			} else {
 				rv := reflect.ValueOf(val)
 
-				jsonNumber, isJSONumber := val.(json.Number)
-				if isJSONumber {
+				jsonNumber, isJSONNumber := val.(json.Number)
+				if isJSONNumber {
 					if v.Type.NamedType == "Int" {
 						n, err := jsonNumber.Int64()
 						if err != nil {

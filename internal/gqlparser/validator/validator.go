@@ -1,7 +1,7 @@
 package validator
 
 import (
-	//nolint:revive // Original library used dot imports for convenience.
+	//nolint:revive
 	. "github.com/open-policy-agent/opa/internal/gqlparser/ast"
 	"github.com/open-policy-agent/opa/internal/gqlparser/gqlerror"
 )
