@@ -53,13 +53,12 @@ Given a policy like this:
 
 	package policy
 
-	allow {
-		is_admin
-	}
+	import future.keywords.if
+	import future.keywords.in
 
-	is_admin {
-		"admin" == input.user.roles[_]
-	}
+	allow if is_admin
+
+	is_admin if "admin" in input.user.roles
 
 To evaluate the dependencies of a simple query (e.g. data.policy.allow),
 we'd run opa deps like demonstrated below:
