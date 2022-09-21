@@ -362,13 +362,12 @@ Given a policy like this:
 
 	package policy
 
-	allow {
-		is_admin
-	}
+	import future.keywords.if
+	import future.keywords.in
 
-	is_admin {
-		"admin" == input.user.roles[_]
-	}
+	allow if is_admin
+
+	is_admin if "admin" in input.user.roles
 
 To evaluate the dependencies of a simple query (e.g. data.policy.allow),
 we'd run opa deps like demonstrated below:
@@ -415,11 +414,11 @@ Evaluate a Rego query and print the result.
 
 To evaluate a simple query:
 
-    $ opa eval 'x = 1; y = 2; x < y'
+    $ opa eval 'x := 1; y := 2; x < y'
 
 To evaluate a query against JSON data:
 
-    $ opa eval --data data.json 'data.names[_] = name'
+    $ opa eval --data data.json 'name := data.names[_]'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
@@ -980,20 +979,23 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	allow {
-		input.path = ["users"]
-		input.method = "POST"
+	import future.keywords.if
+
+	allow if {
+		input.path == ["users"]
+		input.method == "POST"
 	}
 
-	allow {
-		input.path = ["users", profile_id]
-		input.method = "GET"
-		profile_id = input.user_id
+	allow if {
+		input.path == ["users", input.user_id]
+		input.method == "GET"
 	}
 
 Example test (example/authz_test.rego):
 
-	package authz
+	package authz_test
+
+	import data.authz.allow
 
 	test_post_allowed {
 		allow with input as {"path": ["users"], "method": "POST"}
