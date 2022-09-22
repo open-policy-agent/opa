@@ -257,7 +257,7 @@ a_map[w] := z if { ... }
 ```live:rules/ordered:module:read_only
 default a := 1
 a := 5 if { ... }
-else := 10 { ... }
+else := 10 if { ... }
 ```
 
 ### Functions (Boolean)
@@ -1116,7 +1116,7 @@ rule-head-obj   = "[" term "]" [ assign-operator term ] [ "if" ]
 rule-head-func  = "(" rule-args ")" [ assign-operator term ] [ "if" ]
 rule-head-set   = "contains" term [ "if" ] | "[" term "]"
 rule-args       = term { "," term }
-rule-body       = [ "else" [ assign-operator term ] ] ( "{" query "}" ) | literal
+rule-body       = [ "else" [ assign-operator term ] [ "if" ] ] ( "{" query "}" ) | literal
 query           = literal { ( ";" | ( [CR] LF ) ) literal }
 literal         = ( some-decl | expr | "not" expr ) { with-modifier }
 with-modifier   = "with" term "as" term
