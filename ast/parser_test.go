@@ -1688,6 +1688,18 @@ func TestRuleIf(t *testing.T) {
 			},
 		},
 		{
+			note: "else",
+			rule: `p if { true } else if { true }`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+				Else: &Rule{
+					Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+					Body: NewBody(NewExpr(BooleanTerm(true))),
+				},
+			},
+		},
+		{
 			note: "complete, normal body",
 			rule: `p if { x := 10; x > y }`,
 			exp: &Rule{
@@ -1716,11 +1728,55 @@ func TestRuleIf(t *testing.T) {
 			},
 		},
 		{
+			note: "complete+else, normal bodies, assign; if",
+			rule: `p := "yes" if { 10 > y } else := "no" if { 10 <= y }`,
+			exp: &Rule{
+				Head: &Head{
+					Name:   Var("p"),
+					Value:  StringTerm("yes"),
+					Assign: true,
+				},
+				Body: MustParseBody(`10 > y`),
+				Else: &Rule{
+					Head: &Head{
+						Name:   Var("p"),
+						Value:  StringTerm("no"),
+						Assign: true,
+					},
+					Body: MustParseBody(`10 <= y`),
+				},
+			},
+		},
+		{
 			note: "complete, shorthand",
 			rule: `p if true`,
 			exp: &Rule{
 				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 				Body: NewBody(NewExpr(BooleanTerm(true))),
+			},
+		},
+		{
+			note: "complete, else, shorthand",
+			rule: `p if true else if true`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+				Else: &Rule{
+					Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+					Body: NewBody(NewExpr(BooleanTerm(true))),
+				},
+			},
+		},
+		{
+			note: "complete, else, assignment+shorthand",
+			rule: `p if true else := 3 if 2 < 1`,
+			exp: &Rule{
+				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
+				Body: NewBody(NewExpr(BooleanTerm(true))),
+				Else: &Rule{
+					Head: NewHead(Var("p"), nil, IntNumberTerm(3)),
+					Body: NewBody(LessThan.Expr(IntNumberTerm(2), IntNumberTerm(1))),
+				},
 			},
 		},
 		{

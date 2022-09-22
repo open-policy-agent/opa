@@ -321,7 +321,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, co
 		return comments
 	}
 
-	if useIf && partialSetException && !isElse {
+	if useIf && partialSetException {
 		w.write(" if")
 		if len(rule.Body) == 1 {
 			if rule.Body[0].Location.Row == rule.Head.Location.Row {
