@@ -681,7 +681,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	p.scan()
 
 	switch p.s.tok {
-	case tokens.LBrace:
+	case tokens.LBrace, tokens.If: // no value, but a body follows directly
 		rule.Head.Value = BooleanTerm(true)
 	case tokens.Assign, tokens.Unify:
 		p.scan()
@@ -693,6 +693,30 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	default:
 		p.illegal("expected else value term or rule body")
 		return nil
+	}
+
+	hasIf := p.s.tok == tokens.If
+
+	if hasIf {
+		p.scan()
+		s := p.save()
+		if expr := p.parseLiteral(); expr != nil {
+			// NOTE(sr): set literals are never false or undefined, so parsing this as
+			//  p if false else if { true }
+			//                     ^^^^^^^^ set of one element, `true`
+			// isn't valid.
+			isSetLiteral := false
+			if t, ok := expr.Terms.(*Term); ok {
+				_, isSetLiteral = t.Value.(Set)
+			}
+			// expr.Term is []*Term or Every
+			if !isSetLiteral {
+				rule.Body.Append(expr)
+				setLocRecursive(rule.Body, rule.Location)
+				return &rule
+			}
+		}
+		p.restore(s)
 	}
 
 	if p.s.tok != tokens.LBrace {

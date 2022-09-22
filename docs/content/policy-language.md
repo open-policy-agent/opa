@@ -1851,7 +1851,7 @@ order-sensitive system like IPTables.
 ```live:eg/else:module
 authorize := "allow" if {
     input.user == "superuser"           # allow 'superuser' to perform any operation.
-} else := "deny" {
+} else := "deny" if {
     input.path[0] == "admin"            # disallow 'admin' operations...
     input.source_network == "external"  # from external networks.
 } # ... more rules
