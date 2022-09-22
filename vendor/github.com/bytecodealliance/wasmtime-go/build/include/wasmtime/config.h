@@ -197,11 +197,8 @@ WASMTIME_CONFIG_PROP(void, wasm_memory64, bool)
  * \brief Configures how JIT code will be compiled.
  *
  * This setting is #WASMTIME_STRATEGY_AUTO by default.
- *
- * If the compilation strategy selected could not be enabled then an error is
- * returned.
  */
-WASMTIME_CONFIG_PROP(wasmtime_error_t*, strategy, wasmtime_strategy_t)
+WASMTIME_CONFIG_PROP(void, strategy, wasmtime_strategy_t)
 
 /**
  * \brief Configures whether Cranelift's debug verifier is enabled.
@@ -214,6 +211,19 @@ WASMTIME_CONFIG_PROP(wasmtime_error_t*, strategy, wasmtime_strategy_t)
 WASMTIME_CONFIG_PROP(void, cranelift_debug_verifier, bool)
 
 /**
+ * \brief Configures whether Cranelift should perform a NaN-canonicalization pass.
+ *
+ * When Cranelift is used as a code generation backend this will configure
+ * it to replace NaNs with a single canonical value. This is useful for users
+ * requiring entirely deterministic WebAssembly computation.
+ * 
+ * This is not required by the WebAssembly spec, so it is not enabled by default.
+ * 
+ * The default value for this is `false`
+ */
+WASMTIME_CONFIG_PROP(void, cranelift_nan_canonicalization, bool)
+  
+/**
  * \brief Configures Cranelift's optimization level for JIT code.
  *
  * This setting in #WASMTIME_OPT_LEVEL_SPEED by default.
@@ -225,7 +235,7 @@ WASMTIME_CONFIG_PROP(void, cranelift_opt_level, wasmtime_opt_level_t)
  *
  * This setting in #WASMTIME_PROFILING_STRATEGY_NONE by default.
  */
-WASMTIME_CONFIG_PROP(wasmtime_error_t*, profiler, wasmtime_profiling_strategy_t)
+WASMTIME_CONFIG_PROP(void, profiler, wasmtime_profiling_strategy_t)
 
 /**
  * \brief Configures the maximum size for memory to be considered "static"
