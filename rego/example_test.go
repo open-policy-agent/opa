@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage/disk"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -943,6 +944,47 @@ func ExampleRego_custom_function_caching() {
 	//
 	// x: 1
 	// y: 1
+}
+
+func ExampleRego_custom_function_nondeterministic() {
+	ndbCache := builtins.NDBCache{}
+	r := rego.New(
+		// An example query that uses a custom function.
+		rego.Query(`x = myrandom()`),
+
+		// A custom function that uses caching.
+		rego.FunctionDyn(
+			&rego.Function{
+				Name:             "myrandom",
+				Memoize:          true,
+				Nondeterministic: true,
+				Decl: types.NewFunction(
+					nil,     // one string input
+					types.N, // one number output
+				),
+			},
+			func(_ topdown.BuiltinContext, args []*ast.Term) (*ast.Term, error) {
+				i := 55555
+				return ast.IntNumberTerm(i), nil
+			},
+		),
+		rego.NDBuiltinCache(ndbCache),
+	)
+
+	rs, err := r.Eval(context.Background())
+	if err != nil {
+		// handle error
+	}
+
+	// Check the binding, and what the NDBCache saw.
+	// This ensures the Nondeterministic flag propagated through correctly.
+	fmt.Println("x:", rs[0].Bindings["x"])
+	fmt.Println("NDBCache:", ndbCache["myrandom"])
+
+	// Output:
+	//
+	// x: 55555
+	// NDBCache: {[]: 55555}
 }
 
 func ExampleRego_custom_function_global() {
