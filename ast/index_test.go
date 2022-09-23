@@ -68,7 +68,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	ref.multi.value.ground contains x if x := input.x
 
-	# ref.multi.value.key[k] contains v if { k := input.k; v := input.v }
+	ref.multiple.single.value.ground = x if x := input.x
+	ref.multiple.single.value[y] = x if { x := input.x; y := index.y }
+
+	# ref.multi.value.key[k] contains v if { k := input.k; v := input.v } # not supported yet
 	`, opts)
 
 	module := MustParseModule(`
@@ -653,6 +656,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: RuleSet([]*Rule{refMod.Rules[0]}),
 		},
 		{
+			note:       "ref: single value, ground ref and non-ground ref",
+			module:     refMod,
+			ruleRef:    MustParseRef("ref.multiple.single.value"),
+			input:      `{"x": 1, "y": "Y"}`,
+			expectedRS: RuleSet([]*Rule{refMod.Rules[3], refMod.Rules[4]}),
+		},
+		{
 			note:       "ref: single value, var in ref",
 			module:     refMod,
 			ruleRef:    MustParseRef("ref.single.value.key[k]"),
@@ -688,7 +698,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 						rules = append(rules, rule)
 					}
 				} else {
-					if tc.ruleRef.Equal(rule.Head.Ref()) {
+					if rule.Head.Ref().HasPrefix(tc.ruleRef) {
 						rules = append(rules, rule)
 					}
 				}

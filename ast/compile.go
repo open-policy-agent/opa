@@ -777,7 +777,6 @@ func (c *Compiler) buildRuleIndices() {
 		if len(node.Values) == 0 {
 			return false
 		}
-		// TODO(sr): test this
 		rules := extractRules(node.Values)
 		hasNonGroundKey := false
 		for _, r := range rules {
