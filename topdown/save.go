@@ -375,12 +375,8 @@ func ignoreExprDuringPartial(expr *ast.Expr) bool {
 }
 
 func ignoreDuringPartial(bi *ast.Builtin) bool {
-	for _, ignore := range ast.IgnoreDuringPartialEval {
-		if bi == ignore {
-			return true
-		}
-	}
-	return false
+	// Note(philipc): For now, we throw out all non-deterministic builtins.
+	return bi.Nondeterministic
 }
 
 type inliningControl struct {
