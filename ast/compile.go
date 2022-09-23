@@ -5345,7 +5345,10 @@ func rewriteVarsInRef(vars ...map[Var]Var) varRewriter {
 	}
 }
 
-// TODO(sr): move into internal/refset or something
+// NOTE(sr): This is duplicated with compile/compile.go; but moving it into another location
+// would cause a circular dependency -- the refSet definition needs ast.Ref. If we make it
+// public in the ast package, the compile package could take it from there, but it would also
+// increase our public interface. Let's reconsider if we need it in a third place.
 type refSet struct {
 	s []Ref
 }
