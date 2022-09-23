@@ -816,6 +816,7 @@ opa run [flags]
   -b, --bundle                               load paths as bundle files or root directories
   -c, --config-file string                   set path of configuration file
       --diagnostic-addr strings              set read-only diagnostic listening address of the server for /health and /metric APIs (e.g., [ip]:<port> for TCP, unix://<path> for UNIX domain socket)
+      --disable-telemetry                    disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
       --exclude-files-verify strings         set file names to exclude during bundle verification
   -f, --format string                        set shell output format, i.e, pretty, json (default "pretty")
       --h2c                                  enable H2C for HTTP listeners
@@ -837,7 +838,6 @@ opa run [flags]
       --shutdown-wait-period int             set the time (in seconds) that the server will wait before initiating shutdown
       --signing-alg string                   name of the signing algorithm (default "RS256")
       --skip-verify                          disables bundle signature verification
-      --disable-telemetry                    disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
       --tls-ca-cert-file string              set path of TLS CA cert file
       --tls-cert-file string                 set path of TLS certificate file
       --tls-cert-refresh-period duration     set certificate refresh period
