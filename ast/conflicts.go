@@ -30,8 +30,6 @@ func checkDocumentConflicts(node *TreeNode, exists func([]string) (bool, error),
 	switch key := node.Key.(type) {
 	case String:
 		path = append(path, string(key))
-	case Number:
-		path = append(path, string(key))
 	default: // other key types cannot conflict with data
 		return nil
 	}
