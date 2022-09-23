@@ -54,7 +54,7 @@ func loadSchema(raw interface{}, allowNet []string) (types.Type, error) {
 		return nil, err
 	}
 
-	tpe, err := parseSchema(jsonSchema.RootSchema)
+	tpe, err := newSchemaParser().parseSchema(jsonSchema.RootSchema)
 	if err != nil {
 		return nil, fmt.Errorf("type checking: %w", err)
 	}
