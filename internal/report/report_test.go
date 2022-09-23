@@ -7,7 +7,6 @@ package report
 import (
 	"context"
 	"encoding/json"
-
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -101,6 +100,29 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 
 	if !reflect.DeepEqual(resp, exp) {
 		t.Fatalf("Expected response: %+v but got: %+v", exp, resp)
+	}
+}
+
+func TestReportWithHeapStats(t *testing.T) {
+	// test server
+	baseURL, teardown := getTestServer(nil, http.StatusOK)
+	defer teardown()
+
+	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+
+	reporter, err := New("", Options{})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	_, err = reporter.SendReport(context.Background())
+
+	if err != nil {
+		t.Fatalf("Expected no error but got %v", err)
+	}
+
+	if _, ok := reporter.body["heap_usage_bytes"]; !ok {
+		t.Fatal("Expected key \"heap_usage_bytes\" in the report")
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/keys"
@@ -34,7 +36,7 @@ import (
 // is provided.
 var ExternalServiceURL = "https://telemetry.openpolicyagent.org"
 
-// Reporter reports the version of the running OPA instance to an external service
+// Reporter reports information such as the version, heap usage about the running OPA instance to an external service
 type Reporter struct {
 	body   map[string]string
 	client rest.Client
@@ -84,10 +86,15 @@ func New(id string, opts Options) (*Reporter, error) {
 	return &r, nil
 }
 
-// SendReport sends the version report to the external service
+// SendReport sends the telemetry report which includes information such as the OPA version, current memory usage to
+// the external service
 func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	r.body["heap_usage_bytes"] = strconv.FormatUint(m.Alloc, 10)
 
 	resp, err := r.client.WithJSON(r.body).Do(rCtx, "POST", "/v1/version")
 	if err != nil {
