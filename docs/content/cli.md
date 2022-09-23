@@ -837,7 +837,7 @@ opa run [flags]
       --shutdown-wait-period int             set the time (in seconds) that the server will wait before initiating shutdown
       --signing-alg string                   name of the signing algorithm (default "RS256")
       --skip-verify                          disables bundle signature verification
-      --skip-version-check                   disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
+      --disable-telemetry                    disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
       --tls-ca-cert-file string              set path of TLS CA cert file
       --tls-cert-file string                 set path of TLS certificate file
       --tls-cert-refresh-period duration     set certificate refresh period
