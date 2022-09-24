@@ -48,7 +48,7 @@ Following each OPA release we will announce new features, the road map for the n
 ## Want to contribute to OPA?
 
 * Read the [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/) to learn how to make your first contribution.
-* Use [#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
+* Use [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to other contributors and OPA maintainers.
 * File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
 
 ## How does OPA work?
