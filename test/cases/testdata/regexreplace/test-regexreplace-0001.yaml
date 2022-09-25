@@ -1,0 +1,14 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      s := "-wy-wxxy-"
+      x := regex.replace(s, "w(x*)y", "0")
+    }
+  note: test regex.replace
+  query: data.test.p = x
+  want_result:
+  - x: -0-0-

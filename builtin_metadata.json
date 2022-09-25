@@ -131,6 +131,7 @@
       "regex.globs_match",
       "regex.is_valid",
       "regex.match",
+      "regex.replace",
       "regex.split",
       "regex.template_match"
     ],
@@ -10094,6 +10095,35 @@
       "type": "boolean"
     },
     "wasm": true
+  },
+  "regex.replace": {
+    "args": [
+      {
+        "description": "string being processed",
+        "name": "s",
+        "type": "string"
+      },
+      {
+        "description": "regex pattern to be applied",
+        "name": "pattern",
+        "type": "string"
+      },
+      {
+        "description": "regex value",
+        "name": "value",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Find and replaces the text using the regular expression pattern.",
+    "introduced": "edge",
+    "result": {
+      "name": "output",
+      "type": "string"
+    },
+    "wasm": false
   },
   "regex.split": {
     "args": [

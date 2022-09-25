@@ -205,6 +205,32 @@ func builtinRegexFindAllStringSubmatch(a, b, c ast.Value) (ast.Value, error) {
 	return ast.NewArray(outer...), nil
 }
 
+func builtinRegexReplace(a, b, c ast.Value) (ast.Value, error) {
+	base, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	pattern, err := builtins.StringOperand(b, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := builtins.StringOperand(c, 3)
+	if err != nil {
+		return nil, err
+	}
+
+	re, err := getRegexp(string(pattern))
+	if err != nil {
+		return nil, err
+	}
+
+	res := re.ReplaceAllString(string(base), string(value))
+
+	return ast.String(res), nil
+}
+
 func init() {
 	regexpCache = map[string]*regexp.Regexp{}
 	RegisterBuiltinFunc(ast.RegexIsValid.Name, builtinRegexIsValid)
@@ -215,4 +241,5 @@ func init() {
 	RegisterFunctionalBuiltin4(ast.RegexTemplateMatch.Name, builtinRegexMatchTemplate)
 	RegisterFunctionalBuiltin3(ast.RegexFind.Name, builtinRegexFind)
 	RegisterFunctionalBuiltin3(ast.RegexFindAllStringSubmatch.Name, builtinRegexFindAllStringSubmatch)
+	RegisterFunctionalBuiltin3(ast.RegexReplace.Name, builtinRegexReplace)
 }
