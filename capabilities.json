@@ -1051,10 +1051,42 @@
       "decl": {
         "args": [
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           },
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           }
         ],
         "result": {
@@ -1068,10 +1100,42 @@
       "decl": {
         "args": [
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           },
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           }
         ],
         "result": {
@@ -1109,10 +1173,42 @@
       "decl": {
         "args": [
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           },
           {
-            "type": "string"
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
           }
         ],
         "result": {

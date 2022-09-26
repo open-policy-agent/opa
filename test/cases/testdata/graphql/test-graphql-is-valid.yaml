@@ -145,3 +145,31 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema_ast := graphql.parse_schema(`
+          type Employee {
+            id: String!
+            salary: Int!
+          }
+
+          schema {
+            query: Query
+          }
+
+          type Query {
+            employeeByID(id: String): Employee
+          }
+        `)
+        query_ast := graphql.parse_query(`
+          query { employeeByID(id: "alice") { salary }}
+        `)
+        p {
+            graphql.is_valid(query_ast, schema_ast)
+        }
+    note: graphql_is_valid/success - AST objects - Employee example
+    query: data.test.p = x
+    want_result:
+      - x: true

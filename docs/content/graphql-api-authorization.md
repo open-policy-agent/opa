@@ -41,7 +41,7 @@ schema {
 }
 
 type Query {
-  userByID(id: String): Employee
+  employeeByID(id: String): Employee
 }
 ```
 
