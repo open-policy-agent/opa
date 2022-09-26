@@ -549,6 +549,87 @@ func TestCheckInferenceRules(t *testing.T) {
 
 }
 
+func TestCheckInferenceOverlapWithRules(t *testing.T) {
+	ruleset1 := [][2]string{
+		{`prefix.i.j.k`, `p = 1 { true }`},
+		{`prefix.i.j.k`, `p = "foo" { true }`},
+	}
+	tests := []struct {
+		note     string
+		rules    [][2]string
+		ref      string
+		expected types.Type // ref's type
+		query    string
+		extra    map[Var]types.Type
+	}{
+		{
+			note:     "non-leaf, extra vars",
+			rules:    ruleset1,
+			ref:      "data.prefix.i.j[k]",
+			expected: types.A,
+			query:    "data.prefix.i.j[k][b]",
+			extra: map[Var]types.Type{
+				Var("k"): types.S,
+				Var("b"): types.S,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var elems []util.T
+
+			// Convert test rules into rule slice for "warmup" call.
+			for i := range tc.rules {
+				pkg := MustParsePackage(`package ` + tc.rules[i][0])
+				rule := MustParseRule(tc.rules[i][1])
+				module := &Module{
+					Package: pkg,
+					Rules:   []*Rule{rule},
+				}
+				rule.Module = module
+				elems = append(elems, rule)
+				for next := rule.Else; next != nil; next = next.Else {
+					next.Module = module
+					elems = append(elems, next)
+				}
+			}
+
+			ref := MustParseRef(tc.ref)
+			checker := newTypeChecker()
+			env, err := checker.CheckTypes(nil, elems, nil)
+			if err != nil {
+				t.Fatalf("Unexpected error %v:", err)
+			}
+
+			result := env.Get(ref)
+			if tc.expected == nil {
+				if result != nil {
+					t.Errorf("Expected %v type to be unset but got: %v", ref, result)
+				}
+			} else {
+				if result == nil {
+					t.Errorf("Expected to infer %v => %v but got nil", ref, tc.expected)
+				} else if types.Compare(tc.expected, result) != 0 {
+					t.Errorf("Expected to infer %v => %v but got %v", ref, tc.expected, result)
+				}
+			}
+
+			body := MustParseBody(tc.query)
+			env, err = checker.CheckBody(env, body)
+			if len(err) != 0 {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			for ex, exp := range tc.extra {
+				act := env.Get(ex)
+				if types.Compare(act, exp) != 0 {
+					t.Errorf("Expected to infer extra %v => %v but got %v", ex, exp, act)
+				}
+			}
+		})
+	}
+}
+
 func TestCheckErrorSuppression(t *testing.T) {
 
 	query := `arr = [1,2,3]; arr[0].deadbeef = 1`
