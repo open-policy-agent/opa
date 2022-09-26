@@ -6580,37 +6580,41 @@ dataref = true { data }`,
 
 	compileStages(c, c.checkRecursion)
 
-	makeRuleErrMsg := func(rule string, loop ...string) string {
-		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
+	makeRuleErrMsg := func(pkg, rule string, loop ...string) string {
+		l := make([]string, len(loop))
+		for i, lo := range loop {
+			l[i] = "data." + pkg + "." + lo
+		}
+		return fmt.Sprintf("rego_recursion_error: rule data.%s.%s is recursive: %v", pkg, rule, strings.Join(l, " -> "))
 	}
 
 	expected := []string{
-		makeRuleErrMsg("s", "s", "t", "s"),
-		makeRuleErrMsg("t", "t", "s", "t"),
-		makeRuleErrMsg("a", "a", "b", "c", "e", "a"),
-		makeRuleErrMsg("b", "b", "c", "e", "a", "b"),
-		makeRuleErrMsg("c", "c", "e", "a", "b", "c"),
-		makeRuleErrMsg("e", "e", "a", "b", "c", "e"),
-		makeRuleErrMsg("p", "p", "q", "p"),
-		makeRuleErrMsg("q", "q", "p", "q"),
-		makeRuleErrMsg("acq", "acq", "acp", "acq"),
-		makeRuleErrMsg("acp", "acp", "acq", "acp"),
-		makeRuleErrMsg("np", "np", "nq", "np"),
-		makeRuleErrMsg("nq", "nq", "np", "nq"),
-		makeRuleErrMsg("prefix", "prefix", "prefix"),
-		makeRuleErrMsg("dataref", "dataref", "dataref"),
-		makeRuleErrMsg("else_self", "else_self", "else_self"),
-		makeRuleErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
-		makeRuleErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
-		makeRuleErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
-		makeRuleErrMsg("fn", "fn", "fn"),
-		makeRuleErrMsg("foo", "foo", "bar", "foo"),
-		makeRuleErrMsg("bar", "bar", "foo", "bar"),
-		makeRuleErrMsg("bar", "bar", "p", "foo", "bar"),
-		makeRuleErrMsg("foo", "foo", "bar", "p", "foo"),
-		makeRuleErrMsg("p", "p", "foo", "bar", "p"),
-		makeRuleErrMsg("everyp", "everyp", "everyp"),
-		makeRuleErrMsg("everyq", "everyq", "everyq"),
+		makeRuleErrMsg("rec", "s", "s", "t", "s"),
+		makeRuleErrMsg("rec", "t", "t", "s", "t"),
+		makeRuleErrMsg("rec", "a", "a", "b", "c", "e", "a"),
+		makeRuleErrMsg("rec", "b", "b", "c", "e", "a", "b"),
+		makeRuleErrMsg("rec", "c", "c", "e", "a", "b", "c"),
+		makeRuleErrMsg("rec", "e", "e", "a", "b", "c", "e"),
+		`rego_recursion_error: rule data.rec3.p[x] is recursive: data.rec3.p[x] -> data.rec4.q[x] -> data.rec3.p[x]`, // NOTE(sr): these two are hardcoded: they are
+		`rego_recursion_error: rule data.rec4.q[x] is recursive: data.rec4.q[x] -> data.rec3.p[x] -> data.rec4.q[x]`, // the only ones not fitting the pattern.
+		makeRuleErrMsg("rec5", "acq", "acq", "acp", "acq"),
+		makeRuleErrMsg("rec5", "acp", "acp", "acq", "acp"),
+		makeRuleErrMsg("rec6", "np[x]", "np[x]", "nq[x]", "np[x]"),
+		makeRuleErrMsg("rec6", "nq[x]", "nq[x]", "np[x]", "nq[x]"),
+		makeRuleErrMsg("rec7", "prefix", "prefix", "prefix"),
+		makeRuleErrMsg("rec8", "dataref", "dataref", "dataref"),
+		makeRuleErrMsg("rec9", "else_self", "else_self", "else_self"),
+		makeRuleErrMsg("rec9", "elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
+		makeRuleErrMsg("rec9", "elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
+		makeRuleErrMsg("rec9", "elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
+		makeRuleErrMsg("f0", "fn", "fn", "fn"),
+		makeRuleErrMsg("f1", "foo", "foo", "bar", "foo"),
+		makeRuleErrMsg("f1", "bar", "bar", "foo", "bar"),
+		makeRuleErrMsg("f2", "bar", "bar", "p[x]", "foo", "bar"),
+		makeRuleErrMsg("f2", "foo", "foo", "bar", "p[x]", "foo"),
+		makeRuleErrMsg("f2", "p[x]", "p[x]", "foo", "bar", "p[x]"),
+		makeRuleErrMsg("everymod", "everyp", "everyp", "everyp"),
+		makeRuleErrMsg("everymod", "everyq", "everyq", "everyq"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -6632,28 +6636,38 @@ func TestCompilerCheckDynamicRecursion(t *testing.T) {
 	// references.  For more background info, see
 	// <https://github.com/open-policy-agent/opa/issues/1565>.
 
-	for note, mod := range map[string]*Module{
-		"recursion": MustParseModule(`
+	for _, tc := range []struct {
+		note, err string
+		mod       *Module
+	}{
+		{
+			note: "recursion",
+			mod: MustParseModule(`
 package recursion
 pkg = "recursion"
 foo[x] {
 	data[pkg]["foo"][x]
 }
 `),
-		"system.main": MustParseModule(`
+			err: "rego_recursion_error: rule data.recursion.foo is recursive: data.recursion.foo -> data.recursion.foo",
+		},
+		{note: "system.main",
+			mod: MustParseModule(`
 package system.main
 foo {
-  data[input]
+	data[input]
 }
 `),
+			err: "rego_recursion_error: rule data.system.main.foo is recursive: data.system.main.foo -> data.system.main.foo",
+		},
 	} {
-		t.Run(note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
-			c.Modules = map[string]*Module{note: mod}
+			c.Modules = map[string]*Module{tc.note: tc.mod}
 			compileStages(c, c.checkRecursion)
 
 			result := compilerErrsToStringSlice(c.Errors)
-			expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
+			expected := tc.err
 
 			if len(result) != 1 || result[0] != expected {
 				t.Errorf("Expected %v but got: %v", expected, result)

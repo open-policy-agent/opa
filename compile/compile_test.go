@@ -968,7 +968,7 @@ func TestOptimizerErrors(t *testing.T) {
 					p { data.test.p }
 				`,
 			},
-			wantErr: fmt.Errorf("1 error occurred: test.rego:3: rego_recursion_error: rule p is recursive: p -> p"),
+			wantErr: fmt.Errorf("1 error occurred: test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p"),
 		},
 		{
 			note:        "partial eval error",

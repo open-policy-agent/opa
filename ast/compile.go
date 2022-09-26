@@ -837,7 +837,7 @@ func (c *Compiler) checkRecursion() {
 func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
 	tr := NewGraphTraversal(c.Graph)
 	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
-		n := []string{}
+		n := make([]string, 0, len(p))
 		for _, x := range p {
 			n = append(n, astNodeToString(x))
 		}
@@ -846,12 +846,7 @@ func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b 
 }
 
 func astNodeToString(x interface{}) string {
-	switch x := x.(type) {
-	case *Rule:
-		return string(x.Head.Name)
-	default:
-		panic("not reached")
-	}
+	return x.(*Rule).Ref().String()
 }
 
 // checkRuleConflicts ensures that rules definitions are not in conflict.
