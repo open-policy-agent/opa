@@ -261,6 +261,49 @@ allow {
 
 ## Accessing annotations
 
+### Rego
+
+In the example below, you can see how to access an annotation from within a policy.
+
+Given the input:
+
+```live:example/metadata/1:input
+{
+    "number": 11,
+    "subject": {
+        "name": "John doe",
+        "role": "customer"
+    }
+}
+```
+
+The following policy
+
+```live:example/metadata/1:module
+package example
+
+# METADATA
+# title: Deny invalid numbers
+# description: Numbers may not be higher than 5
+# custom:
+#  severity: MEDIUM
+output := decision {
+	input.number > 5
+
+	annotation := rego.metadata.rule()
+	decision := {
+		"severity": annotation.custom.severity,
+		"message": annotation.description,
+	}
+}
+```
+
+will output
+
+```live:example/metadata/1:output
+```
+
+If you'd like more examples and information on this, you can see more here under the [Rego](../policy-reference/#rego) policy reference.
 ### Inspect command
 
 Annotations can be listed through the `inspect` command by using the `-a` flag:
