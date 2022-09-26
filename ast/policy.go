@@ -611,7 +611,6 @@ func (rule *Rule) Path() Ref {
 // is not contained in a module, this function panics. The returned ref may
 // contain variables in the last position.
 func (rule *Rule) Ref() Ref {
-	// TODO(sr): "in all positions", later
 	if rule.Module == nil {
 		panic("assertion failed")
 	}
@@ -684,7 +683,7 @@ func RefHead(ref Ref, args ...*Term) *Head {
 	head := &Head{}
 	head.SetRef(ref)
 	if len(ref) < 2 {
-		head.Name = ref[0].Value.(Var) // explodes?
+		head.Name = ref[0].Value.(Var)
 	}
 	if len(args) >= 1 {
 		head.Value = args[0]
@@ -704,7 +703,7 @@ const (
 
 	// PartialObjectDoc represents an object document that is partially defined by the rule.
 	PartialObjectDoc
-) // TODO(sr): think about changing this
+) // TODO(sr): Deprecate?
 
 // DocKind returns the type of document produced by this rule.
 func (head *Head) DocKind() DocKind {
