@@ -1068,6 +1068,10 @@ func newSchemaParser() *schemaParser {
 }
 
 func (parser *schemaParser) parseSchema(schema interface{}) (types.Type, error) {
+	return parser.parseSchemaWithPropertyKey(schema, "")
+}
+
+func (parser *schemaParser) parseSchemaWithPropertyKey(schema interface{}, propertyKey string) (types.Type, error) {
 	subSchema, ok := schema.(*gojsonschema.SubSchema)
 	if !ok {
 		return nil, fmt.Errorf("unexpected schema type %v", subSchema)
@@ -1075,10 +1079,10 @@ func (parser *schemaParser) parseSchema(schema interface{}) (types.Type, error) 
 
 	// Handle referenced schemas, returns directly when a $ref is found
 	if subSchema.RefSchema != nil {
-		if existing, ok := parser.definitionCache[subSchema.RefSchema.ID.String()]; ok {
+		if existing, ok := parser.definitionCache[subSchema.Ref.String()]; ok {
 			return types.NewObject(existing.properties, nil), nil
 		}
-		return parser.parseSchema(subSchema.RefSchema)
+		return parser.parseSchemaWithPropertyKey(subSchema.RefSchema, subSchema.Ref.String())
 	}
 
 	// Handle anyOf
@@ -1154,8 +1158,8 @@ func (parser *schemaParser) parseSchema(schema interface{}) (types.Type, error) 
 				for _, pSchema := range subSchema.PropertiesChildren {
 					def.properties = append(def.properties, types.NewStaticProperty(pSchema.Property, nil))
 				}
-				if subSchema.Parent != nil {
-					parser.definitionCache[subSchema.ID.String()] = def
+				if propertyKey != "" {
+					parser.definitionCache[propertyKey] = def
 				}
 				for _, pSchema := range subSchema.PropertiesChildren {
 					newtype, err := parser.parseSchema(pSchema)
