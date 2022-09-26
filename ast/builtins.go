@@ -284,6 +284,21 @@ var DefaultBuiltins = [...]*Builtin{
 // built-in definitions.
 var BuiltinMap map[string]*Builtin
 
+// Deprecated: Builtins can now be directly annotated with the
+// Nondeterministic property, and when set to true, will be ignored
+// for partial evaluation.
+var IgnoreDuringPartialEval = []*Builtin{
+	RandIntn,
+	UUIDRFC4122,
+	JWTDecodeVerify,
+	JWTEncodeSignRaw,
+	JWTEncodeSign,
+	NowNanos,
+	HTTPSend,
+	OPARuntime,
+	NetLookupIPAddr,
+}
+
 /**
  * Unification
  */
