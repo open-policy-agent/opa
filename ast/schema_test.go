@@ -460,7 +460,7 @@ func TestParseSchemaWithSchemaBadSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to compile schema: %v", err)
 	}
-	newtype, err := parseSchema(jsonSchema) // Did not pass the subschema
+	newtype, err := newSchemaParser().parseSchema(jsonSchema) // Did not pass the subschema
 	if err == nil {
 		t.Fatalf("Expected parseSchema() = error, got nil")
 	}
@@ -811,6 +811,16 @@ func TestAnyOfArrayMissing(t *testing.T) {
 	c.WithSchemas(schemaSet)
 	if c.schemaSet == nil {
 		t.Fatalf("Did not correctly compile an array type schema with anyOf where items are inside anyOf")
+	}
+}
+
+func TestRecursiveSchema(t *testing.T) {
+	c := NewCompiler()
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, recursiveElements)
+	c.WithSchemas(schemaSet)
+	if c.schemaSet == nil {
+		t.Fatalf("Did not correctly compile an object schema with recursive elements")
 	}
 }
 
@@ -1620,3 +1630,31 @@ const allOfSchemaWithUnevenArray = `{
 		}
 	]
 }`
+
+const recursiveElements = `{
+  "type": "object",
+  "properties": {
+    "Something": {
+      "$ref": "#/$defs/X"
+    }
+  },
+  "$defs": {
+    "X": {
+      "type": "object",
+      "properties": {
+        "Y": {
+          "$ref": "#/$defs/Y"
+        }
+      }
+    },
+    "Y": {
+      "type": "object",
+      "properties": {
+        "X": {
+          "$ref": "#/$defs/X"
+        }
+      }
+    }
+  }
+}
+`

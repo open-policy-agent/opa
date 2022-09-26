@@ -6,6 +6,7 @@ package ast
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -1449,18 +1450,18 @@ func TestIllegalFunctionCallRewrite(t *testing.T) {
 		expectedErrors []string
 	}{
 		/*{
-					note: "function call override in function value",
-					module: `package test
-		foo(x) := x
+		  			note: "function call override in function value",
+		  			module: `package test
+		  foo(x) := x
 
-		p := foo(bar) {
-			#foo := 1
-			bar := 2
-		}`,
-					expectedErrors: []string{
-						"undefined function foo",
-					},
-				},*/
+		  p := foo(bar) {
+		  	#foo := 1
+		  	bar := 2
+		  }`,
+		  			expectedErrors: []string{
+		  				"undefined function foo",
+		  			},
+		  		},*/
 		{
 			note: "function call override in array comprehension value",
 			module: `package test
@@ -7331,4 +7332,239 @@ func TestKeepModules(t *testing.T) {
 			}
 		}
 	})
+}
+
+// see https://github.com/open-policy-agent/opa/issues/5166
+func TestCompilerWithRecursiveSchema(t *testing.T) {
+
+	jsonSchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-policy-agent/opa/issues/5166",
+  "type": "object",
+  "properties": {
+    "Something": {
+      "$ref": "#/$defs/X"
+    }
+  },
+  "$defs": {
+    "X": {
+      "type": "object",
+      "properties": {
+		"Name": { "type": "string" },
+        "Y": {
+          "$ref": "#/$defs/Y"
+        }
+      }
+    },
+    "Y": {
+      "type": "object",
+      "properties": {
+        "X": {
+          "$ref": "#/$defs/X"
+        }
+      }
+    }
+  }
+}`
+
+	exampleModule := `# METADATA
+# schemas:
+# - input: schema.input
+package opa.recursion
+
+deny {
+	input.Something.Y.X.Name == "Something"
+}
+`
+
+	c := NewCompiler()
+	var schema interface{}
+	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
+		t.Fatal(err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.input"), schema)
+	c.WithSchemas(schemaSet)
+
+	m := MustParseModuleWithOpts(exampleModule, ParserOptions{ProcessAnnotation: true})
+	c.Compile(map[string]*Module{"testMod": m})
+	if c.Failed() {
+		t.Errorf("Expected compilation to succeed, but got errors: %v", c.Errors)
+	}
+}
+
+// see https://github.com/open-policy-agent/opa/issues/5166
+func TestCompilerWithRecursiveSchemaAndInvalidSource(t *testing.T) {
+
+	jsonSchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-policy-agent/opa/issues/5166",
+  "type": "object",
+  "properties": {
+    "Something": {
+      "$ref": "#/$defs/X"
+    }
+  },
+  "$defs": {
+    "X": {
+      "type": "object",
+      "properties": {
+		"Name": { "type": "string" },
+        "Y": {
+          "$ref": "#/$defs/Y"
+        }
+      }
+    },
+    "Y": {
+      "type": "object",
+      "properties": {
+        "X": {
+          "$ref": "#/$defs/X"
+        }
+      }
+    }
+  }
+}`
+
+	exampleModule := `# METADATA
+# schemas:
+# - input: schema.input
+package opa.recursion
+
+deny {
+	input.Something.Y.X.ThisDoesNotExist == "Something"
+}
+`
+
+	c := NewCompiler()
+	var schema interface{}
+	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
+		t.Fatal(err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.input"), schema)
+	c.WithSchemas(schemaSet)
+
+	m := MustParseModuleWithOpts(exampleModule, ParserOptions{ProcessAnnotation: true})
+	c.Compile(map[string]*Module{"testMod": m})
+	if !c.Failed() {
+		t.Errorf("Expected compilation to fail, but it succeeded")
+	} else if !strings.HasPrefix(c.Errors.Error(), "1 error occurred: 7:2: rego_type_error: undefined ref: input.Something.Y.X.ThisDoesNotExist") {
+		t.Errorf("unexpected error: %v", c.Errors.Error())
+	}
+
+}
+
+func TestCompilerWithRecursiveSchemaAvoidRace(t *testing.T) {
+
+	jsonSchema := `{
+  "type": "object",
+  "properties": {
+    "aws": {
+      "type": "object",
+      "$ref": "#/$defs/example.pkg.providers.aws.AWS"
+    }
+  },
+  "$defs": {
+    "example.pkg.providers.aws.AWS": {
+      "type": "object",
+      "properties": {
+        "iam": {
+          "type": "object",
+          "$ref": "#/$defs/example.pkg.providers.aws.iam.IAM"
+        },
+        "sqs": {
+          "type": "object",
+          "$ref": "#/$defs/example.pkg.providers.aws.sqs.SQS"
+        }
+      }
+    },
+    "example.pkg.providers.aws.iam.Document": {
+      "type": "object"
+    },
+    "example.pkg.providers.aws.iam.IAM": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/example.pkg.providers.aws.iam.Policy"
+          }
+        }
+      }
+    },
+    "example.pkg.providers.aws.iam.Policy": {
+      "type": "object",
+      "properties": {
+        "builtin": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "boolean"
+            }
+          }
+        },
+        "document": {
+          "type": "object",
+          "$ref": "#/$defs/example.pkg.providers.aws.iam.Document"
+        }
+      }
+    },
+    "example.pkg.providers.aws.sqs.Queue": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/example.pkg.providers.aws.iam.Policy"
+          }
+        }
+      }
+    },
+    "example.pkg.providers.aws.sqs.SQS": {
+      "type": "object",
+      "properties": {
+        "queues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/example.pkg.providers.aws.sqs.Queue"
+          }
+        }
+      }
+    }
+  }
+}`
+
+	exampleModule := `# METADATA
+# schemas:
+#  - input: schema.input
+package race.condition
+
+deny {
+	queue := input.aws.sqs.queues[_]
+	policy := queue.policies[_]
+	doc := json.unmarshal(policy.document.value)
+	statement = doc.Statement[_]
+	action := statement.Action[_]
+	action == "*"
+}
+`
+
+	c := NewCompiler()
+	var schema interface{}
+	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
+		t.Fatal(err)
+	}
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(MustParseRef("schema.input"), schema)
+	c.WithSchemas(schemaSet)
+
+	m := MustParseModuleWithOpts(exampleModule, ParserOptions{ProcessAnnotation: true})
+	c.Compile(map[string]*Module{"testMod": m})
+	if c.Failed() {
+		t.Fatal(c.Errors)
+	}
 }

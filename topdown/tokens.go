@@ -1064,18 +1064,28 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, args []*ast.Term, iter func(*as
 	}
 	// RFC7159 4.1.4 exp
 	if exp := payload.Get(jwtExpKey); exp != nil {
-		// constraints.time is in nanoseconds but exp Value is in seconds
-		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
-		if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
-			return iter(unverified)
+		switch exp.Value.(type) {
+		case ast.Number:
+			// constraints.time is in nanoseconds but exp Value is in seconds
+			compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
+			if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
+				return iter(unverified)
+			}
+		default:
+			return fmt.Errorf("exp value must be a number")
 		}
 	}
 	// RFC7159 4.1.5 nbf
 	if nbf := payload.Get(jwtNbfKey); nbf != nil {
-		// constraints.time is in nanoseconds but nbf Value is in seconds
-		compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
-		if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
-			return iter(unverified)
+		switch nbf.Value.(type) {
+		case ast.Number:
+			// constraints.time is in nanoseconds but nbf Value is in seconds
+			compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
+			if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
+				return iter(unverified)
+			}
+		default:
+			return fmt.Errorf("nbf value must be a number")
 		}
 	}
 

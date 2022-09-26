@@ -173,5 +173,5 @@ Before submitting large changes, please open an issue on GitHub outlining:
 
 Use your judgement about what constitutes a large change. If you aren't sure,
 send a message in 
-[#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) on Slack 
+[#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) on Slack 
 or submit [an issue on GitHub](https://github.com/open-policy-agent/opa/issues).

@@ -532,9 +532,10 @@ type Rego struct {
 
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
-	Name    string
-	Decl    *types.Function
-	Memoize bool
+	Name             string
+	Decl             *types.Function
+	Memoize          bool
+	Nondeterministic bool
 }
 
 // BuiltinContext contains additional attributes from the evaluator that
@@ -561,8 +562,9 @@ type (
 // RegisterBuiltin1 adds a built-in function globally inside the OPA runtime.
 func RegisterBuiltin1(decl *Function, impl Builtin1) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: decl.Name,
-		Decl: decl.Decl,
+		Name:             decl.Name,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0]) })
@@ -573,8 +575,9 @@ func RegisterBuiltin1(decl *Function, impl Builtin1) {
 // RegisterBuiltin2 adds a built-in function globally inside the OPA runtime.
 func RegisterBuiltin2(decl *Function, impl Builtin2) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: decl.Name,
-		Decl: decl.Decl,
+		Name:             decl.Name,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1]) })
@@ -585,8 +588,9 @@ func RegisterBuiltin2(decl *Function, impl Builtin2) {
 // RegisterBuiltin3 adds a built-in function globally inside the OPA runtime.
 func RegisterBuiltin3(decl *Function, impl Builtin3) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: decl.Name,
-		Decl: decl.Decl,
+		Name:             decl.Name,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1], terms[2]) })
@@ -597,8 +601,9 @@ func RegisterBuiltin3(decl *Function, impl Builtin3) {
 // RegisterBuiltin4 adds a built-in function globally inside the OPA runtime.
 func RegisterBuiltin4(decl *Function, impl Builtin4) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: decl.Name,
-		Decl: decl.Decl,
+		Name:             decl.Name,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms[0], terms[1], terms[2], terms[3]) })
@@ -609,8 +614,9 @@ func RegisterBuiltin4(decl *Function, impl Builtin4) {
 // RegisterBuiltinDyn adds a built-in function globally inside the OPA runtime.
 func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 	ast.RegisterBuiltin(&ast.Builtin{
-		Name: decl.Name,
-		Decl: decl.Decl,
+		Name:             decl.Name,
+		Decl:             decl.Decl,
+		Nondeterministic: decl.Nondeterministic,
 	})
 	topdown.RegisterBuiltinFunc(decl.Name, func(bctx BuiltinContext, terms []*ast.Term, iter func(*ast.Term) error) error {
 		result, err := memoize(decl, bctx, terms, func() (*ast.Term, error) { return impl(bctx, terms) })
@@ -2544,8 +2550,9 @@ func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, 
 func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
 	return func(r *Rego) {
 		r.builtinDecls[decl.Name] = &ast.Builtin{
-			Name: decl.Name,
-			Decl: decl.Decl,
+			Name:             decl.Name,
+			Decl:             decl.Decl,
+			Nondeterministic: decl.Nondeterministic,
 		}
 		r.builtinFuncs[decl.Name] = &topdown.Builtin{
 			Decl: r.builtinDecls[decl.Name],

@@ -3,8 +3,9 @@ package wasmtime
 // #include "shims.h"
 // #include <stdlib.h>
 import "C"
+
 import (
-	"io/ioutil"
+	"os"
 	"runtime"
 	"unsafe"
 )
@@ -45,7 +46,7 @@ func NewModule(engine *Engine, wasm []byte) (*Module, error) {
 //
 // Afterwards delegates to the `NewModule` constructor with the contents read.
 func NewModuleFromFile(engine *Engine, file string) (*Module, error) {
-	wasm, err := ioutil.ReadFile(file)
+	wasm, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,6 @@ func NewModuleFromFile(engine *Engine, file string) (*Module, error) {
 		}
 	}
 	return NewModule(engine, wasm)
-
 }
 
 // ModuleValidate validates whether `wasm` would be a valid wasm module according to the

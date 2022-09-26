@@ -34,7 +34,8 @@ type runCmdParams struct {
 	tlsCertRefresh     time.Duration
 	ignore             []string
 	serverMode         bool
-	skipVersionCheck   bool
+	skipVersionCheck   bool // skipVersionCheck is deprecated. Use disableTelemetry instead
+	disableTelemetry   bool
 	authentication     *util.EnumFlag
 	authorization      *util.EnumFlag
 	minTLSVersion      *util.EnumFlag
@@ -193,7 +194,15 @@ To skip bundle verification, use the --skip-verify flag.
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
+
 	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
+	err := runCommand.Flags().MarkDeprecated("skip-version-check", "\"skip-version-check\" is deprecated. Use \"disable-telemetry\" instead")
+	if err != nil {
+		fmt.Println("error:", err)
+		os.Exit(1)
+	}
+
+	runCommand.Flags().BoolVar(&cmdParams.disableTelemetry, "disable-telemetry", false, "disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
 	addIgnoreFlag(runCommand.Flags(), &cmdParams.ignore)
 
 	// bundle verification config
@@ -271,7 +280,12 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		Ignore: params.ignore,
 	}.Apply
 
-	params.rt.EnableVersionCheck = !params.skipVersionCheck
+	params.rt.EnableVersionCheck = !params.disableTelemetry
+
+	// For backwards compatibility, check if `--skip-version-check` flag set.
+	if params.skipVersionCheck {
+		params.rt.EnableVersionCheck = false
+	}
 
 	params.rt.SkipBundleVerification = params.skipBundleVerify
 

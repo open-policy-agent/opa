@@ -88,7 +88,7 @@ Example using `BASE_URL` and `BEARER_TOKEN` environment variables:
 ```yaml
 services:
   acmecorp:
-    url: ${BASE_URL}
+    url: "${BASE_URL}"
     credentials:
       bearer:
         token: "${BEARER_TOKEN}"

@@ -746,7 +746,7 @@ func callOrCancel(ctx context.Context, vm *VM, name string, args ...int32) (inte
 		// if last err was trap, extract information
 		var t *wasmtime.Trap
 		if errors.As(err, &t) {
-			if t.Message() == "epoch deadline reached during execution" {
+			if strings.Contains(t.Message(), "wasm trap: interrupt") {
 				return 0, sdk_errors.New(sdk_errors.CancelledErr, "interrupted")
 			}
 			return 0, sdk_errors.New(sdk_errors.InternalErr, getStack(t.Frames(), "trapped"))

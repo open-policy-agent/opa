@@ -22,7 +22,7 @@ type Instance struct {
 // This will also run the `start` function of the instance, returning an error
 // if it traps.
 func NewInstance(store Storelike, module *Module, imports []AsExtern) (*Instance, error) {
-	importsRaw := make([]C.wasmtime_extern_t, len(imports), len(imports))
+	importsRaw := make([]C.wasmtime_extern_t, len(imports))
 	for i, imp := range imports {
 		importsRaw[i] = imp.AsExtern()
 	}

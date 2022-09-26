@@ -81,7 +81,7 @@ func builtinRepeat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
         return err
     }
 
-    // Get the first argument as an int, returning an error if it's not the correct type or not a positive value.
+    // Get the second argument as an int, returning an error if it's not the correct type or not a positive value.
     count, err := builtins.IntOperand(operands[1].Value, 2)
     if err != nil {
         return err
