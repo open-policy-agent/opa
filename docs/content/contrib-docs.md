@@ -65,4 +65,4 @@ Once you've tested your changes and you're happy with how they look, commit them
 
 ## Having trouble
 
-Reach out in the [#development](https://openpolicyagent.slack.com/archives/C02L1TLPN59) channel to ask for help. 
+Reach out in the [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) channel to ask for help. 
