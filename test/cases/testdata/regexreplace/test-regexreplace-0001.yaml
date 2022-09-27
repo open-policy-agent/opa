@@ -1,0 +1,39 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      s := "-wy-wxxy-"
+      x := regex.replace(s, "w(x*)y", "0")
+    }
+  note: 'regex.replace: test pattern match and replace'
+  query: data.test.p = x
+  want_result:
+  - x: -0-0-
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      s := "foo"
+      x := regex.replace(s, "(foo)", "$1$1")
+    }
+  note: 'regex.replace: work with groups'
+  query: data.test.p = x
+  want_result:
+    - x: foofoo
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      s := "foo"
+      x := regex.replace(s, "[", "$1")
+    }
+  note: 'regex.replace: bad regex pattern: Syntax error'
+  query: data.test.p = x
+  want_result: []
