@@ -190,3 +190,10 @@ func TestFormats(t *testing.T) {
 		}
 	}
 }
+
+func Test_ConcurrentNetAccessModification(t *testing.T) {
+	go func() {
+		SetAllowNet([]string{"something"})
+	}()
+	SetAllowNet(nil)
+}
