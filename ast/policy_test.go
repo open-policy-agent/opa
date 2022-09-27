@@ -515,6 +515,23 @@ func TestRuleString(t *testing.T) {
 		},
 		{
 			rule: &Rule{
+				Head: RefHead(MustParseRef("p.q.r[x]"), BooleanTerm(true)),
+				Body: MustParseBody("x = 1"),
+			},
+			exp: `p.q.r[x] = true { x = 1 }`,
+		},
+		{
+			rule: &Rule{
+				Head: &Head{
+					Reference: MustParseRef("p.q.r"),
+					Key:       VarTerm("1"),
+				},
+				Body: MustParseBody("x = 1"),
+			},
+			exp: `p.q.r contains 1 { x = 1 }`,
+		},
+		{
+			rule: &Rule{
 				Head: NewHead(Var("p"), VarTerm("x"), VarTerm("y")),
 				Body: NewBody(
 					Equality.Expr(StringTerm("foo"), VarTerm("x")),
