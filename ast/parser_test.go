@@ -1893,6 +1893,7 @@ func TestRuleIf(t *testing.T) {
 			rule: `p["foo"] = "bar" if { true }`,
 			exp: &Rule{
 				Head: &Head{
+					Name:      Var("p"),
 					Reference: MustParseRef("p.foo"),
 					Value:     StringTerm("bar"),
 				},
@@ -1904,6 +1905,7 @@ func TestRuleIf(t *testing.T) {
 			rule: `p["foo"] = "bar" if true`,
 			exp: &Rule{
 				Head: &Head{
+					Name:      Var("p"),
 					Reference: MustParseRef("p.foo"),
 					Value:     StringTerm("bar"),
 				},
@@ -1918,6 +1920,7 @@ func TestRuleIf(t *testing.T) {
 			}`,
 			exp: &Rule{
 				Head: &Head{
+					Name:      Var("p"),
 					Reference: MustParseRef("p[x]"),
 					Value:     VarTerm("y"),
 				},
@@ -1949,7 +1952,7 @@ func TestRuleIf(t *testing.T) {
 			},
 		},
 		{
-			note: "partial set+if, shorthand", // these are now Head.Ref rules
+			note: "partial set+if, shorthand", // these are now Head.Ref rules, previously forbidden
 			rule: `p[x] if x := 1`,
 			exp: &Rule{
 				Head: &Head{
@@ -1960,7 +1963,7 @@ func TestRuleIf(t *testing.T) {
 			},
 		},
 		{
-			note: "partial set+if", // these are now Head.Ref rules
+			note: "partial set+if", // these are now Head.Ref rules, previously forbidden
 			rule: `p[x] if { x := 1 }`,
 			exp: &Rule{
 				Head: &Head{
@@ -2048,6 +2051,7 @@ func TestRuleRefHeads(t *testing.T) {
 			rule: `p[x] = 1 if x := 2`,
 			exp: &Rule{
 				Head: &Head{
+					Name:      Var("p"),
 					Reference: MustParseRef("p[x]"),
 					Value:     IntNumberTerm(1),
 				},

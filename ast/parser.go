@@ -575,12 +575,21 @@ func (p *Parser) parseRules() []*Rule {
 	// back-compat with `p[x] { ... }``
 	hasIf := p.s.tok == tokens.If
 
-	// p[x] if ...         becomes a single-value rule p[x]
-	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 && rule.Head.Value == nil {
-		rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
+	// p[x] if ...  becomes a single-value rule p[x]
+	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
+		if rule.Head.Value == nil {
+			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
+		} else {
+			// p[x] = y if  becomes a single-value rule p[x] with value y, but needs name for compat
+			v, ok := rule.Head.Ref()[0].Value.(Var)
+			if !ok {
+				return nil
+			}
+			rule.Head.Name = v
+		}
 	}
 
-	// p[x]                becomes a multi-value rule p
+	// p[x]         becomes a multi-value rule p
 	if !hasIf && !usesContains &&
 		len(rule.Head.Args) == 0 && // not a function
 		len(rule.Head.Ref()) == 2 { // ref like 'p[x]'
