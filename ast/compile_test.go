@@ -3418,6 +3418,64 @@ x.y.w contains bar[i] if true
 	}
 }
 
+func TestCompilerRefHeadsNeedCapability(t *testing.T) {
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	for _, tc := range []struct {
+		note string
+		mod  *Module
+		err  string
+	}{
+		{
+			note: "one-dot ref, single-value rule, short+compat",
+			mod: MustParseModule(`package t
+p[1] = 2`),
+		},
+		{
+			note: "one-dot ref, single-value rule, compat",
+			mod: MustParseModuleWithOpts(`package t
+p[3] = 4 if true`, popts),
+		},
+		{
+			note: "multi-value non-ref head",
+			mod: MustParseModuleWithOpts(`package t
+p contains 1 if true`, popts),
+		},
+		{ // NOTE(sr): this was previously forbidden because we need the `if` for disambiguation
+			note: "one-dot ref head",
+			mod: MustParseModuleWithOpts(`package t
+p[1] if true`, popts),
+			err: "rule heads with refs are not supported: p[1]",
+		},
+		{
+			note: "single-value ref rule",
+			mod: MustParseModuleWithOpts(`package t
+a.b.c[x] if x := input`, popts),
+			err: "rule heads with refs are not supported: a.b.c[x]",
+		},
+		{
+			note: "multi-value ref rule",
+			mod: MustParseModuleWithOpts(`package t
+a.b.c contains x if x := input`, popts),
+			err: "rule heads with refs are not supported: a.b.c",
+		},
+	} {
+		t.Run(tc.note, func(t *testing.T) {
+			caps, err := LoadCapabilitiesVersion("v0.44.0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := NewCompiler().WithCapabilities(caps)
+			c.Modules["test"] = tc.mod
+			compileStages(c, c.rewriteRefsInHead)
+			if tc.err != "" {
+				assertErrorWithMessage(t, c.Errors, tc.err)
+			} else {
+				assertNotFailed(t, c)
+			}
+		})
+	}
+}
+
 func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {
 	tests := []struct {
 		note   string

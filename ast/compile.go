@@ -1635,6 +1635,19 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				rule.Head.Reference = ref
 			}
 
+			cannotSpeakRefs := true
+			for _, f := range c.capabilities.Features {
+				if f == FeatureRefHeadStringPrefixes {
+					cannotSpeakRefs = false
+					break
+				}
+			}
+
+			if cannotSpeakRefs && rule.Head.Name == "" {
+				c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
+				return true
+			}
+
 			for i := 1; i < len(ref); i++ {
 				// NOTE(sr): In the first iteration, non-string values in the refs are forbidden
 				// except for the last position, e.g.
