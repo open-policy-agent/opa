@@ -39,6 +39,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/xeipuuv/gojsonreference"
 )
@@ -48,8 +49,11 @@ import (
 // add extra parameters to all calls and interfaces involved, so we're
 // using a global variable instead:
 var allowNet map[string]struct{}
+var netMut sync.RWMutex
 
 func SetAllowNet(hosts []string) {
+	netMut.Lock()
+	defer netMut.Unlock()
 	if hosts == nil {
 		allowNet = nil // resetting the global
 		return
@@ -61,6 +65,8 @@ func SetAllowNet(hosts []string) {
 }
 
 func isAllowed(ref *url.URL) bool {
+	netMut.RLock()
+	defer netMut.RUnlock()
 	if allowNet == nil {
 		return true
 	}
