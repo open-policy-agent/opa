@@ -760,7 +760,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-any", `fake_builtin_2({"a": a, "c": c})`},
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
-		{"virtual-ref", `plus(data.test.p, data.deabeef, 0)`},
+		{"virtual-ref", `plus(data.test.p, data.coffee, 0)`},
 	}
 
 	env := newTestEnv([]string{

@@ -689,6 +689,13 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 			return rc.checkRef(next, next.tree, ref, 0)
 
 		case RootDocumentNames.Contains(ref[0]):
+			if idx != 0 {
+				node.Children().Iter(func(_, child util.T) bool {
+					_ = rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1) // ignore error
+					return false
+				})
+				return nil
+			}
 			return rc.checkRefLeaf(types.A, ref, 1)
 
 		default:
