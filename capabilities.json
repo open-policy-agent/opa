@@ -3138,6 +3138,26 @@
       }
     },
     {
+      "name": "regex.replace",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "regex.split",
       "decl": {
         "args": [

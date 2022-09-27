@@ -102,6 +102,7 @@ var DefaultBuiltins = [...]*Builtin{
 	RegexTemplateMatch,
 	RegexFind,
 	RegexFindAllStringSubmatch,
+	RegexReplace,
 
 	// Sets
 	SetDiff,
@@ -1180,6 +1181,19 @@ The old string comparisons are done in argument order.`,
 					types.S)),
 			).Description("replacement pairs"),
 			types.Named("value", types.S).Description("string to replace substring matches in"),
+		),
+		types.Named("output", types.S),
+	),
+}
+
+var RegexReplace = &Builtin{
+	Name:        "regex.replace",
+	Description: `Find and replaces the text using the regular expression pattern.`,
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("s", types.S).Description("string being processed"),
+			types.Named("pattern", types.S).Description("regex pattern to be applied"),
+			types.Named("value", types.S).Description("regex value"),
 		),
 		types.Named("output", types.S),
 	),
