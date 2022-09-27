@@ -848,6 +848,9 @@ func (head *Head) Vars() VarSet {
 	if head.Value != nil {
 		vis.Walk(head.Value)
 	}
+	if len(head.Reference) > 0 {
+		vis.Walk(head.Reference[1:])
+	}
 	return vis.vars
 }
 

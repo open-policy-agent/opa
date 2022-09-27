@@ -1430,16 +1430,19 @@ func TestCompilerErrorLimit(t *testing.T) {
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`package a.b
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	c.Modules["newMod"] = MustParseModuleWithOpts(`package a.b
 
-unboundKey[x] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundVal[y] = x { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundCompositeVal[y] = [{"foo": x, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundCompositeKey[[{"x": x}]] { q[y] }
-unboundBuiltinOperator = eq { x = 1 }
+unboundKey[x1] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundVal[y] = x2 { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeVal[y] = [{"foo": x3, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeKey[[{"x": x4}]] { q[y] }
+unboundBuiltinOperator = eq { 4 = 1 }
 unboundElse { false } else = else_var { true }
-`,
-	)
+c.d.e[x5] if true
+f.g.h[y] = x6 if y := "y"
+i.j.k contains x7 if true
+`, popts)
 	compileStages(c, c.checkSafetyRuleHeads)
 
 	makeErrMsg := func(v string) string {
@@ -1447,10 +1450,13 @@ unboundElse { false } else = else_var { true }
 	}
 
 	expected := []string{
-		makeErrMsg("x"),
-		makeErrMsg("x"),
-		makeErrMsg("x"),
-		makeErrMsg("x"),
+		makeErrMsg("x1"),
+		makeErrMsg("x2"),
+		makeErrMsg("x3"),
+		makeErrMsg("x4"),
+		makeErrMsg("x5"),
+		makeErrMsg("x6"),
+		makeErrMsg("x7"),
 		makeErrMsg("eq"),
 		makeErrMsg("else_var"),
 	}
