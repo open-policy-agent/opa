@@ -3333,62 +3333,89 @@ func TestCompilerResolveErrors(t *testing.T) {
 func TestCompilerRewriteTermsInHead(t *testing.T) {
 	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
-	c := NewCompiler()
-	c.Modules["head"] = MustParseModule(`package head
-import future.keywords
+	tests := []struct {
+		note string
+		mod  *Module
+		exp  *Rule
+	}{
+		{
+			note: "imports",
+			mod: MustParseModule(`package head
 import data.doc1 as bar
 import data.doc2 as corge
 import input.x.y.foo
 import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
+`),
+			exp: MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`),
+		},
+		{
+			note: "array comprehension value",
+			mod: MustParseModule(`package head
 q = [true | true] { true }
+`),
+			exp: MustParseRule(`q = __local0__ { true; __local0__ = [true | true] }`),
+		},
+		{
+			note: "object comprehension value",
+			mod: MustParseModule(`package head
 r = {"true": true | true} { true }
+`),
+			exp: MustParseRule(`r = __local0__ { true; __local0__ = {"true": true | true} }`),
+		},
+		{
+			note: "set comprehension value",
+			mod: MustParseModule(`package head
 s = {true | true} { true }
-
+`),
+			exp: MustParseRule(`s = __local0__ { true; __local0__ = {true | true} }`),
+		},
+		{
+			note: "import in else value",
+			mod: MustParseModule(`package head
+import input.qux as baz
 elsekw {
 	false
 } else = baz {
 	true
 }
-
+`),
+			exp: MustParseRule(`elsekw { false } else = __local0__ { true; __local0__ = input.qux }`),
+		},
+		{
+			note: "import ref in last ref head term",
+			mod: MustParseModule(`package head
+import data.doc1 as bar
 x.y.z[bar[i]] = true
+`),
+			exp: MustParseRule(`x.y.z[__local0__] = true { true; __local0__ = data.doc1[i] }`),
+		},
+		{
+			note: "import ref in multi-value ref rule",
+			mod: MustParseModule(`package head
+import future.keywords.if
+import future.keywords.contains
+import data.doc1 as bar
 x.y.w contains bar[i] if true
-`)
-
-	compileStages(c, c.rewriteRefsInHead)
-	assertNotFailed(t, c)
-
-	rule1 := c.Modules["head"].Rules[0]
-	expected1 := MustParseRule(`p[__local0__] = __local2__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local2__ = {"baz": input.qux, "corge": data.doc2} }`)
-	assertRulesEqual(t, rule1, expected1)
-
-	rule2 := c.Modules["head"].Rules[1]
-	expected2 := MustParseRule(`q = __local3__ { true; __local3__ = [true | true] }`)
-	assertRulesEqual(t, rule2, expected2)
-
-	rule3 := c.Modules["head"].Rules[2]
-	expected3 := MustParseRule(`r = __local4__ { true; __local4__ = {"true": true | true} }`)
-	assertRulesEqual(t, rule3, expected3)
-
-	rule4 := c.Modules["head"].Rules[3]
-	expected4 := MustParseRule(`s = __local5__ { true; __local5__ = {true | true} }`)
-	assertRulesEqual(t, rule4, expected4)
-
-	rule5 := c.Modules["head"].Rules[4]
-	expected5 := MustParseRule(`elsekw { false } else = __local6__ { true; __local6__ = input.qux }`)
-	assertRulesEqual(t, rule5, expected5)
-
-	rule6 := c.Modules["head"].Rules[5]
-	expected6 := MustParseRule(`x.y.z[__local1__] = true { true; __local1__ = data.doc1[i] }`)
-	assertRulesEqual(t, rule6, expected6)
-
-	rule7 := c.Modules["head"].Rules[6]
-	expected7, err := ParseRuleWithOpts(`x.y.w contains __local7__ if {true; __local7__ = data.doc1[i] }`, popts)
-	if err != nil {
-		t.Fatal(err)
+`),
+			exp: func() *Rule {
+				exp, _ := ParseRuleWithOpts(`x.y.w contains __local0__ if {true; __local0__ = data.doc1[i] }`, popts)
+				return exp
+			}(),
+		},
 	}
-	assertRulesEqual(t, rule7, expected7)
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules["head"] = tc.mod
+			compileStages(c, c.rewriteRefsInHead)
+			assertNotFailed(t, c)
+			act := c.Modules["head"].Rules[0]
+			assertRulesEqual(t, act, tc.exp)
+		})
+	}
 }
 
 func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {
