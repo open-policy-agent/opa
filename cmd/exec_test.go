@@ -147,3 +147,130 @@ func TestExecBundleFlag(t *testing.T) {
 
 	})
 }
+
+func TestFailDefinedFlagWithFalseBoolean(t *testing.T) {
+
+	files := map[string]string{
+		"files/test.json": `{"foo": 7}`,
+		"bundle/x.rego": `package fail.defined.flag
+
+		some_function {
+			input.foo == 6
+		}
+
+		default fail_test := false
+		fail_test {
+			some_function
+		}`,
+	}
+
+	test.WithTempFS(files, func(dir string) {
+
+		var buf bytes.Buffer
+		params := exec.NewParams(&buf)
+		_ = params.OutputFormat.Set("json")
+		params.BundlePaths = []string{dir + "/bundle/"}
+		params.Paths = append(params.Paths, dir+"/files/")
+		params.Decision = "fail/defined/flag/fail_test"
+		params.FailDefined = true
+
+		err := runExec(params)
+		if err == nil {
+			t.Fatal("expected error with failDefined, but none occurred")
+		}
+
+		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
+
+		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": false
+		}]}`))
+
+		if !reflect.DeepEqual(output, exp) {
+			t.Fatal("Expected:", exp, "Got:", output)
+		}
+
+	})
+}
+
+func TestFailDefinedFlagWithTrueBoolean(t *testing.T) {
+
+	files := map[string]string{
+		"files/test.json": `{"foo": 7}`,
+		"bundle/x.rego": `package fail.defined.flag
+
+		some_function {
+			input.foo == 7
+		}
+
+		default fail_test := false
+		fail_test {
+			some_function
+		}`,
+	}
+
+	test.WithTempFS(files, func(dir string) {
+
+		var buf bytes.Buffer
+		params := exec.NewParams(&buf)
+		_ = params.OutputFormat.Set("json")
+		params.BundlePaths = []string{dir + "/bundle/"}
+		params.Paths = append(params.Paths, dir+"/files/")
+		params.Decision = "fail/defined/flag/fail_test"
+		params.FailDefined = true
+
+		err := runExec(params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
+
+		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": true
+		}]}`))
+
+		if !reflect.DeepEqual(output, exp) {
+			t.Fatal("Expected:", exp, "Got:", output)
+		}
+
+	})
+}
+
+func TestFailDefinedFlagWithPopulatedResult(t *testing.T) {
+
+	files := map[string]string{
+		"files/test.json": `{"foo": 7}`,
+		"bundle/x.rego": `package system
+
+		main["hello"]`,
+	}
+
+	test.WithTempFS(files, func(dir string) {
+
+		var buf bytes.Buffer
+		params := exec.NewParams(&buf)
+		_ = params.OutputFormat.Set("json")
+		params.BundlePaths = []string{dir + "/bundle/"}
+		params.Paths = append(params.Paths, dir+"/files/")
+		params.FailDefined = true
+
+		err := runExec(params)
+		if err == nil {
+			t.Fatal("expected error with failDefined, but none occurred")
+		}
+
+		output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
+
+		exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": ["hello"]
+		}]}`))
+
+		if !reflect.DeepEqual(output, exp) {
+			t.Fatal("Expected:", exp, "Got:", output)
+		}
+
+	})
+}

@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -26,6 +27,7 @@ type Params struct {
 	LogTimestampFormat  string         // log timestamp format for plugins
 	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
 	Decision            string         // decision to evaluate (overrides default decision set by configuration)
+	FailDefined         bool           // exits with non-zero exit code on non-True result and errors
 }
 
 func NewParams(w io.Writer) *Params {
@@ -49,6 +51,9 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 	now := time.Now()
 	r := &jsonReporter{w: params.Output, buf: make([]result, 0)}
 
+	failCount := 0
+	errorCount := 0
+
 	for item := range listAllPaths(params.Paths) {
 
 		if item.Error != nil {
@@ -60,6 +65,9 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		if err != nil {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
+			}
+			if params.FailDefined {
+				errorCount++
 			}
 			continue
 		} else if input == nil {
@@ -75,15 +83,38 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
+			if params.FailDefined {
+				errorCount++
+			}
 			continue
 		}
 
 		if err := r.Report(result{Path: item.Path, Result: &rs.Result}); err != nil {
 			return err
 		}
+
+		if params.FailDefined && rs.Result != nil {
+			// counts all non-boolean results as failures as well as boolean results that are false
+			switch typedResult := rs.Result.(type) {
+			case bool:
+				if !typedResult {
+					failCount++
+				}
+			default:
+				failCount++
+			}
+		}
 	}
 
-	return r.Close()
+	if err := r.Close(); err != nil {
+		return err
+	}
+
+	if params.FailDefined && (failCount > 0 || errorCount > 0) {
+		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
+	}
+
+	return nil
 }
 
 type result struct {
