@@ -118,6 +118,27 @@ func TestInsert(t *testing.T) {
 	if found {
 		t.Fatal("Unexpected key \"foo\" in cache")
 	}
+	cacheValue3 := newInterQueryCacheValue(ast.StringTerm("bar3").Value, 10)
+	cache.Insert(ast.StringTerm("foo3").Value, cacheValue3)
+	cacheValue4 := newInterQueryCacheValue(ast.StringTerm("bar4").Value, 10)
+	cache.Insert(ast.StringTerm("foo4").Value, cacheValue4)
+	cacheValue5 := newInterQueryCacheValue(ast.StringTerm("bar5").Value, 20)
+	dropped = cache.Insert(ast.StringTerm("foo5").Value, cacheValue5)
+	if dropped != 2 {
+		t.Fatal("Expected dropped to be two")
+	}
+	_, found = cache.Get(ast.StringTerm("foo3").Value)
+	if found {
+		t.Fatal("Unexpected key \"foo3\" in cache")
+	}
+	_, found = cache.Get(ast.StringTerm("foo4").Value)
+	if found {
+		t.Fatal("Unexpected key \"foo4\" in cache")
+	}
+	_, found = cache.Get(ast.StringTerm("foo5").Value)
+	if !found {
+		t.Fatal("Expected key \"foo5\" in cache")
+	}
 }
 
 func TestDelete(t *testing.T) {
