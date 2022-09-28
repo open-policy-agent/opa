@@ -35,6 +35,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/json/patch"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
@@ -2914,6 +2915,11 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 		bundles[name] = BundleInfo{Revision: rev}
 	}
 
+	var reqID uint64
+	if rctx := ctx.Value(logging.ReqCtxKey); rctx != nil {
+		reqID = rctx.(logging.RequestContext).ReqID
+	}
+
 	info := &Info{
 		Txn:        txn,
 		Revision:   l.revision,
@@ -2928,6 +2934,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 		Results:    goResults,
 		Error:      err,
 		Metrics:    m,
+		RequestID:  reqID,
 	}
 
 	if ndbCache != nil {

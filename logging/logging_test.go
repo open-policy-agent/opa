@@ -82,3 +82,47 @@ func TestWithFieldsMerges(t *testing.T) {
 		t.Fatal("Logger did not contain configured field value")
 	}
 }
+
+func TestRequestContextFields(t *testing.T) {
+	fields := RequestContext{
+		ClientAddr: "127.0.0.1",
+		ReqID:      1,
+		ReqMethod:  "GET",
+		ReqPath:    "/test",
+	}.Fields()
+
+	var fieldvalue interface{}
+	var ok bool
+
+	if fieldvalue, ok = fields["client_addr"]; !ok {
+		t.Fatal("Fields did not contain the client_addr field")
+	}
+
+	if fieldvalue.(string) != "127.0.0.1" {
+		t.Fatal("Fields did not contain the configured client_addr value")
+	}
+
+	if fieldvalue, ok = fields["req_id"]; !ok {
+		t.Fatal("Fields did not contain the req_id field")
+	}
+
+	if fieldvalue.(uint64) != 1 {
+		t.Fatal("Fields did not contain the configured req_id value")
+	}
+
+	if fieldvalue, ok = fields["req_method"]; !ok {
+		t.Fatal("Fields did not contain the req_method field")
+	}
+
+	if fieldvalue.(string) != "GET" {
+		t.Fatal("Fields did not contain the configured req_method value")
+	}
+
+	if fieldvalue, ok = fields["req_path"]; !ok {
+		t.Fatal("Fields did not contain the req_path field")
+	}
+
+	if fieldvalue.(string) != "/test" {
+		t.Fatal("Fields did not contain the configured req_path value")
+	}
+}
