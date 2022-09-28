@@ -130,7 +130,7 @@ func (c *cache) unsafeInsert(k ast.Value, v InterQueryCacheValue) (dropped int) 
 			return dropped
 		}
 
-		for key := c.l.Front(); key != nil && (c.usage+size > limit); key = key.Next() {
+		for key := c.l.Front(); key != nil && (c.usage+size > limit); key = c.l.Front() {
 			dropKey := key.Value.(ast.Value)
 			c.unsafeDelete(dropKey)
 			c.l.Remove(key)
