@@ -2002,9 +2002,10 @@ response. To enable performance metric collection on an API call, specify the
 `metrics=true` query parameter when executing the API call. Performance metrics
 are currently supported for the following APIs:
 
-- Data API (GET and POST)
-- Policy API (all methods)
+- Policy API (PUT and DELETE)
+- Data API (GET, POST, PUT, and DELETE)
 - Query API (all methods)
+- Compile API (POST)
 
 For example:
 
