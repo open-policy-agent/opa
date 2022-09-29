@@ -203,6 +203,11 @@ func pathsToObject(paths []ast.Ref) ast.Object {
 		node := root
 		var done bool
 
+		// If it's a null JSON path, skip all further processing.
+		if len(path) == 0 {
+			done = true
+		}
+
 		for i := 0; i < len(path)-1 && !done; i++ {
 
 			k := path[i]
