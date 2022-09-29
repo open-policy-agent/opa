@@ -45,7 +45,6 @@ r = y {
 else = y {
 	y = ["howdy"]
 	x = {"x": {"y": "z"}}
-
 	a = {
 		"a": {"b": "c"},
 		"b": "c", "c": [
@@ -126,7 +125,6 @@ p[x] = y {
 		"d": "e",
 		# Comment before closing object brace.
 	} # Comment on closing object brace.
-
 	a = {"a": "b", "c": "d"}
 	b = [1, 2, 3, 4]
 	c = [
@@ -150,7 +148,6 @@ p[x] = y {
 		split("foo.bar", ".", x)
 		x[_]
 	]
-
 	g = [1 |
 		split("foo.bar", ".", x) # comment in array comprehension
 		x[_]
@@ -163,7 +160,6 @@ p[x] = y {
 		split("foo.bar", ".", x)
 		x[_]
 	}
-
 	k = {1 |
 		split("foo.bar", ".", x) # comment in set comprehension
 		x[_]
@@ -175,12 +171,10 @@ p[x] = y {
 		split("foo.bar", ".", x)
 		y = x[_]
 	}
-
 	n = {y: x |
 		split("foo.bar", ".", x)
 		y = x[_]
 	}
-
 	o = {y: x |
 		split("foo.bar", ".", x) # comment in object comprehension
 		y = x[_]
@@ -197,7 +191,6 @@ nested_infix {
 	f(x, y)
 	y = (x + 1) + 2
 	x = y + z # comment
-
 	x = (a + b) / 2
 	f((a + b) / 2)
 	y = q()
