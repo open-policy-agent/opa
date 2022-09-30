@@ -548,6 +548,7 @@ opa eval <query> [flags]
   -s, --schema string                                     set schema file path or directory path
       --shallow-inlining                                  disable inlining of rules that depend on unknowns
       --stdin                                             read query from stdin
+  -S, --strict                                            enable compiler strict mode
   -I, --stdin-input                                       read input document from stdin
       --strict-builtin-errors                             treat built-in function errors as fatal
   -t, --target {rego,wasm}                                set the runtime to exercise (default rego)

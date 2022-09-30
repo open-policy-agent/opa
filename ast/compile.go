@@ -228,6 +228,9 @@ type QueryCompiler interface {
 	// ComprehensionIndex returns an index data structure for the given comprehension
 	// term. If no index is found, returns nil.
 	ComprehensionIndex(term *Term) *ComprehensionIndex
+
+	// WithStrict enables strict mode for the query compiler.
+	WithStrict(strict bool) QueryCompiler
 }
 
 // QueryCompilerStage defines the interface for stages in the query compiler.
@@ -411,10 +414,10 @@ func (c *Compiler) ParsedModules() map[string]*Module {
 	return c.parsedModules
 }
 
-// QueryCompiler returns a new QueryCompiler object.
 func (c *Compiler) QueryCompiler() QueryCompiler {
 	c.init()
-	return newQueryCompiler(c)
+	c0 := *c
+	return newQueryCompiler(&c0)
 }
 
 // Compile runs the compilation process on the input modules. The compiled
@@ -2419,6 +2422,11 @@ func newQueryCompiler(compiler *Compiler) QueryCompiler {
 		after:                map[string][]QueryCompilerStageDefinition{},
 		comprehensionIndices: map[*Term]*ComprehensionIndex{},
 	}
+	return qc
+}
+
+func (qc *queryCompiler) WithStrict(strict bool) QueryCompiler {
+	qc.compiler.WithStrict(strict)
 	return qc
 }
 
