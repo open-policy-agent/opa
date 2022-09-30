@@ -1414,7 +1414,7 @@ To ensure backwards-compatibility, new keywords (like `every`) are introduced sl
 In the first stage, users can opt-in to using the new keywords via a special import:
 
 - `import future.keywords` introduces _all_ future keywords, and
-- `import future.keyword.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
+- `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
 
 {{< danger >}}
 Using `import future.keywords` to import all future keywords means an **opt-out of a
