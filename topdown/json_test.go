@@ -17,6 +17,11 @@ func TestFiltersToObject(t *testing.T) {
 		expected string
 	}{
 		{
+			note:     "empty path",
+			filters:  []string{`""`},
+			expected: `{}`,
+		},
+		{
 			note:     "base",
 			filters:  []string{`"a/b/c"`},
 			expected: `{"a": {"b": {"c": null}}}`,
@@ -80,6 +85,11 @@ func TestFiltersToObject(t *testing.T) {
 			note:     "mixed escapes",
 			filters:  []string{`"a/~0b~1c/d~1~0"`},
 			expected: `{"a": {"~b/c": {"d/~": null}}}`,
+		},
+		{
+			note:     "empty strings mixed with normal paths",
+			filters:  []string{`"a/b/c"`, `""`, `"a/b/d"`, `"a/e/f"`, `""`},
+			expected: `{"a": {"b": {"c": null, "d": null}, "e": {"f": null}}}`,
 		},
 	}
 
