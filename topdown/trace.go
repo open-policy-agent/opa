@@ -58,6 +58,11 @@ const (
 	// WasmOp is emitted when resolving a ref using an external
 	// Resolver.
 	WasmOp Op = "Wasm"
+
+	// UnifyOp is emitted when two terms are unified.  Node will be set to an
+	// equality expression with the two terms.  This Node will not have location
+	// info.
+	UnifyOp Op = "Unify"
 )
 
 // VarMetadata provides some user facing information about
@@ -231,15 +236,21 @@ func (b *BufferTracer) Config() TraceConfig {
 
 // PrettyTrace pretty prints the trace to the writer.
 func PrettyTrace(w io.Writer, trace []*Event) {
-	depths := depths{}
-	for _, event := range trace {
-		depth := depths.GetOrSet(event.QueryID, event.ParentID)
-		fmt.Fprintln(w, formatEvent(event, depth))
-	}
+	PrettyTraceWith(w, trace, PrettyTraceOpts{})
 }
 
 // PrettyTraceWithLocation prints the trace to the writer and includes location information
 func PrettyTraceWithLocation(w io.Writer, trace []*Event) {
+	PrettyTraceWith(w, trace, PrettyTraceOpts{Location: true})
+}
+
+// Options for pretty-printing traces
+type PrettyTraceOpts struct {
+	Location bool // Include locations
+	UnifyOps bool // Include unify operations
+}
+
+func PrettyTraceWith(w io.Writer, trace []*Event, opts PrettyTraceOpts) {
 	depths := depths{}
 
 	filePathAliases, longest := getShortenedFileNames(trace)
@@ -248,9 +259,17 @@ func PrettyTraceWithLocation(w io.Writer, trace []*Event) {
 	locationWidth := longest + locationPadding
 
 	for _, event := range trace {
+		if event.Op == UnifyOp && !opts.UnifyOps {
+			continue
+		}
+
 		depth := depths.GetOrSet(event.QueryID, event.ParentID)
-		location := formatLocation(event, filePathAliases)
-		fmt.Fprintf(w, "%-*s %s\n", locationWidth, location, formatEvent(event, depth))
+		if opts.Location {
+			location := formatLocation(event, filePathAliases)
+			fmt.Fprintf(w, "%-*s %s\n", locationWidth, location, formatEvent(event, depth))
+		} else {
+			fmt.Fprintln(w, formatEvent(event, depth))
+		}
 	}
 }
 

@@ -62,7 +62,10 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		for _, failure := range failures {
 			fmt.Fprintln(r.Output, failure)
 			fmt.Fprintln(r.Output)
-			topdown.PrettyTraceWithLocation(newIndentingWriter(r.Output), failure.Trace)
+			topdown.PrettyTraceWith(newIndentingWriter(r.Output), failure.Trace, topdown.PrettyTraceOpts{
+				Location: true,
+				UnifyOps: true,
+			})
 			fmt.Fprintln(r.Output)
 		}
 
