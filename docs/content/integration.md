@@ -31,7 +31,9 @@ OPA supports different ways to evaluate policies.
 * The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
-* [WebAssembly](../wasm) compiles Rego policies into WASM instructions so they can be embedded and evaluated by any WebAssembly runtime
+* [WebAssembly](../wasm) compiles Rego policies into Wasm instructions so they can be embedded and evaluated by any WebAssembly runtime
+* Custom compilers and evaluators may be written to parse evaluation plans in the low-level
+  [Intermediate Representation](../ir) format, which can be emitted by the `opa build` command
 * The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) provides high-level APIs for obtaining the output
   of query evaluation as simple Go types (`bool`, `string`, `map[string]interface{}`, etc.)
 
@@ -199,22 +201,19 @@ store, etc.
 module := `
 package example.authz
 
-import future.keywords
+import future.keywords.if
+import future.keywords.in
 
 default allow := false
 
-allow {
+allow if {
     input.method == "GET"
     input.path == ["salary", input.subject.user]
 }
 
-allow {
-    is_admin
-}
+allow if is_admin
 
-is_admin {
-    "admin" in input.subject.groups
-}
+is_admin if "admin" in input.subject.groups
 `
 
 query, err := rego.New(
@@ -288,6 +287,12 @@ Policies can be evaluated as compiled Wasm binaries.
 
 See [OPA Wasm docs](../wasm) for more details.
 
+### Intermediate Representation (IR)
+
+Policies may be compiled into evaluation plans using an intermediate representation format, suitable for custom
+compilers and evaluators.
+
+See [OPA IR docs](../ir) for more details.
 
 ### SDK
 
@@ -325,11 +330,11 @@ func main() {
 		"example.rego": `
 				package authz
 
+				import future.keywords.if
+
 				default allow := false
 
-				allow {
-					input.open == "sesame"
-				}
+				allow if input.open == "sesame"
 			`,
 	}))
 	if err != nil {
@@ -395,4 +400,4 @@ Integrating OPA via the REST API is the most common, at the time of writing.  OP
 
 Integrating OPA via the Go API only works for Go software.  Updates to OPA require re-vendoring and re-deploying the software.  Evaluation has less overhead than the REST API because all the communication happens in the same operating-system process.  All of the management functionality (bundles, decision logs, etc.) must be either enabled or implemented.  Security concerns are limited to those management features that are enabled or implemented.
 
-Integrating via WASM is still a work-in-progress.  But once it is finished, WASM policies will be embeddable in any programming language that has a WASM runtime.  Evaluation will have less overhead than the REST API (because it is evaluated in the same operating-system process) and should outperform the Go API (because the policies have been compiled to a lower-level instruction set).  Each programming language will need its own SDKs (also a WIP) that implement the management functionality and the evaluation interface. Typically new OPA language features will not require updating the service since neither the WASM runtime nor the SDKs will be impacted.  Updating the SDKs will require re-deploying the service.  Security will be analogous to the Go API integration: it is mainly the management functionality that presents security risks.
+Wasm policies are embeddable in any programming language that has a Wasm runtime. Evaluation has less overhead than the REST API (because it is evaluated in the same operating-system process) and should outperform the Go API (because the policies have been compiled to a lower-level instruction set). Each programming language will need its own SDKs that implement the management functionality and the evaluation interface. Typically new OPA language features will not require updating the service since neither the Wasm runtime nor the SDKs will be impacted. Updating the SDKs will require re-deploying the service. Security is analogous to the Go API integration: it is mainly the management functionality that presents security risks.
