@@ -1,0 +1,13 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p = count(rands) {
+      rands := { rand.intn("key", 100) | numbers.range(1,100)[_] }
+    }
+  note: rand.intn/consistent values for same arguments
+  query: data.test.p = x
+  want_result:
+  - x: 1
