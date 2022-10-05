@@ -1781,18 +1781,18 @@ func TestRuleIf(t *testing.T) {
 			rule: `p := "yes" if { 10 > y } else := "no" if { 10 <= y }`,
 			exp: &Rule{
 				Head: &Head{
-					Ref:    Ref{VarTerm("p")},
-					Name:   Var("p"),
-					Value:  StringTerm("yes"),
-					Assign: true,
+					Reference: Ref{VarTerm("p")},
+					Name:      Var("p"),
+					Value:     StringTerm("yes"),
+					Assign:    true,
 				},
 				Body: MustParseBody(`10 > y`),
 				Else: &Rule{
 					Head: &Head{
-						Ref:    Ref{VarTerm("p")},
-						Name:   Var("p"),
-						Value:  StringTerm("no"),
-						Assign: true,
+						Reference: Ref{VarTerm("p")},
+						Name:      Var("p"),
+						Value:     StringTerm("no"),
+						Assign:    true,
 					},
 					Body: MustParseBody(`10 <= y`),
 				},
