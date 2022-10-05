@@ -402,8 +402,11 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetBundles(bundles).
 		SetTimeout(timeout).
 		Filter(testParams.runRegex).
-		Target(testParams.target.String()).
 		SetParallel(testParams.parallel)
+
+	if testParams.target.IsSet() {
+		runner = runner.Target(testParams.target.String())
+	}
 
 	var reporter tester.Reporter
 

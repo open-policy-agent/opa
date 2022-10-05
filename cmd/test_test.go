@@ -18,7 +18,10 @@ import (
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/bundle"
+	"github.com/open-policy-agent/opa/v1/ir"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/repl"
+	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/topdown"
 	"github.com/open-policy-agent/opa/v1/util/test"
 )
@@ -3561,7 +3564,7 @@ func TestTestBenchFailingTest(t *testing.T) {
 
 		exitCode := opaTest([]string{fp}, tp)
 		if exitCode == 0 {
-			t.Fatalf("Expected exit code 0, got %d", exitCode)
+			t.Fatalf("Expected exit code != 0, got %d", exitCode)
 		}
 	})
 }
@@ -3613,5 +3616,73 @@ test_l if {
 			t.Fatalf("unexpected exit code: %d", exitCode)
 		}
 	}
-
 }
+
+func TestWithDefaultRegoPlugin(t *testing.T) {
+	// We're injecting a default rego plugin that always returns true.
+	// If it's picked as a default (as intended), the tests run here will also
+	// yield true. If it wasn't picked, we'd use topdown, and would see a failing
+	// test.
+	tp := &testPlugin{}
+	rego.RegisterPlugin(targetPlugin, tp)
+	t.Cleanup(func() { tp.target = targetPlugin })
+
+	t.Run("test", func(t *testing.T) {
+		test.WithTempFS(map[string]string{"test.rego": "package test\ntest_true if false"}, func(path string) {
+			fp := filepath.Join(path, "test.rego")
+			tp := newTestCommandParams()
+			tp.output = io.Discard
+			tp.count = 1
+
+			exitCode := opaTest([]string{fp}, tp)
+			if exitCode != 0 {
+				t.Fatalf("Expected exit code 0, got %d", exitCode)
+			}
+		})
+	})
+	t.Run("eval", func(t *testing.T) {
+		params := newEvalCommandParams()
+		params.fail = true
+		query := "2+2 = 5" // unification will fail ("2+2 == 5" would be false, but defined)
+
+		defined, err := eval([]string{query}, params, io.Discard)
+		if err != nil {
+			t.Fatal("unexpected error", err)
+		}
+		if !defined {
+			t.Errorf("expected defined result")
+		}
+	})
+
+	t.Run("repl", func(t *testing.T) {
+		ctx := context.Background()
+		store := inmem.New()
+		var buffer bytes.Buffer
+		repl := repl.New(store, "", &buffer, "", 0, "")
+		if err := repl.OneShot(ctx, "2+2==5"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		result := buffer.String()
+		if result != "true\n" {
+			t.Errorf("Expected result to be false but got: %v", result)
+		}
+	})
+}
+
+type testPlugin struct {
+	target string
+}
+
+func (t *testPlugin) IsTarget(tgt string) bool {
+	return tgt == t.target // t == "" makes it the global default
+}
+
+func (*testPlugin) PrepareForEval(context.Context, *ir.Policy, ...rego.PrepareOption) (rego.TargetPluginEval, error) {
+	return &testPlugin{}, nil
+}
+
+func (*testPlugin) Eval(context.Context, *rego.EvalContext, ast.Value) (ast.Value, error) {
+	return ast.NewSet(ast.NewTerm(ast.NewObject([2]*ast.Term{ast.StringTerm("^term1"), ast.BooleanTerm(true)}))), nil
+}
+
+const targetPlugin = "rego_test_default_plugin"
