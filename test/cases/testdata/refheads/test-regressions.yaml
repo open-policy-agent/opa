@@ -94,3 +94,15 @@ cases:
   query: 'data.test.p[true] = x'
   want_result:
   - x: 1
+- note: regression/full extent with partial object rule with empty indexer lookup result
+  modules:
+  - |
+    package test
+    p[x] = 2 {
+      x := input # we'll get 0 rules for data.test.p
+      false
+    }
+  query: data.test = x
+  want_result:
+  - x:
+      p: {}
