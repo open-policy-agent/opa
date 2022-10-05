@@ -22,16 +22,6 @@ type testPlugin struct {
 	state        string
 }
 
-func (*testPlugin) Start(context.Context) error {
-	return nil
-}
-
-func (*testPlugin) Stop(context.Context) {
-}
-
-func (*testPlugin) Reconfigure(context.Context, any) {
-}
-
 func (*testPlugin) IsTarget(t string) bool {
 	return t == "foo"
 }

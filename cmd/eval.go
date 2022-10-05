@@ -558,6 +558,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		rego.Runtime(info),
 		rego.SetRegoVersion(params.regoVersion()),
 		rego.StoreReadAST(params.ReadAstValuesFromStore),
+		rego.SkipBundleVerification(true),
 	}
 
 	evalArgs := []rego.EvalOption{
@@ -602,7 +603,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		}
 	}
 
-	regoArgs = append(regoArgs, rego.SkipBundleVerification(true), rego.Target(params.target.String()))
+	if params.target.IsSet() {
+		regoArgs = append(regoArgs, rego.Target(params.target.String()))
+	}
 
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
