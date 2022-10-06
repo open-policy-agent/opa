@@ -32,6 +32,7 @@ type Config struct {
 	DefaultDecision              *string                    `json:"default_decision,omitempty"`
 	DefaultAuthorizationDecision *string                    `json:"default_authorization_decision,omitempty"`
 	Caching                      json.RawMessage            `json:"caching,omitempty"`
+	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
 	Storage                      *struct {
@@ -85,6 +86,11 @@ func (c Config) DefaultDecisionRef() ast.Ref {
 func (c Config) DefaultAuthorizationDecisionRef() ast.Ref {
 	r, _ := ref.ParseDataPath(*c.DefaultAuthorizationDecision)
 	return r
+}
+
+// NDBuiltinCacheEnabled returns if the ND builtins cache should be used.
+func (c Config) NDBuiltinCacheEnabled() bool {
+	return c.NDBuiltinCache
 }
 
 func (c *Config) validateAndInjectDefaults(id string) error {

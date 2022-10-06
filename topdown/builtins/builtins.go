@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Cache defines the built-in cache used by the top-down evaluation. The keys
@@ -33,6 +34,14 @@ func (c Cache) Get(k interface{}) (interface{}, bool) {
 // map[ast.Value]ast.Value will not correctly detect value equality of
 // the member keys.
 type NDBCache map[string]ast.Object
+
+func (c NDBCache) AsValue() ast.Value {
+	out := ast.NewObject()
+	for bname, obj := range c {
+		out.Insert(ast.StringTerm(bname), ast.NewTerm(obj))
+	}
+	return out
+}
 
 // Put updates the cache for the named built-in.
 // Automatically creates the 2-level hierarchy as needed.
@@ -57,31 +66,41 @@ func (c NDBCache) Get(name string, k ast.Value) (ast.Value, bool) {
 
 // Convenience functions for serializing the data structure.
 func (c NDBCache) MarshalJSON() ([]byte, error) {
-	out := make(map[string]json.RawMessage)
-	for bname, obj := range c {
-		j, err := json.Marshal(ast.NewTerm(obj))
-		if err != nil {
-			return nil, err
-		}
-		out[bname] = j
+	v, err := ast.JSON(c.AsValue())
+	if err != nil {
+		return nil, err
 	}
-	return json.Marshal(out)
+	return json.Marshal(v)
 }
 
 func (c *NDBCache) UnmarshalJSON(data []byte) error {
 	out := map[string]ast.Object{}
-	var incoming map[string]ast.Term
+	var incoming interface{}
 
-	// We deserialize into a map of Terms, and then extract out the Objects.
-	err := json.Unmarshal(data, &incoming)
+	// Note: We use util.Unmarshal instead of json.Unmarshal to get
+	// correct deserialization of number types.
+	err := util.Unmarshal(data, &incoming)
 	if err != nil {
 		return err
 	}
-	for k, v := range incoming {
-		if obj, ok := v.Value.(ast.Object); ok {
-			out[k] = obj
-		} else {
+
+	// Convert interface types back into ast.Value types.
+	nestedObject, err := ast.InterfaceToValue(incoming)
+	if err != nil {
+		return err
+	}
+
+	// Reconstruct NDBCache from nested ast.Object structure.
+	if source, ok := nestedObject.(ast.Object); ok {
+		err = source.Iter(func(k, v *ast.Term) error {
+			if obj, ok := v.Value.(ast.Object); ok {
+				out[string(k.Value.(ast.String))] = obj
+				return nil
+			}
 			return fmt.Errorf("expected Object, got other Value type in conversion")
+		})
+		if err != nil {
+			return err
 		}
 	}
 

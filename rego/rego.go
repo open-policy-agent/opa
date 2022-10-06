@@ -1186,8 +1186,11 @@ func (r *Rego) Eval(ctx context.Context) (ResultSet, error) {
 		EvalInstrument(r.instrument),
 		EvalTime(r.time),
 		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
-		EvalNDBuiltinCache(r.ndBuiltinCache),
 		EvalSeed(r.seed),
+	}
+
+	if r.ndBuiltinCache != nil {
+		evalArgs = append(evalArgs, EvalNDBuiltinCache(r.ndBuiltinCache))
 	}
 
 	for _, qt := range r.queryTracers {
@@ -1260,7 +1263,10 @@ func (r *Rego) Partial(ctx context.Context) (*PartialQueries, error) {
 		EvalMetrics(r.metrics),
 		EvalInstrument(r.instrument),
 		EvalInterQueryBuiltinCache(r.interQueryBuiltinCache),
-		EvalNDBuiltinCache(r.ndBuiltinCache),
+	}
+
+	if r.ndBuiltinCache != nil {
+		evalArgs = append(evalArgs, EvalNDBuiltinCache(r.ndBuiltinCache))
 	}
 
 	for _, t := range r.queryTracers {
@@ -1933,7 +1939,6 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithIndexing(ectx.indexing).
 		WithEarlyExit(ectx.earlyExit).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
-		WithNDBuiltinCache(ectx.ndBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
@@ -1941,6 +1946,10 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
+	}
+
+	if ectx.ndBuiltinCache != nil {
+		q = q.WithNDBuiltinCache(ectx.ndBuiltinCache)
 	}
 
 	for i := range ectx.queryTracers {
@@ -2210,13 +2219,16 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithSkipPartialNamespace(r.skipPartialNamespace).
 		WithShallowInlining(r.shallowInlining).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
-		WithNDBuiltinCache(ectx.ndBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
+	}
+
+	if ectx.ndBuiltinCache != nil {
+		q = q.WithNDBuiltinCache(ectx.ndBuiltinCache)
 	}
 
 	for i := range ectx.queryTracers {
