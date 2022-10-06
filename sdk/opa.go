@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
 )
@@ -221,9 +222,18 @@ func (opa *OPA) Stop(ctx context.Context) {
 func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*DecisionResult, error) {
 
 	record := server.Info{
-		Timestamp: options.Now,
-		Path:      options.Path,
-		Input:     &options.Input,
+		Timestamp:      options.Now,
+		Path:           options.Path,
+		Input:          &options.Input,
+		NDBuiltinCache: &options.NDBCache,
+	}
+
+	// Only use non-deterministic builtins cache if it's available.
+	var ndbc builtins.NDBCache
+	if options.NDBCache != nil {
+		if v, ok := options.NDBCache.(builtins.NDBCache); ok {
+			ndbc = v
+		}
 	}
 
 	result, err := opa.executeTransaction(
@@ -237,6 +247,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				store:           s.manager.Store,
 				queryCache:      s.queryCache,
 				interQueryCache: s.interQueryBuiltinCache,
+				ndbcache:        ndbc,
 				txn:             record.Txn,
 				now:             record.Timestamp,
 				path:            record.Path,
@@ -257,9 +268,10 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 
 // DecisionOptions contains parameters for query evaluation.
 type DecisionOptions struct {
-	Now   time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Path  string      // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input interface{} // specifies value of the input document to evaluate policy with
+	Now      time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Path     string      // specifies name of policy decision to evaluate (e.g., example/allow)
+	Input    interface{} // specifies value of the input document to evaluate policy with
+	NDBCache interface{} // specifies the non-deterministic builtins cache to use for evaluation.
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -319,6 +331,8 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 }
 
 // Partial returns a named decision. This function is threadsafe.
+// Note(philipc): The NDBCache is unused here, because non-deterministic
+// builtins are not run during partial evaluation.
 func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialResult, error) {
 
 	if options.Mapper == nil {
@@ -433,6 +447,7 @@ type evalArgs struct {
 	now             time.Time
 	path            string
 	input           interface{}
+	ndbcache        builtins.NDBCache
 	m               metrics.Metrics
 }
 
@@ -479,6 +494,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalTransaction(args.txn),
 		rego.EvalMetrics(args.m),
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
+		rego.EvalNDBuiltinCache(args.ndbcache),
 	)
 	if err != nil {
 		return nil, inputAST, bundles, err

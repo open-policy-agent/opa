@@ -474,6 +474,11 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
 
+	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
+	if lp := logs.Lookup(rt.Manager); lp != nil {
+		rt.server = rt.server.WithNDBCacheEnabled(rt.Manager.Config.NDBuiltinCacheEnabled())
+	}
+
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
 	}

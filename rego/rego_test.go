@@ -2086,7 +2086,7 @@ func TestEvalWithNDCache(t *testing.T) {
 	}
 
 	// Check and make sure we got exactly 2x items back in the ND builtin cache.
-	// NDBuiltinsCache always has the structure: map[ast.String]map[ast.Array]ast.Value
+	// NDBuiltinCache always has the structure: map[ast.String]map[ast.Array]ast.Value
 	if len(ndBC) != 2 {
 		t.Fatalf("Expected exactly 2 items in non-deterministic builtin cache. Found %d items.\n", len(ndBC))
 	}

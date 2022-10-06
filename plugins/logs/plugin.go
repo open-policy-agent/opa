@@ -44,21 +44,22 @@ type Logger interface {
 // the struct. Any changes here MUST be reflected in the AST()
 // implementation below.
 type EventV1 struct {
-	Labels       map[string]string       `json:"labels"`
-	DecisionID   string                  `json:"decision_id"`
-	Revision     string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
-	Bundles      map[string]BundleInfoV1 `json:"bundles,omitempty"`
-	Path         string                  `json:"path,omitempty"`
-	Query        string                  `json:"query,omitempty"`
-	Input        *interface{}            `json:"input,omitempty"`
-	Result       *interface{}            `json:"result,omitempty"`
-	MappedResult *interface{}            `json:"mapped_result,omitempty"`
-	Erased       []string                `json:"erased,omitempty"`
-	Masked       []string                `json:"masked,omitempty"`
-	Error        error                   `json:"error,omitempty"`
-	RequestedBy  string                  `json:"requested_by,omitempty"`
-	Timestamp    time.Time               `json:"timestamp"`
-	Metrics      map[string]interface{}  `json:"metrics,omitempty"`
+	Labels         map[string]string       `json:"labels"`
+	DecisionID     string                  `json:"decision_id"`
+	Revision       string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
+	Bundles        map[string]BundleInfoV1 `json:"bundles,omitempty"`
+	Path           string                  `json:"path,omitempty"`
+	Query          string                  `json:"query,omitempty"`
+	Input          *interface{}            `json:"input,omitempty"`
+	Result         *interface{}            `json:"result,omitempty"`
+	MappedResult   *interface{}            `json:"mapped_result,omitempty"`
+	NDBuiltinCache *interface{}            `json:"nd_builtin_cache,omitempty"`
+	Erased         []string                `json:"erased,omitempty"`
+	Masked         []string                `json:"masked,omitempty"`
+	Error          error                   `json:"error,omitempty"`
+	RequestedBy    string                  `json:"requested_by,omitempty"`
+	Timestamp      time.Time               `json:"timestamp"`
+	Metrics        map[string]interface{}  `json:"metrics,omitempty"`
 
 	inputAST ast.Value
 }
@@ -87,6 +88,7 @@ var queryKey = ast.StringTerm("query")
 var inputKey = ast.StringTerm("input")
 var resultKey = ast.StringTerm("result")
 var mappedResultKey = ast.StringTerm("mapped_result")
+var ndBuiltinCacheKey = ast.StringTerm("nd_builtin_cache")
 var erasedKey = ast.StringTerm("erased")
 var maskedKey = ast.StringTerm("masked")
 var errorKey = ast.StringTerm("error")
@@ -159,6 +161,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 		event.Insert(mappedResultKey, ast.NewTerm(mResults))
 	}
 
+	if e.NDBuiltinCache != nil {
+		ndbCache, err := roundtripJSONToAST(e.NDBuiltinCache)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(ndBuiltinCacheKey, ast.NewTerm(ndbCache))
+	}
+
 	if len(e.Erased) > 0 {
 		erased := make([]*ast.Term, len(e.Erased))
 		for i, v := range e.Erased {
@@ -226,6 +236,7 @@ const (
 	defaultBufferSizeLimitBytes = int64(0)     // unlimited
 	defaultMaskDecisionPath     = "/system/log/mask"
 	logDropCounterName          = "decision_logs_dropped"
+	logNDBDropCounterName       = "decision_logs_nd_builtin_cache_dropped"
 	defaultResourcePath         = "/logs"
 )
 
@@ -248,6 +259,7 @@ type Config struct {
 	MaskDecision    *string         `json:"mask_decision"`
 	ConsoleLogs     bool            `json:"console"`
 	Resource        *string         `json:"resource"`
+	NDBuiltinCache  bool            `json:"nd_builtin_cache,omitempty"`
 	maskDecisionRef ast.Ref
 }
 
@@ -557,18 +569,19 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	event := EventV1{
-		Labels:       p.manager.Labels(),
-		DecisionID:   decision.DecisionID,
-		Revision:     decision.Revision,
-		Bundles:      bundles,
-		Path:         decision.Path,
-		Query:        decision.Query,
-		Input:        decision.Input,
-		Result:       decision.Results,
-		MappedResult: decision.MappedResults,
-		RequestedBy:  decision.RemoteAddr,
-		Timestamp:    decision.Timestamp,
-		inputAST:     decision.InputAST,
+		Labels:         p.manager.Labels(),
+		DecisionID:     decision.DecisionID,
+		Revision:       decision.Revision,
+		Bundles:        bundles,
+		Path:           decision.Path,
+		Query:          decision.Query,
+		Input:          decision.Input,
+		Result:         decision.Results,
+		MappedResult:   decision.MappedResults,
+		NDBuiltinCache: decision.NDBuiltinCache,
+		RequestedBy:    decision.RemoteAddr,
+		Timestamp:      decision.Timestamp,
+		inputAST:       decision.InputAST,
 	}
 
 	if decision.Metrics != nil {
@@ -793,6 +806,9 @@ func (p *Plugin) reconfigure(config interface{}) {
 	p.config = *newConfig
 }
 
+// NOTE(philipc): Because ND builtins caching can cause unbounded growth in
+// decision log entry size, we do best-effort event encoding here, and when we
+// run out of space, we drop the ND builtins cache, and try encoding again.
 func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	if p.limiter != nil {
 		if !p.limiter.Allow() {
@@ -807,11 +823,29 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 
 	result, err := p.enc.Write(event)
 	if err != nil {
-		// TODO(tsandall): revisit this now that we have an API that
-		// can return an error. Should the default behaviour be to
-		// fail-closed as we do for plugins?
-		p.logger.Error("Log encoding failed: %v.", err)
-		return
+		// If there's no ND builtins cache in the event, then we don't
+		// need to retry encoding anything.
+		if event.NDBuiltinCache == nil {
+			// TODO(tsandall): revisit this now that we have an API that
+			// can return an error. Should the default behaviour be to
+			// fail-closed as we do for plugins?
+			p.logger.Error("Log encoding failed: %v.", err)
+			return
+		}
+
+		// Attempt to encode the event again, dropping the ND builtins cache.
+		newEvent := event
+		newEvent.NDBuiltinCache = nil
+
+		result, err = p.enc.Write(newEvent)
+		if err != nil {
+			p.logger.Error("Log encoding failed: %v.", err)
+			return
+		}
+
+		// Re-encoding was successful, but we still need to alert users.
+		p.logger.Error("ND builtins cache dropped from this event to fit under maximum upload size limits. Increase upload size limit or change usage of non-deterministic builtins.")
+		p.metrics.Counter(logNDBDropCounterName).Incr()
 	}
 
 	for _, chunk := range result {

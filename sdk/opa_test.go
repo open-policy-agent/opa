@@ -14,8 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 
 	"github.com/fortytw2/leaktest"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
@@ -394,6 +396,76 @@ func TestDecisionLogging(t *testing.T) {
 		Now: time.Unix(0, 1619868194450288000).UTC(),
 	}); err != nil {
 		t.Fatal(err)
+	}
+
+}
+
+func TestDecisionLoggingWithNDBCache(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": "package system\nmain = time.now_ns()",
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true,
+			"nd_builtin_cache": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	// Build ND builtins cache, and populate with an unused builtin.
+	ndbc := builtins.NDBCache{}
+	ndbc.Put("rand.intn", ast.NewArray(), ast.NewObject([2]*ast.Term{ast.StringTerm("z"), ast.IntNumberTerm(7)}))
+
+	// Verify that timestamp matches time.now_ns() value.
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Now:      time.Unix(0, 1619868194450288000).UTC(),
+		NDBCache: ndbc,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+
+	// Check the contents of the ND builtins cache.
+	if cache, ok := entries[0].Fields["nd_builtin_cache"]; ok {
+		// Ensure the original cache entry for rand.intn is still there.
+		if _, ok := cache.(map[string]interface{})["rand.intn"]; !ok {
+			t.Fatalf("ND builtins cache was not preserved during evaluation.")
+		}
+		// Ensure time.now_ns entry was picked up correctly.
+		if _, ok := cache.(map[string]interface{})["time.now_ns"]; !ok {
+			t.Fatalf("ND builtins cache did not observe time.now_ns call during evaluation.")
+		}
+	} else {
+		t.Fatalf("ND builtins cache missing.")
 	}
 
 }
