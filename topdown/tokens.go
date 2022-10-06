@@ -254,7 +254,12 @@ func builtinJWTVerifyES512(bctx BuiltinContext, args []*ast.Term, iter func(*ast
 	return err
 }
 
-func verifyES(publicKey interface{}, digest []byte, signature []byte) error {
+func verifyES(publicKey interface{}, digest []byte, signature []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("ECDSA signature verification error: %v", r)
+		}
+	}()
 	publicKeyEcdsa, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return fmt.Errorf("incorrect public key type")
@@ -783,7 +788,12 @@ func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []
 	return nil
 }
 
-func verifyECDSA(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error {
+func verifyECDSA(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("ECDSA signature verification error: %v", r)
+		}
+	}()
 	publicKeyEcdsa, ok := key.(*ecdsa.PublicKey)
 	if !ok {
 		return fmt.Errorf("incorrect public key type")
