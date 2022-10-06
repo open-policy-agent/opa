@@ -590,7 +590,7 @@ opa exec <path> [<path> [...]] [flags]
   -c, --config-file string                   set path of configuration file
       --decision string                      set decision to evaluate
   -f, --format {pretty,json}                 set output format (default pretty)
-      --fail-defined                         exits with non-zero exit code on false/non-empty result and errors
+      --fail-defined                         exits with non-zero exit code on defined/non-empty result and errors
   -h, --help                                 help for exec
       --log-format {text,json,json-pretty}   set log format (default json)
   -l, --log-level {debug,info,error}         set log level (default error)

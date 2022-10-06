@@ -27,7 +27,7 @@ type Params struct {
 	LogTimestampFormat  string         // log timestamp format for plugins
 	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
 	Decision            string         // decision to evaluate (overrides default decision set by configuration)
-	FailDefined         bool           // exits with non-zero exit code on non-True result and errors
+	FailDefined         bool           // exits with non-zero exit code on defined/non-empty result and errors
 }
 
 func NewParams(w io.Writer) *Params {
@@ -83,7 +83,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
-			if params.FailDefined {
+			if params.FailDefined && !sdk.IsUndefinedErr(err) {
 				errorCount++
 			}
 			continue
@@ -94,15 +94,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		}
 
 		if params.FailDefined && rs.Result != nil {
-			// counts all non-boolean results as failures as well as boolean results that are false
-			switch typedResult := rs.Result.(type) {
-			case bool:
-				if !typedResult {
-					failCount++
-				}
-			default:
-				failCount++
-			}
+			failCount++
 		}
 	}
 
