@@ -104,7 +104,7 @@ Rego equivalent.
 - fmt: Fix blank lines after multiline expressions. (authored by @jaspervdj)
 - internal/report: Include heap usage in the telemetry report.
 - plugins/logs: Improve error message when decision log chunk size is greater than the upload limit. ([#5155](https://github.com/open-policy-agent/opa/issues/5155))
-- ir: Make golang code public.
+- ir: Make the `internal/ir` package public as `ir`.
 
 ### Rego
 
@@ -117,7 +117,6 @@ Rego equivalent.
 
 ### Topdown
 
-- topdown/regex: Add `regex.replace(s, p, v)` to builtins.
 - topdown/object: Rework `object.union_n` to use in-place merge algorithm. (reported by @charlesdaniels)
 - topdown/jwt_decode_verify: Ensure `exp` and `nbf` fields are numbers when present. ([#5165](https://github.com/open-policy-agent/opa/issues/5165)) authored and reported by @charlieflowers
 - topdown: Fix `InterQueryCache` only dropping one entry when over the size limit. (authored by @vinhph0906)
