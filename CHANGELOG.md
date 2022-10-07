@@ -22,7 +22,7 @@ builtin caching feature, as shown below:
 
     nd_builtin_cache: true
 
-This data is exposed to OPA's [decision log masking system](https://www.openpolicyagent.org/docs/latest/management-decision-logs/#masking-sensitive-data)
+This data is exposed to OPA's [decision log masking system](https://www.openpolicyagent.org/docs/v0.45.0/management-decision-logs/#masking-sensitive-data)
 under the `/nd_builtin_cache` path, which allows masking or dropping
 sensitive values from decision logs selectively. This can be useful
 in situations where only some information about a non-deterministic
@@ -148,7 +148,6 @@ Rego equivalent.
 - ci: Add govulncheck to Nightly CI.
 - build/wasm: Use golang1.16 `go:embed` mechanism.
 - util/backoff: Seed from math/rand source.
-- trivyignore: Add wasmtime-go CVE-2022-31169.
 - version: Use `runtime/debug.BuildInfo`.
 
 - Dependency bumps, notably:
