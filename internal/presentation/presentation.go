@@ -537,10 +537,7 @@ func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated
 }
 
 func prettyExplanation(w io.Writer, explanation []*topdown.Event) error {
-	topdown.PrettyTraceWith(w, explanation, topdown.PrettyTraceOpts{
-		Location: true,
-		UnifyOps: true,
-	})
+	topdown.PrettyTraceWithLocation(w, explanation)
 	return nil
 }
 

@@ -236,21 +236,15 @@ func (b *BufferTracer) Config() TraceConfig {
 
 // PrettyTrace pretty prints the trace to the writer.
 func PrettyTrace(w io.Writer, trace []*Event) {
-	PrettyTraceWith(w, trace, PrettyTraceOpts{})
+	prettyTraceWith(w, trace, false)
 }
 
 // PrettyTraceWithLocation prints the trace to the writer and includes location information
 func PrettyTraceWithLocation(w io.Writer, trace []*Event) {
-	PrettyTraceWith(w, trace, PrettyTraceOpts{Location: true})
+	prettyTraceWith(w, trace, true)
 }
 
-// Options for pretty-printing traces
-type PrettyTraceOpts struct {
-	Location bool // Include locations
-	UnifyOps bool // Include unify operations
-}
-
-func PrettyTraceWith(w io.Writer, trace []*Event, opts PrettyTraceOpts) {
+func prettyTraceWith(w io.Writer, trace []*Event, locations bool) {
 	depths := depths{}
 
 	filePathAliases, longest := getShortenedFileNames(trace)
@@ -259,12 +253,8 @@ func PrettyTraceWith(w io.Writer, trace []*Event, opts PrettyTraceOpts) {
 	locationWidth := longest + locationPadding
 
 	for _, event := range trace {
-		if event.Op == UnifyOp && !opts.UnifyOps {
-			continue
-		}
-
 		depth := depths.GetOrSet(event.QueryID, event.ParentID)
-		if opts.Location {
+		if locations {
 			location := formatLocation(event, filePathAliases)
 			fmt.Fprintf(w, "%-*s %s\n", locationWidth, location, formatEvent(event, depth))
 		} else {

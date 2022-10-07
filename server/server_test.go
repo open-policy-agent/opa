@@ -2038,7 +2038,7 @@ func TestDataGetExplainFull(t *testing.T) {
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	nexpect := 7
+	nexpect := 5
 	if len(explain) != nexpect {
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
@@ -2077,7 +2077,7 @@ func TestDataGetExplainFull(t *testing.T) {
 	}
 
 	explain = mustUnmarshalTrace(result.Explanation)
-	nexpect = 4
+	nexpect = 3
 	if len(explain) != nexpect {
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
@@ -2129,7 +2129,7 @@ p = [1, 2, 3, 4] { true }`, 200, "")
 	}
 
 	explain := mustUnmarshalTrace(result.Explanation)
-	nexpect := 14
+	nexpect := 11
 
 	if len(explain) != nexpect {
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
@@ -3427,7 +3427,7 @@ func TestUnversionedPost(t *testing.T) {
 
 func TestQueryV1Explain(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=debug`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {

@@ -109,7 +109,7 @@ Redo data.test.p = _
 `
 
 	var buf bytes.Buffer
-	PrettyTrace(&buf, *tracer)
+	PrettyTrace(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -169,7 +169,7 @@ query:3     | | Redo data.test.q[x]
 `
 
 	var buf bytes.Buffer
-	PrettyTraceWithLocation(&buf, *tracer)
+	PrettyTraceWithLocation(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -236,7 +236,7 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 `
 
 	var buf bytes.Buffer
-	PrettyTraceWithLocation(&buf, *tracer)
+	PrettyTraceWithLocation(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -401,7 +401,7 @@ query:1                                                              | Fail data
 `
 
 	var buf bytes.Buffer
-	PrettyTraceWithLocation(&buf, *tracer)
+	PrettyTraceWithLocation(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -511,7 +511,7 @@ Redo data.test.p = _
 `
 
 	var buf bytes.Buffer
-	PrettyTrace(&buf, *tracer)
+	PrettyTrace(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -576,7 +576,7 @@ query:3     | | Redo data.test.q[x]
 `
 
 	var buf bytes.Buffer
-	PrettyTraceWithLocation(&buf, *tracer)
+	PrettyTraceWithLocation(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -1239,7 +1239,7 @@ query:1      | Redo data.test = _
 `
 
 	var buf bytes.Buffer
-	PrettyTraceWithLocation(&buf, *tracer)
+	PrettyTraceWithLocation(&buf, removeUnifyOps(*tracer))
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -1285,7 +1285,17 @@ query:1     | Redo data.test.p
 `
 
 	var buf bytes.Buffer
-	prettyOpts := PrettyTraceOpts{Location: true, UnifyOps: true}
-	PrettyTraceWith(&buf, *tracer, prettyOpts)
+	PrettyTraceWithLocation(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
+}
+
+// removeUnifyOps removes all UnifyOp events from a trace, since this is
+// too verbose to test everywhere.
+func removeUnifyOps(trace []*Event) (result []*Event) {
+	for _, event := range trace {
+		if event.Op != UnifyOp {
+			result = append(result, event)
+		}
+	}
+	return
 }

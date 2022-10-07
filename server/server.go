@@ -1455,7 +1455,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation, err = types.NewTraceV1(*buf, pretty)
+			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty)
 			if err != nil {
 				writer.ErrorAuto(w, err)
 				return
@@ -1696,7 +1696,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation, err = types.NewTraceV1(*buf, pretty)
+			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty)
 			if err != nil {
 				writer.ErrorAuto(w, err)
 				return
@@ -2401,7 +2401,13 @@ func (s *Server) getExplainResponse(explainMode types.ExplainModeV1, trace []*to
 		}
 	case types.ExplainFullV1:
 		var err error
-		explanation, err = types.NewTraceV1(trace, pretty)
+		explanation, err = types.NewTraceV1(lineage.Full(trace), pretty)
+		if err != nil {
+			break
+		}
+	case types.ExplainDebugV1:
+		var err error
+		explanation, err = types.NewTraceV1(lineage.Debug(trace), pretty)
 		if err != nil {
 			break
 		}
@@ -2686,6 +2692,8 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 			return types.ExplainNotesV1
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
+		case string(types.ExplainDebugV1):
+			return types.ExplainDebugV1
 		}
 	}
 	return zero
