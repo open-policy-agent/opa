@@ -217,6 +217,7 @@ func injectExplicitBundles(root map[string]interface{}, paths []string) error {
 		if err != nil {
 			return err
 		}
+		abspath = filepath.ToSlash(abspath)
 		bundles[fmt.Sprintf("~%d", i)] = map[string]interface{}{
 			"resource": fmt.Sprintf("file://%v", abspath),
 		}
