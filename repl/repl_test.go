@@ -2698,6 +2698,24 @@ func TestCapabilities(t *testing.T) {
 	}
 }
 
+func TestTraceArgument(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+	if err := repl.OneShot(ctx, "trace debug"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repl.OneShot(ctx, "show debug"); err != nil {
+		t.Fatal(err)
+	}
+	output := buffer.String()
+	expected := `"explain": "debug"`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("Expected output to contain %s but got %s", expected, output)
+	}
+}
+
 func assertREPLText(t *testing.T, buf bytes.Buffer, expected string) {
 	t.Helper()
 	result := buf.String()

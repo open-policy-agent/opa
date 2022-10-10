@@ -74,6 +74,7 @@ type eval struct {
 	targetStack            *refStack
 	tracers                []QueryTracer
 	traceEnabled           bool
+	traceLastLocation      *ast.Location // Last location of a trace event.
 	plugTraceVars          bool
 	instr                  *Instrumentation
 	builtins               map[string]*Builtin
@@ -237,12 +238,19 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string, target *ast.Ref) {
 		parentID = e.parent.queryID
 	}
 
+	location := x.Loc()
+	if location == nil {
+		location = e.traceLastLocation
+	} else {
+		e.traceLastLocation = location
+	}
+
 	evt := Event{
 		QueryID:  e.queryID,
 		ParentID: parentID,
 		Op:       op,
 		Node:     x,
-		Location: x.Loc(),
+		Location: location,
 		Message:  msg,
 		Ref:      target,
 		input:    e.input,
@@ -837,6 +845,9 @@ func (e *eval) unify(a, b *ast.Term, iter unifyIterator) error {
 func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	a, b1 = b1.apply(a)
 	b, b2 = b2.apply(b)
+	if e.traceEnabled {
+		e.traceEvent(UnifyOp, ast.Equality.Expr(a, b), "", nil)
+	}
 	switch vA := a.Value.(type) {
 	case ast.Var, ast.Ref, *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
 		return e.biunifyValues(a, b, b1, b2, iter)

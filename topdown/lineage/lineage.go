@@ -8,6 +8,22 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 )
 
+// Debug contains everything in the log.
+func Debug(trace []*topdown.Event) []*topdown.Event {
+	return trace
+}
+
+// Full returns a filtered trace that contains everything except Uninfy ops
+func Full(trace []*topdown.Event) (result []*topdown.Event) {
+	// Do not use Filter since this event will only occur at the leaf positions.
+	for _, event := range trace {
+		if event.Op != topdown.UnifyOp {
+			result = append(result, event)
+		}
+	}
+	return
+}
+
 // Notes returns a filtered trace that contains Note events and context to
 // understand where the Note was emitted.
 func Notes(trace []*topdown.Event) []*topdown.Event {

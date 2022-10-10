@@ -1075,11 +1075,11 @@ Go (library) | `io.Writer` | [https://pkg.go.dev/github.com/open-policy-agent/op
 
 By default, explanations are disabled. The following table summarizes how you can enable tracing:
 
-API | Parameter | Example | Memo
---- | --- | --- | ---
-CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'` |
-HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty` |
-REPL | `notes` | n/a | The "notes" command enables trace explanations. See `help` for more details.
+API | Parameter | Example
+--- | --- | ---
+CLI | `--explain` | `opa eval --explain=notes --format=pretty 'trace("hello world")'`
+HTTP | `explain=notes` | `curl localhost:8181/v1/data/example/allow?explain=notes&pretty`
+REPL | n/a | `trace notes`
 
 ## Reserved Names
 
