@@ -79,7 +79,26 @@ const (
 	explainFull  explainMode = "full"
 	explainNotes explainMode = "notes"
 	explainFails explainMode = "fails"
+	explainDebug explainMode = "debug"
 )
+
+func parseExplainMode(str string) (explainMode, error) {
+	validExplainModes := []string{
+		string(explainOff),
+		string(explainFull),
+		string(explainNotes),
+		string(explainFails),
+		string(explainDebug),
+	}
+
+	for _, mode := range validExplainModes {
+		if mode == str {
+			return explainMode(mode), nil
+		}
+	}
+
+	return "", fmt.Errorf("invalid explain mode, expected one of: %s", strings.Join(validExplainModes, ", "))
+}
 
 const defaultPrettyLimit = 80
 
@@ -256,6 +275,17 @@ func (r *REPL) OneShot(ctx context.Context, line string) error {
 			case "pretty-limit":
 				return r.cmdPrettyLimit(cmd.args)
 			case "trace":
+				// If an argument is specified, e.g. `trace notes`, parse that
+				// argument and toggle that specific mode.  If no argument is
+				// specified, toggle full explain mode since that is backwards-
+				// compatible.
+				if len(cmd.args) == 1 {
+					explainMode, err := parseExplainMode(cmd.args[0])
+					if err != nil {
+						return err
+					}
+					return r.cmdTrace(explainMode)
+				}
 				return r.cmdTrace(explainFull)
 			case "notes":
 				return r.cmdTrace(explainNotes)
@@ -1011,8 +1041,10 @@ func (r *REPL) evalBody(ctx context.Context, compiler *ast.Compiler, input ast.V
 	output = output.WithLimit(r.prettyLimit)
 
 	switch r.explain {
+	case explainDebug:
+		output.Explanation = lineage.Debug(*tracebuf)
 	case explainFull:
-		output.Explanation = *tracebuf
+		output.Explanation = lineage.Full(*tracebuf)
 	case explainNotes:
 		output.Explanation = lineage.Notes(*tracebuf)
 	case explainFails:
@@ -1062,8 +1094,10 @@ func (r *REPL) evalPartial(ctx context.Context, compiler *ast.Compiler, input as
 	}
 
 	switch r.explain {
+	case explainDebug:
+		output.Explanation = lineage.Debug(*buf)
 	case explainFull:
-		output.Explanation = *buf
+		output.Explanation = lineage.Full(*buf)
 	case explainNotes:
 		output.Explanation = lineage.Notes(*buf)
 	case explainFails:
@@ -1279,7 +1313,7 @@ var builtin = [...]commandDesc{
 	{"json", []string{}, "set output format to JSON"},
 	{"pretty", []string{}, "set output format to pretty"},
 	{"pretty-limit", []string{}, "set pretty value output limit"},
-	{"trace", []string{}, "toggle full trace"},
+	{"trace", []string{"[mode]"}, "toggle full trace or specific mode"},
 	{"notes", []string{}, "toggle notes trace"},
 	{"fails", []string{}, "toggle fails trace"},
 	{"metrics", []string{}, "toggle metrics"},

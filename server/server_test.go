@@ -2043,13 +2043,23 @@ func TestDataGetExplainFull(t *testing.T) {
 		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 
-	_, ok := explain[2].Node.(ast.Body)
-	if !ok {
-		t.Fatalf("Expected body for node but got: %v", explain[2].Node)
+	exitEvent := -1
+	for i := 0; i < len(explain) && exitEvent < 0; i++ {
+		if explain[i].Op == "exit" {
+			exitEvent = i
+		}
+	}
+	if exitEvent < 0 {
+		t.Fatalf("Expected one exit node but found none")
 	}
 
-	if len(explain[2].Locals) != 1 {
-		t.Fatalf("Expected one binding but got: %v", explain[2].Locals)
+	_, ok := explain[exitEvent].Node.(ast.Body)
+	if !ok {
+		t.Fatalf("Expected body for node but got: %v", explain[exitEvent].Node)
+	}
+
+	if len(explain[exitEvent].Locals) != 1 {
+		t.Fatalf("Expected one binding but got: %v", explain[exitEvent].Locals)
 	}
 
 	req = newReqV1(http.MethodGet, "/data/deadbeef?explain=full", "")
@@ -2067,12 +2077,14 @@ func TestDataGetExplainFull(t *testing.T) {
 	}
 
 	explain = mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 3 {
-		t.Fatalf("Expected exactly 3 events but got %d", len(explain))
+	nexpect = 3
+	if len(explain) != nexpect {
+		t.Fatalf("Expected exactly %d events but got %d", nexpect, len(explain))
 	}
 
-	if explain[2].Op != "fail" {
-		t.Fatalf("Expected last event to be 'fail' but got: %v", explain[2])
+	lastEvent := len(explain) - 1
+	if explain[lastEvent].Op != "fail" {
+		t.Fatalf("Expected last event to be 'fail' but got: %v", explain[lastEvent])
 	}
 
 	req = newReqV1(http.MethodGet, "/data/x?explain=full&pretty=true", "")
@@ -3415,7 +3427,7 @@ func TestUnversionedPost(t *testing.T) {
 
 func TestQueryV1Explain(t *testing.T) {
 	f := newFixture(t)
-	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=full`, "")
+	get := newReqV1(http.MethodGet, `/query?q=a=[1,2,3]%3Ba[i]=x&explain=debug`, "")
 	f.server.Handler.ServeHTTP(f.recorder, get)
 
 	if f.recorder.Code != 200 {
@@ -3428,9 +3440,10 @@ func TestQueryV1Explain(t *testing.T) {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
+	nexpect := 21
 	explain := mustUnmarshalTrace(result.Explanation)
-	if len(explain) != 13 {
-		t.Fatalf("Expected exactly 10 trace events for full query but got %d", len(explain))
+	if len(explain) != nexpect {
+		t.Fatalf("Expected exactly %d trace events for full query but got %d", nexpect, len(explain))
 	}
 }
 

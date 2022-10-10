@@ -706,6 +706,7 @@ func ExampleRego_Eval_trace_simple() {
 	//
 	// query:1     Enter x = 1
 	// query:1     | Eval x = 1
+	// query:1     | Unify x = 1
 	// query:1     | Exit x = 1
 	// query:1     Redo x = 1
 	// query:1     | Redo x = 1
@@ -733,6 +734,7 @@ func ExampleRego_Eval_tracer() {
 	//
 	// query:1     Enter x = 1
 	// query:1     | Eval x = 1
+	// query:1     | Unify x = 1
 	// query:1     | Exit x = 1
 	// query:1     Redo x = 1
 	// query:1     | Redo x = 1
