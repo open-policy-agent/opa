@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -287,17 +286,7 @@ func TestDumpPath(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	dir, err := ioutil.TempDir("", "dump-path-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			t.Errorf("error cleaning up with RemoveAll(): %v", err)
-		}
-	})
+	dir := t.TempDir()
 	file := filepath.Join(dir, "tmpfile")
 	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
