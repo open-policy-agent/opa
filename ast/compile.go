@@ -1649,11 +1649,11 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 					}
 				}
 
-				// Rewrite so that any elements that in the last position of the rule
-				// are vars:
+				// Rewrite so that any non-scalar elements that in the last position of
+				// the rule are vars:
 				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
 				// because that's what the RuleTree knows how to deal with.
-				if requiresEval(ref[i]) {
+				if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
 					expr := f.Generate(ref[i])
 					if i == len(ref)-1 && rule.Head.Key.Equal(ref[i]) {
 						rule.Head.Key = expr.Operand(0)

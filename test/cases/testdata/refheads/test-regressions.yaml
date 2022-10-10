@@ -106,3 +106,11 @@ cases:
   want_result:
   - x:
       p: {}
+- note: regression/obj in ref head query
+  modules:
+  - |
+    package test
+    p[{"a": "b"}] = true
+  query: data.test.p[{"a":"b"}] = x
+  want_result:
+  - x: true
