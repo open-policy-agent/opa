@@ -536,12 +536,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "test-bundle"
 	bundleSource := Source{
@@ -642,12 +637,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "test-bundle"
 	vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
@@ -743,12 +733,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "test-bundle"
 	bundleSource := Source{
@@ -790,7 +775,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = plugin.saveBundleToDisk(bundleName, &buf)
+	err := plugin.saveBundleToDisk(bundleName, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -828,12 +813,7 @@ func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "test-bundle-main"
 	bundleSource := Source{
@@ -905,7 +885,7 @@ is_one(x) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = plugin.saveBundleToDisk(bundleName, &buf1)
+	err := plugin.saveBundleToDisk(bundleName, &buf1)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -937,12 +917,7 @@ func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "test-bundle-main"
 	bundleSource := Source{
@@ -986,7 +961,7 @@ allow {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = plugin.saveBundleToDisk(bundleName, &buf)
+	err := plugin.saveBundleToDisk(bundleName, &buf)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2424,36 +2399,27 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 
 	manager := getTestManager()
 
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
 
-	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t))
+	err := plugin.saveBundleToDisk("foo", getTestRawBundle(t))
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 }
 
 func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	manager := getTestManager()
 	manager.Config.PersistenceDirectory = &dir
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
 
-	err = plugin.Start(context.Background())
+	err := plugin.Start(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2475,12 +2441,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 	manager := getTestManager()
 
 	// test to check existing bundle is replaced
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundles := map[string]*Source{}
 	plugin := New(&Config{Bundles: bundles}, manager)
@@ -2489,7 +2450,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 	bundleName := "foo"
 	bundleDir := filepath.Join(plugin.bundlePersistPath, bundleName)
 
-	err = os.MkdirAll(bundleDir, os.ModePerm)
+	err := os.MkdirAll(bundleDir, os.ModePerm)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2536,12 +2497,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 }
 
 func TestSaveCurrentBundleToDisk(t *testing.T) {
-	srcDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(srcDir)
+	srcDir := t.TempDir()
 
 	bundlePath, err := saveCurrentBundleToDisk(srcDir, getTestRawBundle(t))
 	if err != nil {
@@ -2572,12 +2528,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 	}
 
 	// create a test bundle and load it from disk
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "foo"
 	bundleDir := filepath.Join(dir, bundleName)
@@ -2608,12 +2559,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 	}
 
 	// create a test signed bundle and load it from disk
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bundleName := "foo"
 	bundleDir := filepath.Join(dir, bundleName)

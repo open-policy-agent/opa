@@ -7,7 +7,6 @@ package disk
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,11 +16,7 @@ import (
 )
 
 func TestNewFromConfig(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "disk_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(tmpdir) })
+	tmpdir := t.TempDir()
 
 	for _, tc := range []struct {
 		note    string
@@ -107,11 +102,7 @@ storage:
 
 func TestDataDirPrefix(t *testing.T) {
 	ctx := context.Background()
-	tmpdir, err := ioutil.TempDir("", "disk_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(tmpdir) })
+	tmpdir := t.TempDir()
 
 	d, err := New(ctx, logging.NewNoOpLogger(), nil, Options{
 		Dir: tmpdir,
