@@ -6,8 +6,6 @@ package authz
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -63,13 +61,9 @@ func runAuthzBenchmark(b *testing.B, mode InputMode, numPaths int, extras ...boo
 	}
 
 	var store storage.Store
+	var err error
 	if useDisk {
-		rootDir, err := ioutil.TempDir("", "test-e2e-bench-disk")
-		if err != nil {
-			panic(err)
-		}
-
-		defer os.RemoveAll(rootDir)
+		rootDir := b.TempDir()
 		store, err = disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
 			Dir:        rootDir,
 			Partitions: nil,
