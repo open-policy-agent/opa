@@ -18,8 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/topdown/cache"
-
 	"golang.org/x/time/rate"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -31,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 )
 

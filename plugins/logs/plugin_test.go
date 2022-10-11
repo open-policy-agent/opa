@@ -1784,11 +1784,10 @@ func TestPluginMasking(t *testing.T) {
 func TestPluginDrop(t *testing.T) {
 	// Test cases
 	tests := []struct {
-		note       string
-		rawPolicy  []byte
-		errManager error
-		event      *EventV1
-		expected   bool
+		note      string
+		rawPolicy []byte
+		event     *EventV1
+		expected  bool
 	}{
 		{
 			note: "simple drop",
@@ -1815,7 +1814,6 @@ func TestPluginDrop(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			t.Logf("Log test started")
 			// Setup fixture. Populate store with simple drop policy.
 			ctx := context.Background()
 			store := inmem.New()
@@ -1844,13 +1842,11 @@ func TestPluginDrop(t *testing.T) {
 			)
 			if err != nil {
 				t.Fatal(err)
-			} else if err := manager.Start(ctx); err != nil {
-				if tc.errManager != nil {
-					if tc.errManager.Error() != err.Error() {
-						t.Fatalf("expected error %s, but got %s", tc.errManager.Error(), err.Error())
-					}
-				}
 			}
+			if err := manager.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
 			// Instantiate the plugin.
 			cfg := &Config{Service: "svc"}
 			trigger := plugins.DefaultTriggerMode
