@@ -90,8 +90,8 @@ const (
 	HTTPSendNetworkErr string = "eval_http_send_network_error"
 )
 
-func builtinHTTPSend(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
-	req, err := validateHTTPRequestOperand(args[0], 1)
+func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	req, err := validateHTTPRequestOperand(operands[0], 1)
 	if err != nil {
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
