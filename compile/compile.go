@@ -57,26 +57,27 @@ const resultVar = ast.Var("result")
 
 // Compiler implements bundle compilation and linking.
 type Compiler struct {
-	capabilities          *ast.Capabilities          // the capabilities that compiled policies may require
-	bundle                *bundle.Bundle             // the bundle that the compiler operates on
-	revision              *string                    // the revision to set on the output bundle
-	asBundle              bool                       // whether to assume bundle layout on file loading or not
-	pruneUnused           bool                       // whether to extend the entrypoint set for semantic equivalence of built bundles
-	filter                loader.Filter              // filter to apply to file loader
-	paths                 []string                   // file paths to load. TODO(tsandall): add support for supplying readers for embedded users.
-	entrypoints           orderedStringSet           // policy entrypoints required for optimization and certain targets
-	optimizationLevel     int                        // how aggressive should optimization be
-	target                string                     // target type (wasm, rego, etc.)
-	output                *io.Writer                 // output stream to write bundle to
-	entrypointrefs        []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
-	compiler              *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
-	policy                *ir.Policy                 // planner output when wasm or plan targets are enabled
-	debug                 debug.Debug                // optionally outputs debug information produced during build
-	enablePrintStatements bool                       // optionally enable rego print statements
-	bvc                   *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
-	bsc                   *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
-	keyID                 string                     // represents the name of the default key used to verify a signed bundle
-	metadata              *map[string]interface{}    // represents additional data included in .manifest file
+	capabilities                 *ast.Capabilities          // the capabilities that compiled policies may require
+	bundle                       *bundle.Bundle             // the bundle that the compiler operates on
+	revision                     *string                    // the revision to set on the output bundle
+	asBundle                     bool                       // whether to assume bundle layout on file loading or not
+	pruneUnused                  bool                       // whether to extend the entrypoint set for semantic equivalence of built bundles
+	filter                       loader.Filter              // filter to apply to file loader
+	paths                        []string                   // file paths to load. TODO(tsandall): add support for supplying readers for embedded users.
+	entrypoints                  orderedStringSet           // policy entrypoints required for optimization and certain targets
+	useRegoAnnotationEntrypoints bool                       // allow compiler to late-bind entrypoints from annotated rules in policies.
+	optimizationLevel            int                        // how aggressive should optimization be
+	target                       string                     // target type (wasm, rego, etc.)
+	output                       *io.Writer                 // output stream to write bundle to
+	entrypointrefs               []*ast.Term                // validated entrypoints computed from default decision or manually supplied entrypoints
+	compiler                     *ast.Compiler              // rego ast compiler used for semantic checks and rewriting
+	policy                       *ir.Policy                 // planner output when wasm or plan targets are enabled
+	debug                        debug.Debug                // optionally outputs debug information produced during build
+	enablePrintStatements        bool                       // optionally enable rego print statements
+	bvc                          *bundle.VerificationConfig // represents the key configuration used to verify a signed bundle
+	bsc                          *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
+	keyID                        string                     // represents the name of the default key used to verify a signed bundle
+	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -120,6 +121,14 @@ func (c *Compiler) WithPruneUnused(enabled bool) *Compiler {
 // target requires at least one entrypoint as does optimization.
 func (c *Compiler) WithEntrypoints(e ...string) *Compiler {
 	c.entrypoints = c.entrypoints.Append(e...)
+	return c
+}
+
+// WithRegoAnnotationEntrypoints allows the compiler to late-bind entrypoints, based
+// on Rego entrypoint annotations. The rules tagged with entrypoint annotations are
+// added to the global list of entrypoints before optimizations/target compilation.
+func (c *Compiler) WithRegoAnnotationEntrypoints(enabled bool) *Compiler {
+	c.useRegoAnnotationEntrypoints = enabled
 	return c
 }
 
@@ -210,6 +219,42 @@ func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
 	return c
 }
 
+func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error {
+	for _, ref := range ar {
+		var entrypoint ast.Ref
+		scope := ref.Annotations.Scope
+
+		if ref.Annotations.Entrypoint {
+			// Build up the entrypoint path from either package path or rule.
+			switch scope {
+			case "package":
+				if p := ref.GetPackage(); p != nil {
+					entrypoint = p.Path
+				}
+			case "rule":
+				if r := ref.GetRule(); r != nil {
+					entrypoint = r.Ref()
+				}
+			default:
+				continue // Wrong scope type. Bail out early.
+			}
+
+			// Get a slash-based path, as with a CLI-provided entrypoint.
+			escapedPath, err := storage.NewPathForRef(entrypoint)
+			if err != nil {
+				return err
+			}
+			slashPath := strings.Join(escapedPath, "/")
+
+			// Add new entrypoints to the appropriate places.
+			c.entrypoints = c.entrypoints.Append(slashPath)
+			c.entrypointrefs = append(c.entrypointrefs, ast.NewTerm(entrypoint))
+		}
+	}
+
+	return nil
+}
+
 // Build compiles and links the input files and outputs a bundle to the writer.
 func (c *Compiler) Build(ctx context.Context) error {
 
@@ -217,7 +262,38 @@ func (c *Compiler) Build(ctx context.Context) error {
 		return err
 	}
 
+	// Fail early if not using Rego annotation entrypoints.
+	if !c.useRegoAnnotationEntrypoints {
+		if err := c.checkNumEntrypoints(); err != nil {
+			return err
+		}
+	}
+
 	if err := c.initBundle(); err != nil {
+		return err
+	}
+
+	// Extract annotations, and generate new entrypoints as needed.
+	if c.useRegoAnnotationEntrypoints {
+		moduleList := make([]*ast.Module, 0, len(c.bundle.Modules))
+		for _, modfile := range c.bundle.Modules {
+			moduleList = append(moduleList, modfile.Parsed)
+		}
+		as, errs := ast.BuildAnnotationSet(moduleList)
+		if len(errs) > 0 {
+			return errs
+		}
+		ar := as.Flatten()
+
+		// Patch in entrypoints from Rego annotations.
+		err := addEntrypointsFromAnnotations(c, ar)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure we have at least one valid entrypoint, or fail before compilation.
+	if err := c.checkNumEntrypoints(); err != nil {
 		return err
 	}
 
@@ -293,7 +369,6 @@ func (c *Compiler) init() error {
 	}
 
 	for _, e := range c.entrypoints {
-
 		r, err := ref.ParseDataPath(e)
 		if err != nil {
 			return fmt.Errorf("entrypoint %v not valid: use <package>/<rule>", e)
@@ -302,19 +377,18 @@ func (c *Compiler) init() error {
 		c.entrypointrefs = append(c.entrypointrefs, ast.NewTerm(r))
 	}
 
+	return nil
+}
+
+// Once the bundle has been loaded, we can check the entrypoint counts.
+func (c *Compiler) checkNumEntrypoints() error {
 	if c.optimizationLevel > 0 && len(c.entrypointrefs) == 0 {
 		return errors.New("bundle optimizations require at least one entrypoint")
 	}
 
-	switch c.target {
-	case TargetWasm:
-		if len(c.entrypointrefs) == 0 {
-			return errors.New("wasm compilation requires at least one entrypoint")
-		}
-	case TargetPlan:
-		if len(c.entrypointrefs) == 0 {
-			return errors.New("plan compilation requires at least one entrypoint")
-		}
+	// Rego target does not require an entrypoint. Others currently do.
+	if c.target != TargetRego && len(c.entrypointrefs) == 0 {
+		return fmt.Errorf("%s compilation requires at least one entrypoint", c.target)
 	}
 
 	return nil
@@ -327,7 +401,6 @@ func (c *Compiler) Bundle() *bundle.Bundle {
 }
 
 func (c *Compiler) initBundle() error {
-
 	// If the bundle is already set, skip file loading.
 	if c.bundle != nil {
 		return nil
@@ -336,7 +409,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false)
+	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}
@@ -373,7 +446,6 @@ func (c *Compiler) initBundle() error {
 	result.Data = load.Files.Documents
 
 	modules := make([]string, 0, len(load.Files.Modules))
-
 	for k := range load.Files.Modules {
 		modules = append(modules, k)
 	}
@@ -467,7 +539,6 @@ func (c *Compiler) compilePlan(context.Context) error {
 	var unmappedEntrypoints []string
 
 	for i := range c.entrypointrefs {
-
 		qc := c.compiler.QueryCompiler()
 		query := ast.NewBody(ast.Equality.Expr(resultSym, c.entrypointrefs[i]))
 		compiled, err := qc.Compile(query)
@@ -488,7 +559,6 @@ func (c *Compiler) compilePlan(context.Context) error {
 
 	if len(unmappedEntrypoints) > 0 {
 		return fmt.Errorf("entrypoint %q does not refer to a rule or policy decision", unmappedEntrypoints[0])
-
 	}
 
 	// Prepare modules and builtins for the planner.

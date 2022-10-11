@@ -118,7 +118,8 @@ The 'build' command supports targets (specified by -t):
     rego    The default target emits a bundle containing a set of policy and data files
             that are semantically equivalent to the input files. If optimizations are
             disabled the output may simply contain a copy of the input policy and data
-            files. If optimization is enabled at least one entrypoint (-e) must be supplied.
+            files. If optimization is enabled at least one entrypoint must be supplied,
+            either via the -e option, or via entrypoint metadata annotations.
 
     wasm    The wasm target emits a bundle containing a WebAssembly module compiled from
             the input files for each specified entrypoint. The bundle may contain the
@@ -463,7 +464,7 @@ When optimization is enabled the 'eval' command generates a bundle from the file
 with either the --bundle or --data flag. This bundle is semantically equivalent to the input
 files however the structure of the files in the bundle may have been changed by rewriting, inlining,
 pruning, etc. This resulting optimized bundle is used to evaluate the query. If optimization is enabled
-at least one entrypoint (-e) must be supplied.
+at least one entrypoint must be supplied, either via the -e option, or via entrypoint metadata annotations.
 
 ### Output Formats
 
