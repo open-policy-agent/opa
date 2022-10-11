@@ -487,10 +487,10 @@ func registerSleepBuiltin() {
 		),
 	})
 
-	topdown.RegisterFunctionalBuiltin1("test.sleep", func(a ast.Value) (ast.Value, error) {
-		d, _ := time.ParseDuration(string(a.(ast.String)))
+	topdown.RegisterBuiltinFunc("test.sleep", func(_ topdown.BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+		d, _ := time.ParseDuration(string(operands[0].Value.(ast.String)))
 		time.Sleep(d)
-		return ast.Null{}, nil
+		return iter(ast.NullTerm())
 	})
 }
 

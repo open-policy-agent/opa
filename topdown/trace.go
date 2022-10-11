@@ -387,9 +387,9 @@ func (ds depths) GetOrSet(qid uint64, pqid uint64) int {
 	return depth
 }
 
-func builtinTrace(bctx BuiltinContext, args []*ast.Term, iter func(*ast.Term) error) error {
+func builtinTrace(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
-	str, err := builtins.StringOperand(args[0].Value, 1)
+	str, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return handleBuiltinErr(ast.Trace.Name, bctx.Location, err)
 	}
