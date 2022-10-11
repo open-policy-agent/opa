@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -286,7 +287,21 @@ func TestDumpPath(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	dir := t.TempDir()
+	// NOTE: We are converting the path to lowercase in repl.OneShot.
+	// In file systems that are case-sensitive, this test will fail if we use
+	// a CamelCase directory name.
+	// See: https://github.com/open-policy-agent/opa/pull/5227#issuecomment-1273975492
+	dir, err := ioutil.TempDir("", "dump-path-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			t.Errorf("error cleaning up with RemoveAll(): %v", err)
+		}
+	})
 	file := filepath.Join(dir, "tmpfile")
 	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
