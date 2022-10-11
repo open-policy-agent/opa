@@ -48,7 +48,7 @@ func TestSetUnionBuiltin(t *testing.T) {
 
 	for _, tc := range tests {
 		inputs := ast.MustParseTerm(tc.input)
-		result, err := getResult(functionalWrapper1("union", builtinSetUnion), inputs)
+		result, err := getResult(builtinSetUnion, inputs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,18 +58,4 @@ func TestSetUnionBuiltin(t *testing.T) {
 			t.Fatalf("Expected %v but got %v", expected, result)
 		}
 	}
-}
-
-// Used to get older-style (ast.Term, error) tuples out of newer functions.
-func getResult(fn BuiltinFunc, operands ...*ast.Term) (*ast.Term, error) {
-	var result *ast.Term
-	extractionFn := func(r *ast.Term) error {
-		result = r
-		return nil
-	}
-	err := fn(BuiltinContext{}, operands, extractionFn)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
