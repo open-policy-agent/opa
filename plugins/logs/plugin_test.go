@@ -1781,6 +1781,95 @@ func TestPluginMasking(t *testing.T) {
 	}
 }
 
+func TestPluginDrop(t *testing.T) {
+	// Test cases
+	tests := []struct {
+		note      string
+		rawPolicy []byte
+		event     *EventV1
+		expected  bool
+	}{
+		{
+			note: "simple drop",
+			rawPolicy: []byte(`
+			package system.log
+			drop {
+				endswith(input.path, "bar")
+			}`),
+			event: &EventV1{Path: "foo/bar"},
+
+			expected: true,
+		},
+		{
+			note: "no drop",
+			rawPolicy: []byte(`
+			package system.log
+			drop {
+				endswith(input.path, "bar")
+			}`),
+			event:    &EventV1{Path: "foo/foo"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			// Setup fixture. Populate store with simple drop policy.
+			ctx := context.Background()
+			store := inmem.New()
+
+			//checks if raw policy is valid and stores policy in store
+			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var output []string
+
+			// Create and start manager. Start is required so that stored policies
+			// get compiled and made available to the plugin.
+			manager, err := plugins.New(
+				nil,
+				"test",
+				store,
+				plugins.EnablePrintStatements(true),
+				plugins.PrintHook(appendingPrintHook{printed: &output}),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := manager.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			// Instantiate the plugin.
+			cfg := &Config{Service: "svc"}
+			trigger := plugins.DefaultTriggerMode
+			cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+
+			plugin := New(cfg, manager)
+
+			if err := plugin.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			drop, err := plugin.dropEvent(ctx, nil, tc.event)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.expected != drop {
+				t.Errorf("Plugin: Expected drop to be %v got %v", tc.expected, drop)
+			}
+		})
+	}
+}
+
 type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
 	ReportingUploadSizeLimitBytes  int64
