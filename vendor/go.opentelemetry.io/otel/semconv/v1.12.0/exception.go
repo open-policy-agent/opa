@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttp // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
 
-// Version is the current release version of the otelhttp instrumentation.
-func Version() string {
-	return "0.36.2"
-	// This string is updated by the pre_release.sh script during release
-}
-
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-func SemVersion() string {
-	return "semver:" + Version()
-}
+const (
+	// ExceptionEventName is the name of the Span event representing an exception.
+	ExceptionEventName = "exception"
+)
