@@ -928,6 +928,29 @@ net.cidr_contains_matches({["1.1.0.0/16", "foo"], "1.1.2.0/24"}, {"x": "1.1.1.12
 {{< builtin-table cat=uuid title=UUID >}}
 {{< builtin-table cat=semver title="Semantic Versions" >}}
 
+#### Example of `semver.is_valid`
+
+The `result := semver.is_valid(vsn)` function checks to see if a version
+string is of the form: `MAJOR.MINOR.PATCH[-PRERELEASE][+METADATA]`, where
+items in square braces are optional elements.
+
+When working with Go-style semantic versions, remember to remove the
+leading `v` character, or the semver string will be marked as invalid!
+
+```live:semverisvalid:module:hidden
+package semverisvalid
+```
+```live:semverisvalid/invalid:query:merge_down
+semver.is_valid("v1.1.12-rc1+foo")
+```
+```live:semverisvalid/invalid:output
+```
+```live:semverisvalid/valid:query:merge_down
+semver.is_valid("1.1.12-rc1+foo")
+```
+```live:semverisvalid/valid:output
+```
+
 {{< builtin-table rego >}}
 
 #### Example
