@@ -607,6 +607,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if drop {
+		p.logger.Debug("Decision log event to path %v dropped", event.Path)
 		return nil
 	}
 

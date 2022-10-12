@@ -263,7 +263,7 @@ package system.log
 
 drop {
   input.path == "kafka/allow"
-  input.result
+  input.result == true
 }
 ```
 
