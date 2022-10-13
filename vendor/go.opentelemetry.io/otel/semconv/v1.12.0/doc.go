@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttp // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
-// Version is the current release version of the otelhttp instrumentation.
-func Version() string {
-	return "0.36.3"
-	// This string is updated by the pre_release.sh script during release
-}
-
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-func SemVersion() string {
-	return "semver:" + Version()
-}
+// Package semconv implements OpenTelemetry semantic conventions.
+//
+// OpenTelemetry semantic conventions are agreed standardized naming
+// patterns for OpenTelemetry things. This package represents the conventions
+// as of the v1.12.0 version of the OpenTelemetry specification.
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"

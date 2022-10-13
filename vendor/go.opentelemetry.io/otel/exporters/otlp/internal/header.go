@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otelhttp // import "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+// Package internal contains common functionality for all OTLP exporters.
+package internal // import "go.opentelemetry.io/otel/exporters/otlp/internal"
 
-// Version is the current release version of the otelhttp instrumentation.
-func Version() string {
-	return "0.36.3"
-	// This string is updated by the pre_release.sh script during release
-}
+import "go.opentelemetry.io/otel"
 
-// SemVersion is the semantic version to be supplied to tracer/meter creation.
-func SemVersion() string {
-	return "semver:" + Version()
+// GetUserAgentHeader return an OTLP header value form "OTel OTLP Exporter Go/{{ .Version }}"
+// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#user-agent
+func GetUserAgentHeader() string {
+	return "OTel OTLP Exporter Go/" + otel.Version()
 }
