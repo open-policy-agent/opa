@@ -116,7 +116,7 @@ jobs:
 
       - id: go_version
         name: Read go version
-        run: echo "::set-output name=go_version::$(cat .go-version)"
+        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
       - name: Install Go (${{ steps.go_version.outputs.go_version }})
         uses: actions/setup-go@v3
