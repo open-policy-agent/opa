@@ -72,34 +72,46 @@ func builtinReachable(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	return iter(ast.NewTerm(reached))
 }
 
-// pathBuilder is called recursively to build an array of paths that are reachable from the root
-func pathBuilder(graph ast.Object, root *ast.Term, path []*ast.Term, paths []*ast.Term, reached ast.Set) []*ast.Term {
+// pathBuilder is called recursively to build a Set of paths that are reachable from the root
+func pathBuilder(graph ast.Object, root *ast.Term, path []*ast.Term, edgeRslt ast.Set, reached ast.Set) {
+	paths := []*ast.Term{}
+
 	if edges := graph.Get(root); edges != nil {
 		path = append(path, root)
 
 		if numberOfEdges(edges) >= 1 {
+
 			foreachVertex(edges, func(neighbor *ast.Term) {
+
 				if reached.Contains(neighbor) {
 					// If we've already reached this node, return current path (avoid infinite recursion)
 					paths = append(paths, path...)
+					edgeRslt.Add(ast.ArrayTerm(paths...))
 				} else {
 					reached.Add(root)
-					paths = pathBuilder(graph, neighbor, path, paths, reached)
+					pathBuilder(graph, neighbor, path, edgeRslt, reached)
+
 				}
+
 			})
+
 		} else {
 			paths = append(paths, path...)
+			edgeRslt.Add(ast.ArrayTerm(paths...))
+
 		}
 	} else {
 		// Node is nonexistent (not in graph). Commit the current path (without adding this root)
 		paths = append(paths, path...)
+		edgeRslt.Add(ast.ArrayTerm(paths...))
+
 	}
 
-	return paths
 }
 
 func builtinReachablePaths(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Return an error if the first argument is not an object.
+	var traceResult = ast.NewSet()
+	// Error on wrong types for args.
 	graph, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -117,23 +129,20 @@ func builtinReachablePaths(bctx BuiltinContext, operands []*ast.Term, iter func(
 		return builtins.NewOperandTypeErr(2, initial, "{array, set}")
 	}
 
-	results := ast.NewSet()
-
 	for _, node := range queue {
 		// Find reachable paths from edges in root node in queue and append arrays to the results set
 		if edges := graph.Get(node); edges != nil {
 			if numberOfEdges(edges) >= 1 {
 				foreachVertex(edges, func(neighbor *ast.Term) {
-					paths := pathBuilder(graph, neighbor, []*ast.Term{node}, []*ast.Term{}, ast.NewSet(node))
-					results.Add(ast.ArrayTerm(paths...))
+					pathBuilder(graph, neighbor, []*ast.Term{node}, traceResult, ast.NewSet(node))
 				})
 			} else {
-				results.Add(ast.ArrayTerm(node))
+				traceResult.Add(ast.ArrayTerm(node))
 			}
 		}
 	}
 
-	return iter(ast.NewTerm(results))
+	return iter(ast.NewTerm(traceResult))
 }
 
 func init() {
