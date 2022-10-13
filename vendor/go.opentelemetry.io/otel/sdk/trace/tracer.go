@@ -23,8 +23,8 @@ import (
 )
 
 type tracer struct {
-	provider               *TracerProvider
-	instrumentationLibrary instrumentation.Library
+	provider             *TracerProvider
+	instrumentationScope instrumentation.Scope
 }
 
 var _ trace.Tracer = &tracer{}
@@ -36,6 +36,11 @@ var _ trace.Tracer = &tracer{}
 // configured appropriately by any SpanOption passed.
 func (tr *tracer) Start(ctx context.Context, name string, options ...trace.SpanStartOption) (context.Context, trace.Span) {
 	config := trace.NewSpanStartConfig(options...)
+
+	if ctx == nil {
+		// Prevent trace.ContextWithSpan from panicking.
+		ctx = context.Background()
+	}
 
 	// For local spans created by this SDK, track child span count.
 	if p := trace.SpanFromContext(ctx); p != nil {
