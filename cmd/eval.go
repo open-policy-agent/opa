@@ -82,7 +82,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalSourceOutput,
 			evalRawOutput,
 		}),
-		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails}),
+		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails, explainModeDebug}),
 		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		count:           1,
 		profileCriteria: newrepeatedStringFlag([]string{}),
@@ -437,8 +437,10 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 
 	if ectx.params.explain != nil {
 		switch ectx.params.explain.String() {
+		case explainModeDebug:
+			result.Explanation = lineage.Debug(*(ectx.tracer))
 		case explainModeFull:
-			result.Explanation = *(ectx.tracer)
+			result.Explanation = lineage.Full(*(ectx.tracer))
 		case explainModeNotes:
 			result.Explanation = lineage.Notes(*(ectx.tracer))
 		case explainModeFails:

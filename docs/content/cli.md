@@ -525,7 +525,7 @@ opa eval <query> [flags]
       --disable-indexing                                  disable indexing optimizations
       --disable-inlining stringArray                      set paths of documents to exclude from inlining
   -e, --entrypoint string                                 set slash separated entrypoint path
-      --explain {off,full,notes,fails}                    enable query explanations (default off)
+      --explain {off,full,notes,fails,debug}              enable query explanations (default off)
       --fail                                              exits with non-zero exit code on undefined/empty result and errors
       --fail-defined                                      exits with non-zero exit code on defined/non-empty result and errors
   -f, --format {json,values,bindings,pretty,source,raw}   set output format (default json)
@@ -1037,23 +1037,23 @@ opa test <path> [path [...]] [flags]
 ### Options
 
 ```
-      --bench                          benchmark the unit tests
-      --benchmem                       report memory allocations with benchmark results (default true)
-  -b, --bundle                         load paths as bundle files or root directories
-      --capabilities string            set capabilities version or capabilities.json file path
-      --count int                      number of times to repeat each test (default 1)
-  -c, --coverage                       report coverage (overrides debug tracing)
-  -z, --exit-zero-on-skipped           skipped tests return status 0
-      --explain {fails,full,notes}     enable query explanations (default fails)
-  -f, --format {pretty,json,gobench}   set output format (default pretty)
-  -h, --help                           help for test
-      --ignore strings                 set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
-  -m, --max-errors int                 set the number of errors to allow before compilation fails early (default 10)
-  -r, --run string                     run only test cases matching the regular expression.
-  -t, --target {rego,wasm}             set the runtime to exercise (default rego)
-      --threshold float                set coverage threshold and exit with non-zero status if coverage is less than threshold %
-      --timeout duration               set test timeout (default 5s, 30s when benchmarking)
-  -v, --verbose                        set verbose reporting mode
+      --bench                              benchmark the unit tests
+      --benchmem                           report memory allocations with benchmark results (default true)
+  -b, --bundle                             load paths as bundle files or root directories
+      --capabilities string                set capabilities version or capabilities.json file path
+      --count int                          number of times to repeat each test (default 1)
+  -c, --coverage                           report coverage (overrides debug tracing)
+  -z, --exit-zero-on-skipped               skipped tests return status 0
+      --explain {fails,full,notes,debug}   enable query explanations (default fails)
+  -f, --format {pretty,json,gobench}       set output format (default pretty)
+  -h, --help                               help for test
+      --ignore strings                     set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
+  -m, --max-errors int                     set the number of errors to allow before compilation fails early (default 10)
+  -r, --run string                         run only test cases matching the regular expression.
+  -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
+      --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
+      --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
+  -v, --verbose                            set verbose reporting mode
 ```
 
 ____

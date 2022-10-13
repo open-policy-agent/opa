@@ -18,7 +18,8 @@ Requirements:
 
 ## Getting Started
 
-After cloning the repository, just run `make`. This will:
+After forking the repository and creating a [clone from your fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects),
+just run `make`. This will:
 
 - Build the OPA binary.
 - Run all of the tests.
@@ -152,6 +153,18 @@ files in the root of this repository:
 
 * `.go-version`- which is used by the Makefile and CI tooling. Put the exact go
   version that OPA should use.
+
+## Refactoring and Style Fixes
+
+If you've found some code that you think would benefit from a refactoring — either by making it more readable or more
+performant, that's great! Some things should however be considered before you submit such a change:
+
+* Avoid mixing bug fixes and feature PRs with refactorings or style fixes. These PRs are generally difficult to review.
+  Instead, split your work up in multiple, separate PRs. If a refactoring is "needed" for a feature, at least ensure to
+  split the two into separate commits.
+* If you intend to work on a larger refactoring project, make sure to first create an issue for discussion. Sometimes
+  things are the way they are for a reason, even when it's not immediately obvious.
+* Ensure that there are tests covering the code subject to change.
 
 ## CI Configuration
 
