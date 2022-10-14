@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -25,7 +24,7 @@ type loggingPrintHook struct {
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 	// NOTE(tsandall): if the request context is not present then do not panic,
 	// just log the print message without the additional context.
-	rctx, _ := pctx.Context.Value(logging.ReqCtxKey).(logging.RequestContext)
+	rctx, _ := logging.FromContext(pctx.Context)
 	fields := rctx.Fields()
 	fields["line"] = pctx.Location.String()
 	h.logger.WithFields(fields).Info(msg)
@@ -64,7 +63,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rctx.ClientAddr = r.RemoteAddr
 		rctx.ReqMethod = r.Method
 		rctx.ReqPath = r.URL.EscapedPath()
-		r = r.WithContext(context.WithValue(r.Context(), logging.ReqCtxKey, rctx))
+		r = r.WithContext(logging.NewContext(r.Context(), &rctx))
 
 		var err error
 		fields := rctx.Fields()

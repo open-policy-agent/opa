@@ -2916,8 +2916,8 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, decisi
 	}
 
 	var reqID uint64
-	if rctx := ctx.Value(logging.ReqCtxKey); rctx != nil {
-		reqID = rctx.(logging.RequestContext).ReqID
+	if rctx, ok := logging.FromContext(ctx); ok {
+		reqID = rctx.ReqID
 	}
 
 	info := &Info{

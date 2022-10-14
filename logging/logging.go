@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"io"
 
 	"github.com/sirupsen/logrus"
@@ -188,8 +189,7 @@ func (l *NoOpLogger) GetLevel() Level {
 
 type requestContextKey string
 
-// ReqCtxKey is the key used to access the request context.
-const ReqCtxKey = requestContextKey("request-context-key")
+const reqCtxKey = requestContextKey("request-context-key")
 
 // RequestContext represents the request context used to store data
 // related to the request that could be used on logs.
@@ -208,4 +208,15 @@ func (rctx RequestContext) Fields() logrus.Fields {
 		"req_method":  rctx.ReqMethod,
 		"req_path":    rctx.ReqPath,
 	}
+}
+
+// NewContext returns a copy of parent with an associated RequestContext.
+func NewContext(parent context.Context, val *RequestContext) context.Context {
+	return context.WithValue(parent, reqCtxKey, val)
+}
+
+// FromContext returns the RequestContext associated with ctx, if any.
+func FromContext(ctx context.Context) (*RequestContext, bool) {
+	requestContext, ok := ctx.Value(reqCtxKey).(*RequestContext)
+	return requestContext, ok
 }
