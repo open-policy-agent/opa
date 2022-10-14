@@ -4302,5 +4302,8 @@
       "version": 1,
       "minor_version": 2
     }
+  ],
+  "features": [
+    "rule_head_ref_string_prefixes"
   ]
 }
