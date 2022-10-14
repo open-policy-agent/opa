@@ -86,7 +86,7 @@ func TestPlannerHelloWorld(t *testing.T) {
 		},
 		{
 			note:    "complete rules",
-			queries: []string{"true"},
+			queries: []string{"data.test.p = x"},
 			modules: []string{`
 				package test
 				p = x { x = 1 }
@@ -139,6 +139,15 @@ func TestPlannerHelloWorld(t *testing.T) {
 				package test
 				p["a"] = 1
 				p["b"] = 2
+			`},
+		},
+		{ // NOTE(sr): these are handled differently with ref-heads
+			note:    "partial object with var",
+			queries: []string{`data.test.p = x`},
+			modules: []string{`
+				package test
+				p["a"] = 1
+				p[v] = 2 { v := "b" }
 			`},
 		},
 		{

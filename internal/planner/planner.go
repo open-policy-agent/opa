@@ -147,7 +147,7 @@ func (p *Planner) buildFunctrie() error {
 		}
 
 		for _, rule := range module.Rules {
-			val := p.rules.LookupOrInsert(rule.Path())
+			val := p.rules.LookupOrInsert(rule.Ref())
 			val.rules = append(val.rules, rule)
 		}
 	}
@@ -155,14 +155,29 @@ func (p *Planner) buildFunctrie() error {
 	return nil
 }
 
-func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
-
-	pathRef := rules[0].Path()
+func (p *Planner) planRules(rules []*ast.Rule, cut bool) (string, error) {
+	pathRef := rules[0].Ref() // NOTE(sr): no longer the same for all those rules, respect `cut`?
 	path := pathRef.String()
 
 	var pathPieces []string
-	for i := 1; /* skip `data` */ i < len(pathRef); i++ {
-		pathPieces = append(pathPieces, string(pathRef[i].Value.(ast.String)))
+	// TODO(sr): this has to change when allowing `p[v].q.r[w]` ref rules
+	// including the mapping lookup structure and lookup functions
+
+	// if we're planning both p.q.r and p.q[s], we'll name the function p.q (for the mapping table)
+	pieces := len(pathRef)
+	if cut {
+		pieces--
+	}
+	for i := 1; /* skip `data` */ i < pieces; i++ {
+		switch q := pathRef[i].Value.(type) {
+		case ast.String:
+			pathPieces = append(pathPieces, string(q))
+		case ast.Var:
+			pathPieces = append(pathPieces, fmt.Sprintf("[%s]", q))
+		default:
+			// Needs to be fixed if we allow non-string ref pieces, like `p.q[3][4].r = x`
+			pathPieces = append(pathPieces, q.String())
+		}
 	}
 
 	if funcName, ok := p.funcs.Get(path); ok {
@@ -204,12 +219,27 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 	params := fn.Params[2:]
 
+	// control if p.a = 1 is to return 1 directly; or insert 1 under key "a" into an object
+	buildObject := false
+
 	// Initialize return value for partial set/object rules. Complete document
 	// rules assign directly to `fn.Return`.
-	switch rules[0].Head.DocKind() {
-	case ast.PartialObjectDoc:
-		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
-	case ast.PartialSetDoc:
+	switch rules[0].Head.RuleKind() {
+	case ast.SingleValue:
+		// if any rule has a non-ground last key, create an object, insert into it
+		any := false
+		for _, rule := range rules {
+			ref := rule.Head.Ref()
+			if last := ref[len(ref)-1]; len(ref) > 1 && !last.IsGround() {
+				any = true
+				break
+			}
+		}
+		if any {
+			buildObject = true
+			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
+		}
+	case ast.MultiValue:
 		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))
 	}
 
@@ -279,6 +309,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 				p.appendStmt(&ir.IsUndefinedStmt{Source: lresult})
 			} else {
 				// The first rule body resets the local, so it can be reused.
+				// TODO(sr): I don't think we need this anymore. Double-check? Perhaps multi-value rules need it.
 				p.appendStmt(&ir.ResetLocalStmt{Target: lresult})
 			}
 
@@ -287,11 +318,27 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			err := p.planFuncParams(params, rule.Head.Args, 0, func() error {
 
 				// Run planner on the rule body.
-				err := p.planQuery(rule.Body, 0, func() error {
+				return p.planQuery(rule.Body, 0, func() error {
 
 					// Run planner on the result.
-					switch rule.Head.DocKind() {
-					case ast.CompleteDoc:
+					switch rule.Head.RuleKind() {
+					case ast.SingleValue:
+						if buildObject {
+							ref := rule.Head.Ref()
+							last := ref[len(ref)-1]
+							return p.planTerm(last, func() error {
+								key := p.ltarget
+								return p.planTerm(rule.Head.Value, func() error {
+									value := p.ltarget
+									p.appendStmt(&ir.ObjectInsertOnceStmt{
+										Object: fn.Return,
+										Key:    key,
+										Value:  value,
+									})
+									return nil
+								})
+							})
+						}
 						return p.planTerm(rule.Head.Value, func() error {
 							p.appendStmt(&ir.AssignVarOnceStmt{
 								Target: lresult,
@@ -299,7 +346,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							})
 							return nil
 						})
-					case ast.PartialSetDoc:
+					case ast.MultiValue:
 						return p.planTerm(rule.Head.Key, func() error {
 							p.appendStmt(&ir.SetAddStmt{
 								Set:   fn.Return,
@@ -307,29 +354,10 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							})
 							return nil
 						})
-					case ast.PartialObjectDoc:
-						return p.planTerm(rule.Head.Key, func() error {
-							key := p.ltarget
-							return p.planTerm(rule.Head.Value, func() error {
-								value := p.ltarget
-								p.appendStmt(&ir.ObjectInsertOnceStmt{
-									Object: fn.Return,
-									Key:    key,
-									Value:  value,
-								})
-								return nil
-							})
-						})
 					default:
 						return fmt.Errorf("illegal rule kind")
 					}
 				})
-
-				if err != nil {
-					return err
-				}
-
-				return nil
 			})
 
 			if err != nil {
@@ -338,7 +366,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 		}
 
 		// rule[i] and its else-rule(s), if present, are done
-		if rules[i].Head.DocKind() == ast.CompleteDoc {
+		if rules[i].Head.RuleKind() == ast.SingleValue && !buildObject {
 			end := &ir.Block{}
 			p.appendStmtToBlock(&ir.IsDefinedStmt{Source: lresult}, end)
 			p.appendStmtToBlock(
@@ -841,7 +869,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				// replacement is a function (rule)
 				if node := p.rules.Lookup(r); node != nil {
 					p.mocks.Push() // new scope
-					name, err = p.planRules(node.Rules())
+					name, err = p.planRules(node.Rules(), false)
 					if err != nil {
 						return err
 					}
@@ -862,7 +890,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		}
 
 		if node := p.rules.Lookup(op); node != nil {
-			name, err = p.planRules(node.Rules())
+			name, err = p.planRules(node.Rules(), false)
 			if err != nil {
 				return err
 			}
@@ -1604,7 +1632,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// NOTE(sr): we do it on the first index because later on, the recursion
 	// on subtrees of virtual already lost parts of the path we've taken.
 	if index == 1 && virtual != nil {
-		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref)
+		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref.GroundPrefix())
 		if optimize {
 			// If there are no rulesets in a situation that otherwise would
 			// allow for a call_indirect optimization, then there's nothing
@@ -1614,7 +1642,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			}
 			// plan rules
 			for _, rules := range rulesets {
-				if _, err := p.planRules(rules); err != nil {
+				if _, err := p.planRules(rules, false); err != nil {
 					return err
 				}
 			}
@@ -1701,17 +1729,36 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	if ref[index].IsGround() {
 
 		var vchild *ruletrie
+		var rules []*ast.Rule
+
+		// If there's any non-ground key among the vchild.Children, like
+		// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
+		// plan them.
+		anyKeyNonGround := false
 
 		if virtual != nil {
-			vchild = virtual.Get(ref[index].Value)
-		}
 
-		rules := vchild.Rules()
+			vchild = virtual.Get(ref[index].Value)
+
+			for _, key := range vchild.Children() {
+				if !key.IsGround() {
+					anyKeyNonGround = true
+					break
+				}
+			}
+			if anyKeyNonGround {
+				for _, key := range vchild.Children() {
+					rules = append(rules, vchild.Get(key).Rules()...)
+				}
+			} else {
+				rules = vchild.Rules() // hit or miss
+			}
+		}
 
 		if len(rules) > 0 {
 			p.ltarget = p.newOperand()
 
-			funcName, err := p.planRules(rules)
+			funcName, err := p.planRules(rules, anyKeyNonGround)
 			if err != nil {
 				return err
 			}
@@ -1727,7 +1774,6 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 
 		bchild := *base
 		bchild.path = append(bchild.path, ref[index])
-
 		return p.planRefData(vchild, &bchild, ref, index+1, iter)
 	}
 
@@ -1836,38 +1882,21 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			Target: vtarget,
 		})
 
+		anyKeyNonGround := false
 		for _, key := range virtual.Children() {
-			child := virtual.Get(key)
-
-			// Skip functions.
-			if child.Arity() > 0 {
-				continue
+			if !key.IsGround() {
+				anyKeyNonGround = true
+				break
+			}
+		}
+		if anyKeyNonGround {
+			var rules []*ast.Rule
+			for _, key := range virtual.Children() {
+				// TODO(sr): skip functions
+				rules = append(rules, virtual.Get(key).Rules()...)
 			}
 
-			lkey := ir.StringIndex(p.getStringConst(string(key.(ast.String))))
-
-			rules := child.Rules()
-
-			// Build object hierarchy depth-first.
-			if len(rules) == 0 {
-				err := p.planRefDataExtent(child, nil, func() error {
-					p.appendStmt(&ir.ObjectInsertStmt{
-						Object: vtarget,
-						Key:    op(lkey),
-						Value:  p.ltarget,
-					})
-					return nil
-				})
-				if err != nil {
-					return err
-				}
-				continue
-			}
-
-			// Generate virtual document for leaf.
-			lvalue := p.newLocal()
-
-			funcName, err := p.planRules(rules)
+			funcName, err := p.planRules(rules, true)
 			if err != nil {
 				return err
 			}
@@ -1877,14 +1906,59 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 			p.appendStmtToBlock(&ir.CallStmt{
 				Func:   funcName,
 				Args:   p.defaultOperands(),
-				Result: lvalue,
-			}, b)
-			p.appendStmtToBlock(&ir.ObjectInsertStmt{
-				Object: vtarget,
-				Key:    op(lkey),
-				Value:  op(lvalue),
+				Result: vtarget,
 			}, b)
 			p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{b}})
+		} else {
+			for _, key := range virtual.Children() {
+				child := virtual.Get(key)
+
+				// Skip functions.
+				if child.Arity() > 0 {
+					continue
+				}
+
+				lkey := ir.StringIndex(p.getStringConst(string(key.(ast.String))))
+				rules := child.Rules()
+
+				// Build object hierarchy depth-first.
+				if len(rules) == 0 {
+					err := p.planRefDataExtent(child, nil, func() error {
+						p.appendStmt(&ir.ObjectInsertStmt{
+							Object: vtarget,
+							Key:    op(lkey),
+							Value:  p.ltarget,
+						})
+						return nil
+					})
+					if err != nil {
+						return err
+					}
+					continue
+				}
+
+				// Generate virtual document for leaf.
+				lvalue := p.newLocal()
+
+				funcName, err := p.planRules(rules, false)
+				if err != nil {
+					return err
+				}
+
+				// Add leaf to object if defined.
+				b := &ir.Block{}
+				p.appendStmtToBlock(&ir.CallStmt{
+					Func:   funcName,
+					Args:   p.defaultOperands(),
+					Result: lvalue,
+				}, b)
+				p.appendStmtToBlock(&ir.ObjectInsertStmt{
+					Object: vtarget,
+					Key:    op(lkey),
+					Value:  op(lvalue),
+				}, b)
+				p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{b}})
+			}
 		}
 
 		// At this point vtarget refers to the full extent of the virtual

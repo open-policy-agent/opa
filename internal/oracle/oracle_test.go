@@ -158,6 +158,13 @@ y[1]
 s = input
 bar = 7`
 
+	// NOTE(sr): Early ref rewriting adds an expression to the rule body for `x.y`
+	const varInRuleRefModule = `package foo
+q[x.y] = 10 {
+	x := input
+	some z
+	z = 1
+}`
 	cases := []struct {
 		note    string
 		modules map[string]string
@@ -350,6 +357,20 @@ bar = 7`
 				Text:   []byte("i"),
 			},
 		},
+		{
+			note: "intra-rule: ref head",
+			modules: map[string]string{
+				"buffer.rego": varInRuleRefModule,
+			},
+			pos: 47, // "z" in "z = 1"
+			exp: &ast.Location{
+				File:   "buffer.rego",
+				Row:    4,
+				Col:    7,
+				Offset: 44,
+				Text:   []byte("z"),
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -362,10 +383,20 @@ bar = 7`
 					t.Fatal(err)
 				}
 			}
+			buffer := tc.modules["buffer.rego"]
+			before := tc.pos - 4
+			if before < 0 {
+				before = 0
+			}
+			after := tc.pos + 5
+			if after > len(buffer) {
+				after = len(buffer)
+			}
+			t.Logf("pos is %d: \"%s<%s>%s\"", tc.pos, string(buffer[before:tc.pos]), string(buffer[tc.pos]), string(buffer[tc.pos+1:after]))
 			o := New()
 			result, err := o.FindDefinition(DefinitionQuery{
 				Modules:  modules,
-				Buffer:   []byte(tc.modules["buffer.rego"]),
+				Buffer:   []byte(buffer),
 				Filename: "buffer.rego",
 				Pos:      tc.pos,
 			})

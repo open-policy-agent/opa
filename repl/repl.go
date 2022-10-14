@@ -811,11 +811,9 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 	switch r.outputFormat {
 	case "json":
 	default:
-		var msg string
+		msg := "defined"
 		if unset {
 			msg = "re-defined"
-		} else {
-			msg = "defined"
 		}
 		fmt.Fprintf(r.output, "Rule '%v' %v in %v. Type 'show' to see rules.\n", rule.Head.Name, msg, mod.Package)
 	}
@@ -1177,10 +1175,16 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 
 	if expr.IsAssignment() {
 		rule, err := ast.ParseCompleteDocRuleFromAssignmentExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-		if err == nil {
-			if err := r.compileRule(ctx, rule); err != nil {
-				return false, err
-			}
+		if err != nil {
+			return false, nil
+		}
+		// TODO(sr): support interactive ref head rule definitions
+		if len(rule.Head.Ref()) > 1 {
+			return false, nil
+		}
+
+		if err := r.compileRule(ctx, rule); err != nil {
+			return false, err
 		}
 		return rule != nil, nil
 	}
@@ -1194,12 +1198,17 @@ func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body
 	}
 
 	rule, err := ast.ParseCompleteDocRuleFromEqExpr(r.getCurrentOrDefaultModule(), expr.Operand(0), expr.Operand(1))
-	if err == nil {
-		if err := r.compileRule(ctx, rule); err != nil {
-			return false, err
-		}
+	if err != nil {
+		return false, nil
+	}
+	// TODO(sr): support interactive ref head rule definitions
+	if len(rule.Head.Ref()) > 1 {
+		return false, nil
 	}
 
+	if err := r.compileRule(ctx, rule); err != nil {
+		return false, err
+	}
 	return rule != nil, nil
 }
 

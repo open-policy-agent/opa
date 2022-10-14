@@ -282,6 +282,43 @@ f(x) := "B" if { x >= 80; x < 90 }
 f(x) := "C" if { x >= 70; x < 80 }
 ```
 
+### Reference Heads
+
+```live:rules/ref_heads:module:read_only
+fruit.apple.seeds = 12 if input == "apple"             # complete document (single value rule)
+
+fruit.pineapple.colors contains x if x := "yellow"     # multi-value rule
+
+fruit.banana.phone[x] = "bananular" if x := "cellular" # single value rule
+fruit.banana.phone.cellular = "bananular" if true      # equivalent single value rule
+
+fruit.orange.color(x) = true if x == "orange"          # function
+```
+
+For reasons of backwards-compatibility, partial sets need to use `contains` in
+their rule hesas, i.e.
+
+```live:rules/ref_heads/set:module:read_only
+fruit.box contains "apples" if true
+```
+
+whereas
+
+```live:rules/ref_heads/complete:module:read_only
+fruit.box[x] if { x := "apples" }
+```
+
+defines a _complete document rule_ `fruit.box.apples` with value `true`.
+The same is the case of rules with brackets that don't contain dots, like
+
+```live:rules/ref_heads/simple:module:read_only
+box[x] if { x := "apples" } # => {"box": {"apples": true }}
+box2[x] { x := "apples" } # => {"box": ["apples"]}
+```
+
+For backwards-compatibility, rules _without_ if and without _dots_ will be interpreted
+as defining partial sets, like `box2`.
+
 ## Tests
 
 ```live:tests:module:read_only
@@ -1133,7 +1170,7 @@ package         = "package" ref
 import          = "import" ref [ "as" var ]
 policy          = { rule }
 rule            = [ "default" ] rule-head { rule-body }
-rule-head       = var ( rule-head-set | rule-head-obj | rule-head-func | rule-head-comp | "if" )
+rule-head       = ( ref | var ) ( rule-head-set | rule-head-obj | rule-head-func | rule-head-comp )
 rule-head-comp  = [ assign-operator term ] [ "if" ]
 rule-head-obj   = "[" term "]" [ assign-operator term ] [ "if" ]
 rule-head-func  = "(" rule-args ")" [ assign-operator term ] [ "if" ]

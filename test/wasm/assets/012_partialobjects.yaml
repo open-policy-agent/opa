@@ -8,7 +8,8 @@ cases:
         p["b"] = 2
     want_defined: true
   - note: additive (negative)
-    query:  'data.x.p = {"a": 1, "b": 2}'
+    query: 'data.x.p = input'
+    input: {"a": 1, "b": 2}
     modules:
       - |
         package x
@@ -18,15 +19,19 @@ cases:
     want_defined: false
   - note: input
     query: 'data.x.p = {"b": 2, "a": 1}'
+    input: {"x": 1, "y": 2}
     modules:
       - |
         package x
         p["a"] = 1 { input.x = 1 }
         p["b"] = 2 { input.y = 2 }
     want_defined: true
-    input: {"x": 1, "y": 2}
   - note: input (negative)
-    query: 'data.x.p = {"a": 1, "b": 2}'
+    query: 'data.x.p = data.z'
+    data:
+      z:
+        a: 1
+        b: 2
     modules:
       - |
         package x
@@ -44,13 +49,16 @@ cases:
         p[x] = [y] { x = "b"; y = 2 }
     want_defined: true
   - note: conflict error
-    query: 'data.x.p = {"a": 1}'
+    data:
+      z:
+        a: 1
+    query: 'data.x.p = data.z'
     modules:
       - |
         package x
         p["x"] = 1
         p["x"] = 2
-    want_error: "module0.rego:3:1: object insert conflict"
+    want_error: "module0.rego:3:1: var assignment conflict"
   - note: object dereference
     query: data.x.p.a.b = 1
     modules:

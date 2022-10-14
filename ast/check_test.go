@@ -344,6 +344,12 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`number_key`, `q[x] = y { a = ["a", "b"]; y = a[x] }`},
 		{`non_leaf`, `p[x] { data.prefix.i[x][_] }`},
 	}
+	ruleset2 := [][2]string{
+		{`ref_rule_single`, `p.q.r { true }`},
+		{`ref_rule_single_with_number_key`, `p.q[3] { true }`},
+		{`ref_regression_array_key`,
+			`walker[[p, v]] = o { l = input; walk(l, k); [p, v] = k; o = {} }`},
+	}
 
 	tests := []struct {
 		note     string
@@ -465,6 +471,37 @@ func TestCheckInferenceRules(t *testing.T) {
 		{"non-leaf", ruleset1, "data.non_leaf.p", types.NewSet(
 			types.S,
 		)},
+
+		{"ref-rules single value, full ref", ruleset2, "data.ref_rule_single.p.q.r", types.B},
+		{"ref-rules single value, prefix", ruleset2, "data.ref_rule_single.p",
+			types.NewObject(
+				[]*types.StaticProperty{{
+					Key: "q", Value: types.NewObject(
+						[]*types.StaticProperty{{Key: "r", Value: types.B}},
+						types.NewDynamicProperty(types.S, types.A),
+					),
+				}},
+				types.NewDynamicProperty(types.S, types.A),
+			)},
+
+		{"ref-rules single value, number key, full ref", ruleset2, "data.ref_rule_single_with_number_key.p.q[3]", types.B},
+		{"ref-rules single value, number key, prefix", ruleset2, "data.ref_rule_single_with_number_key.p",
+			types.NewObject(
+				[]*types.StaticProperty{{
+					Key: "q", Value: types.NewObject(
+						[]*types.StaticProperty{{Key: json.Number("3"), Value: types.B}},
+						types.NewDynamicProperty(types.S, types.A),
+					),
+				}},
+				types.NewDynamicProperty(types.S, types.A),
+			)},
+
+		{"ref_regression_array_key", ruleset2, "data.ref_regression_array_key.walker",
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
+					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+			)},
 	}
 
 	for _, tc := range tests {
@@ -489,7 +526,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 			ref := MustParseRef(tc.ref)
 			checker := newTypeChecker()
-			env, err := checker.CheckTypes(nil, elems, nil)
+			env, err := checker.CheckTypes(newTypeChecker().Env(map[string]*Builtin{"walk": BuiltinMap["walk"]}), elems, nil)
 
 			if err != nil {
 				t.Fatalf("Unexpected error %v:", err)
@@ -510,6 +547,87 @@ func TestCheckInferenceRules(t *testing.T) {
 		})
 	}
 
+}
+
+func TestCheckInferenceOverlapWithRules(t *testing.T) {
+	ruleset1 := [][2]string{
+		{`prefix.i.j.k`, `p = 1 { true }`},
+		{`prefix.i.j.k`, `p = "foo" { true }`},
+	}
+	tests := []struct {
+		note     string
+		rules    [][2]string
+		ref      string
+		expected types.Type // ref's type
+		query    string
+		extra    map[Var]types.Type
+	}{
+		{
+			note:     "non-leaf, extra vars",
+			rules:    ruleset1,
+			ref:      "data.prefix.i.j[k]",
+			expected: types.A,
+			query:    "data.prefix.i.j[k][b]",
+			extra: map[Var]types.Type{
+				Var("k"): types.S,
+				Var("b"): types.S,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var elems []util.T
+
+			// Convert test rules into rule slice for "warmup" call.
+			for i := range tc.rules {
+				pkg := MustParsePackage(`package ` + tc.rules[i][0])
+				rule := MustParseRule(tc.rules[i][1])
+				module := &Module{
+					Package: pkg,
+					Rules:   []*Rule{rule},
+				}
+				rule.Module = module
+				elems = append(elems, rule)
+				for next := rule.Else; next != nil; next = next.Else {
+					next.Module = module
+					elems = append(elems, next)
+				}
+			}
+
+			ref := MustParseRef(tc.ref)
+			checker := newTypeChecker()
+			env, err := checker.CheckTypes(nil, elems, nil)
+			if err != nil {
+				t.Fatalf("Unexpected error %v:", err)
+			}
+
+			result := env.Get(ref)
+			if tc.expected == nil {
+				if result != nil {
+					t.Errorf("Expected %v type to be unset but got: %v", ref, result)
+				}
+			} else {
+				if result == nil {
+					t.Errorf("Expected to infer %v => %v but got nil", ref, tc.expected)
+				} else if types.Compare(tc.expected, result) != 0 {
+					t.Errorf("Expected to infer %v => %v but got %v", ref, tc.expected, result)
+				}
+			}
+
+			body := MustParseBody(tc.query)
+			env, err = checker.CheckBody(env, body)
+			if len(err) != 0 {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			for ex, exp := range tc.extra {
+				act := env.Get(ex)
+				if types.Compare(act, exp) != 0 {
+					t.Errorf("Expected to infer extra %v => %v but got %v", ex, exp, act)
+				}
+			}
+		})
+	}
 }
 
 func TestCheckErrorSuppression(t *testing.T) {
@@ -642,7 +760,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-any", `fake_builtin_2({"a": a, "c": c})`},
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
-		{"virtual-ref", `plus(data.test.p, data.deabeef, 0)`},
+		{"virtual-ref", `plus(data.test.p, data.coffee, 0)`},
 	}
 
 	env := newTestEnv([]string{
@@ -781,6 +899,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 	env := newTestEnv([]string{
 		`p { true }`,
 		`q = {"foo": 1, "bar": 2} { true }`,
+		`a.b.c[3] = x { x = {"x": {"y": 2}} }`,
 	})
 
 	tests := []struct {
@@ -799,7 +918,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   2,
 			have:  types.N,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
 		},
 		{
 			note:  "bad non-leaf ref",
@@ -808,7 +927,7 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			pos:   2,
 			have:  types.N,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
 		},
 		{
 			note:  "bad leaf ref",
@@ -818,6 +937,24 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			have:  types.N,
 			want:  types.S,
 			oneOf: []Value{String("bar"), String("foo")},
+		},
+		{
+			note:  "bad ref hitting last term",
+			query: `x = true; data.test.a.b.c[x][_]`,
+			ref:   `data.test.a.b.c[x][_]`,
+			pos:   5,
+			have:  types.B,
+			want:  types.Any{types.N, types.S},
+			oneOf: []Value{Number("3")},
+		},
+		{
+			note:  "bad ref hitting dynamic part",
+			query: `s = true; data.test.a.b.c[3].x[s][_] = _`,
+			ref:   `data.test.a.b.c[3].x[s][_]`,
+			pos:   7,
+			have:  types.B,
+			want:  types.S,
+			oneOf: []Value{String("y")},
 		},
 		{
 			note:  "bad leaf var",
@@ -851,12 +988,25 @@ func TestCheckRefErrInvalid(t *testing.T) {
 			oneOf: []Value{String("a"), String("c")},
 		},
 		{
+			// NOTE(sr): Thins one and the next are special: it cannot work with ref heads, either, since we need at
+			// least ONE string term after data.test: a module needs a package line, and the shortest head ref
+			// possible is thus data.x.y.
 			note:  "bad non-leaf value",
 			query: `data.test[1]`,
 			ref:   "data.test[1]",
 			pos:   2,
+			have:  types.N,
 			want:  types.S,
-			oneOf: []Value{String("p"), String("q")},
+			oneOf: []Value{String("a"), String("p"), String("q")},
+		},
+		{
+			note:  "bad non-leaf value (package)", // See note above ^^
+			query: `data[1]`,
+			ref:   "data[1]",
+			pos:   1,
+			have:  types.N,
+			want:  types.S,
+			oneOf: []Value{String("test")},
 		},
 		{
 			note:  "composite ref operand",

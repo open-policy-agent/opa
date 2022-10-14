@@ -1867,7 +1867,6 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 }
 
 func TestRegoPartialResultRecursiveRefs(t *testing.T) {
-
 	r := New(Query("data"), Module("test.rego", `package foo.bar
 
 	default p = false
