@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/topdown/print"
-	"github.com/sirupsen/logrus"
 )
 
 type loggingPrintHook struct {
@@ -26,7 +24,7 @@ type loggingPrintHook struct {
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 	// NOTE(tsandall): if the request context is not present then do not panic,
 	// just log the print message without the additional context.
-	rctx, _ := pctx.Context.Value(reqCtxKey).(requestContext)
+	rctx, _ := logging.FromContext(pctx.Context)
 	fields := rctx.Fields()
 	fields["line"] = pctx.Location.String()
 	h.logger.WithFields(fields).Info(msg)
@@ -54,28 +52,8 @@ func (h *LoggingHandler) loggingEnabled(level logging.Level) bool {
 	return level <= h.logger.GetLevel()
 }
 
-type requestContextKey string
-
-const reqCtxKey = requestContextKey("request-context-key")
-
-type requestContext struct {
-	ClientAddr string
-	ReqID      uint64
-	ReqMethod  string
-	ReqPath    string
-}
-
-func (rctx requestContext) Fields() logrus.Fields {
-	return logrus.Fields{
-		"client_addr": rctx.ClientAddr,
-		"req_id":      rctx.ReqID,
-		"req_method":  rctx.ReqMethod,
-		"req_path":    rctx.ReqPath,
-	}
-}
-
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var rctx requestContext
+	var rctx logging.RequestContext
 	rctx.ReqID = atomic.AddUint64(&h.requestID, uint64(1))
 	recorder := newRecorder(h.logger, w, r, rctx.ReqID, h.loggingEnabled(logging.Debug))
 	t0 := time.Now()
@@ -85,7 +63,7 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rctx.ClientAddr = r.RemoteAddr
 		rctx.ReqMethod = r.Method
 		rctx.ReqPath = r.URL.EscapedPath()
-		r = r.WithContext(context.WithValue(r.Context(), reqCtxKey, rctx))
+		r = r.WithContext(logging.NewContext(r.Context(), &rctx))
 
 		var err error
 		fields := rctx.Fields()

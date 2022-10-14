@@ -61,6 +61,7 @@ type EventV1 struct {
 	RequestedBy    string                  `json:"requested_by,omitempty"`
 	Timestamp      time.Time               `json:"timestamp"`
 	Metrics        map[string]interface{}  `json:"metrics,omitempty"`
+	RequestID      uint64                  `json:"req_id,omitempty"`
 
 	inputAST ast.Value
 }
@@ -96,6 +97,7 @@ var errorKey = ast.StringTerm("error")
 var requestedByKey = ast.StringTerm("requested_by")
 var timestampKey = ast.StringTerm("timestamp")
 var metricsKey = ast.StringTerm("metrics")
+var requestIDKey = ast.StringTerm("req_id")
 
 // AST returns the Rego AST representation for a given EventV1 object.
 // This avoids having to round trip through JSON while applying a decision log
@@ -212,6 +214,10 @@ func (e *EventV1) AST() (ast.Value, error) {
 			return nil, err
 		}
 		event.Insert(metricsKey, ast.NewTerm(m))
+	}
+
+	if e.RequestID > 0 {
+		event.Insert(requestIDKey, ast.UIntNumberTerm(e.RequestID))
 	}
 
 	return event, nil
@@ -597,6 +603,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		NDBuiltinCache: decision.NDBuiltinCache,
 		RequestedBy:    decision.RemoteAddr,
 		Timestamp:      decision.Timestamp,
+		RequestID:      decision.RequestID,
 		inputAST:       decision.InputAST,
 	}
 
