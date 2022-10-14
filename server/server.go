@@ -2638,13 +2638,7 @@ func stringPathToRef(s string) (r ast.Ref) {
 }
 
 func validateQuery(query string) (ast.Body, error) {
-
-	var body ast.Body
-	body, err := ast.ParseBody(query)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
+	return ast.ParseBody(query)
 }
 
 func getBoolParam(url *url.URL, name string, ifEmpty bool) bool {

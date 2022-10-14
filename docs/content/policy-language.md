@@ -909,6 +909,24 @@ max_memory := 32 { power_users[user] }
 max_memory := 4 { restricted_users[user] }
 ```
 
+### Rule Heads containing References
+
+As a shorthand for defining nested rule structures, it's valid to use references as rule heads:
+
+```live:eg/ref_heads:module
+fruit.apple.seeds = 12
+
+fruit.orange.color = "orange"
+```
+
+This module defines _two complete rules_, `data.example.fruit.apple.seeds` and `data.example.fruit.orange.color`:
+
+```live:eg/ref_heads:query:merge_down
+data.example
+```
+```live:eg/ref_heads:output
+```
+
 ### Functions
 
 Rego supports user-defined functions that can be called with the same semantics as [Built-in Functions](#built-in-functions). They have access to both the [the data Document](../philosophy/#the-opa-document-model) and [the input Document](../philosophy/#the-opa-document-model).

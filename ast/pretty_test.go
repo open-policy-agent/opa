@@ -41,8 +41,9 @@ func TestPretty(t *testing.T) {
   qux
  rule
   head
-   p
-   x
+   ref
+    p
+    x
    y
   body
    expr index=0
@@ -67,7 +68,8 @@ func TestPretty(t *testing.T) {
       true
  rule
   head
-   f
+   ref
+    f
    args
     x
    call

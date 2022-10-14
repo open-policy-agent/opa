@@ -299,7 +299,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 	}
 
 	// rewrite duplicate test_* rule names as we compile modules
-	r.compiler.WithStageAfter("ResolveRefs", ast.CompilerStageDefinition{
+	r.compiler.WithStageAfter("RewriteRuleHeadRefs", ast.CompilerStageDefinition{
 		Name:       "RewriteDuplicateTestNames",
 		MetricName: "rewrite_duplicate_test_names",
 		Stage:      rewriteDuplicateTestNames,
@@ -340,7 +340,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 		}
 	}
 
-	if r.modules != nil && len(r.modules) > 0 {
+	if len(r.modules) > 0 {
 		if r.compiler.Compile(r.modules); r.compiler.Failed() {
 			return nil, r.compiler.Errors
 		}
@@ -380,7 +380,7 @@ func (r *Runner) runTests(ctx context.Context, txn storage.Transaction, enablePr
 }
 
 func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
-	ruleName := string(rule.Head.Name)
+	ruleName := ruleName(rule.Head)
 
 	// All tests must have the right prefix
 	if !strings.HasPrefix(ruleName, TestPrefix) && !strings.HasPrefix(ruleName, SkipTestPrefix) {
@@ -388,7 +388,7 @@ func (r *Runner) shouldRun(rule *ast.Rule, testRegex *regexp.Regexp) bool {
 	}
 
 	// Even with the prefix it needs to pass the regex (if applicable)
-	fullName := fmt.Sprintf("%s.%s", rule.Module.Package.Path.String(), ruleName)
+	fullName := rule.Ref().String()
 	if testRegex != nil && !testRegex.MatchString(fullName) {
 		return false
 	}
@@ -403,18 +403,42 @@ func rewriteDuplicateTestNames(compiler *ast.Compiler) *ast.Error {
 	count := map[string]int{}
 	for _, mod := range compiler.Modules {
 		for _, rule := range mod.Rules {
-			name := rule.Head.Name.String()
+			name := ruleName(rule.Head)
 			if !strings.HasPrefix(name, TestPrefix) {
 				continue
 			}
-			key := rule.Path().String()
+			key := rule.Ref().String()
 			if k, ok := count[key]; ok {
-				rule.Head.Name = ast.Var(fmt.Sprintf("%s#%02d", name, k))
+				ref := rule.Head.Ref()
+				newName := fmt.Sprintf("%s#%02d", name, k)
+				if len(ref) == 1 {
+					ref[0] = ast.VarTerm(newName)
+				} else {
+					ref[len(ref)-1] = ast.StringTerm(newName)
+				}
+				rule.Head.SetRef(ref)
 			}
 			count[key]++
 		}
 	}
 	return nil
+}
+
+// ruleName is a helper to be used when checking if a function
+// (a) is a test, or
+// (b) needs to be skipped
+// -- it'll resolve `p.q.r` to `r`. For representing results, we'll
+// use rule.Head.Ref()
+func ruleName(h *ast.Head) string {
+	ref := h.Ref()
+	switch last := ref[len(ref)-1].Value.(type) {
+	case ast.Var:
+		return string(last)
+	case ast.String:
+		return string(last)
+	default:
+		panic("unreachable")
+	}
 }
 
 func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.Module, rule *ast.Rule) (*Result, bool) {
@@ -429,10 +453,9 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		tracer = bufferTracer
 	}
 
-	ruleName := string(rule.Head.Name)
-
-	if strings.HasPrefix(ruleName, SkipTestPrefix) {
-		tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, 0*time.Second, nil, nil)
+	ruleName := ruleName(rule.Head)
+	if strings.HasPrefix(ruleName, SkipTestPrefix) { // TODO(sr): add test
+		tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().String(), 0*time.Second, nil, nil)
 		tr.Skip = true
 		return tr, false
 	}
@@ -465,7 +488,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		trace = *bufferTracer
 	}
 
-	tr := newResult(rule.Loc(), mod.Package.Path.String(), ruleName, dt, trace, printbuf.Bytes())
+	tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().String(), dt, trace, printbuf.Bytes())
 	tr.Error = err
 	var stop bool
 
@@ -489,7 +512,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 	tr := &Result{
 		Location: rule.Loc(),
 		Package:  mod.Package.Path.String(),
-		Name:     string(rule.Head.Name),
+		Name:     rule.Head.Ref().String(), // TODO(sr): test
 	}
 
 	var stop bool

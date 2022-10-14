@@ -24,11 +24,11 @@ globals = {
 	"fizz": "buzz",
 }
 
-partial_obj["x"] = 1
+partial_obj.x = 1
 
-partial_obj["y"] = 2
+partial_obj.y = 2
 
-partial_obj["z"] = 3
+partial_obj.z = 3
 
 partial_set["x"]
 
@@ -198,7 +198,7 @@ nested_infix {
 
 expanded_const = true
 
-partial_obj["why"] = true {
+partial_obj.why = true {
 	false
 }
 

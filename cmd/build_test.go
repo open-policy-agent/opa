@@ -3,6 +3,7 @@ package cmd
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -162,12 +163,14 @@ func TestBuildErrorDoesNotWriteFile(t *testing.T) {
 		params.outputFile = path.Join(root, "bundle.tar.gz")
 
 		err := dobuild(params, []string{root})
-		if err == nil || !strings.Contains(err.Error(), "rule p is recursive") {
-			t.Fatal("expected recursion error but got:", err)
+		exp := fmt.Sprintf("1 error occurred: %s/test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p",
+			root)
+		if err == nil || err.Error() != exp {
+			t.Fatalf("expected recursion error %q but got: %q", exp, err)
 		}
 
-		if _, err := os.Stat(params.outputFile); err == nil {
-			t.Fatal("expected stat error")
+		if _, err := os.Stat(params.outputFile); !os.IsNotExist(err) {
+			t.Fatalf("expected stat \"not found\" error, got %v", err)
 		}
 	})
 }

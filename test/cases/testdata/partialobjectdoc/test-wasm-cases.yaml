@@ -1,0 +1,106 @@
+
+# NOTE(sr): These test cases stem from cases we run against the wasm
+# module but since the ref-heads change made them fail -- because of
+# changes to the typing of partial object rules (which are now single-
+# valued rules), they're added to the topdown tests, too.
+cases:
+  - note: wasm/additive
+    query: 'data.x.q = x'
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+
+        q {
+          p == {"a": 1, "b": 2}
+        }
+    want_result:
+    - x: true
+  - note: wasm/additive (negative)
+    query: 'data.x.p = input'
+    input: {"a": 1, "b": 2}
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+        p["c"] = 3
+    want_result: []
+  - note: wasm/input
+    query: 'data.x.q = x'
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+
+        q {
+          p == {"a": 1, "b": 2}
+        }
+    input: {"x": 1, "y": 2}
+    want_result:
+    - x: true
+  - note: wasm/input (negative)
+    query: 'data.x.q = x'
+    data:
+      z:
+        a: 1
+        b: 2
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+        p["c"] = 3 { input.z = 3 }
+
+        q {
+          p == data.z
+        }
+    want_result:
+    - x: true
+    input: {"x": 1, "y": 2}
+  - note: wasm/composites
+    query: 'data.x.q = x'
+    modules:
+      - |
+        package x
+        p[x] = [y] { x = "a"; y = 1 }
+        p[x] = [y] { x = "b"; y = 2 }
+
+        q { p == {"a": [1], "b": [2]} }
+    want_result:
+    - x : true
+  - note: wasm/conflict error
+    query: 'data.x.q = x'
+    data:
+      z:
+        a: 1
+    modules:
+      - |
+        package x
+        p["x"] = 1
+        p["x"] = 2
+        q { 
+          p == data.z
+        }
+    want_error: "test-0.rego:3: eval_conflict_error: complete rules must not produce multiple outputs"
+    want_error_code: eval_conflict_error
+  - note: wasm/object dereference
+    query: 'data.x.q = x'
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 1}
+        q { 
+          p.a.b = 1
+        }
+    want_result:
+    - x: true
+  - note: wasm/object dereference (negative)
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 2}
+    want_result: []

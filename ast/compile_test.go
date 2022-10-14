@@ -263,7 +263,7 @@ func TestOutputVarsForNode(t *testing.T) {
 
 func TestModuleTree(t *testing.T) {
 
-	mods := getCompilerTestModules()
+	mods := getCompilerTestModules() // 7 modules
 	mods["system-mod"] = MustParseModule(`
 	package system.foo
 
@@ -274,8 +274,14 @@ func TestModuleTree(t *testing.T) {
 
 	p = 1
 	`)
+	mods["dots-in-heads"] = MustParseModule(`
+	package dots
+
+	a.b.c = 12
+	d.e.f.g = 34
+	`)
 	tree := NewModuleTree(mods)
-	expectedSize := 9
+	expectedSize := 10
 
 	if tree.Size() != expectedSize {
 		t.Fatalf("Expected %v but got %v modules", expectedSize, tree.Size())
@@ -293,6 +299,727 @@ func TestModuleTree(t *testing.T) {
 		t.Fatalf("Expected user.system node to be visible")
 	}
 
+}
+func TestCompilerGetExports(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		exports map[string][]string
+	}{
+		{
+			note: "simple",
+			modules: modules(`package p
+				r = 1`),
+			exports: map[string][]string{"data.p": {"r"}},
+		},
+		{
+			note: "simple single-value ref rule",
+			modules: modules(`package p
+				q.r.s = 1`),
+			exports: map[string][]string{"data.p": {"q.r.s"}},
+		},
+		{
+			note: "var key single-value ref rule",
+			modules: modules(`package p
+				q.r[s] = 1 { s := "foo" }`),
+			exports: map[string][]string{"data.p": {"q.r"}},
+		},
+		{
+			note: "simple multi-value ref rule",
+			modules: modules(`package p
+				import future.keywords
+
+				q.r.s contains 1 { true }`),
+			exports: map[string][]string{"data.p": {"q.r.s"}},
+		},
+		{
+			note: "two simple, multiple rules",
+			modules: modules(`package p
+				r = 1
+				s = 11`,
+				`package q
+				x = 2
+				y = 22`),
+			exports: map[string][]string{"data.p": {"r", "s"}, "data.q": {"x", "y"}},
+		},
+		{
+			note: "ref head + simple, multiple rules",
+			modules: modules(`package p.a.b.c
+				r = 1
+				s = 11`,
+				`package q
+				a.b.x = 2
+				a.b.c.y = 22`),
+			exports: map[string][]string{
+				"data.p.a.b.c": {"r", "s"},
+				"data.q":       {"a.b.x", "a.b.c.y"},
+			},
+		},
+		{
+			note: "two ref head, multiple rules",
+			modules: modules(`package p.a.b.c
+				r = 1
+				s = 11`,
+				`package p
+				a.b.x = 2
+				a.b.c.y = 22`),
+			exports: map[string][]string{
+				"data.p.a.b.c": {"r", "s"},
+				"data.p":       {"a.b.x", "a.b.c.y"},
+			},
+		},
+		{
+			note: "single-value rule with number key",
+			modules: modules(`package p
+				q[1] = 1
+				q[2] = 2`),
+			exports: map[string][]string{
+				"data.p": {"q[1]", "q[2]"}, // TODO(sr): is this really what we want?
+			},
+		},
+		{
+			note: "single-value (ref) rule with number key",
+			modules: modules(`package p
+				a.b.q[1] = 1
+				a.b.q[2] = 2`),
+			exports: map[string][]string{
+				"data.p": {"a.b.q[1]", "a.b.q[2]"},
+			},
+		},
+		{
+			note: "single-value (ref) rule with var key",
+			modules: modules(`package p
+				a.b.q[x] = y { x := 1; y := true }
+				a.b.q[2] = 2`),
+			exports: map[string][]string{
+				"data.p": {"a.b.q", "a.b.q[2]"}, // TODO(sr): GroundPrefix? right thing here?
+			},
+		},
+		{ // NOTE(sr): An ast.Module can be constructed in various ways, this is to assert that
+			//         our compilation process doesn't explode here if we're fed a Rule that has no Ref.
+			note: "synthetic",
+			modules: func() []*Module {
+				ms := modules(`package p
+				r = 1`)
+				ms[0].Rules[0].Head.Reference = nil
+				return ms
+			}(),
+			exports: map[string][]string{"data.p": {"r"}},
+		},
+		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
+	}
+
+	hashMap := func(ms map[string][]string) *util.HashMap {
+		rules := util.NewHashMap(func(a, b util.T) bool {
+			switch a := a.(type) {
+			case Ref:
+				return a.Equal(b.(Ref))
+			case []Ref:
+				b := b.([]Ref)
+				if len(b) != len(a) {
+					return false
+				}
+				for i := range a {
+					if !a[i].Equal(b[i]) {
+						return false
+					}
+				}
+				return true
+			default:
+				panic("unreachable")
+			}
+		}, func(v util.T) int {
+			return v.(Ref).Hash()
+		})
+		for r, rs := range ms {
+			refs := make([]Ref, len(rs))
+			for i := range rs {
+				refs[i] = toRef(rs[i])
+			}
+			rules.Put(MustParseRef(r), refs)
+		}
+		return rules
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			for i, m := range tc.modules {
+				c.Modules[fmt.Sprint(i)] = m
+				c.sorted = append(c.sorted, fmt.Sprint(i))
+			}
+			if exp, act := hashMap(tc.exports), c.getExports(); !exp.Equal(act) {
+				t.Errorf("expected %v, got %v", exp, act)
+			}
+		})
+	}
+}
+
+func toRef(s string) Ref {
+	switch t := MustParseTerm(s).Value.(type) {
+	case Var:
+		return Ref{NewTerm(t)}
+	case Ref:
+		return t
+	default:
+		panic("unreachable")
+	}
+}
+
+func TestCompilerCheckRuleHeadRefs(t *testing.T) {
+
+	tests := []struct {
+		note     string
+		modules  []*Module
+		expected *Rule
+		err      string
+	}{
+		{
+			note: "ref contains var",
+			modules: modules(
+				`package x
+				p.q[i].r = 1 { i := 10 }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): i",
+		},
+		{
+			note: "valid: ref is single-value rule with var key",
+			modules: modules(
+				`package x
+				p.q.r[i] { i := 10 }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with var key and value",
+			modules: modules(
+				`package x
+				p.q.r[i] = j { i := 10; j := 11 }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with var key and static value",
+			modules: modules(
+				`package x
+				p.q.r[i] = "ten" { i := 10 }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with number key",
+			modules: modules(
+				`package x
+				p.q.r[1] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with boolean key",
+			modules: modules(
+				`package x
+				p.q.r[true] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with null key",
+			modules: modules(
+				`package x
+				p.q.r[null] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with set literal key",
+			modules: modules(
+				`package x
+				p.q.r[set()] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with array literal key",
+			modules: modules(
+				`package x
+				p.q.r[[]] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with object literal key",
+			modules: modules(
+				`package x
+				p.q.r[{}] { true }`,
+			),
+		},
+		{
+			note: "valid: ref is single-value rule with ref key",
+			modules: modules(
+				`package x
+				x := [1,2,3]
+				p.q.r[x[i]] { i := 0}`,
+			),
+		},
+		{
+			note: "invalid: ref in ref",
+			modules: modules(
+				`package x
+				p.q[arr[0]].r { i := 10 }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): arr[0]",
+		},
+		{
+			note: "invalid: non-string in ref (not last position)",
+			modules: modules(
+				`package x
+				p.q[10].r { true }`,
+			),
+			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
+		},
+		{
+			note: "valid: multi-value with var key",
+			modules: modules(
+				`package x
+				p.q.r contains i if i := 10`,
+			),
+		},
+		{
+			note: "rewrite: single-value with non-var key (ref)",
+			modules: modules(
+				`package x
+				p.q.r[y.z] if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.rewriteRuleHeadRefs)
+			if tc.err != "" {
+				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				if len(c.Errors) > 0 {
+					t.Fatalf("expected no errors, got %v", c.Errors)
+				}
+				if tc.expected != nil {
+					assertRulesEqual(t, tc.expected, mods["0"].Rules[0])
+				}
+			}
+		})
+	}
+}
+
+func TestRuleTreeWithDotsInHeads(t *testing.T) {
+
+	// TODO(sr): multi-val with var key in ref
+	tests := []struct {
+		note    string
+		modules []*Module
+		size    int // expected tree size = number of leaves
+		depth   int // expected tree depth
+	}{
+		{
+			note: "two modules, same package, one rule each",
+			modules: modules(
+				`package x
+				p.q.r = 1`,
+				`package x
+				p.q.w = 2`,
+			),
+			size: 2,
+		},
+		{
+			note: "two modules, sub-package, one rule each",
+			modules: modules(
+				`package x
+				p.q.r = 1`,
+				`package x.p
+				q.w.z = 2`,
+			),
+			size: 2,
+		},
+		{
+			note: "three modules, sub-package, incl simple rule",
+			modules: modules(
+				`package x
+				p.q.r = 1`,
+				`package x.p
+				q.w.z = 2`,
+				`package x.p.q.w
+				y = 3`,
+			),
+			size: 3,
+		},
+		{
+			note: "simple: two modules",
+			modules: modules(
+				`package x
+				p.q.r = 1`,
+				`package y
+				p.q.w = 2`,
+			),
+			size: 2,
+		},
+		{
+			note: "conflict: one module",
+			modules: modules(
+				`package q
+				p[x] = 1
+				p = 2`,
+			),
+			size: 2,
+		},
+		{
+			note: "conflict: two modules",
+			modules: modules(
+				`package q
+				p.r.s[x] = 1`,
+				`package q.p
+				r.s = 2 if true`,
+			),
+			size: 2,
+		},
+		{
+			note: "simple: two modules, one using ref head, one package path",
+			modules: modules(
+				`package x
+				p.q.r = 1 { input == 1 }`,
+				`package x.p.q
+				r = 2 { input == 2 }`,
+			),
+			size: 2,
+		},
+		{
+			note: "conflict: two modules, both using ref head, different package paths",
+			modules: modules(
+				`package x
+				p.q.r = 1 { input == 1 }`, // x.p.q.r = 1
+				`package x.p
+				q.r.s = 2 { input == 2 }`, // x.p.q.r.s = 2
+			),
+			size: 2,
+		},
+		{
+			note: "overlapping: one module, two ref head",
+			modules: modules(
+				`package x
+				p.q.r = 1
+				p.q.w.v = 2`,
+			),
+			size:  2,
+			depth: 6,
+		},
+		{
+			note: "last ref term != string",
+			modules: modules(
+				`package x
+				p.q.w[1] = 2
+				p.q.w[{"foo": "baz"}] = 20
+				p.q.x[true] = false
+				p.q.x[y] = y { y := "y" }`,
+			),
+			size:  4,
+			depth: 6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			for i, m := range tc.modules {
+				c.Modules[fmt.Sprint(i)] = m
+				c.sorted = append(c.sorted, fmt.Sprint(i))
+			}
+			compileStages(c, c.setRuleTree)
+			if len(c.Errors) > 0 {
+				t.Fatal(c.Errors)
+			}
+			tree := c.RuleTree
+			tree.DepthFirst(func(n *TreeNode) bool {
+				t.Log(n)
+				if !sort.SliceIsSorted(n.Sorted, func(i, j int) bool {
+					return n.Sorted[i].Compare(n.Sorted[j]) < 0
+				}) {
+					t.Errorf("expected sorted to be sorted: %v", n.Sorted)
+				}
+				return false
+			})
+			if tc.depth > 0 {
+				if exp, act := tc.depth, depth(tree); exp != act {
+					t.Errorf("expected tree depth %d, got %d", exp, act)
+				}
+			}
+			if exp, act := tc.size, tree.Size(); exp != act {
+				t.Errorf("expected tree size %d, got %d", exp, act)
+			}
+		})
+	}
+}
+
+func TestRuleTreeWithVars(t *testing.T) {
+	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
+	t.Run("simple single-value rule", func(t *testing.T) {
+		mod0 := `package a.b
+c.d.e = 1 if true`
+
+		mods := map[string]*Module{"0.rego": MustParseModuleWithOpts(mod0, opts)}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b.c.d.e"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Errorf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two single-value rules", func(t *testing.T) {
+		mod0 := `package a.b
+c.d.e = 1 if true`
+		mod1 := `package a.b.c
+d.e = 2 if true`
+
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b.c.d.e"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 2, len(node.Values); exp != act {
+			t.Errorf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := MustParseRef("d.e"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("one multi-value rule, one single-value, with var", func(t *testing.T) {
+		mod0 := `package a.b
+c.d.e.g contains 1 if true`
+		mod1 := `package a.b.c
+d.e.f = 2 if true`
+
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		// var-key rules should be included in the results
+		node := tree.Find(MustParseRef("data.a.b.c.d.e.g"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Fatalf("expected %d children, found %d", exp, act)
+		}
+		node = tree.Find(MustParseRef("data.a.b.c.d.e.f"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d", exp, act)
+		}
+		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two multi-value rules, back compat", func(t *testing.T) {
+		mod0 := `package a
+b[c] { c := "foo" }`
+		mod1 := `package a
+b[d] { d := "bar" }`
+
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 2, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := VarTerm("c"), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := VarTerm("d"), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two multi-value rules, back compat with short style", func(t *testing.T) {
+		mod0 := `package a
+b[1]`
+		mod1 := `package a
+b[2]`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 2, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 0, len(node.Children); exp != act {
+			t.Errorf("expected %d children, found %d", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+			t.Errorf("expected rule value nil, found %v", act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	t.Run("two single-value rules, back compat with short style", func(t *testing.T) {
+		mod0 := `package a
+b[1] = 1`
+		mod1 := `package a
+b[2] = 2`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+			"1.rego": MustParseModuleWithOpts(mod1, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		// branch point
+		node := tree.Find(MustParseRef("data.a.b"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 0, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := 2, len(node.Children); exp != act {
+			t.Fatalf("expected %d children, found %d", exp, act)
+		}
+
+		// branch 1
+		node = tree.Find(MustParseRef("data.a.b[1]"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+			t.Errorf("expected rule value %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+
+		// branch 2
+		node = tree.Find(MustParseRef("data.a.b[2]"))
+		if node == nil {
+			t.Fatal("expected non-nil leaf node")
+		}
+		if exp, act := 1, len(node.Values); exp != act {
+			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
+		}
+		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+			t.Errorf("expected rule ref %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+			t.Errorf("expected rule value %v, found %v", exp, act)
+		}
+		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+			t.Errorf("expected rule key %v, found %v", exp, act)
+		}
+	})
+
+	// NOTE(sr): Now this test seems obvious, but it's a bug that had snuck into the
+	// NewRuleTree code during development.
+	t.Run("root node and data node unhidden if there are no system nodes", func(t *testing.T) {
+		mod0 := `package a
+p = 1`
+		mods := map[string]*Module{
+			"0.rego": MustParseModuleWithOpts(mod0, opts),
+		}
+		tree := NewRuleTree(NewModuleTree(mods))
+
+		if exp, act := false, tree.Hide; act != exp {
+			t.Errorf("expected tree.Hide=%v, got %v", exp, act)
+		}
+		dataNode := tree.Child(Var("data"))
+		if dataNode == nil {
+			t.Fatal("expected data node")
+		}
+		if exp, act := false, dataNode.Hide; act != exp {
+			t.Errorf("expected dataNode.Hide=%v, got %v", exp, act)
+		}
+	})
+}
+
+func depth(n *TreeNode) int {
+	d := -1
+	for _, m := range n.Children {
+		if d0 := depth(m); d0 > d {
+			d = d0
+		}
+	}
+	return d + 1
 }
 
 func TestModuleTreeFilenameOrder(t *testing.T) {
@@ -328,16 +1055,23 @@ func TestRuleTree(t *testing.T) {
 	mods["non-system-mod"] = MustParseModule(`
 	package user.system
 
-	p = 1
-	`)
-	mods["mod-incr"] = MustParseModule(`package a.b.c
+	p = 1`)
+	mods["mod-incr"] = MustParseModule(`
+	package a.b.c
 
-s[1] { true }
-s[2] { true }`,
+	s[1] { true }
+	s[2] { true }`,
 	)
 
+	mods["dots-in-heads"] = MustParseModule(`
+		package dots
+
+		a.b.c = 12
+		d.e.f.g = 34
+		`)
+
 	tree := NewRuleTree(NewModuleTree(mods))
-	expectedNumRules := 23
+	expectedNumRules := 25
 
 	if tree.Size() != expectedNumRules {
 		t.Errorf("Expected %v but got %v rules", expectedNumRules, tree.Size())
@@ -345,14 +1079,18 @@ s[2] { true }`,
 
 	// Check that empty packages are represented as leaves with no rules.
 	node := tree.Children[Var("data")].Children[String("a")].Children[String("b")].Children[String("empty")]
-
 	if node == nil || len(node.Children) != 0 || len(node.Values) != 0 {
 		t.Fatalf("Unexpected nil value or non-empty leaf of non-leaf node: %v", node)
 	}
 
+	// Check that root node is not hidden
+	if exp, act := false, tree.Hide; act != exp {
+		t.Errorf("expected tree.Hide=%v, got %v", exp, act)
+	}
+
 	system := tree.Child(Var("data")).Child(String("system"))
 	if !system.Hide {
-		t.Fatalf("Expected system node to be hidden")
+		t.Fatalf("Expected system node to be hidden: %v", system)
 	}
 
 	if system.Child(String("foo")).Hide {
@@ -692,16 +1430,19 @@ func TestCompilerErrorLimit(t *testing.T) {
 func TestCompilerCheckSafetyHead(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
-	c.Modules["newMod"] = MustParseModule(`package a.b
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	c.Modules["newMod"] = MustParseModuleWithOpts(`package a.b
 
-unboundKey[x] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundVal[y] = x { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundCompositeVal[y] = [{"foo": x, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
-unboundCompositeKey[[{"x": x}]] { q[y] }
-unboundBuiltinOperator = eq { x = 1 }
+unboundKey[x1] = y { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundVal[y] = x2 { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeVal[y] = [{"foo": x3, "bar": y}] { q[y] = {"foo": [1, 2, [{"bar": y}]]} }
+unboundCompositeKey[[{"x": x4}]] { q[y] }
+unboundBuiltinOperator = eq { 4 = 1 }
 unboundElse { false } else = else_var { true }
-`,
-	)
+c.d.e[x5] if true
+f.g.h[y] = x6 if y := "y"
+i.j.k contains x7 if true
+`, popts)
 	compileStages(c, c.checkSafetyRuleHeads)
 
 	makeErrMsg := func(v string) string {
@@ -709,10 +1450,13 @@ unboundElse { false } else = else_var { true }
 	}
 
 	expected := []string{
-		makeErrMsg("x"),
-		makeErrMsg("x"),
-		makeErrMsg("x"),
-		makeErrMsg("x"),
+		makeErrMsg("x1"),
+		makeErrMsg("x2"),
+		makeErrMsg("x3"),
+		makeErrMsg("x4"),
+		makeErrMsg("x5"),
+		makeErrMsg("x6"),
+		makeErrMsg("x7"),
 		makeErrMsg("eq"),
 		makeErrMsg("else_var"),
 	}
@@ -1018,20 +1762,37 @@ q[1] { true }`,
 
 default foo = 1
 default foo = 2
-foo = 3 { true }`,
-		"mod4.rego": `package adrules.arity
+foo = 3 { true }
+
+default p.q.bar = 1
+default p.q.bar = 2
+p.q.bar = 3 { true }
+`,
+		"mod4.rego": `package badrules.arity
 
 f(1) { true }
 f { true }
 
 g(1) { true }
-g(1,2) { true }`,
+g(1,2) { true }
+
+p.q.h(1) { true }
+p.q.h { true }
+
+p.q.i(1) { true }
+p.q.i(1,2) { true }`,
 		"mod5.rego": `package badrules.dataoverlap
 
 p { true }`,
 		"mod6.rego": `package badrules.existserr
 
-p { true }`})
+p { true }`,
+
+		"mod7.rego": `package badrules.foo
+import future.keywords
+
+bar.baz contains "quz" if true`,
+	})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
 		if reflect.DeepEqual(path, []string{"badrules", "dataoverlap", "p"}) {
@@ -1047,16 +1808,153 @@ p { true }`})
 	expected := []string{
 		"rego_compile_error: conflict check for data path badrules/existserr/p: unexpected error",
 		"rego_compile_error: conflicting rule for data path badrules/dataoverlap/p found",
-		"rego_type_error: conflicting rules named f found",
-		"rego_type_error: conflicting rules named g found",
-		"rego_type_error: conflicting rules named p found",
-		"rego_type_error: conflicting rules named q found",
-		"rego_type_error: multiple default rules named foo found",
-		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:7",
-		"rego_type_error: package badrules.r conflicts with rule defined at mod1.rego:8",
+		"rego_type_error: conflicting rules data.badrules.arity.f found",
+		"rego_type_error: conflicting rules data.badrules.arity.g found",
+		"rego_type_error: conflicting rules data.badrules.arity.p.q.h found",
+		"rego_type_error: conflicting rules data.badrules.arity.p.q.i found",
+		"rego_type_error: conflicting rules data.badrules.p[x] found",
+		"rego_type_error: conflicting rules data.badrules.q found",
+		"rego_type_error: multiple default rules data.badrules.defkw.foo found",
+		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
+		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:7",
+		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:8",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
+}
+
+func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
+
+	tests := []struct {
+		note    string
+		modules []*Module
+		err     string
+	}{
+		{
+			note: "arity mismatch, ref and non-ref rule",
+			modules: modules(
+				`package pkg
+				p.q.r { true }`,
+				`package pkg.p.q
+				r(_) = 2`),
+			err: "rego_type_error: conflicting rules data.pkg.p.q.r found",
+		},
+		{
+			note: "two default rules, ref and non-ref rule",
+			modules: modules(
+				`package pkg
+				default p.q.r = 3
+				p.q.r { true }`,
+				`package pkg.p.q
+				default r = 4
+				r = 2`),
+			err: "rego_type_error: multiple default rules data.pkg.p.q.r found",
+		},
+		{
+			note: "arity mismatch, ref and ref rule",
+			modules: modules(
+				`package pkg.a.b
+				p.q.r { true }`,
+				`package pkg.a
+				b.p.q.r(_) = 2`),
+			err: "rego_type_error: conflicting rules data.pkg.a.b.p.q.r found",
+		},
+		{
+			note: "two default rules, ref and ref rule",
+			modules: modules(
+				`package pkg
+				default p.q.w.r = 3
+				p.q.w.r { true }`,
+				`package pkg.p
+				default q.w.r = 4
+				q.w.r = 2`),
+			err: "rego_type_error: multiple default rules data.pkg.p.q.w.r found",
+		},
+		{
+			note: "multi-value + single-value rules, both with same ref prefix",
+			modules: modules(
+				`package pkg
+				p.q.w[x] = 1 if x := "foo"`,
+				`package pkg
+				p.q.w contains "bar"`),
+			err: "rego_type_error: conflicting rules data.pkg.p.q.w found",
+		},
+		{
+			note: "two multi-value rules, both with same ref",
+			modules: modules(
+				`package pkg
+				p.q.w contains "baz"`,
+				`package pkg
+				p.q.w contains "bar"`),
+		},
+		{
+			note: "module conflict: non-ref rule",
+			modules: modules(
+				`package pkg.q
+				r { true }`,
+				`package pkg.q.r`),
+			err: "rego_type_error: package pkg.q.r conflicts with rule r defined at mod0.rego:2",
+		},
+		{
+			note: "module conflict: ref rule",
+			modules: modules(
+				`package pkg
+				p.q.r { true }`,
+				`package pkg.p.q.r`),
+			err: "rego_type_error: package pkg.p.q.r conflicts with rule p.q.r defined at mod0.rego:2",
+		},
+		{
+			note: "single-value with other rule overlap",
+			modules: modules(
+				`package pkg
+				p.q.r { true }`,
+				`package pkg
+				p.q.r.s { true }`),
+			err: "rego_type_error: single-value rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s]",
+		},
+		{
+			note: "single-value with other rule overlap",
+			modules: modules(
+				`package pkg
+				p.q.r { true }
+				p.q.r.s { true }
+				p.q.r.t { true }`),
+			err: "rego_type_error: single-value rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s data.pkg.p.q.r.t]",
+		},
+		{
+			note: "single-value with other rule overlap, unknown key",
+			modules: modules(
+				`package pkg
+				p.q[r] = x { r = input.key; x = input.foo }
+				p.q.r.s = x { true }
+				`),
+			err: "rego_type_error: single-value rule data.pkg.p.q[r] conflicts with [data.pkg.p.q.r.s]",
+		},
+		{
+			note: "single-value rule with known and unknown key",
+			modules: modules(
+				`package pkg
+				p.q[r] = x { r = input.key; x = input.foo }
+				p.q.s = "x" { true }
+				`),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.checkRuleConflicts)
+			if tc.err != "" {
+				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				assertCompilerErrorStrings(t, c, []string{})
+			}
+		})
+	}
 }
 
 func TestCompilerCheckUndefinedFuncs(t *testing.T) {
@@ -2072,6 +2970,84 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
+// NOTE(sr): the tests below this function are unwieldy, let's keep adding new ones to this one
+func TestCompilerResolveAllRefsNewTests(t *testing.T) {
+	tests := []struct {
+		note  string
+		mod   string
+		exp   string
+		extra string
+	}{
+		{
+			note: "ref-rules referenced in body",
+			mod: `package test
+a.b.c = 1
+q if a.b.c == 1
+`,
+			exp: `package test
+a.b.c = 1 { true }
+q if data.test.a.b.c = 1
+`,
+		},
+		{
+			// NOTE(sr): This is a conservative extension of how it worked before:
+			// we will not automatically extend references to other parts of the rule tree,
+			// only to ref rules defined on the same level.
+			note: "ref-rules from other module referenced in body",
+			mod: `package test
+q if a.b.c == 1
+`,
+			extra: `package test
+a.b.c = 1
+`,
+			exp: `package test
+q if data.test.a.b.c = 1
+`,
+		},
+		{
+			note: "single-value rule in comprehension in call", // NOTE(sr): this is TestRego/partialiter/objects_conflict
+			mod: `package test
+p := count([x | q[x]])
+q[1] = 1
+`,
+			exp: `package test
+p := __local0__ { true; __local1__ = [x | data.test.q[x]]; count(__local1__, __local0__) }
+q[1] = 1
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+			c := NewCompiler()
+			mod, err := ParseModuleWithOpts("test.rego", tc.mod, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exp, err := ParseModuleWithOpts("test.rego", tc.exp, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mods := map[string]*Module{"test": mod}
+			if tc.extra != "" {
+				extra, err := ParseModuleWithOpts("test.rego", tc.extra, opts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				mods["extra"] = extra
+			}
+			c.Compile(mods)
+			if err := c.Errors; len(err) > 0 {
+				t.Errorf("compile module: %v", err)
+			}
+			if act := c.Modules["test"]; !exp.Equal(act) {
+				t.Errorf("compiled: expected %v, got %v", exp, act)
+			}
+		})
+	}
+}
+
 func TestCompilerResolveAllRefs(t *testing.T) {
 	c := NewCompiler()
 	c.Modules = getCompilerTestModules()
@@ -2179,6 +3155,12 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 			x > 10
 		}
 	}`, ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every", "in"}})
+
+	c.Modules["heads_with_dots"] = MustParseModule(`package heads_with_dots
+
+		this_is_not = true
+		this.is.dotted { this_is_not }
+	`)
 
 	compileStages(c, c.resolveAllRefs)
 	assertNotFailed(t, c)
@@ -2317,6 +3299,15 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	gt10 := MustParseExpr("x > 10")
 	gt10.Index++ // TODO(sr): why?
 	assertExprEqual(t, everyExpr.Body[1], gt10)
+
+	// head refs are kept as-is, but their bodies are replaced.
+	mod := c.Modules["heads_with_dots"]
+	rule := mod.Rules[1]
+	body := rule.Body[0].Terms.(*Term)
+	assertTermEqual(t, body, MustParseTerm("data.heads_with_dots.this_is_not"))
+	if act, exp := rule.Head.Ref(), MustParseRef("this.is.dotted"); act.Compare(exp) != 0 {
+		t.Errorf("expected %v to match %v", act, exp)
+	}
 }
 
 func TestCompilerResolveErrors(t *testing.T) {
@@ -2340,48 +3331,91 @@ func TestCompilerResolveErrors(t *testing.T) {
 }
 
 func TestCompilerRewriteTermsInHead(t *testing.T) {
-	c := NewCompiler()
-	c.Modules["head"] = MustParseModule(`package head
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
+	tests := []struct {
+		note string
+		mod  *Module
+		exp  *Rule
+	}{
+		{
+			note: "imports",
+			mod: MustParseModule(`package head
 import data.doc1 as bar
 import data.doc2 as corge
 import input.x.y.foo
 import input.qux as baz
 
 p[foo[bar[i]]] = {"baz": baz, "corge": corge} { true }
+`),
+			exp: MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`),
+		},
+		{
+			note: "array comprehension value",
+			mod: MustParseModule(`package head
 q = [true | true] { true }
+`),
+			exp: MustParseRule(`q = __local0__ { true; __local0__ = [true | true] }`),
+		},
+		{
+			note: "object comprehension value",
+			mod: MustParseModule(`package head
 r = {"true": true | true} { true }
+`),
+			exp: MustParseRule(`r = __local0__ { true; __local0__ = {"true": true | true} }`),
+		},
+		{
+			note: "set comprehension value",
+			mod: MustParseModule(`package head
 s = {true | true} { true }
-
+`),
+			exp: MustParseRule(`s = __local0__ { true; __local0__ = {true | true} }`),
+		},
+		{
+			note: "import in else value",
+			mod: MustParseModule(`package head
+import input.qux as baz
 elsekw {
 	false
 } else = baz {
 	true
 }
-`)
+`),
+			exp: MustParseRule(`elsekw { false } else = __local0__ { true; __local0__ = input.qux }`),
+		},
+		{
+			note: "import ref in last ref head term",
+			mod: MustParseModule(`package head
+import data.doc1 as bar
+x.y.z[bar[i]] = true
+`),
+			exp: MustParseRule(`x.y.z[__local0__] = true { true; __local0__ = data.doc1[i] }`),
+		},
+		{
+			note: "import ref in multi-value ref rule",
+			mod: MustParseModule(`package head
+import future.keywords.if
+import future.keywords.contains
+import data.doc1 as bar
+x.y.w contains bar[i] if true
+`),
+			exp: func() *Rule {
+				exp, _ := ParseRuleWithOpts(`x.y.w contains __local0__ if {true; __local0__ = data.doc1[i] }`, popts)
+				return exp
+			}(),
+		},
+	}
 
-	compileStages(c, c.rewriteRefsInHead)
-	assertNotFailed(t, c)
-
-	rule1 := c.Modules["head"].Rules[0]
-	expected1 := MustParseRule(`p[__local0__] = __local1__ { true; __local0__ = input.x.y.foo[data.doc1[i]]; __local1__ = {"baz": input.qux, "corge": data.doc2} }`)
-	assertRulesEqual(t, rule1, expected1)
-
-	rule2 := c.Modules["head"].Rules[1]
-	expected2 := MustParseRule(`q = __local2__ { true; __local2__ = [true | true] }`)
-	assertRulesEqual(t, rule2, expected2)
-
-	rule3 := c.Modules["head"].Rules[2]
-	expected3 := MustParseRule(`r = __local3__ { true; __local3__ = {"true": true | true} }`)
-	assertRulesEqual(t, rule3, expected3)
-
-	rule4 := c.Modules["head"].Rules[3]
-	expected4 := MustParseRule(`s = __local4__ { true; __local4__ = {true | true} }`)
-	assertRulesEqual(t, rule4, expected4)
-
-	rule5 := c.Modules["head"].Rules[4]
-	expected5 := MustParseRule(`elsekw { false } else = __local5__ { true; __local5__ = input.qux }`)
-	assertRulesEqual(t, rule5, expected5)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules["head"] = tc.mod
+			compileStages(c, c.rewriteRefsInHead)
+			assertNotFailed(t, c)
+			act := c.Modules["head"].Rules[0]
+			assertRulesEqual(t, act, tc.exp)
+		})
+	}
 }
 
 func TestCompilerRewriteRegoMetadataCalls(t *testing.T) {
@@ -3385,6 +4419,25 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "single-value rule with ref head",
+			module: `
+				package test
+
+				p.r.q[s] = t {
+					t := 1
+					s := input.foo
+				}
+			`,
+			exp: `
+				package test
+
+				p.r.q[__local1__] = __local0__ {
+					__local0__ = 1
+					__local1__ = input.foo
+				}
+			`,
+		},
+		{
 			note: "rewrite some x in xs",
 			module: `
 				package test
@@ -3873,7 +4926,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			opts := CompileOpts{ParserOptions: ParserOptions{FutureKeywords: []string{"in", "every"}, unreleasedKeywords: true}}
+			opts := CompileOpts{ParserOptions: ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}}
 			compiler, err := CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 			if tc.wantErr != nil {
 				if err == nil {
@@ -5560,37 +6613,41 @@ dataref = true { data }`,
 
 	compileStages(c, c.checkRecursion)
 
-	makeRuleErrMsg := func(rule string, loop ...string) string {
-		return fmt.Sprintf("rego_recursion_error: rule %v is recursive: %v", rule, strings.Join(loop, " -> "))
+	makeRuleErrMsg := func(pkg, rule string, loop ...string) string {
+		l := make([]string, len(loop))
+		for i, lo := range loop {
+			l[i] = "data." + pkg + "." + lo
+		}
+		return fmt.Sprintf("rego_recursion_error: rule data.%s.%s is recursive: %v", pkg, rule, strings.Join(l, " -> "))
 	}
 
 	expected := []string{
-		makeRuleErrMsg("s", "s", "t", "s"),
-		makeRuleErrMsg("t", "t", "s", "t"),
-		makeRuleErrMsg("a", "a", "b", "c", "e", "a"),
-		makeRuleErrMsg("b", "b", "c", "e", "a", "b"),
-		makeRuleErrMsg("c", "c", "e", "a", "b", "c"),
-		makeRuleErrMsg("e", "e", "a", "b", "c", "e"),
-		makeRuleErrMsg("p", "p", "q", "p"),
-		makeRuleErrMsg("q", "q", "p", "q"),
-		makeRuleErrMsg("acq", "acq", "acp", "acq"),
-		makeRuleErrMsg("acp", "acp", "acq", "acp"),
-		makeRuleErrMsg("np", "np", "nq", "np"),
-		makeRuleErrMsg("nq", "nq", "np", "nq"),
-		makeRuleErrMsg("prefix", "prefix", "prefix"),
-		makeRuleErrMsg("dataref", "dataref", "dataref"),
-		makeRuleErrMsg("else_self", "else_self", "else_self"),
-		makeRuleErrMsg("elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
-		makeRuleErrMsg("elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
-		makeRuleErrMsg("elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
-		makeRuleErrMsg("fn", "fn", "fn"),
-		makeRuleErrMsg("foo", "foo", "bar", "foo"),
-		makeRuleErrMsg("bar", "bar", "foo", "bar"),
-		makeRuleErrMsg("bar", "bar", "p", "foo", "bar"),
-		makeRuleErrMsg("foo", "foo", "bar", "p", "foo"),
-		makeRuleErrMsg("p", "p", "foo", "bar", "p"),
-		makeRuleErrMsg("everyp", "everyp", "everyp"),
-		makeRuleErrMsg("everyq", "everyq", "everyq"),
+		makeRuleErrMsg("rec", "s", "s", "t", "s"),
+		makeRuleErrMsg("rec", "t", "t", "s", "t"),
+		makeRuleErrMsg("rec", "a", "a", "b", "c", "e", "a"),
+		makeRuleErrMsg("rec", "b", "b", "c", "e", "a", "b"),
+		makeRuleErrMsg("rec", "c", "c", "e", "a", "b", "c"),
+		makeRuleErrMsg("rec", "e", "e", "a", "b", "c", "e"),
+		`rego_recursion_error: rule data.rec3.p[x] is recursive: data.rec3.p[x] -> data.rec4.q[x] -> data.rec3.p[x]`, // NOTE(sr): these two are hardcoded: they are
+		`rego_recursion_error: rule data.rec4.q[x] is recursive: data.rec4.q[x] -> data.rec3.p[x] -> data.rec4.q[x]`, // the only ones not fitting the pattern.
+		makeRuleErrMsg("rec5", "acq", "acq", "acp", "acq"),
+		makeRuleErrMsg("rec5", "acp", "acp", "acq", "acp"),
+		makeRuleErrMsg("rec6", "np[x]", "np[x]", "nq[x]", "np[x]"),
+		makeRuleErrMsg("rec6", "nq[x]", "nq[x]", "np[x]", "nq[x]"),
+		makeRuleErrMsg("rec7", "prefix", "prefix", "prefix"),
+		makeRuleErrMsg("rec8", "dataref", "dataref", "dataref"),
+		makeRuleErrMsg("rec9", "else_self", "else_self", "else_self"),
+		makeRuleErrMsg("rec9", "elsetop", "elsetop", "elsemid", "elsebottom", "elsetop"),
+		makeRuleErrMsg("rec9", "elsemid", "elsemid", "elsebottom", "elsetop", "elsemid"),
+		makeRuleErrMsg("rec9", "elsebottom", "elsebottom", "elsetop", "elsemid", "elsebottom"),
+		makeRuleErrMsg("f0", "fn", "fn", "fn"),
+		makeRuleErrMsg("f1", "foo", "foo", "bar", "foo"),
+		makeRuleErrMsg("f1", "bar", "bar", "foo", "bar"),
+		makeRuleErrMsg("f2", "bar", "bar", "p[x]", "foo", "bar"),
+		makeRuleErrMsg("f2", "foo", "foo", "bar", "p[x]", "foo"),
+		makeRuleErrMsg("f2", "p[x]", "p[x]", "foo", "bar", "p[x]"),
+		makeRuleErrMsg("everymod", "everyp", "everyp", "everyp"),
+		makeRuleErrMsg("everymod", "everyq", "everyq", "everyq"),
 	}
 
 	result := compilerErrsToStringSlice(c.Errors)
@@ -5612,28 +6669,38 @@ func TestCompilerCheckDynamicRecursion(t *testing.T) {
 	// references.  For more background info, see
 	// <https://github.com/open-policy-agent/opa/issues/1565>.
 
-	for note, mod := range map[string]*Module{
-		"recursion": MustParseModule(`
+	for _, tc := range []struct {
+		note, err string
+		mod       *Module
+	}{
+		{
+			note: "recursion",
+			mod: MustParseModule(`
 package recursion
 pkg = "recursion"
 foo[x] {
 	data[pkg]["foo"][x]
 }
 `),
-		"system.main": MustParseModule(`
+			err: "rego_recursion_error: rule data.recursion.foo is recursive: data.recursion.foo -> data.recursion.foo",
+		},
+		{note: "system.main",
+			mod: MustParseModule(`
 package system.main
 foo {
-  data[input]
+	data[input]
 }
 `),
+			err: "rego_recursion_error: rule data.system.main.foo is recursive: data.system.main.foo -> data.system.main.foo",
+		},
 	} {
-		t.Run(note, func(t *testing.T) {
+		t.Run(tc.note, func(t *testing.T) {
 			c := NewCompiler()
-			c.Modules = map[string]*Module{note: mod}
+			c.Modules = map[string]*Module{tc.note: tc.mod}
 			compileStages(c, c.checkRecursion)
 
 			result := compilerErrsToStringSlice(c.Errors)
-			expected := "rego_recursion_error: rule foo is recursive: foo -> foo"
+			expected := tc.err
 
 			if len(result) != 1 || result[0] != expected {
 				t.Errorf("Expected %v but got: %v", expected, result)
@@ -5909,6 +6976,7 @@ func TestCompilerGetRulesDynamic(t *testing.T) {
 		"mod1": `package a.b.c.d
 r1 = 1`,
 		"mod2": `package a.b.c.e
+default r2 = false
 r2 = 2`,
 		"mod3": `package a.b
 r3 = 3`,
@@ -5919,7 +6987,8 @@ r4 = 4`,
 	compileStages(compiler, nil)
 
 	rule1 := compiler.Modules["mod1"].Rules[0]
-	rule2 := compiler.Modules["mod2"].Rules[0]
+	rule2d := compiler.Modules["mod2"].Rules[0]
+	rule2 := compiler.Modules["mod2"].Rules[1]
 	rule3 := compiler.Modules["mod3"].Rules[0]
 	rule4 := compiler.Modules["hidden"].Rules[0]
 
@@ -5929,15 +6998,16 @@ r4 = 4`,
 		excludeHidden bool
 	}{
 		{input: "data.a.b.c.d.r1", expected: []*Rule{rule1}},
-		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2, rule3}},
+		{input: "data.a.b[x]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
 		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
-		{input: "data.a.b.c", expected: []*Rule{rule1, rule2}},
+		{input: "data.a.b.c", expected: []*Rule{rule1, rule2d, rule2}},
 		{input: "data.a.b.d"},
-		{input: "data[x]", expected: []*Rule{rule1, rule2, rule3, rule4}},
-		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2, rule3}},
-		{input: "data[x][y].c.e", expected: []*Rule{rule2}},
+		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
+		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
+		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
+		{input: "data[x][y].c.e", expected: []*Rule{rule2d, rule2}},
 		{input: "data[x][y].r3", expected: []*Rule{rule3}},
-		{input: "data[x][y]", expected: []*Rule{rule1, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
 	}
 
 	for _, tc := range tests {
@@ -7452,7 +8522,19 @@ deny {
 	} else if !strings.HasPrefix(c.Errors.Error(), "1 error occurred: 7:2: rego_type_error: undefined ref: input.Something.Y.X.ThisDoesNotExist") {
 		t.Errorf("unexpected error: %v", c.Errors.Error())
 	}
+}
 
+func modules(ms ...string) []*Module {
+	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+	mods := make([]*Module, len(ms))
+	for i, m := range ms {
+		var err error
+		mods[i], err = ParseModuleWithOpts(fmt.Sprintf("mod%d.rego", i), m, opts)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return mods
 }
 
 func TestCompilerWithRecursiveSchemaAvoidRace(t *testing.T) {

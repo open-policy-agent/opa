@@ -32,7 +32,7 @@ type RuleIndex interface {
 
 // IndexResult contains the result of an index lookup.
 type IndexResult struct {
-	Kind      DocKind
+	Kind      RuleKind
 	Rules     []*Rule
 	Else      map[*Rule][]*Rule
 	Default   *Rule
@@ -40,7 +40,7 @@ type IndexResult struct {
 }
 
 // NewIndexResult returns a new IndexResult object.
-func NewIndexResult(kind DocKind) *IndexResult {
+func NewIndexResult(kind RuleKind) *IndexResult {
 	return &IndexResult{
 		Kind: kind,
 		Else: map[*Rule][]*Rule{},
@@ -57,7 +57,7 @@ type baseDocEqIndex struct {
 	isVirtual    func(Ref) bool
 	root         *trieNode
 	defaultRule  *Rule
-	kind         DocKind
+	kind         RuleKind
 }
 
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
@@ -73,7 +73,7 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 		return false
 	}
 
-	i.kind = rules[0].Head.DocKind()
+	i.kind = rules[0].Head.RuleKind()
 	indices := newrefindices(i.isVirtual)
 
 	// build indices for each rule.
