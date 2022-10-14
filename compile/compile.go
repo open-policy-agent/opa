@@ -887,7 +887,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", e)
 			return nil
 		}
-		module.Rules = append(module.Rules, &ast.Rule{
+		module.Rules = append(module.Rules, &ast.Rule{ // TODO(sr): use RefHead instead?
 			Head:   ast.NewHead(name, nil, resultsym),
 			Body:   query,
 			Module: module,
@@ -900,6 +900,8 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 // merge combines two sets of modules and returns the result. The rules from modules
 // in 'b' override rules from modules in 'a'. If all rules in a module in 'a' are overridden
 // by rules in modules in 'b' then the module from 'a' is discarded.
+// NOTE(sr): This function assumes that `b` is the result of partial eval, and thus does NOT
+// contain any rules that genuinely need their ref heads.
 func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 
 	prefixes := ast.NewSet()
@@ -911,12 +913,19 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		// of rules.)
 		seen := ast.NewVarSet()
 		for _, rule := range b[i].Parsed.Rules {
-			if _, ok := seen[rule.Head.Name]; !ok {
-				prefixes.Add(ast.NewTerm(rule.Path()))
-				seen.Add(rule.Head.Name)
+			// NOTE(sr): we're relying on the fact that PE never emits ref rules (so far)!
+			// The rule
+			//   p.a = 1 { ... }
+			// will be recorded in prefixes as `data.test.p`, and that'll be checked later on against `data.test.p[k]`
+			if len(rule.Head.Ref()) > 2 {
+				panic("expected a module without ref rules")
+			}
+			name := rule.Head.Name
+			if !seen.Contains(name) {
+				prefixes.Add(ast.NewTerm(b[i].Parsed.Package.Path.Append(ast.StringTerm(string(name)))))
+				seen.Add(name)
 			}
 		}
-
 	}
 
 	for i := range a {
@@ -925,30 +934,28 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 
 		// NOTE(tsandall): same as above--memoize keep/discard decision. If multiple
 		// entrypoints are provided the dst module may contain a large number of rules.
-		seen := ast.NewVarSet()
-		discard := ast.NewVarSet()
-
+		seen, discarded := ast.NewSet(), ast.NewSet()
 		for _, rule := range a[i].Parsed.Rules {
-
-			if _, ok := discard[rule.Head.Name]; ok {
-				continue
-			} else if _, ok := seen[rule.Head.Name]; ok {
+			refT := ast.NewTerm(rule.Ref())
+			switch {
+			case seen.Contains(refT):
 				keep = append(keep, rule)
+				continue
+			case discarded.Contains(refT):
 				continue
 			}
 
-			path := rule.Path()
+			path := rule.Ref()
 			overlap := prefixes.Until(func(x *ast.Term) bool {
-				ref := x.Value.(ast.Ref)
-				return path.HasPrefix(ref)
+				r := x.Value.(ast.Ref)
+				return path.HasPrefix(r)
 			})
-
 			if overlap {
-				discard.Add(rule.Head.Name)
-			} else {
-				seen.Add(rule.Head.Name)
-				keep = append(keep, rule)
+				discarded.Add(refT)
+				continue
 			}
+			seen.Add(refT)
+			keep = append(keep, rule)
 		}
 
 		if len(keep) > 0 {
@@ -956,7 +963,6 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 			a[i].Raw = nil
 			b = append(b, a[i])
 		}
-
 	}
 
 	return b

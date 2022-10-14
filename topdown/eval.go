@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/util"
 )
 
 type evalIterator func(*eval) error
@@ -2008,9 +2009,10 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
 			head := &ast.Head{
-				Name:  rule.Head.Name,
-				Value: child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
-				Args:  make([]*ast.Term, len(rule.Head.Args)),
+				Name:      rule.Head.Name,
+				Reference: rule.Head.Reference,
+				Value:     child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings),
+				Args:      make([]*ast.Term, len(rule.Head.Args)),
 			}
 			for i, a := range rule.Head.Args {
 				head.Args[i] = child.bindings.PlugNamespaced(a, e.e.caller.bindings)
@@ -2089,13 +2091,14 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {
 				r := evalVirtual{
-					e:         e.e,
-					ref:       e.ref,
-					plugged:   e.plugged,
-					pos:       e.pos,
-					bindings:  e.bindings,
-					rterm:     e.rterm,
-					rbindings: e.rbindings,
+					onlyGroundRefs: onlyGroundRefs(node.Values),
+					e:              e.e,
+					ref:            e.ref,
+					plugged:        e.plugged,
+					pos:            e.pos,
+					bindings:       e.bindings,
+					rterm:          e.rterm,
+					rbindings:      e.rbindings,
 				}
 				r.plugged[e.pos] = plugged
 				return r.eval(iter)
@@ -2105,6 +2108,16 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	cpy.node = node
 	return cpy.eval(iter)
+}
+
+func onlyGroundRefs(values []util.T) bool {
+	for _, v := range values {
+		rule := v.(*ast.Rule)
+		if !rule.Head.Reference.IsGround() {
+			return false
+		}
+	}
+	return true
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
@@ -2196,6 +2209,8 @@ func (e evalTree) extent() (*ast.Term, error) {
 	return ast.NewTerm(virtual), nil
 }
 
+// leaves builds a tree from evaluating the full rule tree extent, by recursing into all
+// branches, and building up objects as it goes.
 func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error) {
 
 	if e.node == nil {
@@ -2243,13 +2258,14 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 }
 
 type evalVirtual struct {
-	e         *eval
-	ref       ast.Ref
-	plugged   ast.Ref
-	pos       int
-	bindings  *bindings
-	rterm     *ast.Term
-	rbindings *bindings
+	onlyGroundRefs bool
+	e              *eval
+	ref            ast.Ref
+	plugged        ast.Ref
+	pos            int
+	bindings       *bindings
+	rterm          *ast.Term
+	rbindings      *bindings
 }
 
 func (e evalVirtual) eval(iter unifyIterator) error {
@@ -2266,7 +2282,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	}
 
 	switch ir.Kind {
-	case ast.PartialSetDoc:
+	case ast.MultiValue:
 		eval := evalVirtualPartial{
 			e:         e.e,
 			ref:       e.ref,
@@ -2279,7 +2295,22 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 			empty:     ast.SetTerm(),
 		}
 		return eval.eval(iter)
-	case ast.PartialObjectDoc:
+	case ast.SingleValue:
+		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
+		//           to start reworking things here
+		if e.onlyGroundRefs {
+			eval := evalVirtualComplete{
+				e:         e.e,
+				ref:       e.ref,
+				plugged:   e.plugged,
+				pos:       e.pos,
+				ir:        ir,
+				bindings:  e.bindings,
+				rterm:     e.rterm,
+				rbindings: e.rbindings,
+			}
+			return eval.eval(iter)
+		}
 		eval := evalVirtualPartial{
 			e:         e.e,
 			ref:       e.ref,
@@ -2293,17 +2324,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 		}
 		return eval.eval(iter)
 	default:
-		eval := evalVirtualComplete{
-			e:         e.e,
-			ref:       e.ref,
-			plugged:   e.plugged,
-			pos:       e.pos,
-			ir:        ir,
-			bindings:  e.bindings,
-			rterm:     e.rterm,
-			rbindings: e.rbindings,
-		}
-		return eval.eval(iter)
+		panic("unreachable")
 	}
 }
 
@@ -2437,13 +2458,17 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	child.traceEnter(rule)
 	var defined bool
 
-	err := child.biunify(rule.Head.Key, key, child.bindings, e.bindings, func() error {
+	headKey := rule.Head.Key
+	if headKey == nil {
+		headKey = rule.Head.Reference[len(rule.Head.Reference)-1]
+	}
+	err := child.biunify(headKey, key, child.bindings, e.bindings, func() error {
 		defined = true
 		return child.eval(func(child *eval) error {
 
 			term := rule.Head.Value
 			if term == nil {
-				term = rule.Head.Key
+				term = headKey
 			}
 
 			if hint.key != nil {
@@ -2550,7 +2575,8 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], path)
 			if err != nil {
 				return err
-			} else if ok {
+			}
+			if ok {
 				defined = true
 			}
 		}
@@ -2669,13 +2695,15 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
 
 	var exists bool
-	key := b.Plug(head.Key)
 
 	switch v := result.Value.(type) {
-	case ast.Set:
+	case ast.Set: // MultiValue
+		key := b.Plug(head.Key)
 		exists = v.Contains(key)
 		v.Add(key)
-	case ast.Object:
+	case ast.Object: // SingleValue
+		key := head.Reference[len(head.Reference)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
+		key = b.Plug(key)
 		value := b.Plug(head.Value)
 		if curr := v.Get(key); curr != nil {
 			if !curr.Equal(value) {
@@ -2782,6 +2810,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 	var result *ast.Term
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+
 		result = child.bindings.Plug(rule.Head.Value)
 
 		if prev != nil {
@@ -2794,8 +2823,8 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 
 		prev = result
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], result)
-		term, termbindings := child.bindings.apply(rule.Head.Value)
 
+		term, termbindings := child.bindings.apply(rule.Head.Value)
 		err := e.evalTerm(iter, term, termbindings)
 		if err != nil {
 			return err
@@ -2840,42 +2869,65 @@ func (e evalVirtualComplete) partialEvalSupport(iter unifyIterator) error {
 	path := e.e.namespaceRef(e.plugged[:e.pos+1])
 	term := ast.NewTerm(e.e.namespaceRef(e.ref))
 
-	if !e.e.saveSupport.Exists(path) {
+	var defined bool
 
+	if e.e.saveSupport.Exists(path) {
+		defined = true
+	} else {
 		for i := range e.ir.Rules {
-			err := e.partialEvalSupportRule(e.ir.Rules[i], path)
+			ok, err := e.partialEvalSupportRule(e.ir.Rules[i], path)
 			if err != nil {
 				return err
+			}
+			if ok {
+				defined = true
 			}
 		}
 
 		if e.ir.Default != nil {
-			err := e.partialEvalSupportRule(e.ir.Default, path)
+			ok, err := e.partialEvalSupportRule(e.ir.Default, path)
 			if err != nil {
 				return err
 			}
+			if ok {
+				defined = true
+			}
 		}
+	}
+
+	if !defined {
+		return nil
 	}
 
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
+func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) (bool, error) {
 
 	child := e.e.child(rule.Body)
 	child.traceEnter(rule)
 
 	e.e.saveStack.PushQuery(nil)
+	var defined bool
 
 	err := child.eval(func(child *eval) error {
 		child.traceExit(rule)
+		defined = true
 
 		current := e.e.saveStack.PopQuery()
 		plugged := current.Plug(e.e.caller.bindings)
 		// Skip this rule body if it fails to type-check.
 		// Type-checking failure means the rule body will never succeed.
 		if e.e.compiler.PassesTypeCheck(plugged) {
-			head := ast.NewHead(rule.Head.Name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
+			var name ast.Var
+			switch ref := rule.Head.Ref().GroundPrefix(); len(ref) {
+			case 1:
+				name = ref[0].Value.(ast.Var)
+			default:
+				s := ref[len(ref)-1].Value.(ast.String)
+				name = ast.Var(s)
+			}
+			head := ast.NewHead(name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
 			if !e.e.inliningControl.shallow {
 				cp := copypropagation.New(head.Vars()).
@@ -2895,7 +2947,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 		return nil
 	})
 	e.e.saveStack.PopQuery()
-	return err
+	return defined, err
 }
 
 func (e evalVirtualComplete) evalTerm(iter unifyIterator, term *ast.Term, termbindings *bindings) error {

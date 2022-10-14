@@ -1,0 +1,313 @@
+cases:
+- modules:
+  - |
+    package test
+
+    p.q.r = 1
+    p.q.s = 2
+  note: 'refheads/single-value'
+  query: data.test.p = x
+  want_result:
+  - x:
+      q:
+        r: 1
+        s: 2
+- modules:
+  - |
+    package test
+
+    p.q.r = 1
+    p.q[s] = 2 { s := "s" }
+  note: 'refheads/single-value, with var'
+  query: data.test.p = x
+  want_result:
+  - x:
+      q:
+        r: 1
+        s: 2
+- modules:
+  - |
+    package test
+
+    a.b.c.p { true }
+  note: 'refheads/complete: direct query'
+  query: data.test.a.b.c.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+
+    q = 0
+  note: 'refheads/complete: direct query q'
+  query: data.test.q = x
+  want_result:
+  - x: 0
+- modules:
+  - |
+    package test
+
+    a.b.c.p { true }
+  note: 'refheads/complete: full package extent'
+  query: data.test = x
+  want_result:
+  - x:
+      a:
+        b:
+          c:
+            p: true
+- modules:
+  - |
+    package test
+
+    a.b.c.p = 1
+    q = 0
+    a.b.d = 3
+
+    p {
+      q == 0
+      a.b.c.p == 1
+      a.b.d == 3
+    }
+  note: refheads/complete+mixed
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+
+    a.b[x] = y { x := "c"; y := "d" }
+  note: refheads/single-value rule
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c: d
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b contains x if some x in [1,2,3]
+  note: refheads/multi-value
+  query: data.test.a = x
+  want_result:
+  - x:
+      b: [1, 2, 3]
+# NOTE(sr): This isn't supported yet
+# - modules:
+#   - |
+#     package test
+#     import future.keywords
+
+#     a.b[c] contains x if { c := "c"; some x in [1,2,3] }
+#   note: refheads/multi-value with var in ref
+#   query: data.test.a = x
+#   want_result:
+#   - x:
+#       b:
+#         c: [1, 2, 3]
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b[x] = i if some i, x in [1, 2, 3]
+  note: 'refheads/single-value: previously partial object'
+  query: data.test.a.b = x
+  want_result:
+  - x:
+      1: 0
+      2: 1
+      3: 2
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b.c.d contains 1 if true
+  - |
+    package test.a
+    import future.keywords
+
+    b.c.d contains 2 if true
+  note: 'refheads/multi-value: same rule'
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c:
+          d: [1, 2]
+- modules:
+  - |
+    package test
+
+    default a.b.c := "d"
+  note: refheads/single-value default rule
+  query: data.test.a = x
+  want_result:
+  - x:
+      b:
+        c: d
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    q[7] = 8 if true
+    a[x] if q[x]
+  note: refheads/single-value example
+  query: data.test.a = x
+  want_result:
+  - x:
+      7: true
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    q[7] = 8 if false
+    a[x] if q[x]
+  note: refheads/single-value example, false
+  query: data.test.a = x
+  want_result:
+  - x: {}
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    a.b.c = "d" if true
+    a.b.e = "f" if true
+    a.b.g contains x if some x in numbers.range(1, 3)
+    a.b.h[x] = 1 if x := "one"
+  note: refheads/mixed example, multiple rules
+  query: data.test.a.b = x
+  want_result:
+  - x:
+      c: d
+      e: f
+      g:
+      - 1
+      - 2
+      - 3
+      h:
+        one: 1
+- modules:
+  - |
+    package example
+    import future.keywords
+
+    apps_by_hostname[hostname] := app if {
+      some i
+      server := sites[_].servers[_]
+      hostname := server.hostname
+      apps[i].servers[_] == server.name
+      app := apps[i].name
+    }
+
+    sites := [
+      {
+          "region": "east",
+          "name": "prod",
+          "servers": [
+              {
+                  "name": "web-0",
+                  "hostname": "hydrogen"
+              },
+              {
+                  "name": "web-1",
+                  "hostname": "helium"
+              },
+              {
+                  "name": "db-0",
+                  "hostname": "lithium"
+              }
+          ]
+        },
+        {
+          "region": "west",
+          "name": "smoke",
+          "servers": [
+              {
+                  "name": "web-1000",
+                  "hostname": "beryllium"
+              },
+              {
+                  "name": "web-1001",
+                  "hostname": "boron"
+              },
+              {
+                  "name": "db-1000",
+                  "hostname": "carbon"
+              }
+          ]
+        },
+        {
+          "region": "west",
+          "name": "dev",
+          "servers": [
+              {
+                  "name": "web-dev",
+                  "hostname": "nitrogen"
+              },
+              {
+                  "name": "db-dev",
+                  "hostname": "oxygen"
+              }
+          ]
+        }
+    ]
+
+    apps := [
+      {
+          "name": "web",
+          "servers": ["web-0", "web-1", "web-1000", "web-1001", "web-dev"]
+      },
+      {
+          "name": "mysql",
+          "servers": ["db-0", "db-1000"]
+      },
+      {
+          "name": "mongodb",
+          "servers": ["db-dev"]
+      }
+    ]
+
+    containers := [
+      {
+          "image": "redis",
+          "ipaddress": "10.0.0.1",
+          "name": "big_stallman"
+      },
+      {
+          "image": "nginx",
+          "ipaddress": "10.0.0.2",
+          "name": "cranky_euclid"
+      }
+    ]
+  note: refheads/website-example/partial-obj
+  query: data.example.apps_by_hostname.helium = x
+  want_result:
+  - x: web
+- modules:
+  - |
+    package example
+    import future.keywords
+
+    public_network contains net.id if {
+      some net in input.networks
+      net.public
+    }
+  note: refheads/website-example/partial-set
+  query: data.example.public_network = x
+  input:
+    networks:
+    - id: n1
+      public: true
+    - id: n2
+      public: false
+  want_result:
+  - x:
+    - n1

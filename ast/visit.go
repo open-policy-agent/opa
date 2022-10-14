@@ -432,11 +432,15 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 			vis.Walk(x.Else)
 		}
 	case *Head:
-		vis.Walk(x.Name)
-		vis.Walk(x.Args)
-		if x.Key != nil {
-			vis.Walk(x.Key)
+		if len(x.Reference) > 0 {
+			vis.Walk(x.Reference)
+		} else {
+			vis.Walk(x.Name)
+			if x.Key != nil {
+				vis.Walk(x.Key)
+			}
 		}
+		vis.Walk(x.Args)
 		if x.Value != nil {
 			vis.Walk(x.Value)
 		}
@@ -662,11 +666,16 @@ func (vis *VarVisitor) Walk(x interface{}) {
 			vis.Walk(x.Else)
 		}
 	case *Head:
-		vis.Walk(x.Name)
-		vis.Walk(x.Args)
-		if x.Key != nil {
-			vis.Walk(x.Key)
+		if len(x.Reference) > 0 {
+			vis.Walk(x.Reference)
+		} else {
+			vis.Walk(x.Name)
+			if x.Key != nil {
+				vis.Walk(x.Key)
+			}
 		}
+		vis.Walk(x.Args)
+
 		if x.Value != nil {
 			vis.Walk(x.Value)
 		}

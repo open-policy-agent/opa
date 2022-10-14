@@ -144,6 +144,9 @@ func (t *ruletrie) LookupOrInsert(key ast.Ref) *ruletrie {
 }
 
 func (t *ruletrie) Children() []ast.Value {
+	if t == nil {
+		return nil
+	}
 	sorted := make([]ast.Value, 0, len(t.children))
 	for key := range t.children {
 		if t.Get(key) != nil {

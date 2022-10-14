@@ -406,7 +406,8 @@ func (w *writer) writeElse(rule *ast.Rule, useContainsKW, useIf bool, comments [
 		w.startLine()
 	}
 
-	rule.Else.Head.Name = "else"
+	rule.Else.Head.Name = "else" // NOTE(sr): whaaat
+	rule.Else.Head.Reference = ast.Ref{ast.VarTerm("else")}
 	rule.Else.Head.Args = nil
 	comments = w.insertComments(comments, rule.Else.Head.Location)
 
@@ -427,7 +428,12 @@ func (w *writer) writeElse(rule *ast.Rule, useContainsKW, useIf bool, comments [
 }
 
 func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst, useContainsKW, useIf bool, comments []*ast.Comment) []*ast.Comment {
-	w.write(head.Name.String())
+	ref := head.Ref()
+	if head.Key != nil && head.Value == nil {
+		ref = ref.GroundPrefix()
+	}
+	w.write(ref.String())
+
 	if len(head.Args) > 0 {
 		w.write("(")
 		var args []interface{}
@@ -441,7 +447,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst, useContai
 		if useContainsKW && head.Value == nil {
 			w.write(" contains ")
 			comments = w.writeTerm(head.Key, comments)
-		} else { // no `if` for p[x] notation
+		} else if head.Value == nil { // no `if` for p[x] notation
 			w.write("[")
 			comments = w.writeTerm(head.Key, comments)
 			w.write("]")

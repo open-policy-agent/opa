@@ -5,6 +5,117 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Refs in Rule Heads
+
+With this version of OPA, we can use a shorthand for defining deeply-nested structures
+in Rego:
+
+Before, we had to use multiple packages, and hence multiple files to define a structure
+like this:
+```json
+{
+  "method": {
+    "get": {
+      "allowed": true
+    }
+    "post": {
+      "allowed": true
+    }
+  }
+}
+```
+
+```rego
+package method.get
+default allowed := false
+allowed { ... }
+```
+
+
+```rego
+package method.post
+default allowed := false
+allowed { ... }
+```
+
+Now, we can define those rules in single package (and file):
+
+```rego
+package method
+import future.keywords.if
+default get.allowed := false
+get.allowed if { ... }
+
+default post.allowed := false
+post.allowed if { ... }
+```
+
+Note that in this example, the use of the future keyword `if` is mandatory
+for backwards-compatibility: without it, `get.allowed` would be interpreted
+as `get["allowed"]`, a definition of a partial set rule.
+
+Currently, variables may only appear in the last part of the rule head:
+
+```rego
+package method
+import future.keywords.if
+
+endpoints[ep].allowed if ep := "/v1/data" # invalid
+repos.get.endpoint[x] if x := "/v1/data" # valid
+```
+
+The valid rule defines this structure:
+```json
+{
+  "method": {
+    "repos": {
+      "get": {
+        "endpoint": {
+          "/v1/data": true
+        }
+      }
+    }
+  }
+}
+```
+
+To define a nested key-value pair, we would use
+
+```rego
+package method
+import future.keywords.if
+
+repos.get.endpoint[x] = y if {
+  x := "/v1/data"
+  y := "example"
+}
+```
+
+Multi-value rules (previously referred to as "partial set rules") that are
+nested like this need to use `contains` future keyword, to differentiate them
+from the "last part is a variable" case mentioned just above:
+
+```rego
+package method
+import future.keywords.contains
+
+repos.get.endpoint contains x if x := "/v1/data"
+```
+
+This rule defines the same structure, but with multiple values instead of a key:
+```json
+{
+  "method": {
+    "repos": {
+      "get": {
+        "endpoint": ["/v1/data"]
+        }
+      }
+    }
+  }
+}
+```
+
 ## 0.45.0
 
 This release contains a mix of bugfixes, optimizations, and new features.
@@ -319,7 +430,6 @@ This is a security release fixing the following vulnerabilities:
   Note that CVE-2022-32190 is most likely not relevant for OPA's usage of net/url.
   But since these CVEs tend to come up in security assessment tooling regardless,
   it's better to get it out of the way.
-
 ## 0.43.0
 
 This release contains a number of fixes, enhancements, and performance improvements.

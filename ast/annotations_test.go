@@ -421,6 +421,37 @@ p[v] {v = 2}`,
 				},
 			},
 		},
+		{
+			note: "overlapping rule paths (different modules, rule head refs)",
+			modules: map[string]string{
+				"mod1": `package test.a
+# METADATA
+# title: P1
+b.c.p[v] {v = 1}`,
+				"mod2": `package test
+# METADATA
+# title: P2
+a.b.c.p[v] {v = 2}`,
+			},
+			expected: []AnnotationsRef{
+				{
+					Path:     MustParseRef("data.test.a.b.c.p"),
+					Location: &Location{File: "mod1", Row: 4},
+					Annotations: &Annotations{
+						Scope: "rule",
+						Title: "P1",
+					},
+				},
+				{
+					Path:     MustParseRef("data.test.a.b.c.p"),
+					Location: &Location{File: "mod2", Row: 4},
+					Annotations: &Annotations{
+						Scope: "rule",
+						Title: "P2",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -738,6 +769,78 @@ p = 1`,
 			},
 		},
 		{
+			note: "multiple subpackages, refs in rule heads", // NOTE(sr): same as above, but last module's rule is `foo.bar.p` in package `root`
+			modules: map[string]string{
+				"root": `# METADATA
+# scope: subpackages
+# title: ROOT
+package root`,
+				"root.foo": `# METADATA
+# title: FOO
+# scope: subpackages
+package root.foo`,
+				"root.foo.bar": `# METADATA
+# scope: subpackages
+# description: subpackages scope applied to rule in other module
+# title: BAR-sub
+
+# METADATA
+# title: BAR-other
+# description: This metadata is on the path of the queried rule, but shouldn't show up in the result as it's in a different module.
+package root.foo.bar
+
+# METADATA
+# scope: document
+# description: document scope applied to rule in other module
+# title: P-doc
+p = 1`,
+				"rule": `# METADATA
+# title: BAR
+package root
+
+# METADATA
+# title: P
+foo.bar.p = 1`,
+			},
+			moduleToAnalyze:     "rule",
+			ruleOnLineToAnalyze: 7,
+			expected: []AnnotationsRef{
+				{
+					Path:     MustParseRef("data.root.foo.bar.p"),
+					Location: &Location{File: "rule", Row: 7},
+					Annotations: &Annotations{
+						Scope: "rule",
+						Title: "P",
+					},
+				},
+				{
+					Path:     MustParseRef("data.root.foo.bar.p"),
+					Location: &Location{File: "root.foo.bar", Row: 15},
+					Annotations: &Annotations{
+						Scope:       "document",
+						Title:       "P-doc",
+						Description: "document scope applied to rule in other module",
+					},
+				},
+				{
+					Path:     MustParseRef("data.root"),
+					Location: &Location{File: "rule", Row: 3},
+					Annotations: &Annotations{
+						Scope: "package",
+						Title: "BAR",
+					},
+				},
+				{
+					Path:     MustParseRef("data.root"),
+					Location: &Location{File: "root", Row: 4},
+					Annotations: &Annotations{
+						Scope: "subpackages",
+						Title: "ROOT",
+					},
+				},
+			},
+		},
+		{
 			note: "multiple metadata blocks for single rule (order)",
 			modules: map[string]string{
 				"module": `package test
@@ -824,6 +927,7 @@ p = true`,
 			chain := as.Chain(rule)
 
 			if len(chain) != len(tc.expected) {
+				t.Errorf("expected %d elements, got %d:", len(tc.expected), len(chain))
 				t.Fatalf("chained AnnotationSet\n%v\n\ndoesn't match expected\n\n%v",
 					toJSON(chain), toJSON(tc.expected))
 			}
@@ -1022,7 +1126,7 @@ func TestAnnotations_toObject(t *testing.T) {
 }
 
 func toJSON(v interface{}) string {
-	b, _ := json.Marshal(v)
+	b, _ := json.MarshalIndent(v, "", "  ")
 	return string(b)
 }
 

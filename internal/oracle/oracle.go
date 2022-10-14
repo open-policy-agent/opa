@@ -52,6 +52,8 @@ func (o *Oracle) FindDefinition(q DefinitionQuery) (*DefinitionQueryResult, erro
 	// TODO(tsandall): how can we cache the results of compilation and parsing so that
 	// multiple queries can be executed without having to re-compute the same values?
 	// Ditto for caching across runs. Avoid repeating the same work.
+
+	// NOTE(sr): "SetRuleTree" because it's needed for compiler.GetRulesExact() below
 	compiler, parsed, err := compileUpto("SetRuleTree", q.Modules, q.Buffer, q.Filename)
 	if err != nil {
 		return nil, err
@@ -220,7 +222,8 @@ func getLocMinMax(x ast.Node) (int, int) {
 
 	// Special case bodies because location text is only for the first expr.
 	if body, ok := x.(ast.Body); ok {
-		extraLoc := body[len(body)-1].Loc()
+		last := findLastExpr(body)
+		extraLoc := last.Loc()
 		if extraLoc == nil {
 			return -1, -1
 		}
@@ -228,4 +231,21 @@ func getLocMinMax(x ast.Node) (int, int) {
 	}
 
 	return min, min + len(loc.Text)
+}
+
+// findLastExpr returns the last expression in an ast.Body that has not been generated
+// by the compiler. It's used to cope with the fact that a compiler stage before SetRuleTree
+// has rewritten the rule bodies slightly. By ignoring appended generated body expressions,
+// we can still use the "circling in on the variable" logic based on node locations.
+func findLastExpr(body ast.Body) *ast.Expr {
+	for i := len(body) - 1; i >= 0; i-- {
+		if !body[i].Generated {
+			return body[i]
+		}
+	}
+	// NOTE(sr): I believe this shouldn't happen -- we only ever start circling in on a node
+	// inside a body if there's something in that body. A body that only consists of generated
+	// expressions should not appear here. Either way, the caller deals with `nil` returned by
+	// this helper.
+	return nil
 }
