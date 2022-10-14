@@ -1,0 +1,128 @@
+  cases:
+  - data: {}
+    input_term: '{
+        "graph": {
+          "one": ["two","five"],
+          "two": ["four"],
+          "three": [""],
+          "four": ["three"],
+          "five": ["seven","six"],
+          "six": ["nine"],
+          "seven": ["eight"],
+          "eight": [""],
+          "nine": [""],
+        },
+        "initial": {"one"}
+      }'
+    modules:
+      - |
+        package reachable
+
+        p = result {
+          graph.reachable_paths(input.graph, input.initial, result)
+        }
+    note: reachable_paths/cycle_1022_1
+    query: data.reachable.p = x
+    want_result:
+      - x:
+          - - one
+            - five
+            - seven
+            - eight
+
+          - - one
+            - five
+            - six
+            - nine
+
+          - - one
+            - two
+            - four
+            - three
+
+  - data: {}
+    input_term: '{
+        "graph": {
+          "one": {"two","five"},
+          "two": {"four"},
+          "three": {""},
+          "four": {"three"},
+          "five": {"seven","six"},
+          "six": {"nine"},
+          "seven": {"eight"},
+          "eight": {""},
+          "nine": {""},
+        },
+        "initial": {"one"}
+      }'
+    modules:
+        - |
+          package reachable
+
+          p = result {
+            graph.reachable_paths(input.graph, input.initial, result)
+          }
+    note: reachable_paths/cycle_1022_2
+    query: data.reachable.p = x
+    want_result:
+        - x:
+            - - one
+              - five
+              - seven
+              - eight
+
+            - - one
+              - five
+              - six
+              - nine
+
+            - - one
+              - two
+              - four
+              - three
+
+  - data: {}
+    input_term: '{
+          "graph": {
+            "one": ["two","five"],
+            "two": ["four"],
+            "three": [""],
+            "four": ["three"],
+            "five": ["seven","six"],
+            "six": ["nine","seven"],
+            "seven": ["eight"],
+            "eight": ["three"],
+            "nine": [""],
+          },
+          "initial": {"one"}
+        }'
+    modules:
+        - |
+          package reachable
+
+          p = result {
+            graph.reachable_paths(input.graph, input.initial, result)
+          }
+    note: reachable_paths/cycle_1022_3
+    query: data.reachable.p = x
+    want_result:
+        - x:
+            - - one
+              - five
+              - seven
+              - eight
+              - three
+
+            - - one
+              - five
+              - six
+
+            - - one
+              - five
+              - six
+              - nine
+
+            - - one
+              - two
+              - four
+              - three
