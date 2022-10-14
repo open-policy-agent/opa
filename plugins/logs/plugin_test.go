@@ -2266,6 +2266,25 @@ func TestEventV1ToAST(t *testing.T) {
 				NDBuiltinCache: &ndbCacheExample,
 			},
 		},
+		{
+			note: "event with req id",
+			event: EventV1{
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:       &goInput,
+				Path:        "/http/authz/allow",
+				RequestedBy: "[::1]:59943",
+				Result:      &result,
+				Timestamp:   time.Now(),
+				RequestID:   1,
+				inputAST:    astInput,
+			},
+		},
 	}
 
 	for _, tc := range cases {

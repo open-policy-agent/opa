@@ -76,6 +76,7 @@ Decision log updates contain the following fields:
 | `[_].erased` | `array[string]` | Set of JSON Pointers specifying fields in the event that were erased. |
 | `[_].masked` | `array[string]` | Set of JSON Pointers specifying fields in the event that were masked. |
 | `[_].nd_builtin_cache` | `object` | Key-value pairs of non-deterministic builtin names, paired with objects specifying the input/output mappings for each unique invocation of that builtin during policy evaluation. Intended for use in debugging and decision replay. Receivers will need to decode the JSON using Rego's JSON decoders. |
+| `[_].req_id` | `number` | Incremental request identifier, and unique only to the OPA instance, for the request that started the policy query. The attribute value is the same as the value present in others logs (request, response, and print) and could be used to correlate them all. This attribute will be included just when OPA runtime is initialized in server mode and the log level is equal to or greater than info. |
 
 If the decision log was successfully uploaded to the remote service, it should respond with an HTTP 2xx status. If the
 service responds with a non-2xx status, OPA will requeue the last chunk containing decision log events and upload it
