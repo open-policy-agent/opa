@@ -3106,7 +3106,7 @@ func (n *TreeNode) Size() int {
 // Child returns n's child with key k.
 func (n *TreeNode) Child(k Value) *TreeNode {
 	switch k.(type) {
-	case Ref:
+	case Ref, Call:
 		return nil
 	default:
 		return n.Children[k]
