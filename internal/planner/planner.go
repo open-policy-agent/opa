@@ -1308,8 +1308,11 @@ func (p *Planner) planUnifyObjectsRec(a, b ast.Object, keys []*ast.Term, index i
 }
 
 func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
+	return p.planValue(t.Value, t.Loc(), iter)
+}
 
-	switch v := t.Value.(type) {
+func (p *Planner) planValue(t ast.Value, loc *ast.Location, iter planiter) error {
+	switch v := t.(type) {
 	case ast.Null:
 		return p.planNull(v, iter)
 	case ast.Boolean:
@@ -1329,13 +1332,13 @@ func (p *Planner) planTerm(t *ast.Term, iter planiter) error {
 	case ast.Set:
 		return p.planSet(v, iter)
 	case *ast.SetComprehension:
-		p.loc = t.Loc()
+		p.loc = loc
 		return p.planSetComprehension(v, iter)
 	case *ast.ArrayComprehension:
-		p.loc = t.Loc()
+		p.loc = loc
 		return p.planArrayComprehension(v, iter)
 	case *ast.ObjectComprehension:
-		p.loc = t.Loc()
+		p.loc = loc
 		return p.planObjectComprehension(v, iter)
 	default:
 		return fmt.Errorf("%v term not implemented", ast.TypeName(v))
@@ -1918,46 +1921,48 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 					continue
 				}
 
-				lkey := ir.StringIndex(p.getStringConst(string(key.(ast.String))))
 				rules := child.Rules()
+				err := p.planValue(key, nil, func() error {
+					lkey := p.ltarget
 
-				// Build object hierarchy depth-first.
-				if len(rules) == 0 {
-					err := p.planRefDataExtent(child, nil, func() error {
-						p.appendStmt(&ir.ObjectInsertStmt{
-							Object: vtarget,
-							Key:    op(lkey),
-							Value:  p.ltarget,
+					// Build object hierarchy depth-first.
+					if len(rules) == 0 {
+						return p.planRefDataExtent(child, nil, func() error {
+							p.appendStmt(&ir.ObjectInsertStmt{
+								Object: vtarget,
+								Key:    lkey,
+								Value:  p.ltarget,
+							})
+							return nil
 						})
-						return nil
-					})
+					}
+
+					// Generate virtual document for leaf.
+					lvalue := p.newLocal()
+
+					funcName, err := p.planRules(rules, false)
 					if err != nil {
 						return err
 					}
-					continue
-				}
 
-				// Generate virtual document for leaf.
-				lvalue := p.newLocal()
-
-				funcName, err := p.planRules(rules, false)
+					// Add leaf to object if defined.
+					b := &ir.Block{}
+					p.appendStmtToBlock(&ir.CallStmt{
+						Func:   funcName,
+						Args:   p.defaultOperands(),
+						Result: lvalue,
+					}, b)
+					p.appendStmtToBlock(&ir.ObjectInsertStmt{
+						Object: vtarget,
+						Key:    lkey,
+						Value:  op(lvalue),
+					}, b)
+					p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{b}})
+					return nil
+				})
 				if err != nil {
 					return err
 				}
-
-				// Add leaf to object if defined.
-				b := &ir.Block{}
-				p.appendStmtToBlock(&ir.CallStmt{
-					Func:   funcName,
-					Args:   p.defaultOperands(),
-					Result: lvalue,
-				}, b)
-				p.appendStmtToBlock(&ir.ObjectInsertStmt{
-					Object: vtarget,
-					Key:    op(lkey),
-					Value:  op(lvalue),
-				}, b)
-				p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{b}})
 			}
 		}
 
