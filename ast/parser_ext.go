@@ -246,6 +246,9 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	if v, ok := lhs.Value.(Var); ok {
 		head = NewHead(v)
 	} else if r, ok := lhs.Value.(Ref); ok { // groundness ?
+		if _, ok := r[0].Value.(Var); !ok {
+			return nil, fmt.Errorf("invalid rule head: %v", lhs.Value)
+		}
 		head = RefHead(r)
 		if len(r) > 1 && !r[len(r)-1].IsGround() {
 			return nil, fmt.Errorf("ref not ground")
@@ -272,6 +275,9 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 		return nil, fmt.Errorf("%v cannot be used for rule name", TypeName(term.Value))
 	}
 
+	if _, ok := ref[0].Value.(Var); !ok {
+		return nil, fmt.Errorf("invalid rule head: %v", term.Value)
+	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(term.Location))
 	head.Location = term.Location
 
@@ -385,6 +391,9 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	}
 
 	loc := terms[0].Location
+	if _, ok := terms[0].Value.(Ref)[0].Value.(Var); !ok {
+		return nil, fmt.Errorf("invalid rule head: %v", terms)
+	}
 	head := RefHead(terms[0].Value.(Ref), BooleanTerm(true).SetLocation(loc))
 	head.Location = loc
 	head.Args = terms[1:]
