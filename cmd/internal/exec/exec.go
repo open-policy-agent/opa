@@ -3,6 +3,7 @@ package exec
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,7 @@ type Params struct {
 	LogTimestampFormat  string         // log timestamp format for plugins
 	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
 	Decision            string         // decision to evaluate (overrides default decision set by configuration)
+	Fail                bool           // exits with non-zero exit code on undefined/empty result and errors
 	FailDefined         bool           // exits with non-zero exit code on defined/non-empty result and errors
 }
 
@@ -39,6 +41,13 @@ func NewParams(w io.Writer) *Params {
 	}
 }
 
+func (p *Params) validateParams() error {
+	if p.Fail && p.FailDefined {
+		return errors.New("specify --fail or --fail-defined but not both")
+	}
+	return nil
+}
+
 // Exec executes OPA against the supplied files and outputs each result.
 //
 // NOTE(tsandall): consider expanding functionality:
@@ -47,6 +56,11 @@ func NewParams(w io.Writer) *Params {
 //  * exit codes set by convention or policy (e.g,. non-empty set => error)
 //  * support for new input file formats beyond JSON and YAML
 func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
+
+	err := params.validateParams()
+	if err != nil {
+		return err
+	}
 
 	now := time.Now()
 	r := &jsonReporter{w: params.Output, buf: make([]result, 0)}
@@ -66,7 +80,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
-			if params.FailDefined {
+			if params.FailDefined || params.Fail {
 				errorCount++
 			}
 			continue
@@ -83,7 +97,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
-			if params.FailDefined && !sdk.IsUndefinedErr(err) {
+			if (params.FailDefined && !sdk.IsUndefinedErr(err)) || (params.Fail && sdk.IsUndefinedErr(err)) {
 				errorCount++
 			}
 			continue
@@ -93,7 +107,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			return err
 		}
 
-		if params.FailDefined && rs.Result != nil {
+		if (params.FailDefined && rs.Result != nil) || (params.Fail && rs.Result == nil) {
 			failCount++
 		}
 	}
@@ -102,7 +116,10 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		return err
 	}
 
-	if params.FailDefined && (failCount > 0 || errorCount > 0) {
+	if (params.Fail || params.FailDefined) && (failCount > 0 || errorCount > 0) {
+		if params.Fail {
+			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail is set", failCount, errorCount)
+		}
 		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
 	}
 
