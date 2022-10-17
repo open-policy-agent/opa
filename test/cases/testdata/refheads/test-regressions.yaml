@@ -114,3 +114,41 @@ cases:
   query: data.test.p[{"a":"b"}] = x
   want_result:
   - x: true
+- note: regression/full extent with non-string (number) last term
+  modules:
+  - |
+    package test
+    p[0] = true
+  query: data.test = x
+  want_result:
+  - x:
+     p:
+       "0": true # stringified key
+- note: regression/full extent with non-string last term, comparison
+  modules:
+  - |
+    package test
+    p[0] = 1
+    q { p[0] == 1 }
+  query: data.test.q = x
+  want_result:
+  - x: true
+- note: regression/full extent with non-string (boolean) last term
+  modules:
+  - |
+    package test
+    p[true] = true
+  query: data.test = x
+  want_result:
+  - x:
+     p:
+       "true": true # stringified key
+- note: regression/full extent with non-string last term, comparison
+  modules:
+  - |
+    package test
+    p[true] = false
+    q { p[true] == false }
+  query: data.test.q = x
+  want_result:
+  - x: true
