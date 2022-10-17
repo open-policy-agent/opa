@@ -1057,6 +1057,10 @@ func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 			return p.planTerm(b, func() error {
 				return p.planUnifyLocalArray(p.ltarget, va, iter)
 			})
+		case *ast.ArrayComprehension:
+			return p.planTerm(b, func() error {
+				return p.planUnifyLocalArray(p.ltarget, va, iter)
+			})
 		case *ast.Array:
 			if va.Len() == vb.Len() {
 				return p.planUnifyArraysRec(va, vb, 0, iter)
