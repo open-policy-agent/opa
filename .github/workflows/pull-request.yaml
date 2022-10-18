@@ -49,7 +49,7 @@ jobs:
             run: ubuntu-22.04
             targets: ci-go-ci-build-windows
           - os: darwin
-            run: macos-latest
+            run: macos-12
             targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
       - name: Check out code
@@ -94,7 +94,7 @@ jobs:
           - os: linux
             run: ubuntu-22.04
           - os: darwin
-            run: macos-latest
+            run: macos-12
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -263,7 +263,7 @@ jobs:
           - os: ubuntu-22.04
             exec: opa_linux_amd64_static
             wasm: disabled
-          - os: macos-latest
+          - os: macos-12
             exec: opa_darwin_amd64
           - os: windows-latest
             exec: opa_windows_amd64.exe
@@ -292,7 +292,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-22.04, macos-12]
         version: ["1.18", "1.17"]
     steps:
       - uses: actions/checkout@v3
