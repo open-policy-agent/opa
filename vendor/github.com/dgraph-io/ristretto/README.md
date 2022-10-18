@@ -1,15 +1,14 @@
 # Ristretto
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/dgraph-io/ristretto)
+[![ci-ristretto-tests](https://github.com/dgraph-io/ristretto/actions/workflows/ci-ristretto-tests.yml/badge.svg)](https://github.com/dgraph-io/ristretto/actions/workflows/ci-ristretto-tests.yml)
+[![ci-ristretto-lint](https://github.com/dgraph-io/ristretto/actions/workflows/ci-ristretto-lint.yml/badge.svg)](https://github.com/dgraph-io/ristretto/actions/workflows/ci-ristretto-lint.yml)
+[![Coverage Status](https://coveralls.io/repos/github/dgraph-io/ristretto/badge.svg?branch=main)](https://coveralls.io/github/dgraph-io/ristretto?branch=main)
 [![Go Report Card](https://img.shields.io/badge/go%20report-A%2B-brightgreen)](https://goreportcard.com/report/github.com/dgraph-io/ristretto)
-[![Coverage](https://gocover.io/_badge/github.com/dgraph-io/ristretto)](https://gocover.io/github.com/dgraph-io/ristretto)
-![Tests](https://github.com/dgraph-io/ristretto/workflows/tests/badge.svg)
 
 Ristretto is a fast, concurrent cache library built with a focus on performance and correctness.
 
 The motivation to build Ristretto comes from the need for a contention-free
 cache in [Dgraph][].
-
-**Use [Discuss Issues](https://discuss.dgraph.io/tags/c/issues/35/ristretto/40) for reporting issues about this repository.**
 
 [Dgraph]: https://github.com/dgraph-io/dgraph
 
@@ -205,7 +204,8 @@ Below is a list of known projects that use Ristretto:
 
 - [Badger](https://github.com/dgraph-io/badger) - Embeddable key-value DB in Go
 - [Dgraph](https://github.com/dgraph-io/dgraph) - Horizontally scalable and distributed GraphQL database with a graph backend
-- [Vitess](https://github.com/vitessio/vitess) - database clustering system for horizontal scaling of MySQL
+- [Vitess](https://github.com/vitessio/vitess) - Database clustering system for horizontal scaling of MySQL
+- [SpiceDB](https://github.com/authzed/spicedb) - Horizontally scalable permissions database
 
 ## FAQ
 
