@@ -4,11 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project will adhere to [Semantic Versioning](http://semver.org/spec/v2.0.0.html) starting v1.0.0.
 
-## Unreleased
+## [0.1.1] - 2022-10-12
+
+[0.1.1]: https://github.com/dgraph-io/ristretto/compare/v0.1.0..v0.1.1
+This release fixes certain arm64 build issues in the z package.  It also
+incorporates CI steps in our repository.
+
+### Changed
+- [chore(docs): Include SpiceDB in the list of projects using Ristretto (#285)](https://github.com/dgraph-io/ristretto/pull/311)
+
+### Added
+- [Run CI Jobs via Github Actions #304](https://github.com/dgraph-io/ristretto/pull/304)
+
+### Fixed
+- [fix(build): update x/sys dependency](https://github.com/dgraph-io/ristretto/pull/308)
+- [fix(z): Address inconsistent mremap return arguments with arm64](https://github.com/dgraph-io/ristretto/pull/309)
+- [fix(z): runtime error: index out of range for !amd64 env #287](https://github.com/dgraph-io/ristretto/pull/307)
 
 ## [0.1.0] - 2021-06-03
 
-[0.1.0]: https://github.com/dgraph-io/ristretto/compare/v0.1.0..v0.0.3
+[0.1.0]: https://github.com/dgraph-io/ristretto/compare/v0.0.3..v0.1.0
 This release contains bug fixes and improvements to Ristretto. It also contains
 major updates to the z package. The z package contains types such as Tree (B+
 tree), Buffer, Mmap file, etc. All these types are used in Badger and Dgraph to
