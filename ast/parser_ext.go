@@ -247,7 +247,7 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 		head = NewHead(v)
 	} else if r, ok := lhs.Value.(Ref); ok { // groundness ?
 		if _, ok := r[0].Value.(Var); !ok {
-			return nil, fmt.Errorf("invalid rule head: %v", lhs.Value)
+			return nil, fmt.Errorf("invalid rule head: %v", r)
 		}
 		head = RefHead(r)
 		if len(r) > 1 && !r[len(r)-1].IsGround() {
@@ -276,7 +276,7 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", term.Value)
+		return nil, fmt.Errorf("invalid rule head: %v", ref)
 	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(term.Location))
 	head.Location = term.Location
@@ -300,7 +300,7 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 	}
 
 	if _, ok := ref[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("%vs cannot be used as rule name", TypeName(ref[0].Value))
+		return nil, fmt.Errorf("invalid rule head: %v", ref)
 	}
 
 	head := RefHead(ref, rhs)
@@ -329,6 +329,9 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 	ref, ok := term.Value.(Ref)
 	if !ok || len(ref) == 1 {
 		return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
+	}
+	if _, ok := ref[0].Value.(Var); !ok {
+		return nil, fmt.Errorf("invalid rule head: %v", ref)
 	}
 
 	head := RefHead(ref)
@@ -367,6 +370,9 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	if !ok {
 		return nil, fmt.Errorf("%vs cannot be used in function signature", TypeName(call[0].Value))
 	}
+	if _, ok := ref[0].Value.(Var); !ok {
+		return nil, fmt.Errorf("invalid rule head: %v", ref)
+	}
 
 	head := RefHead(ref, rhs)
 	head.Location = lhs.Location
@@ -391,10 +397,11 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	}
 
 	loc := terms[0].Location
-	if _, ok := terms[0].Value.(Ref)[0].Value.(Var); !ok {
-		return nil, fmt.Errorf("invalid rule head: %v", terms)
+	ref := terms[0].Value.(Ref)
+	if _, ok := ref[0].Value.(Var); !ok {
+		return nil, fmt.Errorf("invalid rule head: %v", ref)
 	}
-	head := RefHead(terms[0].Value.(Ref), BooleanTerm(true).SetLocation(loc))
+	head := RefHead(ref, BooleanTerm(true).SetLocation(loc))
 	head.Location = loc
 	head.Args = terms[1:]
 
