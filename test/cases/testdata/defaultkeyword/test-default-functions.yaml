@@ -1,0 +1,33 @@
+# NOTE(sr): default functions are not supported, but they had sneaked into
+# the full extent of a package. These cases assert that this won't happen.
+cases:
+- note: defaultkeyword/function with var arg
+  modules:
+  - |
+    package test
+
+    default f(_) := 100
+  query: data.test = x
+  want_result:
+  - x: {}
+- note: defaultkeyword/function with ground arg
+  modules:
+  - |
+    package test
+
+    default f(10) := 100
+  query: data.test = x
+  want_result:
+  - x: {}
+- note: defaultkeyword/function with ground arg, ref head
+  modules:
+  - |
+    package test
+
+    default p.q.r.f(10) := 100
+  query: data.test = x
+  want_result:
+  - x:
+      p:
+        q:
+          r: {}
