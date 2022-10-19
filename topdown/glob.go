@@ -18,6 +18,7 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	if err != nil {
 		return err
 	}
+
 	var delimiters []rune
 	switch operands[1].Value.(type) {
 	case ast.Null:
@@ -33,8 +34,8 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	default:
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "array", "null")
 	}
-	match, err := builtins.StringOperand(operands[2].Value, 3)
 
+	match, err := builtins.StringOperand(operands[2].Value, 3)
 	if err != nil {
 		return err
 	}
@@ -47,18 +48,27 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 	id := builder.String()
 
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-	p, ok := globCache[id]
-	if !ok {
-		var err error
-		if p, err = glob.Compile(string(pattern), delimiters...); err != nil {
-			return err
+	// NOTE(philipc): We use an anonymous function here to ensure that the
+	// deferred mutex unlock happens before we hit the call to iter.
+	globCompileAndMatch := func() (bool, error) {
+		globCacheLock.Lock()
+		defer globCacheLock.Unlock()
+		p, ok := globCache[id]
+		if !ok {
+			var err error
+			if p, err = glob.Compile(string(pattern), delimiters...); err != nil {
+				return false, err
+			}
+			globCache[id] = p
 		}
-		globCache[id] = p
+		out := p.Match(string(match))
+		return out, nil
 	}
 
-	m := p.Match(string(match))
+	m, err := globCompileAndMatch()
+	if err != nil {
+		return err
+	}
 	return iter(ast.BooleanTerm(m))
 }
 
