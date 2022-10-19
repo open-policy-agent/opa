@@ -48,28 +48,26 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 	id := builder.String()
 
-	// NOTE(philipc): We use an anonymous function here to ensure that the
-	// deferred mutex unlock happens before we hit the call to iter.
-	globCompileAndMatch := func() (bool, error) {
-		globCacheLock.Lock()
-		defer globCacheLock.Unlock()
-		p, ok := globCache[id]
-		if !ok {
-			var err error
-			if p, err = glob.Compile(string(pattern), delimiters...); err != nil {
-				return false, err
-			}
-			globCache[id] = p
-		}
-		out := p.Match(string(match))
-		return out, nil
-	}
-
-	m, err := globCompileAndMatch()
+	m, err := globCompileAndMatch(id, string(pattern), string(match), delimiters)
 	if err != nil {
 		return err
 	}
 	return iter(ast.BooleanTerm(m))
+}
+
+func globCompileAndMatch(id, pattern, match string, delimiters []rune) (bool, error) {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	p, ok := globCache[id]
+	if !ok {
+		var err error
+		if p, err = glob.Compile(pattern, delimiters...); err != nil {
+			return false, err
+		}
+		globCache[id] = p
+	}
+	out := p.Match(match)
+	return out, nil
 }
 
 func builtinGlobQuoteMeta(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
