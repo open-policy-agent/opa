@@ -116,7 +116,8 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, trac
 		trace.WithSampler(trace.ParentBased(trace.TraceIDRatioBased(float64(*distributedTracingConfig.SampleRatePercentage)/float64(100)))),
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
-
+	otel.SetTracerProvider(traceProvider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	options := tracing.NewOptions(
 		otelhttp.WithTracerProvider(traceProvider),
 		otelhttp.WithPropagators(propagation.TraceContext{}),

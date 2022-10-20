@@ -336,6 +336,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
+	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+	if distributedTracingOpts != nil {
+		params.DistributedTracingOpts = distributedTracingOpts
+	}
+
 	manager, err := plugins.New(config,
 		params.ID,
 		store,
@@ -349,21 +357,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
-		plugins.WithPrometheusRegister(metrics))
+		plugins.WithPrometheusRegister(metrics),
+		plugins.WithTracingOpts(distributedTracingOpts))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
-	}
-
-	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
-	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
-	}
-	if distributedTracingOpts != nil {
-		params.DistributedTracingOpts = distributedTracingOpts
 	}
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
