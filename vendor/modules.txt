@@ -57,7 +57,7 @@ github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/dgraph-io/badger/v3 v3.2103.2
+# github.com/dgraph-io/badger/v3 v3.2103.3
 ## explicit; go 1.12
 github.com/dgraph-io/badger/v3
 github.com/dgraph-io/badger/v3/fb
@@ -67,7 +67,7 @@ github.com/dgraph-io/badger/v3/skl
 github.com/dgraph-io/badger/v3/table
 github.com/dgraph-io/badger/v3/trie
 github.com/dgraph-io/badger/v3/y
-# github.com/dgraph-io/ristretto v0.1.0
+# github.com/dgraph-io/ristretto v0.1.1
 ## explicit; go 1.12
 github.com/dgraph-io/ristretto
 github.com/dgraph-io/ristretto/z
@@ -393,14 +393,14 @@ golang.org/x/net/trace
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20220908164124-27713097b956
+# golang.org/x/sys v0.0.0-20221010170243-090e33056c14
 ## explicit; go 1.17
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/text v0.3.7
+# golang.org/x/text v0.4.0
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform

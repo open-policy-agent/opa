@@ -1,0 +1,21 @@
+cases:
+- note: ir/unification array and array comprehension
+  query: 'data.test.p = x'
+  modules:
+    - |
+      package test
+      p = foo {
+        [foo] = [x | x := 1]
+      }
+  want_result:
+  - x: 1
+- note: ir/unification array comprehension and array
+  query: 'data.test.p = x'
+  modules:
+    - |
+      package test
+      p = foo {
+        [x | x := 1] = [foo]
+      }
+  want_result:
+  - x: 1

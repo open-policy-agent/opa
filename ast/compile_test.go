@@ -3431,6 +3431,26 @@ func TestCompilerRefHeadsNeedCapability(t *testing.T) {
 p[1] = 2`),
 		},
 		{
+			note: "function, short",
+			mod: MustParseModule(`package t
+p(1)`),
+		},
+		{
+			note: "function",
+			mod: MustParseModuleWithOpts(`package t
+p(1) if true`, popts),
+		},
+		{
+			note: "function with value",
+			mod: MustParseModuleWithOpts(`package t
+p(1) = 2 if true`, popts),
+		},
+		{
+			note: "function with value",
+			mod: MustParseModule(`package t
+p(1) = 2`),
+		},
+		{
 			note: "one-dot ref, single-value rule, compat",
 			mod: MustParseModuleWithOpts(`package t
 p[3] = 4 if true`, popts),
@@ -3451,6 +3471,12 @@ p[1] if true`, popts),
 			mod: MustParseModuleWithOpts(`package t
 a.b.c[x] if x := input`, popts),
 			err: "rule heads with refs are not supported: a.b.c[x]",
+		},
+		{
+			note: "ref head function",
+			mod: MustParseModuleWithOpts(`package t
+a.b.c(x) if x == input`, popts),
+			err: "rule heads with refs are not supported: a.b.c",
 		},
 		{
 			note: "multi-value ref rule",
