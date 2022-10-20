@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package instrumentation // import "go.opentelemetry.io/otel/sdk/instrumentation"
+// Package internal contains common functionality for all OTLP exporters.
+package internal // import "go.opentelemetry.io/otel/exporters/otlp/internal"
 
-// Library represents the instrumentation library.
-// Deprecated: please use Scope instead.
-type Library = Scope
+import "go.opentelemetry.io/otel"
+
+// GetUserAgentHeader return an OTLP header value form "OTel OTLP Exporter Go/{{ .Version }}"
+// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#user-agent
+func GetUserAgentHeader() string {
+	return "OTel OTLP Exporter Go/" + otel.Version()
+}
