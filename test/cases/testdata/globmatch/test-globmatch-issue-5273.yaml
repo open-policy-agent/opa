@@ -1,8 +1,7 @@
 cases:
-- data: {}
-  modules:
+- modules:
   - |
-    package generated
+    package test
 
     p[x] {
       glob.match("*.github.com", ["."], "api.github.com", x)
@@ -10,8 +9,7 @@ cases:
     }
   # See: https://github.com/open-policy-agent/opa/issues/5273
   note: globmatch/no deadlocks for glob match
-  query: data.generated.p = x
-  sort_bindings: true
+  query: data.test.p = x
   want_result:
   - x:
     - true
