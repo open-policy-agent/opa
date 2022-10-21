@@ -1931,6 +1931,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 					if prev != nil && ast.Compare(prev, result) != 0 {
 						return functionConflictErr(rule.Location)
 					}
+					prev = result
 					return nil
 				}
 			}

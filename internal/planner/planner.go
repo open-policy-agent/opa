@@ -1090,12 +1090,21 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 	}
 
 	return p.planTerm(b, func() error {
-		target := p.newLocal()
-		p.vars.Put(a, target)
-		p.appendStmt(&ir.AssignVarStmt{
-			Source: p.ltarget,
-			Target: target,
-		})
+		// `a` may have become known while planning b, like in `a = input.x[a]`
+		la, ok := p.vars.GetOp(a)
+		if ok {
+			p.appendStmt(&ir.EqualStmt{
+				A: la,
+				B: p.ltarget,
+			})
+		} else {
+			target := p.newLocal()
+			p.vars.Put(a, target)
+			p.appendStmt(&ir.AssignVarStmt{
+				Source: p.ltarget,
+				Target: target,
+			})
+		}
 		return iter()
 	})
 }
