@@ -246,15 +246,20 @@ func (i *refindices) Update(rule *Rule, expr *Expr) {
 
 	op := expr.Operator()
 
-	if op.Equal(Equality.Ref()) {
+	switch {
+	case op.Equal(Equality.Ref()):
 		i.updateEq(rule, expr)
-	} else if op.Equal(Equal.Ref()) && len(expr.Operands()) == 2 {
+
+	case op.Equal(Equal.Ref()) && len(expr.Operands()) == 2:
 		// NOTE(tsandall): if equal() is called with more than two arguments the
 		// output value is being captured in which case the indexer cannot
 		// exclude the rule if the equal() call would return false (because the
 		// false value must still be produced.)
 		i.updateEq(rule, expr)
-	} else if op.Equal(GlobMatch.Ref()) {
+
+	case op.Equal(GlobMatch.Ref()) && len(expr.Operands()) == 3:
+		// NOTE(sr): Same as with equal() above -- 4 operands means the output
+		// of `glob.match` is captured and the rule can thus not be excluded.
 		i.updateGlobMatch(rule, expr)
 	}
 }
