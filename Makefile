@@ -403,7 +403,9 @@ ifneq ($(GOARCH),arm64) # we build only static images for arm64
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless version
 
-	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION)-rootless | opa eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
+	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION)-rootless |\
+	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless \
+	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
 endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
