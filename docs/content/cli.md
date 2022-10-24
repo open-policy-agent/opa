@@ -463,8 +463,9 @@ The -O flag controls the optimization level. By default, optimization is disable
 When optimization is enabled the 'eval' command generates a bundle from the files provided
 with either the --bundle or --data flag. This bundle is semantically equivalent to the input
 files however the structure of the files in the bundle may have been changed by rewriting, inlining,
-pruning, etc. This resulting optimized bundle is used to evaluate the query. If optimization is enabled
-at least one entrypoint must be supplied, either via the -e option, or via entrypoint metadata annotations.
+pruning, etc. This resulting optimized bundle is used to evaluate the query. If optimization is
+enabled at least one entrypoint must be supplied, either via the -e option, or via entrypoint
+metadata annotations.
 
 ### Output Formats
 
