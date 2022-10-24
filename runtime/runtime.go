@@ -22,7 +22,9 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -336,12 +338,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
-	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
-	if distributedTracingOpts != nil {
-		params.DistributedTracingOpts = distributedTracingOpts
+	if tracerProvider != nil {
+		params.DistributedTracingOpts = tracing.NewOptions(
+			otelhttp.WithTracerProvider(tracerProvider),
+			otelhttp.WithPropagators(propagation.TraceContext{}),
+		)
 	}
 
 	manager, err := plugins.New(config,
@@ -358,7 +363,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
-		plugins.WithTracingOpts(distributedTracingOpts))
+		plugins.WithTracerProvider(tracerProvider))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

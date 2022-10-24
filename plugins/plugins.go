@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
@@ -28,7 +29,6 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
-	"github.com/open-policy-agent/opa/tracing"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -191,7 +191,7 @@ type Manager struct {
 	enablePrintStatements        bool
 	router                       *mux.Router
 	prometheusRegister           prometheus.Registerer
-	tracingOpts                  tracing.Options
+	tracerProvider               *trace.TracerProvider
 }
 
 type managerContextKey string
@@ -356,10 +356,10 @@ func WithPrometheusRegister(prometheusRegister prometheus.Registerer) func(*Mana
 	}
 }
 
-// WithDistributedTracingOpts sets the passed tracing.Options to be used by plugins
-func WithTracingOpts(tracingOpts tracing.Options) func(*Manager) {
+// WithTracerProvider sets the passed *trace.TracerProvider to be used by plugins
+func WithTracerProvider(tracerProvider *trace.TracerProvider) func(*Manager) {
 	return func(m *Manager) {
-		m.tracingOpts = tracingOpts
+		m.tracerProvider = tracerProvider
 	}
 }
 
@@ -919,7 +919,7 @@ func (m *Manager) PrometheusRegister() prometheus.Registerer {
 	return m.prometheusRegister
 }
 
-// TracingOpts gets the tracing.Options for this plugin manager.
-func (m *Manager) TracingOpts() tracing.Options {
-	return m.tracingOpts
+// TracerProvider gets the *trace.TracerProvider for this plugin manager.
+func (m *Manager) TracerProvider() *trace.TracerProvider {
+	return m.tracerProvider
 }
