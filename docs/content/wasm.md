@@ -33,7 +33,7 @@ You can compile Rego policies into Wasm modules using the `opa build` subcommand
 
 For example, the `opa build` command below compiles the `example.rego` file into a
 Wasm module and packages it into an OPA bundle. The `wasm` target requires at least
-one entrypoint rule (specified by `-e`).
+one entrypoint rule (specified by `-e`, or a metadata `entrypoint` annotation).
 
 ```bash
 opa build -t wasm -e example/allow example.rego

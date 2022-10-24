@@ -821,6 +821,292 @@ func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
 	})
 }
 
+func TestCompilerRegoEntrypointAnnotations(t *testing.T) {
+	tests := []struct {
+		note            string
+		entrypoints     []string
+		modules         map[string]string
+		data            string
+		roots           []string
+		wantEntrypoints map[string]struct{}
+	}{
+		{
+			note:        "rule annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/p": {},
+			},
+		},
+		{
+			note:        "package annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+# METADATA
+# entrypoint: true
+package test
+
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test": {},
+			},
+		},
+		{
+			note:        "nested rule annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+import data.test.nested
+
+p {
+	q[input.x]
+	nested.p
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+				"test/nested.rego": `
+package test.nested
+
+# METADATA
+# entrypoint: true
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/nested/p": {},
+			},
+		},
+		{
+			note:        "nested package annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+import data.test.nested
+
+p {
+	q[input.x]
+	nested.p
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+				"test/nested.rego": `
+# METADATA
+# entrypoint: true
+package test.nested
+
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/nested": {},
+			},
+		},
+		{
+			note:        "mixed manual entrypoints + annotation entrypoints",
+			entrypoints: []string{"test/p"},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+import data.test.nested
+
+p {
+	q[input.x]
+	nested.p
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+				"test/nested.rego": `
+# METADATA
+# entrypoint: true
+package test.nested
+
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/nested": {},
+				"test/p":      {},
+			},
+		},
+		{
+			note:        "ref head rule annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+a.b.c.p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/a/b/c/p": {},
+			},
+		},
+		{
+			note:        "mixed ref head rule/package annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+# METADATA
+# entrypoint: true
+package test.a.b.c
+
+# METADATA
+# entrypoint: true
+d.e.f.g {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/a/b/c":         {},
+				"test/a/b/c/d/e/f/g": {},
+			},
+		},
+		{
+			note:        "numbers in refs annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+a.b[1.0] {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/a/b/1.0": {},
+			},
+		},
+		{
+			note:        "string path with brackets annotation",
+			entrypoints: []string{},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+a.b["1.0.0"].foo {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/a/b/1.0.0/foo": {},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.modules, func(root string) {
+
+				compiler := New().
+					WithPaths(root).
+					WithTarget("plan").
+					WithEntrypoints(tc.entrypoints...).
+					WithRegoAnnotationEntrypoints(true).
+					WithPruneUnused(true)
+				err := compiler.Build(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				// Ensure we have the right number of entrypoints.
+				if len(compiler.entrypoints) != len(tc.wantEntrypoints) {
+					t.Fatalf("Wrong number of entrypoints. Expected %v, got %v.", tc.wantEntrypoints, compiler.entrypoints)
+				}
+
+				// Ensure those entrypoints match the ones we expect.
+				for _, entrypoint := range compiler.entrypoints {
+					if _, found := tc.wantEntrypoints[entrypoint]; !found {
+						t.Fatalf("Unexpected entrypoint '%s'", entrypoint)
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestCompilerSetRevision(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
