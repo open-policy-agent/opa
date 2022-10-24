@@ -249,7 +249,7 @@ spec:
     spec:
       initContainers:
         - name: proxy-init
-          image: openpolicyagent/proxy_init:v5
+          image: openpolicyagent/proxy_init:v8
           # Configure the iptables bootstrap script to redirect traffic to the
           # Envoy proxy on port 8000, specify that Envoy will be running as user
           # 1111, and that we want to exclude port 8282 from the proxy for the
