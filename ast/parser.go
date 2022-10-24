@@ -2111,6 +2111,7 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 type rawAnnotation struct {
 	Scope            string                 `yaml:"scope"`
 	Title            string                 `yaml:"title"`
+	Entrypoint       bool                   `yaml:"entrypoint"`
 	Description      string                 `yaml:"description"`
 	Organizations    []string               `yaml:"organizations"`
 	RelatedResources []interface{}          `yaml:"related_resources"`
@@ -2165,6 +2166,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 
 	var result Annotations
 	result.Scope = raw.Scope
+	result.Entrypoint = raw.Entrypoint
 	result.Title = raw.Title
 	result.Description = raw.Description
 	result.Organizations = raw.Organizations

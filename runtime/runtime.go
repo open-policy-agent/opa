@@ -296,7 +296,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification)
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -710,7 +710,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true)
+	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true, false)
 	if err != nil {
 		return err
 	}

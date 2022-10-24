@@ -134,9 +134,8 @@ p = 1`,
 		params := newEvalCommandParams()
 		params.optimizationLevel = 1
 		params.dataPaths = newrepeatedStringFlag([]string{path})
-		params.bundlePaths = repeatedStringFlag{
-			v:     []string{path},
-			isSet: true,
+		if err := params.bundlePaths.Set(path); err != nil {
+			t.Fatal(err)
 		}
 
 		err := validateEvalParams(&params, []string{"data"})
@@ -209,9 +208,8 @@ func TestEvalWithOptimizeBundleData(t *testing.T) {
 
 		params := newEvalCommandParams()
 		params.optimizationLevel = 1
-		params.bundlePaths = repeatedStringFlag{
-			v:     []string{path},
-			isSet: true,
+		if err := params.bundlePaths.Set(path); err != nil {
+			t.Fatal(err)
 		}
 		params.entrypoints = newrepeatedStringFlag([]string{"test/p"})
 
@@ -676,6 +674,37 @@ func removeBuiltin(builtins []*ast.Builtin, name string) []*ast.Builtin {
 	return cpy
 }
 
+// Nearly identical to TestEvalWithOptimizeBundleData, but uses
+// Rego entrypoint annotations instead of explicitly providing
+// the entrypoints as CLI arguments.
+func TestEvalWithRegoEntrypointAnnotations(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+package test
+default p = false
+# METADATA
+# entrypoint: true
+p { q }
+q { input.x = data.foo }`,
+		"data.json": `
+{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		params := newEvalCommandParams()
+		if err := params.bundlePaths.Set(path); err != nil {
+			t.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.test.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
 func TestEvalReturnsRegoError(t *testing.T) {
 	buf := new(bytes.Buffer)
 	_, err := eval([]string{`{k: v | k = ["a", "a"][_]; v = [0,1][_]}`}, newEvalCommandParams(), buf)
@@ -694,9 +723,8 @@ func TestEvalWithBundleData(t *testing.T) {
 	test.WithTempFS(files, func(path string) {
 
 		params := newEvalCommandParams()
-		params.bundlePaths = repeatedStringFlag{
-			v:     []string{path},
-			isSet: true,
+		if err := params.bundlePaths.Set(path); err != nil {
+			t.Fatal(err)
 		}
 
 		var buf bytes.Buffer
@@ -730,12 +758,11 @@ func TestEvalWithBundleDuplicateFileNames(t *testing.T) {
 	test.WithTempFS(files, func(path string) {
 
 		params := newEvalCommandParams()
-		params.bundlePaths = repeatedStringFlag{
-			v: []string{
-				filepath.Join(path, "a"),
-				filepath.Join(path, "b"),
-			},
-			isSet: true,
+		if err := params.bundlePaths.Set(filepath.Join(path, "a")); err != nil {
+			t.Fatal(err)
+		}
+		if err := params.bundlePaths.Set(filepath.Join(path, "b")); err != nil {
+			t.Fatal(err)
 		}
 
 		var buf bytes.Buffer

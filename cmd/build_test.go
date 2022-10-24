@@ -292,6 +292,72 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 	})
 }
 
+func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
+
+	tests := []struct {
+		note  string
+		files map[string]string
+		err   error
+	}{
+		{
+			note: "annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+# METADATA
+# entrypoint: true
+package test
+
+p[1]
+
+f(x) { p[x] }
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "no annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+
+package test
+
+p[1]
+
+f(x) { p[x] }
+		`,
+			},
+			err: fmt.Errorf("plan compilation requires at least one entrypoint"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				if err := params.target.Set("plan"); err != nil {
+					t.Fatal(err)
+				}
+				params.pruneUnused = true
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+
+				// Build should fail if entrypoint is not discovered from annotations.
+				err := dobuild(params, []string{root})
+				if err != nil {
+					if tc.err == nil || tc.err.Error() != err.Error() {
+						t.Fatal(err)
+					}
+					return // Bail out if this was an expected test failure.
+				}
+
+				// Attempt to load up the built bundle.
+				_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+			})
+		})
+	}
+}
+
 func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 
 	files := map[string]string{
