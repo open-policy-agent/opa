@@ -94,9 +94,9 @@
       "net.cidr_contains_matches",
       "net.cidr_expand",
       "net.cidr_intersects",
+      "net.cidr_is_valid",
       "net.cidr_merge",
       "net.cidr_overlap",
-      "net.cidr_parse",
       "net.lookup_ip_addr"
     ],
     "numbers": [
@@ -8597,6 +8597,24 @@
     },
     "wasm": true
   },
+  "net.cidr_is_valid": {
+    "args": [
+      {
+        "name": "cidr",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
+    "introduced": "edge",
+    "result": {
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
   "net.cidr_merge": {
     "args": [
       {
@@ -8748,24 +8766,6 @@
       "type": "boolean"
     },
     "wasm": true
-  },
-  "net.cidr_parse": {
-    "args": [
-      {
-        "name": "cidr",
-        "type": "string"
-      }
-    ],
-    "available": [
-      "edge"
-    ],
-    "description": "Parses IPv4/IPv6 CIDRs. Returns a boolean indicating if the provided CIDR is valid.",
-    "introduced": "edge",
-    "result": {
-      "name": "result",
-      "type": "boolean"
-    },
-    "wasm": false
   },
   "net.lookup_ip_addr": {
     "args": [

@@ -260,7 +260,7 @@ var DefaultBuiltins = [...]*Builtin{
 	NetCIDRExpand,
 	NetCIDRMerge,
 	NetLookupIPAddr,
-	NetCIDRParse,
+	NetCIDRIsValid,
 
 	// Glob
 	GlobMatch,
@@ -2772,9 +2772,9 @@ Supports both IPv4 and IPv6 notations. IPv6 inputs need a prefix length (e.g. "/
 	),
 }
 
-var NetCIDRParse = &Builtin{
-	Name:        "net.cidr_parse",
-	Description: "Parses IPv4/IPv6 CIDRs. Returns a boolean indicating if the provided CIDR is valid.",
+var NetCIDRIsValid = &Builtin{
+	Name:        "net.cidr_is_valid",
+	Description: "Parses an IPv4/IPv6 CIDR and returns a boolean indicating if the provided CIDR is valid.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("cidr", types.S),

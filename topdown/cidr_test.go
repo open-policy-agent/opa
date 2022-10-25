@@ -46,7 +46,7 @@ func TestNetCIDRExpandCancellation(t *testing.T) {
 
 }
 
-func TestNetCIDRParse(t *testing.T) {
+func TestNetCIDRIsValid(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -87,7 +87,7 @@ func TestNetCIDRParse(t *testing.T) {
 				`
 				package test
 				default valid = false
-				valid { net.cidr_parse(%q) }
+				valid { net.cidr_is_valid(%q) }
 				`,
 				tt.cidr,
 			)
