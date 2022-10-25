@@ -2615,6 +2615,20 @@
       }
     },
     {
+      "name": "net.cidr_parse",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "net.lookup_ip_addr",
       "decl": {
         "args": [
