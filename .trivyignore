@@ -31,8 +31,5 @@ CVE-2021-25741
 # * github.com/emicklei/go-restful - we don't use its code in our handlers
 CVE-2022-1996
 
-# * github.com/docker/distribution - OCI manifest code isn't used
-GHSA-qq97-vm5h-rrhg
-
 # github.com/dgrijalva/jwt-go -- vulnerable version used by docker/distribution above
 CVE-2020-26160

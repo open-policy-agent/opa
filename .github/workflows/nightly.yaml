@@ -123,7 +123,7 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
-          skip-dirs: vendor/ # don't check go deps' go.mod files
+          skip-dirs: vendor/,internal/gqlparser/validator/imported/
           severity: CRITICAL,HIGH
 
       - name: Slack Notification

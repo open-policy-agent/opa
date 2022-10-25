@@ -496,6 +496,17 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{},
 		},
 		{
+			note: "glob.match: do not index captured output",
+			module: MustParseModule(`package test
+				p { x = input.x; glob.match("/a/*/c", ["/"], x, false) }
+			`),
+			ruleset: "p",
+			input:   `{"x": "wrong"}`,
+			expectedRS: []string{
+				`p { x = input.x; glob.match("/a/*/c", ["/"], x, false) }`,
+			},
+		},
+		{
 			note: "functions: args match",
 			module: MustParseModule(`package test
 			f(x) = y {
