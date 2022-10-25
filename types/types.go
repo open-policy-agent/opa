@@ -440,10 +440,14 @@ func (t Any) Contains(other Type) bool {
 	if _, ok := other.(*Function); ok {
 		return false
 	}
-	for i := range t {
-		if Compare(t[i], other) == 0 {
-			return true
-		}
+	// Note(philipc): We used to do this as a linear search.
+	// Since this is always sorted, we can use a binary search instead.
+	i := sort.Search(len(t), func(i int) bool {
+		return Compare(t[i], other) >= 0
+	})
+	if i < len(t) && Compare(t[i], other) == 0 {
+		// x is present at t[i]
+		return true
 	}
 	return len(t) == 0
 }
