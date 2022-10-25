@@ -728,17 +728,19 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	mock, mocked := e.functionMocks.Get(ref)
 	if mocked {
 		if m, ok := mock.Value.(ast.Ref); ok { // builtin or data function
-			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
+			if _, ok := e.compiler.TypeEnv.Get(m).(*types.Function); ok {
+				mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
 
-			e.functionMocks.Push()
-			err := e.evalCall(mockCall, func() error {
-				e.functionMocks.Pop()
-				err := iter()
 				e.functionMocks.Push()
+				err := e.evalCall(mockCall, func() error {
+					e.functionMocks.Pop()
+					err := iter()
+					e.functionMocks.Push()
+					return err
+				})
+				e.functionMocks.Pop()
 				return err
-			})
-			e.functionMocks.Pop()
-			return err
+			}
 		}
 	}
 	// 'mocked' true now indicates that the replacement is a value: if
