@@ -430,9 +430,7 @@ var A = NewAny()
 // NewAny returns a new Any type.
 func NewAny(of ...Type) Any {
 	sl := make(Any, len(of))
-	for i := range sl {
-		sl[i] = of[i]
-	}
+	copy(sl, of)
 	sort.Sort(typeSlice(sl))
 	return sl
 }
@@ -492,9 +490,7 @@ func (t Any) Union(other Any) Any {
 		return other
 	}
 	cpy := make(Any, len(t))
-	for i := range cpy {
-		cpy[i] = t[i]
-	}
+	copy(cpy, t)
 	for i := range other {
 		if !cpy.Contains(other[i]) {
 			cpy = append(cpy, other[i])
