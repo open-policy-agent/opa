@@ -953,7 +953,7 @@ func TestHTTPSendCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendInterQueryCaching(t *testing.T) {
+func TestHTTPSendIntraQueryCaching(t *testing.T) {
 	tests := []struct {
 		note             string
 		ruleTemplate     string
@@ -1164,7 +1164,7 @@ func TestHTTPSendInterQueryCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendInterQueryForceCaching(t *testing.T) {
+func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 	tests := []struct {
 		note             string
 		ruleTemplate     string
@@ -1184,6 +1184,20 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 									x = r1.body
 								}`,
 			headers:          map[string][]string{"Expires": {"Wed, 31 Dec 2005 07:28:00 GMT"}},
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache hit, empty headers (force_cache_only)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:          map[string][]string{},
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
@@ -1256,7 +1270,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	t0 := time.Now()
+	t0 := time.Now().UTC()
 	opts := setTime(t0)
 
 	for _, tc := range tests {
@@ -1271,7 +1285,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 					headers[k] = v
 				}
 
-				headers.Set("Date", t0.Format(time.RFC850))
+				headers.Set("Date", t0.Format(http.TimeFormat))
 
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(tc.response))
@@ -1293,7 +1307,7 @@ func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
+func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 	tests := []struct {
 		note             string
 		ruleTemplate     string
@@ -1389,7 +1403,7 @@ func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 	}
 }
 
-func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
+func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 	tests := []struct {
 		note             string
 		ruleTemplate     string
@@ -1458,7 +1472,7 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 	}
 }
 
-func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
+func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
 	tests := []struct {
 		note             string
 		ruleTemplate     string
@@ -1851,7 +1865,7 @@ func TestNewInterQueryCacheValue(t *testing.T) {
 		Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
 	}
 
-	result, err := newInterQueryCacheValue(response, b)
+	result, err := newInterQueryCacheValue(response, b, false)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}

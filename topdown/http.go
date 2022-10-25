@@ -11,7 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -781,9 +781,9 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 	var pcv cache.InterQueryCacheValue
 
 	if cachingMode == defaultCachingMode {
-		pcv, err = newInterQueryCacheValue(resp, respBody)
+		pcv, err = newInterQueryCacheValue(resp, respBody, force)
 	} else {
-		pcv, err = newInterQueryCacheData(resp, respBody)
+		pcv, err = newInterQueryCacheData(resp, respBody, force)
 	}
 
 	if err != nil {
@@ -862,8 +862,8 @@ type interQueryCacheValue struct {
 	Data []byte
 }
 
-func newInterQueryCacheValue(resp *http.Response, respBody []byte) (*interQueryCacheValue, error) {
-	data, err := newInterQueryCacheData(resp, respBody)
+func newInterQueryCacheValue(resp *http.Response, respBody []byte, force bool) (*interQueryCacheValue, error) {
+	data, err := newInterQueryCacheData(resp, respBody, force)
 	if err != nil {
 		return nil, err
 	}
@@ -895,10 +895,15 @@ type interQueryCacheData struct {
 	Headers    http.Header
 }
 
-func newInterQueryCacheData(resp *http.Response, respBody []byte) (*interQueryCacheData, error) {
-	_, err := parseResponseHeaders(resp.Header)
-	if err != nil {
-		return nil, err
+func newInterQueryCacheData(resp *http.Response, respBody []byte, force bool) (*interQueryCacheData, error) {
+	if force {
+		now := time.Now().UTC()
+		resp.Header["Date"] = []string{now.Format(http.TimeFormat)}
+	} else {
+		_, err := parseResponseHeaders(resp.Header)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	cv := interQueryCacheData{RespBody: respBody,
@@ -1155,7 +1160,7 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
 
-	resultRawBody, err := ioutil.ReadAll(resp.Body)
+	resultRawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1172,7 +1177,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 	var resultBody interface{}
 
 	// If the response body cannot be JSON/YAML decoded,
-	// an error will not be returned. Instead the "body" field
+	// an error will not be returned. Instead, the "body" field
 	// in the result will be null.
 	switch {
 	case forceJSONDecode || isContentType(headers, "application/json"):
