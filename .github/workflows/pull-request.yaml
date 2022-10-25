@@ -317,7 +317,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download OPA
-        uses: open-policy-agent/setup-opa@v1
+        uses: open-policy-agent/setup-opa@v2
         with:
           version: edge
 
