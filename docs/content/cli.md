@@ -591,6 +591,8 @@ opa exec <path> [<path> [...]] [flags]
   -b, --bundle string                        set bundle file(s) or directory path(s). This flag can be repeated.
   -c, --config-file string                   set path of configuration file
       --decision string                      set decision to evaluate
+      --fail                                              exits with non-zero exit code on undefined/empty result and errors
+      --fail-defined                                      exits with non-zero exit code on defined/non-empty result and errors
   -f, --format {pretty,json}                 set output format (default pretty)
   -h, --help                                 help for exec
       --log-format {text,json,json-pretty}   set log format (default json)
