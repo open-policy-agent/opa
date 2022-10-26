@@ -1356,6 +1356,30 @@ integrations:
     videos:
       - https://www.youtube.com/watch?v=RJkgmdjJn_w
 
+  topaz:
+    title: Topaz
+    description:  |
+      Topaz is an open source authorization service providing fine grained, real-time, policy based access control for applications and APIs. 
+      Topaz combines the best of OPA and Zanzibar in a single container that you can host as a sidecar or microservice.
+    labels:
+      category: authorization
+      layer: application
+      type: poweredbyopa
+    inventors:
+      - aserto
+    software:
+      - topaz
+    code:
+      - https://github.com/aserto-dev/topaz
+    tutorials:
+      - https://www.topaz.sh
+      - https://github.com/aserto-dev/topaz#quickstart
+      - https://www.topaz.sh/docs/intro
+    blogs:
+      - https://www.aserto.com/blog/topaz-oss-cloud-native-authorization-combines-opa-zanzibar
+    videos:
+      - https://raw.githubusercontent.com/aserto-dev/topaz/main/assets/topaz.gif
+
   emissary-ingress:
     title: Emissary-Ingress
     description:  |
@@ -1856,10 +1880,13 @@ software:
     link: https://github.com/sigstore/rekor
   open-policy-registry:
     name: Open Policy Registry
-    link: https://github.com/opcr-io/policy
+    link: https://www.openpolicyregistry.io
   aserto:
     name: Aserto
     link: https://www.aserto.com
+  topaz:
+    name: Topaz
+    link: https://www.topaz.sh
   emissary-ingress:
     name: Emissary-Ingress
     link: https://github.com/emissary-ingress/emissary
