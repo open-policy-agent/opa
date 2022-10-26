@@ -216,7 +216,7 @@ func builtinNetCIDRExpand(bctx BuiltinContext, operands []*ast.Term, iter func(*
 	return iter(ast.NewTerm(result))
 }
 
-func builtinNetCIDRIsValid(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinNetCIDRIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	cidr, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return iter(ast.BooleanTerm(false))
