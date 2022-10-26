@@ -929,8 +929,8 @@ func Values(a Type) Type {
 		return Or(tpe, a.dynamic)
 	case *Object:
 		var tpe Type
-		for _, v := range a.static {
-			tpe = Or(tpe, v.Value)
+		for i := range a.static {
+			tpe = Or(tpe, a.static[i].Value)
 		}
 		if a.dynamic != nil {
 			tpe = Or(tpe, a.dynamic.Value)
