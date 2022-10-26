@@ -187,8 +187,6 @@ func TestFailFlagCases(t *testing.T) {
 			test_fun
 		}`,
 			},
-			decision:    "",
-			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
 			"error": {
@@ -197,7 +195,6 @@ func TestFailFlagCases(t *testing.T) {
 			  }
 		}]}`)),
 			failDefined: true,
-			fail:        false,
 		},
 		{
 			description: "--fail-defined with populated result",
@@ -213,7 +210,6 @@ func TestFailFlagCases(t *testing.T) {
 			"path": "/files/test.json",
 			"result": ["hello"]
 		}]}`)),
-			fail:        false,
 			failDefined: true,
 		},
 		{
@@ -237,7 +233,6 @@ func TestFailFlagCases(t *testing.T) {
 			"path": "/files/test.json",
 			"result": true
 		}]}`)),
-			fail:        false,
 			failDefined: true,
 		},
 		{
@@ -257,7 +252,6 @@ func TestFailFlagCases(t *testing.T) {
 			"path": "/files/test.json",
 			"result": false
 		}]}`)),
-			fail:        false,
 			failDefined: true,
 		},
 		{
@@ -275,7 +269,6 @@ func TestFailFlagCases(t *testing.T) {
 			test_fun
 		}`,
 			},
-			decision:    "",
 			expectError: true,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
@@ -284,8 +277,7 @@ func TestFailFlagCases(t *testing.T) {
 				"message": "/system/main decision was undefined"
 			  }
 		}]}`)),
-			failDefined: false,
-			fail:        true,
+			fail: true,
 		},
 		{
 			description: "--fail with populated result",
@@ -295,14 +287,11 @@ func TestFailFlagCases(t *testing.T) {
 
 		main["hello"]`,
 			},
-			decision:    "",
-			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": ["hello"]
 		}]}`)),
-			fail:        true,
-			failDefined: false,
+			fail: true,
 		},
 		{
 			description: "--fail-defined with true boolean result",
@@ -319,14 +308,12 @@ func TestFailFlagCases(t *testing.T) {
                        some_function
                }`,
 			},
-			decision:    "fail/defined/flag/fail_test",
-			expectError: false,
+			decision: "fail/defined/flag/fail_test",
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": true
 		}]}`)),
-			fail:        true,
-			failDefined: false,
+			fail: true,
 		},
 		{
 			description: "--fail-defined with false boolean result",
@@ -339,14 +326,12 @@ func TestFailFlagCases(t *testing.T) {
 			false
 		}`,
 			},
-			decision:    "fail/defined/flag/fail_test",
-			expectError: false,
+			decision: "fail/defined/flag/fail_test",
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
 			"result": false
 		}]}`)),
-			fail:        true,
-			failDefined: false,
+			fail: true,
 		},
 	}
 
@@ -366,16 +351,16 @@ func TestFailFlagCases(t *testing.T) {
 
 				err := runExec(params)
 				if err != nil && !tt.expectError {
-					t.Fatalf("unexpected error in test: '%s'", tt.description)
+					t.Fatal("unexpected error in test")
 				}
 				if err == nil && tt.expectError {
-					t.Fatalf("expected error, but none occurred in test: '%s'", tt.description)
+					t.Fatal("expected error, but none occurred in test")
 				}
 
 				output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
 
 				if !reflect.DeepEqual(output, tt.expected) {
-					t.Fatal("Test", tt.description, "Expected", tt.expected, "Got:", output)
+					t.Errorf("Expected %v, got: %v", tt.expected, output)
 				}
 			})
 		})
