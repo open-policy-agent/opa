@@ -121,7 +121,7 @@ p = true { 1 = 2 }`
 
 				err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 
-					loaded, err := LoadPaths(paths, nil, tc.asBundle, nil, true)
+					loaded, err := LoadPaths(paths, nil, tc.asBundle, nil, true, false)
 					if err != nil {
 						return err
 					}
@@ -270,7 +270,7 @@ func TestLoadPathsBundleModeWithFilter(t *testing.T) {
 		// bundle mode
 		loaded, err := LoadPaths(paths, func(abspath string, info os.FileInfo, depth int) bool {
 			return loader.GlobExcludeName("*_test.rego", 1)(abspath, info, depth)
-		}, true, nil, true)
+		}, true, nil, true, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
