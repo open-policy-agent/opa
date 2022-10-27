@@ -21,7 +21,7 @@ func TestJSONSerialization(t *testing.T) {
 	inner := metrics.New()
 	logger := func(logger logging.Logger) loggerFunc {
 		return func(attrs map[string]interface{}, f string, a ...interface{}) {
-			logger.WithFields(map[string]interface{}(attrs)).Error(f, a...)
+			logger.WithFields(attrs).Error(f, a...)
 		}
 	}(logging.NewNoOpLogger())
 

@@ -11,7 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -505,7 +505,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 
 	if len(tlsCaCert) != 0 {
 		tlsCaCert = bytes.Replace(tlsCaCert, []byte("\\n"), []byte("\n"), -1)
-		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, []byte(tlsCaCert))
+		pool, err := addCACertsFromBytes(tlsConfig.RootCAs, tlsCaCert)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -692,19 +692,19 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 		return nil, nil
 	}
 
-	headers, err := parseResponseHeaders(cachedRespData.Headers)
-	if err != nil {
-		return nil, err
-	}
-
-	// check the freshness of the cached response
-	if isCachedResponseFresh(c.bctx, headers, c.forceCacheParams) {
+	if getCurrentTime(c.bctx).Before(cachedRespData.ExpiresAt) {
 		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
 
+	var err error
 	c.httpReq, c.httpClient, err = createHTTPRequest(c.bctx, c.key)
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
+	}
+
+	headers, err := parseResponseHeaders(cachedRespData.Headers)
+	if err != nil {
+		return nil, err
 	}
 
 	// check with the server if the stale response is still up-to-date.
@@ -726,6 +726,12 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 				cachedRespData.Headers.Add(headerName, v)
 			}
 		}
+
+		expiresAt, err := expiryFromHeaders(result.Header)
+		if err != nil {
+			return nil, err
+		}
+		cachedRespData.ExpiresAt = expiresAt
 
 		cachingMode, err := getCachingMode(c.key)
 		if err != nil {
@@ -753,7 +759,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 		return nil, err
 	}
 
-	if err := insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, respBody, c.forceCacheParams != nil); err != nil {
+	if err := insertIntoHTTPSendInterQueryCache(c.bctx, c.key, result, respBody, c.forceCacheParams); err != nil {
 		return nil, err
 	}
 
@@ -761,8 +767,8 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 }
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
-func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, force bool) error {
-	if resp == nil || (!force && !canStore(resp.Header)) {
+func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) error {
+	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) {
 		return nil
 	}
 
@@ -781,9 +787,9 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 	var pcv cache.InterQueryCacheValue
 
 	if cachingMode == defaultCachingMode {
-		pcv, err = newInterQueryCacheValue(resp, respBody)
+		pcv, err = newInterQueryCacheValue(bctx, resp, respBody, cacheParams)
 	} else {
-		pcv, err = newInterQueryCacheData(resp, respBody)
+		pcv, err = newInterQueryCacheData(bctx, resp, respBody, cacheParams)
 	}
 
 	if err != nil {
@@ -855,15 +861,15 @@ func getCachingMode(req ast.Object) (cachingMode, error) {
 			return "", fmt.Errorf("invalid value specified for %v field: %v", key.String(), string(s))
 		}
 	}
-	return cachingMode(defaultCachingMode), nil
+	return defaultCachingMode, nil
 }
 
 type interQueryCacheValue struct {
 	Data []byte
 }
 
-func newInterQueryCacheValue(resp *http.Response, respBody []byte) (*interQueryCacheValue, error) {
-	data, err := newInterQueryCacheData(resp, respBody)
+func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheValue, error) {
+	data, err := newInterQueryCacheData(bctx, resp, respBody, cacheParams)
 	if err != nil {
 		return nil, err
 	}
@@ -893,15 +899,48 @@ type interQueryCacheData struct {
 	Status     string
 	StatusCode int
 	Headers    http.Header
+	ExpiresAt  time.Time
 }
 
-func newInterQueryCacheData(resp *http.Response, respBody []byte) (*interQueryCacheData, error) {
-	_, err := parseResponseHeaders(resp.Header)
+func forceCaching(cacheParams *forceCacheParams) bool {
+	return cacheParams != nil && cacheParams.forceCacheDurationSeconds > 0
+}
+
+func expiryFromHeaders(headers http.Header) (time.Time, error) {
+	var expiresAt time.Time
+	maxAge, err := parseMaxAgeCacheDirective(parseCacheControlHeader(headers))
 	if err != nil {
-		return nil, err
+		return time.Time{}, err
+	}
+	if maxAge != -1 {
+		createdAt, err := getResponseHeaderDate(headers)
+		if err != nil {
+			return time.Time{}, err
+		}
+		expiresAt = createdAt.Add(time.Second * time.Duration(maxAge))
+	} else {
+		expiresAt = getResponseHeaderExpires(headers)
+	}
+	return expiresAt, nil
+}
+
+func newInterQueryCacheData(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheData, error) {
+	var expiresAt time.Time
+
+	if forceCaching(cacheParams) {
+		createdAt := getCurrentTime(bctx)
+		expiresAt = createdAt.Add(time.Second * time.Duration(cacheParams.forceCacheDurationSeconds))
+	} else {
+		var err error
+		expiresAt, err = expiryFromHeaders(resp.Header)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	cv := interQueryCacheData{RespBody: respBody,
+	cv := interQueryCacheData{
+		ExpiresAt:  expiresAt,
+		RespBody:   respBody,
 		Status:     resp.Status,
 		StatusCode: resp.StatusCode,
 		Headers:    resp.Header}
@@ -1008,58 +1047,6 @@ func canStore(headers http.Header) bool {
 	return true
 }
 
-func isCachedResponseFresh(bctx BuiltinContext, headers *responseHeaders, cacheParams *forceCacheParams) bool {
-	if headers.date.IsZero() {
-		return false
-	}
-
-	currentTime := getCurrentTime(bctx)
-	if currentTime.IsZero() {
-		return false
-	}
-
-	currentAge := currentTime.Sub(headers.date)
-
-	// The time.Sub operation uses wall clock readings and
-	// not monotonic clock readings as the parsed version of the response time
-	// does not contain monotonic clock readings. This can result in negative durations.
-	// Another scenario where a negative duration can occur, is when a server sets the Date
-	// response header. As per https://tools.ietf.org/html/rfc7231#section-7.1.1.2,
-	// an origin server MUST NOT send a Date header field if it does not
-	// have a clock capable of providing a reasonable approximation of the
-	// current instance in Coordinated Universal Time.
-	// Hence, consider the cached response as stale if a negative duration is encountered.
-	if currentAge < 0 {
-		return false
-	}
-
-	if cacheParams != nil {
-		// override the cache directives set by the server
-		maxAgeDur := time.Second * time.Duration(cacheParams.forceCacheDurationSeconds)
-		if maxAgeDur > currentAge {
-			return true
-		}
-	} else {
-		// Check "max-age" cache directive.
-		// The "max-age" response directive indicates that the response is to be
-		// considered stale after its age is greater than the specified number
-		// of seconds.
-		if headers.maxAge != -1 {
-			maxAgeDur := time.Second * time.Duration(headers.maxAge)
-			if maxAgeDur > currentAge {
-				return true
-			}
-		} else {
-			// Check "Expires" header.
-			// Note: "max-age" if set, takes precedence over "Expires"
-			if headers.expires.Sub(headers.date) > currentAge {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func getCurrentTime(bctx BuiltinContext) time.Time {
 	var current time.Time
 
@@ -1155,7 +1142,7 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
 
-	resultRawBody, err := ioutil.ReadAll(resp.Body)
+	resultRawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1172,7 +1159,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 	var resultBody interface{}
 
 	// If the response body cannot be JSON/YAML decoded,
-	// an error will not be returned. Instead the "body" field
+	// an error will not be returned. Instead, the "body" field
 	// in the result will be null.
 	switch {
 	case forceJSONDecode || isContentType(headers, "application/json"):
@@ -1275,7 +1262,7 @@ func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 	}
 
 	// fallback to the http send cache if error encountered while inserting response in inter-query cache
-	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, value, respBody, c.forceCacheParams != nil)
+	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, value, respBody, c.forceCacheParams)
 	if err != nil {
 		insertIntoHTTPSendCache(c.bctx, c.key, result)
 	}

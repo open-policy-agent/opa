@@ -727,7 +727,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	var mocked bool
 	mock, mocked := e.functionMocks.Get(ref)
 	if mocked {
-		if m, ok := mock.Value.(ast.Ref); ok { // builtin or data function
+		if m, ok := mock.Value.(ast.Ref); ok && isFunction(e.compiler.TypeEnv, m) { // builtin or data function
 			mockCall := append([]*ast.Term{ast.NewTerm(m)}, terms[1:]...)
 
 			e.functionMocks.Push()
@@ -3402,12 +3402,19 @@ func isOtherRef(term *ast.Term) bool {
 	return !ref.HasPrefix(ast.DefaultRootRef) && !ref.HasPrefix(ast.InputRootRef)
 }
 
-func isFunction(env *ast.TypeEnv, ref *ast.Term) bool {
-	r, ok := ref.Value.(ast.Ref)
-	if !ok {
+func isFunction(env *ast.TypeEnv, ref interface{}) bool {
+	var r ast.Ref
+	switch v := ref.(type) {
+	case ast.Ref:
+		r = v
+	case *ast.Term:
+		return isFunction(env, v.Value)
+	case ast.Value:
 		return false
+	default:
+		panic("expected ast.Value or *ast.Term")
 	}
-	_, ok = env.Get(r).(*types.Function)
+	_, ok := env.Get(r).(*types.Function)
 	return ok
 }
 

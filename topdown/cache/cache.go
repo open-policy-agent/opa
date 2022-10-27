@@ -155,7 +155,7 @@ func (c *cache) unsafeDelete(k ast.Value) {
 		return
 	}
 
-	c.usage -= int64(value.SizeInBytes())
+	c.usage -= value.SizeInBytes()
 	delete(c.items, k.String())
 }
 
