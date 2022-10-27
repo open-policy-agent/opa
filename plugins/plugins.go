@@ -82,7 +82,7 @@ type Factory interface {
 	New(manager *Manager, config interface{}) Plugin
 }
 
-// DiscoveryOverride can be implemented by Factorys to allow specific keys to be overridable locally
+// DiscoveryOverride can be implemented by a Factory to allow specific keys to be overridable locally
 type DiscoveryOverride interface {
 	AllowOverride(config interface{}) error
 }

@@ -537,7 +537,7 @@ func TestReconfigureLocalOverride(t *testing.T) {
 		t.Errorf("Expected overwritten decision_logs config (%v) but got %v", exp, actual)
 	}
 
-	if exp := int64(10000000); !reflect.DeepEqual(*manager.InterQueryBuiltinCacheConfig().InterQueryBuiltinCache.MaxSizeBytes, exp) {
+	if exp := int64(10000000); *manager.InterQueryBuiltinCacheConfig().InterQueryBuiltinCache.MaxSizeBytes != exp {
 		t.Errorf("Expected cache bytes to be locally overwritten (%v) but got %v", exp, *manager.InterQueryBuiltinCacheConfig().InterQueryBuiltinCache.MaxSizeBytes)
 	}
 

@@ -281,24 +281,32 @@ func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 }
 
 func (c *Discovery) applyLocalOverride(config *config.Config) error {
-	for name, rawJson := range c.localConficOverrides {
+	for name, rawJSON := range c.localConficOverrides {
 		var localOverride, target map[string]interface{}
-		util.Unmarshal(rawJson, &localOverride)
+		err := util.Unmarshal(rawJSON, &localOverride)
+		if err != nil {
+			return err
+		}
 
 		var rawTarget json.RawMessage
-		if name == "bundles" {
+		switch name {
+		case "bundles":
 			rawTarget = config.Bundles
-		} else if name == "status" {
+		case "status":
 			rawTarget = config.Status
-		} else if name == "decision_logs" {
+		case "decision_logs":
 			rawTarget = config.DecisionLogs
-		} else if name == "caching" {
+		case "caching":
 			rawTarget = config.Caching
-		} else {
+		default:
 			rawTarget = config.Plugins[name]
 		}
 
-		util.Unmarshal(rawTarget, &target)
+		err = util.Unmarshal(rawTarget, &target)
+		if err != nil {
+			return err
+		}
+
 		if target == nil {
 			target = make(map[string]interface{})
 		}
@@ -309,15 +317,20 @@ func (c *Discovery) applyLocalOverride(config *config.Config) error {
 			return err
 		}
 
-		if name == "bundles" {
+		switch name {
+		case "bundles":
 			config.Bundles = mergedPluginConfig
-		} else if name == "status" {
+
+		case "status":
 			config.Status = mergedPluginConfig
-		} else if name == "decision_logs" {
+
+		case "decision_logs":
 			config.DecisionLogs = mergedPluginConfig
-		} else if name == "caching" {
+
+		case "caching":
 			config.Caching = mergedPluginConfig
-		} else {
+
+		default:
 			config.Plugins[name] = mergedPluginConfig
 		}
 	}

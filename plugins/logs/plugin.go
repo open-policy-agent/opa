@@ -6,7 +6,6 @@
 package logs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -431,20 +430,15 @@ func AllowConfigOverride(localConfig json.RawMessage) error {
 		return nil
 	}
 
-	type overridableConfig struct {
-		Reporting ReportingConfig `json:"reporting"`
+	m := map[string]interface{}{}
+	if err := util.Unmarshal(localConfig, &m); err != nil {
+		return err
 	}
-
-	d := json.NewDecoder(bytes.NewReader(localConfig))
-	d.DisallowUnknownFields()
-	var configStruct overridableConfig
-	err := d.Decode(&configStruct)
-
-	if err != nil {
-		return fmt.Errorf("discovery only allows manual configuration of the decision_logs plugin for the reporting.* configuration items")
+	_, ok := m["reporting"]
+	if ok && len(m) == 1 {
+		return nil
 	}
-
-	return nil
+	return fmt.Errorf("discovery only allows manual configuration of the decision_logs plugin for the reporting.* configuration items")
 }
 
 // ConfigBuilder assists in the construction of the plugin configuration.
