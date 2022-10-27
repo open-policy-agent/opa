@@ -29,6 +29,10 @@ import (
 // ErrNotList indicates that a non-list was treated as a list.
 var ErrNotList = errors.New("not a list")
 
+// MaxIndex is the maximum index that will be allowed by setIndex.
+// The default value 65536 = 1024 * 64
+var MaxIndex = 65536
+
 // ToYAML takes a string of arguments and converts to a YAML document.
 func ToYAML(s string) (string, error) {
 	m, err := Parse(s)
@@ -216,14 +220,29 @@ func set(data map[string]interface{}, key string, val interface{}) {
 	data[key] = val
 }
 
-func setIndex(list []interface{}, index int, val interface{}) []interface{} {
+func setIndex(list []interface{}, index int, val interface{}) (l2 []interface{}, err error) {
+	// There are possible index values that are out of range on a target system
+	// causing a panic. This will catch the panic and return an error instead.
+	// The value of the index that causes a panic varies from system to system.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("error processing index %d: %s", index, r)
+		}
+	}()
+
+	if index < 0 {
+		return list, fmt.Errorf("negative %d index not allowed", index)
+	}
+	if index > MaxIndex {
+		return list, fmt.Errorf("index of %d is greater than maximum supported index of %d", index, MaxIndex)
+	}
 	if len(list) <= index {
 		newlist := make([]interface{}, index+1)
 		copy(newlist, list)
 		list = newlist
 	}
 	list[index] = val
-	return list
+	return list, nil
 }
 
 func (t *parser) keyIndex() (int, error) {
@@ -238,6 +257,9 @@ func (t *parser) keyIndex() (int, error) {
 
 }
 func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
+	if i < 0 {
+		return list, fmt.Errorf("negative %d index not allowed", i)
+	}
 	stop := runeSet([]rune{'[', '.', '='})
 	switch k, last, err := runesUntil(t.sc, stop); {
 	case len(k) > 0:
@@ -248,16 +270,19 @@ func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
 		vl, e := t.valList()
 		switch e {
 		case nil:
-			return setIndex(list, i, vl), nil
+			return setIndex(list, i, vl)
 		case io.EOF:
-			return setIndex(list, i, ""), err
+			return setIndex(list, i, "")
 		case ErrNotList:
 			rs, e := t.val()
 			if e != nil && e != io.EOF {
 				return list, e
 			}
 			v, e := t.runesToVal(rs)
-			return setIndex(list, i, v), e
+			if e != nil {
+				return nil, e
+			}
+			return setIndex(list, i, v)
 		default:
 			return list, e
 		}
@@ -269,7 +294,10 @@ func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
 		}
 		// Now we need to get the value after the ].
 		list2, err := t.listItem(list, i)
-		return setIndex(list, i, list2), err
+		if err != nil {
+			return nil, err
+		}
+		return setIndex(list, i, list2)
 	case last == '.':
 		// We have a nested object. Send to t.key
 		inner := map[string]interface{}{}
@@ -285,7 +313,10 @@ func (t *parser) listItem(list []interface{}, i int) ([]interface{}, error) {
 
 		// Recurse
 		e := t.key(inner)
-		return setIndex(list, i, inner), e
+		if e != nil {
+			return list, e
+		}
+		return setIndex(list, i, inner)
 	default:
 		return nil, fmt.Errorf("parse error: unexpected token %v", last)
 	}
