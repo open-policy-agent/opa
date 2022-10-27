@@ -126,7 +126,7 @@ func TestMergeValuesNoOverride(t *testing.T) {
 		},
 	}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{
 		"a": map[string]interface{}{
@@ -147,7 +147,7 @@ func TestMergeValuesOverrideSingle(t *testing.T) {
 		"a": "override-value",
 	}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{
 		"a": "override-value",
@@ -170,7 +170,7 @@ func TestMergeValuesOverrideSingleNested(t *testing.T) {
 		},
 	}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{
 		"a": map[string]interface{}{
@@ -203,7 +203,7 @@ func TestMergeValuesOverrideMultipleNested(t *testing.T) {
 		},
 	}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{
 		"a": map[string]interface{}{
@@ -242,7 +242,7 @@ func TestMergeValuesOverrideSingleList(t *testing.T) {
 		},
 	}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	// The list index 0 should have been replaced instead of merging the sub objects
 	expected := map[string]interface{}{
@@ -268,7 +268,7 @@ func TestMergeValuesNoSrc(t *testing.T) {
 	}
 	src := map[string]interface{}{}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{
 		"a": map[string]interface{}{
@@ -285,7 +285,7 @@ func TestMergeValuesNoSrcOrDest(t *testing.T) {
 	dest := map[string]interface{}{}
 	src := map[string]interface{}{}
 
-	actual := mergeValues(dest, src)
+	actual := MergeValues(dest, src)
 
 	expected := map[string]interface{}{}
 

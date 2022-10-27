@@ -478,6 +478,71 @@ func TestReconfigure(t *testing.T) {
 
 }
 
+func TestReconfigureLocalOverride(t *testing.T) {
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"decision_logs": {"reporting": {"buffer_size_limit_bytes": 512}},
+		"discovery": {"name": "config"},
+		"caching": {"inter_query_builtin_cache": {"max_size_bytes": 10000000}},
+	}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"labels": {"x": "label value changed"},
+				"default_decision": "bar/baz",
+				"default_authorization_decision": "baz/qux",
+				"plugins": {
+					"test_plugin": {"a": "b"}
+				},
+				"decision_logs": {"partition_name": "bar"}
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	} else if disco.status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
+	}
+
+	// Verify decision log settings are overwritten
+	exp := map[string]interface{}{"partition_name": "bar", "reporting": map[string]interface{}{"buffer_size_limit_bytes": json.Number("512")}}
+	var actual map[string]interface{}
+	util.Unmarshal(manager.Config.DecisionLogs, &actual)
+	if !reflect.DeepEqual(actual, exp) {
+		t.Errorf("Expected overwritten decision_logs config (%v) but got %v", exp, actual)
+	}
+
+	if exp := int64(10000000); !reflect.DeepEqual(*manager.InterQueryBuiltinCacheConfig().InterQueryBuiltinCache.MaxSizeBytes, exp) {
+		t.Errorf("Expected cache bytes to be locally overwritten (%v) but got %v", exp, *manager.InterQueryBuiltinCacheConfig().InterQueryBuiltinCache.MaxSizeBytes)
+	}
+
+}
+
 func TestReconfigureWithUpdates(t *testing.T) {
 
 	ctx := context.Background()

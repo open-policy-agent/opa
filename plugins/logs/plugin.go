@@ -6,6 +6,7 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -423,6 +424,27 @@ func ParseConfig(config []byte, services []string, pluginList []string) (*Config
 		WithPlugins(pluginList).
 		WithTriggerMode(&t).
 		Parse()
+}
+
+func AllowConfigOverride(localConfig json.RawMessage) error {
+	if localConfig == nil {
+		return nil
+	}
+
+	type overridableConfig struct {
+		Reporting ReportingConfig `json:"reporting"`
+	}
+
+	d := json.NewDecoder(bytes.NewReader(localConfig))
+	d.DisallowUnknownFields()
+	var configStruct overridableConfig
+	err := d.Decode(&configStruct)
+
+	if err != nil {
+		return fmt.Errorf("discovery only allows manual configuration of the decision_logs plugin for the reporting.* configuration items")
+	}
+
+	return nil
 }
 
 // ConfigBuilder assists in the construction of the plugin configuration.

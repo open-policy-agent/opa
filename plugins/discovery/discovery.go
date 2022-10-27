@@ -28,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // Name is the discovery plugin name that will be registered with the plugin manager.
@@ -37,17 +38,18 @@ const Name = "discovery"
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
 type Discovery struct {
-	manager      *plugins.Manager
-	config       *Config
-	factories    map[string]plugins.Factory
-	downloader   bundle.Loader                       // discovery bundle downloader
-	status       *bundle.Status                      // discovery status
-	listenersMtx sync.Mutex                          // lock for listener map
-	listeners    map[interface{}]func(bundle.Status) // listeners for discovery update events
-	etag         string                              // discovery bundle etag for caching purposes
-	metrics      metrics.Metrics
-	readyOnce    sync.Once
-	logger       logging.Logger
+	manager              *plugins.Manager
+	config               *Config
+	localConficOverrides map[string]json.RawMessage
+	factories            map[string]plugins.Factory
+	downloader           bundle.Loader                       // discovery bundle downloader
+	status               *bundle.Status                      // discovery status
+	listenersMtx         sync.Mutex                          // lock for listener map
+	listeners            map[interface{}]func(bundle.Status) // listeners for discovery update events
+	etag                 string                              // discovery bundle etag for caching purposes
+	metrics              metrics.Metrics
+	readyOnce            sync.Once
+	logger               logging.Logger
 }
 
 // Factories provides a set of factory functions to use for
@@ -87,8 +89,31 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		return result, nil
 	}
 
-	if names := manager.Config.PluginNames(); len(names) > 0 {
-		return nil, fmt.Errorf("discovery prohibits manual configuration of %v", strings.Join(names, " and "))
+	result.localConficOverrides = make(map[string]json.RawMessage)
+	for _, name := range manager.Config.PluginNames() {
+		factory := result.factories[name]
+		var pluginConfig json.RawMessage
+		if name == "decision_logs" {
+			if err := logs.AllowConfigOverride(manager.Config.DecisionLogs); err != nil {
+				return nil, err
+			}
+
+			pluginConfig = manager.Config.DecisionLogs
+		} else if do, ok := factory.(plugins.DiscoveryOverride); ok {
+			if err := do.AllowOverride(manager.Config.Plugins[name]); err != nil {
+				return nil, err
+			}
+
+			pluginConfig = manager.Config.Plugins[name]
+		} else {
+			return nil, fmt.Errorf("discovery prohibits manual configuration of %v", strings.Join(manager.Config.PluginNames(), " and "))
+		}
+
+		result.localConficOverrides[name] = pluginConfig
+	}
+
+	if manager.Config.Caching != nil {
+		result.localConficOverrides["caching"] = manager.Config.Caching
 	}
 
 	result.config = config
@@ -255,6 +280,51 @@ func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 	return nil
 }
 
+func (c *Discovery) applyLocalOverride(config *config.Config) error {
+	for name, rawJson := range c.localConficOverrides {
+		var localOverride, target map[string]interface{}
+		util.Unmarshal(rawJson, &localOverride)
+
+		var rawTarget json.RawMessage
+		if name == "bundles" {
+			rawTarget = config.Bundles
+		} else if name == "status" {
+			rawTarget = config.Status
+		} else if name == "decision_logs" {
+			rawTarget = config.DecisionLogs
+		} else if name == "caching" {
+			rawTarget = config.Caching
+		} else {
+			rawTarget = config.Plugins[name]
+		}
+
+		util.Unmarshal(rawTarget, &target)
+		if target == nil {
+			target = make(map[string]interface{})
+		}
+
+		cfg.MergeValues(target, localOverride)
+		mergedPluginConfig, err := json.Marshal(target)
+		if err != nil {
+			return err
+		}
+
+		if name == "bundles" {
+			config.Bundles = mergedPluginConfig
+		} else if name == "status" {
+			config.Status = mergedPluginConfig
+		} else if name == "decision_logs" {
+			config.DecisionLogs = mergedPluginConfig
+		} else if name == "caching" {
+			config.Caching = mergedPluginConfig
+		} else {
+			config.Plugins[name] = mergedPluginConfig
+		}
+	}
+
+	return nil
+}
+
 func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
@@ -299,6 +369,10 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 				}
 			}
 		}
+	}
+
+	if err := c.applyLocalOverride(config); err != nil {
+		return nil, err
 	}
 
 	if err := c.manager.Reconfigure(config); err != nil {

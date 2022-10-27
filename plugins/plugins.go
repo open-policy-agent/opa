@@ -82,6 +82,11 @@ type Factory interface {
 	New(manager *Manager, config interface{}) Plugin
 }
 
+// DiscoveryOverride can be implemented by FactoryS to allow specific keys to be overridable locally
+type DiscoveryOverride interface {
+	AllowOverride(config interface{}) error
+}
+
 // Plugin defines the interface OPA uses to manage your plugin.
 //
 // When OPA starts it will start all of the plugins it was configured

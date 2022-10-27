@@ -110,7 +110,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 	}
 
 	// Merge together base config file and overrides, prefer the overrides
-	conf := mergeValues(baseConf, overrideConf)
+	conf := MergeValues(baseConf, overrideConf)
 
 	// Take the patched config and marshal back to YAML
 	return yaml.Marshal(conf)
@@ -139,8 +139,8 @@ func subEnvVars(s string) string {
 	return updatedConfig
 }
 
-// mergeValues will merge source and destination map, preferring values from the source map
-func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+// MergeValues will merge source and destination map, preferring values from the source map
+func MergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
@@ -161,7 +161,7 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 			continue
 		}
 		// If we got to this point, it is a map in both, so merge them
-		dest[k] = mergeValues(destMap, nextMap)
+		dest[k] = MergeValues(destMap, nextMap)
 	}
 	return dest
 }
