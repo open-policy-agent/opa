@@ -46,31 +46,21 @@ func assertErr(expected string, actual error, t *testing.T) {
 }
 
 func TestEnvironmentCredentialService(t *testing.T) {
-	reset := func() {
-		os.Unsetenv("AWS_ACCESS_KEY_ID")
-		os.Unsetenv("AWS_SECRET_ACCESS_KEY")
-		os.Unsetenv("AWS_REGION")
-		os.Unsetenv("AWS_SECURITY_TOKEN")
-		os.Unsetenv("AWS_SESSION_TOKEN")
-	}
-	reset()
-	t.Cleanup(reset) // reset again when we're done
-
 	cs := &awsEnvironmentCredentialService{}
 
 	// wrong path: some required environment is missing
 	_, err := cs.credentials()
 	assertErr("no AWS_ACCESS_KEY_ID set in environment", err, t)
 
-	os.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
+	t.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
 	_, err = cs.credentials()
 	assertErr("no AWS_SECRET_ACCESS_KEY set in environment", err, t)
 
-	os.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
 	_, err = cs.credentials()
 	assertErr("no AWS_REGION set in environment", err, t)
 
-	os.Setenv("AWS_REGION", "us-east-1")
+	t.Setenv("AWS_REGION", "us-east-1")
 
 	expectedCreds := awsCredentials{
 		AccessKey:    "MYAWSACCESSKEYGOESHERE",
@@ -91,7 +81,9 @@ func TestEnvironmentCredentialService(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		os.Setenv(testCase.tokenEnv, testCase.tokenValue)
+		if testCase.tokenEnv != "" {
+			t.Setenv(testCase.tokenEnv, testCase.tokenValue)
+		}
 		expectedCreds.SessionToken = testCase.tokenValue
 
 		envCreds, err := cs.credentials()
@@ -199,15 +191,9 @@ aws_session_token=%s
 	test.WithTempFS(files, func(path string) {
 		cfgPath := filepath.Join(path, "example.ini")
 
-		os.Setenv(awsCredentialsFileEnvVar, cfgPath)
-		os.Setenv(awsProfileEnvVar, profile)
-		os.Setenv(awsRegionEnvVar, defaultRegion)
-
-		t.Cleanup(func() {
-			os.Unsetenv(awsCredentialsFileEnvVar)
-			os.Unsetenv(awsProfileEnvVar)
-			os.Unsetenv(awsRegionEnvVar)
-		})
+		t.Setenv(awsCredentialsFileEnvVar, cfgPath)
+		t.Setenv(awsProfileEnvVar, profile)
+		t.Setenv(awsRegionEnvVar, defaultRegion)
 
 		cs := &awsProfileCredentialService{}
 		creds, err := cs.credentials()
@@ -242,18 +228,11 @@ aws_session_token=%s
 `, defaultKey, defaultSecret, defaultSessionToken)
 
 	files := map[string]string{}
-	oldUserProfile := os.Getenv("USERPROFILE")
-	oldHome := os.Getenv("HOME")
 
 	test.WithTempFS(files, func(path string) {
 
-		os.Setenv("USERPROFILE", path)
-		os.Setenv("HOME", path)
-
-		t.Cleanup(func() {
-			os.Setenv("USERPROFILE", oldUserProfile)
-			os.Setenv("HOME", oldHome)
-		})
+		t.Setenv("USERPROFILE", path)
+		t.Setenv("HOME", path)
 
 		cfgDir := filepath.Join(path, ".aws")
 		err := os.MkdirAll(cfgDir, os.ModePerm)
@@ -797,15 +776,7 @@ func (t *ec2CredTestServer) stop() {
 }
 
 func TestWebIdentityCredentialService(t *testing.T) {
-	reset := func() {
-		os.Unsetenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-		os.Unsetenv("AWS_ROLE_ARN")
-		os.Unsetenv("AWS_REGION")
-	}
-	reset()
-	t.Cleanup(reset)
-
-	os.Setenv("AWS_REGION", "us-west-1")
+	t.Setenv("AWS_REGION", "us-west-1")
 
 	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
 	ts := stsTestServer{
@@ -831,12 +802,12 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		// wrong path: no AWS_ROLE_ARN set
 		err := cs.populateFromEnv()
 		assertErr("no AWS_ROLE_ARN set in environment", err, t)
-		os.Setenv("AWS_ROLE_ARN", "role:arn")
+		t.Setenv("AWS_ROLE_ARN", "role:arn")
 
 		// wrong path: no AWS_WEB_IDENTITY_TOKEN_FILE set
 		err = cs.populateFromEnv()
 		assertErr("no AWS_WEB_IDENTITY_TOKEN_FILE set in environment", err, t)
-		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/nonsense")
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/nonsense")
 
 		// happy path: both env vars set
 		err = cs.populateFromEnv()
@@ -849,13 +820,13 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		assertErr("unable to read web token for sts HTTP request: open /nonsense: no such file or directory", err, t)
 
 		// wrong path: refresh with "bad token"
-		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
 		_ = cs.populateFromEnv()
 		err = cs.refreshFromService()
 		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
 		// happy path: refresh with "good token"
-		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
 		_ = cs.populateFromEnv()
 		err = cs.refreshFromService()
 		if err != nil {
@@ -878,7 +849,7 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		assertEq(creds.AccessKey, testAccessKey, t)
 
 		// happy/wrong path: refresh with "bad token" but return previous credentials
-		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", badTokenFile)
 		_ = cs.populateFromEnv()
 		cs.expiration = time.Now()
 		creds, err = cs.credentials()
@@ -886,8 +857,8 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		assertErr("STS HTTP request returned unexpected status: 401 Unauthorized", err, t)
 
 		// wrong path: refresh with "bad token" but return previous credentials
-		os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
-		os.Setenv("AWS_ROLE_ARN", "BrokenRole")
+		t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", goodTokenFile)
+		t.Setenv("AWS_ROLE_ARN", "BrokenRole")
 		_ = cs.populateFromEnv()
 		cs.expiration = time.Now()
 		creds, err = cs.credentials()

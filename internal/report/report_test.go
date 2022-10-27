@@ -9,13 +9,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestNewReportDefaultURL(t *testing.T) {
-	os.Unsetenv("OPA_TELEMETRY_SERVICE_URL")
 
 	reporter, err := New("", Options{})
 	if err != nil {
@@ -34,7 +32,7 @@ func TestSendReportBadRespStatus(t *testing.T) {
 	baseURL, teardown := getTestServer(nil, http.StatusBadRequest)
 	defer teardown()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
 	reporter, err := New("", Options{})
 	if err != nil {
@@ -59,7 +57,7 @@ func TestSendReportDecodeError(t *testing.T) {
 	baseURL, teardown := getTestServer("foo", http.StatusOK)
 	defer teardown()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
 	reporter, err := New("", Options{})
 	if err != nil {
@@ -85,7 +83,7 @@ func TestSendReportWithOPAUpdate(t *testing.T) {
 	baseURL, teardown := getTestServer(exp, http.StatusOK)
 	defer teardown()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
 	reporter, err := New("", Options{})
 	if err != nil {
@@ -108,7 +106,7 @@ func TestReportWithHeapStats(t *testing.T) {
 	baseURL, teardown := getTestServer(nil, http.StatusOK)
 	defer teardown()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
 	reporter, err := New("", Options{})
 	if err != nil {

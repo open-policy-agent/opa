@@ -152,9 +152,12 @@ var bs []byte
 
 // BenchmarkObjectString generates several objects of different sizes, and
 // marshals them to JSON via two ways:
-//   map[string]int -> ast.Value -> .String()
+//
+//	map[string]int -> ast.Value -> .String()
+//
 // and
-//   map[string]int -> json.Marshal()
+//
+//	map[string]int -> json.Marshal()
 //
 // The difference between these two is relevant for feeding input into the
 // wasm vm: when calling rego.New(...) with rego.Target("wasm"), it's up to

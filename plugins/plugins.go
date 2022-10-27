@@ -38,11 +38,11 @@ import (
 // configuration blob. If your plugin has not been configured, your
 // factory will not be invoked.
 //
-//   plugins:
-//     my_plugin1:
-//       some_key: foo
-//     # my_plugin2:
-//     #   some_key2: bar
+//	plugins:
+//	  my_plugin1:
+//	    some_key: foo
+//	  # my_plugin2:
+//	  #   some_key2: bar
 //
 // If OPA was started with the configuration above and received two
 // calls to runtime.RegisterPlugins (one with NAME "my_plugin1" and

@@ -298,7 +298,7 @@ func (p *Plugin) Snapshot() *UpdateRequestV1 {
 }
 
 // Trigger can be used to control when the plugin attempts to upload
-//status in manual triggering mode.
+// status in manual triggering mode.
 func (p *Plugin) Trigger(ctx context.Context) error {
 	done := make(chan error)
 	p.trigger <- trigger{ctx: ctx, done: done}

@@ -19,7 +19,7 @@ import (
 
 func setTestEnvVar(t *testing.T, name, value string) string {
 	envKey := fmt.Sprintf("%s_%s", t.Name(), name)
-	os.Setenv(envKey, value)
+	t.Setenv(envKey, value)
 	return envKey
 }
 

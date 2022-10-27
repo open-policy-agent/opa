@@ -47,8 +47,10 @@ type testWriteError struct {
 // testCount lets you assert the number of keys under a prefix.
 // Note that we don't do exact matches, so the assertions should be
 // as exact as possible:
-//   testCount{"/foo", 1}
-//   testCount{"/foo/bar", 1}
+//
+//	testCount{"/foo", 1}
+//	testCount{"/foo/bar", 1}
+//
 // both of these would be true for one element under key `/foo/bar`.
 type testCount struct {
 	key   string
