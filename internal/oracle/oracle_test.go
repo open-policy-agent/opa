@@ -392,7 +392,7 @@ q[x.y] = 10 {
 			if after > len(buffer) {
 				after = len(buffer)
 			}
-			t.Logf("pos is %d: \"%s<%s>%s\"", tc.pos, string(buffer[before:tc.pos]), string(buffer[tc.pos]), string(buffer[tc.pos+1:after]))
+			t.Logf("pos is %d: \"%s<%s>%s\"", tc.pos, buffer[before:tc.pos], string(buffer[tc.pos]), buffer[tc.pos+1:after])
 			o := New()
 			result, err := o.FindDefinition(DefinitionQuery{
 				Modules:  modules,
