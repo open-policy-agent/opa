@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -405,7 +405,7 @@ func TestHTTPPostRequest(t *testing.T) {
 
 		contentType := r.Header.Get("Content-Type")
 
-		bs, err := ioutil.ReadAll(r.Body)
+		bs, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1268,13 +1268,12 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 		},
 	}
 
-	data := loadSmallTestData()
-
-	t0 := time.Now().UTC()
-	opts := setTime(t0)
+	data := map[string]interface{}{}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			t0 := time.Now().UTC()
+			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1301,7 +1300,7 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			// eval first), so expect 2x the total request count the test case specified.
 			actualCount := len(requests) / 2
 			if actualCount != tc.expectedReqCount {
-				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+				t.Errorf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
 		})
 	}
@@ -1358,11 +1357,10 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	t0 := time.Now()
-	opts := setTime(t0)
-
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			t0 := time.Now().UTC()
+			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1373,7 +1371,7 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 					headers[k] = v
 				}
 
-				headers.Set("Date", t0.Format(time.RFC850))
+				headers.Set("Date", t0.Format(http.TimeFormat))
 
 				etag := w.Header().Get("etag")
 
@@ -1428,11 +1426,10 @@ func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 
 	data := loadSmallTestData()
 
-	t0 := time.Now()
-	opts := setTime(t0)
-
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
+			t0 := time.Now().UTC()
+			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1443,7 +1440,7 @@ func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 					headers[k] = v
 				}
 
-				headers.Set("Date", t0.Format(time.RFC850))
+				headers.Set("Date", t0.Format(http.TimeFormat))
 
 				etag := w.Header().Get("etag")
 
@@ -1615,19 +1612,6 @@ func TestGetResponseHeaderDateEmpty(t *testing.T) {
 	expected := "no date header"
 	if err.Error() != expected {
 		t.Fatalf("Expected error message %v but got %v", expected, err.Error())
-	}
-}
-
-func TestIsCachedResponseFreshZeroTime(t *testing.T) {
-	zeroTime := new(time.Time)
-	result := isCachedResponseFresh(BuiltinContext{}, &responseHeaders{date: *zeroTime}, nil)
-	if result {
-		t.Fatal("Expected stale cache response")
-	}
-
-	result = isCachedResponseFresh(BuiltinContext{Time: ast.NullTerm()}, &responseHeaders{date: time.Now()}, nil)
-	if result {
-		t.Fatal("Expected stale cache response")
 	}
 }
 
@@ -1849,10 +1833,13 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 }
 
 func TestNewInterQueryCacheValue(t *testing.T) {
+	date := "Wed, 31 Dec 2115 07:28:00 GMT"
+	maxAge := 290304000
+
 	headers := make(http.Header)
 	headers.Set("test-header", "test-value")
-	headers.Set("Cache-Control", "max-age=290304000, public")
-	headers.Set("Date", "Wed, 31 Dec 2115 07:28:00 GMT")
+	headers.Set("Cache-Control", fmt.Sprintf("max-age=%d, public", maxAge))
+	headers.Set("Date", date)
 
 	// test data
 	var b = []byte(`[{"ID": "1", "Firstname": "John"}]`)
@@ -1862,18 +1849,23 @@ func TestNewInterQueryCacheValue(t *testing.T) {
 		StatusCode: http.StatusOK,
 		Header:     headers,
 		Request:    &http.Request{Method: "Get"},
-		Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
+		Body:       io.NopCloser(bytes.NewBuffer(b)),
 	}
 
-	result, err := newInterQueryCacheValue(response, b, false)
+	result, err := newInterQueryCacheValue(BuiltinContext{}, response, b, &forceCacheParams{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	cvd := interQueryCacheData{RespBody: b,
+	dateTime, _ := http.ParseTime(date)
+
+	cvd := interQueryCacheData{
+		RespBody:   b,
 		Status:     "200 OK",
 		StatusCode: http.StatusOK,
-		Headers:    headers}
+		Headers:    headers,
+		ExpiresAt:  dateTime.Add(time.Duration(maxAge) * time.Second),
+	}
 
 	cvdBytes, err := json.Marshal(cvd)
 	if err != nil {
@@ -1945,7 +1937,7 @@ func TestHTTPSClient(t *testing.T) {
 		localServerKeyFile   = "testdata/server-key.pem"
 	)
 
-	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	caCertPEM, err := os.ReadFile(localCaFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2036,17 +2028,17 @@ func TestHTTPSClient(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ca, err := ioutil.ReadFile(localCaFile)
+		ca, err := os.ReadFile(localCaFile)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		cert, err := ioutil.ReadFile(localClientCertFile)
+		cert, err := os.ReadFile(localClientCertFile)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		key, err := ioutil.ReadFile(localClientKeyFile)
+		key, err := os.ReadFile(localClientKeyFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2247,7 +2239,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		localServerKeyFile  = "testdata/server-key.pem"
 	)
 
-	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	caCertPEM, err := os.ReadFile(localCaFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2315,7 +2307,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ca, err := ioutil.ReadFile(localCaFile)
+		ca, err := os.ReadFile(localCaFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2455,7 +2447,7 @@ func TestCertSelectionLogic(t *testing.T) {
 	)
 
 	// Set up Environment
-	caCertPEM, err := ioutil.ReadFile(localCaFile)
+	caCertPEM, err := os.ReadFile(localCaFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2465,7 +2457,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		t.Fatal("failed to parse CA cert")
 	}
 
-	ca, err := ioutil.ReadFile(localCaFile)
+	ca, err := os.ReadFile(localCaFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2659,14 +2651,14 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	people = append(people, Person{ID: "1", Firstname: "John"})
 
 	// Create a local socket
-	tmpF, err := ioutil.TempFile("", "")
+	tmpF, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	socketPath := tmpF.Name()
 	tmpF.Close()
-	os.Remove(socketPath)
+	_ = os.Remove(socketPath)
 
 	socket, err := net.Listen("unix", socketPath)
 	if err != nil {
