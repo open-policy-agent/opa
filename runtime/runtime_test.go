@@ -384,7 +384,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 
 func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse) {
 	t.Helper()
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
 	ctx := context.Background()
 	rt := getTestRuntime(ctx, t, logging.NewNoOpLogger())
@@ -397,7 +397,7 @@ func testCheckOPAUpdate(t *testing.T, url string, expected *report.DataResponse)
 
 func testCheckOPAUpdateLoop(t *testing.T, url, expected string) {
 	t.Helper()
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
 	ctx := context.Background()
 

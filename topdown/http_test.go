@@ -1956,22 +1956,14 @@ func TestHTTPSClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = os.Setenv("CLIENT_CERT_ENV", string(clientCert))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("CLIENT_CERT_ENV", string(clientCert))
+
 	clientKey, err := readKeyFromFile(localClientKeyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = os.Setenv("CLIENT_KEY_ENV", string(clientKey))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("CLIENT_KEY_ENV", string(clientKey))
+	t.Setenv("CLIENT_CA_ENV", string(caCertPEM))
 
 	// Replicating some of what happens in the server's HTTPS listener
 	s := getTLSTestServer()
@@ -2253,10 +2245,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("CLIENT_CA_ENV", string(caCertPEM))
 
 	// Replicating some of what happens in the server's HTTPS listener
 	s := getTLSTestServer()
@@ -2462,10 +2451,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.Setenv("CLIENT_CA_ENV", string(caCertPEM))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("CLIENT_CA_ENV", string(caCertPEM))
 
 	getClientTLSConfig := func(obj ast.Object) *tls.Config {
 		_, client, err := createHTTPRequest(BuiltinContext{Context: context.Background()}, obj)
@@ -2624,8 +2610,7 @@ func TestHTTPSendMetrics(t *testing.T) {
 }
 
 func TestInitDefaults(t *testing.T) {
-	os.Setenv("HTTP_SEND_TIMEOUT", "300mss")
-	defer os.Unsetenv("HTTP_SEND_TIMEOUT")
+	t.Setenv("HTTP_SEND_TIMEOUT", "300mss")
 
 	defer func() {
 		if r := recover(); r == nil {

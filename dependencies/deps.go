@@ -200,9 +200,9 @@ func filter(rs []ast.Ref, pred func(ast.Ref, ast.Ref) bool) (filtered []ast.Ref)
 // complicated. It should be possible to compute all dependencies in two
 // passes:
 //
-// 1) perform syntactic unification on vars
-// 2) gather all refs rooted at data after plugging the head with substitution
-//    from (1)
+//  1. perform syntactic unification on vars
+//  2. gather all refs rooted at data after plugging the head with substitution
+//     from (1)
 func ruleDeps(rule *ast.Rule) (resolved []ast.Ref) {
 	vars, others := extractEq(rule.Body)
 	joined := joinVarRefs(vars)

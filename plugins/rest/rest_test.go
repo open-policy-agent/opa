@@ -699,14 +699,8 @@ func TestNew(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			for key, val := range tc.env {
-				_ = os.Setenv(key, val)
+				t.Setenv(key, val)
 			}
-
-			t.Cleanup(func() {
-				for key := range tc.env {
-					_ = os.Unsetenv(key)
-				}
-			})
 
 			client, err := New([]byte(tc.input), ks, AuthPluginLookup(mockAuthPluginLookup))
 			if err != nil {
