@@ -7,7 +7,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -261,7 +261,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(cfgDir, "credentials"), []byte(config), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(cfgDir, "credentials"), []byte(config), 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
@@ -700,7 +700,7 @@ func TestV4SigningDoesNotMutateBody(t *testing.T) {
 	}
 
 	// Read the body and check that it was not mutated
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := io.ReadAll(req.Body)
 	assertEq(string(body), "{ \"payload\": 42 }", t)
 }
 

@@ -5,7 +5,6 @@
 package test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -27,7 +26,7 @@ func WithTempFS(files map[string]string, f func(string)) {
 // creation succeeds, the caller should invoke cleanup when they are done.
 func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, cleanup func(), err error) {
 
-	rootDir, err = ioutil.TempDir(root, prefix)
+	rootDir, err = os.MkdirTemp(root, prefix)
 
 	if err != nil {
 		return "", nil, err

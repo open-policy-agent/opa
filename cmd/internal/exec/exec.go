@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -52,9 +51,9 @@ func (p *Params) validateParams() error {
 //
 // NOTE(tsandall): consider expanding functionality:
 //
-//  * specialized output formats (e.g., pretty/non-JSON outputs)
-//  * exit codes set by convention or policy (e.g,. non-empty set => error)
-//  * support for new input file formats beyond JSON and YAML
+//   - specialized output formats (e.g., pretty/non-JSON outputs)
+//   - exit codes set by convention or policy (e.g,. non-empty set => error)
+//   - support for new input file formats beyond JSON and YAML
 func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 
 	err := params.validateParams()
@@ -194,7 +193,7 @@ type utilParser struct {
 }
 
 func (utilParser) Parse(r io.Reader) (interface{}, error) {
-	bs, err := ioutil.ReadAll(r)
+	bs, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

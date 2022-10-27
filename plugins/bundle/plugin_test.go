@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -3304,7 +3303,7 @@ func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bund
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(srcDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 

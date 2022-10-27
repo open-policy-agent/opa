@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -174,7 +173,7 @@ func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 		if fl.fsys != nil {
 			bs, err = fs.ReadFile(fl.fsys, path)
 		} else {
-			bs, err = ioutil.ReadFile(path)
+			bs, err = os.ReadFile(path)
 		}
 		if err != nil {
 			return err
@@ -404,7 +403,7 @@ func getSchemaSetByPathKey(path string) ast.Ref {
 }
 
 func loadOneSchema(path string) (interface{}, error) {
-	bs, err := ioutil.ReadFile(path)
+	bs, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +457,7 @@ func RegoWithOpts(path string, opts ast.ParserOptions) (*RegoFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	bs, err := ioutil.ReadFile(path)
+	bs, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -260,7 +259,7 @@ func writeTokenToFile(token, fileLoc string) error {
 	if fileLoc != "" {
 		path = filepath.Join(fileLoc, path)
 	}
-	return ioutil.WriteFile(path, bs, 0644)
+	return os.WriteFile(path, bs, 0644)
 }
 
 func validateSignParams(args []string, params signCmdParams) error {

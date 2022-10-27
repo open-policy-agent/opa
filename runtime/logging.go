@@ -7,7 +7,6 @@ package runtime
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -207,5 +206,5 @@ func readBody(r io.ReadCloser) ([]byte, io.ReadCloser, error) {
 	if _, err := buf.ReadFrom(r); err != nil {
 		return nil, r, err
 	}
-	return buf.Bytes(), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	return buf.Bytes(), io.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }

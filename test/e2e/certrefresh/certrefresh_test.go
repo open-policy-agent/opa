@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,7 +42,7 @@ var certFile, certKeyFile string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
+	caCertPEM, err := os.ReadFile("testdata/ca.pem")
 	if err != nil {
 		fatal(err)
 	}

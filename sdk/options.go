@@ -6,7 +6,6 @@ package sdk
 
 import (
 	"io"
-	"io/ioutil"
 
 	"github.com/sirupsen/logrus"
 
@@ -67,7 +66,7 @@ func (o *Options) init() error {
 	if o.Config == nil {
 		o.config = []byte("{}")
 	} else {
-		bs, err := ioutil.ReadAll(o.Config)
+		bs, err := io.ReadAll(o.Config)
 		if err != nil {
 			return err
 		}
@@ -102,7 +101,7 @@ func (o *ConfigOptions) init() error {
 		o.block = true
 	}
 
-	bs, err := ioutil.ReadAll(o.Config)
+	bs, err := io.ReadAll(o.Config)
 	if err != nil {
 		return err
 	}

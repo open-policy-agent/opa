@@ -6,7 +6,7 @@ package bundle
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -106,7 +106,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 
 		// create claims file
 		claimsFile := filepath.Join(rootDir, "claims.json")
-		if err := ioutil.WriteFile(claimsFile, claimBytes, 0644); err != nil {
+		if err := os.WriteFile(claimsFile, claimBytes, 0644); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 

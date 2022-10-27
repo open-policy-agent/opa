@@ -17,7 +17,6 @@ package gojsonschema
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,7 +39,7 @@ type jsonSchemaTestCase struct {
 	Valid       bool        `json:"valid"`
 }
 
-//Skip any directories not named appropiately
+// Skip any directories not named appropiately
 // filepath.Walk will also visit files in the root of the test directory
 var testDirectories = regexp.MustCompile(`(draft\d+)`)
 var draftMapping = map[string]Draft{
@@ -157,7 +156,7 @@ func TestFormats(t *testing.T) {
 	}
 	wd = filepath.Join(wd, "testdata")
 
-	dirs, err := ioutil.ReadDir(wd)
+	dirs, err := os.ReadDir(wd)
 
 	if err != nil {
 		panic(err.Error())

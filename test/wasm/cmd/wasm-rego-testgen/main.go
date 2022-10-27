@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -141,7 +140,7 @@ func run(params params) error {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	files, err := ioutil.ReadDir(params.InputDir)
+	files, err := os.ReadDir(params.InputDir)
 	if err != nil {
 		return err
 	}
@@ -151,7 +150,7 @@ func run(params params) error {
 			err := func() error {
 				abspath := filepath.Join(params.InputDir, files[i].Name())
 
-				bs, err := ioutil.ReadFile(abspath)
+				bs, err := os.ReadFile(abspath)
 				if err != nil {
 					return err
 				}

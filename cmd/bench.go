@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -479,7 +478,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +561,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 func readQuery(params benchmarkCommandParams, args []string) (string, error) {
 	var query string
 	if params.stdin {
-		bs, err := ioutil.ReadAll(os.Stdin)
+		bs, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return "", err
 		}

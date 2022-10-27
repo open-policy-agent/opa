@@ -7,7 +7,6 @@ package disk_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/open-policy-agent/opa/logging"
@@ -27,7 +26,7 @@ func Example_store() {
 	ctx := context.Background()
 
 	// Create a temporary directory for store.
-	dir, err := ioutil.TempDir("", "opa_disk_example")
+	dir, err := os.MkdirTemp("", "opa_disk_example")
 	check(err)
 
 	// Cleanup temporary directory after finishing.

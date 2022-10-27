@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -85,7 +84,7 @@ default allow = false
 			t.Fatal(err)
 		}
 
-		data, err := ioutil.ReadFile(filepath.Join(path, "policy.rego"))
+		data, err := os.ReadFile(filepath.Join(path, "policy.rego"))
 		if err != nil {
 			t.Fatal(err)
 		}
