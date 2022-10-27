@@ -330,7 +330,7 @@ func (i *VM) Eval(ctx context.Context,
 	i.dispatcher.Reset(ctx, seed, ns, iqbCache, ndbCache, ph, capabilities)
 
 	metrics.Timer("wasm_vm_eval_call").Start()
-	resultAddr, err := i.evalOneOff(ctx, int32(entrypoint), i.dataAddr, inputAddr, inputLen, heapPtr)
+	resultAddr, err := i.evalOneOff(ctx, entrypoint, i.dataAddr, inputAddr, inputLen, heapPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (i *VM) evalCompat(ctx context.Context,
 		}
 	}
 
-	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, int32(entrypoint)); err != nil {
+	if err := i.evalCtxSetEntrypoint(ctx, ctxAddr, entrypoint); err != nil {
 		return nil, err
 	}
 
@@ -470,7 +470,7 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		copy(mem[i.baseHeapPtr:i.baseHeapPtr+len], opts.parsedData)
 		i.dataAddr = opts.parsedDataAddr
 
-		i.evalHeapPtr = i.baseHeapPtr + int32(len)
+		i.evalHeapPtr = i.baseHeapPtr + len
 		err := i.setHeapState(ctx, i.evalHeapPtr)
 		if err != nil {
 			return err

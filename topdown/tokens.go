@@ -42,7 +42,8 @@ const (
 )
 
 // JSONWebToken represent the 3 parts (header, payload & signature) of
-//              a JWT in Base64.
+//
+//	a JWT in Base64.
 type JSONWebToken struct {
 	header        string
 	payload       string
@@ -753,7 +754,7 @@ func verifyHMAC(key interface{}, hash crypto.Hash, payload []byte, signature []b
 		return fmt.Errorf("incorrect symmetric key type")
 	}
 	mac := hmac.New(hash.New, macKey)
-	if _, err := mac.Write([]byte(payload)); err != nil {
+	if _, err := mac.Write(payload); err != nil {
 		return err
 	}
 	if !hmac.Equal(signature, mac.Sum([]byte{})) {
@@ -1081,7 +1082,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		switch exp.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but exp Value is in seconds
-			compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
+			compareTime := ast.FloatNumberTerm(constraints.time / 1000000000)
 			if ast.Compare(compareTime, exp.Value.(ast.Number)) != -1 {
 				return iter(unverified)
 			}
@@ -1094,7 +1095,7 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 		switch nbf.Value.(type) {
 		case ast.Number:
 			// constraints.time is in nanoseconds but nbf Value is in seconds
-			compareTime := ast.FloatNumberTerm(float64(constraints.time) / 1000000000)
+			compareTime := ast.FloatNumberTerm(constraints.time / 1000000000)
 			if ast.Compare(compareTime, nbf.Value.(ast.Number)) == -1 {
 				return iter(unverified)
 			}

@@ -26,4 +26,5 @@ linters:
     - staticcheck
     - gosimple
     - prealloc
+    - unconvert
     # - gosec # too many false positives

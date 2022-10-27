@@ -151,7 +151,7 @@ func TestProfileCheckExprDuration(t *testing.T) {
 		t.Fatalf("Expected text is test.sleep(\"100ms\") but got %v", string(fr.Result[0].Location.Text))
 	}
 
-	if fr.Result[0].ExprTimeNs <= time.Duration(50*time.Millisecond).Nanoseconds() {
+	if fr.Result[0].ExprTimeNs <= 50*time.Millisecond.Nanoseconds() {
 		t.Fatalf("Expected eval time is at least 100 msec but got %v", fr.Result[0].ExprTimeNs)
 	}
 

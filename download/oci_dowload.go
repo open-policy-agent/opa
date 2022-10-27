@@ -251,7 +251,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	if tarballDescriptor.MediaType == "" {
 		return nil, fmt.Errorf("no tarball descriptor found in the layers")
 	}
-	etag := string(tarballDescriptor.Digest.Hex())
+	etag := tarballDescriptor.Digest.Hex()
 	bundleFilePath := filepath.Join(d.localStorePath, "blobs", "sha256", etag)
 	// if the downloader etag sha is the same with digest of the tarball it was already loaded
 	if d.etag == etag {
