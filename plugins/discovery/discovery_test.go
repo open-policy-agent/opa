@@ -532,7 +532,11 @@ func TestReconfigureLocalOverride(t *testing.T) {
 	// Verify decision log settings are overwritten
 	exp := map[string]interface{}{"partition_name": "bar", "reporting": map[string]interface{}{"buffer_size_limit_bytes": json.Number("512")}}
 	var actual map[string]interface{}
-	util.Unmarshal(manager.Config.DecisionLogs, &actual)
+	err = util.Unmarshal(manager.Config.DecisionLogs, &actual)
+	if err != nil {
+		t.Fatalf("Failure unmarshaling decision log config: %v", err)
+	}
+
 	if !reflect.DeepEqual(actual, exp) {
 		t.Errorf("Expected overwritten decision_logs config (%v) but got %v", exp, actual)
 	}
