@@ -1,6 +1,5 @@
 cases:
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -12,8 +11,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 1
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -25,8 +23,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 1
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -41,8 +38,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -57,8 +53,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -74,8 +69,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -92,8 +86,7 @@ cases:
   - x:
       f: 1
       p: true
-- data:
-  modules:
+- modules:
   - |
     package test
     import future.keywords.in
@@ -115,8 +108,7 @@ cases:
   query: data.test.test_allow = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
     import future.keywords.in
@@ -153,8 +145,7 @@ cases:
   query: data.test.test_allow = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -170,8 +161,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -188,8 +178,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -207,8 +196,7 @@ cases:
   - x:
       f: 1
       p: true 
-- data:
-  modules:
+- modules:
   - |
     package test
     import future.keywords.in
@@ -229,8 +217,7 @@ cases:
     - 1
     - 3
     - 4
-- data:
-  modules:
+- modules:
   - |
     package test
     import future.keywords.in
@@ -246,8 +233,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: [["one"]]
-- data:
-  modules:
+- modules:
   - |
     package test
     import future.keywords.in
@@ -276,8 +262,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: [["one"]]
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -294,8 +279,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 1
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -314,8 +298,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -333,8 +316,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -345,8 +327,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 12300
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -356,8 +337,7 @@ cases:
   note: 'withkeyword/builtin-value: arity-0, false'
   query: data.test.p = x
   want_result: []
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -368,8 +348,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -381,8 +360,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -393,8 +371,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -405,8 +382,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: true
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -416,8 +392,7 @@ cases:
   note: 'withkeyword/builtin-value: arity-1, input must still be defined'
   query: data.test.p = x
   want_result: []
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -428,8 +403,7 @@ cases:
   query: data.test.p = x
   want_result:
   - x: {}
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -441,8 +415,7 @@ cases:
   want_result:
   - x:
       foo: 3
-- data:
-  modules:
+- modules:
   - |
     package test
 
@@ -453,3 +426,26 @@ cases:
   query: data.test.p = x
   want_result:
   - x: 2
+- modules:
+  - |
+    package test
+    p {
+      count([1,2,3]) == 1 with count as [1|true][0]
+    }
+  note: 'withkeyword/builtin: direct call, arity 1, replacement is value that needs eval (array comprehension)'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+    p {
+      q with count as [1|true][0]
+    }
+    q {
+      count([1,2,3]) == 1
+    }
+  note: 'withkeyword/builtin: indirect call, arity 1, replacement is value that needs eval (array comprehension)'
+  query: data.test.p = x
+  want_result:
+  - x: true

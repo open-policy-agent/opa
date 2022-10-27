@@ -1744,7 +1744,8 @@ When `<target>` is a reference to a function, like `http.send`, then
 its `<value>` can be any of the following:
 1. a value: `with http.send as {"body": {"success": true }}`
 2. a reference to another function: `with http.send as mock_http_send`
-3. a reference to another (possibly custom) built-in function: `with custom_builtin as less_strict_custom_builtin`.
+3. a reference to another (possibly custom) built-in function: `with custom_builtin as less_strict_custom_builtin`
+4. a reference to a rule that will be used as the _value_.
 
 When the replacement value is a function, its arity needs to match the replaced
 function's arity; and the types must be compatible.
