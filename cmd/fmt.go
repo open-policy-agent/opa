@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,7 +103,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return nil
 	}
 
-	contents, err := ioutil.ReadFile(filename)
+	contents, err := os.ReadFile(filename)
 	if err != nil {
 		return newError("failed to open file: %v", err)
 	}
@@ -169,7 +168,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 func formatStdin(r io.Reader, w io.Writer) error {
 
-	contents, err := ioutil.ReadAll(r)
+	contents, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -184,14 +183,14 @@ func formatStdin(r io.Reader, w io.Writer) error {
 }
 
 func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
-	o, err := ioutil.TempFile("", ".opafmt")
+	o, err := os.CreateTemp("", ".opafmt")
 	if err != nil {
 		return stdout, stderr, err
 	}
 	defer os.Remove(o.Name())
 	defer o.Close()
 
-	n, err := ioutil.TempFile("", ".opafmt")
+	n, err := os.CreateTemp("", ".opafmt")
 	if err != nil {
 		return stdout, stderr, err
 	}

@@ -8,7 +8,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -75,7 +74,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 	if configFile != "" {
 		var bytes []byte
 		var err error
-		bytes, err = ioutil.ReadFile(configFile)
+		bytes, err = os.ReadFile(configFile)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +99,7 @@ func Load(configFile string, overrides []string, overrideFiles []string) ([]byte
 	// User specified a config override value via --set-file
 	for _, override := range overrideFiles {
 		reader := func(rs []rune) (interface{}, error) {
-			bytes, err := ioutil.ReadFile(string(rs))
+			bytes, err := os.ReadFile(string(rs))
 			value := strings.TrimSpace(string(bytes))
 			return value, err
 		}

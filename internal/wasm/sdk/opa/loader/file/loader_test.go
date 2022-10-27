@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build opa_wasm
 // +build opa_wasm
 
 package file
@@ -9,7 +10,6 @@ package file
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sync"
@@ -22,7 +22,7 @@ import (
 func TestFileLoader(t *testing.T) {
 	// Assign a temp file.
 
-	f, err := ioutil.TempFile("", "test-file-loader")
+	f, err := os.CreateTemp("", "test-file-loader")
 	if err != nil {
 		panic(err)
 	}
@@ -124,7 +124,7 @@ func writeBundle(name string, policy string, data interface{}) {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile(name, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(name, buf.Bytes(), 0644); err != nil {
 		panic(err)
 	}
 }

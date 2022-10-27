@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -164,7 +164,7 @@ func gcpMetadataServiceRequest(endpoint string) ([]byte, error) {
 		return nil, &gcpMetadataError{errGCPMetadataUnexpected, endpoint, s}
 	}
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}

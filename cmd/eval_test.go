@@ -10,9 +10,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -1020,7 +1020,7 @@ func TestResetExprLocations(t *testing.T) {
 }
 func kubeSchemaServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	bs, err := ioutil.ReadFile("../ast/testdata/_definitions.json")
+	bs, err := os.ReadFile("../ast/testdata/_definitions.json")
 	if err != nil {
 		t.Fatal(err)
 	}

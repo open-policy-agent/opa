@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -124,7 +123,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 	var bs []byte
 
 	if params.stdinBuffer {
-		bs, err = ioutil.ReadAll(stdin)
+		bs, err = io.ReadAll(stdin)
 		if err != nil {
 			return err
 		}

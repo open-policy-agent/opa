@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -218,7 +218,7 @@ func TestFmtFailFileNoChanges(t *testing.T) {
 	test.WithTempFS(files, func(path string) {
 		policyFile := filepath.Join(path, "policy.rego")
 		info, err := os.Stat(policyFile)
-		err = formatFile(&params, ioutil.Discard, policyFile, info, err)
+		err = formatFile(&params, io.Discard, policyFile, info, err)
 		if err != nil {
 			t.Fatalf("Expected error but did not receive one")
 		}
@@ -237,7 +237,7 @@ func TestFmtFailFileChanges(t *testing.T) {
 	test.WithTempFS(files, func(path string) {
 		policyFile := filepath.Join(path, "policy.rego")
 		info, err := os.Stat(policyFile)
-		err = formatFile(&params, ioutil.Discard, policyFile, info, err)
+		err = formatFile(&params, io.Discard, policyFile, info, err)
 		if err == nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

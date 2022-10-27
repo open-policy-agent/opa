@@ -17,7 +17,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"hash"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -422,7 +421,7 @@ func addCACertsFromEnv(pool *x509.CertPool, envName string) (*x509.CertPool, err
 // ReadCertFromFile reads a cert from file
 func readCertFromFile(localCertFile string) ([]byte, error) {
 	// Read in the cert file
-	certPEM, err := ioutil.ReadFile(localCertFile)
+	certPEM, err := os.ReadFile(localCertFile)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +431,7 @@ func readCertFromFile(localCertFile string) ([]byte, error) {
 // ReadKeyFromFile reads a key from file
 func readKeyFromFile(localKeyFile string) ([]byte, error) {
 	// Read in the cert file
-	key, err := ioutil.ReadFile(localKeyFile)
+	key, err := os.ReadFile(localKeyFile)
 	if err != nil {
 		return nil, err
 	}

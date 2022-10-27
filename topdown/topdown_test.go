@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -931,7 +930,6 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 //
 // Avoid the following top-level keys: i, j, k, p, q, r, v, x, y, z.
 // These are used for rule names, local variables, etc.
-//
 func loadSmallTestData() map[string]interface{} {
 	var data map[string]interface{}
 	err := util.UnmarshalJSON([]byte(`{
@@ -1360,7 +1358,7 @@ func dump(note string, modules map[string]*ast.Module, data interface{}, docpath
 
 	filename := fmt.Sprintf("test-%v-%04d.yaml", namespace, c)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, filename), bs, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, filename), bs, 0644); err != nil {
 		panic(err)
 	}
 

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -104,7 +103,7 @@ func testRuntimeProcessWatchEvents(t *testing.T, asBundle bool) {
 			"hello": "world-2",
 		}
 
-		if err := ioutil.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "some/data.json"), util.MustMarshalJSON(expected), 0644); err != nil {
 			panic(err)
 		}
 
@@ -194,7 +193,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 
 		default x = 2`)
 
-		if err := ioutil.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0644); err != nil {
+		if err := os.WriteFile(path.Join(rootDir, "y.rego"), newModule, 0644); err != nil {
 			t.Fatal(err)
 		}
 

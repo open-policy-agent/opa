@@ -7,7 +7,7 @@ package format
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,7 +60,7 @@ func TestFormatNilLocationFunctionArgs(t *testing.T) {
 
 func TestFormatSourceError(t *testing.T) {
 	rego := "testfiles/test.rego.error"
-	contents, err := ioutil.ReadFile(rego)
+	contents, err := os.ReadFile(rego)
 	if err != nil {
 		t.Fatalf("Failed to read rego source: %v", err)
 	}
@@ -85,12 +85,12 @@ func TestFormatSource(t *testing.T) {
 
 	for _, rego := range regoFiles {
 		t.Run(rego, func(t *testing.T) {
-			contents, err := ioutil.ReadFile(rego)
+			contents, err := os.ReadFile(rego)
 			if err != nil {
 				t.Fatalf("Failed to read rego source: %v", err)
 			}
 
-			expected, err := ioutil.ReadFile(rego + ".formatted")
+			expected, err := os.ReadFile(rego + ".formatted")
 			if err != nil {
 				t.Fatalf("Failed to read expected rego source: %v", err)
 			}
