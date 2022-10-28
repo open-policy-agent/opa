@@ -4300,7 +4300,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, bi map[string]*Built
 func rewriteDynamicsOneKeepRefs(original *Expr, f *equalityFactory, bi map[string]*Builtin, term *Term, result Body, keepRef bool) (Body, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
-		if keepRef {
+		if keepRef && v.IsGround() {
 			return result, term
 		}
 		for i := 1; i < len(v); i++ {

@@ -90,6 +90,15 @@ func (bctx *BuiltinContext) Resolve(ref ast.Ref, iter func(*ast.Term) error) err
 		plugged := bctx.e.bindings.Plug(rterm)
 		return iter(plugged)
 	})
+
+}
+func (bctx *BuiltinContext) ResolveTerm(t *ast.Term) (plugged *ast.Term, err error) {
+	rterm := bctx.e.generateVar("res")
+	err = bctx.e.unify(t, rterm, func() error {
+		plugged = bctx.e.bindings.Plug(rterm)
+		return nil
+	})
+	return
 }
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.

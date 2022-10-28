@@ -110,7 +110,11 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 func builtinObjectGet(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	if r, ok := operands[0].Value.(ast.Ref); ok {
 		var appendix []*ast.Term
-		switch p := operands[1].Value.(type) {
+		path, err := bctx.ResolveTerm(operands[1])
+		if err != nil {
+			return err
+		}
+		switch p := path.Value.(type) {
 		case *ast.Array:
 			appendix = ref.ArrayPath(p)
 		case ast.Value:
@@ -126,6 +130,9 @@ func builtinObjectGet(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 		}
 		if result != nil {
 			return iter(result)
+		}
+		if r, ok := operands[2].Value.(ast.Ref); ok {
+			return bctx.Resolve(r, iter)
 		}
 		return iter(operands[2])
 	}
