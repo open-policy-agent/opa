@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -107,7 +107,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		}
 		b.StopTimer()
 
-		body, err := ioutil.ReadAll(resp)
+		body, err := io.ReadAll(resp)
 		if err != nil {
 			b.Fatalf("unexpected error reading response body: %s", err)
 		}

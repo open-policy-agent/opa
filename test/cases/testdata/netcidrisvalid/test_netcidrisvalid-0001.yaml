@@ -1,0 +1,66 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      net.cidr_is_valid("192.168.1.0/24", __local0__)
+      x = __local0__
+    }
+  note: valid ipv4 cidr
+  query: data.generated.p = x
+  want_result:
+  - x: true
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      net.cidr_is_valid("", __local0__)
+      x = __local0__
+    }
+  note: empty cidr
+  query: data.generated.p = x
+  want_result:
+  - x: false
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      net.cidr_is_valid("there goes a string", __local0__)
+      x = __local0__
+    }
+  note: random string
+  query: data.generated.p = x
+  want_result:
+  - x: false
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      net.cidr_is_valid("192.168.1.2", __local0__)
+      x = __local0__
+    }
+  note: valid ipv4 address
+  query: data.generated.p = x
+  want_result:
+  - x: false
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = x {
+      net.cidr_is_valid("2002::1234:abcd:ffff:c0a8:101/64", __local0__)
+      x = __local0__
+    }
+  note: valid ipv6 cidr
+  query: data.generated.p = x
+  want_result:
+  - x: true

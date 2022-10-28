@@ -28,6 +28,7 @@ func TestSetIndex(t *testing.T) {
 		expect  []interface{}
 		add     int
 		val     int
+		err     bool
 	}{
 		{
 			name:    "short",
@@ -50,16 +51,47 @@ func TestSetIndex(t *testing.T) {
 			add:     3,
 			val:     4,
 		},
+		{
+			name:    "negative",
+			initial: []interface{}{0, 1, 2, 3, 4, 5},
+			expect:  []interface{}{0, 1, 2, 3, 4, 5},
+			add:     -1,
+			val:     4,
+			err:     true,
+		},
+		{
+			name:    "large",
+			initial: []interface{}{0, 1, 2, 3, 4, 5},
+			expect:  []interface{}{0, 1, 2, 3, 4, 5},
+			add:     MaxIndex + 1,
+			val:     4,
+			err:     true,
+		},
 	}
 
 	for _, tt := range tests {
-		got := setIndex(tt.initial, tt.add, tt.val)
+		got, err := setIndex(tt.initial, tt.add, tt.val)
+
+		if err != nil && tt.err == false {
+			t.Fatalf("%s: Expected no error but error returned", tt.name)
+		} else if err == nil && tt.err == true {
+			t.Fatalf("%s: Expected error but no error returned", tt.name)
+		}
+
 		if len(got) != len(tt.expect) {
 			t.Fatalf("%s: Expected length %d, got %d", tt.name, len(tt.expect), len(got))
 		}
 
-		if gg := got[tt.add].(int); gg != tt.val {
-			t.Errorf("%s, Expected value %d, got %d", tt.name, tt.val, gg)
+		if !tt.err {
+			if gg := got[tt.add].(int); gg != tt.val {
+				t.Errorf("%s, Expected value %d, got %d", tt.name, tt.val, gg)
+			}
+		}
+
+		for k, v := range got {
+			if v != tt.expect[k] {
+				t.Errorf("%s, Expected value %d, got %d", tt.name, tt.expect[k], v)
+			}
 		}
 	}
 }

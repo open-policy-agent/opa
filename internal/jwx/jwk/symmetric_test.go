@@ -45,7 +45,7 @@ func TestSymmetric(t *testing.T) {
 }`)
 		var jwkKey jwk.Key
 		rawKeySetJSON := &jwk.RawKeySetJSON{}
-		err = json.Unmarshal([]byte(jwkSrc), rawKeySetJSON)
+		err = json.Unmarshal(jwkSrc, rawKeySetJSON)
 		if err != nil {
 			t.Fatalf("Failed to unmarshal JWK Set: %s", err.Error())
 		}
@@ -96,7 +96,7 @@ func TestSymmetric(t *testing.T) {
   ]
 }`)
 		rawKeySetJSON := &jwk.RawKeySetJSON{}
-		err := json.Unmarshal([]byte(jwkSrc), rawKeySetJSON)
+		err := json.Unmarshal(jwkSrc, rawKeySetJSON)
 		if err != nil {
 			t.Fatalf("Failed to unmarshal JWK Set: %s", err.Error())
 		}

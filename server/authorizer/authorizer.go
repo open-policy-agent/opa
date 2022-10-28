@@ -7,7 +7,7 @@ package authorizer
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -229,7 +229,7 @@ func expectYAML(r *http.Request) bool {
 
 func readBody(r *http.Request) ([]byte, error) {
 
-	bs, err := ioutil.ReadAll(r.Body)
+	bs, err := io.ReadAll(r.Body)
 
 	if err != nil {
 		return nil, err

@@ -1003,7 +1003,7 @@ func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, u
 		b.Signatures.Plugin = signingConfig.Plugin
 	}
 
-	b.Signatures.Signatures = []string{string(token)}
+	b.Signatures.Signatures = []string{token}
 
 	return nil
 }

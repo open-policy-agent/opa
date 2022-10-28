@@ -12,7 +12,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -407,7 +407,7 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 		sessionName = cs.SessionName
 	}
 
-	tokenData, err := ioutil.ReadFile(cs.WebIdentityTokenFile)
+	tokenData, err := os.ReadFile(cs.WebIdentityTokenFile)
 	if err != nil {
 		return errors.New("unable to read web token for sts HTTP request: " + err.Error())
 	}
@@ -484,7 +484,7 @@ func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc st
 
 	if resp.StatusCode != 200 {
 		if logger.GetLevel() == logging.Debug {
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				logger.Debug("Error response with response body: %v", body)
 			}
@@ -492,7 +492,7 @@ func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc st
 		// could be 404 for role that's not available, but cover all the bases
 		return nil, errors.New(desc + " HTTP request returned unexpected status: " + resp.Status)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		// deal with problems reading the body, whatever those might be
 		return nil, errors.New(desc + " HTTP response body could not be read: " + err.Error())
@@ -529,13 +529,13 @@ func signV4(req *http.Request, service string, credService awsCredentialService,
 		body = []byte("")
 	} else {
 		var err error
-		body, err = ioutil.ReadAll(req.Body)
+		body, err = io.ReadAll(req.Body)
 		if err != nil {
 			return errors.New("error getting request body: " + err.Error())
 		}
 		// Since ReadAll consumed the body ReadCloser, we must create a new ReadCloser for the request so that the
 		// subsequent read starts from the beginning
-		req.Body = ioutil.NopCloser(bytes.NewReader(body))
+		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	creds, err := credService.credentials()
 	if err != nil {

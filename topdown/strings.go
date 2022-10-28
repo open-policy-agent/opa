@@ -552,7 +552,7 @@ func builtinReverse(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 }
 
 func reverseString(str string) string {
-	sRunes := []rune(string(str))
+	sRunes := []rune(str)
 	length := len(sRunes)
 	reversedRunes := make([]rune, length)
 

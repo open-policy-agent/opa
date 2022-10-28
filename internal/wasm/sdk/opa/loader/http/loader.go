@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -252,6 +251,6 @@ func (l *Loader) get(ctx context.Context, tag string) (*bundle.Bundle, error) {
 // close closes the HTTP response gracefully, first draining it, to
 // avoid resource leaks.
 func (l *Loader) close(resp *http.Response) {
-	_, _ = io.Copy(ioutil.Discard, resp.Body) // Ignore errors.
+	_, _ = io.Copy(io.Discard, resp.Body) // Ignore errors.
 	_ = resp.Body.Close()
 }

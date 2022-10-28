@@ -9,14 +9,13 @@
 package authz
 
 import (
-	"io/ioutil"
 	"os"
 
 	"github.com/open-policy-agent/opa/storage/disk"
 )
 
 func diskStorage() (*disk.Options, func() error) {
-	dir, err := ioutil.TempDir("", "disk-store")
+	dir, err := os.MkdirTemp("", "disk-store")
 	if err != nil {
 		panic(err)
 	}

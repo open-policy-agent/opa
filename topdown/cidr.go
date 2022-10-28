@@ -216,6 +216,18 @@ func builtinNetCIDRExpand(bctx BuiltinContext, operands []*ast.Term, iter func(*
 	return iter(ast.NewTerm(result))
 }
 
+func builtinNetCIDRIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	cidr, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return iter(ast.BooleanTerm(false))
+	}
+
+	if _, _, err := net.ParseCIDR(string(cidr)); err != nil {
+		return iter(ast.BooleanTerm(false))
+	}
+	return iter(ast.BooleanTerm(true))
+}
+
 type cidrBlockRange struct {
 	First   *net.IP
 	Last    *net.IP
@@ -402,4 +414,5 @@ func init() {
 	RegisterBuiltinFunc(ast.NetCIDRContainsMatches.Name, builtinNetCIDRContainsMatches)
 	RegisterBuiltinFunc(ast.NetCIDRExpand.Name, builtinNetCIDRExpand)
 	RegisterBuiltinFunc(ast.NetCIDRMerge.Name, builtinNetCIDRMerge)
+	RegisterBuiltinFunc(ast.NetCIDRIsValid.Name, builtinNetCIDRIsValid)
 }

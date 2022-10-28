@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -26,7 +25,7 @@ func main() {
 
 	// Setup the SDK
 
-	policy, err := ioutil.ReadFile(path.Join(directory, "example-1.wasm"))
+	policy, err := os.ReadFile(path.Join(directory, "example-1.wasm"))
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return
@@ -71,7 +70,7 @@ func main() {
 
 	// Update the policy on the fly.
 
-	policy, err = ioutil.ReadFile(path.Join(directory, "example-2.wasm"))
+	policy, err = os.ReadFile(path.Join(directory, "example-2.wasm"))
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return

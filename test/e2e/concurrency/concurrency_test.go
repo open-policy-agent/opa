@@ -2,7 +2,6 @@ package concurrency
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -20,7 +19,7 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	testServerParams := e2e.NewAPIServerTestParams()
 
-	dir, err := ioutil.TempDir("", "disk-store")
+	dir, err := os.MkdirTemp("", "disk-store")
 	if err != nil {
 		panic(err)
 	}

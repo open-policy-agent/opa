@@ -15,9 +15,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -47,7 +48,7 @@ func DefaultTLSConfig(c Config) (*tls.Config, error) {
 	}
 
 	if c.TLS != nil && c.TLS.CACert != "" {
-		caCert, err := ioutil.ReadFile(c.TLS.CACert)
+		caCert, err := os.ReadFile(c.TLS.CACert)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +137,7 @@ func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
 	token := ap.Token
 
 	if ap.TokenPath != "" {
-		bytes, err := ioutil.ReadFile(ap.TokenPath)
+		bytes, err := os.ReadFile(ap.TokenPath)
 		if err != nil {
 			return err
 		}
@@ -355,7 +356,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 		return nil, err
 	}
 
-	bodyRaw, err := ioutil.ReadAll(response.Body)
+	bodyRaw, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +419,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	}
 
 	var keyPEMBlock []byte
-	data, err := ioutil.ReadFile(ap.PrivateKey)
+	data, err := os.ReadFile(ap.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +460,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		keyPEMBlock = data
 	}
 
-	certPEMBlock, err := ioutil.ReadFile(ap.Cert)
+	certPEMBlock, err := os.ReadFile(ap.Cert)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +478,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	} else {
 		if ap.CACert != "" {
 			c.logger.Warn("Deprecated 'services[_].credentials.client_tls.ca_cert' configuration specified. Use 'services[_].tls.ca_cert' instead. See https://www.openpolicyagent.org/docs/latest/configuration/#services")
-			caCert, err := ioutil.ReadFile(ap.CACert)
+			caCert, err := os.ReadFile(ap.CACert)
 			if err != nil {
 				return nil, err
 			}

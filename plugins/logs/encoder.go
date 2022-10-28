@@ -120,6 +120,7 @@ func (enc *chunkEncoder) Flush() ([][]byte, error) {
 	return enc.reset()
 }
 
+//nolint:unconvert
 func (enc *chunkEncoder) reset() ([][]byte, error) {
 
 	// Adjust the encoder's soft limit based on the current amount of

@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,7 +42,7 @@ var certFile, certKeyFile string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
+	caCertPEM, err := os.ReadFile("testdata/ca.pem")
 	if err != nil {
 		fatal(err)
 	}
@@ -98,7 +97,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// before rotation
 	cert := getCert(t)
-	if exp, act := serial0, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial0, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -108,7 +107,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// after rotation
 	cert = getCert(t)
-	if exp, act := serial1, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial1, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -118,7 +117,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// second cert still used
 	cert = getCert(t)
-	if exp, act := serial1, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial1, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -126,7 +125,7 @@ func TestCertificateRotation(t *testing.T) {
 	replaceCerts(t, certFile0, certKeyFile0)
 	time.Sleep(wait)
 	cert = getCert(t)
-	if exp, act := serial0, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial0, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 }

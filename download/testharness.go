@@ -8,9 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -171,7 +171,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
 		w.Header().Add("Docker-Content-Digest", "sha256:fe9c2930b6d8cc1bf3fa0c560996a95c75f0d0668bee71138355d9784c8c99b8")
 		w.WriteHeader(200)
-		bs, err := ioutil.ReadFile("testdata/manifest.layer")
+		bs, err := os.ReadFile("testdata/manifest.layer")
 		if err != nil {
 			w.WriteHeader(404)
 			return
@@ -185,7 +185,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.oci.image.config.v1+json")
 		w.Header().Add("Docker-Content-Digest", "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff")
 		w.WriteHeader(200)
-		bs, err := ioutil.ReadFile("testdata/manifest.layer")
+		bs, err := os.ReadFile("testdata/manifest.layer")
 		if err != nil {
 			w.WriteHeader(404)
 			return
@@ -200,7 +200,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/vnd.oci.image.layer.v1.tar+gzip")
 		w.Header().Add("Docker-Content-Digest", "sha256:b206ac766b0f3f880f6a62c4bb5ba5192d29deaefd989a1961603346a7555bdd")
 		w.WriteHeader(200)
-		bs, err := ioutil.ReadFile("testdata/tar.layer")
+		bs, err := os.ReadFile("testdata/tar.layer")
 		if err != nil {
 			w.WriteHeader(404)
 			return
@@ -214,7 +214,7 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/vnd.oci.image.config.v1+json")
 		w.Header().Add("Docker-Content-Digest", "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
 		w.WriteHeader(200)
-		bs, err := ioutil.ReadFile("testdata/config.layer")
+		bs, err := os.ReadFile("testdata/config.layer")
 		if err != nil {
 			w.WriteHeader(404)
 			return

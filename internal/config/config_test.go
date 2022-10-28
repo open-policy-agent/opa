@@ -19,7 +19,7 @@ import (
 
 func setTestEnvVar(t *testing.T, name, value string) string {
 	envKey := fmt.Sprintf("%s_%s", t.Name(), name)
-	os.Setenv(envKey, value)
+	t.Setenv(envKey, value)
 	return envKey
 }
 
@@ -65,7 +65,7 @@ func TestSubEnvVarsVarsSubMulti(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("\nExpected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
@@ -76,7 +76,7 @@ func TestSubEnvVarsVarsNoVars(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
@@ -87,7 +87,7 @@ func TestSubEnvVarsVarsEmptyString(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
@@ -102,7 +102,7 @@ func TestSubEnvVarsVarsSubMissingEnvVar(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
@@ -113,7 +113,7 @@ func TestSubEnvVarsVarsSubEmptyVarName(t *testing.T) {
 
 	actual := subEnvVars(configYaml)
 
-	if string(actual) != expected {
+	if actual != expected {
 		t.Errorf("Expected: '%s'\nActual: '%s'", expected, actual)
 	}
 }
