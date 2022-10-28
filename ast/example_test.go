@@ -41,13 +41,14 @@ min_x = 100 { true }`
 	fmt.Println("Expr 1:", c.Modules["my_module"].Rules[0].Body[0])
 	fmt.Println("Expr 2:", c.Modules["my_module"].Rules[0].Body[1])
 	fmt.Println("Expr 3:", c.Modules["my_module"].Rules[0].Body[2])
-	// fmt.Println("Expr 4:", c.Modules["my_module"].Rules[0].Body[3])
+	fmt.Println("Expr 4:", c.Modules["my_module"].Rules[0].Body[3])
 
 	// Output:
 	//
 	// Expr 1: data.foo[x]
 	// Expr 2: not input.bar[x]
-	// Expr 3: gte(x, data.opa.example.min_x)
+	// Expr 3: __local0__ = data.opa.example.min_x
+	// Expr 4: gte(x, __local0__)
 }
 
 func ExampleQueryCompiler_Compile() {
@@ -108,5 +109,5 @@ min_x = 100 { true }`
 
 	// Output:
 	//
-	// Compiled: data.opa.example.p[x]; lt(x, input.query_arg)
+	// Compiled: data.opa.example.p[x]; __localq0__ = input.query_arg; lt(x, __localq0__)
 }

@@ -4256,7 +4256,7 @@ func rewriteDynamicsEqExpr(f *equalityFactory, bi map[string]*Builtin, expr *Exp
 func rewriteDynamicsCallExpr(f *equalityFactory, bi map[string]*Builtin, expr *Expr, result Body) Body {
 	terms := expr.Terms.([]*Term)
 	for i := 1; i < len(terms); i++ {
-		_, isBuiltin := bi[terms[0].String()]
+		_, isBuiltin := refBuiltins[terms[0].String()]
 		result, terms[i] = rewriteDynamicsOneKeepRefs(expr, f, bi, terms[i], result, isBuiltin)
 	}
 	return appendExpr(result, expr)
@@ -5414,3 +5414,5 @@ func (rs *refSet) Sorted() []*Term {
 	})
 	return terms
 }
+
+var refBuiltins = map[string]struct{}{ObjectGet.Name: {}, Member.Name: {}, MemberWithKey.Name: {}}
