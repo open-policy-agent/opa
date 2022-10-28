@@ -812,6 +812,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		PrintHook:              e.printHook,
 		DistributedTracingOpts: e.tracingOpts,
 		Capabilities:           capabilities,
+		e:                      e,
 	}
 
 	eval := evalBuiltin{
@@ -1695,7 +1696,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
 
-	for i := 0; i < len(e.terms); i++ {
+	for i := range e.terms {
 		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 

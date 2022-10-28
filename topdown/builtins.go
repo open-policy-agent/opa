@@ -54,6 +54,7 @@ type (
 		DistributedTracingOpts tracing.Options       // options to be used by distributed tracing.
 		rand                   *rand.Rand            // randomization source for non-security-sensitive operations
 		Capabilities           *ast.Capabilities
+		e                      *eval
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.
@@ -81,6 +82,14 @@ func (bctx *BuiltinContext) Rand() (*rand.Rand, error) {
 
 	bctx.rand = rand.New(rand.NewSource(seed))
 	return bctx.rand, nil
+}
+
+func (bctx *BuiltinContext) Resolve(ref ast.Ref, iter func(*ast.Term) error) error {
+	rterm := bctx.e.generateVar("res")
+	return bctx.e.unify(ast.NewTerm(ref), rterm, func() error {
+		plugged := bctx.e.bindings.Plug(rterm)
+		return iter(plugged)
+	})
 }
 
 // RegisterBuiltinFunc adds a new built-in function to the evaluation engine.

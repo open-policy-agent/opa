@@ -11,16 +11,18 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinCount(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
-		return iter(ast.IntNumberTerm(a.Len()))
-	case ast.Object:
-		return iter(ast.IntNumberTerm(a.Len()))
-	case ast.Set:
+	case interface{ Len() int }:
 		return iter(ast.IntNumberTerm(a.Len()))
 	case ast.String:
 		return iter(ast.IntNumberTerm(len([]rune(a))))
+	case ast.Ref:
+		rterm := bctx.e.generateVar("res")
+		return bctx.e.unify(ast.NewTerm(a), rterm, func() error {
+			plugged := bctx.e.bindings.Plug(rterm)
+			return builtinCount(bctx, []*ast.Term{plugged}, iter)
+		})
 	}
 	return builtins.NewOperandTypeErr(1, operands[0].Value, "array", "object", "set", "string")
 }
@@ -224,7 +226,7 @@ func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	}
 }
 
-func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinMember(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	containee := operands[0]
 	switch c := operands[1].Value.(type) {
 	case ast.Set:
@@ -247,11 +249,21 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 			return ret
 		})
 		return iter(ast.BooleanTerm(ret))
+	case ast.Ref:
+		key := bctx.e.generateVar("key")
+		success := false
+		if err := bctx.e.unify(ast.NewTerm(c.Append(key)), containee, func() error {
+			success = true
+			return nil
+		}); err != nil {
+			return err
+		}
+		return iter(ast.BooleanTerm(success))
 	}
 	return iter(ast.BooleanTerm(false))
 }
 
-func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinMemberWithKey(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	key, val := operands[0], operands[1]
 	switch c := operands[2].Value.(type) {
 	case interface{ Get(*ast.Term) *ast.Term }:
@@ -260,6 +272,14 @@ func builtinMemberWithKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast
 			ret = act.Value.Compare(val.Value) == 0
 		}
 		return iter(ast.BooleanTerm(ret))
+	case ast.Ref:
+		success := false
+		if err := bctx.e.unify(ast.NewTerm(c.Append(key)), val, func() error {
+			return iter(ast.BooleanTerm(true))
+		}); err != nil {
+			return err
+		}
+		return iter(ast.BooleanTerm(success))
 	}
 	return iter(ast.BooleanTerm(false))
 }

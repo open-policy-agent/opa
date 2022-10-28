@@ -107,7 +107,29 @@ func builtinObjectFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	return iter(ast.NewTerm(r))
 }
 
-func builtinObjectGet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinObjectGet(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	if r, ok := operands[0].Value.(ast.Ref); ok {
+		var appendix []*ast.Term
+		switch p := operands[1].Value.(type) {
+		case *ast.Array:
+			appendix = ref.ArrayPath(p)
+		case ast.Value:
+			appendix = []*ast.Term{ast.NewTerm(p)}
+		}
+		rterm := bctx.e.generateVar("res")
+		var result *ast.Term
+		if err := bctx.e.unify(ast.NewTerm(r.Concat(appendix)), rterm, func() error {
+			result = bctx.e.bindings.Plug(rterm)
+			return nil
+		}); err != nil {
+			return err
+		}
+		if result != nil {
+			return iter(result)
+		}
+		return iter(operands[2])
+	}
+
 	object, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
