@@ -4482,7 +4482,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 				package test
 				x = []
 				y = {}
-				p { __local1__ = data.test.y; __local2__ = data.test.y; walk(__local1__, [__local0__, __local2__]) }
+				p { __local1__ = data.test.y; walk(data.test.y, [__local0__, __local1__]) }
 			`,
 		},
 		{
@@ -4631,8 +4631,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					__local2__ = data.test.xs
 					every __local0__, __local1__ in __local2__ {
 						plus(__local0__, __local1__, __local3__)
-						__local4__ = data.test.i
-						gt(__local3__, __local4__)
+						gt(__local3__, data.test.i)
 					}
 				}			`,
 		},
@@ -5179,11 +5178,11 @@ func TestCompilerRewriteDynamicTerms(t *testing.T) {
 		{`obj_compr2 { {"a": "b" | {"a": "b" | [str]}} }`, `{"a": "b" | {"a": "b" | __local0__ = data.test.str; [__local0__]}}`},
 		{`equality { str = str }`, `data.test.str = data.test.str`},
 		{`equality2 { [str] = [str] }`, `__local0__ = data.test.str; __local1__ = data.test.str; [__local0__] = [__local1__]`},
-		{`call { startswith(str, "") }`, `__local0__ = data.test.str; startswith(__local0__, "")`},
+		{`call { startswith(str, "") }`, `startswith(data.test.str, "")`},
 		{`call2 { count([str], n) }`, `__local0__ = data.test.str; count([__local0__], n)`},
 		{`eq_with { [str] = [1] with input as 1 }`, `__local0__ = data.test.str with input as 1; [__local0__] = [1] with input as 1`},
 		{`term_with { [[str]] with input as 1 }`, `__local0__ = data.test.str with input as 1; [[__local0__]] with input as 1`},
-		{`call_with { count(str) with input as 1 }`, `__local0__ = data.test.str with input as 1; count(__local0__) with input as 1`},
+		{`call_with { count(str) with input as 1 }`, `count(data.test.str) with input as 1`},
 		{`call_func { f(input, "foo") } f(x,y) { x[y] }`, `__local2__ = input; data.test.f(__local2__, "foo")`},
 		{`call_func2 { f(input.foo, "foo") } f(x,y) { x[y] }`, `__local2__ = input.foo; data.test.f(__local2__, "foo")`},
 		{`every_domain { every _ in str { true } }`, `__local1__ = data.test.str; every __local0__, _ in __local1__ { true }`},

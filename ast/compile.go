@@ -1928,7 +1928,7 @@ func (c *Compiler) rewriteDynamicTerms() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
-			rule.Body = rewriteDynamics(f, rule.Body)
+			rule.Body = rewriteDynamics(f, c.builtins, rule.Body)
 			return false
 		})
 	}
@@ -2580,7 +2580,7 @@ func (qc *queryCompiler) rewriteComprehensionTerms(_ *QueryContext, body Body) (
 func (qc *queryCompiler) rewriteDynamicTerms(_ *QueryContext, body Body) (Body, error) {
 	gen := newLocalVarGenerator("q", body)
 	f := newEqualityFactory(gen)
-	return rewriteDynamics(f, body), nil
+	return rewriteDynamics(f, qc.compiler.builtins, body), nil
 }
 
 func (qc *queryCompiler) rewriteExprTerms(_ *QueryContext, body Body) (Body, error) {
@@ -3954,7 +3954,7 @@ func resolveRefsInExpr(globals map[Var]*usedRef, ignore *declaredVarStack, expr 
 		cpy.Terms = resolveRefsInTerm(globals, ignore, ts)
 	case []*Term:
 		buf := make([]*Term, len(ts))
-		for i := 0; i < len(ts); i++ {
+		for i := range ts {
 			buf[i] = resolveRefsInTerm(globals, ignore, ts[i])
 		}
 		cpy.Terms = buf
@@ -4221,18 +4221,18 @@ func rewriteEquals(x interface{}) {
 // The rewritten version will be:
 //
 // __local0__ = data.bar; foo(__local0__) = 1
-func rewriteDynamics(f *equalityFactory, body Body) Body {
+func rewriteDynamics(f *equalityFactory, bi map[string]*Builtin, body Body) Body {
 	result := make(Body, 0, len(body))
 	for _, expr := range body {
 		switch {
 		case expr.IsEquality():
-			result = rewriteDynamicsEqExpr(f, expr, result)
+			result = rewriteDynamicsEqExpr(f, bi, expr, result)
 		case expr.IsCall():
-			result = rewriteDynamicsCallExpr(f, expr, result)
+			result = rewriteDynamicsCallExpr(f, bi, expr, result)
 		case expr.IsEvery():
-			result = rewriteDynamicsEveryExpr(f, expr, result)
+			result = rewriteDynamicsEveryExpr(f, bi, expr, result)
 		default:
-			result = rewriteDynamicsTermExpr(f, expr, result)
+			result = rewriteDynamicsTermExpr(f, bi, expr, result)
 		}
 	}
 	return result
@@ -4243,60 +4243,68 @@ func appendExpr(body Body, expr *Expr) Body {
 	return body
 }
 
-func rewriteDynamicsEqExpr(f *equalityFactory, expr *Expr, result Body) Body {
+func rewriteDynamicsEqExpr(f *equalityFactory, bi map[string]*Builtin, expr *Expr, result Body) Body {
 	if !validEqAssignArgCount(expr) {
 		return appendExpr(result, expr)
 	}
 	terms := expr.Terms.([]*Term)
-	result, terms[1] = rewriteDynamicsInTerm(expr, f, terms[1], result)
-	result, terms[2] = rewriteDynamicsInTerm(expr, f, terms[2], result)
+	result, terms[1] = rewriteDynamicsInTerm(expr, f, bi, terms[1], result)
+	result, terms[2] = rewriteDynamicsInTerm(expr, f, bi, terms[2], result)
 	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsCallExpr(f *equalityFactory, expr *Expr, result Body) Body {
+func rewriteDynamicsCallExpr(f *equalityFactory, bi map[string]*Builtin, expr *Expr, result Body) Body {
 	terms := expr.Terms.([]*Term)
 	for i := 1; i < len(terms); i++ {
-		result, terms[i] = rewriteDynamicsOne(expr, f, terms[i], result)
+		_, isBuiltin := bi[terms[0].String()]
+		result, terms[i] = rewriteDynamicsOneKeepRefs(expr, f, bi, terms[i], result, isBuiltin)
 	}
 	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsEveryExpr(f *equalityFactory, expr *Expr, result Body) Body {
+func rewriteDynamicsEveryExpr(f *equalityFactory, bi map[string]*Builtin, expr *Expr, result Body) Body {
 	ev := expr.Terms.(*Every)
-	result, ev.Domain = rewriteDynamicsOne(expr, f, ev.Domain, result)
-	ev.Body = rewriteDynamics(f, ev.Body)
+	result, ev.Domain = rewriteDynamicsOne(expr, f, bi, ev.Domain, result)
+	ev.Body = rewriteDynamics(f, bi, ev.Body)
 	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsTermExpr(f *equalityFactory, expr *Expr, result Body) Body {
+func rewriteDynamicsTermExpr(f *equalityFactory, bi map[string]*Builtin, expr *Expr, result Body) Body {
 	term := expr.Terms.(*Term)
-	result, expr.Terms = rewriteDynamicsInTerm(expr, f, term, result)
+	result, expr.Terms = rewriteDynamicsInTerm(expr, f, bi, term, result)
 	return appendExpr(result, expr)
 }
 
-func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
+func rewriteDynamicsInTerm(original *Expr, f *equalityFactory, bi map[string]*Builtin, term *Term, result Body) (Body, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
 		for i := 1; i < len(v); i++ {
-			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
+			result, v[i] = rewriteDynamicsOne(original, f, bi, v[i], result)
 		}
 	case *ArrayComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
+		v.Body = rewriteDynamics(f, bi, v.Body)
 	case *SetComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
+		v.Body = rewriteDynamics(f, bi, v.Body)
 	case *ObjectComprehension:
-		v.Body = rewriteDynamics(f, v.Body)
+		v.Body = rewriteDynamics(f, bi, v.Body)
 	default:
-		result, term = rewriteDynamicsOne(original, f, term, result)
+		result, term = rewriteDynamicsOne(original, f, bi, term, result)
 	}
 	return result, term
 }
 
-func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
+func rewriteDynamicsOne(original *Expr, f *equalityFactory, bi map[string]*Builtin, term *Term, result Body) (Body, *Term) {
+	return rewriteDynamicsOneKeepRefs(original, f, bi, term, result, false)
+}
+
+func rewriteDynamicsOneKeepRefs(original *Expr, f *equalityFactory, bi map[string]*Builtin, term *Term, result Body, keepRef bool) (Body, *Term) {
 	switch v := term.Value.(type) {
 	case Ref:
+		if keepRef {
+			return result, term
+		}
 		for i := 1; i < len(v); i++ {
-			result, v[i] = rewriteDynamicsOne(original, f, v[i], result)
+			result, v[i] = rewriteDynamicsOne(original, f, bi, v[i], result)
 		}
 		generated := f.Generate(term)
 		generated.With = original.With
@@ -4305,15 +4313,15 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 	case *Array:
 		for i := 0; i < v.Len(); i++ {
 			var t *Term
-			result, t = rewriteDynamicsOne(original, f, v.Elem(i), result)
+			result, t = rewriteDynamicsOne(original, f, bi, v.Elem(i), result)
 			v.set(i, t)
 		}
 		return result, term
 	case *object:
 		cpy := NewObject()
 		v.Foreach(func(key, value *Term) {
-			result, key = rewriteDynamicsOne(original, f, key, result)
-			result, value = rewriteDynamicsOne(original, f, value, result)
+			result, key = rewriteDynamicsOne(original, f, bi, key, result)
+			result, value = rewriteDynamicsOne(original, f, bi, value, result)
 			cpy.Insert(key, value)
 		})
 		return result, NewTerm(cpy).SetLocation(term.Location)
@@ -4321,31 +4329,31 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		cpy := NewSet()
 		for _, term := range v.Slice() {
 			var rw *Term
-			result, rw = rewriteDynamicsOne(original, f, term, result)
+			result, rw = rewriteDynamicsOne(original, f, bi, term, result)
 			cpy.Add(rw)
 		}
 		return result, NewTerm(cpy).SetLocation(term.Location)
 	case *ArrayComprehension:
 		var extra *Expr
-		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, bi, v.Body, term)
 		result.Append(extra)
 		return result, result[len(result)-1].Operand(0)
 	case *SetComprehension:
 		var extra *Expr
-		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, bi, v.Body, term)
 		result.Append(extra)
 		return result, result[len(result)-1].Operand(0)
 	case *ObjectComprehension:
 		var extra *Expr
-		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
+		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, bi, v.Body, term)
 		result.Append(extra)
 		return result, result[len(result)-1].Operand(0)
 	}
 	return result, term
 }
 
-func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, body Body, term *Term) (Body, *Expr) {
-	body = rewriteDynamics(f, body)
+func rewriteDynamicsComprehensionBody(original *Expr, f *equalityFactory, bi map[string]*Builtin, body Body, term *Term) (Body, *Expr) {
+	body = rewriteDynamics(f, bi, body)
 	generated := f.Generate(term)
 	generated.With = original.With
 	return body, generated
