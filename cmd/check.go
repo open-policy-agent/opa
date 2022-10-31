@@ -17,7 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-var checkParams = struct {
+type checkParams struct {
 	format       *util.EnumFlag
 	errLimit     int
 	ignore       []string
@@ -25,12 +25,16 @@ var checkParams = struct {
 	capabilities *capabilitiesFlag
 	schema       *schemaFlags
 	strict       bool
-}{
-	format: util.NewEnumFlag(checkFormatPretty, []string{
-		checkFormatPretty, checkFormatJSON,
-	}),
-	capabilities: newcapabilitiesFlag(),
-	schema:       &schemaFlags{},
+}
+
+func newCheckParams() checkParams {
+	return checkParams{
+		format: util.NewEnumFlag(checkFormatPretty, []string{
+			checkFormatPretty, checkFormatJSON,
+		}),
+		capabilities: newcapabilitiesFlag(),
+		schema:       &schemaFlags{},
+	}
 }
 
 const (
@@ -38,46 +42,34 @@ const (
 	checkFormatJSON   = "json"
 )
 
-var checkCommand = &cobra.Command{
-	Use:   "check <path> [path [...]]",
-	Short: "Check Rego source files",
-	Long: `Check Rego source files for parse and compilation errors.
-
-If the 'check' command succeeds in parsing and compiling the source file(s), no output
-is produced. If the parsing or compiling fails, 'check' will output the errors
-and exit with a non-zero exit code.`,
-
-	PreRunE: func(Cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("specify at least one file")
-		}
-		return nil
-	},
-
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(checkModules(args))
-	},
-}
-
-func checkModules(args []string) int {
+func checkModules(params checkParams, args []string) error {
 
 	modules := map[string]*ast.Module{}
 
-	ss, err := loader.Schemas(checkParams.schema.path)
-	if err != nil {
-		outputErrors(err)
-		return 1
+	var capabilities *ast.Capabilities
+	// if capabilities are not provided as a cmd flag,
+	// then ast.CapabilitiesForThisVersion must be called
+	// within checkModules to ensure custom builtins are properly captured
+	if params.capabilities.C != nil {
+		capabilities = params.capabilities.C
+	} else {
+		capabilities = ast.CapabilitiesForThisVersion()
 	}
 
-	if checkParams.bundleMode {
+	ss, err := loader.Schemas(params.schema.path)
+	if err != nil {
+		return err
+	}
+
+	if params.bundleMode {
 		for _, path := range args {
 			b, err := loader.NewFileLoader().
 				WithSkipBundleVerification(true).
 				WithProcessAnnotation(ss != nil).
+				WithCapabilities(capabilities).
 				AsBundle(path)
 			if err != nil {
-				outputErrors(err)
-				return 1
+				return err
 			}
 			for name, mod := range b.ParsedModules(path) {
 				modules[name] = mod
@@ -85,49 +77,37 @@ func checkModules(args []string) int {
 		}
 	} else {
 		f := loaderFilter{
-			Ignore: checkParams.ignore,
+			Ignore: params.ignore,
 		}
 
 		result, err := loader.NewFileLoader().
 			WithProcessAnnotation(ss != nil).
+			WithCapabilities(capabilities).
 			Filtered(args, f.Apply)
 		if err != nil {
-			outputErrors(err)
-			return 1
+			return err
 		}
 
 		for _, m := range result.Modules {
 			modules[m.Name] = m.Parsed
 		}
 	}
-	var capabilities *ast.Capabilities
-	// if capabilities are not provided as a cmd flag,
-	// then ast.CapabilitiesForThisVersion must be called
-	// within checkModules to ensure custom builtins are properly captured
-	if checkParams.capabilities.C != nil {
-		capabilities = checkParams.capabilities.C
-	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
-	}
+
 	compiler := ast.NewCompiler().
-		SetErrorLimit(checkParams.errLimit).
+		SetErrorLimit(params.errLimit).
 		WithCapabilities(capabilities).
 		WithSchemas(ss).
 		WithEnablePrintStatements(true).
-		WithStrict(checkParams.strict)
+		WithStrict(params.strict)
 
 	compiler.Compile(modules)
-
-	if !compiler.Failed() {
-		return 0
+	if compiler.Failed() {
+		return compiler.Errors
 	}
-
-	outputErrors(compiler.Errors)
-
-	return 1
+	return nil
 }
 
-func outputErrors(err error) {
+func outputErrors(format string, err error) {
 	var out io.Writer
 	if err != nil {
 		out = os.Stderr
@@ -135,7 +115,7 @@ func outputErrors(err error) {
 		out = os.Stdout
 	}
 
-	switch checkParams.format.String() {
+	switch format {
 	case checkFormatJSON:
 		result := pr.Output{
 			Errors: pr.NewOutputErrors(err),
@@ -150,6 +130,32 @@ func outputErrors(err error) {
 }
 
 func init() {
+	checkParams := newCheckParams()
+
+	checkCommand := &cobra.Command{
+		Use:   "check <path> [path [...]]",
+		Short: "Check Rego source files",
+		Long: `Check Rego source files for parse and compilation errors.
+	
+	If the 'check' command succeeds in parsing and compiling the source file(s), no output
+	is produced. If the parsing or compiling fails, 'check' will output the errors
+	and exit with a non-zero exit code.`,
+
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("specify at least one file")
+			}
+			return nil
+		},
+
+		Run: func(_ *cobra.Command, args []string) {
+			if err := checkModules(checkParams, args); err != nil {
+				outputErrors(checkParams.format.String(), err)
+				os.Exit(1)
+			}
+		},
+	}
+
 	addMaxErrorsFlag(checkCommand.Flags(), &checkParams.errLimit)
 	addIgnoreFlag(checkCommand.Flags(), &checkParams.ignore)
 	checkCommand.Flags().VarP(checkParams.format, "format", "f", "set output format")
