@@ -157,6 +157,11 @@ func opaTest(args []string) int {
 		return 0
 	}
 
+	if !isThresholdValid(testParams.threshold) {
+		fmt.Fprintln(os.Stderr, "Code coverage threshold must be between 0 and 100")
+		return 1
+	}
+
 	filter := loaderFilter{
 		Ignore: testParams.ignore,
 	}
@@ -358,6 +363,10 @@ func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.E
 	default:
 		return nil
 	}
+}
+
+func isThresholdValid(t float64) bool {
+	return 0 <= t && t <= 100
 }
 
 func init() {
