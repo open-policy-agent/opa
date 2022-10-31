@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
@@ -190,6 +191,7 @@ type Manager struct {
 	enablePrintStatements        bool
 	router                       *mux.Router
 	prometheusRegister           prometheus.Registerer
+	tracerProvider               *trace.TracerProvider
 }
 
 type managerContextKey string
@@ -351,6 +353,13 @@ func WithRouter(r *mux.Router) func(*Manager) {
 func WithPrometheusRegister(prometheusRegister prometheus.Registerer) func(*Manager) {
 	return func(m *Manager) {
 		m.prometheusRegister = prometheusRegister
+	}
+}
+
+// WithTracerProvider sets the passed *trace.TracerProvider to be used by plugins
+func WithTracerProvider(tracerProvider *trace.TracerProvider) func(*Manager) {
+	return func(m *Manager) {
+		m.tracerProvider = tracerProvider
 	}
 }
 
@@ -908,4 +917,9 @@ func (m *Manager) RegisterCacheTrigger(trigger func(*cache.Config)) {
 // PrometheusRegister gets the prometheus.Registerer for this plugin manager.
 func (m *Manager) PrometheusRegister() prometheus.Registerer {
 	return m.prometheusRegister
+}
+
+// TracerProvider gets the *trace.TracerProvider for this plugin manager.
+func (m *Manager) TracerProvider() *trace.TracerProvider {
+	return m.tracerProvider
 }
