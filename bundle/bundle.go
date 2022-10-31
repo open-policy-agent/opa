@@ -355,6 +355,7 @@ type Reader struct {
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
 	processAnnotations    bool
+	capabilities          *ast.Capabilities
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
 	etag                  string
@@ -417,6 +418,12 @@ func (r *Reader) WithProcessAnnotations(yes bool) *Reader {
 	return r
 }
 
+// WithCapabilities sets the supported capabilities when loading the files
+func (r *Reader) WithCapabilities(caps *ast.Capabilities) *Reader {
+	r.capabilities = caps
+	return r
+}
+
 // WithSizeLimitBytes sets the size limit to apply to files in the bundle. If files are larger
 // than this, an error will be returned by the reader.
 func (r *Reader) WithSizeLimitBytes(n int64) *Reader {
@@ -443,6 +450,13 @@ func (r *Reader) WithBundleName(name string) *Reader {
 func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
 	r.lazyLoadingMode = yes
 	return r
+}
+
+func (r *Reader) ParserOptions() ast.ParserOptions {
+	return ast.ParserOptions{
+		ProcessAnnotation: r.processAnnotations,
+		Capabilities:      r.capabilities,
+	}
 }
 
 // Read returns a new Bundle loaded from the reader.
@@ -511,7 +525,7 @@ func (r *Reader) Read() (Bundle, error) {
 			}
 
 			r.metrics.Timer(metrics.RegoModuleParse).Start()
-			module, err := ast.ParseModuleWithOpts(fullPath, buf.String(), ast.ParserOptions{ProcessAnnotation: r.processAnnotations})
+			module, err := ast.ParseModuleWithOpts(fullPath, buf.String(), r.ParserOptions())
 			r.metrics.Timer(metrics.RegoModuleParse).Stop()
 			if err != nil {
 				return bundle, err
