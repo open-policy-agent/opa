@@ -45,6 +45,20 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
 
+  circleci:
+    title: CircleCI
+    description: Use config policy management to create organization-level policies to impose rules and scopes around which configuration elements are required, allowed, not allowed etc.
+    software:
+      - circleci
+    labels:
+      category: tooling
+      layer: cicd
+      type: poweredbyopa
+    tutorials:
+      - https://circleci.com/docs/config-policy-management-overview/
+    inventors:
+      - circleci
+
   aws-cloudformation-hook:
     title: AWS CloudFormation Hook
     description: AWS CloudFormation Hook that uses OPA to make policy decisions on infrastructure provisioned via AWS CloudFormation
@@ -1359,7 +1373,7 @@ integrations:
   topaz:
     title: Topaz
     description:  |
-      Topaz is an open source authorization service providing fine grained, real-time, policy based access control for applications and APIs. 
+      Topaz is an open source authorization service providing fine grained, real-time, policy based access control for applications and APIs.
       Topaz uses OPA as its decision engine, and includes an embedded database that stores subjects, relations, and objects, inspired by the Google Zanzibar data model.
       Topaz can be deployed as a sidecar or microservice in your cloud.
     labels:
@@ -1673,6 +1687,9 @@ organizations:
   spacelift:
     name: Spacelift
     link: https://spacelift.io
+  circleci:
+    name: CircleCI
+    link: https://circleci.com
 
 software:
   oauth:
@@ -1918,3 +1935,6 @@ software:
   ansible:
     name: Ansible
     link: https://www.ansible.com
+  circleci:
+    name: CircleCI
+    link: https://circleci.com
