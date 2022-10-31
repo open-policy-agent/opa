@@ -135,6 +135,15 @@ func TestFilterTraceExplainFull(t *testing.T) {
 	verifyFilteredTrace(t, p, expected)
 }
 
+func TestThresholdRange(t *testing.T) {
+	thresholds := []float64{-1, 101}
+	for _, threshold := range thresholds {
+		if isThresholdValid(threshold) {
+			t.Fatalf("invalid threshold %2f shoul be reported", threshold)
+		}
+	}
+}
+
 func verifyFilteredTrace(t *testing.T, params *testCommandParams, expected string) {
 	filtered := filterTrace(params, failTrace(t))
 
