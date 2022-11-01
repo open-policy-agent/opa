@@ -322,10 +322,10 @@ Check Rego source files
 ### Synopsis
 
 Check Rego source files for parse and compilation errors.
-
-If the 'check' command succeeds in parsing and compiling the source file(s), no output
-is produced. If the parsing or compiling fails, 'check' will output the errors
-and exit with a non-zero exit code.
+	
+	If the 'check' command succeeds in parsing and compiling the source file(s), no output
+	is produced. If the parsing or compiling fails, 'check' will output the errors
+	and exit with a non-zero exit code.
 
 ```
 opa check <path> [path [...]] [flags]
