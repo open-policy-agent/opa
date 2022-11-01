@@ -102,6 +102,59 @@ func TestRunBenchmarkE2E(t *testing.T) {
 	}
 }
 
+func TestRunBenchmarkE2EWithOPAConfigFile(t *testing.T) {
+
+	fs := map[string]string{
+		"/config.yaml": `{"decision_logs": {"console": true}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+
+		params := testBenchParams()
+		params.e2e = true
+		params.configFile = filepath.Join(testDirRoot, "/config.yaml")
+
+		args := []string{"1 + 1"}
+		var buf bytes.Buffer
+
+		rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		if rc != 0 {
+			t.Fatalf("Unexpected return code %d, expected 0", rc)
+		}
+
+		// Expect a json serialized benchmark result with histogram fields
+		var br testing.BenchmarkResult
+		err = util.UnmarshalJSON(buf.Bytes(), &br)
+		if err != nil {
+			t.Fatalf("Unexpected error unmarshalling output: %s", err)
+		}
+
+		if br.N == 0 || br.T == 0 || br.MemAllocs == 0 || br.MemBytes == 0 {
+			t.Fatalf("Expected benchmark results to be non-zero, got: %+v", br)
+		}
+
+		if _, ok := br.Extra["histogram_timer_rego_query_eval_ns_count"]; !ok {
+			t.Fatalf("Expected benchmark results to contain 'histogram_timer_rego_query_eval_ns_count', got: %+v", br)
+		}
+
+		if float64(br.N) != br.Extra["histogram_timer_rego_query_eval_ns_count"] {
+			t.Fatalf("Expected 'histogram_timer_rego_query_eval_ns_count' to be equal to N")
+		}
+
+		if _, ok := br.Extra["histogram_timer_server_handler_ns_count"]; !ok {
+			t.Fatalf("Expected benchmark results to contain 'histogram_timer_server_handler_ns_count', got: %+v", br)
+		}
+
+		if float64(br.N) != br.Extra["histogram_timer_server_handler_ns_count"] {
+			t.Fatalf("Expected 'histogram_timer_server_handler_ns_count' to be equal to N")
+		}
+	})
+}
+
 func TestRunBenchmarkFailFastE2E(t *testing.T) {
 	params := testBenchParams()
 	params.fail = true // configured to fail on undefined results
