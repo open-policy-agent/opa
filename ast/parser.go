@@ -802,6 +802,10 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 		case Var:
 			ref = Ref{op}
 		case Ref:
+			if _, ok := y[0].Value.(Var); !ok {
+				p.illegal("rule head ref %v invalid", y)
+				return nil, false
+			}
 			ref = y
 		}
 		head = RefHead(ref)

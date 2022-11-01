@@ -2150,7 +2150,9 @@ func TestRuleRefHeads(t *testing.T) {
 		})
 	}
 
-	// TODO(sr): error cases, non-ground terms anywhere but at the end of the ref
+	assertParseErrorContains(t, "first ref head term is call", `package p
+q(0).r(0) { true }`,
+		"unexpected { token: rule head ref q(0).r invalid", opts)
 }
 
 func TestRuleElseKeyword(t *testing.T) {
