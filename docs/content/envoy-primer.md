@@ -477,6 +477,9 @@ allow if {
 The `truncated_body` field in the input represents if the HTTP request body is truncated. The body is considered to be
 truncated, if the value of the `Content-Length` header exceeds the size of the request body.
 
+If `skip-request-body-parse: true` is specified in the OPA-Envoy [configuration](../envoy-introduction#configuration), then
+the `parsed_body` and `truncated_body` fields will be omitted from the input.
+
 ## Example with JWT payload passed from Envoy
 
 Envoy can be configured to pass validated JWT payload data into the `ext_authz` filter with `metadata_context_namespaces`
