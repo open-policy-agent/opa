@@ -353,5 +353,8 @@ func buildSigningConfig(key, alg, claimsFile, plugin string) (*bundle.SigningCon
 	if key == "" && (plugin != "" || claimsFile != "" || alg != "") {
 		return nil, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
 	}
+	if key == "" {
+		return nil, nil
+	}
 	return bundle.NewSigningConfig(key, alg, claimsFile).WithPlugin(plugin), nil
 }
