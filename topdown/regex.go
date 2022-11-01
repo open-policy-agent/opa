@@ -107,7 +107,7 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 	re, ok := regexpCache[pat]
 	if !ok {
 		var err error
-		re, err = regexp.Compile(string(pat))
+		re, err = regexp.Compile(pat)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, e
 	re, ok := regexpCache[pat]
 	if !ok {
 		var err error
-		re, err = compileRegexTemplate(string(pat), delimStart, delimEnd)
+		re, err = compileRegexTemplate(pat, delimStart, delimEnd)
 		if err != nil {
 			return nil, err
 		}

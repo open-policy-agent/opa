@@ -844,7 +844,7 @@ func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 
 func errorLogger(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {
 	return func(attrs map[string]interface{}, f string, a ...interface{}) {
-		logger.WithFields(map[string]interface{}(attrs)).Error(f, a...)
+		logger.WithFields(attrs).Error(f, a...)
 	}
 }
 

@@ -98,7 +98,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// before rotation
 	cert := getCert(t)
-	if exp, act := serial0, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial0, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -108,7 +108,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// after rotation
 	cert = getCert(t)
-	if exp, act := serial1, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial1, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -118,7 +118,7 @@ func TestCertificateRotation(t *testing.T) {
 
 	// second cert still used
 	cert = getCert(t)
-	if exp, act := serial1, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial1, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 
@@ -126,7 +126,7 @@ func TestCertificateRotation(t *testing.T) {
 	replaceCerts(t, certFile0, certKeyFile0)
 	time.Sleep(wait)
 	cert = getCert(t)
-	if exp, act := serial0, string(cert.SerialNumber.String()); exp != act {
+	if exp, act := serial0, cert.SerialNumber.String(); exp != act {
 		t.Fatalf("expected signature %s, got %s", exp, act)
 	}
 }

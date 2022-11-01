@@ -2562,6 +2562,20 @@
       }
     },
     {
+      "name": "net.cidr_is_valid",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "net.cidr_merge",
       "decl": {
         "args": [

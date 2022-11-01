@@ -184,13 +184,13 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 	case builtins.ErrOperand:
 		return &Error{
 			Code:     TypeErr,
-			Message:  fmt.Sprintf("%v: %v", string(name), err.Error()),
+			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: loc,
 		}
 	default:
 		return &Error{
 			Code:     BuiltinErr,
-			Message:  fmt.Sprintf("%v: %v", string(name), err.Error()),
+			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: loc,
 		}
 	}

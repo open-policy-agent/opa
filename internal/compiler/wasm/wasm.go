@@ -603,7 +603,7 @@ func (c *Compiler) writeExternalFuncNames(buf *bytes.Buffer) {
 
 	for _, decl := range c.policy.Static.BuiltinFuncs {
 		if _, ok := builtinsFunctions[decl.Name]; !ok {
-			addr := int32(buf.Len()) + int32(c.stringOffset)
+			addr := int32(buf.Len()) + c.stringOffset
 			buf.WriteString(decl.Name)
 			buf.WriteByte(0)
 			c.externalFuncNameAddrs[decl.Name] = addr
@@ -615,7 +615,7 @@ func (c *Compiler) writeEntrypointNames(buf *bytes.Buffer) {
 	c.entrypointNameAddrs = make(map[string]int32)
 
 	for _, plan := range c.policy.Plans.Plans {
-		addr := int32(buf.Len()) + int32(c.stringOffset)
+		addr := int32(buf.Len()) + c.stringOffset
 		buf.WriteString(plan.Name)
 		buf.WriteByte(0)
 		c.entrypointNameAddrs[plan.Name] = addr

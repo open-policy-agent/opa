@@ -868,25 +868,27 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 
 				// replacement is a function (rule)
 				if node := p.rules.Lookup(r); node != nil {
-					p.mocks.Push() // new scope
-					name, err = p.planRules(node.Rules(), false)
-					if err != nil {
-						return err
+					if node.Arity() > 0 {
+						p.mocks.Push() // new scope
+						name, err = p.planRules(node.Rules(), false)
+						if err != nil {
+							return err
+						}
+						p.mocks.Pop()
+						return p.planExprCallFunc(name, node.Arity(), void, operands, p.defaultOperands(), iter)
 					}
-					p.mocks.Pop()
-					return p.planExprCallFunc(name, node.Arity(), void, operands, p.defaultOperands(), iter)
-				}
-
-				return fmt.Errorf("illegal replacement of operator %q by %v", operator, replacement)
-
-			default: // replacement is a value
-				if bi, ok := p.decls[operator]; ok {
-					return p.planExprCallValue(replacement, len(bi.Decl.FuncArgs().Args), operands, iter)
-				}
-				if node := p.rules.Lookup(op); node != nil {
-					return p.planExprCallValue(replacement, node.Arity(), operands, iter)
+					// arity==0 => replacement is a ref to a rule to be used as value (fallthrough)
 				}
 			}
+
+			// replacement is a value, or ref
+			if bi, ok := p.decls[operator]; ok {
+				return p.planExprCallValue(replacement, len(bi.Decl.FuncArgs().Args), operands, iter)
+			}
+			if node := p.rules.Lookup(op); node != nil {
+				return p.planExprCallValue(replacement, node.Arity(), operands, iter)
+			}
+			return fmt.Errorf("illegal replacement of operator %q by %v", operator, replacement) // should be unreachable
 		}
 
 		if node := p.rules.Lookup(op); node != nil {
@@ -971,7 +973,8 @@ func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.T
 
 func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands []*ast.Term, args []ir.Operand, iter planiter) error {
 
-	if len(operands) == arity {
+	switch {
+	case len(operands) == arity:
 		// definition: f(x) = y { ... }
 		// call: f(x) # result not captured
 		return p.planCallArgs(operands, 0, args, func(args []ir.Operand) error {
@@ -992,23 +995,28 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 
 			return iter()
 		})
-	}
 
-	// definition: f(x) = y { ... }
-	// call: f(x, 1) # caller captures result
-	return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Operand) error {
-		result := p.newLocal()
-		p.appendStmt(&ir.CallStmt{
-			Func:   name,
-			Args:   args,
-			Result: result,
+	case len(operands) == arity+1:
+		// definition: f(x) = y { ... }
+		// call: f(x, 1) # caller captures result
+		return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Operand) error {
+			result := p.newLocal()
+			p.appendStmt(&ir.CallStmt{
+				Func:   name,
+				Args:   args,
+				Result: result,
+			})
+			return p.planUnifyLocal(op(result), operands[len(operands)-1], iter)
 		})
-		return p.planUnifyLocal(op(result), operands[len(operands)-1], iter)
-	})
+
+	default:
+		return fmt.Errorf("impossible replacement, arity mismatch")
+	}
 }
 
 func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.Term, iter planiter) error {
-	if len(operands) == arity { // call: f(x) # result not captured
+	switch {
+	case len(operands) == arity: // call: f(x) # result not captured
 		return p.planCallArgs(operands, 0, nil, func([]ir.Operand) error {
 			p.ltarget = p.newOperand()
 			return p.planTerm(value, func() error {
@@ -1019,15 +1027,17 @@ func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.
 				return iter()
 			})
 		})
-	}
 
-	// call: f(x, 1) # caller captures result
-	return p.planCallArgs(operands[:len(operands)-1], 0, nil, func([]ir.Operand) error {
-		p.ltarget = p.newOperand()
-		return p.planTerm(value, func() error {
-			return p.planUnifyLocal(p.ltarget, operands[len(operands)-1], iter)
+	case len(operands) == arity+1: // call: f(x, 1) # caller captures result
+		return p.planCallArgs(operands[:len(operands)-1], 0, nil, func([]ir.Operand) error {
+			p.ltarget = p.newOperand()
+			return p.planTerm(value, func() error {
+				return p.planUnifyLocal(p.ltarget, operands[len(operands)-1], iter)
+			})
 		})
-	})
+	default:
+		return fmt.Errorf("impossible replacement, arity mismatch")
+	}
 }
 
 func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Operand, iter func([]ir.Operand) error) error {

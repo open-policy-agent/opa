@@ -5293,6 +5293,27 @@ func TestCompilerRewriteWithValue(t *testing.T) {
 			expected: `p { true with http.send as {"body": "yay"} }`,
 		},
 		{
+			note: "built-in function: replaced by var",
+			input: `
+				p {
+					resp := { "body": "yay" }
+					true with http.send as resp
+				}
+			`,
+			expected: `p { __local0__ = {"body": "yay"}; true with http.send as __local0__ }`,
+		},
+		{
+			note: "non-built-in function: replaced by var",
+			input: `
+				p {
+					resp := true
+					f(true) with f as resp
+				}
+				f(false) { true }
+			`,
+			expected: `p { __local0__ = true; data.test.f(true) with data.test.f as __local0__ }`,
+		},
+		{
 			note: "built-in function: replaced by comprehension",
 			input: `
 				p { true with http.send as { x: true | x := ["a", "b"][_] } }

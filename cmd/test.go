@@ -226,9 +226,9 @@ func opaTest(args []string) int {
 
 	timeout := testParams.timeout
 	if timeout == 0 { // unset
-		timeout = time.Duration(5 * time.Second)
+		timeout = 5 * time.Second
 		if testParams.benchmark {
-			timeout = time.Duration(30 * time.Second)
+			timeout = 30 * time.Second
 		}
 	}
 
