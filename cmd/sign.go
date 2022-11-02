@@ -36,6 +36,8 @@ const (
 	signaturesFile         = ".signatures.json"
 )
 
+var errSigningConfigIncomplete = fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
+
 func newSignCmdParams() signCmdParams {
 	return signCmdParams{}
 }
@@ -271,7 +273,7 @@ func validateSignParams(args []string, params signCmdParams) error {
 	}
 
 	if params.key == "" {
-		return fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
+		return errSigningConfigIncomplete
 	}
 
 	if !params.bundleMode {
