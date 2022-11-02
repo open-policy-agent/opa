@@ -146,6 +146,11 @@ func TestValidateSignParams(t *testing.T) {
 			newSignCmdParams(),
 			true, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
 		},
+		"empty_signing_key": {
+			[]string{"foo"},
+			signCmdParams{key: "", bundleMode: true},
+			true, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)"),
+		},
 		"non_bundle_mode": {
 			[]string{"foo"},
 			signCmdParams{key: "foo"},
