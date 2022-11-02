@@ -5,6 +5,14 @@
 {{ $version    := index (split .File.Path "/") 1 }}
 {{ $page       := trim .RelPermalink "/" }}
 {{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
+
+{{ $rank := 1 }}
+{{- range $index, $ver := $releases -}}
+  {{- if eq $ver $version -}}
+    {{ $rank = $index }}
+  {{- end -}}
+{{- end -}}
+{{ $ancient := gt $rank 5 }}
 <div class="dashboard-panel left has-background-white-bis is-hidden-touch">
   <div class="dashboard-panel-header has-text-centered">
     <div class="dashboard-panel-header-logo">
@@ -27,16 +35,16 @@
           </span>
             {{ if $isLatest }}
               <span class="tag latest-tag is-success is-small has-text-weight-bold">
-            latest
-          </span>
+                latest
+              </span>
             {{ else if (eq $version "edge") }}
               <span class="tag latest-tag is-danger is-small has-text-weight-bold">
-            pre-release
-          </span>
+                pre-release
+              </span>
             {{ else }}
-              <span class="tag latest-tag is-warning is-small has-text-weight-bold">
-            older
-          </span>
+              <span class="tag latest-tag {{ cond $ancient "is-danger" "is-warning"}} is-small has-text-weight-bold">
+                older
+              </span>
             {{ end }}
           <span class="icon is-small">
             <i class="fas fa-angle-down" aria-hidden="true"></i>
