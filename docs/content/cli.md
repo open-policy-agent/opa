@@ -38,6 +38,7 @@ opa bench <query> [flags]
 ```
       --benchmem                       report memory allocations with benchmark results (default true)
   -b, --bundle string                  set bundle file(s) or directory path(s). This flag can be repeated.
+  -c, --config-file string             set path of configuration file
       --count int                      number of times to repeat each benchmark (default 1)
   -d, --data string                    set policy or data file(s). This flag can be repeated.
       --e2e                            run benchmarks against a running OPA server
