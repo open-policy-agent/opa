@@ -91,12 +91,13 @@ type FileLoader interface {
 	All(paths []string) (*Result, error)
 	Filtered(paths []string, filter Filter) (*Result, error)
 	AsBundle(path string) (*bundle.Bundle, error)
-	WithFS(fsys fs.FS) FileLoader
-	WithMetrics(m metrics.Metrics) FileLoader
-	WithFilter(filter Filter) FileLoader
+	WithFS(fs.FS) FileLoader
+	WithMetrics(metrics.Metrics) FileLoader
+	WithFilter(Filter) FileLoader
 	WithBundleVerificationConfig(*bundle.VerificationConfig) FileLoader
-	WithSkipBundleVerification(skipVerify bool) FileLoader
-	WithProcessAnnotation(processAnnotation bool) FileLoader
+	WithSkipBundleVerification(bool) FileLoader
+	WithProcessAnnotation(bool) FileLoader
+	WithCapabilities(*ast.Capabilities) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -152,6 +153,12 @@ func (fl *fileLoader) WithSkipBundleVerification(skipVerify bool) FileLoader {
 // WithProcessAnnotation enables or disables processing of schema annotations on rules
 func (fl *fileLoader) WithProcessAnnotation(processAnnotation bool) FileLoader {
 	fl.opts.ProcessAnnotation = processAnnotation
+	return fl
+}
+
+// WithCapabilities sets the supported capabilities when loading the files
+func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
+	fl.opts.Capabilities = caps
 	return fl
 }
 
@@ -214,7 +221,8 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithMetrics(fl.metrics).
 		WithBundleVerificationConfig(fl.bvc).
 		WithSkipBundleVerification(fl.skipVerify).
-		WithProcessAnnotations(fl.opts.ProcessAnnotation)
+		WithProcessAnnotations(fl.opts.ProcessAnnotation).
+		WithCapabilities(fl.opts.Capabilities)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.

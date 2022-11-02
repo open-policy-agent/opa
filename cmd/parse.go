@@ -39,7 +39,7 @@ var parseCommand = &cobra.Command{
 		}
 		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		os.Exit(parse(args, os.Stdout, os.Stderr))
 	},
 }

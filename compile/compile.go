@@ -409,7 +409,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints)
+	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}

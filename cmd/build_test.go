@@ -3,6 +3,7 @@ package cmd
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/open-policy-agent/opa/util/test"
@@ -69,52 +71,117 @@ func TestBuildProducesBundle(t *testing.T) {
 }
 
 func TestBuildRespectsCapabilities(t *testing.T) {
-	capabilitiesJSON := `{
-    "builtins": [
-      {
-        "name": "is_foo",
-        "decl": {
-          "args": [
-            {
-              "type": "string"
-            }
-          ],
-          "result": {
-            "type": "boolean"
-          },
-          "type": "function"
-        }
-      }
-    ]
-  }`
-
-	files := map[string]string{
-		"capabilities.json": capabilitiesJSON,
-		"test.rego": `
-			package test
-			p { is_foo("bar") }
-		`,
+	tests := []struct {
+		note       string
+		caps       string
+		policy     string
+		err        string
+		bundleMode bool // build with "-b" flag
+	}{
+		{
+			note: "builtin defined in caps",
+			caps: `{
+			"builtins": [
+				{
+					"name": "is_foo",
+					"decl": {
+						"args": [
+							{
+								"type": "string"
+							}
+						],
+						"result": {
+							"type": "boolean"
+						},
+						"type": "function"
+					}
+				}
+			]
+		}`,
+			policy: `package test
+p { is_foo("bar") }`,
+		},
+		{
+			note: "future kw NOT defined in caps",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.FutureKeywords = []string{"in"}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import future.keywords.if
+import future.keywords.in
+p if "opa" in input.tools`,
+			err: "rego_parse_error: unexpected keyword, must be one of [in]",
+		},
+		{
+			note: "future kw are defined in caps",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.FutureKeywords = []string{"in", "if"}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import future.keywords.if
+import future.keywords.in
+p if "opa" in input.tools`,
+		},
 	}
 
-	test.WithTempFS(files, func(root string) {
-		caps := newcapabilitiesFlag()
-		if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
-			t.Fatal(err)
-		}
-		params := newBuildParams()
-		params.outputFile = path.Join(root, "bundle.tar.gz")
-		params.capabilities = caps
+	// add same tests for bundle-mode == true:
+	for i := range tests {
+		tc := tests[i]
+		tc.bundleMode = true
+		tc.note = tc.note + " (as bundle)"
+		tests = append(tests, tc)
+	}
 
-		err := dobuild(params, []string{root})
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"capabilities.json": tc.caps,
+				"test.rego":         tc.policy,
+			}
 
-		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
+			test.WithTempFS(files, func(root string) {
+				caps := newcapabilitiesFlag()
+				if err := caps.Set(path.Join(root, "capabilities.json")); err != nil {
+					t.Fatal(err)
+				}
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.capabilities = caps
+				params.bundleMode = tc.bundleMode
+
+				err := dobuild(params, []string{root})
+				switch {
+				case err != nil && tc.err != "":
+					if !strings.Contains(err.Error(), tc.err) {
+						t.Fatalf("expected err %v, got %v", tc.err, err)
+					}
+					return // don't read back bundle below
+				case err != nil && tc.err == "":
+					t.Fatalf("unexpected error: %v", err)
+				case err == nil && tc.err != "":
+					t.Fatalf("expected error %v, got nil", tc.err)
+				}
+
+				// check that the resulting bundle is readable
+				_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+			})
+		})
+	}
 }
 
 func TestBuildFilesystemModeIgnoresTarGz(t *testing.T) {
