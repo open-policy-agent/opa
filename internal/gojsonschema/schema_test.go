@@ -30,7 +30,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -117,7 +116,7 @@ func TestLoaders(t *testing.T) {
 	readerLoader, wrappedReader := NewReaderLoader(reader)
 
 	// drain reader
-	by, err := ioutil.ReadAll(wrappedReader)
+	by, err := io.ReadAll(wrappedReader)
 	assert.Nil(t, err)
 	assert.Equal(t, simpleSchema, string(by))
 
@@ -159,7 +158,7 @@ func TestLoadersWithInvalidPattern(t *testing.T) {
 	readerLoader, wrappedReader := NewReaderLoader(reader)
 
 	// drain reader
-	by, err := ioutil.ReadAll(wrappedReader)
+	by, err := io.ReadAll(wrappedReader)
 	assert.Nil(t, err)
 	assert.Equal(t, invalidPattern, string(by))
 

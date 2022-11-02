@@ -1,0 +1,772 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/validator/validator_test.yml
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type User {
+              id: ID!
+          }
+          extend type Product {
+              upc: String!
+          }
+          union _Entity = Product | User
+          extend type Query {
+            entity: _Entity
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success extending non-existent types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        # We use the unification style from semver's is_valid tests here:
+        p = x {
+            x = graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success validation rules are independent case 1 and 2
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type DeprecatedType {
+            deprecatedField: String @deprecated
+            newField(deprecatedArg: Int): Boolean
+          }
+          enum DeprecatedEnum {
+            ALPHA @deprecated
+          }
+        `
+        query := ``
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success deprecating types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Query {
+            bar: String!
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success no unused variables
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema_ast := graphql.parse_schema(`
+          type Employee {
+            id: String!
+            salary: Int!
+          }
+
+          schema {
+            query: Query
+          }
+
+          type Query {
+            employeeByID(id: String): Employee
+          }
+        `)
+        p {
+            graphql.schema_is_valid(schema_ast)
+        }
+    note: graphql_schema_is_valid/success - AST objects - Employee example
+    query: data.test.p = x
+    want_result:
+      - x: true
+# tests derived from gqlparser/parser/schema_test.yml
+# object extensions:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          "Description"
+          type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with description
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          """
+          Description
+          """
+          # Even with comments between them
+          type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with block description
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {
+            world(flag: Boolean): String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with field arg
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {
+            world(flag: Boolean = true): String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with field arg and default value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {
+            world(things: [String]): String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with field list arg
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {
+            world(argOne: Boolean, argTwo: Int): String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-object-extensions with two args
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello {}
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-object-extensions must define one or more fields
+    query: data.test.p = x
+    want_result:
+      - x: false
+# type extensions:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-type-extensions object extension
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Hello implements Greeting
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-type-extensions without any fields
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Hello implements Greeting
+          extend type Hello implements SecondGreeting
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-type-extensions without fields twice
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Hello
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-type-extensions without anything errors
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          "Description"
+          extend type Hello {
+            world: String
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-type-extensions can have descriptions
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend "Description" type Hello {
+            world: String
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-type-extensions can not have descriptions on types
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend scalar Foo @deprecated
+          extend type Foo @deprecated
+          extend interface Foo @deprecated
+          extend union Foo @deprecated
+          extend enum Foo @deprecated
+          extend input Foo @deprecated
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-type-extensions all can have directives
+    query: data.test.p = x
+    want_result:
+      - x: false
+# schema definition:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          schema {
+            query: Query
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-schema-definition simple
+    query: data.test.p = x
+    want_result:
+      - x: false
+#schema extensions:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend schema {
+            mutation: Mutation
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-schema-extensions simple
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend schema @directive
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-schema-extensions directive only
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend schema
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-schema-extensions without anything errors
+    query: data.test.p = x
+    want_result:
+      - x: false
+# inheritance:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello implements World { field: String }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-inheritance single
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello implements Wo & rld { field: String }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-inheritance multi
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Hello implements & Wo & rld { field: String }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-inheritance multi with leading amp
+    query: data.test.p = x
+    want_result:
+      - x: false
+# enums:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          enum Hello { WORLD }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-enums single value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          enum Hello { WO, RLD }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-enums double value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          enum Hello {}
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-enums must define one or more unique enum values
+    query: data.test.p = x
+    want_result:
+      - x: false
+# interface:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          interface Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-interface simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          interface Hello {}
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-interface must define one or more fields
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          interface IA {
+            id: ID!
+          }
+          interface IIA implements IA {
+            id: ID!
+          }
+          type A implements IIA {
+            id: ID!
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-interface may define intermediate interfaces
+    query: data.test.p = x
+    want_result:
+      - x: false
+# unions:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = World
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-unions simple
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = Wo | Rld
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-unions with two types
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = | Wo | Rld
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-unions with leading pipe
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = || Wo | Rld
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-unions cant be empty
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = Wo || Rld
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-unions cant double pipe
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          union Hello = | Wo | Rld |
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-unions cant have trailing pipe
+    query: data.test.p = x
+    want_result:
+      - x: false
+# scalar:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          scalar Hello
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-scalar simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+# input objects:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          input Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-input-objects simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          input Hello {
+            world(foo: Int): String
+          }
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-input-objects can not have args
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          input Hello {}
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-input-objects must define one or more input fields
+    query: data.test.p = x
+    want_result:
+      - x: false
+# directives:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          directive @foo on FIELD
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-directives simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          directive @onQuery on QUERY
+          directive @onMutation on MUTATION
+          directive @onSubscription on SUBSCRIPTION
+          directive @onField on FIELD
+          directive @onFragmentDefinition on FRAGMENT_DEFINITION
+          directive @onFragmentSpread on FRAGMENT_SPREAD
+          directive @onInlineFragment on INLINE_FRAGMENT
+          directive @onVariableDefinition on VARIABLE_DEFINITION
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-directives executable
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          directive @foo repeatable on FIELD
+        `
+        p {
+            graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/success-directives repeatable
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          directive @foo on FIELD | INCORRECT_LOCATION
+        `
+        p = x {
+            x := graphql.schema_is_valid(schema)
+        }
+    note: graphql_schema_is_valid/failure-directives invalid location
+    query: data.test.p = x
+    want_result:
+      - x: false

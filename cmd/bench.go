@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -47,6 +46,7 @@ type benchmarkCommandParams struct {
 	e2e                    bool
 	gracefulShutdownPeriod int
 	shutdownWaitPeriod     int
+	configFile             string
 }
 
 const (
@@ -126,6 +126,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	addBenchmemFlag(benchCommand.Flags(), &params.benchMem, true)
 
 	addE2EFlag(benchCommand.Flags(), &params.e2e, false)
+	addConfigFileFlag(benchCommand.Flags(), &params.configFile)
 
 	benchCommand.Flags().IntVar(&params.gracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down. This flag is valid in 'e2e' mode only.")
 	benchCommand.Flags().IntVar(&params.shutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown. This flag is valid in 'e2e' mode only.")
@@ -297,6 +298,7 @@ func benchE2E(ctx context.Context, args []string, params benchmarkCommandParams,
 		EnableVersionCheck:     false,
 		GracefulShutdownPeriod: params.gracefulShutdownPeriod,
 		ShutdownWaitPeriod:     params.shutdownWaitPeriod,
+		ConfigFile:             params.configFile,
 	}
 
 	rt, err := runtime.NewRuntime(ctx, rtParams)
@@ -479,7 +481,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +564,7 @@ func e2eQuery(params benchmarkCommandParams, url string, input map[string]interf
 func readQuery(params benchmarkCommandParams, args []string) (string, error) {
 	var query string
 	if params.stdin {
-		bs, err := ioutil.ReadAll(os.Stdin)
+		bs, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return "", err
 		}

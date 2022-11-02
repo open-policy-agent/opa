@@ -240,6 +240,7 @@ var DefaultBuiltins = [...]*Builtin{
 	GraphQLParseQuery,
 	GraphQLParseSchema,
 	GraphQLIsValid,
+	GraphQLSchemaIsValid,
 
 	// Rego
 	RegoParseModule,
@@ -2598,6 +2599,19 @@ var GraphQLIsValid = &Builtin{
 			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
 		),
 		types.Named("output", types.B).Description("`true` if the query is valid under the given schema. `false` otherwise."),
+	),
+}
+
+// GraphQLSchemaIsValid returns true if the input is valid GraphQL schema,
+// and returns false for all other inputs.
+var GraphQLSchemaIsValid = &Builtin{
+	Name:        "graphql.schema_is_valid",
+	Description: "Checks that the input is a valid GraphQL schema. The schema can be either a GraphQL string or an AST object from the other GraphQL builtin functions.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+		),
+		types.Named("output", types.B).Description("`true` if the schema is a valid GraphQL schema. `false` otherwise."),
 	),
 }
 

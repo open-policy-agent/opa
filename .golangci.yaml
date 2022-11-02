@@ -21,6 +21,7 @@ linters:
     - varcheck
     - deadcode
     - misspell
+    - tenv
     - typecheck
     - structcheck
     - staticcheck

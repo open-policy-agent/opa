@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/loader"
-
 	"github.com/open-policy-agent/opa/storage"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
@@ -121,7 +120,7 @@ p = true { 1 = 2 }`
 
 				err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 
-					loaded, err := LoadPaths(paths, nil, tc.asBundle, nil, true, false)
+					loaded, err := LoadPaths(paths, nil, tc.asBundle, nil, true, false, nil)
 					if err != nil {
 						return err
 					}
@@ -270,7 +269,7 @@ func TestLoadPathsBundleModeWithFilter(t *testing.T) {
 		// bundle mode
 		loaded, err := LoadPaths(paths, func(abspath string, info os.FileInfo, depth int) bool {
 			return loader.GlobExcludeName("*_test.rego", 1)(abspath, info, depth)
-		}, true, nil, true, false)
+		}, true, nil, true, false, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}

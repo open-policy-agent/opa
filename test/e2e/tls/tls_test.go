@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,7 +37,7 @@ func TestMain(m *testing.M) {
 	TLSVersion := minTLSVersions[*minTLSVersion]
 	flag.Parse()
 
-	caCertPEM, err := ioutil.ReadFile("testdata/ca.pem")
+	caCertPEM, err := os.ReadFile("testdata/ca.pem")
 	if err != nil {
 		fatal(err)
 	}
@@ -62,7 +61,7 @@ allow {
 	identity = "CN=my-client"
 }`)
 
-	tmpfile, err := ioutil.TempFile("", "authz.*.rego")
+	tmpfile, err := os.CreateTemp("", "authz.*.rego")
 	if err != nil {
 		fatal(err)
 	}

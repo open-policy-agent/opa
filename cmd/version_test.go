@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -44,7 +43,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 	baseURL, teardown := getTestServer(exp, http.StatusOK)
 	defer teardown()
 
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", baseURL)
 
 	var stdout bytes.Buffer
 
@@ -66,7 +65,7 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 
 func TestCheckOPAUpdateBadURL(t *testing.T) {
 	url := "http://foo:8112"
-	os.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
+	t.Setenv("OPA_TELEMETRY_SERVICE_URL", url)
 
 	err := checkOPAUpdate(nil)
 	if err == nil {

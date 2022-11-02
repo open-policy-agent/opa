@@ -11,14 +11,14 @@ import (
 	"reflect"
 	"testing"
 
-	prom "github.com/prometheus/client_golang/prometheus"
-
+	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	"github.com/open-policy-agent/opa/internal/storage/mock"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	prom "github.com/prometheus/client_golang/prometheus"
 )
 
 func TestManagerCacheTriggers(t *testing.T) {
@@ -358,6 +358,20 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 	}
 }
 
+func TestPluginManagerTracerProvider(t *testing.T) {
+	_, tracerProvider, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := New([]byte(`{}`), "test", inmem.New(), WithTracerProvider(tracerProvider))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.TracerProvider() != tracerProvider {
+		t.Fatal("TracerProvider was not configured on plugin manager")
+	}
+}
 func TestPluginManagerServerInitialized(t *testing.T) {
 	// Verify that ServerInitializedChannel is closed when
 	// ServerInitialized is called.

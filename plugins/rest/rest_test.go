@@ -18,7 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -699,14 +699,8 @@ func TestNew(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			for key, val := range tc.env {
-				_ = os.Setenv(key, val)
+				t.Setenv(key, val)
 			}
-
-			t.Cleanup(func() {
-				for key := range tc.env {
-					_ = os.Unsetenv(key)
-				}
-			})
 
 			client, err := New([]byte(tc.input), ks, AuthPluginLookup(mockAuthPluginLookup))
 			if err != nil {
@@ -899,7 +893,7 @@ func TestBearerTokenPath(t *testing.T) {
 		client = newTestBearerClient(t, &ts, tokenPath)
 
 		if resp, err := client.Do(ctx, "GET", "test"); err == nil {
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -918,7 +912,7 @@ func TestBearerTokenPath(t *testing.T) {
 		}
 
 		// Update the token file and try again
-		if err := ioutil.WriteFile(filepath.Join(path, "token.txt"), []byte("newsecret"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(path, "token.txt"), []byte("newsecret"), 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
@@ -1079,10 +1073,10 @@ func TestClientCert(t *testing.T) {
 		}
 
 		// Update the key files and try again..
-		if err := ioutil.WriteFile(filepath.Join(path, "client.pem"), ts.clientCertPem, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(path, "client.pem"), ts.clientCertPem, 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
-		if err := ioutil.WriteFile(filepath.Join(path, "client.key"), ts.clientCertKey, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(path, "client.key"), ts.clientCertKey, 0600); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 		if _, err := client.Do(ctx, "GET", "test"); err != nil {

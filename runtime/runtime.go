@@ -22,7 +22,9 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -296,7 +298,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false)
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -336,6 +338,17 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
+	traceExporter, tracerProvider, err := internal_tracing.Init(ctx, config, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+	if tracerProvider != nil {
+		params.DistributedTracingOpts = tracing.NewOptions(
+			otelhttp.WithTracerProvider(tracerProvider),
+			otelhttp.WithPropagators(propagation.TraceContext{}),
+		)
+	}
+
 	manager, err := plugins.New(config,
 		params.ID,
 		store,
@@ -349,21 +362,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.EnablePrintStatements(logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
-		plugins.WithPrometheusRegister(metrics))
+		plugins.WithPrometheusRegister(metrics),
+		plugins.WithTracerProvider(tracerProvider))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
-	}
-
-	traceExporter, distributedTracingOpts, err := internal_tracing.Init(ctx, config, params.ID)
-	if err != nil {
-		return nil, fmt.Errorf("config error: %w", err)
-	}
-	if distributedTracingOpts != nil {
-		params.DistributedTracingOpts = distributedTracingOpts
 	}
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
@@ -710,7 +716,7 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true, false)
+	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true, false, nil)
 	if err != nil {
 		return err
 	}

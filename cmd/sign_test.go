@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,7 +31,7 @@ func TestWriteTokenToFile(t *testing.T) {
 			t.Fatalf("Unexpected error %v", err)
 		}
 
-		bs, err := ioutil.ReadFile(filepath.Join(rootDir, ".signatures.json"))
+		bs, err := os.ReadFile(filepath.Join(rootDir, ".signatures.json"))
 		if err != nil {
 			t.Fatalf("Unexpected error %v", err)
 		}
@@ -99,7 +98,7 @@ func TestBundleSignVerification(t *testing.T) {
 		var filesInBundle [][2]string
 		err = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if !info.IsDir() {
-				bs, err := ioutil.ReadFile(path)
+				bs, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func main() {
 	command.Use = "opa [command]"
 	command.DisableAutoGenTag = true
 
-	dir, err := ioutil.TempDir("", "opa")
+	dir, err := os.MkdirTemp("", "opa")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,7 +88,7 @@ func main() {
 	}
 
 	withHeader := fmt.Sprintf("%s%s", fileHeader, strings.Join(document, ""))
-	err = ioutil.WriteFile(filepath.Join(out, "cli.md"), []byte(withHeader), 0755)
+	err = os.WriteFile(filepath.Join(out, "cli.md"), []byte(withHeader), 0755)
 	if err != nil {
 		log.Fatal(err)
 	}

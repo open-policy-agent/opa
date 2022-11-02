@@ -6,7 +6,7 @@ package encoding
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -17,7 +17,7 @@ import (
 
 func TestRoundtrip(t *testing.T) {
 
-	bs, err := ioutil.ReadFile(filepath.Join("testdata", "test1.wasm"))
+	bs, err := os.ReadFile(filepath.Join("testdata", "test1.wasm"))
 	if err != nil {
 		t.Fatal(err)
 	}

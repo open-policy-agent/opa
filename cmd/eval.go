@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -485,7 +484,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	var query string
 
 	if params.stdin {
-		bs, err := ioutil.ReadAll(os.Stdin)
+		bs, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return nil, err
 		}
@@ -671,13 +670,13 @@ func getProfileSortOrder(sortOrder []string) []string {
 
 func readInputBytes(params evalCommandParams) ([]byte, error) {
 	if params.stdinInput {
-		return ioutil.ReadAll(os.Stdin)
+		return io.ReadAll(os.Stdin)
 	} else if params.inputPath != "" {
 		path, err := fileurl.Clean(params.inputPath)
 		if err != nil {
 			return nil, err
 		}
-		return ioutil.ReadFile(path)
+		return os.ReadFile(path)
 	}
 	return nil, nil
 }

@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -58,7 +58,7 @@ func TestMetricsEndpoint(t *testing.T) {
 
 	defer mr.Body.Close()
 
-	bs, err := ioutil.ReadAll(mr.Body)
+	bs, err := io.ReadAll(mr.Body)
 	if err != nil {
 		t.Fatal(err)
 	}

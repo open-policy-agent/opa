@@ -30,7 +30,7 @@ import (
 //
 // Override at build time via:
 //
-//    -ldflags "-X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=<url>"
+//	-ldflags "-X github.com/open-policy-agent/opa/internal/report.ExternalServiceURL=<url>"
 //
 // This will be overridden if the OPA_TELEMETRY_SERVICE_URL environment variable
 // is provided.

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -291,7 +290,7 @@ func TestDumpPath(t *testing.T) {
 	// In file systems that are case-sensitive, this test will fail if we use
 	// a CamelCase directory name.
 	// See: https://github.com/open-policy-agent/opa/pull/5227#issuecomment-1273975492
-	dir, err := ioutil.TempDir("", "dump-path-test")
+	dir, err := os.MkdirTemp("", "dump-path-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +310,7 @@ func TestDumpPath(t *testing.T) {
 		t.Errorf("Expected no output but got: %v", buffer.String())
 	}
 
-	bs, err := ioutil.ReadFile(file)
+	bs, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("Expected file read to succeed but got: %v", err)
 	}

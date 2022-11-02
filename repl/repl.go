@@ -1151,16 +1151,16 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 // converted into a rule and compiled, then it will be interpreted as such. This
 // allows users to define constants in the REPL. For example:
 //
-//	> a = 1
-//  > a
-//  1
+//		> a = 1
+//	 > a
+//	 1
 //
 // If the expression is a = statement, then an additional check on the left
 // hand side occurs. For example:
 //
-//	> b = 2
-//  > b = 2
-//  true      # not redefined!
+//		> b = 2
+//	 > b = 2
+//	 true      # not redefined!
 func (r *REPL) interpretAsRule(ctx context.Context, compiler *ast.Compiler, body ast.Body) (bool, error) {
 
 	if len(body) != 1 {

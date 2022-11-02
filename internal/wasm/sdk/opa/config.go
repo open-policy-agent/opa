@@ -6,7 +6,7 @@ package opa
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 
 	"github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
 	"github.com/open-policy-agent/opa/internal/wasm/util"
@@ -14,7 +14,7 @@ import (
 
 // WithPolicyFile configures a policy file to load.
 func (o *OPA) WithPolicyFile(fileName string) *OPA {
-	policy, err := ioutil.ReadFile(fileName)
+	policy, err := os.ReadFile(fileName)
 	if err != nil {
 		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())
 		return o
@@ -32,7 +32,7 @@ func (o *OPA) WithPolicyBytes(policy []byte) *OPA {
 
 // WithDataFile configures the JSON data file to load.
 func (o *OPA) WithDataFile(fileName string) *OPA {
-	data, err := ioutil.ReadFile(fileName)
+	data, err := os.ReadFile(fileName)
 	if err != nil {
 		o.configErr = errors.New(errors.InvalidConfigErr, err.Error())
 		return o

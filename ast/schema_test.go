@@ -7,9 +7,9 @@ package ast
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -566,7 +566,7 @@ func TestAnyOfSchema(t *testing.T) {
 
 func kubeSchemaServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	bs, err := ioutil.ReadFile("testdata/_definitions.json")
+	bs, err := os.ReadFile("testdata/_definitions.json")
 	if err != nil {
 		t.Fatal(err)
 	}

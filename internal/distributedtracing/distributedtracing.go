@@ -9,15 +9,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
@@ -25,7 +23,6 @@ import (
 
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 
 	// The import registers opentelemetry with the top-level `tracing` package,
@@ -67,7 +64,7 @@ type distributedTracingConfig struct {
 	TLSCACertFile         string `json:"tls_ca_cert_file,omitempty"`
 }
 
-func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, tracing.Options, error) {
+func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
 		return nil, nil, err
@@ -117,12 +114,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, trac
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
 
-	options := tracing.NewOptions(
-		otelhttp.WithTracerProvider(traceProvider),
-		otelhttp.WithPropagators(propagation.TraceContext{}),
-	)
-
-	return traceExporter, options, nil
+	return traceExporter, traceProvider, nil
 }
 
 func SetupLogging(logger logging.Logger) {
@@ -216,7 +208,7 @@ func loadCertPool(tlsCACertFile string) (*x509.CertPool, error) {
 		return nil, nil
 	}
 
-	caCertPEM, err := ioutil.ReadFile(tlsCACertFile)
+	caCertPEM, err := os.ReadFile(tlsCACertFile)
 	if err != nil {
 		return nil, fmt.Errorf("read CA cert file: %v", err)
 	}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build noisy
 // +build noisy
 
 package remote
@@ -11,7 +12,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -113,7 +113,7 @@ func runAuthzBenchmark(b *testing.B, mode testAuthz.InputMode, numPaths int) {
 		resp, err := testRuntime.GetDataWithRawInput(url, inputReader)
 		b.StopTimer()
 
-		body, err := ioutil.ReadAll(resp)
+		body, err := io.ReadAll(resp)
 		if err != nil {
 			b.Fatalf("unexpected error reading response body: %s", err)
 		}

@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +37,7 @@ var exceptions map[string]string
 func TestMain(m *testing.M) {
 	exceptions = map[string]string{}
 
-	bs, err := ioutil.ReadFile(*exceptionsFile)
+	bs, err := os.ReadFile(*exceptionsFile)
 	if err != nil {
 		fmt.Println("Unable to load exceptions file: " + err.Error())
 		os.Exit(1)

@@ -79,7 +79,8 @@
       "graphql.parse",
       "graphql.parse_and_verify",
       "graphql.parse_query",
-      "graphql.parse_schema"
+      "graphql.parse_schema",
+      "graphql.schema_is_valid"
     ],
     "http": [
       "http.send"
@@ -4318,6 +4319,25 @@
       "description": "AST object for the GraphQL schema.",
       "name": "output",
       "type": "object[any: any]"
+    },
+    "wasm": false
+  },
+  "graphql.schema_is_valid": {
+    "args": [
+      {
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the input is a valid GraphQL schema. The schema can be either a GraphQL string or an AST object from the other GraphQL builtin functions.",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if the schema is a valid GraphQL schema. `false` otherwise.",
+      "name": "output",
+      "type": "boolean"
     },
     "wasm": false
   },

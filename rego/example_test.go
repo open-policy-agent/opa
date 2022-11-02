@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -343,7 +342,7 @@ func ExampleRego_Eval_persistent_storage() {
 	}
 
 	// Manually create a persistent storage-layer in a temporary directory.
-	rootDir, err := ioutil.TempDir("", "rego_example")
+	rootDir, err := os.MkdirTemp("", "rego_example")
 	if err != nil {
 		panic(err)
 	}
