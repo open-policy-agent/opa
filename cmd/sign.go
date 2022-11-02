@@ -169,7 +169,10 @@ func doSign(args []string, params signCmdParams) error {
 		return err
 	}
 
-	signingConfig := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
+	signingConfig, err := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
+	if err != nil {
+		return err
+	}
 
 	token, err := bundle.GenerateSignedToken(files, signingConfig, "")
 	if err != nil {

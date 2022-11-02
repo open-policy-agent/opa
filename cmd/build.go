@@ -261,7 +261,10 @@ func dobuild(params buildParams, args []string) error {
 		return err
 	}
 
-	bsc := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
+	bsc, err := buildSigningConfig(params.key, params.algorithm, params.claimsFile, params.plugin)
+	if err != nil {
+		return err
+	}
 
 	if bvc != nil || bsc != nil {
 		if !params.bundleMode {
@@ -346,10 +349,12 @@ func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles [
 	return bundle.NewVerificationConfig(map[string]*keys.Config{pubKeyID: keyConfig}, pubKeyID, scope, excludeFiles), nil
 }
 
-func buildSigningConfig(key, alg, claimsFile, plugin string) *bundle.SigningConfig {
-	if key == "" {
-		return nil
+func buildSigningConfig(key, alg, claimsFile, plugin string) (*bundle.SigningConfig, error) {
+	if key == "" && (plugin != "" || claimsFile != "" || alg != "") {
+		return nil, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
 	}
-
-	return bundle.NewSigningConfig(key, alg, claimsFile).WithPlugin(plugin)
+	if key == "" {
+		return nil, nil
+	}
+	return bundle.NewSigningConfig(key, alg, claimsFile).WithPlugin(plugin), nil
 }
