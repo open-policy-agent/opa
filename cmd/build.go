@@ -266,10 +266,8 @@ func dobuild(params buildParams, args []string) error {
 		return err
 	}
 
-	if bvc != nil || bsc != nil {
-		if !params.bundleMode {
-			return fmt.Errorf("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
-		}
+	if (bvc != nil || bsc != nil) && !params.bundleMode {
+		return fmt.Errorf("enable bundle mode (ie. --bundle) to verify or sign bundle files or directories")
 	}
 
 	var capabilities *ast.Capabilities
@@ -350,8 +348,8 @@ func buildVerificationConfig(pubKey, pubKeyID, alg, scope string, excludeFiles [
 }
 
 func buildSigningConfig(key, alg, claimsFile, plugin string) (*bundle.SigningConfig, error) {
-	if key == "" && (plugin != "" || claimsFile != "" || alg != "") {
-		return nil, fmt.Errorf("specify the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)")
+	if key == "" && (plugin != "" || claimsFile != "") {
+		return nil, errSigningConfigIncomplete
 	}
 	if key == "" {
 		return nil, nil
