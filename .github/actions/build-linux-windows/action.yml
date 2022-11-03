@@ -1,0 +1,33 @@
+name: Build (Linux/Windows)
+description: release build steps
+inputs:
+  telemetry_url:
+    description: URL of telemetry service
+    required: true
+runs:
+  using: composite
+  steps:
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Build Linux and Windows
+        run: make ci-go-ci-build-linux ci-go-ci-build-linux-static ci-go-ci-build-windows
+        shell: bash
+        env:
+          TELEMETRY_URL: ${{ inputs.telemetry_url }}
+
+      - name: Build Linux arm64
+        run: make ci-go-ci-build-linux-static
+        shell: bash
+        env:
+          GOARCH: arm64
+          TELEMETRY_URL: ${{ inputs.telemetry_url }}
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: binaries
+          path: _release

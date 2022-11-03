@@ -29,59 +29,25 @@ jobs:
             internal/compiler/wasm/opa
             capabilities.json
 
-  go-build:
-    name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }})
-    runs-on: ${{ matrix.run }}
+  build:
+    name: Build (linux, windows)
+    runs-on: ubuntu-22.04
     needs: generate
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: linux
-            run: ubuntu-22.04
-            targets: ci-go-ci-build-linux ci-go-ci-build-linux-static
-            arch: amd64
-          - os: linux
-            run: ubuntu-22.04
-            targets: ci-go-ci-build-linux-static
-            arch: arm64
-          - os: windows
-            run: ubuntu-22.04
-            targets: ci-go-ci-build-windows
-          - os: darwin
-            run: macos-latest
-            targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/build-linux-windows
+      with:
+        telemetry_url: ${{ secrets.TELEMETRY_URL }}
 
-      - id: go_version
-        name: Read go version
-        run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
-
-      - name: Install Go (${{ steps.go_version.outputs.go_version }})
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ steps.go_version.outputs.go_version }}
-        if: matrix.os == 'darwin'
-
-      - name: Download generated artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: generated
-
-      - name: Build
-        run: make ${{ matrix.targets }}
-        env:
-          GOARCH: ${{ matrix.arch }}
-        timeout-minutes: 30
-
-      - name: Upload binaries
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: binaries
-          path: _release
+  build-macos:
+    name: Build (macos)
+    runs-on: ubuntu-22.04
+    needs: generate
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/build-macos
+      with:
+        telemetry_url: ${{ secrets.TELEMETRY_URL }}
 
   go-test:
     name: Go Test (${{ matrix.os }})
@@ -251,7 +217,7 @@ jobs:
 
   smoke-test-binaries:
     runs-on: ${{ matrix.os }}
-    needs: go-build
+    needs: [build, build-macos]
     strategy:
       matrix:
         include:
