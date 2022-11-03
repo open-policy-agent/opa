@@ -3,9 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.46.0
 
-### Refs in Rule Heads
+This release contains a mix of bugfixes, optimizations, and new features.
+
+### New language feature: refs in rule heads
 
 With this version of OPA, we can use a shorthand for defining deeply-nested structures
 in Rego:
@@ -109,12 +111,157 @@ This rule defines the same structure, but with multiple values instead of a key:
     "repos": {
       "get": {
         "endpoint": ["/v1/data"]
-        }
       }
     }
   }
 }
 ```
+
+To ensure that it's safe to build OPA policies for older OPA versions, a new
+capabilities field was introduced: "features". It's a free-form string array:
+
+```json
+{
+  "features": [
+    "rule_head_ref_string_prefixes"
+  ]
+}
+```
+
+If this key is not present, the compiler will reject ref-heads. This could be
+case when building bundles for older OPA version using their capabilities.
+
+
+### Entrypoint annotations in rule metadata
+
+It is now possible to annotate a rule with `entrypoint: true`, and it will
+automatically be picked up by the tooling that expected `--entrypoint` (`-e`)
+parameters before.
+
+For example, to build this rego policy into a wasm module, you had to pass
+an entrypoint:
+
+```rego
+package test
+allow {
+    input.x
+}
+```
+- `opa build --target wasm --entrypoint test/allow policy.rego`
+
+With the annotation:
+```rego
+package test
+
+# METADATA
+# entrypoint: true
+allow {
+    input.x
+}
+```
+- `opa build --target wasm policy.rego`
+
+The places where entrypoints are taken from metadata are:
+
+1. Building optimized bundles
+2. Building Wasm bundles
+3. Building Plan bundles
+4. Using optimization with `opa eval`
+
+Knowing a module's entrypoints can also help in different analysis tasks.
+
+### New Built-in Functon: `graphql.schema_is_valid`
+
+The new built-in allows checking schemas:
+
+```rego
+schema := `
+  extend type User {
+      id: ID!
+  }
+  extend type Product {
+      upc: String!
+  }
+  union _Entity = Product | User
+  extend type Query {
+    entity: _Entity
+  }
+`
+valid_schema_example {
+    graphql.schema_is_valid(schema)
+}
+```
+
+Requested by @olegroom.
+
+### New Built-in Functon: `net.cidr_is_valid`
+
+The new built-in function allows checking if a string is a valid CIDR.
+
+```rego
+valid_cidr_example {
+	net.cidr_is_valid("192.168.0.0/24")
+}
+```
+
+Authored by @ricardomaraschini.
+
+### Tooling, SDK, and Runtime
+
+- `opa build`: exit with failure on empty signing key ([#4972](https://github.com/open-policy-agent/opa/issues/4972)) authored by @Joffref reported by @caldwecr
+- `opa exec`: add `--fail` and `--fail-defined` flags ([#5007](https://github.com/open-policy-agent/opa/issues/5007)) authored by @byronic reported by @phantlantis
+- `opa exec`: convert slashes of explicit bundles (Windows) ([#5134](https://github.com/open-policy-agent/opa/issues/5134)) reported by @peterchenadded
+- `opa test`: check coverage limit range `[0, 100]` ([#5284](https://github.com/open-policy-agent/opa/issues/5284)) authored by @hzliangbin reported by @aholmis
+- `opa build`+`opa check`: respect capabilities for parsing, i.e. future keywords ([#5323](https://github.com/open-policy-agent/opa/issues/5323)) reported by @TheLunaticScripter
+- `opa bench --e2e`: support providing OPA config ([#4899](https://github.com/open-policy-agent/opa/issues/4899))
+- `opa eval`: new explain mode, `--explain=debug`, that includes unifcations in traces (authored by @jaspervdj)
+
+- Decision logs: Allow rule-based dropping of decision log entries ([#3945](https://github.com/open-policy-agent/opa/issues/3945)) authored by @mariusblarsen and @iamatwork
+- Decision Logs: Include the `req_id` attribute in the decision logs ([#5006](https://github.com/open-policy-agent/opa/issues/5006)) reported and authored by @humbertoc-silva
+- Plugins: export OpenTelemetry TracerProvider for use in plugins (authored by @vinhph0906)
+
+
+### Compiler + Topdown
+
+- `graph.reachable_path`: fix issue with missing subpaths ([#4666](https://github.com/open-policy-agent/opa/issues/4666)) authored by @fredallen-wk
+- `http.send`: Ensure `force_cache` attribute ignores `Date` header ([#4960](https://github.com/open-policy-agent/opa/issues/4960)) reported by @bartandacc
+- `with`: Allow replacing functions with rules ([#5299](https://github.com/open-policy-agent/opa/issues/5299))
+- Evaluation: Skip default functions in full extent ([#5202](https://github.com/open-policy-agent/opa/issues/5202)) reported by @ericjkao
+- Evaluation: capture more cases of conflicts in function evaluation ([#5272](https://github.com/open-policy-agent/opa/issues/5272))
+- Rule Indexing: fix incorrect results from indexing `glob.match` even if output is captured ([#5283](https://github.com/open-policy-agent/opa/issues/5283))
+
+- Planner: various correctness fixes: [#5271](https://github.com/open-policy-agent/opa/issues/5271), [#5265](https://github.com/open-policy-agent/opa/issues/5265), [#5252](https://github.com/open-policy-agent/opa/issues/5252)
+
+- Builtins: Refactor registration functions and signatures (authored by @philipaconrad)
+- Compiler: Speed up typechecker when working with Refs (authored by @philipaconrad)
+- Trace: add `UnifyOp` to tracer events (authored by @jaspervdj)
+
+### Documentation
+
+- Envoy Tutorial: use latest proxy_init (v8)
+- Envoy Plugin: Add note about new config param to skip body parsing
+- Policy Reference: Add `semver` examples
+- Contributing Code: Provide some tips for style fixes
+
+### Website + Ecosystem
+
+- Website: Make "outdated version" banner red if looked-at version is ancient
+- Ecosystem: Add CircleCI and Topaz
+
+### Miscellaneous
+
+- Code Cleanup:
+  - Don't use the deprecated `ioutil` functions
+  - Use `t.Setenv` in tests
+  - Use `t.TempDir` to create temporary test directory (authored by @Juneezee)
+  - Linters: add `unconvert` and `tenv`
+- internal/strvals: port helm strvals fix (CLI --set arguments), reported by @pjbgf, helm fix authored by @mattfarina
+- Wasm: Update README
+
+- Dependency bumps, notably:
+  - Golang: 1.19.2 -> 1.19.3
+  - golang.org/x/text 0.3.7 -> 0.4.0
+  - oras.land/oras-go 1.2.0 -> 1.2.1
 
 ## 0.45.0
 
