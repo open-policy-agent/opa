@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.46.1
+
+This is  bugfix release to resolve an issue in the release pipeline. Everything else is
+the same as 0.46.0.
+
 ## 0.46.0
 
 This release contains a mix of bugfixes, optimizations, and new features.
