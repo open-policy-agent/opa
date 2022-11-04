@@ -138,6 +138,9 @@ func (c *cache) unsafeInsert(k ast.Value, v InterQueryCacheValue) (dropped int) 
 		}
 	}
 
+	// By deleting the old value, if it exists, we ensure the usage variable stays correct
+	c.unsafeDelete(k)
+
 	c.items[k.String()] = v
 	c.l.PushBack(k)
 	c.usage += size
