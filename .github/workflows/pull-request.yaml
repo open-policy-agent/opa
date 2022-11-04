@@ -45,6 +45,10 @@ jobs:
             run: ubuntu-22.04
             targets: ci-go-ci-build-linux-static
             arch: arm64
+          - os: linux
+            run: ubuntu-22.04
+            targets: ci-go-ci-build-linux-static
+            arch: ppc64le
           - os: windows
             run: ubuntu-22.04
             targets: ci-go-ci-build-windows
@@ -233,7 +237,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
-          platforms: arm64
+          platforms: arm64,ppc64le
 
       - name: Download release binaries
         uses: actions/download-artifact@v3
@@ -248,6 +252,11 @@ jobs:
         run: make ci-image-smoke-test
         env:
           GOARCH: arm64
+
+      - name: Test ppc64le images
+        run: make ci-image-smoke-test
+        env:
+          GOARCH: ppc64le
 
   smoke-test-binaries:
     runs-on: ${{ matrix.os }}

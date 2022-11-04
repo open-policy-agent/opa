@@ -8,6 +8,9 @@ case "$(uname -m | tr '[:upper:]' '[:lower:]')" in
   arm64 | aarch64)
     HOST_ARCH=arm64
     ;;
+  ppc64le)
+    HOST_ARCH=ppc64le
+    ;;
   *)
     echo "Error: Host architecture not supported." >&2
     exit 1
@@ -32,6 +35,10 @@ case "${GOARCH}" in
   arm64)
     PKG=gcc-aarch64-linux-gnu
     CC=aarch64-linux-gnu-gcc
+    ;;
+  ppc64le)
+    PKG=gcc-powerpc64le-linux-gnu
+    CC=powerpc64le-linux-gnu-gcc
     ;;
   *)
     echo "Error: Target architecture ${GOARCH} not supported." >&2

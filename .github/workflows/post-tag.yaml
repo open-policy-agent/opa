@@ -38,6 +38,13 @@ jobs:
         env:
           GOARCH: arm64
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+          
+      - name: Build Linux ppc64le
+        run: make ci-go-ci-build-linux-static
+        timeout-minutes: 30
+        env:
+          GOARCH: ppc64le
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries
         uses: actions/upload-artifact@v3
