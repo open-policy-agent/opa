@@ -2654,6 +2654,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			headers := w.Header()
 			headers["test-header"] = []string{"test-value"}
+			headers["echo-query-string"] = []string{r.URL.RawQuery}
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(people)
 		}),
@@ -2665,7 +2666,7 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	defer rs.Close()
 
 	path := fmt.Sprintf("socket=%s", url.PathEscape(socketPath))
-	rawURL := fmt.Sprintf("unix://localhost/end/point?%s", path) // Send a request to the server over the socket
+	rawURL := fmt.Sprintf("unix://localhost/end/point?%s&param1=value1&param2=value2", path) // Send a request to the server over the socket
 
 	// expected result
 	expectedResult := make(map[string]interface{})
@@ -2678,9 +2679,10 @@ func TestSocketHTTPGetRequest(t *testing.T) {
 	expectedResult["body"] = body
 	expectedResult["raw_body"] = "[{\"id\":\"1\",\"firstname\":\"John\"}]\n"
 	expectedResult["headers"] = map[string]interface{}{
-		"content-length": []interface{}{"32"},
-		"content-type":   []interface{}{"text/plain; charset=utf-8"},
-		"test-header":    []interface{}{"test-value"},
+		"content-length":    []interface{}{"32"},
+		"content-type":      []interface{}{"text/plain; charset=utf-8"},
+		"test-header":       []interface{}{"test-value"},
+		"echo-query-string": []interface{}{"param1=value1&param2=value2"},
 	}
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
