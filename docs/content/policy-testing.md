@@ -17,12 +17,8 @@ and reduce the amount of time it takes to modify rules as requirements evolve.
 {{< info >}}
 The examples in this section try to represent the best practices. As such, they
 make use of keywords that are meant to become standard keywords at some point in
-time, but have been introduced gradually. These _future keywords_ can be enabled
-using
-
-```live:eg/import:module:read_only
-import future.keywords
-```
+time, but have been introduced gradually.
+[See the docs on _future keywords_](../policy-language/#future-keywords) for more information.
 {{< /info >}}
 
 ## Getting Started

@@ -1,9 +1,18 @@
 {{ $releases   := site.Data.releases }}
+{{ $version    := index (split .File.Path "/") 1 }}
 {{ $latest     := printf "%s" (index $releases 1) }}
-{{- if eq (len site.Data.releases) 1 -}}
+{{- if eq (len $releases) 1 -}}
 {{- $latest = "(dev preview)" -}}
 {{- end -}}
-{{ $version    := index (split .File.Path "/") 1 }}
+
+{{ $rank := 1 }}
+{{- range $index, $ver := $releases -}}
+  {{- if eq $ver $version -}}
+    {{ $rank = $index }}
+  {{- end -}}
+{{- end -}}
+{{ $ancient := gt $rank 5 }}
+
 <article class="article">
   {{- if (eq $version "edge") }}
   <div class="message is-danger">
@@ -12,7 +21,7 @@
     </div>
   </div>
   {{- else if (and (ne $version "latest") (ne $version $latest)) }}
-  <div class="message is-warning">
+  <div class="message {{ cond $ancient "is-danger" "is-warning"}}">
     <div class="message-body">
       These are the docs for an older version of OPA. Latest stable release is <a href="/docs/latest">{{ $latest }}</a>
     </div>

@@ -5,17 +5,40 @@
 //go:build go1.18
 // +build go1.18
 
+// nolint
 package ast
 
-import "testing"
+import (
+	"testing"
 
-func FuzzParseStatementsAndCompileModules(f *testing.F) {
-	f.Fuzz(func(t *testing.T, input string) {
-		t.Parallel() // seed corpus tests can run in parallel
-		_, _, err := ParseStatements("", input)
-		if err == nil {
-			// CompileModules is expected to error, but it shouldn't panic
-			CompileModules(map[string]string{"": input}) //nolint
+	"github.com/open-policy-agent/opa/test/cases"
+)
+
+var testcases = cases.MustLoad("../test/cases/testdata").Sorted().Cases
+
+func FuzzCompileModules(f *testing.F) {
+	for _, tc := range testcases {
+		for _, mod := range tc.Modules {
+			f.Add(mod)
 		}
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		t.Parallel()
+		CompileModules(map[string]string{"": input})
+	})
+}
+
+func FuzzCompileModulesWithPrintAndAllFutureKWs(f *testing.F) {
+	for _, tc := range testcases {
+		for _, mod := range tc.Modules {
+			f.Add(mod)
+		}
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		t.Parallel()
+		CompileModulesWithOpt(map[string]string{"": input}, CompileOpts{
+			EnablePrintStatements: true,
+			ParserOptions:         ParserOptions{AllFutureKeywords: true},
+		})
 	})
 }

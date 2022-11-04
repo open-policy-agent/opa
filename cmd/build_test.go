@@ -291,6 +291,39 @@ func TestBuildVerificationConfigError(t *testing.T) {
 	})
 }
 
+func TestBuildSigningConfigError(t *testing.T) {
+	tests := []struct {
+		note                    string
+		key, plugin, claimsFile string
+		expErr                  bool
+	}{
+		{
+			note: "key+plugin+claimsFile unset",
+		},
+		{
+			note:   "key+claimsFile unset",
+			plugin: "plugin",
+			expErr: true,
+		},
+		{
+			note:       "key+plugin unset",
+			claimsFile: "claims",
+			expErr:     true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := buildSigningConfig(tc.key, defaultTokenSigningAlg, tc.claimsFile, tc.plugin)
+			switch {
+			case tc.expErr && err == nil:
+				t.Fatal("Expected error but got nil")
+			case !tc.expErr && err != nil:
+				t.Fatalf("Expected no error but got %v", err)
+			}
+		})
+	}
+}
+
 func TestBuildPlanWithPruneUnused(t *testing.T) {
 
 	files := map[string]string{

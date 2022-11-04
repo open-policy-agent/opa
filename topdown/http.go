@@ -237,7 +237,7 @@ func canonicalizeHeaders(headers map[string]interface{}) map[string]interface{} 
 // useSocket examines the url for "unix://" and returns a *http.Transport with
 // a DialContext that opens a socket (specified in the http call).
 // The url is expected to contain socket=/path/to/socket (url encoded)
-// Ex. "unix:localhost/end/point?socket=%2Ftmp%2Fhttp.sock"
+// Ex. "unix://localhost/end/point?socket=%2Ftmp%2Fhttp.sock"
 func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transport) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -248,21 +248,29 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 		return false, rawURL, nil
 	}
 
-	// Get the path to the socket
 	v, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
 		return false, rawURL, nil
 	}
 
+	// Rewrite URL targeting the UNIX domain socket.
+	u.Scheme = "http"
+
+	// Extract the path to the socket.
+	// Only retrieve the first value. Subsequent values are ignored and removed
+	// to prevent HTTP parameter pollution.
+	socket := v.Get("socket")
+	v.Del("socket")
+	u.RawQuery = v.Encode()
+
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return http.DefaultTransport.(*http.Transport).DialContext(ctx, u.Scheme, v.Get("socket"))
+		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "unix", socket)
 	}
 	tr.TLSClientConfig = tlsConfig
 	tr.DisableKeepAlives = true
 
-	rawURL = strings.Replace(rawURL, "unix:", "http:", 1)
-	return true, rawURL, tr
+	return true, u.String(), tr
 }
 
 func verifyHost(bctx BuiltinContext, host string) error {
