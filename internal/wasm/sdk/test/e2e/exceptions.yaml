@@ -4,3 +4,4 @@
 "data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
 "withkeyword/function: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"
 "withkeyword/builtin: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"
+"aggregates/member+key+ref+input+other rule (conflict)": "planner doesn't implement the special-casing of internal.member_3 yet"
