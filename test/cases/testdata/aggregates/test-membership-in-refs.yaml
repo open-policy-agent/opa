@@ -1,0 +1,64 @@
+cases:
+- data:
+    object:
+      a: 1
+      b: 2
+      c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    import future.keywords.if
+    p if "a", 1 in data.object
+  note: aggregates/member+key+ref+data
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    a: 1
+    b: 2
+    c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    import future.keywords.if
+    p if "a", 1 in input
+  note: aggregates/member+key+ref+input
+  query: data.test.p = x
+  want_result:
+  - x: true
+- input:
+    z:
+      a: 1
+      b: 2
+      c: 3
+  modules:
+  - |
+    package test
+    import future.keywords.in
+    import future.keywords.if
+
+    p if {
+      some x in {"x", "y", "z"}
+      "a", 1 in input[x]
+    }
+  note: aggregates/member+key+ref+input+other var
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+    import future.keywords.in
+    import future.keywords.if
+
+    other.ref.a = 1
+    other.ref.b = 2 # eval conflict if `other.ref.b` is evaluated
+    other.ref.b = 3
+
+    p if "a", 1 in other.ref
+  note: aggregates/member+key+ref+input+other rule
+  query: data.test.p = x
+  want_result:
+  - x: true

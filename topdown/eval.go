@@ -1704,6 +1704,26 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 	e.e.instr.startTimer(evalOpBuiltinCall)
 	var err error
 
+	// special handling of lazy refs
+	switch {
+	case e.bi.Name == ast.MemberWithKey.Name: // "k", "v" in xs
+		if ref, ok := e.terms[2].Value.(ast.Ref); ok {
+			e.f = func(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+				found := false
+				// NOTE(sr): We're not introducing new bindings here, so it's OK to not wire
+				// this iter in with the one we're called with.
+				err := e.e.unify(e.terms[1], ast.RefTerm(append(ref, e.terms[0])...), func() error {
+					found = true
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+				return iter(ast.BooleanTerm(found))
+			}
+		}
+	}
+
 	// NOTE(philipc): We sometimes have to drop the very last term off
 	// the args list for cases where a builtin's result is used/assigned,
 	// because the last term will be a generated term, not an actual
