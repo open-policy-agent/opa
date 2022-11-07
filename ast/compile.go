@@ -866,7 +866,7 @@ func condenseBody(b Body) Body {
 			if v, ok := arg.Value.(Var); ok {
 				if pr, ok := refs[v]; ok {
 					b[i].Terms.([]*Term)[lazyIdx+1].Value = pr.ref
-					b.Remove(pr.idx)
+					b.remove(pr.idx)
 				}
 			}
 		}

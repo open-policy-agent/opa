@@ -934,11 +934,15 @@ func (body *Body) Append(expr *Expr) {
 	*body = append(*body, expr)
 }
 
-// Remove deletes the expr at index `i` frmo the body and updates other exprs'
-// indexes accordingly.
-func (body *Body) Remove(i int) {
+// remove deletes the generated expr at index `i` from the body and updates other
+// exprs' indexes accordingly. If the expression at index `i` was not generated,
+// it does nothing
+func (body *Body) remove(i int) {
 	if i < 0 || i >= len(*body) {
 		panic("index out of range")
+	}
+	if !(*body)[i].Generated {
+		return
 	}
 	var s []*Expr = *body
 	s = append(s[:i], s[i+1:]...)

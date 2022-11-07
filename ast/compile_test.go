@@ -8790,7 +8790,7 @@ p if "a", 1 in http.send({"method": "GET", "url": "url"}).body.nums
 				}`),
 		},
 		{
-			note: "rule body, declared variable",
+			note: "not modified: declared variable",
 			mod: MustParseModuleWithOpts(`package p
 
 p {
@@ -8798,7 +8798,7 @@ p {
 	1, "a" in v
 }
 `, popts),
-			exp: MustParseRule(`p { internal.member_3(1, "a", input.foo) }`),
+			exp: MustParseRule(`p { __local0__ = input.foo; internal.member_3(1, "a", input.foo) }`),
 		},
 		{
 			note: "every body",
