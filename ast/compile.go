@@ -839,6 +839,7 @@ func condenseBody(b Body) Body {
 		return false
 	})
 
+	var rem []int // indexes to remove
 	for i := range b {
 		switch {
 		case b[i].IsEquality():
@@ -866,10 +867,14 @@ func condenseBody(b Body) Body {
 			if v, ok := arg.Value.(Var); ok {
 				if pr, ok := refs[v]; ok {
 					b[i].Terms.([]*Term)[lazyIdx+1].Value = pr.ref
-					b.remove(pr.idx)
+					rem = append(rem, pr.idx)
 				}
 			}
 		}
+	}
+	// remove back-to-front, since we'd otherwise mess up indices
+	for i := len(rem) - 1; i >= 0; i-- {
+		b.remove(rem[i])
 	}
 	return b
 }

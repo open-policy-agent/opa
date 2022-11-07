@@ -8767,9 +8767,25 @@ func TestCompilerCondenseRefs(t *testing.T) {
 		{
 			note: "rule body, simple",
 			mod: MustParseModuleWithOpts(`package p
-p { 1, "a" in input.foo }
+p {
+	1, "a" in input.foo
+}
 `, popts),
 			exp: MustParseRule(`p { internal.member_3(1, "a", input.foo) }`),
+		},
+		{
+			note: "rule body, multiple simple",
+			mod: MustParseModuleWithOpts(`package p
+p {
+	1, "a" in input.foo
+	2, "b" in input.baz
+}
+`, popts),
+			exp: MustParseRule(
+				`p {
+					internal.member_3(1, "a", input.foo)
+					internal.member_3(2, "b", input.baz)
+				}`),
 		},
 		{
 			note: "rule body, nested",
