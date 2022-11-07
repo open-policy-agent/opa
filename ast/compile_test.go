@@ -8755,3 +8755,109 @@ deny {
 		t.Fatal(c.Errors)
 	}
 }
+
+func TestCompilerCondenseRefs(t *testing.T) {
+	popts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
+	tests := []struct {
+		note string
+		mod  *Module
+		exp  *Rule
+	}{
+		{
+			note: "rule body, simple",
+			mod: MustParseModuleWithOpts(`package p
+p { 1, "a" in input.foo }
+`, popts),
+			exp: MustParseRule(`p { internal.member_3(1, "a", input.foo) }`),
+		},
+		{
+			note: "rule body, nested",
+			mod: MustParseModuleWithOpts(`package p
+p { 1, "a" in input.foo[input.bar] }
+`, popts),
+			exp: MustParseRule(`p { __local0__ = input.bar; internal.member_3(1, "a", input.foo[__local0__]) }`),
+		},
+		{
+			note: "rule body, ref of function",
+			mod: MustParseModuleWithOpts(`package p
+p if "a", 1 in http.send({"method": "GET", "url": "url"}).body.nums
+`, popts),
+			exp: MustParseRule(
+				`p {
+					http.send({"method": "GET", "url": "url"}, __local0__)
+					internal.member_3("a", 1, __local0__.body.nums)
+				}`),
+		},
+		{
+			note: "rule body, declared variable",
+			mod: MustParseModuleWithOpts(`package p
+
+p {
+	v := input.foo
+	1, "a" in v
+}
+`, popts),
+			exp: MustParseRule(`p { internal.member_3(1, "a", input.foo) }`),
+		},
+		{
+			note: "every body",
+			mod: MustParseModuleWithOpts(`package p
+p if every x in input.xs { "a", 1 in input.ys[x] }
+`, popts),
+			exp: mustParseRuleWithOpts(
+				`p {
+					__local2__ = input.xs
+					every __local0__, __local1__ in __local2__ {
+						internal.member_3("a", 1, input.ys[__local1__])
+					}
+				}`, popts),
+		},
+		{
+			note: "object comprehension body",
+			mod: MustParseModuleWithOpts(`package p
+p if {
+	_ = {"a": "b" | "c", "d" in input.foo }
+}
+`, popts),
+			exp: MustParseRule(`p { _ = {"a": "b" | internal.member_3("c", "d", input.foo)} }`),
+		},
+		{
+			note: "set comprehension body",
+			mod: MustParseModuleWithOpts(`package p
+p if {
+	_ = {"a" | "c", "d" in input.foo }
+}
+`, popts),
+			exp: MustParseRule(`p { _ = {"a" | internal.member_3("c", "d", input.foo)} }`),
+		},
+		{
+			note: "array comprehension body",
+			mod: MustParseModuleWithOpts(`package p
+p if {
+	_ = ["a" | "c", "d" in input.foo]
+}
+`, popts),
+			exp: MustParseRule(`p { _ = ["a" | internal.member_3("c", "d", input.foo)] }`),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			c.Modules["mod"] = tc.mod
+			compileStages(c, c.condenseLazyRefs)
+			assertNotFailed(t, c)
+			act := c.Modules["mod"].Rules[0]
+			assertRulesEqual(t, act, tc.exp)
+		})
+	}
+}
+
+func mustParseRuleWithOpts(x string, o ParserOptions) *Rule {
+	exp, err := ParseRuleWithOpts(x, o)
+	if err != nil {
+		panic(err)
+	}
+	return exp
+}

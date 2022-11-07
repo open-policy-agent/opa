@@ -934,6 +934,20 @@ func (body *Body) Append(expr *Expr) {
 	*body = append(*body, expr)
 }
 
+// Remove deletes the expr at index `i` frmo the body and updates other exprs'
+// indexes accordingly.
+func (body *Body) Remove(i int) {
+	if i < 0 || i >= len(*body) {
+		panic("index out of range")
+	}
+	var s []*Expr = *body
+	s = append(s[:i], s[i+1:]...)
+	for j := range s {
+		s[j].Index = j
+	}
+	*body = s
+}
+
 // Set sets the expr in the body at the specified position and updates the
 // expr's index accordingly.
 func (body Body) Set(expr *Expr, pos int) {

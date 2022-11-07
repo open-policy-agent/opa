@@ -305,6 +305,7 @@ func NewCompiler() *Compiler {
 		{"CheckDeprecatedBuiltins", "compile_state_check_deprecated_builtins", c.checkDeprecatedBuiltins},
 		{"BuildRuleIndices", "compile_stage_rebuild_indices", c.buildRuleIndices},
 		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
+		{"CondenseLazyRefs", "compile_stage_condense_lazy_refs", c.condenseLazyRefs},
 	}
 
 	return c
@@ -813,6 +814,71 @@ func (c *Compiler) buildComprehensionIndices() {
 			n := buildComprehensionIndices(c.debug, c.GetArity, candidates, c.RewrittenVars, r.Body, c.comprehensionIndices)
 			c.counterAdd(compileStageComprehensionIndexBuild, n)
 			return false
+		})
+	}
+}
+
+type prevRef struct {
+	ref Ref
+	idx int
+}
+
+func condenseBody(b Body) Body {
+	refs := map[Var]prevRef{}
+	WalkClosures(b, func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ArrayComprehension:
+			x.Body = condenseBody(x.Body)
+		case *ObjectComprehension:
+			x.Body = condenseBody(x.Body)
+		case *SetComprehension:
+			x.Body = condenseBody(x.Body)
+		case *Every:
+			x.Body = condenseBody(x.Body)
+		}
+		return false
+	})
+
+	for i := range b {
+		switch {
+		case b[i].IsEquality():
+			lhs, rhs := b[i].Operand(0), b[i].Operand(1)
+			if r, ok := rhs.Value.(Ref); ok {
+				if v, ok := lhs.Value.(Var); ok {
+					refs[v] = prevRef{idx: i, ref: r}
+				}
+			}
+		case b[i].IsCall():
+			op := b[i].Operator()
+			// We're listing the cases where condensing is desired: only one
+			// "lazy ref" per built-in is supported -- the arg where want to
+			// avoid building and passing-in the full extent.
+			var lazyIdx int
+			switch {
+			case op.Equal(MemberWithKey.Ref()):
+				lazyIdx = 2
+			// case op.Equal(ObjectGet.Ref()): // TODO(sr): need special handling in topdown
+			// 	lazyIdx = 0
+			default:
+				continue
+			}
+			arg := b[i].Operand(lazyIdx)
+			if v, ok := arg.Value.(Var); ok {
+				if pr, ok := refs[v]; ok {
+					b[i].Terms.([]*Term)[lazyIdx+1].Value = pr.ref
+					b.Remove(pr.idx)
+				}
+			}
+		}
+	}
+	return b
+}
+
+func (c *Compiler) condenseLazyRefs() {
+	for _, name := range c.sorted {
+		WalkRules(c.Modules[name], func(r *Rule) bool {
+			r.Body = condenseBody(r.Body)
+			return true
 		})
 	}
 }
