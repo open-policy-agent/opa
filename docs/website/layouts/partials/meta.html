@@ -6,6 +6,11 @@
 {{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
 {{ $twitter     := site.Params.social.twitter }}
 {{ $version     := index (split .File.Path "/") 1 }}
+{{ $page       := trim .RelPermalink "/" }}
+{{ $releases   := site.Data.releases }}
+{{ $latest     := index $releases 1 }}
+{{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
+
 
 <!-- Basic metadata -->
 <meta charset="utf-8">
@@ -38,8 +43,11 @@
 <meta name="twitter:site" content="@{{ $twitter }}">
 <meta name="twitter:creator" content="@{{ $twitter }}">
 
-<!-- Links -->
-<link rel="canonical" content="{{ .Permalink }}">
+{{ $latestRelLink := strings.Replace $page $version "latest" }}
+{{ $latestLink := strings.Replace .Permalink $version "latest" }}
+{{- if (or $isLatest (eq $version "edge") (ne (site.GetPage $latestRelLink).Content "")) -}}
+<link rel="canonical" href="{{ $latestLink }}">
+{{- end -}}
 <link rel="shortcut icon" href="/favicon.png" type="image/x-icon"/>
 
 <!-- Algolia metadata -->
