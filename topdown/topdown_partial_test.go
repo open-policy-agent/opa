@@ -3288,6 +3288,28 @@ func TestTopDownPartialEval(t *testing.T) {
 					a2 = input; __local4__2 > __local2__2 }
 				}`},
 		},
+		{ // https://github.com/open-policy-agent/opa/issues/5367
+			note:  "copypropagation: keep equations that are only found in comprehensions, inlined function call",
+			query: "data.test.p",
+			modules: []string{`package test
+			key_exists(obj, k) { x = obj[k] }
+			
+			p {
+				key_exists(input, "foo")
+				{ true | input.foo }
+			}`},
+			wantQueries: []string{`{true | input.foo} = x_term_1_21; x_term_1_21; x2 = input.foo`},
+		},
+		{ // condensed form of the test above
+			note:  "copypropagation: keep equations that are only found in comprehensions",
+			query: "data.test.p",
+			modules: []string{`package test
+			p {
+				x = input.foo
+				{ true | input.foo }
+			}`},
+			wantQueries: []string{`{true | input.foo} = x_term_1_11; x_term_1_11; x1 = input.foo`},
+		},
 	}
 
 	ctx := context.Background()

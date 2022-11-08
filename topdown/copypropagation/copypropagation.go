@@ -179,7 +179,16 @@ func (p *CopyPropagator) Apply(query ast.Body) ast.Body {
 			providesSafety = true
 		}
 
-		if providesSafety || !containedIn(b.v, result) {
+		safevarRef := false // don't add something like `_ = input`
+		if r, ok := b.v.(ast.Ref); ok {
+			if len(r) == 1 {
+				if v, ok := r[0].Value.(ast.Var); ok {
+					safevarRef = safe.Contains(v)
+				}
+			}
+		}
+
+		if providesSafety || (!safevarRef && !containedIn(b.v, result)) {
 			result.Append(removedEq)
 			safe.Update(outputVars)
 		}
@@ -380,18 +389,28 @@ func containedIn(value ast.Value, x interface{}) bool {
 	var stop bool
 	switch v := value.(type) {
 	case ast.Ref:
-		ast.WalkRefs(x, func(other ast.Ref) bool {
-			if stop || other.HasPrefix(v) {
-				stop = true
-				return stop
+		ast.WalkTerms(x, func(t *ast.Term) bool {
+			switch t := t.Value.(type) {
+			case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
+				return true // skip closures
+			case ast.Ref:
+				if stop || t.HasPrefix(v) {
+					stop = true
+					return stop
+				}
 			}
 			return false
 		})
 	default:
-		ast.WalkTerms(x, func(other *ast.Term) bool {
-			if stop || other.Value.Compare(v) == 0 {
-				stop = true
-				return stop
+		ast.WalkTerms(x, func(t *ast.Term) bool {
+			switch other := t.Value.(type) {
+			case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
+				return true // skip closures
+			default:
+				if stop || other.Compare(v) == 0 {
+					stop = true
+					return stop
+				}
 			}
 			return false
 		})
