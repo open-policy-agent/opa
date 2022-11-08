@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -899,6 +900,10 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 			arity = node.Arity()
 			args = p.defaultOperands()
 		} else if decl, ok := p.decls[operator]; ok {
+			switch decl.Name {
+			case ast.MemberWithKey.Name:
+				return p.planMemberWithKey(operands, args, iter)
+			}
 			relation = decl.Relation
 			arity = len(decl.Decl.Args())
 			void = decl.Decl.Result() == nil
@@ -973,8 +978,8 @@ func (p *Planner) planExprCallRelation(name string, arity int, operands []*ast.T
 
 func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands []*ast.Term, args []ir.Operand, iter planiter) error {
 
-	switch {
-	case len(operands) == arity:
+	switch len(operands) {
+	case arity:
 		// definition: f(x) = y { ... }
 		// call: f(x) # result not captured
 		return p.planCallArgs(operands, 0, args, func(args []ir.Operand) error {
@@ -996,7 +1001,7 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 			return iter()
 		})
 
-	case len(operands) == arity+1:
+	case arity + 1:
 		// definition: f(x) = y { ... }
 		// call: f(x, 1) # caller captures result
 		return p.planCallArgs(operands[:len(operands)-1], 0, args, func(args []ir.Operand) error {
@@ -1015,8 +1020,8 @@ func (p *Planner) planExprCallFunc(name string, arity int, void bool, operands [
 }
 
 func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.Term, iter planiter) error {
-	switch {
-	case len(operands) == arity: // call: f(x) # result not captured
+	switch len(operands) {
+	case arity: // call: f(x) # result not captured
 		return p.planCallArgs(operands, 0, nil, func([]ir.Operand) error {
 			p.ltarget = p.newOperand()
 			return p.planTerm(value, func() error {
@@ -1028,7 +1033,7 @@ func (p *Planner) planExprCallValue(value *ast.Term, arity int, operands []*ast.
 			})
 		})
 
-	case len(operands) == arity+1: // call: f(x, 1) # caller captures result
+	case arity + 1: // call: f(x, 1) # caller captures result
 		return p.planCallArgs(operands[:len(operands)-1], 0, nil, func([]ir.Operand) error {
 			p.ltarget = p.newOperand()
 			return p.planTerm(value, func() error {
@@ -1048,6 +1053,79 @@ func (p *Planner) planCallArgs(terms []*ast.Term, idx int, args []ir.Operand, it
 		args = append(args, p.ltarget)
 		return p.planCallArgs(terms, idx+1, args, iter)
 	})
+}
+
+func (p *Planner) planMemberWithKey(operands []*ast.Term, args []ir.Operand, iter planiter) error {
+	const arity = 3
+	key, val, collection := operands[0], operands[1], operands[2]
+
+	switch len(operands) {
+	case arity: // plan check, fail if false
+		log.Printf("a, coll is %v %[1]T", collection.Value)
+		switch coll := collection.Value.(type) {
+		case ast.Ref:
+			return p.planUnify(ast.NewTerm(coll.Append(key)), val, iter)
+		default:
+			return p.planTerm(collection, func() error {
+				return p.planDot(key, func() error {
+					return p.planUnifyLocal(p.ltarget, val, iter)
+				})
+			})
+		}
+	case arity + 1:
+		log.Printf("b, coll is %v %[1]T", collection.Value)
+		switch coll := collection.Value.(type) {
+		case ast.Ref:
+			prev := p.curr
+			block := &ir.Block{}
+			p.curr = block
+			res := p.newLocal()
+
+			p.ltarget = p.newOperand()
+			log.Printf("p.ltarget: %v", p.ltarget)
+			if err := p.planUnify(ast.NewTerm(coll.Append(key)), val, func() error {
+				p.appendStmt(&ir.AssignVarStmt{
+					Target: res,
+					Source: op(ir.Bool(true)),
+				})
+				return nil
+			}); err != nil {
+				return err
+			}
+
+			// If unification fails, we'll fall into this block: it's used to ensure a return value
+			falseBlock := &ir.Block{}
+			p.curr = falseBlock
+
+			// If the previous block didn't fail, we don't want to set the result to false.
+			p.appendStmt(&ir.IsUndefinedStmt{
+				Source: res,
+			})
+			p.appendStmt(&ir.AssignVarStmt{
+				Target: res,
+				Source: op(ir.Bool(false)),
+			})
+
+			p.curr = prev
+			p.appendStmt(&ir.BlockStmt{
+				Blocks: []*ir.Block{
+					block, falseBlock,
+				},
+			})
+			return p.planUnifyLocal(op(res), operands[3], iter)
+		default:
+			p.ltarget = p.newOperand()
+			return p.planTerm(collection, func() error {
+				return p.planDot(key, func() error {
+					return p.planUnifyLocal(p.ltarget, val, func() error {
+						return p.planUnify(operands[3], ast.BooleanTerm(true), iter)
+					})
+				})
+			})
+		}
+	}
+	log.Printf("c")
+	return nil
 }
 
 func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
@@ -1139,6 +1217,7 @@ func (p *Planner) planUnifyLocal(a ir.Operand, b *ast.Term, iter planiter) error
 		}
 		lv := p.newLocal()
 		p.vars.Put(vb, lv)
+		log.Printf("a: %v, vb: %v, lv: %v", a, vb, lv)
 		p.appendStmt(&ir.AssignVarStmt{
 			Source: a,
 			Target: lv,
@@ -2383,4 +2462,8 @@ func (p *Planner) isFunction(r ast.Ref) bool {
 
 func op(v ir.Val) ir.Operand {
 	return ir.Operand{Value: v}
+}
+
+func noop() error {
+	return nil
 }

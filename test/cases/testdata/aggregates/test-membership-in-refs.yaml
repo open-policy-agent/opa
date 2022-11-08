@@ -75,8 +75,29 @@ cases:
     other.ref.a = 1
     other.ref.b = 2
 
-    p if "a", 1 in other.ref
+    p if "a", 1 in {"a": 1} #other.ref
   note: aggregates/member+key+ref+input+other rule
   query: data.test.p = x
   want_result:
   - x: true
+- modules:
+  # NOTE(sr): This is the same as the case above, but without the conflict.
+  # It's added because the planner does the correct thing already to cope with
+  # the change to the compiler; but it doesn't do the same optimizations yet.
+  # When it does, the two cases can be combined.
+  - |
+    package test
+    import future.keywords.in
+    import future.keywords.if
+
+    other.ref.a = 1
+    other.ref.b = 2
+
+    p if x := "a", 2 in other.ref
+  note: aggregates/member+key+ref+input+other rule, value used
+  query: data.test.p = x
+  want_result:
+  - x: true
+
+  ## NB   p := "a", 1 in other.ref
+  ## NB   p if internal.member_3("a", 2, other.ref, true)
