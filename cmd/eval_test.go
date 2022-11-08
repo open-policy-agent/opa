@@ -193,6 +193,47 @@ func TestEvalWithOptimize(t *testing.T) {
 	})
 }
 
+// Ensure that entrypoint annotations don't cause panics when using
+// higher levels of optimization.
+// Reference: https://github.com/open-policy-agent/opa/issues/5368
+func TestEvalIssue5368(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+package system
+
+object_key_exists(object, key) {
+	_ = object[key]
+}
+
+default main = false
+
+# METADATA
+# entrypoint: true
+main := results {
+	object_key_exists(input, "queries")
+	results := {key: result |
+		result := input.queries[key]
+	}
+}`,
+		"input.json": `{}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 2
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.inputPath = filepath.Join(path, "input.json")
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.system.main"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
 func TestEvalWithOptimizeBundleData(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
