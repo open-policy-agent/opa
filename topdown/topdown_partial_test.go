@@ -3310,6 +3310,16 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`{true | input.foo} = x_term_1_11; x_term_1_11; x1 = input.foo`},
 		},
+		{
+			note:  "copypropagation: keep equations that are only found in 'every' body",
+			query: "data.test.p",
+			modules: []string{`package test
+			p {
+				x = input.foo
+				every y in input.ys { y = input.foo }
+			}`},
+			wantQueries: []string{`every __local0__1, __local1__1 in input.ys { __local1__1 = input.foo }; x1 = input.foo`},
+		},
 	}
 
 	ctx := context.Background()
