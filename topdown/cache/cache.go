@@ -7,11 +7,9 @@ package cache
 
 import (
 	"container/list"
-
-	"github.com/open-policy-agent/opa/ast"
-
 	"sync"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -70,6 +68,7 @@ type InterQueryCache interface {
 	Insert(key ast.Value, value InterQueryCacheValue) int
 	Delete(key ast.Value)
 	UpdateConfig(config *Config)
+	LockKey(key ast.Value) func()
 }
 
 // NewInterQueryCache returns a new inter-query cache.
@@ -79,6 +78,7 @@ func NewInterQueryCache(config *Config) InterQueryCache {
 		usage:  0,
 		config: config,
 		l:      list.New(),
+		keyMtx: &keyMutex{},
 	}
 }
 
@@ -88,6 +88,11 @@ type cache struct {
 	config *Config
 	l      *list.List
 	mtx    sync.Mutex
+	keyMtx *keyMutex
+}
+
+func (c *cache) LockKey(key ast.Value) func() {
+	return c.keyMtx.Lock(key)
 }
 
 // Insert inserts a key k into the cache with value v.
@@ -164,4 +169,15 @@ func (c *cache) maxSizeBytes() int64 {
 		return defaultMaxSizeBytes
 	}
 	return *c.config.InterQueryBuiltinCache.MaxSizeBytes
+}
+
+type keyMutex struct {
+	sync.Map
+}
+
+func (m *keyMutex) Lock(k ast.Value) func() {
+	value, _ := m.LoadOrStore(k, &sync.Mutex{})
+	mtx := value.(*sync.Mutex)
+	mtx.Lock()
+	return mtx.Unlock
 }

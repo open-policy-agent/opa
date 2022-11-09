@@ -136,6 +136,9 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 		return nil, err
 	}
 
+	unlock := reqExecutor.LockCacheKey()
+	defer unlock()
+
 	// Check if cache already has a response for this query
 	resp, err := reqExecutor.CheckCache()
 	if err != nil {
@@ -1208,6 +1211,7 @@ type httpRequestExecutor interface {
 	CheckCache() (ast.Value, error)
 	InsertIntoCache(value *http.Response) (ast.Value, error)
 	ExecuteHTTPRequest() (*http.Response, error)
+	LockCacheKey() func()
 }
 
 // newHTTPRequestExecutor returns a new HTTP request executor that wraps either an inter-query or
@@ -1288,6 +1292,10 @@ func (c *interQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 	return executeHTTPRequest(c.httpReq, c.httpClient)
 }
 
+func (c *interQueryCache) LockCacheKey() func() {
+	return c.bctx.InterQueryBuiltinCache.LockKey(c.key)
+}
+
 type intraQueryCache struct {
 	bctx BuiltinContext
 	key  ast.Object
@@ -1329,6 +1337,10 @@ func (c *intraQueryCache) ExecuteHTTPRequest() (*http.Response, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 	return executeHTTPRequest(httpReq, httpClient)
+}
+
+func (c *intraQueryCache) LockCacheKey() func() {
+	return func() {}
 }
 
 func useInterQueryCache(req ast.Object) (bool, *forceCacheParams, error) {

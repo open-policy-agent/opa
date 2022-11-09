@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2558,6 +2559,50 @@ func TestCertSelectionLogic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHTTPSendConcurrentRequests(t *testing.T) {
+
+	// run test server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	defer ts.Close()
+
+	t.Run("concurrent requests", func(t *testing.T) {
+		// add an inter-query cache
+		config, _ := iCache.ParseCachingConfig(nil)
+		interQueryCache := iCache.NewInterQueryCache(config)
+
+		m := metrics.New()
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "force_cache": true, "force_cache_duration_seconds": 10})`, ts.URL))).
+			WithInterQueryBuiltinCache(interQueryCache).
+			WithMetrics(m)
+
+		// Execute query concurrently and verify http.send inter-query cache hit metric is incremented.
+		wg := sync.WaitGroup{}
+
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+
+			go func(q Query) {
+				defer wg.Done()
+
+				_, err := q.Run(context.Background())
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+			}(*q)
+		}
+		wg.Wait()
+
+		if exp, act := uint64(4), m.Counter(httpSendInterQueryCacheHits).Value(); exp != act {
+			t.Fatalf("expected %d cache hits, got %d", exp, act)
+		}
+	})
 }
 
 func TestHTTPSendMetrics(t *testing.T) {
