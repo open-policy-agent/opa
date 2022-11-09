@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/util/test"
-
+	"github.com/open-policy-agent/opa/internal/providers"
 	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 // this is usually private; but we need it here
@@ -62,7 +62,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 
 	t.Setenv("AWS_REGION", "us-east-1")
 
-	expectedCreds := awsCredentials{
+	expectedCreds := providers.AWSCredentials{
 		AccessKey:    "MYAWSACCESSKEYGOESHERE",
 		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
 		RegionName:   "us-east-1",
@@ -135,7 +135,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected := awsCredentials{
+		expected := providers.AWSCredentials{
 			AccessKey:    fooKey,
 			SecretKey:    fooSecret,
 			RegionName:   fooRegion,
@@ -158,7 +158,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected = awsCredentials{
+		expected = providers.AWSCredentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -201,7 +201,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := awsCredentials{
+		expected := providers.AWSCredentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -250,7 +250,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := awsCredentials{
+		expected := providers.AWSCredentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -414,7 +414,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	var creds awsCredentials
+	var creds providers.AWSCredentials
 	creds, err = cs.credentials()
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
