@@ -598,32 +598,39 @@ func BuildAnnotationSet(modules []*Module) (*AnnotationSet, Errors) {
 	return as, nil
 }
 
+// NOTE(philipc): During copy propagation, the underlying Nodes can be
+// stripped away from the annotations, leading to nil deref panics. We
+// silently ignore these cases for now, as a workaround.
 func (as *AnnotationSet) add(a *Annotations) *Error {
 	switch a.Scope {
 	case annotationScopeRule:
-		rule := a.node.(*Rule)
-		as.byRule[rule] = append(as.byRule[rule], a)
+		if rule, ok := a.node.(*Rule); ok {
+			as.byRule[rule] = append(as.byRule[rule], a)
+		}
 	case annotationScopePackage:
-		pkg := a.node.(*Package)
-		if exist, ok := as.byPackage[pkg]; ok {
-			return errAnnotationRedeclared(a, exist.Location)
+		if pkg, ok := a.node.(*Package); ok {
+			if exist, ok := as.byPackage[pkg]; ok {
+				return errAnnotationRedeclared(a, exist.Location)
+			}
+			as.byPackage[pkg] = a
 		}
-		as.byPackage[pkg] = a
 	case annotationScopeDocument:
-		rule := a.node.(*Rule)
-		path := rule.Path()
-		x := as.byPath.get(path)
-		if x != nil {
-			return errAnnotationRedeclared(a, x.Value.Location)
+		if rule, ok := a.node.(*Rule); ok {
+			path := rule.Path()
+			x := as.byPath.get(path)
+			if x != nil {
+				return errAnnotationRedeclared(a, x.Value.Location)
+			}
+			as.byPath.insert(path, a)
 		}
-		as.byPath.insert(path, a)
 	case annotationScopeSubpackages:
-		pkg := a.node.(*Package)
-		x := as.byPath.get(pkg.Path)
-		if x != nil && x.Value != nil {
-			return errAnnotationRedeclared(a, x.Value.Location)
+		if pkg, ok := a.node.(*Package); ok {
+			x := as.byPath.get(pkg.Path)
+			if x != nil && x.Value != nil {
+				return errAnnotationRedeclared(a, x.Value.Location)
+			}
+			as.byPath.insert(pkg.Path, a)
 		}
-		as.byPath.insert(pkg.Path, a)
 	}
 	return nil
 }
