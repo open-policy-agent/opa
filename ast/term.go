@@ -1884,18 +1884,7 @@ func (l *lazyObj) String() string {
 	return l.force().String()
 }
 
-func (l *lazyObj) get(k *Term) *objectElem {
-	if l.strict != nil {
-		return l.strict.get(k)
-	}
-	if s, ok := k.Value.(String); ok {
-		if val, ok := l.native[string(s)]; ok {
-			return &objectElem{
-				key:   k,
-				value: NewTerm(MustInterfaceToValue(val)),
-			}
-		}
-	}
+func (*lazyObj) get(*Term) *objectElem {
 	return nil
 }
 
