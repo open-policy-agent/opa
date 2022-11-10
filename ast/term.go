@@ -1833,7 +1833,7 @@ func (l *lazyObj) Compare(other Value) int {
 }
 
 func (l *lazyObj) Copy() Object {
-	return l.force().Copy()
+	return l
 }
 
 func (l *lazyObj) Diff(other Object) Object {
