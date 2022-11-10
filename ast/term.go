@@ -1952,7 +1952,7 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		return l.strict.Find(path)
 	}
 	if len(path) == 0 {
-		return l.force(), nil
+		return l, nil
 	}
 	p0 := string(path[0].Value.(String))
 	if v, ok := l.native[p0]; ok {
