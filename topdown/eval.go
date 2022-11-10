@@ -2145,6 +2145,17 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 					return err
 				}
 			}
+		case interface {
+			KeyIter(func(*ast.Term) error) error
+		}:
+			err := doc.KeyIter(func(k *ast.Term) error {
+				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
+					return e.next(iter, k)
+				})
+			})
+			if err != nil {
+				return err
+			}
 		case ast.Object:
 			err := doc.Iter(func(k, _ *ast.Term) error {
 				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
