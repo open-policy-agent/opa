@@ -2017,6 +2017,9 @@ func (obj *object) sortedKeys() objectElemSlice {
 // Compare compares obj to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
 func (obj *object) Compare(other Value) int {
+	if x, ok := other.(*lazyObj); ok {
+		other = x.force()
+	}
 	o1 := sortOrder(obj)
 	o2 := sortOrder(other)
 	if o1 < o2 {
