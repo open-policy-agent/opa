@@ -216,6 +216,8 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 			return nil, err
 		}
 		return buf, nil
+	case *lazyObj:
+		return v.native, nil
 	case Set:
 		buf := []interface{}{}
 		iter := func(x *Term) error {
@@ -1808,6 +1810,166 @@ func NewObject(t ...[2]*Term) Object {
 // ObjectTerm creates a new Term with an Object value.
 func ObjectTerm(o ...[2]*Term) *Term {
 	return &Term{Value: NewObject(o...)}
+}
+
+func LazyObject(blob map[string]interface{}) Object {
+	return &lazyObj{native: blob}
+}
+
+type lazyObj struct {
+	strict Object
+	native map[string]interface{}
+}
+
+func (l *lazyObj) force() Object {
+	if l.strict == nil {
+		l.strict = MustInterfaceToValue(l.native).(Object)
+	}
+	return l.strict
+}
+
+func (l *lazyObj) Compare(other Value) int {
+	return l.force().Compare(other)
+}
+
+func (l *lazyObj) Copy() Object {
+	return l.force().Copy()
+}
+
+func (l *lazyObj) Diff(other Object) Object {
+	return l.force().Diff(other)
+}
+
+func (l *lazyObj) Intersect(other Object) [][3]*Term {
+	return l.force().Intersect(other)
+}
+
+func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
+	return l.force().Iter(f)
+}
+
+func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
+	return l.force().Until(f)
+}
+
+func (l *lazyObj) Foreach(f func(*Term, *Term)) {
+	l.force().Foreach(f)
+}
+
+func (l *lazyObj) Filter(filter Object) (Object, error) {
+	return l.force().Filter(filter)
+}
+
+func (l *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
+	return l.force().Map(f)
+}
+
+func (l *lazyObj) MarshalJSON() ([]byte, error) {
+	return json.Marshal(l.native)
+}
+
+func (l *lazyObj) Merge(other Object) (Object, bool) {
+	return l.force().Merge(other)
+}
+
+func (l *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
+	return l.force().MergeWith(other, conflictResolver)
+}
+
+func (l *lazyObj) Len() int {
+	return len(l.native)
+}
+
+func (l *lazyObj) String() string {
+	return l.force().String()
+}
+
+func (l *lazyObj) get(k *Term) *objectElem {
+	if l.strict != nil {
+		return l.strict.get(k)
+	}
+	if s, ok := k.Value.(String); ok {
+		if val, ok := l.native[string(s)]; ok {
+			return &objectElem{
+				key:   k,
+				value: NewTerm(MustInterfaceToValue(val)),
+			}
+		}
+	}
+	return nil
+}
+
+func (l *lazyObj) Get(k *Term) *Term {
+	if l.strict != nil {
+		return l.strict.Get(k)
+	}
+	if s, ok := k.Value.(String); ok {
+		if val, ok := l.native[string(s)]; ok {
+			return NewTerm(MustInterfaceToValue(val))
+		}
+	}
+	return nil
+}
+
+func (*lazyObj) Insert(*Term, *Term) {
+	panic("immutable")
+}
+
+func (*lazyObj) IsGround() bool {
+	return true
+}
+
+func (l *lazyObj) Hash() int {
+	return l.force().Hash()
+}
+
+func (l *lazyObj) Keys() []*Term {
+	ret := make([]*Term, 0, len(l.native))
+	for k := range l.native {
+		ret = append(ret, StringTerm(k))
+	}
+	sort.Sort(termSlice(ret))
+	return ret
+}
+
+func (l *lazyObj) KeysIterator() ObjectKeysIterator {
+	keys := make([]string, 0, len(l.native))
+	for k := range l.native {
+		keys = append(keys, k)
+	}
+	return &lazyObjKeysIterator{keys: keys}
+}
+
+type lazyObjKeysIterator struct {
+	current int
+	keys    []string
+}
+
+func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
+	if ki.current == len(ki.keys) {
+		return nil, false
+	}
+	ki.current++
+	return StringTerm(ki.keys[ki.current-1]), true
+}
+
+func (l *lazyObj) Find(path Ref) (Value, error) {
+	if l.strict != nil {
+		return l.strict.Find(path)
+	}
+	if len(path) == 0 {
+		return l.force(), nil
+	}
+	p0 := string(path[0].Value.(String))
+	if v, ok := l.native[p0]; ok {
+		switch v := v.(type) {
+		case map[string]interface{}:
+			return (&lazyObj{native: v}).Find(path[1:])
+		default:
+			return MustInterfaceToValue(v).Find(path[1:])
+		}
+	}
+	return nil, errFindNotFound
 }
 
 type object struct {

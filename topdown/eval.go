@@ -1509,8 +1509,6 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 		if e.e.data != nil {
 			if v, err := e.e.data.Value.Find(ref[1:]); err == nil {
 				repValue = v
-			} else {
-				repValue = nil
 			}
 		}
 
@@ -1538,7 +1536,7 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 			if !ok {
 				err = mergeConflictErr(ref[0].Location)
 			}
-		} else {
+		} else { // baseCache miss
 			e.e.instr.counterIncr(evalOpBaseCacheMiss)
 			merged, err = e.e.resolveReadFromStorage(ref, repValue)
 		}
@@ -1555,11 +1553,10 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 	}
 
 	v, err := e.external.Resolve(e, ref)
-
 	if err != nil {
 		return nil, err
-	} else if v == nil {
-
+	}
+	if v == nil {
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
 			if !storage.IsNotFound(err) {
@@ -1600,7 +1597,6 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 						return nil, err
 					}
 					blob = cpy
-
 				}
 			}
 		}
@@ -1608,9 +1604,14 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		var ok bool
 		v, ok = blob.(ast.Value)
 		if !ok {
-			v, err = ast.InterfaceToValue(blob)
-			if err != nil {
-				return nil, err
+			switch blob := blob.(type) {
+			case map[string]interface{}:
+				v = ast.LazyObject(blob)
+			default:
+				v, err = ast.InterfaceToValue(blob)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
