@@ -1865,7 +1865,7 @@ func (l *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error
 }
 
 func (l *lazyObj) MarshalJSON() ([]byte, error) {
-	return json.Marshal(l.native)
+	return l.force().(*object).MarshalJSON()
 }
 
 func (l *lazyObj) Merge(other Object) (Object, bool) {
