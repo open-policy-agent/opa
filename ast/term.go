@@ -386,9 +386,13 @@ func (term *Term) Equal(other *Term) bool {
 // Get returns a value referred to by name from the term.
 func (term *Term) Get(name *Term) *Term {
 	switch v := term.Value.(type) {
+	case *object:
+		return v.Get(name)
 	case *Array:
 		return v.Get(name)
-	case *object:
+	case interface {
+		Get(*Term) *Term
+	}:
 		return v.Get(name)
 	case Set:
 		if v.Contains(name) {
