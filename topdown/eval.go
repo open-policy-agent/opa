@@ -2157,7 +2157,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				return err
 			}
 		case ast.Object:
-			err := doc.Iter(func(k, _ *ast.Term) error {
+			err := doc.Iter(func(k, _ *ast.Term) error { // TODO(sr): use KeysIterator
 				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
 				})

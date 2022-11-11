@@ -1966,13 +1966,14 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return l, nil
 	}
-	p0 := string(path[0].Value.(String))
-	if v, ok := l.native[p0]; ok {
-		switch v := v.(type) {
-		case map[string]interface{}:
-			return (&lazyObj{native: v}).Find(path[1:])
-		default:
-			return MustInterfaceToValue(v).Find(path[1:])
+	if p0, ok := path[0].Value.(String); ok {
+		if v, ok := l.native[string(p0)]; ok {
+			switch v := v.(type) {
+			case map[string]interface{}:
+				return (&lazyObj{native: v}).Find(path[1:])
+			default:
+				return MustInterfaceToValue(v).Find(path[1:])
+			}
 		}
 	}
 	return nil, errFindNotFound
