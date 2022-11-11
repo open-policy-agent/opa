@@ -1895,10 +1895,14 @@ func (l *lazyObj) Get(k *Term) *Term {
 	if s, ok := k.Value.(String); ok {
 		if val, ok := l.native[string(s)]; ok {
 			switch val := val.(type) {
+			case *Term:
+				return val
 			case map[string]interface{}:
 				return NewTerm(&lazyObj{native: val})
 			default:
-				return NewTerm(MustInterfaceToValue(val))
+				key := NewTerm(MustInterfaceToValue(val))
+				l.native[string(s)] = key
+				return key
 			}
 		}
 	}
