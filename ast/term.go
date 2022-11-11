@@ -1848,18 +1848,6 @@ func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
 	return l.force().Iter(f)
 }
 
-func (l *lazyObj) KeyIter(f func(*Term) error) error {
-	if l.strict != nil {
-		return l.strict.Iter(func(k, _ *Term) error { return f(k) })
-	}
-	for k := range l.native {
-		if err := f(StringTerm(k)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
 	return l.force().Until(f)
 }
