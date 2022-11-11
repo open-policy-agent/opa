@@ -1601,17 +1601,15 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 			}
 		}
 
-		var ok bool
-		v, ok = blob.(ast.Value)
-		if !ok {
-			switch blob := blob.(type) {
-			case map[string]interface{}:
-				v = ast.LazyObject(blob)
-			default:
-				v, err = ast.InterfaceToValue(blob)
-				if err != nil {
-					return nil, err
-				}
+		switch blob := blob.(type) {
+		case ast.Value:
+			v = blob
+		case map[string]interface{}:
+			v = ast.LazyObject(blob)
+		default:
+			v, err = ast.InterfaceToValue(blob)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
