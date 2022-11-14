@@ -1180,7 +1180,7 @@ func assertToString(t *testing.T, val Value, expected string) {
 }
 
 func TestLazyObjectGet(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
@@ -1196,7 +1196,7 @@ func TestLazyObjectGet(t *testing.T) {
 }
 
 func TestLazyObjectFind(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
@@ -1227,7 +1227,7 @@ func TestLazyObjectFind(t *testing.T) {
 }
 
 func TestLazyObjectCopy(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
@@ -1243,7 +1243,7 @@ func TestLazyObjectCopy(t *testing.T) {
 }
 
 func TestLazyObjectLen(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
@@ -1257,7 +1257,7 @@ func TestLazyObjectLen(t *testing.T) {
 }
 
 func TestLazyObjectIsGround(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
@@ -1271,7 +1271,7 @@ func TestLazyObjectIsGround(t *testing.T) {
 }
 
 func TestLazyObjectKeys(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": "A",
 		"c": "C",
 		"b": "B",
@@ -1285,7 +1285,7 @@ func TestLazyObjectKeys(t *testing.T) {
 }
 
 func TestLazyObjectKeysIterator(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": "A",
 		"c": "C",
 		"b": "B",
@@ -1303,7 +1303,7 @@ func TestLazyObjectKeysIterator(t *testing.T) {
 }
 
 func TestLazyObjectCompare(t *testing.T) {
-	var x Object = LazyObject(map[string]interface{}{
+	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
 			"b": map[string]interface{}{
 				"c": true,
