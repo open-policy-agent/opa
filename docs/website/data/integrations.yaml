@@ -59,6 +59,21 @@ integrations:
     inventors:
       - circleci
 
+  datadog:
+    title: Datadog
+    description: Open Policy Agent (OPA) provides Rego, an open source policy language with versatile resource inspection features for determining cloud security posture. In Datadog, you can write custom rules with Rego to control the security of your infrastructure.
+    software:
+      - datadog
+      - gcp
+    labels:
+      category: Infrastructure as Code
+      type: poweredbyopa
+    tutorials:
+      - https://docs.datadoghq.com/security_platform/cspm/custom_rules/
+      - https://docs.datadoghq.com/security_platform/cloud_security_management/guide/writing_rego_rules/
+    inventors:
+      - datadog
+
   aws-cloudformation-hook:
     title: AWS CloudFormation Hook
     description: AWS CloudFormation Hook that uses OPA to make policy decisions on infrastructure provisioned via AWS CloudFormation
@@ -704,6 +719,34 @@ integrations:
       - styra
       - docker
       - snyk
+
+  terraform-cloud:
+    title: Terraform Cloud
+    description: Policies are rules that Terraform Cloud enforces on runs. You use the Rego policy language to write policies for the Open Policy Agent (OPA) framework.
+    software:
+      - terraform
+      - terraform-cloud
+      - aws
+      - gcp
+      - azure
+    labels:
+      category: publiccloud
+      layer: orchestration
+    tutorials:
+      - https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa
+      - https://developer.hashicorp.com/terraform/tutorials/cloud/drift-and-opa
+      - https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa/vcs
+    videos:
+      - title: "Terraform Cloud Learn Lab: Validate Infrastructure and Enforce OPA Policies"
+        speakers:
+          - name: Rita Sokolova
+            organization: HashiCorp
+          - name: Cole Morrison
+            organization: HashiCorp
+        venue: HashiConf Europe 2022
+        link: https://www.youtube.com/watch?v=jO2CiYMPxFE
+    inventors:
+      - hashicorp
 
   pulumi:
     title: Pulumi
@@ -1690,6 +1733,12 @@ organizations:
   circleci:
     name: CircleCI
     link: https://circleci.com
+  datadog:
+    name: Datadog
+    link: https://www.datadoghq.com/
+  hashicorp:
+    name: HashiCorp
+    link: https://www.hashicorp.com/
 
 software:
   oauth:
@@ -1938,3 +1987,9 @@ software:
   circleci:
     name: CircleCI
     link: https://circleci.com
+  datadog:
+    name: Datadog
+    link: https://www.datadoghq.com/
+  terraform-cloud:
+    name: Terraform Cloud
+    link: https://cloud.hashicorp.com/products/terraform
