@@ -387,34 +387,37 @@ type binding struct {
 
 func containedIn(value ast.Value, x interface{}) bool {
 	var stop bool
-	switch v := value.(type) {
-	case ast.Ref:
-		ast.WalkTerms(x, func(t *ast.Term) bool {
-			switch t := t.Value.(type) {
-			case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
-				return true // skip closures
-			case ast.Ref:
-				if stop || t.HasPrefix(v) {
-					stop = true
-					return stop
-				}
+
+	var vis *ast.GenericVisitor
+	vis = ast.NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case *ast.Every: // skip body
+			vis.Walk(x.Key)
+			vis.Walk(x.Value)
+			vis.Walk(x.Domain)
+			return true
+		case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension: // skip
+			return true
+		case ast.Ref:
+			var match bool
+			if v, ok := value.(ast.Ref); ok {
+				match = x.HasPrefix(v)
+			} else {
+				match = x.Compare(value) == 0
 			}
-			return false
-		})
-	default:
-		ast.WalkTerms(x, func(t *ast.Term) bool {
-			switch other := t.Value.(type) {
-			case *ast.ArrayComprehension, *ast.ObjectComprehension, *ast.SetComprehension:
-				return true // skip closures
-			default:
-				if stop || other.Compare(v) == 0 {
-					stop = true
-					return stop
-				}
+			if stop || match {
+				stop = true
+				return stop
 			}
-			return false
-		})
-	}
+		case ast.Value:
+			if stop || x.Compare(value) == 0 {
+				stop = true
+				return stop
+			}
+		}
+		return stop
+	})
+	vis.Walk(x)
 	return stop
 }
 
