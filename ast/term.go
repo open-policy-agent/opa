@@ -1853,6 +1853,8 @@ func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
 }
 
 func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
+	// NOTE(sr): there could be benefits in not forcing here -- if we abort because
+	// `f` returns true, we could save us from converting the rest of the object.
 	return l.force().Until(f)
 }
 
@@ -1888,6 +1890,8 @@ func (l *lazyObj) String() string {
 	return l.force().String()
 }
 
+// get is merely there to implement the Object interface -- `get` there serves the
+// purpose of prohibiting external implementations. It's never called for lazyObj.
 func (*lazyObj) get(*Term) *objectElem {
 	return nil
 }
@@ -1931,16 +1935,12 @@ func (l *lazyObj) Keys() []*Term {
 }
 
 func (l *lazyObj) KeysIterator() ObjectKeysIterator {
-	keys := make([]string, 0, len(l.native))
-	for k := range l.native {
-		keys = append(keys, k)
-	}
-	return &lazyObjKeysIterator{keys: keys}
+	return &lazyObjKeysIterator{keys: l.Keys()}
 }
 
 type lazyObjKeysIterator struct {
 	current int
-	keys    []string
+	keys    []*Term
 }
 
 func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
@@ -1948,7 +1948,7 @@ func (ki *lazyObjKeysIterator) Next() (*Term, bool) {
 		return nil, false
 	}
 	ki.current++
-	return StringTerm(ki.keys[ki.current-1]), true
+	return ki.keys[ki.current-1], true
 }
 
 func (l *lazyObj) Find(path Ref) (Value, error) {
