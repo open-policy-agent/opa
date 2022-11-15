@@ -1110,3 +1110,235 @@ time.clock(input.y, time.clock(input.x))
 		})
 	}
 }
+
+func TestPolicyWithStrictFlag(t *testing.T) {
+	testsShouldError := []struct {
+		note            string
+		policy          string
+		query           string
+		expectedCode    string
+		expectedMessage string
+	}{
+		{
+			note: "strict mode should error on duplicate imports",
+			policy: `package x 
+			import future.keywords.if 
+			import future.keywords.if 
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import must not shadow import future.keywords.if",
+		},
+		{
+			note: "strict mode should error on unused imports",
+			policy: `package x
+			import future.keywords.if
+			import data.foo 
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import data.foo unused",
+		},
+		{
+			note: "strict mode should error when reserved vars data or input is used",
+			policy: `package x
+			import future.keywords.if
+			data if { x = 1}`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "rules must not shadow data (use a different rule name)",
+		},
+	}
+
+	for _, tc := range testsShouldError {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				params.strict = true
+
+				_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
+
+				var buf bytes.Buffer
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var output presentation.Output
+				if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+					t.Fatal(err)
+				}
+
+				if code := output.Errors[0].Code; code != tc.expectedCode {
+					t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
+				}
+				if msg := output.Errors[0].Message; msg != tc.expectedMessage {
+					t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+				}
+			})
+		})
+	}
+
+	testsShouldPass := []struct {
+		note   string
+		policy string
+		query  string
+	}{
+		{
+			note: "This should not error as it is valid",
+			policy: `package x 
+			import future.keywords.if
+			foo = 2`,
+			query: "data.foo",
+		},
+		{
+			note: "Strict mode should not validate the query, only the policy, this should not error",
+			policy: `package x 
+			import future.keywords.if 
+			foo = 2`,
+			query: "x := data.x.foo",
+		},
+	}
+	for _, tc := range testsShouldPass {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				params.strict = true
+
+				var buf bytes.Buffer
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err != nil {
+					t.Errorf("Should not error, got error: '%v'", err)
+				}
+			})
+		})
+	}
+
+}
+
+func TestBundleWithStrictFlag(t *testing.T) {
+	testsShouldError := []struct {
+		note            string
+		policy          string
+		query           string
+		expectedCode    string
+		expectedMessage string
+	}{
+		{
+			note: "strict mode should error on duplicate imports in this bundle",
+			policy: `package x 
+			import future.keywords.if 
+			import future.keywords.if 
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import must not shadow import future.keywords.if",
+		},
+		{
+			note: "strict mode should error on unused imports in this bundle",
+			policy: `package x
+			import future.keywords.if 
+			import data.foo 
+			foo = 2`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "import data.foo unused",
+		},
+		{
+			note: "strict mode should error when reserved vars data or input is used in this bundle",
+			policy: `package x
+			import future.keywords.if 
+			data if { x = 1}`,
+			query:           "data.foo",
+			expectedCode:    "rego_compile_error",
+			expectedMessage: "rules must not shadow data (use a different rule name)",
+		},
+	}
+
+	for _, tc := range testsShouldError {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+				params.strict = true
+
+				var buf bytes.Buffer
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				var output presentation.Output
+				if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+					t.Fatal(err)
+				}
+
+				if code := output.Errors[0].Code; code != tc.expectedCode {
+					t.Errorf("expected code '%v', got '%v'", tc.expectedCode, code)
+				}
+				if msg := output.Errors[0].Message; msg != tc.expectedMessage {
+					t.Errorf("expected message '%v', got '%v'", tc.expectedMessage, msg)
+				}
+			})
+		})
+	}
+
+	testsShouldPass := []struct {
+		note   string
+		policy string
+		query  string
+	}{
+		{
+			note: "This bundle should not error as it is valid",
+			policy: `package x 
+			import future.keywords.if 
+			foo = 2`,
+			query: "data.foo",
+		},
+		{
+			note: "Strict mode should not validate the query, only the policy, this bundle should not error",
+			policy: `package x 
+			import future.keywords.if 
+			foo = 2`,
+			query: "x := data.x.foo",
+		},
+	}
+	for _, tc := range testsShouldPass {
+		t.Run(tc.note, func(t *testing.T) {
+
+			files := map[string]string{
+				"test.rego": tc.policy,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+				params.strict = true
+
+				var buf bytes.Buffer
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err != nil {
+					t.Errorf("Should not error, got error: '%v'", err)
+				}
+			})
+		})
+	}
+
+}

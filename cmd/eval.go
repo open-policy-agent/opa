@@ -68,6 +68,7 @@ type evalCommandParams struct {
 	timeout             time.Duration
 	optimizationLevel   int
 	entrypoints         repeatedStringFlag
+	strict              bool
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -319,6 +320,7 @@ access.
 	addSchemaFlags(evalCommand.Flags(), params.schema)
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
+	addStrictFlag(evalCommand.Flags(), &params.strict, false)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -624,6 +626,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.capabilities != nil {
 		regoArgs = append(regoArgs, rego.Capabilities(params.capabilities.C))
+	}
+
+	if params.strict {
+		regoArgs = append(regoArgs, rego.Strict(params.strict))
 	}
 
 	evalCtx := &evalContext{

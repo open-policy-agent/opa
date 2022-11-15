@@ -528,6 +528,7 @@ type Rego struct {
 	printHook              print.Hook
 	enablePrintStatements  bool
 	distributedTacingOpts  tracing.Options
+	strict                 bool
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1107,6 +1108,13 @@ func EnablePrintStatements(yes bool) func(r *Rego) {
 	}
 }
 
+// Strict enables or disables strict-mode in the compiler
+func Strict(yes bool) func(r *Rego) {
+	return func(r *Rego) {
+		r.strict = yes
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1130,7 +1138,8 @@ func New(options ...func(r *Rego)) *Rego {
 			WithDebug(r.dump).
 			WithSchemas(r.schemaSet).
 			WithCapabilities(r.capabilities).
-			WithEnablePrintStatements(r.enablePrintStatements)
+			WithEnablePrintStatements(r.enablePrintStatements).
+			WithStrict(r.strict)
 	}
 
 	if r.store == nil {
@@ -1910,7 +1919,8 @@ func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, m metrics.Met
 	qc := r.compiler.QueryCompiler().
 		WithContext(qctx).
 		WithUnsafeBuiltins(r.unsafeBuiltins).
-		WithEnablePrintStatements(r.enablePrintStatements)
+		WithEnablePrintStatements(r.enablePrintStatements).
+		WithStrict(false)
 
 	for _, extra := range extras {
 		qc = qc.WithStageAfter(extra.after, extra.stage)
