@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	storageerrors "github.com/open-policy-agent/opa/storage/internal/errors"
@@ -971,5 +972,53 @@ func TestOptRoundTripOnWrite(t *testing.T) {
 				t.Fatalf("got Write error, want nil")
 			}
 		})
+	}
+}
+
+func TestInMemoryLazyObj(t *testing.T) {
+	ctx := context.Background()
+	foo := map[string]interface{}{
+		"foo": "bar",
+	}
+	store := NewFromObject(map[string]interface{}{
+		"stored": foo,
+	})
+	result, err := storage.ReadOne(ctx, store, storage.MustParsePath("/stored"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	act, ok := result.(ast.Object)
+	if !ok {
+		t.Errorf("expected %T, got %T: %[2]v", act, result)
+	}
+	// NOTE(sr): we're using DeepEqual here because we want to assert that the structs
+	// match -- as far as the interface `ast.Object` is concerned `*lazyObj` and `*object`
+	// should be indistinguishable (see second assertion).
+	if exp := ast.LazyObject(foo); !reflect.DeepEqual(act, exp) {
+		t.Errorf("expected %T, got %T", exp, act)
+	}
+	if exp := ast.NewObject(ast.Item(ast.StringTerm("foo"), ast.StringTerm("bar"))); exp.Compare(act) != 0 || act.Compare(exp) != 0 {
+		t.Errorf("expected to match %v %[1]T, got %T", exp, act)
+	}
+}
+
+func TestInMemoryLazyObjOptOut(t *testing.T) {
+	ctx := context.Background()
+	foo := map[string]interface{}{
+		"foo": "bar",
+	}
+	store := NewFromObjectWithOpts(map[string]interface{}{
+		"stored": foo,
+	}, StrictObjects(true))
+	result, err := storage.ReadOne(ctx, store, storage.MustParsePath("/stored"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	act, ok := result.(map[string]interface{})
+	if !ok {
+		t.Errorf("expected %T, got %T: %[2]v", act, result)
+	}
+	if exp := foo; !reflect.DeepEqual(act, exp) {
+		t.Errorf("expected %T, got %T", exp, act)
 	}
 }

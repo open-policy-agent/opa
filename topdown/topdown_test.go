@@ -888,7 +888,7 @@ func TestTopdownLazyObj(t *testing.T) {
 	}
 	act, ok := qrs[0]["x"].Value.(ast.Object)
 	if !ok {
-		t.Errorf("expected obj, got %T: %[1]v", qrs[0]["x"].Value)
+		t.Errorf("expected %T, got %T: %[2]v", act, qrs[0]["x"].Value)
 	}
 	// NOTE(sr): we're using DeepEqual here because we want to assert that the structs
 	// match -- as far as the interface `ast.Object` is concerned `*lazyObj` and `*object`

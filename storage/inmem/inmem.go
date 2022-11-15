@@ -24,6 +24,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -101,6 +102,10 @@ type store struct {
 	// roundTripOnWrite, if true, means that every call to Write round trips the
 	// data through JSON before adding the data to the store. Defaults to true.
 	roundTripOnWrite bool
+
+	// strictObjects, if true, will disable that the store returns lazy objects for
+	// when objects are returned.
+	strictObjects bool
 }
 
 type handle struct {
@@ -295,7 +300,14 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 	if err != nil {
 		return nil, err
 	}
-	return underlying.Read(path)
+	x, err := underlying.Read(path)
+	if err != nil {
+		return nil, err
+	}
+	if o, ok := x.(map[string]interface{}); ok && !db.strictObjects {
+		return ast.LazyObject(o), nil
+	}
+	return x, nil
 }
 
 func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
