@@ -277,4 +277,4 @@ testing include:
 * [State Street Corporation](http://www.statestreet.com/)
 
 If you have adopted OPA and would like to be included in this list,
-feel free to submit a PR.
+feel free to submit a PR. 
