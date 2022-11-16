@@ -81,7 +81,7 @@ endpoint. If only one service is defined, there is no need to set `discovery.ser
 
 OPA generates it's subsequent configuration by querying the Rego and JSON files
 contained inside the discovery bundle. The default query is `data` however this
-can be overriden by specifying the `discovery.decision`.
+can be overridden by specifying the `discovery.decision`.
 
 ```yaml
 services:

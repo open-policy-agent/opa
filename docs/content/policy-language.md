@@ -1594,7 +1594,7 @@ names_with_dev
 The `every` keyword takes an (optional) key argument, a value argument, a domain, and a
 block of further queries, its "body".
 
-The keyword is used to explicity assert that its body is true for *any element in the domain*.
+The keyword is used to explicitly assert that its body is true for *any element in the domain*.
 It will iterate over the domain, bind its variables, and check that the body holds
 for those bindings.
 If one of the bindings does not yield a successful evaluation of the body, the overall

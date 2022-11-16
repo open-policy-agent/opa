@@ -210,7 +210,7 @@ operations
 package system.log
 
 mask[{"op": "upsert", "path": "/input/password", "value": x}] {
-  # conditionally upsert password if it existed in the orginal event
+  # conditionally upsert password if it existed in the original event
   input.input.password
   x := "**REDACTED**"
 }

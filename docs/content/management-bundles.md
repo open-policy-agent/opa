@@ -1190,7 +1190,7 @@ We can now start OPA as a server using:
 ```bash
 opa run --server --set default_decision=policies -c configuration.yaml
 ```
-To interact with the server you can do a simple **curl** to verify if it works as inteded:
+To interact with the server you can do a simple **curl** to verify if it works as intended:
 ```bash
 curl localhost:8181 -i -d '{ "message":"world"}' -H 'Content-Type:application/json'
 

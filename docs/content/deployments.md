@@ -292,7 +292,7 @@ containers:
     httpGet:
       scheme: HTTP              # assumes OPA listens on localhost:8181
       port: 8181
-    initialDelaySeconds: 5      # tune these periods for your environemnt
+    initialDelaySeconds: 5      # tune these periods for your environment
     periodSeconds: 5
   readinessProbe:
     httpGet:
@@ -498,7 +498,7 @@ Use the following JSON structure to build more complex capability checks.
 
                 "type": "function", // REQUIRED: states this is a function
 
-                "args": [ // REQUIRED: List of types to be passed in as an arguement: any, number, string, boolean, object, array, set.
+                "args": [ // REQUIRED: List of types to be passed in as an argument: any, number, string, boolean, object, array, set.
                     {
                         "type": "number"
                     },
