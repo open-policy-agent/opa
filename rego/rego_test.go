@@ -2362,3 +2362,97 @@ func TestGenerateJSON(t *testing.T) {
 	)
 	assertEval(t, r, `[["converted-input"]]`)
 }
+
+func TestRegoLazyObjDefault(t *testing.T) {
+	foo := map[string]interface{}{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+		"stored": foo,
+	})
+	r := New(
+		Query("x = data.stored"),
+		Store(store),
+	)
+
+	ctx := context.Background()
+	rs, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	act, ok := rs[0].Bindings["x"]
+	if !ok {
+		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
+	}
+	m, ok := act.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", m, act)
+	}
+	m["fox"] = true
+
+	if _, ok := foo["fox"]; ok {
+		t.Errorf("expected no change in foo, found one: %v", foo)
+	}
+}
+
+func TestRegoLazyObjNoRoundTripOnWrite(t *testing.T) {
+	foo := map[string]interface{}{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+		"stored": foo,
+	}, inmem.OptRoundTripOnWrite(false))
+	r := New(
+		Query("x = data.stored"),
+		Store(store),
+	)
+
+	ctx := context.Background()
+	rs, err := r.Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	act, ok := rs[0].Bindings["x"]
+	if !ok {
+		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
+	}
+	m, ok := act.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", m, act)
+	}
+	m["fox"] = true
+
+	if v, ok := foo["fox"]; !ok || !v.(bool) {
+		t.Errorf("expected change in foo, found none: %v", foo)
+	}
+}
+
+func TestRegoLazyObjCopyMaps(t *testing.T) {
+	foo := map[string]interface{}{"foo": "bar", "other": 1}
+	store := inmem.NewFromObjectWithOpts(map[string]interface{}{
+		"stored": foo,
+	}, inmem.OptRoundTripOnWrite(false))
+	r := New(
+		Query("x = data.stored"),
+		Store(store),
+	)
+
+	ctx := context.Background()
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs, err := pq.Eval(ctx, EvalCopyMaps(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	act, ok := rs[0].Bindings["x"]
+	if !ok {
+		t.Fatalf("expected binding for \"x\", got %v", rs[0].Bindings)
+	}
+	m, ok := act.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", m, act)
+	}
+	m["fox"] = true
+
+	if _, ok := foo["fox"]; ok {
+		t.Errorf("expected no change in foo, found one: %v", foo)
+	}
+}

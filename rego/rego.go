@@ -119,6 +119,7 @@ type EvalContext struct {
 	ndBuiltinCache         builtins.NDBCache
 	resolvers              []refResolver
 	sortSets               bool
+	copyMaps               bool
 	printHook              print.Hook
 	capabilities           *ast.Capabilities
 }
@@ -274,6 +275,13 @@ func EvalResolver(ref ast.Ref, r resolver.Resolver) EvalOption {
 func EvalSortSets(yes bool) EvalOption {
 	return func(e *EvalContext) {
 		e.sortSets = yes
+	}
+}
+
+// EvalCopyMaps causes the evaluator to copy `map[string]interface{}`s before returning them.
+func EvalCopyMaps(yes bool) EvalOption {
+	return func(e *EvalContext) {
+		e.copyMaps = yes
 	}
 }
 
@@ -2584,5 +2592,9 @@ func newFunction(decl *Function, f topdown.BuiltinFunc) func(*Rego) {
 }
 
 func generateJSON(term *ast.Term, ectx *EvalContext) (interface{}, error) {
-	return ast.JSONWithOpt(term.Value, ast.JSONOpt{SortSets: ectx.sortSets})
+	return ast.JSONWithOpt(term.Value,
+		ast.JSONOpt{
+			SortSets: ectx.sortSets,
+			CopyMaps: ectx.copyMaps,
+		})
 }
