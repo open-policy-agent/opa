@@ -23,17 +23,3 @@ func OptRoundTripOnWrite(enabled bool) Opt {
 		s.roundTripOnWrite = enabled
 	}
 }
-
-// StrictObjects, if true, disables the lazy object optimization. "Lazy objects"
-// behave just like normal ast.Object, and satisfy the same interface, but they
-// only turn their keys and values into ast.Value types when required. It can
-// save a lot of memory and processing time.
-//
-// The only reason to enable this (i.e. disable the optimization) is when native
-// map[string]interface{} values that are stored in the store via its Golang API
-// are still used, and not "handed over" to the store.
-func StrictObjects(enabled bool) Opt {
-	return func(s *store) {
-		s.strictObjects = enabled
-	}
-}
