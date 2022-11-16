@@ -61,6 +61,8 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 
 		return types.NewArray(static, dynamic)
 
+	case *lazyObj:
+		return env.Get(x.force())
 	case *object:
 		static := []*types.StaticProperty{}
 		var dynamic *types.DynamicProperty

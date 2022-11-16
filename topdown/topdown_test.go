@@ -170,6 +170,7 @@ func TestTopDownUnsupportedBuiltin(t *testing.T) {
 	compiler := ast.NewCompiler()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
 	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
 	_, err := q.Run(ctx)
 
@@ -864,6 +865,68 @@ func TestTopdownStoreAST(t *testing.T) {
 
 	if err != nil || !result.Equal(exp) {
 		t.Fatalf("expected %v but got %v (error: %v)", exp, result, err)
+	}
+}
+
+func TestTopdownLazyObj(t *testing.T) {
+	body := ast.MustParseBody(`data.stored = x`)
+	ctx := context.Background()
+	compiler := ast.NewCompiler()
+	foo := map[string]interface{}{
+		"foo": "bar",
+	}
+	store := inmem.NewFromObject(map[string]interface{}{
+		"stored": foo,
+	})
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn)
+	qrs, err := q.Run(ctx)
+	if err != nil {
+		t.Fatalf("expected no error got %v", err)
+	}
+	act, ok := qrs[0]["x"].Value.(ast.Object)
+	if !ok {
+		t.Errorf("expected obj, got %T: %[1]v", qrs[0]["x"].Value)
+	}
+	// NOTE(sr): we're using DeepEqual here because we want to assert that the structs
+	// match -- as far as the interface `ast.Object` is concerned `*lazyObj` and `*object`
+	// should be indistinguishable.
+	if exp := ast.LazyObject(foo); !reflect.DeepEqual(act, exp) {
+		t.Errorf("expected %T, got %T", exp, act)
+	}
+}
+
+func TestTopdownLazyObjOptOut(t *testing.T) {
+	body := ast.MustParseBody(`data.stored = x`)
+	ctx := context.Background()
+	compiler := ast.NewCompiler()
+	foo := map[string]interface{}{
+		"foo": "bar",
+	}
+	store := inmem.NewFromObject(map[string]interface{}{
+		"stored": foo,
+	})
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn).WithStrictObjects(true)
+	qrs, err := q.Run(ctx)
+	if err != nil {
+		t.Fatalf("expected no error got %v", err)
+	}
+	act, ok := qrs[0]["x"].Value.(ast.Object)
+	if !ok {
+		t.Errorf("expected %T, got %T: %[2]v", act, qrs[0]["x"].Value)
+	}
+	// NOTE(sr): We can't type-assert *ast.lazyObj because it's not exported -- but we can retry
+	// the assertion that we've done in the not-opt-out case, and see that it no longer holds:
+	if exp := ast.LazyObject(foo); reflect.DeepEqual(act, exp) {
+		t.Errorf("expected %T, got %T", exp, act)
+	}
+	if exp := ast.NewObject(ast.Item(ast.StringTerm("foo"), ast.StringTerm("bar"))); exp.Compare(act) != 0 {
+		t.Errorf("expected %v to be equal to %v", exp, act)
 	}
 }
 

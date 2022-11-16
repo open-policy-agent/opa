@@ -941,3 +941,54 @@ func BenchmarkGlob(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkMemberWithKeyFromBaseDoc(b *testing.B) {
+	store := inmem.NewFromObject(test.GenerateLargeJSONBenchmarkData())
+	mod := `package test
+	import future.keywords.in
+	main { "key99", "value99" in data.values }
+	`
+
+	ctx := context.Background()
+	query := ast.MustParseBody("data.test.main")
+	compiler := ast.MustCompileModules(map[string]string{
+		"test.rego": mod,
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
+			return err
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkObjectGetFromBaseDoc(b *testing.B) {
+	store := inmem.NewFromObject(test.GenerateLargeJSONBenchmarkData())
+	mod := `package test
+	main { object.get(data.values, "key99", false) == "value99" }
+	`
+
+	ctx := context.Background()
+	query := ast.MustParseBody("data.test.main")
+	compiler := ast.MustCompileModules(map[string]string{
+		"test.rego": mod,
+	})
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
+			_, err := NewQuery(query).WithCompiler(compiler).WithStore(store).WithTransaction(txn).Run(ctx)
+			return err
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

@@ -1160,6 +1160,53 @@ func TestValueToInterface(t *testing.T) {
 	}
 }
 
+// NOTE(sr): Without the opt-out, we don't allocate another object for
+// the conversion back to interface{} if it can be avoided. As a result,
+// the value held by the store could be changed.
+func TestJSONWithOptLazyObjDefault(t *testing.T) {
+	// would live in the store
+	m := map[string]interface{}{
+		"foo": "bar",
+	}
+	o := LazyObject(m)
+
+	n, err := JSONWithOpt(o, JSONOpt{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n0, ok := n.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
+	}
+	n0["baz"] = true
+
+	if v, ok := m["baz"]; !ok || !v.(bool) {
+		t.Errorf("expected change in m, found none: %v", m)
+	}
+}
+
+func TestJSONWithOptLazyObjOptOut(t *testing.T) {
+	// would live in the store
+	m := map[string]interface{}{
+		"foo": "bar",
+	}
+	o := LazyObject(m)
+
+	n, err := JSONWithOpt(o, JSONOpt{CopyMaps: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n0, ok := n.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
+	}
+	n0["baz"] = true
+
+	if _, ok := m["baz"]; ok {
+		t.Errorf("expected no change in m, found one: %v", m)
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
@@ -1176,5 +1223,155 @@ func assertToString(t *testing.T, val Value, expected string) {
 	result := val.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)
+	}
+}
+
+func TestLazyObjectGet(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+		},
+	})
+	y := x.Get(StringTerm("a"))
+	_, ok := y.Value.(*lazyObj)
+	if !ok {
+		t.Errorf("expected Get() to return another lazy object, got %v %[1]T", y.Value)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectFind(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+			"d": []interface{}{true, true, true},
+		},
+	})
+	// retrieve object via Find
+	y, err := x.Find(Ref{StringTerm("a"), StringTerm("b")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := y.(*lazyObj)
+	if !ok {
+		t.Errorf("expected Find() to return another lazy object, got %v %[1]T", y)
+	}
+	assertForced(t, x, false)
+
+	// retrieve array via Find
+	z, err := x.Find(Ref{StringTerm("a"), StringTerm("d")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok = z.(*Array)
+	if !ok {
+		t.Errorf("expected Find() to return array, got %v %[1]T", z)
+	}
+}
+
+func TestLazyObjectCopy(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+		},
+	})
+	y := x.Copy()
+	_, ok := y.(*lazyObj)
+	if !ok {
+		t.Errorf("expected Get() to return another lazy object, got %v %[1]T", y)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectLen(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+		},
+	})
+	if exp, act := 1, x.Len(); exp != act {
+		t.Errorf("expected Len() %v, got %v", exp, act)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectIsGround(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+		},
+	})
+	if exp, act := true, x.IsGround(); exp != act {
+		t.Errorf("expected IsGround() %v, got %v", exp, act)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectKeys(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": "A",
+		"c": "C",
+		"b": "B",
+	})
+	act := x.Keys()
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	if !reflect.DeepEqual(exp, act) {
+		t.Errorf("expected Keys() %v, got %v", exp, act)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectKeysIterator(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": "A",
+		"c": "C",
+		"b": "B",
+	})
+	ki := x.KeysIterator()
+	act := make([]*Term, 0, x.Len())
+	for k, next := ki.Next(); next; k, next = ki.Next() {
+		act = append(act, k)
+	}
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	if !reflect.DeepEqual(exp, act) {
+		t.Errorf("expected Keys() %v, got %v", exp, act)
+	}
+	assertForced(t, x, false)
+}
+
+func TestLazyObjectCompare(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": true,
+			},
+		},
+	})
+	if exp, act := 1, x.Compare(NewObject()); exp != act {
+		t.Errorf("expected Compare() => %v, got %v", exp, act)
+	}
+	assertForced(t, x, true)
+}
+
+func assertForced(t *testing.T, x Object, forced bool) {
+	t.Helper()
+	l, ok := x.(*lazyObj)
+	switch {
+	case !ok:
+		t.Errorf("expected lazy object, got %v %[1]T", x)
+	case !forced && l.strict != nil:
+		t.Errorf("expected %v to not be forced", l)
+	case forced && l.strict == nil:
+		t.Errorf("expected %v to be forced", l)
 	}
 }

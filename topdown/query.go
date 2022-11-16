@@ -54,6 +54,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
 	strictBuiltinErrors    bool
+	strictObjects          bool
 	printHook              print.Hook
 	tracingOpts            tracing.Options
 }
@@ -272,6 +273,15 @@ func (q *Query) WithDistributedTracingOpts(tr tracing.Options) *Query {
 	return q
 }
 
+// WithStrictObjects tells the evaluator to avoid the "lazy object" optimization
+// applied when reading objects from the store. It will result in higher memory
+// usage and should only be used temporarily while adjusting code that breaks
+// because of the optimization.
+func (q *Query) WithStrictObjects(yes bool) *Query {
+	q.strictObjects = yes
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -337,6 +347,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		earlyExit:     q.earlyExit,
 		builtinErrors: &builtinErrors{},
 		printHook:     q.printHook,
+		strictObjects: q.strictObjects,
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -480,6 +491,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		builtinErrors:          &builtinErrors{},
 		printHook:              q.printHook,
 		tracingOpts:            q.tracingOpts,
+		strictObjects:          q.strictObjects,
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()

@@ -98,6 +98,7 @@ type eval struct {
 	printHook              print.Hook
 	tracingOpts            tracing.Options
 	findOne                bool
+	strictObjects          bool
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -1509,8 +1510,6 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 		if e.e.data != nil {
 			if v, err := e.e.data.Value.Find(ref[1:]); err == nil {
 				repValue = v
-			} else {
-				repValue = nil
 			}
 		}
 
@@ -1538,7 +1537,7 @@ func (e *evalResolver) Resolve(ref ast.Ref) (ast.Value, error) {
 			if !ok {
 				err = mergeConflictErr(ref[0].Location)
 			}
-		} else {
+		} else { // baseCache miss
 			e.e.instr.counterIncr(evalOpBaseCacheMiss)
 			merged, err = e.e.resolveReadFromStorage(ref, repValue)
 		}
@@ -1555,11 +1554,10 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 	}
 
 	v, err := e.external.Resolve(e, ref)
-
 	if err != nil {
 		return nil, err
-	} else if v == nil {
-
+	}
+	if v == nil {
 		path, err := storage.NewPathForRef(ref)
 		if err != nil {
 			if !storage.IsNotFound(err) {
@@ -1600,14 +1598,18 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 						return nil, err
 					}
 					blob = cpy
-
 				}
 			}
 		}
 
-		var ok bool
-		v, ok = blob.(ast.Value)
-		if !ok {
+		switch blob := blob.(type) {
+		case ast.Value:
+			v = blob
+		default:
+			if blob, ok := blob.(map[string]interface{}); ok && !e.strictObjects {
+				v = ast.LazyObject(blob)
+				break
+			}
 			v, err = ast.InterfaceToValue(blob)
 			if err != nil {
 				return nil, err
@@ -2145,13 +2147,13 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				}
 			}
 		case ast.Object:
-			err := doc.Iter(func(k, _ *ast.Term) error {
-				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
+			ki := doc.KeysIterator()
+			for k, more := ki.Next(); more; k, more = ki.Next() {
+				if err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
-				})
-			})
-			if err != nil {
-				return err
+				}); err != nil {
+					return err
+				}
 			}
 		case ast.Set:
 			err := doc.Iter(func(elem *ast.Term) error {
