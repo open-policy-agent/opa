@@ -898,6 +898,38 @@ func TestTopdownLazyObj(t *testing.T) {
 	}
 }
 
+func TestTopdownLazyObjOptOut(t *testing.T) {
+	body := ast.MustParseBody(`data.stored = x`)
+	ctx := context.Background()
+	compiler := ast.NewCompiler()
+	foo := map[string]interface{}{
+		"foo": "bar",
+	}
+	store := inmem.NewFromObject(map[string]interface{}{
+		"stored": foo,
+	})
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	q := NewQuery(body).WithCompiler(compiler).WithStore(store).WithTransaction(txn).WithStrictObjects(true)
+	qrs, err := q.Run(ctx)
+	if err != nil {
+		t.Fatalf("expected no error got %v", err)
+	}
+	act, ok := qrs[0]["x"].Value.(ast.Object)
+	if !ok {
+		t.Errorf("expected %T, got %T: %[2]v", act, qrs[0]["x"].Value)
+	}
+	// NOTE(sr): We can't type-assert *ast.lazyObj because it's not exported -- but we can retry
+	// the assertion that we've done in the not-opt-out case, and see that it no longer holds:
+	if exp := ast.LazyObject(foo); reflect.DeepEqual(act, exp) {
+		t.Errorf("expected %T, got %T", exp, act)
+	}
+	if exp := ast.NewObject(ast.Item(ast.StringTerm("foo"), ast.StringTerm("bar"))); exp.Compare(act) != 0 {
+		t.Errorf("expected %v to be equal to %v", exp, act)
+	}
+}
+
 func compileModules(input []string) *ast.Compiler {
 
 	mods := map[string]*ast.Module{}

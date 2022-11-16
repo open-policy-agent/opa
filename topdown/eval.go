@@ -98,6 +98,7 @@ type eval struct {
 	printHook              print.Hook
 	tracingOpts            tracing.Options
 	findOne                bool
+	strictObjects          bool
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -1604,9 +1605,11 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		switch blob := blob.(type) {
 		case ast.Value:
 			v = blob
-		case map[string]interface{}:
-			v = ast.LazyObject(blob)
 		default:
+			if blob, ok := blob.(map[string]interface{}); ok && !e.strictObjects {
+				v = ast.LazyObject(blob)
+				break
+			}
 			v, err = ast.InterfaceToValue(blob)
 			if err != nil {
 				return nil, err
