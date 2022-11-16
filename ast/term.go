@@ -217,6 +217,9 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 		}
 		return buf, nil
 	case *lazyObj:
+		if opt.CopyMaps {
+			return valueToInterface(v.force(), resolver, opt)
+		}
 		return v.native, nil
 	case Set:
 		buf := []interface{}{}
@@ -254,6 +257,7 @@ func JSON(v Value) (interface{}, error) {
 // JSONOpt defines parameters for AST to JSON conversion.
 type JSONOpt struct {
 	SortSets bool // sort sets before serializing (this makes conversion more expensive)
+	CopyMaps bool // enforces copying of map[string]interface{} read from the store
 }
 
 // JSONWithOpt returns the JSON representation of v. The value must not contain any

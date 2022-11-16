@@ -1160,6 +1160,53 @@ func TestValueToInterface(t *testing.T) {
 	}
 }
 
+// NOTE(sr): Without the opt-out, we don't allocate another object for
+// the conversion back to interface{} if it can be avoided. As a result,
+// the value held by the store could be changed.
+func TestJSONWithOptLazyObjDefault(t *testing.T) {
+	// would live in the store
+	m := map[string]interface{}{
+		"foo": "bar",
+	}
+	o := LazyObject(m)
+
+	n, err := JSONWithOpt(o, JSONOpt{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n0, ok := n.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
+	}
+	n0["baz"] = true
+
+	if v, ok := m["baz"]; !ok || !v.(bool) {
+		t.Errorf("expected change in m, found none: %v", m)
+	}
+}
+
+func TestJSONWithOptLazyObjOptOut(t *testing.T) {
+	// would live in the store
+	m := map[string]interface{}{
+		"foo": "bar",
+	}
+	o := LazyObject(m)
+
+	n, err := JSONWithOpt(o, JSONOpt{CopyMaps: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n0, ok := n.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected %T, got %T: %[2]v", n0, n)
+	}
+	n0["baz"] = true
+
+	if _, ok := m["baz"]; ok {
+		t.Errorf("expected no change in m, found one: %v", m)
+	}
+}
+
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
