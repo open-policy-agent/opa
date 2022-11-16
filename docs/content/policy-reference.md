@@ -657,7 +657,7 @@ raw_result_parts_hs256 := io.jwt.decode_verify(raw_result_hs256, {"secret": "foo
 ```live:jwt/verify/round_trip_raw:output
 ```
 
-Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` varient.
+Now encode the and sign the same token contents but with `io.jwt.encode_sign` instead of the `raw` variant.
 ```live:jwt/verify/round_trip:module:hidden
 ```
 ```live:jwt/verify/round_trip:query:merge_down
@@ -904,10 +904,10 @@ The table below shows examples of calling `http.send`:
 #### Notes on Name Resolution (`net.lookup_ip_addr`)
 
 The lookup mechanism uses either the pure-Go, or the cgo-based resolver, depending on the operating system and availability of cgo.
-The latter depends on flags that can be provided when building OPA as a Go library, and can be adjusted at runtime via the GODEBUG enviroment variable.
+The latter depends on flags that can be provided when building OPA as a Go library, and can be adjusted at runtime via the GODEBUG environment variable.
 See [these docs on the `net` package](https://pkg.go.dev/net@go1.17.3#hdr-Name_Resolution) for details.
 
-Note that the cgo-based resolver is often **preferrable**: It will take advantage of host-based DNS caching in place.
+Note that the cgo-based resolver is often **preferable**: It will take advantage of host-based DNS caching in place.
 This built-in function only caches DNS lookups within _a single_ policy evaluation.
 
 #### Examples of `net.cidr_contains_matches`

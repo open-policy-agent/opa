@@ -853,7 +853,7 @@ By default optimizations are disabled.
 Policies are partially evaluated. Rules that DO NOT depend on unknowns (directly or indirectly) are
 evaluated and the virtual documents they produce are inlined into call sites. Virtual documents that
 are required at evaluation time are not inlined. For example, if a base or virtual document is
-targetted by a `with` statement in the policy, the document will not be inlined.
+targeted by a `with` statement in the policy, the document will not be inlined.
 
 Rules that depend on unknowns (directly or indirectly) are also partially evaluated however the
 virtual documents they produce ARE NOT inlined into call sites. The output policy should be structurally
