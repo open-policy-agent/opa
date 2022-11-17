@@ -1917,8 +1917,8 @@ func (l *lazyObj) Get(k *Term) *Term {
 	return nil
 }
 
-func (*lazyObj) Insert(*Term, *Term) {
-	panic("immutable")
+func (l *lazyObj) Insert(k, v *Term) {
+	l.force().Insert(k, v)
 }
 
 func (*lazyObj) IsGround() bool {
