@@ -1836,10 +1836,10 @@ void test_object_keys(void)
     opa_object_insert(obj1, opa_string_terminated("b"), opa_number_int(2));
     opa_object_insert(obj1, opa_string_terminated("c"), opa_number_int(3));
 
-    opa_array_t *expected_keys1 = opa_cast_array(opa_array());
-    opa_array_append(expected_keys1, opa_string_terminated("a"));
-    opa_array_append(expected_keys1, opa_string_terminated("b"));
-    opa_array_append(expected_keys1, opa_string_terminated("c"));
+    opa_set_t *expected_keys1 = opa_cast_set(opa_set());
+    opa_set_add(expected_keys1, opa_string_terminated("a"));
+    opa_set_add(expected_keys1, opa_string_terminated("b"));
+    opa_set_add(expected_keys1, opa_string_terminated("c"));
 
     test("object/keys (string keys)", opa_value_compare(builtin_object_keys(&obj1->hdr), &expected_keys1->hdr) == 0);
 
@@ -1847,9 +1847,9 @@ void test_object_keys(void)
     opa_object_insert(obj2, opa_number_int(1), opa_number_int(2));
     opa_object_insert(obj2, opa_number_int(3), opa_number_int(4));
 
-    opa_array_t *expected_keys2 = opa_cast_array(opa_array());
-    opa_array_append(expected_keys2, opa_number_int(1));
-    opa_array_append(expected_keys2, opa_number_int(3));
+    opa_set_t *expected_keys2 = opa_cast_set(opa_set());
+    opa_set_add(expected_keys2, opa_number_int(1));
+    opa_set_add(expected_keys2, opa_number_int(3));
 
     test("object/keys (number keys)", opa_value_compare(builtin_object_keys(&obj2->hdr), &expected_keys2->hdr) == 0);
 
@@ -1860,8 +1860,8 @@ void test_object_keys(void)
     opa_object_t *obj3 = opa_cast_object(opa_object());
     opa_object_insert(obj3, &set_key->hdr, opa_number_int(1));
 
-    opa_array_t *expected_keys3 = opa_cast_array(opa_array());
-    opa_array_append(expected_keys3, &set_key->hdr);
+    opa_set_t *expected_keys3 = opa_cast_set(opa_set());
+    opa_set_add(expected_keys3, &set_key->hdr);
 
     test("object/keys (set keys)", opa_value_compare(builtin_object_keys(&obj3->hdr), &expected_keys3->hdr) == 0);
 
@@ -1871,8 +1871,8 @@ void test_object_keys(void)
     opa_object_t *obj4 = opa_cast_object(opa_object());
     opa_object_insert(obj4, &object_key->hdr, opa_number_int(1));
 
-    opa_array_t *expected_keys4 = opa_cast_array(opa_array());
-    opa_array_append(expected_keys4, &object_key->hdr);
+    opa_set_t *expected_keys4 = opa_cast_set(opa_set());
+    opa_set_add(expected_keys4, &object_key->hdr);
 
     test("object/keys (object keys)", opa_value_compare(builtin_object_keys(&obj4->hdr), &expected_keys4->hdr) == 0);
 
@@ -1883,13 +1883,13 @@ void test_object_keys(void)
     opa_object_t *obj5 = opa_cast_object(opa_object());
     opa_object_insert(obj5, &array_key->hdr, opa_number_int(1));
 
-    opa_array_t *expected_keys5 = opa_cast_array(opa_array());
-    opa_array_append(expected_keys5, &array_key->hdr);
+    opa_set_t *expected_keys5 = opa_cast_set(opa_set());
+    opa_set_add(expected_keys5, &array_key->hdr);
 
     test("object/keys (array keys)", opa_value_compare(builtin_object_keys(&obj5->hdr), &expected_keys5->hdr) == 0);
 
     opa_object_t *obj6 = opa_cast_object(opa_object());
-    opa_array_t *expected_keys6 = opa_cast_array(opa_array());
+    opa_set_t *expected_keys6 = opa_cast_set(opa_set());
     test("object/keys (empty)", opa_value_compare(builtin_object_keys(&obj6->hdr), &expected_keys6->hdr) == 0);
 
     test("object/keys (null on non-object)", opa_value_compare(builtin_object_keys(opa_number_int(3)), NULL) == 0);

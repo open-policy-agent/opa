@@ -2791,10 +2791,10 @@
           }
         ],
         "result": {
-          "dynamic": {
+          "of": {
             "type": "any"
           },
-          "type": "array"
+          "type": "set"
         },
         "type": "function"
       }

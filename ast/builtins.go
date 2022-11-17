@@ -1619,13 +1619,13 @@ var ObjectGet = &Builtin{
 
 var ObjectKeys = &Builtin{
 	Name: "object.keys",
-	Description: "Returns an array of an object's keys. " +
-		"For example: `object.keys({\"a\": 1, \"b\": true, \"c\": \"d\")` results in `[\"a\", \"b\", \"c\"]`.",
+	Description: "Returns a set of an object's keys. " +
+		"For example: `object.keys({\"a\": 1, \"b\": true, \"c\": \"d\")` results in `{\"a\", \"b\", \"c\"}`.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("object to get keys from"),
 		),
-		types.Named("value", types.NewArray(nil, types.A)).Description("array of `object`'s keys"),
+		types.Named("value", types.NewSet(types.A)).Description("set of `object`'s keys"),
 	),
 }
 
