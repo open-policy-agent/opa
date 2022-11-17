@@ -37,7 +37,7 @@ And the following role/permission assignments:
 | ``engineering`` | ``read`` | ``server123`` |
 | ``webdev`` | ``write`` | ``server123`` |
 | ``webdev`` | ``read`` | ``server123`` |
-| ``hr`` | ``write`` | ``database456`` |
+| ``hr`` | ``read`` | ``database456`` |
 
 In this example, RBAC makes the following authorization decisions:
 
