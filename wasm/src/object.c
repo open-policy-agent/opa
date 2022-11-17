@@ -477,6 +477,31 @@ opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
 }
 
 OPA_BUILTIN
+opa_value *builtin_object_keys(opa_value *a)
+{
+    if (opa_value_type(a) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    opa_object_t *obj = opa_cast_object(a);
+    opa_set_t *keys = opa_cast_set(opa_set_with_cap(obj->len));
+
+    for (int i = 0; i < obj->n; i++)
+    {
+        opa_object_elem_t *elem = obj->buckets[i];
+
+        while (elem != NULL)
+        {
+            opa_set_add(keys, elem->k);
+            elem = elem->next;
+        }
+    }
+
+    return &keys->hdr;
+}
+
+OPA_BUILTIN
 opa_value *builtin_object_remove(opa_value *obj, opa_value *keys)
 {
     if (opa_value_type(obj)  != OPA_OBJECT ||

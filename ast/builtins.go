@@ -164,6 +164,7 @@ var DefaultBuiltins = [...]*Builtin{
 	ObjectRemove,
 	ObjectFilter,
 	ObjectGet,
+	ObjectKeys,
 	ObjectSubset,
 
 	// JSON Object Manipulation
@@ -1613,6 +1614,18 @@ var ObjectGet = &Builtin{
 			types.Named("default", types.A).Description("default to use when lookup fails"),
 		),
 		types.Named("value", types.A).Description("`object[key]` if present, otherwise `default`"),
+	),
+}
+
+var ObjectKeys = &Builtin{
+	Name: "object.keys",
+	Description: "Returns a set of an object's keys. " +
+		"For example: `object.keys({\"a\": 1, \"b\": true, \"c\": \"d\")` results in `{\"a\", \"b\", \"c\"}`.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("object", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))).Description("object to get keys from"),
+		),
+		types.Named("value", types.NewSet(types.A)).Description("set of `object`'s keys"),
 	),
 }
 

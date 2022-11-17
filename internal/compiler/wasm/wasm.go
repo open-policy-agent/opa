@@ -139,6 +139,7 @@ var builtinsFunctions = map[string]string{
 	ast.JSONIsValid.Name:                "opa_json_is_valid",
 	ast.ObjectFilter.Name:               "builtin_object_filter",
 	ast.ObjectGet.Name:                  "builtin_object_get",
+	ast.ObjectKeys.Name:                 "builtin_object_keys",
 	ast.ObjectRemove.Name:               "builtin_object_remove",
 	ast.ObjectUnion.Name:                "builtin_object_union",
 	ast.Concat.Name:                     "opa_strings_concat",
