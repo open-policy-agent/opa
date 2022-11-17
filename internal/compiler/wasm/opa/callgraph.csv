@@ -524,6 +524,8 @@ builtin_object_filter,opa_object_get
 builtin_object_filter,opa_object_insert
 builtin_object_get,opa_value_type
 builtin_object_get,opa_value_get
+builtin_object_keys,opa_value_type
+builtin_object_keys,opa_object_keys
 builtin_object_remove,opa_value_type
 builtin_object_remove,opa_set
 builtin_object_remove,opa_value_iter

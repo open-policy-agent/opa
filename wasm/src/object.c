@@ -477,6 +477,19 @@ opa_value *builtin_object_get(opa_value *obj, opa_value *key, opa_value *value)
 }
 
 OPA_BUILTIN
+opa_value *builtin_object_keys(opa_value *obj)
+{
+    if (opa_value_type(obj) != OPA_OBJECT)
+    {
+        return NULL;
+    }
+
+    opa_array_t *keys = opa_object_keys(opa_cast_object(obj));
+
+    return &keys->hdr;
+}
+
+OPA_BUILTIN
 opa_value *builtin_object_remove(opa_value *obj, opa_value *keys)
 {
     if (opa_value_type(obj)  != OPA_OBJECT ||

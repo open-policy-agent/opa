@@ -1,0 +1,87 @@
+cases:
+  - note: objectkeys/string_keys_found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({"a": 1, "b": 2}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: ['a', 'b']
+  - note: objectkeys/number_keys_found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({1: 1, 2: 2}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: [1, 2]
+  - note: objectkeys/object_keys_found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({{"a": 1}: 1, {"b": 2}: 2}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: [{ a: 1 }, { b: 2 }]
+  - note: objectkeys/set_keys_found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({{"a"}: 1, {"b"}: 2}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: [[a], [b]]
+  - note: objectkeys/array_keys_found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({["a"]: 1, ["b"]: 2}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: [[a], [b]]
+  - note: objectkeys/empty_result
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys({}, __local1__)
+          __local0__ = __local1__
+        }
+    want_result:
+      - x: []
+  - note: objectkeys/error_on_non_object
+    query: data.generated.p = x
+    input_term: '{"obj":"object"}'
+    modules:
+      - |
+        package generated
+
+        p = __local0__ {
+          object.keys(input.obj, __local1__)
+          __local0__ = __local1__
+        }
+    want_error: 'object.keys: operand 1 must be object but got string'
+    want_error_code: eval_type_error
+    strict_error: true
