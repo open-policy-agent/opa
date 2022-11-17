@@ -711,6 +711,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	case tokens.LBrace, tokens.If: // no value, but a body follows directly
 		rule.Head.Value = BooleanTerm(true)
 	case tokens.Assign, tokens.Unify:
+		rule.Head.Assign = tokens.Assign == p.s.tok
 		p.scan()
 		rule.Head.Value = p.parseTermInfixCall()
 		if rule.Head.Value == nil {

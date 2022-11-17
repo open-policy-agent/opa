@@ -1825,7 +1825,12 @@ func TestRuleIf(t *testing.T) {
 				Head: NewHead(Var("p"), nil, BooleanTerm(true)),
 				Body: NewBody(NewExpr(BooleanTerm(true))),
 				Else: &Rule{
-					Head: NewHead(Var("p"), nil, IntNumberTerm(3)),
+					Head: &Head{
+						Reference: Ref{VarTerm("p")},
+						Name:      Var("p"),
+						Value:     NumberTerm("3"),
+						Assign:    true,
+					},
 					Body: NewBody(LessThan.Expr(IntNumberTerm(2), IntNumberTerm(1))),
 				},
 			},
