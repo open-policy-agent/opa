@@ -4718,7 +4718,7 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 	}
 
 	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
-	return cpy, checkUnusedDeclaredVars(body[0].Loc(), stack, used, cpy, errs)
+	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
 }
 
 func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
@@ -4756,7 +4756,7 @@ func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSe
 	return errs
 }
 
-func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) Errors {
+func checkUnusedDeclaredVars(body Body, stack *localDeclaredVars, used VarSet, cpy Body, errs Errors) Errors {
 
 	// NOTE(tsandall): Do not generate more errors if there are existing
 	// declaration errors.
@@ -4788,7 +4788,23 @@ func checkUnusedDeclaredVars(loc *Location, stack *localDeclaredVars, used VarSe
 	for _, gv := range unused.Sorted() {
 		rv := dvs.reverse[gv]
 		if !rv.IsGenerated() {
-			errs = append(errs, NewError(CompileErr, loc, "declared var %v unused", rv))
+			// Scan through body exprs, looking for a match between the
+			// bad var's original name, and each expr's declared vars.
+			foundUnusedVarByName := false
+			for i := range body {
+				varsDeclaredInExpr := declaredVars(body[i])
+				if varsDeclaredInExpr.Contains(dvs.reverse[gv]) {
+					// TODO(philipc): Clean up the offset logic here when the parser
+					// reports more accurate locations.
+					errs = append(errs, NewError(CompileErr, body[i].Loc(), "declared var %v unused", dvs.reverse[gv]))
+					foundUnusedVarByName = true
+					break
+				}
+			}
+			// Default error location returned.
+			if !foundUnusedVarByName {
+				errs = append(errs, NewError(CompileErr, body[0].Loc(), "declared var %v unused", dvs.reverse[gv]))
+			}
 		}
 	}
 
