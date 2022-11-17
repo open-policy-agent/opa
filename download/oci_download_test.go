@@ -10,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/keys"
+	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
 func TestOCIStartStop(t *testing.T) {
@@ -88,7 +91,8 @@ func TestOCIFailureAuthn(t *testing.T) {
 func TestOCIEtag(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)
-	fixture.server.expAuth = "" // test on public registry
+	token := base64.StdEncoding.EncodeToString([]byte("secret")) // token should be base64 encoded
+	fixture.server.expAuth = fmt.Sprintf("Bearer %s", token)     // test on private repository
 	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
 	config := Config{}
 	if err := config.ValidateAndInjectDefaults(); err != nil {
@@ -115,6 +119,34 @@ func TestOCIEtag(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// second call to verify if nil bundle is returned and same etag
+	err = d.oneShot(ctx)
+	if err != nil {
+		t.Fatal("unexpected error")
+	}
+}
+
+func TestOCIPublicRegistry(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expAuth = "" // Do not expect authorization header to be set
+
+	restConfig := []byte(fmt.Sprintf(`{
+		"url": %q,
+	}`, fixture.server.server.URL))
+
+	tc, err := rest.New(restConfig, map[string]*keys.Config{})
+	if err != nil {
+		t.Fatal("failed to create rest client without credentials")
+	}
+	fixture.setClient(tc) // set a client without configured credentials
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/oci")
+
 	err = d.oneShot(ctx)
 	if err != nil {
 		t.Fatal("unexpected error")
