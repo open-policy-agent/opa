@@ -1917,8 +1917,8 @@ func (l *lazyObj) Get(k *Term) *Term {
 	return nil
 }
 
-func (*lazyObj) Insert(*Term, *Term) {
-	panic("immutable")
+func (l *lazyObj) Insert(k, v *Term) {
+	l.force().Insert(k, v)
 }
 
 func (*lazyObj) IsGround() bool {
@@ -1930,6 +1930,9 @@ func (l *lazyObj) Hash() int {
 }
 
 func (l *lazyObj) Keys() []*Term {
+	if l.strict != nil {
+		return l.strict.Keys()
+	}
 	ret := make([]*Term, 0, len(l.native))
 	for k := range l.native {
 		ret = append(ret, StringTerm(k))

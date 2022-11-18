@@ -1317,6 +1317,20 @@ func TestLazyObjectIsGround(t *testing.T) {
 	assertForced(t, x, false)
 }
 
+func TestLazyObjectInsert(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": "b",
+	})
+	x.Insert(StringTerm("c"), StringTerm("d"))
+	assertForced(t, x, true)
+
+	// NOTE(sr): We compare after asserting that it was forced, since comparison
+	// forces the lazy object, too.
+	if act, exp := x, NewObject(Item(StringTerm("a"), StringTerm("b")), Item(StringTerm("c"), StringTerm("d"))); exp.Compare(act) != 0 {
+		t.Errorf("expected %v to be equal to %v", act, exp)
+	}
+}
+
 func TestLazyObjectKeys(t *testing.T) {
 	x := LazyObject(map[string]interface{}{
 		"a": "A",
