@@ -316,7 +316,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, co
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := useContainsKW || rule.Head.Value != nil
 
-	if (len(rule.Body) == 0 || isExpandedConst) && !isElse {
+	if len(rule.Body) == 0 || isExpandedConst {
 		w.endLine()
 		return comments
 	}
