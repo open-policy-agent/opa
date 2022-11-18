@@ -94,6 +94,10 @@ func newTestFixture(t *testing.T) testFixture {
 	}
 }
 
+func (t *testFixture) setClient(client rest.Client) {
+	t.client = client
+}
+
 func (t *testFixture) oneShot(ctx context.Context, u Update) {
 
 	t.updates = append(t.updates, u)
