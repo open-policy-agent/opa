@@ -9,9 +9,7 @@ b := 2
 # else keyword
 c := 3 {
 	false
-} else := 4 {
-	true
-}
+} else := 4
 
 # partial rule
 d[msg] := 5 {
