@@ -2775,6 +2775,31 @@
       }
     },
     {
+      "name": "object.keys",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "key": {
+                "type": "any"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "type": "object"
+          }
+        ],
+        "result": {
+          "of": {
+            "type": "any"
+          },
+          "type": "set"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "object.remove",
       "decl": {
         "args": [

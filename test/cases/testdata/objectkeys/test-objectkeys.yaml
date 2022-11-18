@@ -1,0 +1,69 @@
+cases:
+  - note: objectkeys/string_keys_found
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({"a": 1, "b": 2})
+    want_result:
+      - x:
+          - a
+          - b
+  - note: objectkeys/number_keys_found
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({1: 1, 2: 2})
+    want_result:
+      - x:
+          - 1
+          - 2
+  - note: objectkeys/object_keys_found
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({{"a": 1}: 1, {"b": 2}: 2})
+    want_result:
+      - x:
+          - a: 1
+          - b: 2
+  - note: objectkeys/set_keys_found
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({{"a"}: 1, {"b"}: 2})
+    want_result:
+      - x:
+          - [a]
+          - [b]
+  - note: objectkeys/array_keys_found
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({["a"]: 1, ["b"]: 2})
+    want_result:
+      - x:
+          - [a]
+          - [b]
+  - note: objectkeys/empty_result
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        p := object.keys({})
+    want_result:
+      - x: []
+  - note: objectkeys/error_on_non_object
+    query: data.test.p = x
+    input_term: '{"obj":"object"}'
+    modules:
+      - |
+        package test
+        p := object.keys(input.obj)
+    want_error: 'object.keys: operand 1 must be object but got string'
+    want_error_code: eval_type_error
+    strict_error: true

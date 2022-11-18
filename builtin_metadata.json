@@ -119,6 +119,7 @@
       "json.remove",
       "object.filter",
       "object.get",
+      "object.keys",
       "object.remove",
       "object.subset",
       "object.union",
@@ -9313,6 +9314,26 @@
       "description": "`object[key]` if present, otherwise `default`",
       "name": "value",
       "type": "any"
+    },
+    "wasm": true
+  },
+  "object.keys": {
+    "args": [
+      {
+        "description": "object to get keys from",
+        "name": "object",
+        "type": "object[any: any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns a set of an object's keys. For example: `object.keys({\"a\": 1, \"b\": true, \"c\": \"d\")` results in `{\"a\", \"b\", \"c\"}`.",
+    "introduced": "edge",
+    "result": {
+      "description": "set of `object`'s keys",
+      "name": "value",
+      "type": "set[any]"
     },
     "wasm": true
   },
