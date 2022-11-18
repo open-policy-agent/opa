@@ -243,6 +243,9 @@ var DefaultBuiltins = [...]*Builtin{
 	GraphQLIsValid,
 	GraphQLSchemaIsValid,
 
+	// Cloud Provider Helpers
+	ProvidersAWSSignReqObj,
+
 	// Rego
 	RegoParseModule,
 	RegoMetadataChain,
@@ -2626,6 +2629,25 @@ var GraphQLSchemaIsValid = &Builtin{
 		),
 		types.Named("output", types.B).Description("`true` if the schema is a valid GraphQL schema. `false` otherwise."),
 	),
+}
+
+/**
+ * Cloud Provider Helper Functions
+ */
+var providersAWSCat = category("providers.aws")
+
+var ProvidersAWSSignReqObj = &Builtin{
+	Name:        "providers.aws.sign_req",
+	Description: "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+			types.Named("aws_config", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+			types.Named("time_ns", types.N),
+		),
+		types.Named("signed_request", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+	),
+	Categories: providersAWSCat,
 }
 
 /**

@@ -128,6 +128,9 @@
     "opa": [
       "opa.runtime"
     ],
+    "providers.aws": [
+      "providers.aws.sign_req"
+    ],
     "regex": [
       "regex.find_all_string_submatch_n",
       "regex.find_n",
@@ -9977,6 +9980,32 @@
       "type": "number"
     },
     "wasm": true
+  },
+  "providers.aws.sign_req": {
+    "args": [
+      {
+        "name": "request",
+        "type": "object[string: any]"
+      },
+      {
+        "name": "aws_config",
+        "type": "object[string: any]"
+      },
+      {
+        "name": "time_ns",
+        "type": "number"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Signs an HTTP request object for Amazon Web Services. Currently implements [AWS Signature Version 4 request signing](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) by the `Authorization` header method.",
+    "introduced": "edge",
+    "result": {
+      "name": "signed_request",
+      "type": "object[any: any]"
+    },
+    "wasm": false
   },
   "rand.intn": {
     "args": [

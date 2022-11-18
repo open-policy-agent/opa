@@ -899,6 +899,86 @@ The table below shows examples of calling `http.send`:
 | Environment variables containing TLS material | ``http.send({"method": "get", "url": "https://127.0.0.1:65360", "tls_ca_cert_env_variable": "CLIENT_CA_ENV", "tls_client_cert_env_variable": "CLIENT_CERT_ENV", "tls_client_key_env_variable": "CLIENT_KEY_ENV"})`` |
 | Unix Socket URL Format| ``http.send({"method": "get", "url": "unix://localhost/?socket=%F2path%F2file.socket"})`` |
 
+{{< builtin-table cat=providers.aws title=AWS >}}
+
+The AWS Request Signing builtin in OPA implements the header-based auth,
+single-chunk method described in the [AWS SigV4 docs](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html).
+It will always sign the payload when present, and will sign most user-provided
+headers for the request, to ensure their integrity.
+
+{{< info >}}
+Note that the `authorization`, `user-agent`, and `x-amzn-trace-id` headers,
+are commonly modified by proxy systems, and as such are ignored by OPA
+for signing.
+{{< /info >}}
+
+The `request` object parameter may contain any and all of the same fields as for `http.send`.
+The following fields will have effects on the output `Authorization` header signature:
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `url` | yes | `string` | HTTP URL to specify in the request. Used in the signature. |
+| `method` | yes | `string` | HTTP method to specify in request. Used in the signature. |
+| `body` | no | `any` | HTTP message body. The JSON serialized version of this value will be used for the payload portion of the signature if present. |
+| `raw_body` | no | `string` | HTTP message body. This will be used for the payload portion of the signature if present. |
+| `headers` | no | `object` | HTTP headers to include in the request. These will be added to the list of headers to sign. |
+
+The `aws_config` object parameter may contain the following fields:
+
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `aws_access_key` | yes | `string` | AWS access key. |
+| `aws_secret_access_key` | yes | `string` | AWS secret access key. Used in generating the signing key for the request. |
+| `aws_service` | yes | `string` | AWS service the request will be valid for. (e.g. `"s3"`) |
+| `aws_region` | yes | `string` | AWS region for the request. (e.g. `"us-east-1"`) |
+| `aws_session_token` | no | `string` | AWS security token. Used for the `x-amz-security-token` request header. |
+
+#### AWS Request Signing Examples
+
+##### Basic Request Signing Example
+The example below shows using hard-coded AWS credentials for signing the request
+object for `http.send`.
+
+{{< info >}}
+For deployments, a common way to provide AWS credentials is via environment
+variables, usually by using the results of `opa.runtime().env`.
+{{< /info >}}
+
+```live:providers/aws/sign_req_basic:module
+req := {"method": "get", "url": "https://examplebucket.s3.amazonaws.com/data"}
+aws_config := {
+    "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+    "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+    "aws_service": "s3",
+    "aws_region": "us-east-1",
+}
+
+example_verify_resource {
+    resp := http.send(providers.aws.sign_req(req, aws_config, time.now_ns()))
+    # process response from AWS ...
+}
+```
+
+##### Pre-Signed Request Example
+The [AWS S3 request signing API](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html)
+supports pre-signing requests, so that they will only be valid at a future date.
+To do this in OPA, simply adjust the time parameter:
+
+```live:providers/aws/sign_req_presign:module
+env := opa.runtime().env
+req := {"method": "get", "url": "https://examplebucket.s3.amazonaws.com/data"}
+aws_config := {
+    "aws_access_key": env["AWS_ACCESS_KEY"],
+    "aws_secret_access_key": env["AWS_SECRET_ACCESS_KEY"],
+    "aws_service": "s3",
+    "aws_region": env["AWS_REGION"],
+}
+# Request will become valid 2 days from now.
+signing_time := time.add_date(time.now_ns(), 0, 0, 2)
+
+pre_signed_req := providers.aws.sign_req(req, aws_config, signing_time))
+```
+
 {{< builtin-table net >}}
 
 #### Notes on Name Resolution (`net.lookup_ip_addr`)

@@ -3075,6 +3075,50 @@
       }
     },
     {
+      "name": "providers.aws.sign_req",
+      "decl": {
+        "args": [
+          {
+            "dynamic": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "dynamic": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "any"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "rand.intn",
       "decl": {
         "args": [

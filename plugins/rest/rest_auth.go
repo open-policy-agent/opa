@@ -26,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
+	"github.com/open-policy-agent/opa/internal/providers"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
@@ -530,7 +531,7 @@ func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
 	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
 }
 
-func (acs *awsCredentialServiceChain) credentials() (awsCredentials, error) {
+func (acs *awsCredentialServiceChain) credentials() (providers.AWSCredentials, error) {
 	for _, service := range acs.awsCredentialServices {
 		credential, err := service.credentials()
 		if err == nil {
@@ -543,7 +544,7 @@ func (acs *awsCredentialServiceChain) credentials() (awsCredentials, error) {
 			reflect.TypeOf(service).String(), err)
 	}
 
-	return awsCredentials{}, errors.New("all AWS credential providers failed")
+	return providers.AWSCredentials{}, errors.New("all AWS credential providers failed")
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
