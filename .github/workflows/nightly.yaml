@@ -57,6 +57,34 @@ jobs:
           status: ${{ job.status }}
           fields: repo,workflow
 
+  go-perf:
+    name: Go Perf
+    runs-on: ubuntu-22.04
+    needs: generate
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Download generated artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: generated
+
+      - name: Benchmark Test Golang
+        run: make ci-go-perf
+        timeout-minutes: 30
+        env:
+          DOCKER_RUNNING: 0
+
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK }}
+        if: ${{ failure() && env.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,workflow
+
   go-proxy-check:
     name: Go mod check
     runs-on: ubuntu-22.04

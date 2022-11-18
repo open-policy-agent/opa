@@ -117,25 +117,6 @@ jobs:
         run: make test-coverage
         timeout-minutes: 30
 
-  go-perf:
-    name: Go Perf
-    runs-on: ubuntu-22.04
-    needs: generate
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Download generated artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: generated
-
-      - name: Benchmark Test Golang
-        run: make ci-go-perf
-        timeout-minutes: 30
-        env:
-          DOCKER_RUNNING: 0
-
   go-lint:
     name: Go Lint
     runs-on: ubuntu-22.04
