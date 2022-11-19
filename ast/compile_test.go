@@ -5032,6 +5032,109 @@ func TestRewriteDeclaredVars(t *testing.T) {
 	}
 }
 
+func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
+	tests := []strictnessTestCase{
+		{
+			note: "simple unused some var - issue 4238 regression test",
+			module: `package test
+
+			foo {
+				print("Hello world")
+				some i
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some i"), "", 5, 5),
+					Message:  "declared var i unused",
+				},
+			},
+		},
+		{
+			note: "simple unused some vars, 2x rules",
+			module: `package test
+
+			foo {
+				print("Hello world")
+				some i
+			}
+			
+			bar {
+				print("Hello world")
+				some j
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some i"), "", 5, 5),
+					Message:  "declared var i unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some j"), "", 10, 5),
+					Message:  "declared var j unused",
+				},
+			},
+		},
+		{
+			note: "multiple unused some vars",
+			module: `package test
+
+			x := [1, 1, 1]
+			foo2 {
+				print("A")
+				some a, b, c
+				some i, j
+				some k
+				x[b] == 1
+				print("B")
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some a, b, c"), "", 6, 5),
+					Message:  "declared var a unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some a, b, c"), "", 6, 5),
+					Message:  "declared var c unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some i, j"), "", 7, 5),
+					Message:  "declared var i unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some i, j"), "", 7, 5),
+					Message:  "declared var j unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("some k"), "", 8, 5),
+					Message:  "declared var k unused",
+				},
+			},
+		},
+	}
+
+	// This is similar to the logic for runStrictnessTestCase(), but expects
+	// unconditional compiler errors.
+	t.Helper()
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(true)
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+			compileStages(compiler, nil)
+
+			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+		})
+	}
+}
+
 func TestCompileInvalidEqAssignExpr(t *testing.T) {
 
 	c := NewCompiler()
