@@ -1014,7 +1014,13 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	}
 
 	if len(rs) == 0 {
-		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", types.MsgUndefinedError, stringPathToDataRef(urlPath)))
+		ref := stringPathToDataRef(urlPath)
+
+		var messageType = types.MsgMissingError
+		if len(s.getCompiler().GetRulesForVirtualDocument(ref)) > 0 {
+			messageType = types.MsgFoundUndefinedError
+		}
+		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", messageType, ref))
 		if logErr := logger.Log(ctx, txn, decisionID, r.RemoteAddr, urlPath, "", goInput, input, nil, ndbCache, err, m); logErr != nil {
 			writer.ErrorAuto(w, logErr)
 			return
