@@ -703,6 +703,43 @@ Timezones can be specified as
 
 Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
+#### Timestamp Parsing
+
+OPA can parse timestamps of nearly arbitrary formats, and currently accepts the same inputs as Go's `time.Parse()` utility.
+As a result, you **must** describe the format of your timestamps using the Reference Timestamp that Go's `time` module expects:
+
+    2006-01-02T15:04:05Z07:00
+
+In other date formats, that same value is rendered as:
+
+ - January 2, 15:04:05, 2006, in time zone seven hours west of GMT
+ - Unix time: `1136239445`
+ - Unix `date` command output: `Mon Jan 2 15:04:05 MST 2006`
+ - RFC3339 timestamp: `2006-01-02T15:04:05Z07:00`
+
+Examples of valid values for each timestamp field:
+
+ - Year: `"2006"` `"06"`
+ - Month: `"Jan"` `"January"` `"01"` `"1"`
+ - Day of the week: `"Mon"` `"Monday"`
+ - Day of the month: `"2"` `"_2"` `"02"`
+ - Day of the year: `"__2"` `"002"`
+ - Hour: `"15"` `"3"` `"03"` (PM or AM)
+ - Minute: `"4"` `"04"`
+ - Second: `"5"` `"05"`
+ - AM/PM mark: `"PM"`
+
+For formatting of nanoseconds, time zones, and other fields, see the [Go `time/format` module documentation](https://cs.opensource.google/go/go/+/master:src/time/format.go;l=9-100).
+
+#### Timestamp Parsing Example
+
+In OPA, we can parse a simple `YYYY-MM-DD` timestamp as follows:
+
+```live:time/parse_ns/example:module
+ts := "1985-10-27"
+result := time.parse_ns("2006-01-02", ts)
+```
+
 {{< builtin-table cat=crypto title=Cryptography >}}
 
 {{< builtin-table cat=graph title=Graphs >}}
