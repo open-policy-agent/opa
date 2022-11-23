@@ -562,7 +562,7 @@ func (c *Compiler) compilePlan(context.Context) error {
 	}
 
 	// Prepare modules and builtins for the planner.
-	modules := []*ast.Module{}
+	modules := make([]*ast.Module, 0, len(c.compiler.Modules))
 	for _, module := range c.compiler.Modules {
 		modules = append(modules, module)
 	}

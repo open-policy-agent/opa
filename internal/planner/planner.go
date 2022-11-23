@@ -147,39 +147,48 @@ func (p *Planner) buildFunctrie() error {
 		}
 
 		for _, rule := range module.Rules {
-			val := p.rules.LookupOrInsert(rule.Ref())
+			r := rule.Ref()
+			switch r[len(r)-1].Value.(type) {
+			case ast.String: // pass
+			default: // cut off
+				r = r[:len(r)-1]
+			}
+			val := p.rules.LookupOrInsert(r)
 			val.rules = append(val.rules, rule)
 		}
 	}
-
 	return nil
 }
 
-func (p *Planner) planRules(rules []*ast.Rule, cut bool) (string, error) {
-	pathRef := rules[0].Ref() // NOTE(sr): no longer the same for all those rules, respect `cut`?
-	path := pathRef.String()
+func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
+	pathRef := rules[0].Ref()
 
-	var pathPieces []string
+	// figure out what our rules' collective name/path is:
+	// if we're planning both p.q.r and p.q[s], we'll name
+	// the function p.q (for the mapping table)
 	// TODO(sr): this has to change when allowing `p[v].q.r[w]` ref rules
 	// including the mapping lookup structure and lookup functions
-
-	// if we're planning both p.q.r and p.q[s], we'll name the function p.q (for the mapping table)
 	pieces := len(pathRef)
-	if cut {
-		pieces--
+	for i := range rules {
+		r := rules[i].Ref()
+		if _, ok := r[len(r)-1].Value.(ast.String); !ok {
+			pieces = len(r) - 1
+		}
 	}
+	// control if p.a = 1 is to return 1 directly; or insert 1 under key "a" into an object
+	buildObject := pieces != len(pathRef)
+
+	var pathPieces []string
 	for i := 1; /* skip `data` */ i < pieces; i++ {
 		switch q := pathRef[i].Value.(type) {
 		case ast.String:
 			pathPieces = append(pathPieces, string(q))
-		case ast.Var:
-			pathPieces = append(pathPieces, fmt.Sprintf("[%s]", q))
 		default:
-			// Needs to be fixed if we allow non-string ref pieces, like `p.q[3][4].r = x`
-			pathPieces = append(pathPieces, q.String())
+			panic("impossible")
 		}
 	}
 
+	path := pathRef[:pieces].String()
 	if funcName, ok := p.funcs.Get(path); ok {
 		return funcName, nil
 	}
@@ -219,24 +228,11 @@ func (p *Planner) planRules(rules []*ast.Rule, cut bool) (string, error) {
 
 	params := fn.Params[2:]
 
-	// control if p.a = 1 is to return 1 directly; or insert 1 under key "a" into an object
-	buildObject := false
-
 	// Initialize return value for partial set/object rules. Complete document
 	// rules assign directly to `fn.Return`.
 	switch rules[0].Head.RuleKind() {
 	case ast.SingleValue:
-		// if any rule has a non-ground last key, create an object, insert into it
-		any := false
-		for _, rule := range rules {
-			ref := rule.Head.Ref()
-			if last := ref[len(ref)-1]; len(ref) > 1 && !last.IsGround() {
-				any = true
-				break
-			}
-		}
-		if any {
-			buildObject = true
+		if buildObject {
 			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
 		}
 	case ast.MultiValue:
@@ -870,7 +866,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 				if node := p.rules.Lookup(r); node != nil {
 					if node.Arity() > 0 {
 						p.mocks.Push() // new scope
-						name, err = p.planRules(node.Rules(), false)
+						name, err = p.planRules(node.Rules())
 						if err != nil {
 							return err
 						}
@@ -892,7 +888,7 @@ func (p *Planner) planExprCall(e *ast.Expr, iter planiter) error {
 		}
 
 		if node := p.rules.Lookup(op); node != nil {
-			name, err = p.planRules(node.Rules(), false)
+			name, err = p.planRules(node.Rules())
 			if err != nil {
 				return err
 			}
@@ -1658,7 +1654,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 	// NOTE(sr): we do it on the first index because later on, the recursion
 	// on subtrees of virtual already lost parts of the path we've taken.
 	if index == 1 && virtual != nil {
-		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref.GroundPrefix())
+		rulesets, path, index, optimize := p.optimizeLookup(virtual, ref)
 		if optimize {
 			// If there are no rulesets in a situation that otherwise would
 			// allow for a call_indirect optimization, then there's nothing
@@ -1668,7 +1664,7 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 			}
 			// plan rules
 			for _, rules := range rulesets {
-				if _, err := p.planRules(rules, false); err != nil {
+				if _, err := p.planRules(rules); err != nil {
 					return err
 				}
 			}
@@ -1757,34 +1753,16 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 		var vchild *ruletrie
 		var rules []*ast.Rule
 
-		// If there's any non-ground key among the vchild.Children, like
-		// p[x] and p.a (x being non-ground), we'll collect all 'p' rules,
-		// plan them.
-		anyKeyNonGround := false
-
 		if virtual != nil {
 
 			vchild = virtual.Get(ref[index].Value)
-
-			for _, key := range vchild.Children() {
-				if !key.IsGround() {
-					anyKeyNonGround = true
-					break
-				}
-			}
-			if anyKeyNonGround {
-				for _, key := range vchild.Children() {
-					rules = append(rules, vchild.Get(key).Rules()...)
-				}
-			} else {
-				rules = vchild.Rules() // hit or miss
-			}
+			rules = vchild.Rules() // hit or miss
 		}
 
 		if len(rules) > 0 {
 			p.ltarget = p.newOperand()
 
-			funcName, err := p.planRules(rules, anyKeyNonGround)
+			funcName, err := p.planRules(rules)
 			if err != nil {
 				return err
 			}
@@ -1922,7 +1900,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 				rules = append(rules, virtual.Get(key).Rules()...)
 			}
 
-			funcName, err := p.planRules(rules, true)
+			funcName, err := p.planRules(rules)
 			if err != nil {
 				return err
 			}
@@ -1963,7 +1941,7 @@ func (p *Planner) planRefDataExtent(virtual *ruletrie, base *baseptr, iter plani
 					// Generate virtual document for leaf.
 					lvalue := p.newLocal()
 
-					funcName, err := p.planRules(rules, false)
+					funcName, err := p.planRules(rules)
 					if err != nil {
 						return err
 					}
@@ -2317,7 +2295,7 @@ func (p *Planner) optimizeLookup(t *ruletrie, ref ast.Ref) ([][]*ast.Rule, []ir.
 	for _, node := range nodes {
 		// we're done with ref, check if there's only ruleset leaves; collect rules
 		if index == len(ref)-1 {
-			if len(node.Children()) > 0 {
+			if len(node.Rules()) == 0 && len(node.Children()) > 0 {
 				p.debugf("no optimization of %s: unbalanced ruletrie", ref)
 				return dont()
 			}

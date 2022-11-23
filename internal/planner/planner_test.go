@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -433,7 +434,7 @@ func findInPolicy(needle interface{}, loc string, p interface{}) error {
 }
 
 // Assert some selected statements' location mappings. Note that for debugging,
-// it's worthwhile to no use tabs in the multi-line strings, as they may be
+// it's worthwhile to not use tabs in the multi-line strings, as they may be
 // counted differently in the editor vs. in code.
 func TestPlannerLocations(t *testing.T) {
 
@@ -730,14 +731,20 @@ func ref(r string) ast.Ref {
 }
 
 func TestOptimizeLookup(t *testing.T) {
-	r0, r1, r2 := ast.Rule{}, ast.Rule{}, ast.Rule{}
+	r0, r1, r2 := ast.MustParseRule("p = 0 { true }"), ast.MustParseRule("p = 1 { true }"), ast.MustParseRule("p = 2 { true }")
+	planner := func() *Planner {
+		if testing.Verbose() {
+			return New().WithDebug(os.Stderr)
+		}
+		return New()
+	}
 
 	t.Run("seen variable (last), one ruleset", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.bar"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 		l := p.newLocal()
 		p.vars.Put(ast.Var("x"), l)
 
@@ -770,9 +777,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("ref shorter than ruletrie depth", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.bar.baz"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner().WithDebug(os.Stderr)
 		l := p.newLocal()
 		p.vars.Put(ast.Var("x"), l)
 
@@ -785,11 +792,11 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("seen variable (last), multiple rulesets", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.bar"))
-		val.rules = append(val.rules, &r0, &r1)
+		val.rules = append(val.rules, r0, r1)
 		val = r.LookupOrInsert(ref("foo.baz"))
-		val.rules = append(val.rules, &r2)
+		val.rules = append(val.rules, r2)
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
@@ -810,9 +817,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("unseen variable (last)", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.bar"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 
 		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x]"))
 		if exp, act := false, opt; exp != act {
@@ -823,9 +830,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("all ground refs", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.bar.baz"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 
 		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo.bar.baz"))
 		if exp, act := false, opt; exp != act {
@@ -836,9 +843,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("multiple seen vars, one rule set", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 		lx, ly := p.newLocal(), p.newLocal()
 		p.vars.Put(ast.Var("x"), lx)
 		p.vars.Put(ast.Var("y"), ly)
@@ -865,9 +872,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("one seen var, one unseen, one rule set", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar[y].q"))
@@ -879,11 +886,11 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("one seen var, one rule set and children left", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.aaa.bar.bbb.q"))
-		val.rules = append(val.rules, &r0)
+		val.rules = append(val.rules, r0)
 		val = r.LookupOrInsert(ref("foo.ccc.bar"))
-		val.rules = append(val.rules, &r1, &r2)
+		val.rules = append(val.rules, r1, r2)
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		_, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar"))
@@ -895,9 +902,9 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("ref goes into the rules' result", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.aaa.bar.q"))
-		val.rules = append(val.rules, &r0, &r1, &r2)
+		val.rules = append(val.rules, r0, r1, r2)
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		rulesets, path, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q.p.r"))
@@ -922,10 +929,10 @@ func TestOptimizeLookup(t *testing.T) {
 	t.Run("one leaf without rules", func(t *testing.T) {
 		r := newRuletrie()
 		val := r.LookupOrInsert(ref("foo.aaa.bar.q"))
-		val.rules = append(val.rules, &r0, &r1)
+		val.rules = append(val.rules, r0, r1)
 		r.LookupOrInsert(ref("foo.bbb.bar.q"))
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		rulesets, _, index, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
@@ -948,7 +955,7 @@ func TestOptimizeLookup(t *testing.T) {
 		r.LookupOrInsert(ref("foo.aaa.bar.q"))
 		r.LookupOrInsert(ref("foo.bbb.bar.q"))
 
-		p := New()
+		p := planner()
 		p.vars.Put(ast.Var("x"), p.newLocal())
 
 		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.foo[x].bar.q"))
@@ -959,4 +966,252 @@ func TestOptimizeLookup(t *testing.T) {
 			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
 		}
 	})
+
+	t.Run("ref heads, mixed case: string and var last term", func(t *testing.T) {
+		r0, r1 := ast.MustParseRule("b.q.s = 1 { true }"), ast.MustParseRule(`b.q[x] = 2 { x = "t" }`)
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("a.b.q.s")) // b.q.s = 1 (package a)
+		val.rules = append(val.rules, r0)
+		val = r.LookupOrInsert(ref("a.b.q")) // b.q[x] = 2
+		val.rules = append(val.rules, r1)
+
+		rules := r.Lookup(ref("a.b.q")).Rules()
+		if exp, act := 2, len(rules); exp != act {
+			t.Fatalf("ruletrie: expected %d rules, got %d", exp, act)
+		}
+		if testing.Verbose() {
+			t.Logf("rules: %v", r)
+		}
+
+		p := planner()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.a[x].q"))
+
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+
+		if exp, act := 2, len(rulesets[0]); exp != act {
+			t.Fatalf("expected %d rules in ruleset[0], got %d\n", exp, act)
+		}
+	})
+
+	t.Run("ref heads, mixed case: string and number last term", func(t *testing.T) {
+		r0, r1 := ast.MustParseRule("b.q[1] = 1 { true }"), ast.MustParseRule(`b.q[x] = 2 { x = "t" }`)
+		r := newRuletrie()
+		val := r.LookupOrInsert(ref("a.b.q")) // b.q[1] = 1 (package a)
+		val.rules = append(val.rules, r0)
+		val = r.LookupOrInsert(ref("a.b.q")) // b.q[x] = 2
+		val.rules = append(val.rules, r1)
+
+		rules := r.Lookup(ref("a.b.q")).Rules()
+		if exp, act := 2, len(rules); exp != act {
+			t.Fatalf("ruletrie: expected %d rules, got %d", exp, act)
+		}
+		if testing.Verbose() {
+			t.Logf("rules: %v", r)
+		}
+
+		p := planner()
+		p.vars.Put(ast.Var("x"), p.newLocal())
+		rulesets, _, _, opt := p.optimizeLookup(r, ast.MustParseRef("data.a[x].q"))
+
+		if exp, act := true, opt; exp != act {
+			t.Errorf("expected 'optimize' %v, got %v\n", exp, act)
+		}
+		if exp, act := 1, len(rulesets); exp != act {
+			t.Fatalf("expected %d rulesets, got %d\n", exp, act)
+		}
+
+		if exp, act := 2, len(rulesets[0]); exp != act {
+			t.Fatalf("expected %d rules in ruleset[0], got %d\n", exp, act)
+		}
+	})
+}
+
+func TestPlannerCallDynamic(t *testing.T) {
+	tests := []struct {
+		note    string
+		queries []string
+		modules []string
+		path    []interface{}                // path expected on irCallDynamicStmt, string => string const, int => local
+		where   func(*ir.Policy) interface{} // where to start walking search for `exps`
+		extras  []func(interface{}) error
+	}{
+		{
+			note:    "CallDynamicStmt optimization",
+			queries: []string{`x := "a"; data.test[x] = y`},
+			modules: []string{`package test
+a { true }`},
+			path: []interface{}{"g0", "test", 2},
+			extras: []func(interface{}) error{
+				findFunc("g0.data.test.a", "g0.test.a"),
+			},
+		},
+		{
+			note:    "simple single-val ref head",
+			queries: []string{`x := "a"; data.test.a[x].c = y`},
+			modules: []string{`package test
+a.b.c = 1 { true }`},
+			path: []interface{}{"g0", "test", "a", 2, "c"},
+			extras: []func(interface{}) error{
+				findFunc("g0.data.test.a.b.c", "g0.test.a.b.c"),
+			},
+		},
+		{
+			note:    "two single-val ref heads, string+var",
+			queries: []string{`x := "a"; data.test.a[x] = y`},
+			modules: []string{`package test
+a.b.c = 1 { true }
+a.b[t] = 2 { t := input }`},
+			path: []interface{}{"g0", "test", "a", 2},
+			extras: []func(interface{}) error{
+				findFunc("g0.data.test.a.b", "g0.test.a.b"),
+			},
+		},
+		{
+			note:    "two single-val ref heads, number+var",
+			queries: []string{`x := "a"; data.test.a[x] = y`},
+			modules: []string{`package test
+a.b[1] = 1 { true }
+a.b[t] = 2 { t := input }`},
+			path: []interface{}{"g0", "test", "a", 2},
+			extras: []func(interface{}) error{
+				findFunc("g0.data.test.a.b", "g0.test.a.b"),
+			},
+		},
+		{
+			note:    "one single-val ref head, number",
+			queries: []string{`x := "a"; data.test.a[x] = y`},
+			modules: []string{`package test
+a.b[1] = 1 { true }`},
+			path: []interface{}{"g0", "test", "a", 2},
+			extras: []func(interface{}) error{
+				findFunc("g0.data.test.a.b", "g0.test.a.b"),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			queries := make([]ast.Body, len(tc.queries))
+			for i := range queries {
+				queries[i] = ast.MustParseBody(tc.queries[i])
+			}
+			modules := make([]*ast.Module, len(tc.modules))
+			for i := range modules {
+				file := fmt.Sprintf("module-%d.rego", i)
+				m, err := ast.ParseModule(file, tc.modules[i])
+				if err != nil {
+					t.Fatal(err)
+				}
+				modules[i] = m
+			}
+			planner := New().WithQueries([]QuerySet{
+				{
+					Name:    "test",
+					Queries: queries,
+				},
+			}).WithModules(modules).WithBuiltinDecls(ast.BuiltinMap)
+			if testing.Verbose() {
+				planner = planner.WithDebug(os.Stderr)
+			}
+			policy, err := planner.Plan()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if testing.Verbose() {
+				err = ir.Pretty(os.Stderr, policy)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			start := interface{}(policy)
+			if tc.where != nil {
+				start = tc.where(policy)
+			}
+
+			if tc.path != nil {
+				exp := make([]ir.Operand, len(tc.path))
+				for i := range tc.path {
+					switch x := tc.path[i].(type) {
+					case string:
+						exp[i] = op(ir.StringIndex(planner.getStringConst(x)))
+					case int:
+						exp[i] = op(ir.Local(x))
+					}
+				}
+				if err := findCallDynamic(exp, start); err != nil {
+					t.Error(err)
+				}
+			}
+
+			if tc.extras == nil {
+				return
+			}
+			for _, e := range tc.extras {
+				if err := e(start); err != nil {
+					t.Error(err)
+				}
+			}
+		})
+	}
+}
+
+type stmtCmpWalker struct {
+	stmt  interface{}
+	found bool // stop comparing after first found needle
+}
+
+func (*stmtCmpWalker) Before(interface{}) {}
+func (*stmtCmpWalker) After(interface{})  {}
+func (w *stmtCmpWalker) Visit(x interface{}) (ir.Visitor, error) {
+	if !w.found {
+		switch s := w.stmt.(type) {
+		case *ir.CallDynamicStmt:
+			c, ok := x.(*ir.CallDynamicStmt)
+			if ok {
+				w.found = true
+				if !reflect.DeepEqual(s.Path, c.Path) {
+					return nil, fmt.Errorf("call dynamic %v: expected path %v, got %v", c, s.Path, c.Path)
+				}
+			}
+		case *ir.Func:
+			f, ok := x.(*ir.Func)
+			if ok && s.Name == f.Name {
+				w.found = true
+				if !reflect.DeepEqual(s.Path, f.Path) {
+					return nil, fmt.Errorf("func %v: expected path %v, got %v", f, s.Path, f.Path)
+				}
+			}
+		}
+	}
+	return w, nil
+}
+
+func findCallDynamic(path []ir.Operand, p interface{}) error {
+	w := &stmtCmpWalker{stmt: &ir.CallDynamicStmt{Path: path}}
+	if err := ir.Walk(w, p); err != nil {
+		return err
+	}
+	if !w.found {
+		return fmt.Errorf("not found")
+	}
+	return nil
+}
+
+func findFunc(name, path string) func(interface{}) error {
+	return func(p interface{}) error {
+		w := &stmtCmpWalker{stmt: &ir.Func{Name: name, Path: strings.Split(path, ".")}}
+		if err := ir.Walk(w, p); err != nil {
+			return err
+		}
+		if !w.found {
+			return fmt.Errorf("not found")
+		}
+		return nil
+	}
 }
