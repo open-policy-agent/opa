@@ -699,6 +699,11 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	rule.SetLoc(p.s.Loc())
 
 	rule.Head = head.Copy()
+	for i := range rule.Head.Args {
+		if v, ok := rule.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
+			rule.Head.Args[i].Value = Var(p.genwildcard())
+		}
+	}
 	rule.Head.SetLoc(p.s.Loc())
 
 	defer func() {

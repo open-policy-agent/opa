@@ -1634,6 +1634,30 @@ func TestRule(t *testing.T) {
 	})
 	assertParseError(t, "invalid rule body no separator", `p { a = "foo"bar }`)
 	assertParseError(t, "invalid rule body no newline", `p { a b c }`)
+
+	assertParseRule(t, "wildcard in else args", `f(_) { true } else := false`, &Rule{
+		Head: &Head{
+			Name:      "f",
+			Reference: Ref{VarTerm("f")},
+			Args: Args{
+				VarTerm("$0"),
+			},
+			Value: BooleanTerm(true),
+		},
+		Body: MustParseBody(`true`),
+		Else: &Rule{
+			Head: &Head{
+				Name:      "f",
+				Assign:    true,
+				Reference: Ref{VarTerm("f")},
+				Args: Args{
+					VarTerm("$1"),
+				},
+				Value: BooleanTerm(false),
+			},
+			Body: MustParseBody(`true`),
+		},
+	})
 }
 
 func TestRuleContains(t *testing.T) {
@@ -4829,6 +4853,9 @@ func assertParseRule(t *testing.T, msg string, input string, correct *Rule, opts
 		}
 		if !rule.Head.Ref().Equal(correct.Head.Ref()) {
 			t.Errorf("Error on test \"%s\": rule heads not equal: ref = %v (parsed), ref = %v (correct)", msg, rule.Head.Ref(), correct.Head.Ref())
+		}
+		if !rule.Head.Equal(correct.Head) {
+			t.Errorf("Error on test \"%s\": rule heads not equal: %v (parsed), %v (correct)", msg, rule.Head, correct.Head)
 		}
 		if !rule.Equal(correct) {
 			t.Errorf("Error on test \"%s\": rules not equal: %v (parsed), %v (correct)", msg, rule, correct)

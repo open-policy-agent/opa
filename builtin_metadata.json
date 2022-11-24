@@ -12630,7 +12630,7 @@
   "time.parse_duration_ns": {
     "args": [
       {
-        "description": "a duration like \"3m\"; seethe [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details",
+        "description": "a duration like \"3m\"; see the [Go `time` package documentation](https://golang.org/pkg/time/#ParseDuration) for more details",
         "name": "duration",
         "type": "string"
       }
