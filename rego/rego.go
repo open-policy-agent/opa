@@ -1328,7 +1328,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 	}
 
 	var queries []ast.Body
-	var modules []*ast.Module
+	modules := make([]*ast.Module, 0, len(r.compiler.Modules))
 
 	if cfg.partial {
 
