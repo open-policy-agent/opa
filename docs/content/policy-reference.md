@@ -436,7 +436,7 @@ The following algorithms are supported:
 
 
 {{< info >}}
-Note that the key's provided should be base64 encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
+Note that the key's provided should be base64 URL encoded (without padding) as per the specification ([RFC7517](https://tools.ietf.org/html/rfc7517)).
 This differs from the plain text secrets provided with the algorithm specific verify built-ins described below.
 {{< /info >}}
 
