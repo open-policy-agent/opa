@@ -1555,6 +1555,19 @@ integrations:
      blogs:
        - https://spacelift.io/blog/what-is-open-policy-agent-and-how-it-works
 
+  easegress:
+    title: Easegress
+    description: |
+      Easegress is a Cloud Native API orchestration system.
+      OPA can be configured as a filter(plugin) to implement authorization policies for the APIs.
+    labels:
+      category: gateway
+      layer: network
+    code:
+      - https://github.com/megaease/easegress
+    inventors:
+      - megaease
+
 organizations:
   styra:
     name: Styra
@@ -1721,6 +1734,9 @@ organizations:
   hashicorp:
     name: HashiCorp
     link: https://www.hashicorp.com/
+  megaease:
+    name: MegaEase
+    link: https://www.megaease.com/
 
 software:
   oauth:
