@@ -80,6 +80,8 @@ const (
 	MsgUnauthorizedUndefinedError = "authorization policy missing or undefined"
 	MsgUnauthorizedError          = "request rejected by administrative policy"
 	MsgUndefinedError             = "document missing or undefined"
+	MsgMissingError               = "document missing"
+	MsgFoundUndefinedError        = "document undefined"
 	MsgPluginConfigError          = "error(s) occurred while configuring plugin(s)"
 )
 

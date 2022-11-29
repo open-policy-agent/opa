@@ -3198,7 +3198,7 @@ func TestDecisionLogging(t *testing.T) {
 			code:   404,
 			response: `{
 				"code": "undefined_document",
-				"message": "document missing or undefined: data.test"
+				"message": "document missing: data.test"
 			  }`,
 		},
 	}
@@ -3406,6 +3406,15 @@ func TestUnversionedPost(t *testing.T) {
 		t.Fatalf("Expected not found before policy added but got %v", f.recorder)
 	}
 
+	expectedBody := `{
+  "code": "undefined_document",
+  "message": "document missing: data.system.main"
+}
+`
+	if f.recorder.Body.String() != expectedBody {
+		t.Errorf("Expected %s got %s", expectedBody, f.recorder.Body.String())
+	}
+
 	module := `
 	package system.main
 
@@ -3424,6 +3433,36 @@ func TestUnversionedPost(t *testing.T) {
 	expected := `{"agg":6}`
 	if f.recorder.Code != 200 || f.recorder.Body.String() != expected {
 		t.Fatalf(`Expected HTTP 200 / %v but got: %v`, expected, f.recorder)
+	}
+
+	module = `
+	package system
+
+	main {
+		input.foo == "bar"
+	}
+	`
+
+	if err := f.v1("PUT", "/policies/test", module, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, func() *http.Request {
+		return newReqUnversioned(http.MethodPost, "/", `{"input": {"foo": "bar"}}`)
+	}())
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected not found before policy added but got %v", f.recorder)
+	}
+
+	expectedBody = `{
+  "code": "undefined_document",
+  "message": "document undefined: data.system.main"
+}
+`
+	if f.recorder.Body.String() != expectedBody {
+		t.Errorf("Expected %s got %s", expectedBody, f.recorder.Body.String())
 	}
 }
 
