@@ -2,7 +2,11 @@
 publish = "docs/website/public"
 command = "make netlify-prod WASM_ENABLED=0 CGO_ENABLED=0"
 ignore = "./build/docs-build-needed.sh"
+edge_functions = "docs/website/edge"
 
+[[edge_functions]]
+path = "/badge-endpoint/*"
+function = "badge"
 
 [build.environment]
 HUGO_VERSION = "0.88.1"
