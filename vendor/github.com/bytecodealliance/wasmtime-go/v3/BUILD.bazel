@@ -1,0 +1,76 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+cc_library(
+    name = "wasmtime",
+    srcs = select({
+        "@io_bazel_rules_go//go/platform:darwin_amd64": ["build/macos-x86_64/libwasmtime.a"],
+        "@io_bazel_rules_go//go/platform:linux_amd64": ["build/linux-x86_64/libwasmtime.a"],
+        "@io_bazel_rules_go//go/platform:windows_amd64": ["build/windows-x86_64/libwasmtime.a"],
+    }),
+    hdrs = glob(["build/include/**/*.h"]),
+    includes = ["build/include"],
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "doc.go",
+        "engine.go",
+        "error.go",
+        "exporttype.go",
+        "extern.go",
+        "externtype.go",
+        "ffi.go",
+        "func.go",
+        "functype.go",
+        "global.go",
+        "globaltype.go",
+        "importtype.go",
+        "instance.go",
+        "linker.go",
+        "maybe_gc_no.go",
+        "memory.go",
+        "memorytype.go",
+        "module.go",
+        "shims.c",
+        "shims.h",
+        "slab.go",
+        "store.go",
+        "table.go",
+        "tabletype.go",
+        "trap.go",
+        "val.go",
+        "valtype.go",
+        "wasi.go",
+        "wat2wasm.go",
+    ],
+    cdeps = [":wasmtime"],  # add wasmtime dep
+    cgo = True,
+    clinkopts = select({
+        "@io_bazel_rules_go//go/platform:windows": [
+            "-luserenv -lole32 -lntdll -lws2_32 -lkernel32 -lbcrypt",
+        ],
+        "//conditions:default": ["-lm -ldl"],
+    }),
+    copts = [
+        "-Ibuild/include",
+    ] + select({
+        "@io_bazel_rules_go//go/platform:windows": [
+            "-DWASM_API_EXTERN= -DWASI_API_EXTERN=",
+        ],
+        "//conditions:default": [],
+    }),
+    importpath = "github.com/bytecodealliance/wasmtime-go/v3",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = glob(["**/*_test.go"]),
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//require:go_default_library",
+    ]
+)
