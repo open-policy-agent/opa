@@ -1477,7 +1477,9 @@ var JSONRemove = &Builtin{
 var JSONPatch = &Builtin{
 	Name: "json.patch",
 	Description: "Patches an object according to RFC6902. " +
-		"For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined.",
+		"For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`. " +
+		"The patches are applied atomically: if any of them fails, the result will be undefined. " +
+		"Additionally works on sets, where a value contained in the set is considered to be its path.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("object", types.A), // TODO(sr): types.A?

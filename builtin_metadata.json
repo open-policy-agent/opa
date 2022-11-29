@@ -7568,7 +7568,7 @@
       "v0.46.1",
       "edge"
     ],
-    "description": "Patches an object according to RFC6902. For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`.  The patches are applied atomically: if any of them fails, the result will be undefined.",
+    "description": "Patches an object according to RFC6902. For example: `json.patch({\"a\": {\"foo\": 1}}, [{\"op\": \"add\", \"path\": \"/a/bar\", \"value\": 2}])` results in `{\"a\": {\"foo\": 1, \"bar\": 2}`. The patches are applied atomically: if any of them fails, the result will be undefined. Additionally works on sets, where a value contained in the set is considered to be its path.",
     "introduced": "v0.25.0",
     "result": {
       "description": "result obtained after consecutively applying all patch operations in `patches`",
