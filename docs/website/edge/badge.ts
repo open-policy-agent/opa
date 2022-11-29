@@ -1,6 +1,6 @@
 import { Context } from "netlify:edge";
 
-const schemaVersion = "1";
+const schemaVersion = 1;
 const label = "OPA";
 const releases = "https://api.github.com/repos/open-policy-agent/opa/releases/latest";
 const endpoint = "/badge-endpoint/";
