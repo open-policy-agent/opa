@@ -660,9 +660,7 @@ func (p *Parser) parseRules() []*Rule {
 
 	rule.Location.Text = p.s.Text(rule.Location.Offset, p.s.lastEnd)
 
-	var rules []*Rule
-
-	rules = append(rules, &rule)
+	rules := []*Rule{&rule}
 
 	for p.s.tok == tokens.LBrace {
 
@@ -688,6 +686,11 @@ func (p *Parser) parseRules() []*Rule {
 		// rule's head AST but have their location
 		// set to the rule body.
 		next.Head = rule.Head.Copy()
+		for i := range next.Head.Args {
+			if v, ok := next.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
+				next.Head.Args[i].Value = Var(p.genwildcard())
+			}
+		}
 		setLocRecursive(next.Head, loc)
 
 		rules = append(rules, &next)
