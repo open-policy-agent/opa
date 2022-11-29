@@ -1658,6 +1658,26 @@ func TestRule(t *testing.T) {
 			Body: MustParseBody(`true`),
 		},
 	})
+
+	name := Var("f")
+	ref := Ref{VarTerm("f")}
+	tr := BooleanTerm(true)
+	head := func(v string) *Head { return &Head{Name: name, Reference: ref, Value: tr, Args: []*Term{VarTerm(v)}} }
+	assertParseModule(t, "wildcard in chained function heads", `package test
+	f(_) { true } { true }
+`, &Module{
+		Package: MustParsePackage(`package test`),
+		Rules: []*Rule{
+			{
+				Head: head("$0"),
+				Body: MustParseBody("true"),
+			},
+			{
+				Head: head("$1"),
+				Body: MustParseBody("true"),
+			},
+		},
+	})
 }
 
 func TestRuleContains(t *testing.T) {
