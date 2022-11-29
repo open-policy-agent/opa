@@ -644,9 +644,12 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok == tokens.Else {
-
+		if r := rule.Head.Ref(); len(r) > 1 && !r[len(r)-1].Value.IsGround() {
+			p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
+			return nil
+		}
 		if rule.Head.Key != nil {
-			p.error(p.s.Loc(), "else keyword cannot be used on partial rules")
+			p.error(p.s.Loc(), "else keyword cannot be used on multi-value rules")
 			return nil
 		}
 
