@@ -51,3 +51,6 @@
     {{- end }}
   {{- end }}
 {{- end }}
+
+/badge/:tag style=:style https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/:tag&style=:style
+/badge/:tag https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/:tag
