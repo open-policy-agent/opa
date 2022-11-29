@@ -2415,7 +2415,7 @@ func TestRuleElseKeyword(t *testing.T) {
 	p[1] { false } else { true }
 	`)
 
-	if err == nil || !strings.Contains(err.Error(), "else keyword cannot be used on partial rules") {
+	if err == nil || !strings.Contains(err.Error(), "else keyword cannot be used on multi-value rules") {
 		t.Fatalf("Expected parse error but got: %v", err)
 	}
 
@@ -2437,6 +2437,97 @@ func TestRuleElseKeyword(t *testing.T) {
 		t.Fatalf("Expected parse error but got: %v", err)
 	}
 
+}
+
+func TestRuleElseRefHeads(t *testing.T) {
+	tests := []struct {
+		note string
+		rule string
+		exp  *Rule
+		err  string
+	}{
+		{
+			note: "simple ref head",
+			rule: `
+a.b.c := 1 if false
+else := 2
+`,
+			exp: &Rule{
+				Head: &Head{
+					Reference: MustParseRef("a.b.c"),
+					Value:     NumberTerm("1"),
+					Assign:    true,
+				},
+				Body: MustParseBody("false"),
+				Else: &Rule{
+					Head: &Head{
+						Reference: MustParseRef("a.b.c"),
+						Value:     NumberTerm("2"),
+						Assign:    true,
+					},
+					Body: MustParseBody("true"),
+				},
+			},
+		},
+		{
+			note: "multi-value ref head",
+			rule: `
+a.b.c contains 1 if false
+else := 2
+`,
+			err: "else keyword cannot be used on multi-value rules",
+		},
+		{
+			note: "single-value ref head with var",
+			rule: `
+a.b[x] := 1 if false
+else := 2
+`,
+			err: "else keyword cannot be used on rules with variables in head",
+		},
+		{
+			note: "single-value ref head with length 1 (last is var)",
+			rule: `
+a := 1 if false
+else := 2
+`,
+			exp: &Rule{
+				Head: &Head{
+					Reference: Ref{VarTerm("a")},
+					Name:      Var("a"),
+					Value:     NumberTerm("1"),
+					Assign:    true,
+				},
+				Body: MustParseBody("false"),
+				Else: &Rule{
+					Head: &Head{
+						Reference: Ref{VarTerm("a")},
+						Name:      Var("a"),
+						Value:     NumberTerm("2"),
+						Assign:    true,
+					},
+					Body: MustParseBody("true"),
+				},
+			},
+		},
+	}
+
+	opts := ParserOptions{FutureKeywords: []string{"if", "contains"}}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			if tc.err != "" {
+				assertParseErrorContains(t, tc.note, tc.rule, tc.err, opts)
+				return
+			}
+			if tc.exp != nil {
+				testModule := "package test\n" + tc.rule
+				assertParseModule(t, tc.note, testModule, &Module{
+					Package: MustParseStatement(`package test`).(*Package),
+					Rules:   []*Rule{tc.exp},
+				}, opts)
+			}
+		})
+	}
 }
 
 func TestMultipleEnclosedBodies(t *testing.T) {
