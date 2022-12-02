@@ -3975,6 +3975,36 @@
       }
     },
     {
+      "name": "time.timestamp",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "type": "number"
+              },
+              {
+                "static": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "time.weekday",
       "decl": {
         "args": [

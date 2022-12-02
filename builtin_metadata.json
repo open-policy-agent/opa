@@ -191,6 +191,7 @@
       "time.parse_duration_ns",
       "time.parse_ns",
       "time.parse_rfc3339_ns",
+      "time.timestamp",
       "time.weekday"
     ],
     "tokens": [
@@ -13385,6 +13386,26 @@
       "description": "`value` in nanoseconds since epoch",
       "name": "ns",
       "type": "number"
+    },
+    "wasm": false
+  },
+  "time.timestamp": {
+    "args": [
+      {
+        "description": "a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string",
+        "name": "x",
+        "type": "any\u003cnumber, array\u003cnumber, string\u003e\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns the timestamp for the nanoseconds since epoch.",
+    "introduced": "edge",
+    "result": {
+      "description": "the timestamp represented for the nanoseconds since the epoch in the supplied timezone (or UTC)",
+      "name": "timestamp",
+      "type": "string"
     },
     "wasm": false
   },
