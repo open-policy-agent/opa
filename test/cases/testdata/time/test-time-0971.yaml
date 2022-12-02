@@ -1,0 +1,40 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    time_ns := 1670006453141828752
+
+    a = no_timezone {
+      no_timezone := time.timestamp(time_ns)
+    }
+
+    b = with_timezone {
+      with_timezone := time.timestamp([time_ns, "Asia/Kolkata"])
+    }
+
+  note: time/timestamp
+  query: >
+    data.test.a = no_timezone;
+    data.test.b = with_timezone
+  want_result:
+  - no_timezone: "2022-12-02T18:40:53.141828752Z"
+    with_timezone: "2022-12-03T00:10:53.141828752+05:30"
+- data:
+  modules:
+  - |
+    package generated
+
+    p = ts {
+      __local3__ = 1582977600 * 1000
+      __local4__ = __local3__ * 1000
+      __local5__ = __local4__ * 1000
+      __local6__ = __local5__ * 1000
+      ts = time.timestamp(__local6__)
+    }
+  note: time/clock too big
+  query: data.generated.p = x
+  want_error: timestamp too big
+  want_error_code: eval_builtin_error
+  strict_error: true
