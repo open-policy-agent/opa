@@ -190,6 +190,9 @@ github.com/golang/snappy
 # github.com/google/flatbuffers v1.12.1
 ## explicit
 github.com/google/flatbuffers/go
+# github.com/gorilla/handlers v1.5.1
+## explicit; go 1.14
+github.com/gorilla/handlers
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux

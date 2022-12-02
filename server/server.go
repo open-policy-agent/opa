@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	ghandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -184,6 +185,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	// authorizer, if configured, needs the iCache to be set up already
 	s.Handler = s.initHandlerAuth(s.Handler)
+	s.Handler = s.initHandlerCompression(s.Handler)
 	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	return s, s.store.Commit(ctx, txn)
@@ -655,6 +657,10 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 	}
 
 	return handler
+}
+
+func (s *Server) initHandlerCompression(handler http.Handler) http.Handler {
+	return ghandlers.CompressHandler(handler)
 }
 
 func (s *Server) initRouters() {
