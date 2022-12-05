@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.47.0
 
 This release contains a mix of bugfixes, optimizations, and new features.
@@ -72,7 +74,7 @@ AST types.
 
 Now, we use shallow references ("lazy objects") for store reads in the evaluator.
 In these two cases, this can bring huge performance improvements, when the object
-argument of these two calls is a ref into the base documenent (like `data.users`):
+argument of these two calls is a ref into the base document (like `data.users`):
 
 ```rego
 object.get(data.roles, input.role, [])
