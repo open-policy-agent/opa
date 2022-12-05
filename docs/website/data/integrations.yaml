@@ -1269,7 +1269,7 @@ integrations:
       - https://github.com/kubescape/kubescape
       - https://github.com/kubescape/regolibrary
     inventors:
-      - ARMO
+      - armo
     tutorials:
       - https://hub.armosec.io/docs
 
