@@ -68,20 +68,19 @@ decisions: `example/authz/allow` and `example/authz/is_admin`.
 ```live:authz:module:openable,read_only
 package example.authz
 
+import future.keywords.if
+import future.keywords.in
+
 default allow := false
 
-allow {
+allow if {
     input.method == "GET"
     input.path == ["salary", input.subject.user]
 }
 
-allow {
-    is_admin
-}
+allow if is_admin
 
-is_admin {
-    input.subject.groups[_] == "admin"
-}
+is_admin if "admin" in input.subject.groups
 ```
 
 You can request specific decisions by querying for `<package path>/<rule name>`.
@@ -168,12 +167,104 @@ Content-Type: application/json
 For another example of how to integrate with OPA via HTTP see the [HTTP
 API Authorization](../http-api-authorization) tutorial.
 
+### Integrating with the Go SDK
+
+The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) package contains high-level APIs for embedding OPA
+inside of Go programs and obtaining the output of query evaluation. To get started, import the `sdk` package:
+
+```go
+import "github.com/open-policy-agent/opa/sdk"
+```
+
+A typical workflow when using the `sdk` package would involve first creating a new `sdk.OPA` object by calling
+`sdk.New` and then invoking its `Decision` method to fetch the policy decision. The `sdk.New` call takes the
+`sdk.Options` object as an input which allows specifying the OPA configuration, console logger, plugins, etc.
+
+Here is an example that shows this process:
+
+```go
+package main
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+
+	"github.com/open-policy-agent/opa/sdk"
+	sdktest "github.com/open-policy-agent/opa/sdk/test"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// create a mock HTTP bundle server
+	server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+		"example.rego": `
+				package authz
+
+				import future.keywords.if
+
+				default allow := false
+
+				allow if input.open == "sesame"
+			`,
+	}))
+	if err != nil {
+		// handle error.
+	}
+
+	defer server.Stop()
+
+	// provide the OPA configuration which specifies
+	// fetching policy bundles from the mock server
+	// and logging decisions locally to the console
+	config := []byte(fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL()))
+
+	// create an instance of the OPA object
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: bytes.NewReader(config),
+	})
+	if err != nil {
+		// handle error.
+	}
+
+	defer opa.Stop(ctx)
+
+	// get the named policy decision for the specified input
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
+		// handle error.
+	} else if decision, ok := result.Result.(bool); !ok || !decision {
+		// handle error.
+	}
+}
+```
+
+If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
+would be logged to the console by default.
+
 ### Integrating with the Go API
 
-Use the
+Use the low-level
 [github.com/open-policy-agent/opa/rego](https://pkg.go.dev/github.com/open-policy-agent/opa/rego)
-package to embed OPA as a library inside services written in Go. To get started
-import the `rego` package:
+package to embed OPA as a library inside services written in Go, when only policy **evaluation** — and
+no other capabilities of OPA, like the management features — are desired. If you're unsure which one to
+use, the SDK is probably the better option.
+
+To get started import the `rego` package:
 
 ```go
 import "github.com/open-policy-agent/opa/rego"
@@ -293,96 +384,6 @@ Policies may be compiled into evaluation plans using an intermediate representat
 compilers and evaluators.
 
 See [OPA IR docs](../ir) for more details.
-
-### SDK
-
-The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) package contains high-level APIs for embedding OPA
-inside of Go programs and obtaining the output of query evaluation. To get started
-import the `sdk` package:
-
-```go
-import "github.com/open-policy-agent/opa/sdk"
-```
-
-A typical workflow when using the `sdk` package would involve first creating a new `sdk.OPA` object by calling
-`sdk.New` and then invoking its `Decision` method to fetch the policy decision. The `sdk.New` call takes the
-`sdk.Options` object as an input which allows specifying the OPA configuration, console logger, plugins, etc.
-
-Here is an example that shows this process:
-
-```go
-package main
-
-import (
-	"bytes"
-	"context"
-	"fmt"
-
-	"github.com/open-policy-agent/opa/sdk"
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
-)
-
-func main() {
-	ctx := context.Background()
-
-	// create a mock HTTP bundle server
-	server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-		"example.rego": `
-				package authz
-
-				import future.keywords.if
-
-				default allow := false
-
-				allow if input.open == "sesame"
-			`,
-	}))
-	if err != nil {
-		// handle error.
-	}
-
-	defer server.Stop()
-
-	// provide the OPA configuration which specifies
-	// fetching policy bundles from the mock server
-	// and logging decisions locally to the console
-	config := []byte(fmt.Sprintf(`{
-		"services": {
-			"test": {
-				"url": %q
-			}
-		},
-		"bundles": {
-			"test": {
-				"resource": "/bundles/bundle.tar.gz"
-			}
-		},
-		"decision_logs": {
-			"console": true
-		}
-	}`, server.URL()))
-
-	// create an instance of the OPA object
-	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
-	})
-	if err != nil {
-		// handle error.
-	}
-
-	defer opa.Stop(ctx)
-
-	// get the named policy decision for the specified input
-	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/authz/allow", Input: map[string]interface{}{"open": "sesame"}}); err != nil {
-		// handle error.
-	} else if decision, ok := result.Result.(bool); !ok || !decision {
-		// handle error.
-	}
-}
-```
-
-If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
-would be logged to the console by default.
 
 ## Comparison
 
