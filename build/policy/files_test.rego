@@ -1,10 +1,12 @@
 package files_test
 
+import future.keywords.in
+
 import data.files.deny
 
 test_deny_logo_if_added_in_wrong_directory {
 	expected := "Logo must be placed in docs/website/static/img/logos/integrations"
-	deny[expected] with input as [
+	expected in deny with input as [
 		{
 			"filename": "docs/website/data/integrations.yaml",
 			"status": "modified",
@@ -36,7 +38,7 @@ test_allow_logo_if_added_in_correct_directory {
 
 test_deny_logo_if_not_png_file {
 	expected := "Logo must be a .png or .svg file"
-	deny[expected] with input as [
+	expected in deny with input as [
 		{
 			"filename": "docs/website/data/integrations.yaml",
 			"status": "modified",
@@ -67,7 +69,7 @@ test_deny_logo_if_no_matching_integration {
 
 	expected := "Logo name must match integration"
 
-	deny[expected] with data.files.integrations_file as integrations with input as files
+	expected in deny with data.files.integrations_file as integrations with input as files
 }
 
 test_allow_logo_if_no_matching_integration {
@@ -98,16 +100,19 @@ test_deny_integration_if_missing_required_attribute {
 		"inventors": ["acmecorp"],
 	}}})
 
-	deny[expected] with data.files.integrations_file as integrations with input as files
+	expected in deny with data.files.integrations_file as integrations with input as files
 }
 
 test_deny_integration_allowed_with_required_attributes {
 	files := [{"filename": "docs/website/data/integrations.yaml"}]
-	integrations := yaml.marshal({"integrations": {"my-integration": {
-		"title": "My test integration",
-		"description": "This is a test integration",
-		"inventors": ["acmecorp"],
-	}}})
+	integrations := yaml.marshal({
+		"integrations": {"my-integration": {
+			"title": "My test integration",
+			"description": "This is a test integration",
+			"inventors": ["acmecorp"],
+		}},
+		"organizations": {"acmecorp": {"name": "AcmeCorp", "link": "https://acmecorp.example.org"}},
+	})
 
 	count(deny) == 0 with data.files.integrations_file as integrations with input as files
 }
@@ -125,7 +130,7 @@ test_deny_unlisted_software {
 
 	expected := "Integration 'my-integration' references unknown software 'bitcoin-miner' (i.e. not in 'software' object)"
 
-	deny[expected] with data.files.integrations_file as integrations with input as files
+	expected in deny with data.files.integrations_file as integrations with input as files
 }
 
 test_allow_listed_software {
@@ -142,9 +147,43 @@ test_allow_listed_software {
 	count(deny) == 0 with data.files.integrations_file as integrations with input as files
 }
 
+test_deny_unlisted_organization {
+	files := [{"filename": "docs/website/data/integrations.yaml"}]
+	integrations := yaml.marshal({
+		"integrations": {"my-integration": {
+			"title": "My test integration",
+			"description": "This is a test integration",
+			"software": ["kubernetes"],
+			"inventors": ["acmecorp"],
+		}},
+		"software": {"kubernetes": {"name": "Kubernetes"}},
+		"organizations": {"foobar": {"name": "FooBar", "link": "https://foobar.example.org"}},
+	})
+
+	expected := "Integration 'my-integration' references unknown organization 'acmecorp' (i.e. not in 'organizations' object)"
+
+	expected in deny with data.files.integrations_file as integrations with input as files
+}
+
+test_allow_listed_organization {
+	files := [{"filename": "docs/website/data/integrations.yaml"}]
+	integrations := yaml.marshal({
+		"integrations": {"my-integration": {
+			"title": "My test integration",
+			"description": "This is a test integration",
+			"software": ["kubernetes"],
+			"inventors": ["acmecorp"],
+		}},
+		"software": {"kubernetes": {"name": "Kubernetes"}},
+		"organizations": {"acmecorp": {"name": "AcmeCorp", "link": "https://acmecorp.example.org"}},
+	})
+
+	count(deny) == 0 with data.files.integrations_file as integrations with input as files
+}
+
 test_deny_invalid_yaml_file {
 	expected := "invalid.yaml is an invalid YAML file: {null{}}"
-	deny[expected] with data.files.yaml_file_contents as {"invalid.yaml": "{null{}}"}
+	expected in deny with data.files.yaml_file_contents as {"invalid.yaml": "{null{}}"}
 		with data.files.changes as {"invalid.yaml": {"status": "modified"}}
 }
 
@@ -155,7 +194,7 @@ test_allow_valid_yaml_file {
 
 test_deny_invalid_json_file {
 	expected := "invalid.json is an invalid JSON file: }}}"
-	deny[expected] with data.files.json_file_contents as {"invalid.json": "}}}"}
+	expected in deny with data.files.json_file_contents as {"invalid.json": "}}}"}
 		with data.files.changes as {"invalid.json": {"status": "modified"}}
 }
 
