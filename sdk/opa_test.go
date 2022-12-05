@@ -267,8 +267,14 @@ allow {
 		t.Fatal("expected error but got nil")
 	}
 
-	if actual, ok := err.(*topdown.Error); !ok || actual.Code != "eval_builtin_error" {
+	actual, ok := err.(*topdown.Error)
+	if !ok || actual.Code != "eval_builtin_error" {
 		t.Fatalf("expected eval_builtin_error but got %v", actual)
+	}
+
+	expectedMessage := "div: divide by zero"
+	if actual.Message != expectedMessage {
+		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
 	}
 }
 
