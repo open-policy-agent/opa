@@ -3,7 +3,128 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.47.0
+
+This release contains a mix of bugfixes, optimizations, and new features.
+
+### New Built-in Function: `object.keys`
+
+It is now possible to conveniently retrieve an object's keys via a built-in function.
+
+Before, you had to resort to constructs like
+
+```rego
+import future.keywords.in
+
+keys[k] {
+    _ = input[k]
+}
+
+allow if "my_key" in keys
+```
+
+Now, you can simply do
+
+```rego
+import future.keywords.in
+
+allow if "my_key" in object.keys(input)
+```
+
+See [the documentation](https://www.openpolicyagent.org/docs/v0.47.0/policy-reference/#builtin-object-objectkeys)
+for all details.
+
+Implemented by @kevinswiber.
+
+### New Built-in Function: AWS Signature v4 Request Signing
+
+It is now possible to use a built-in function to prepare a request with a signature, so that
+it can be used with AWS endpoints that use request signing for authentication.
+
+See this example:
+
+```rego
+req := {"method": "get", "url": "https://examplebucket.s3.amazonaws.com/data"}
+aws_config := {
+    "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+    "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+    "aws_service": "s3",
+    "aws_region": "us-east-1",
+}
+example_verify_resource {
+    resp := http.send(providers.aws.sign_req(req, aws_config, time.now_ns()))
+    # process response from AWS ...
+}
+```
+
+See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.47.0/policy-reference/#providers.aws)
+for all details.
+
+Reported by @jicowan and implemented by @philipaconrad.
+
+### Performance improvements for `object.get` and `in` operator
+
+Before, using `object.get` and `in` had come with a performance penalty that wasn't
+to be expected just from the look of the calls: Since they have been implemented using
+built-in functions (obvious for `object.get`, not obvious for `"admin" in input.user.roles`),
+all of their operands had to be read from the store (if applicable) and converted into
+AST types.
+
+Now, we use shallow references ("lazy objects") for store reads in the evaluator.
+In these two cases, this can bring huge performance improvements, when the object
+argument of these two calls is a ref into the base documenent (like `data.users`):
+
+```rego
+object.get(data.roles, input.role, [])
+{ "id": 12 } in data.users
+```
+
+### Tooling, SDK, and Runtime
+
+- `opa eval`: Added `--strict` to enable strict code checking in evaluation ([#5182](https://github.com/open-policy-agent/opa/issues/5182)) authored by @Parsifal-M
+- `opa fmt`: Remove `{ true }` block following `else` head
+- `opa fmt`: Generate new wildcards for else and chained function heads in the parser ([#5347](https://github.com/open-policy-agent/opa/issues/5347)). This fixes superfluous
+  introductions of `_1` instead of `_` in when formatting functions that use wildcard arguments, like `f(_) := true`.
+- `opa fmt`: Fix assignment rewrite in else formatting ([#5348](https://github.com/open-policy-agent/opa/issues/5348))
+- OCI Download: Set auth credentials only if needed ([#5212](https://github.com/open-policy-agent/opa/issues/5212)) authored by @carabasdaniel
+- Server: Differentiate between "missing" and "undefined doc" in default decision ([#5344](https://github.com/open-policy-agent/opa/issues/5344))
+
+### Topdown and Rego
+
+- `http.send`: Fix interquery cache size calculation with concurrent requests ([#5359](https://github.com/open-policy-agent/opa/issues/5359)) reported and authored by @asleire
+- `http.send`: Remove socket query param for unix sockets ([#5313](https://github.com/open-policy-agent/opa/issues/5313)) reported and authored by @michivi
+- Annotations: Add type coercion guards to avoid panics ([#5368](https://github.com/open-policy-agent/opa/issues/5368))
+- Compiler: Provide more accurate error locations for `some` with unused vars ([#4238](https://github.com/open-policy-agent/opa/issues/4238))
+- Optimization: Read lazy objects from the store ([#5325](https://github.com/open-policy-agent/opa/issues/5325)). This improves the performance of `x in data.foo` and `object.get(data.bar, ...)` calls significantly.
+- Partial Evaluation: Skip comprehensions when checking eqs in copy propagation ([#5367](https://github.com/open-policy-agent/opa/issues/5367)). This fixes a bug when optimization on bundles would change the outcome of the subsequent evaluation.
+- Parser: Fix else error handling with ref heads -- errors had occurred at a later stage then desired, because an edge case slipped through the earlier check.
+- Planner/IR: Fix ref heads processing -- the CallDynamic optimization wasn't planned properly; a bug introduced with ref heads.
+
+### Documentation
+
+- Builtins: Mention base64 URL encoding specifically ([#5406](https://github.com/open-policy-agent/opa/issues/5406)) reported by @phi1010
+- Builtins: Include behavior with sets in `json.patch` ([#5328](https://github.com/open-policy-agent/opa/issues/5328))
+- Comparison: small fix to table to match sample code and other tables (authored by @anlandu)
+- Builtins: Document reference timestamp behavior for `time.parse_ns`
+- Typo fixes, authored by @deining
+- Golang integration: update example code, move SDK above low-level packages
+
+### Website + Ecosystem
+
+- Ecosystem:
+  - Add Easegress (authored by @localvar)
+  - Add Terraform Cloud
+- Website: Updated Footer Color ([#5254](https://github.com/open-policy-agent/opa/issues/5254)), reported and authored by @UtkarshMishra12
+- Website: Add "canonical" link to latest to help with SEO and ancient pages being returned by search engines.
+- Website: Add experimental "OPA version" badge. (Still needs to be tested more thorougly before advertisting it.)
+
+### Miscellaneous
+
+- Dependency bumps: Notably, we're now using wasmtime-go v3
+- CI fixes:
+  - Move performance tests to nightly tests
+  - CLI: add simple bundle build tests
+  - Nightly: Revamp how we're doing fuzz testing
 
 ## 0.46.1
 
