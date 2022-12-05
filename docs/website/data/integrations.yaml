@@ -1272,7 +1272,7 @@ integrations:
       - armo
     tutorials:
       - https://hub.armosec.io/docs
-      
+
   i2scim:
     title: i2scim.io SCIM Restful User/Group Provisioning API
     description: |
