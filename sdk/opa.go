@@ -241,18 +241,19 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		&record,
 		func(s state, result *DecisionResult) {
 			result.Result, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
-				runtime:         s.manager.Info,
-				printHook:       s.manager.PrintHook(),
-				compiler:        s.manager.GetCompiler(),
-				store:           s.manager.Store,
-				queryCache:      s.queryCache,
-				interQueryCache: s.interQueryBuiltinCache,
-				ndbcache:        ndbc,
-				txn:             record.Txn,
-				now:             record.Timestamp,
-				path:            record.Path,
-				input:           *record.Input,
-				m:               record.Metrics,
+				runtime:             s.manager.Info,
+				printHook:           s.manager.PrintHook(),
+				compiler:            s.manager.GetCompiler(),
+				store:               s.manager.Store,
+				queryCache:          s.queryCache,
+				interQueryCache:     s.interQueryBuiltinCache,
+				ndbcache:            ndbc,
+				txn:                 record.Txn,
+				now:                 record.Timestamp,
+				path:                record.Path,
+				input:               *record.Input,
+				m:                   record.Metrics,
+				strictBuiltinErrors: options.StrictBuiltinErrors,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -268,10 +269,11 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 
 // DecisionOptions contains parameters for query evaluation.
 type DecisionOptions struct {
-	Now      time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Path     string      // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input    interface{} // specifies value of the input document to evaluate policy with
-	NDBCache interface{} // specifies the non-deterministic builtins cache to use for evaluation.
+	Now                 time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Path                string      // specifies name of policy decision to evaluate (e.g., example/allow)
+	Input               interface{} // specifies value of the input document to evaluate policy with
+	NDBCache            interface{} // specifies the non-deterministic builtins cache to use for evaluation.
+	StrictBuiltinErrors bool        // treat built-in function errors as fatal
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -351,16 +353,17 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		&record,
 		func(s state, result *DecisionResult) {
 			pq, record.InputAST, record.Bundles, record.Error = partial(ctx, partialEvalArgs{
-				runtime:   s.manager.Info,
-				printHook: s.manager.PrintHook(),
-				compiler:  s.manager.GetCompiler(),
-				store:     s.manager.Store,
-				txn:       record.Txn,
-				now:       record.Timestamp,
-				query:     record.Query,
-				unknowns:  options.Unknowns,
-				input:     *record.Input,
-				m:         record.Metrics,
+				runtime:             s.manager.Info,
+				printHook:           s.manager.PrintHook(),
+				compiler:            s.manager.GetCompiler(),
+				store:               s.manager.Store,
+				txn:                 record.Txn,
+				now:                 record.Timestamp,
+				query:               record.Query,
+				unknowns:            options.Unknowns,
+				input:               *record.Input,
+				m:                   record.Metrics,
+				strictBuiltinErrors: options.StrictBuiltinErrors,
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
@@ -395,11 +398,12 @@ type PartialQueryMapper interface {
 
 // PartialOptions contains parameters for partial query evaluation.
 type PartialOptions struct {
-	Now      time.Time          // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Input    interface{}        // specifies value of the input document to evaluate policy with
-	Query    string             // specifies the query to be partially evaluated
-	Unknowns []string           // specifies the unknown elements of the policy
-	Mapper   PartialQueryMapper // specifies the mapper to use when processing results
+	Now                 time.Time          // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Input               interface{}        // specifies value of the input document to evaluate policy with
+	Query               string             // specifies the query to be partially evaluated
+	Unknowns            []string           // specifies the unknown elements of the policy
+	Mapper              PartialQueryMapper // specifies the mapper to use when processing results
+	StrictBuiltinErrors bool               // treat built-in function errors as fatal
 }
 
 type PartialResult struct {
@@ -437,18 +441,19 @@ func IsUndefinedErr(err error) bool {
 }
 
 type evalArgs struct {
-	runtime         *ast.Term
-	printHook       print.Hook
-	compiler        *ast.Compiler
-	store           storage.Store
-	txn             storage.Transaction
-	queryCache      *queryCache
-	interQueryCache cache.InterQueryCache
-	now             time.Time
-	path            string
-	input           interface{}
-	ndbcache        builtins.NDBCache
-	m               metrics.Metrics
+	runtime             *ast.Term
+	printHook           print.Hook
+	compiler            *ast.Compiler
+	store               storage.Store
+	txn                 storage.Transaction
+	queryCache          *queryCache
+	interQueryCache     cache.InterQueryCache
+	now                 time.Time
+	path                string
+	input               interface{}
+	ndbcache            builtins.NDBCache
+	m                   metrics.Metrics
+	strictBuiltinErrors bool
 }
 
 func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[string]server.BundleInfo, error) {
@@ -472,6 +477,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 			rego.Store(args.store),
 			rego.Transaction(args.txn),
 			rego.PrintHook(args.printHook),
+			rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 			rego.Runtime(args.runtime)).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
@@ -506,16 +512,17 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 }
 
 type partialEvalArgs struct {
-	runtime   *ast.Term
-	compiler  *ast.Compiler
-	printHook print.Hook
-	store     storage.Store
-	txn       storage.Transaction
-	unknowns  []string
-	query     string
-	now       time.Time
-	input     interface{}
-	m         metrics.Metrics
+	runtime             *ast.Term
+	compiler            *ast.Compiler
+	printHook           print.Hook
+	store               storage.Store
+	txn                 storage.Transaction
+	unknowns            []string
+	query               string
+	now                 time.Time
+	input               interface{}
+	m                   metrics.Metrics
+	strictBuiltinErrors bool
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
@@ -540,6 +547,7 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 		rego.Query(args.query),
 		rego.Unknowns(args.unknowns),
 		rego.PrintHook(args.printHook),
+		rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 	)
 
 	pq, err := re.Partial(ctx)
