@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel // import "go.opentelemetry.io/otel"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
 
-// Version is the current release version of OpenTelemetry in use.
-func Version() string {
-	return "1.11.2"
-}
+// SchemaURL is the schema URL that matches the version of the semantic conventions
+// that this package defines. Semconv packages starting from v1.4.0 must declare
+// non-empty schema URL in the form https://opentelemetry.io/schemas/<version>
+const SchemaURL = "https://opentelemetry.io/schemas/1.12.0"
