@@ -1265,12 +1265,12 @@ integrations:
     software:
       - kubescape
     code:
-      - https://github.com/armosec/kubescape
-      - https://github.com/armosec/regolibrary
+      - https://github.com/kubescape/kubescape
+      - https://github.com/kubescape/regolibrary
     inventors:
       - armo
     tutorials:
-      - https://hub.armo.cloud
+      - https://hub.armosec.io/docs
 
   i2scim:
     title: i2scim.io SCIM Restful User/Group Provisioning API
@@ -1902,7 +1902,7 @@ software:
     link: https://apisix.apache.org/
   kubescape:
     name: Kubescape
-    link: https://github.com/armosec/kubescape
+    link: https://github.com/kubescape/kubescape
   i2scim:
     name: i2 SCIM Server
     link: https://i2scim.io
