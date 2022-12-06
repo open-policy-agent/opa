@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
@@ -254,6 +255,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				input:               *record.Input,
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
+				tracer:              options.Tracer,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -269,11 +271,12 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 
 // DecisionOptions contains parameters for query evaluation.
 type DecisionOptions struct {
-	Now                 time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Path                string      // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input               interface{} // specifies value of the input document to evaluate policy with
-	NDBCache            interface{} // specifies the non-deterministic builtins cache to use for evaluation.
-	StrictBuiltinErrors bool        // treat built-in function errors as fatal
+	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Path                string              // specifies name of policy decision to evaluate (e.g., example/allow)
+	Input               interface{}         // specifies value of the input document to evaluate policy with
+	NDBCache            interface{}         // specifies the non-deterministic builtins cache to use for evaluation.
+	StrictBuiltinErrors bool                // treat built-in function errors as fatal
+	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -364,6 +367,7 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 				input:               *record.Input,
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
+				tracer:              options.Tracer,
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
@@ -398,12 +402,13 @@ type PartialQueryMapper interface {
 
 // PartialOptions contains parameters for partial query evaluation.
 type PartialOptions struct {
-	Now                 time.Time          // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Input               interface{}        // specifies value of the input document to evaluate policy with
-	Query               string             // specifies the query to be partially evaluated
-	Unknowns            []string           // specifies the unknown elements of the policy
-	Mapper              PartialQueryMapper // specifies the mapper to use when processing results
-	StrictBuiltinErrors bool               // treat built-in function errors as fatal
+	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Input               interface{}         // specifies value of the input document to evaluate policy with
+	Query               string              // specifies the query to be partially evaluated
+	Unknowns            []string            // specifies the unknown elements of the policy
+	Mapper              PartialQueryMapper  // specifies the mapper to use when processing results
+	StrictBuiltinErrors bool                // treat built-in function errors as fatal
+	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 }
 
 type PartialResult struct {
@@ -454,6 +459,7 @@ type evalArgs struct {
 	ndbcache            builtins.NDBCache
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
+	tracer              topdown.QueryTracer
 }
 
 func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[string]server.BundleInfo, error) {
@@ -501,6 +507,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalMetrics(args.m),
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
+		rego.EvalQueryTracer(args.tracer),
 	)
 	if err != nil {
 		return nil, inputAST, bundles, err
@@ -523,6 +530,7 @@ type partialEvalArgs struct {
 	input               interface{}
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
+	tracer              topdown.QueryTracer
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
@@ -548,6 +556,7 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 		rego.Unknowns(args.unknowns),
 		rego.PrintHook(args.printHook),
 		rego.StrictBuiltinErrors(args.strictBuiltinErrors),
+		rego.QueryTracer(args.tracer),
 	)
 
 	pq, err := re.Partial(ctx)

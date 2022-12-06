@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/topdown/lineage"
 
 	"github.com/fortytw2/leaktest"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
@@ -225,13 +226,13 @@ func TestDecisionWithStrictBuiltinErrors(t *testing.T) {
 			"main.rego": `
 				package example
 
-erroring_function(number) = output {
-	output := number / 0
-}
+				erroring_function(number) = output {
+					output := number / 0
+				}
 
-allow {
-	erroring_function(1)
-}`,
+				allow {
+					erroring_function(1)
+				}`,
 		}),
 	)
 
@@ -275,6 +276,85 @@ allow {
 	expectedMessage := "div: divide by zero"
 	if actual.Message != expectedMessage {
 		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
+	}
+}
+
+func TestDecisionWithTrace(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package system
+
+				main {
+					trace("foobar")
+					true
+				}
+			`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	tracer := topdown.NewBufferTracer()
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Path:   "/system/main",
+		Tracer: tracer,
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(bool); !ok || !decision {
+		t.Fatal("expected true but got:", decision, ok)
+	}
+
+	events := lineage.Notes(*(tracer))
+	if expectedEventCount := 3; len(events) != expectedEventCount {
+		t.Fatalf("expected %d events, got %d", expectedEventCount, len(events))
+	}
+
+	if events[0].Op != "Enter" {
+		t.Errorf("expected Enter event, got %v", events[0].Op)
+	}
+	location := string(events[0].Location.Text)
+	locationExpected := "data.system.main"
+	if location != locationExpected {
+		t.Errorf("expected location %q got %q", locationExpected, location)
+	}
+
+	if events[1].Op != "Enter" {
+		t.Errorf("expected Enter event, got %v", events[1].Op)
+	}
+	if events[2].Op != "Note" {
+		t.Errorf("expected Enter event, got %v", events[2].Op)
+	}
+
+	expectedMessage := "foobar"
+	if events[2].Message != expectedMessage {
+		t.Errorf("unexpected message, wanted %q, got %q", expectedMessage, events[2].Message)
 	}
 }
 
@@ -365,13 +445,13 @@ func TestPartialWithStrictBuiltinErrors(t *testing.T) {
 			"main.rego": `
 				package example
 
-erroring_function(number) = output {
-	output := number / 0
-}
+				erroring_function(number) = output {
+					output := number / 0
+				}
 
-allow {
-	erroring_function(1)
-}`,
+				allow {
+					erroring_function(1)
+				}`,
 		}),
 	)
 
@@ -426,6 +506,91 @@ allow {
 		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
 	}
 
+}
+
+func TestPartialWithTrace(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package system
+				
+				main {
+					trace("foobar")
+				}
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	tracer := topdown.NewBufferTracer()
+	_, err = opa.Partial(ctx, sdk.PartialOptions{
+		Input:    map[string]interface{}{},
+		Query:    "data.system.main",
+		Unknowns: []string{},
+		Mapper:   &sdk.RawMapper{},
+		Now:      time.Unix(0, 1619868194450288000).UTC(),
+		Tracer:   tracer,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	events := lineage.Notes(*(tracer))
+	if expectedEventCount := 3; len(events) != expectedEventCount {
+		t.Fatalf("expected %d events, got %d", expectedEventCount, len(events))
+	}
+
+	if events[0].Op != "Enter" {
+		t.Errorf("expected Enter event, got %v", events[0].Op)
+	}
+	location := string(events[0].Location.Text)
+	locationExpected := "data.system.main"
+	if location != locationExpected {
+		t.Errorf("expected location %q got %q", locationExpected, location)
+	}
+
+	if events[1].Op != "Enter" {
+		t.Errorf("expected Enter event, got %v", events[1].Op)
+	}
+	if events[2].Op != "Note" {
+		t.Errorf("expected Enter event, got %v", events[2].Op)
+	}
+
+	expectedMessage := "foobar"
+	if events[2].Message != expectedMessage {
+		t.Errorf("unexpected message, wanted %q, got %q", expectedMessage, events[2].Message)
+	}
 }
 
 func TestUndefinedError(t *testing.T) {
