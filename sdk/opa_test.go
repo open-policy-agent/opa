@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 
 	"github.com/fortytw2/leaktest"
@@ -215,6 +216,68 @@ func TestDecision(t *testing.T) {
 	}
 }
 
+func TestDecisionWithStrictBuiltinErrors(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package example
+
+erroring_function(number) = output {
+	output := number / 0
+}
+
+allow {
+	erroring_function(1)
+}`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	_, err = opa.Decision(ctx, sdk.DecisionOptions{
+		StrictBuiltinErrors: true,
+		Path:                "/example/allow",
+	})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	actual, ok := err.(*topdown.Error)
+	if !ok || actual.Code != "eval_builtin_error" {
+		t.Fatalf("expected eval_builtin_error but got %v", actual)
+	}
+
+	expectedMessage := "div: divide by zero"
+	if actual.Message != expectedMessage {
+		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
+	}
+}
+
 func TestPartial(t *testing.T) {
 
 	ctx := context.Background()
@@ -289,6 +352,78 @@ func TestPartial(t *testing.T) {
 
 	if entries[0].Fields["timestamp"] != "2021-05-01T11:23:14.450288Z" {
 		t.Fatalf("expected %v but got %v", "2021-05-01T11:23:14.450288Z", entries[0].Fields["timestamp"])
+	}
+
+}
+
+func TestPartialWithStrictBuiltinErrors(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+				package example
+
+erroring_function(number) = output {
+	output := number / 0
+}
+
+allow {
+	erroring_function(1)
+}`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	_, err = opa.Partial(ctx, sdk.PartialOptions{
+		Input:               map[string]interface{}{},
+		Query:               "data.example.allow",
+		Unknowns:            []string{},
+		Mapper:              &sdk.RawMapper{},
+		Now:                 time.Unix(0, 1619868194450288000).UTC(),
+		StrictBuiltinErrors: true,
+	})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	actual, ok := err.(*topdown.Error)
+	if !ok || actual.Code != "eval_builtin_error" {
+		t.Fatalf("expected eval_builtin_error but got %v", actual)
+	}
+
+	expectedMessage := "div: divide by zero"
+	if actual.Message != expectedMessage {
+		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
 	}
 
 }
