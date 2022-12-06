@@ -353,16 +353,17 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		&record,
 		func(s state, result *DecisionResult) {
 			pq, record.InputAST, record.Bundles, record.Error = partial(ctx, partialEvalArgs{
-				runtime:   s.manager.Info,
-				printHook: s.manager.PrintHook(),
-				compiler:  s.manager.GetCompiler(),
-				store:     s.manager.Store,
-				txn:       record.Txn,
-				now:       record.Timestamp,
-				query:     record.Query,
-				unknowns:  options.Unknowns,
-				input:     *record.Input,
-				m:         record.Metrics,
+				runtime:             s.manager.Info,
+				printHook:           s.manager.PrintHook(),
+				compiler:            s.manager.GetCompiler(),
+				store:               s.manager.Store,
+				txn:                 record.Txn,
+				now:                 record.Timestamp,
+				query:               record.Query,
+				unknowns:            options.Unknowns,
+				input:               *record.Input,
+				m:                   record.Metrics,
+				strictBuiltinErrors: options.StrictBuiltinErrors,
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
@@ -397,11 +398,12 @@ type PartialQueryMapper interface {
 
 // PartialOptions contains parameters for partial query evaluation.
 type PartialOptions struct {
-	Now      time.Time          // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Input    interface{}        // specifies value of the input document to evaluate policy with
-	Query    string             // specifies the query to be partially evaluated
-	Unknowns []string           // specifies the unknown elements of the policy
-	Mapper   PartialQueryMapper // specifies the mapper to use when processing results
+	Now                 time.Time          // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Input               interface{}        // specifies value of the input document to evaluate policy with
+	Query               string             // specifies the query to be partially evaluated
+	Unknowns            []string           // specifies the unknown elements of the policy
+	Mapper              PartialQueryMapper // specifies the mapper to use when processing results
+	StrictBuiltinErrors bool               // treat built-in function errors as fatal
 }
 
 type PartialResult struct {
@@ -510,16 +512,17 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 }
 
 type partialEvalArgs struct {
-	runtime   *ast.Term
-	compiler  *ast.Compiler
-	printHook print.Hook
-	store     storage.Store
-	txn       storage.Transaction
-	unknowns  []string
-	query     string
-	now       time.Time
-	input     interface{}
-	m         metrics.Metrics
+	runtime             *ast.Term
+	compiler            *ast.Compiler
+	printHook           print.Hook
+	store               storage.Store
+	txn                 storage.Transaction
+	unknowns            []string
+	query               string
+	now                 time.Time
+	input               interface{}
+	m                   metrics.Metrics
+	strictBuiltinErrors bool
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
@@ -544,6 +547,7 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 		rego.Query(args.query),
 		rego.Unknowns(args.unknowns),
 		rego.PrintHook(args.printHook),
+		rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 	)
 
 	pq, err := re.Partial(ctx)
