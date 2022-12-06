@@ -370,8 +370,7 @@ erroring_function(number) = output {
 }
 
 allow {
-	data.unknown.x 
-	erroring_function(input.x) 
+	erroring_function(1)
 }`,
 		}),
 	)
@@ -406,9 +405,9 @@ allow {
 	defer opa.Stop(ctx)
 
 	_, err = opa.Partial(ctx, sdk.PartialOptions{
-		Input:               map[string]int{"x": 1},
+		Input:               map[string]interface{}{},
 		Query:               "data.example.allow",
-		Unknowns:            []string{"data.unknown.x"},
+		Unknowns:            []string{},
 		Mapper:              &sdk.RawMapper{},
 		Now:                 time.Unix(0, 1619868194450288000).UTC(),
 		StrictBuiltinErrors: true,
