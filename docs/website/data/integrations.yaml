@@ -771,8 +771,7 @@ integrations:
     code:
       - https://github.com/open-policy-agent/contrib/tree/master/opa-iptables
     inventors:
-      - name: Urvil Patel
-        organization: gsoc
+      - gsoc
       - cisco
       - styra
 
