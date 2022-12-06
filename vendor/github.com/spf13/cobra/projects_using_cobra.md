@@ -25,7 +25,7 @@
 - [Istio](https://istio.io)
 - [Kool](https://github.com/kool-dev/kool)
 - [Kubernetes](https://kubernetes.io/)
-- [Kubescape](https://github.com/kubescape/kubescape)
+- [Kubescape](https://github.com/armosec/kubescape)
 - [KubeVirt](https://github.com/kubevirt/kubevirt)
 - [Linkerd](https://linkerd.io/)
 - [Mattermost-server](https://github.com/mattermost/mattermost-server)
