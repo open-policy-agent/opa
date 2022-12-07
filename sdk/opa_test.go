@@ -106,7 +106,11 @@ func TestSDKConfigurableID(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = time.now_ns()",
+			"main.rego": `
+package system
+
+main = time.now_ns()
+`,
 		}),
 	)
 
@@ -161,14 +165,14 @@ func TestDecision(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
+package system
 
-				main = true
+main = true
 
-				str = "foo"
+str = "foo"
 
-				loopback = input
-			`,
+loopback = input
+`,
 		}),
 	)
 
@@ -224,15 +228,16 @@ func TestDecisionWithStrictBuiltinErrors(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package example
+package example
 
-				erroring_function(number) = output {
-					output := number / 0
-				}
+erroring_function(number) = output {
+	output := number / 0
+}
 
-				allow {
-					erroring_function(1)
-				}`,
+allow {
+	erroring_function(1)
+}
+`,
 		}),
 	)
 
@@ -286,12 +291,12 @@ func TestDecisionWithTrace(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
+package system
 
-				main {
-					trace("foobar")
-					true
-				}
+main {
+	trace("foobar")
+	true
+}
 			`,
 		}),
 	)
@@ -365,11 +370,12 @@ func TestPartial(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package test
-				allow {
-					data.junk.x = input.y
-				}
-			`,
+package test
+
+allow {
+	data.junk.x = input.y
+}
+`,
 		}),
 	)
 
@@ -443,15 +449,16 @@ func TestPartialWithStrictBuiltinErrors(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package example
+package example
 
-				erroring_function(number) = output {
-					output := number / 0
-				}
+erroring_function(number) = output {
+	output := number / 0
+}
 
-				allow {
-					erroring_function(1)
-				}`,
+allow {
+	erroring_function(1)
+}
+`,
 		}),
 	)
 
@@ -515,11 +522,11 @@ func TestPartialWithTrace(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
-				
-				main {
-					trace("foobar")
-				}
+package system
+
+main {
+	trace("foobar")
+}
 `,
 		}),
 	)
@@ -644,7 +651,11 @@ func TestDecisionLogging(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = time.now_ns()",
+			"main.rego": `
+package system
+
+main = time.now_ns()
+`,
 		}),
 	)
 
@@ -706,7 +717,11 @@ func TestDecisionLoggingWithNDBCache(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = time.now_ns()",
+			"main.rego": `
+package system
+
+main = time.now_ns()
+`,
 		}),
 	)
 
@@ -776,7 +791,11 @@ func TestQueryCaching(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = 7",
+			"main.rego": `
+package system
+
+main = 7
+`,
 		}),
 	)
 
@@ -841,16 +860,16 @@ func TestDiscovery(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/discovery.tar.gz", map[string]string{
 			"bundles.rego": `
-				package bundles
+package bundles
 
-				test := {"resource": "/bundles/bundle.tar.gz"}
+test := {"resource": "/bundles/bundle.tar.gz"}
 			`,
 		}),
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
+package system
 
-				main = 7
+main = 7
 			`,
 		}),
 	)
@@ -897,7 +916,11 @@ func TestAsync(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.Ready(callerReadyCh),
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = 7",
+			"main.rego": `
+package system
+
+main = 7
+`,
 		}),
 	)
 
@@ -1009,7 +1032,11 @@ func TestConfigAsYAML(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = 7",
+			"main.rego": `
+package system
+
+main = 7
+`,
 		}),
 	)
 	defer server.Stop()
@@ -1035,10 +1062,18 @@ func TestConfigure(t *testing.T) {
 
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle1.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = 7",
+			"main.rego": `
+package system
+
+main = 7
+`,
 		}),
 		sdktest.MockBundle("/bundles/bundle2.tar.gz", map[string]string{
-			"main.rego": "package system\nmain = 8",
+			"main.rego": `
+package system
+
+main = 8
+`,
 		}),
 	)
 	defer server.Stop()
@@ -1123,8 +1158,9 @@ func TestOpaVersion(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
-				opa_version := opa.runtime().version
+package system
+
+opa_version := opa.runtime().version
 			`,
 		}),
 	)
@@ -1168,14 +1204,15 @@ func TestOpaRuntimeConfig(t *testing.T) {
 	server := sdktest.MustNewServer(
 		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"main.rego": `
-				package system
-				rt := opa.runtime()
+package system
 
-				result := {
-					"service_url": rt.config.services.test.url,
-					"bundle_resource": rt.config.bundles.test.resource,
-					"test_label": rt.config.labels.test
-				}
+rt := opa.runtime()
+
+result := {
+	"service_url": rt.config.services.test.url,
+	"bundle_resource": rt.config.bundles.test.resource,
+	"test_label": rt.config.labels.test
+}
 			`,
 		}),
 	)
@@ -1228,9 +1265,11 @@ func TestPrintStatements(t *testing.T) {
 	ctx := context.Background()
 
 	s := sdktest.MustNewServer(sdktest.MockBundle("/bundles/b.tar.gz", map[string]string{
-		"x.rego": `package foo
+		"x.rego": `
+package foo
 
-		p { print("XXX") }`,
+p { print("XXX") }
+`,
 	}))
 
 	defer s.Stop()
