@@ -5,6 +5,28 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.47.1 and 0.46.2
+
+This is a bug fix release addressing two issues: one security issue, and one bug
+related to formatting backwards-compatibility.
+
+### Golang security fix CVE-2022-41717
+
+> An attacker can cause excessive memory growth in a Go server accepting HTTP/2 requests.
+
+Since we advise against running an OPA service exposed to the general public of the
+internet, potential attackers would be limited to people that are already capable of
+sending direct requests to the OPA service.
+
+### `opa fmt` and backwards compatibility ([#5449](https://github.com/open-policy-agent/opa/issues/5449))
+
+In v0.46.1, it was possible that `opa fmt` would format a rule in such a way that:
+
+1. Before formatting, it was working fine with older OPA versions, and
+2. after formatting, it would only work with OPA version >= 0.46.1.
+
+This backwards incompatibility wasn't intended, and has now been fixed.
+
 ## 0.47.0
 
 This release contains a mix of bugfixes, optimizations, and new features.
