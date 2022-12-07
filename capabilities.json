@@ -3993,6 +3993,20 @@
                   }
                 ],
                 "type": "array"
+              },
+              {
+                "static": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
               }
             ],
             "type": "any"
