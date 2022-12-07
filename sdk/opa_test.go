@@ -278,9 +278,8 @@ allow {
 		t.Fatalf("expected eval_builtin_error but got %v", actual)
 	}
 
-	expectedMessage := "div: divide by zero"
-	if actual.Message != expectedMessage {
-		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
+	if exp, act := "div: divide by zero", actual.Message; exp != act {
+		t.Fatalf("expected %v but got %v", exp, act)
 	}
 }
 
@@ -337,29 +336,24 @@ main {
 	}
 
 	events := lineage.Notes(*(tracer))
-	if expectedEventCount := 3; len(events) != expectedEventCount {
-		t.Fatalf("expected %d events, got %d", expectedEventCount, len(events))
+	if exp, act := 3, len(events); exp != act {
+		t.Fatalf("expected %d events, got %d", exp, act)
 	}
 
-	if events[0].Op != "Enter" {
-		t.Errorf("expected Enter event, got %v", events[0].Op)
+	if exp, act := "Enter", string(events[0].Op); exp != act {
+		t.Errorf("expected %s event, got %s", exp, act)
 	}
-	location := string(events[0].Location.Text)
-	locationExpected := "data.system.main"
-	if location != locationExpected {
-		t.Errorf("expected location %q got %q", locationExpected, location)
+	if exp, act := "data.system.main", string(events[0].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
 	}
-
-	if events[1].Op != "Enter" {
-		t.Errorf("expected Enter event, got %v", events[1].Op)
+	if exp, act := "Enter", string(events[1].Op); exp != act {
+		t.Errorf("expected %s event, got %v", exp, act)
 	}
-	if events[2].Op != "Note" {
-		t.Errorf("expected Enter event, got %v", events[2].Op)
+	if exp, act := "Note", string(events[2].Op); exp != act {
+		t.Errorf("expected %s event, got %v", exp, act)
 	}
-
-	expectedMessage := "foobar"
-	if events[2].Message != expectedMessage {
-		t.Errorf("unexpected message, wanted %q, got %q", expectedMessage, events[2].Message)
+	if exp, act := "foobar", events[2].Message; exp != act {
+		t.Errorf("unexpected message, wanted %q, got %q", exp, act)
 	}
 }
 
@@ -508,11 +502,9 @@ allow {
 		t.Fatalf("expected eval_builtin_error but got %v", actual)
 	}
 
-	expectedMessage := "div: divide by zero"
-	if actual.Message != expectedMessage {
-		t.Fatalf("expected %v but got %v", expectedMessage, actual.Message)
+	if exp, act := "div: divide by zero", actual.Message; exp != act {
+		t.Fatalf("expected %v but got %v", exp, act)
 	}
-
 }
 
 func TestPartialWithTrace(t *testing.T) {
@@ -574,29 +566,25 @@ main {
 	}
 
 	events := lineage.Notes(*(tracer))
-	if expectedEventCount := 3; len(events) != expectedEventCount {
-		t.Fatalf("expected %d events, got %d", expectedEventCount, len(events))
+
+	if exp, act := 3, len(events); exp != act {
+		t.Fatalf("expected %d events, got %d", exp, act)
 	}
 
-	if events[0].Op != "Enter" {
-		t.Errorf("expected Enter event, got %v", events[0].Op)
+	if exp, act := "Enter", string(events[0].Op); exp != act {
+		t.Errorf("expected %s event, got %s", exp, act)
 	}
-	location := string(events[0].Location.Text)
-	locationExpected := "data.system.main"
-	if location != locationExpected {
-		t.Errorf("expected location %q got %q", locationExpected, location)
+	if exp, act := "data.system.main", string(events[0].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
 	}
-
-	if events[1].Op != "Enter" {
-		t.Errorf("expected Enter event, got %v", events[1].Op)
+	if exp, act := "Enter", string(events[1].Op); exp != act {
+		t.Errorf("expected %s event, got %v", exp, act)
 	}
-	if events[2].Op != "Note" {
-		t.Errorf("expected Enter event, got %v", events[2].Op)
+	if exp, act := "Note", string(events[2].Op); exp != act {
+		t.Errorf("expected %s event, got %v", exp, act)
 	}
-
-	expectedMessage := "foobar"
-	if events[2].Message != expectedMessage {
-		t.Errorf("unexpected message, wanted %q, got %q", expectedMessage, events[2].Message)
+	if exp, act := "foobar", events[2].Message; exp != act {
+		t.Errorf("unexpected message, wanted %q, got %q", exp, act)
 	}
 }
 
