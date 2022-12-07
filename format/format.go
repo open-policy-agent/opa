@@ -86,6 +86,11 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	// `if`.
 	useIf := false
 
+	// We check all rule ref heads to see if any of them _requires_ support
+	// for ref heads -- if they do, we'll print all of them in a different way
+	// than if they don't.
+	useRefHead := false
+
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
 	ast.WalkNodes(x, func(x ast.Node) bool {
@@ -115,6 +120,14 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 			case future.IsFutureKeyword(n, "if"):
 				useIf = true
 			}
+
+		case *ast.Rule:
+			if len(n.Head.Ref()) > 2 {
+				useRefHead = true
+			}
+			if len(n.Head.Ref()) == 2 && n.Head.Key != nil && n.Head.Value == nil { // p.q contains "x"
+				useRefHead = true
+			}
 		}
 
 		if opts.IgnoreLocations || x.Loc() == nil {
@@ -132,19 +145,20 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 		for kw := range extraFutureKeywordImports {
 			x.Imports = ensureFutureKeywordImport(x.Imports, kw)
 		}
-		w.writeModule(x, useContainsKW, useIf)
+		w.writeModule(x, useContainsKW, useIf, useRefHead)
 	case *ast.Package:
 		w.writePackage(x, nil)
 	case *ast.Import:
 		w.writeImports([]*ast.Import{x}, nil)
 	case *ast.Rule:
-		w.writeRule(x, false /* isElse */, useContainsKW, useIf, nil)
+		w.writeRule(x, false /* isElse */, useContainsKW, useIf, useRefHead, nil)
 	case *ast.Head:
 		w.writeHead(x,
 			false, // isDefault
 			false, // isExpandedConst
 			useContainsKW,
 			useIf,
+			useRefHead,
 			nil)
 	case ast.Body:
 		w.writeBody(x, nil)
@@ -214,7 +228,7 @@ type writer struct {
 	delay     bool
 }
 
-func (w *writer) writeModule(module *ast.Module, useContainsKW, useIf bool) {
+func (w *writer) writeModule(module *ast.Module, useContainsKW, useIf, useRefHead bool) {
 	var pkg *ast.Package
 	var others []interface{}
 	var comments []*ast.Comment
@@ -253,7 +267,7 @@ func (w *writer) writeModule(module *ast.Module, useContainsKW, useIf bool) {
 		imports, others = gatherImports(others)
 		comments = w.writeImports(imports, comments)
 		rules, others = gatherRules(others)
-		comments = w.writeRules(rules, useContainsKW, useIf, comments)
+		comments = w.writeRules(rules, useContainsKW, useIf, useRefHead, comments)
 	}
 
 	for i, c := range comments {
@@ -283,16 +297,16 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 	}
 }
 
-func (w *writer) writeRules(rules []*ast.Rule, useContainsKW, useIf bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeRules(rules []*ast.Rule, useContainsKW, useIf, useRefHead bool, comments []*ast.Comment) []*ast.Comment {
 	for _, rule := range rules {
 		comments = w.insertComments(comments, rule.Location)
-		comments = w.writeRule(rule, false, useContainsKW, useIf, comments)
+		comments = w.writeRule(rule, false, useContainsKW, useIf, useRefHead, comments)
 		w.blankLine()
 	}
 	return comments
 }
 
-func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf, useRefHead bool, comments []*ast.Comment) []*ast.Comment {
 	if rule == nil {
 		return comments
 	}
@@ -311,7 +325,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, co
 	// pretend that the rule has no body in this case.
 	isExpandedConst := rule.Body.Equal(ast.NewBody(ast.NewExpr(ast.BooleanTerm(true)))) && rule.Else == nil
 
-	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, useContainsKW, useIf, comments)
+	comments = w.writeHead(rule.Head, rule.Default, isExpandedConst, useContainsKW, useIf, useRefHead, comments)
 
 	// this excludes partial sets UNLESS `contains` is used
 	partialSetException := useContainsKW || rule.Head.Value != nil
@@ -329,7 +343,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, co
 				comments = w.writeExpr(rule.Body[0], comments)
 				w.endLine()
 				if rule.Else != nil {
-					comments = w.writeElse(rule, useContainsKW, useIf, comments)
+					comments = w.writeElse(rule, useContainsKW, useIf, useRefHead, comments)
 				}
 				return comments
 			}
@@ -357,12 +371,12 @@ func (w *writer) writeRule(rule *ast.Rule, isElse, useContainsKW, useIf bool, co
 	w.startLine()
 	w.write("}")
 	if rule.Else != nil {
-		comments = w.writeElse(rule, useContainsKW, useIf, comments)
+		comments = w.writeElse(rule, useContainsKW, useIf, useRefHead, comments)
 	}
 	return comments
 }
 
-func (w *writer) writeElse(rule *ast.Rule, useContainsKW, useIf bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeElse(rule *ast.Rule, useContainsKW, useIf, useRefHead bool, comments []*ast.Comment) []*ast.Comment {
 	// If there was nothing else on the line before the "else" starts
 	// then preserve this style of else block, otherwise it will be
 	// started as an "inline" else eg:
@@ -424,15 +438,22 @@ func (w *writer) writeElse(rule *ast.Rule, useContainsKW, useIf bool, comments [
 		rule.Else.Head.Value.Location = rule.Else.Head.Location
 	}
 
-	return w.writeRule(rule.Else, true, useContainsKW, useIf, comments)
+	return w.writeRule(rule.Else, true, useContainsKW, useIf, useRefHead, comments)
 }
 
-func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst, useContainsKW, useIf bool, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst, useContainsKW, useIf, useRefHead bool, comments []*ast.Comment) []*ast.Comment {
 	ref := head.Ref()
 	if head.Key != nil && head.Value == nil {
 		ref = ref.GroundPrefix()
 	}
-	w.write(ref.String())
+	if useRefHead || len(ref) == 1 {
+		w.write(ref.String())
+	} else {
+		w.write(ref[0].String())
+		w.write("[")
+		w.write(ref[1].String())
+		w.write("]")
+	}
 
 	if len(head.Args) > 0 {
 		w.write("(")
