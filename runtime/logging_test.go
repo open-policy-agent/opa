@@ -6,7 +6,10 @@
 package runtime
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -99,21 +102,22 @@ func TestRequestLogging(t *testing.T) {
 	<-initChannel
 
 	tests := []struct {
-		path           string
-		acceptEncoding string
-		expected       string
+		path            string
+		acceptEncoding  string
+		expected        string
+		contentEncoding string
 	}{
 		{
-			"/metrics", "gzip", "[compressed payload]",
+			"/metrics", "gzip", "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.", "gzip",
 		},
 		{
-			"/metrics", "*/*", "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.", // rest omitted
+			"/metrics", "*/*", "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.", "", // rest omitted
 		},
 		{ // accept-encoding does not matter for "our" handlers -- they don't compress
-			"/v1/data", "gzip", "{\"result\":{}}",
+			"/v1/data", "gzip", "{\"result\":{}}", "gzip",
 		},
 		{ // accept-encoding does not matter for pprof: it's always protobuf
-			"/debug/pprof/cmdline", "*/*", "[binary payload]",
+			"/debug/pprof/cmdline", "*/*", "[binary payload]", "",
 		},
 	}
 
@@ -129,6 +133,9 @@ func TestRequestLogging(t *testing.T) {
 		if exp, act := http.StatusOK, rec.Result().StatusCode; exp != act {
 			t.Errorf("GET %s: expected HTTP %d, got %d", tc.path, exp, act)
 		}
+		if exp, act := tc.contentEncoding, rec.Result().Header.Get("Content-Encoding"); exp != act {
+			t.Errorf("GET %s: expected HTTP Response Header %s, got %s", tc.path, exp, act)
+		}
 	}
 
 	cancel()
@@ -141,6 +148,12 @@ func TestRequestLogging(t *testing.T) {
 		for _, ent := range entriesForReq(ents, i) {
 			if ent.Message == "Sent response." {
 				act := ent.Fields["resp_body"].(string)
+				if tc.acceptEncoding == "gzip" {
+					reader := bytes.NewReader([]byte(act))
+					gzreader, _ := gzip.NewReader(reader)
+					output, _ := io.ReadAll(gzreader)
+					act = string(output)
+				}
 				if !strings.Contains(act, tc.expected) {
 					t.Errorf("expected %q in resp_body field, got %q", tc.expected, act)
 				}
