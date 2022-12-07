@@ -6,9 +6,7 @@ last_indexof(string, search) = i {
 	all := [i | chars := split(string, ""); chars[i] == search]
 	count(all) > 0
 	i := all[count(all) - 1]
-} else = -1 {
-	true
-}
+} else = -1
 
 basename(filename) = substring(filename, last_indexof(filename, "/") + 1, count(filename) - 1)
 
