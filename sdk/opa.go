@@ -227,6 +227,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		Path:           options.Path,
 		Input:          &options.Input,
 		NDBuiltinCache: &options.NDBCache,
+		Metrics:        options.Metrics,
 	}
 
 	// Only use non-deterministic builtins cache if it's available.
@@ -277,6 +278,7 @@ type DecisionOptions struct {
 	NDBCache            interface{}         // specifies the non-deterministic builtins cache to use for evaluation.
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
+	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -295,8 +297,10 @@ func newDecisionResult() (*DecisionResult, error) {
 }
 
 func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
-	m := metrics.New()
-	m.Timer(metrics.SDKDecisionEval).Start()
+	if record.Metrics == nil {
+		record.Metrics = metrics.New()
+	}
+	record.Metrics.Timer(metrics.SDKDecisionEval).Start()
 
 	result, err := newDecisionResult()
 	if err != nil {
@@ -308,7 +312,6 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	opa.mtx.Unlock()
 
 	record.DecisionID = result.ID
-	record.Metrics = m
 
 	if record.Timestamp.IsZero() {
 		record.Timestamp = time.Now().UTC()
@@ -325,7 +328,7 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 		work(s, result)
 	}
 
-	m.Timer(metrics.SDKDecisionEval).Stop()
+	record.Metrics.Timer(metrics.SDKDecisionEval).Stop()
 
 	if logger := logs.Lookup(s.manager); logger != nil {
 		if err := logger.Log(ctx, record); err != nil {
@@ -348,6 +351,7 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		Timestamp: options.Now,
 		Input:     &options.Input,
 		Query:     options.Query,
+		Metrics:   options.Metrics,
 	}
 
 	var pq *rego.PartialQueries
@@ -409,6 +413,7 @@ type PartialOptions struct {
 	Mapper              PartialQueryMapper  // specifies the mapper to use when processing results
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
+	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 }
 
 type PartialResult struct {
@@ -508,6 +513,8 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
 		rego.EvalQueryTracer(args.tracer),
+		// TODO: question, does it make sense to allow distinct preparation and evaluation metrics?
+		rego.EvalMetrics(args.m),
 	)
 	if err != nil {
 		return nil, inputAST, bundles, err
