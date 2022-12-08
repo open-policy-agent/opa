@@ -410,15 +410,23 @@ main = true
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
-	expectedRecordedMetrics := map[string]bool{
-		"timer_rego_query_compile_ns": true,
-		"timer_rego_query_eval_ns":    true,
-		"timer_rego_query_parse_ns":   true,
-		"timer_sdk_decision_eval_ns":  true,
+	expectedRecordedMetricGroups := map[string]bool{
+		"timer_rego": false,
+		"timer_sdk":  false,
 	}
 	for k := range m.All() {
-		if ok := expectedRecordedMetrics[k]; !ok {
-			t.Errorf("unexpected metric %s recorded", k)
+		for group, found := range expectedRecordedMetricGroups {
+			if found {
+				continue
+			}
+			if strings.HasPrefix(k, group) {
+				expectedRecordedMetricGroups[group] = true
+			}
+		}
+	}
+	for group, found := range expectedRecordedMetricGroups {
+		if !found {
+			t.Errorf("expected metric group %s not recorded", group)
 		}
 	}
 
@@ -478,36 +486,27 @@ main = true
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
-	expectedRecordedMetrics := map[string]bool{
-		"counter_eval_op_virtual_cache_miss":                       true,
-		"histogram_eval_op_plug":                                   true,
-		"histogram_eval_op_rule_index":                             true,
-		"timer_eval_op_plug_ns":                                    true,
-		"timer_eval_op_rule_index_ns":                              true,
-		"timer_query_compile_stage_build_comprehension_index_ns":   true,
-		"timer_query_compile_stage_check_deprecated_builtins_ns":   true,
-		"timer_query_compile_stage_check_keyword_overrides_ns":     true,
-		"timer_query_compile_stage_check_safety_ns":                true,
-		"timer_query_compile_stage_check_types_ns":                 true,
-		"timer_query_compile_stage_check_undefined_funcs_ns":       true,
-		"timer_query_compile_stage_check_unsafe_builtins_ns":       true,
-		"timer_query_compile_stage_check_void_calls_ns":            true,
-		"timer_query_compile_stage_resolve_refs_ns":                true,
-		"timer_query_compile_stage_rewrite_comprehension_terms_ns": true,
-		"timer_query_compile_stage_rewrite_dynamic_terms_ns":       true,
-		"timer_query_compile_stage_rewrite_expr_terms_ns":          true,
-		"timer_query_compile_stage_rewrite_local_vars_ns":          true,
-		"timer_query_compile_stage_rewrite_print_calls_ns":         true,
-		"timer_query_compile_stage_rewrite_to_capture_value_ns":    true,
-		"timer_query_compile_stage_rewrite_with_values_ns":         true,
-		"timer_rego_query_compile_ns":                              true,
-		"timer_rego_query_eval_ns":                                 true,
-		"timer_rego_query_parse_ns":                                true,
-		"timer_sdk_decision_eval_ns":                               true,
+	expectedRecordedMetricGroups := map[string]bool{
+		"counter_eval":        false,
+		"histogram_eval":      false,
+		"timer_query_compile": false,
+		"timer_eval":          false,
+		"timer_rego":          false,
+		"timer_sdk":           false,
 	}
 	for k := range m.All() {
-		if ok := expectedRecordedMetrics[k]; !ok {
-			t.Errorf("unexpected metric %s recorded", k)
+		for group, found := range expectedRecordedMetricGroups {
+			if found {
+				continue
+			}
+			if strings.HasPrefix(k, group) {
+				expectedRecordedMetricGroups[group] = true
+			}
+		}
+	}
+	for group, found := range expectedRecordedMetricGroups {
+		if !found {
+			t.Errorf("expected metric group %s not recorded", group)
 		}
 	}
 
@@ -818,16 +817,23 @@ allow {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
-	expectedRecordedMetrics := map[string]bool{
-		"timer_rego_input_parse_ns":   true,
-		"timer_rego_partial_eval_ns":  true,
-		"timer_rego_query_compile_ns": true,
-		"timer_rego_query_parse_ns":   true,
-		"timer_sdk_decision_eval_ns":  true,
+	expectedRecordedMetricGroups := map[string]bool{
+		"timer_rego": false,
+		"timer_sdk":  false,
 	}
 	for k := range m.All() {
-		if ok := expectedRecordedMetrics[k]; !ok {
-			t.Errorf("unexpected metric %s recorded", k)
+		for group, found := range expectedRecordedMetricGroups {
+			if found {
+				continue
+			}
+			if strings.HasPrefix(k, group) {
+				expectedRecordedMetricGroups[group] = true
+			}
+		}
+	}
+	for group, found := range expectedRecordedMetricGroups {
+		if !found {
+			t.Errorf("expected metric group %s not recorded", group)
 		}
 	}
 
@@ -898,45 +904,29 @@ allow {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
-	expectedRecordedMetrics := map[string]bool{
-		"counter_eval_op_virtual_cache_miss":                       true,
-		"histogram_eval_op_plug":                                   true,
-		"histogram_eval_op_rule_index":                             true,
-		"histogram_partial_op_copy_propagation":                    true,
-		"histogram_partial_op_save_set_contains":                   true,
-		"histogram_partial_op_save_unify":                          true,
-		"timer_eval_op_plug_ns":                                    true,
-		"timer_eval_op_rule_index_ns":                              true,
-		"timer_partial_op_copy_propagation_ns":                     true,
-		"timer_partial_op_save_set_contains_ns":                    true,
-		"timer_partial_op_save_unify_ns":                           true,
-		"timer_query_compile_stage_build_comprehension_index_ns":   true,
-		"timer_query_compile_stage_check_deprecated_builtins_ns":   true,
-		"timer_query_compile_stage_check_keyword_overrides_ns":     true,
-		"timer_query_compile_stage_check_safety_ns":                true,
-		"timer_query_compile_stage_check_types_ns":                 true,
-		"timer_query_compile_stage_check_undefined_funcs_ns":       true,
-		"timer_query_compile_stage_check_unsafe_builtins_ns":       true,
-		"timer_query_compile_stage_check_void_calls_ns":            true,
-		"timer_query_compile_stage_resolve_refs_ns":                true,
-		"timer_query_compile_stage_rewrite_comprehension_terms_ns": true,
-		"timer_query_compile_stage_rewrite_dynamic_terms_ns":       true,
-		"timer_query_compile_stage_rewrite_equals_ns":              true,
-		"timer_query_compile_stage_rewrite_expr_terms_ns":          true,
-		"timer_query_compile_stage_rewrite_local_vars_ns":          true,
-		"timer_query_compile_stage_rewrite_print_calls_ns":         true,
-		"timer_query_compile_stage_rewrite_to_capture_value_ns":    true,
-		"timer_query_compile_stage_rewrite_with_values_ns":         true,
-		"timer_rego_input_parse_ns":                                true,
-		"timer_rego_partial_eval_ns":                               true,
-		"timer_rego_query_compile_ns":                              true,
-		"timer_rego_query_eval_ns":                                 true,
-		"timer_rego_query_parse_ns":                                true,
-		"timer_sdk_decision_eval_ns":                               true,
+	expectedRecordedMetricGroups := map[string]bool{
+		"histogram_eval":      false,
+		"histogram_partial":   false,
+		"timer_query_compile": false,
+		"timer_eval":          false,
+		"timer_partial":       false,
+		"timer_rego":          false,
+		"timer_sdk":           false,
 	}
+
 	for k := range m.All() {
-		if ok := expectedRecordedMetrics[k]; !ok {
-			t.Errorf("unexpected metric %s recorded", k)
+		for group, found := range expectedRecordedMetricGroups {
+			if found {
+				continue
+			}
+			if strings.HasPrefix(k, group) {
+				expectedRecordedMetricGroups[group] = true
+			}
+		}
+	}
+	for group, found := range expectedRecordedMetricGroups {
+		if !found {
+			t.Errorf("expected metric group %s not recorded", group)
 		}
 	}
 
