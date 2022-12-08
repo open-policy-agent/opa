@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
@@ -423,6 +424,107 @@ main = true
 
 }
 
+func TestDecisionWithIntrumentationAndProfile(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = true
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	m := metrics.New()
+	p := profiler.New()
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Metrics:    m,
+		Profiler:   p,
+		Instrument: true,
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(bool); !ok || !decision {
+		t.Fatal("expected true but got:", decision, ok)
+	}
+
+	if exp, act := 25, len(m.All()); exp != act {
+		t.Fatalf("expected %d metrics, got %d", exp, act)
+	}
+
+	expectedRecordedMetrics := map[string]bool{
+		"counter_eval_op_virtual_cache_miss":                       true,
+		"histogram_eval_op_plug":                                   true,
+		"histogram_eval_op_rule_index":                             true,
+		"timer_eval_op_plug_ns":                                    true,
+		"timer_eval_op_rule_index_ns":                              true,
+		"timer_query_compile_stage_build_comprehension_index_ns":   true,
+		"timer_query_compile_stage_check_deprecated_builtins_ns":   true,
+		"timer_query_compile_stage_check_keyword_overrides_ns":     true,
+		"timer_query_compile_stage_check_safety_ns":                true,
+		"timer_query_compile_stage_check_types_ns":                 true,
+		"timer_query_compile_stage_check_undefined_funcs_ns":       true,
+		"timer_query_compile_stage_check_unsafe_builtins_ns":       true,
+		"timer_query_compile_stage_check_void_calls_ns":            true,
+		"timer_query_compile_stage_resolve_refs_ns":                true,
+		"timer_query_compile_stage_rewrite_comprehension_terms_ns": true,
+		"timer_query_compile_stage_rewrite_dynamic_terms_ns":       true,
+		"timer_query_compile_stage_rewrite_expr_terms_ns":          true,
+		"timer_query_compile_stage_rewrite_local_vars_ns":          true,
+		"timer_query_compile_stage_rewrite_print_calls_ns":         true,
+		"timer_query_compile_stage_rewrite_to_capture_value_ns":    true,
+		"timer_query_compile_stage_rewrite_with_values_ns":         true,
+		"timer_rego_query_compile_ns":                              true,
+		"timer_rego_query_eval_ns":                                 true,
+		"timer_rego_query_parse_ns":                                true,
+		"timer_sdk_decision_eval_ns":                               true,
+	}
+	for k := range m.All() {
+		if ok := expectedRecordedMetrics[k]; !ok {
+			t.Errorf("unexpected metric %s recorded", k)
+		}
+	}
+
+	stats := p.ReportTopNResults(10, []string{"line"})
+
+	if exp, act := 2, len(stats); exp != act {
+		t.Fatalf("expected %d stats, got %d", exp, act)
+	}
+	if exp, act := "true", string(stats[0].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
+	}
+	if exp, act := "data.system.main", string(stats[1].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
+	}
+
+}
+
 func TestPartial(t *testing.T) {
 
 	ctx := context.Background()
@@ -727,6 +829,127 @@ allow {
 		if ok := expectedRecordedMetrics[k]; !ok {
 			t.Errorf("unexpected metric %s recorded", k)
 		}
+	}
+
+}
+
+func TestPartialWithInstrumentationAndProfile(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package test
+
+allow {
+	data.junk.x = input.y
+}
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	m := metrics.New()
+	p := profiler.New()
+	var result *sdk.PartialResult
+	if result, err = opa.Partial(ctx, sdk.PartialOptions{
+		Input:      map[string]int{"y": 2},
+		Query:      "data.test.allow = true",
+		Unknowns:   []string{"data.junk.x"},
+		Mapper:     &sdk.RawMapper{},
+		Now:        time.Unix(0, 1619868194450288000).UTC(),
+		Metrics:    m,
+		Profiler:   p,
+		Instrument: true,
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(*rego.PartialQueries); !ok || decision.Queries[0].String() != "2 = data.junk.x" {
+		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
+	}
+
+	if exp, act := 32, len(m.All()); exp != act {
+		t.Fatalf("expected %d metrics, got %d", exp, act)
+	}
+
+	expectedRecordedMetrics := map[string]bool{
+		"counter_eval_op_virtual_cache_miss":                       true,
+		"histogram_eval_op_plug":                                   true,
+		"histogram_eval_op_rule_index":                             true,
+		"histogram_partial_op_copy_propagation":                    true,
+		"histogram_partial_op_save_set_contains":                   true,
+		"histogram_partial_op_save_unify":                          true,
+		"timer_eval_op_plug_ns":                                    true,
+		"timer_eval_op_rule_index_ns":                              true,
+		"timer_partial_op_copy_propagation_ns":                     true,
+		"timer_partial_op_save_set_contains_ns":                    true,
+		"timer_partial_op_save_unify_ns":                           true,
+		"timer_query_compile_stage_build_comprehension_index_ns":   true,
+		"timer_query_compile_stage_check_deprecated_builtins_ns":   true,
+		"timer_query_compile_stage_check_keyword_overrides_ns":     true,
+		"timer_query_compile_stage_check_safety_ns":                true,
+		"timer_query_compile_stage_check_types_ns":                 true,
+		"timer_query_compile_stage_check_undefined_funcs_ns":       true,
+		"timer_query_compile_stage_check_unsafe_builtins_ns":       true,
+		"timer_query_compile_stage_check_void_calls_ns":            true,
+		"timer_query_compile_stage_resolve_refs_ns":                true,
+		"timer_query_compile_stage_rewrite_comprehension_terms_ns": true,
+		"timer_query_compile_stage_rewrite_dynamic_terms_ns":       true,
+		"timer_query_compile_stage_rewrite_equals_ns":              true,
+		"timer_query_compile_stage_rewrite_expr_terms_ns":          true,
+		"timer_query_compile_stage_rewrite_local_vars_ns":          true,
+		"timer_query_compile_stage_rewrite_print_calls_ns":         true,
+		"timer_query_compile_stage_rewrite_to_capture_value_ns":    true,
+		"timer_query_compile_stage_rewrite_with_values_ns":         true,
+		"timer_rego_input_parse_ns":                                true,
+		"timer_rego_partial_eval_ns":                               true,
+		"timer_rego_query_compile_ns":                              true,
+		"timer_rego_query_eval_ns":                                 true,
+		"timer_rego_query_parse_ns":                                true,
+		"timer_sdk_decision_eval_ns":                               true,
+	}
+	for k := range m.All() {
+		if ok := expectedRecordedMetrics[k]; !ok {
+			t.Errorf("unexpected metric %s recorded", k)
+		}
+	}
+
+	stats := p.ReportTopNResults(10, []string{"line"})
+
+	if exp, act := 2, len(stats); exp != act {
+		t.Fatalf("expected %d stats, got %d", exp, act)
+	}
+	if exp, act := "data.junk.x = input.y", string(stats[0].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
+	}
+	if exp, act := "data.test.allow = true", string(stats[1].Location.Text); exp != act {
+		t.Errorf("expected location %q got %q", exp, act)
 	}
 
 }

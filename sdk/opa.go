@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
+	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -238,6 +239,11 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		}
 	}
 
+	var p topdown.QueryTracer
+	if options.Profiler != nil {
+		p = options.Profiler
+	}
+
 	result, err := opa.executeTransaction(
 		ctx,
 		&record,
@@ -257,6 +263,8 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
+				profiler:            p,
+				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -279,6 +287,8 @@ type DecisionOptions struct {
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
+	Profiler            *profiler.Profiler  // specifies the profiler to use, optional
+	Instrument          bool                // if true, instrumentation will be enabled
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -354,6 +364,11 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		Metrics:   options.Metrics,
 	}
 
+	var p topdown.QueryTracer
+	if options.Profiler != nil {
+		p = options.Profiler
+	}
+
 	var pq *rego.PartialQueries
 	decision, err := opa.executeTransaction(
 		ctx,
@@ -372,6 +387,8 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
+				profiler:            p,
+				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
@@ -414,6 +431,8 @@ type PartialOptions struct {
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
+	Profiler            *profiler.Profiler  // specifies the profiler to use, optional
+	Instrument          bool                // if true, instrumentation will be enabled
 }
 
 type PartialResult struct {
@@ -465,6 +484,8 @@ type evalArgs struct {
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
+	profiler            topdown.QueryTracer
+	instrument          bool
 }
 
 func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[string]server.BundleInfo, error) {
@@ -489,6 +510,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 			rego.Transaction(args.txn),
 			rego.PrintHook(args.printHook),
 			rego.StrictBuiltinErrors(args.strictBuiltinErrors),
+			rego.Instrument(args.instrument),
 			rego.Runtime(args.runtime)).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
@@ -513,8 +535,9 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
 		rego.EvalQueryTracer(args.tracer),
-		// TODO: question, does it make sense to allow distinct preparation and evaluation metrics?
 		rego.EvalMetrics(args.m),
+		rego.EvalQueryTracer(args.profiler),
+		rego.EvalInstrument(args.instrument),
 	)
 	if err != nil {
 		return nil, inputAST, bundles, err
@@ -538,6 +561,8 @@ type partialEvalArgs struct {
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
+	profiler            topdown.QueryTracer
+	instrument          bool
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
@@ -564,6 +589,8 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 		rego.PrintHook(args.printHook),
 		rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 		rego.QueryTracer(args.tracer),
+		rego.QueryTracer(args.profiler),
+		rego.Instrument(args.instrument),
 	)
 
 	pq, err := re.Partial(ctx)
