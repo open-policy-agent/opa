@@ -23,7 +23,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
-	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -239,11 +238,6 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		}
 	}
 
-	var p topdown.QueryTracer
-	if options.Profiler != nil {
-		p = options.Profiler
-	}
-
 	result, err := opa.executeTransaction(
 		ctx,
 		&record,
@@ -263,7 +257,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
-				profiler:            p,
+				profiler:            options.Profiler,
 				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
@@ -287,7 +281,7 @@ type DecisionOptions struct {
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
-	Profiler            *profiler.Profiler  // specifies the profiler to use, optional
+	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
 }
 
@@ -364,11 +358,6 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		Metrics:   options.Metrics,
 	}
 
-	var p topdown.QueryTracer
-	if options.Profiler != nil {
-		p = options.Profiler
-	}
-
 	var pq *rego.PartialQueries
 	decision, err := opa.executeTransaction(
 		ctx,
@@ -387,7 +376,7 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
-				profiler:            p,
+				profiler:            options.Profiler,
 				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
@@ -431,7 +420,7 @@ type PartialOptions struct {
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
-	Profiler            *profiler.Profiler  // specifies the profiler to use, optional
+	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
 }
 
