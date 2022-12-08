@@ -3920,6 +3920,50 @@
       }
     },
     {
+      "name": "time.format",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "type": "number"
+              },
+              {
+                "static": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "static": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "time.now_ns",
       "decl": {
         "result": {
@@ -3970,50 +4014,6 @@
         ],
         "result": {
           "type": "number"
-        },
-        "type": "function"
-      }
-    },
-    {
-      "name": "time.timestamp",
-      "decl": {
-        "args": [
-          {
-            "of": [
-              {
-                "type": "number"
-              },
-              {
-                "static": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ],
-                "type": "array"
-              },
-              {
-                "static": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ],
-                "type": "array"
-              }
-            ],
-            "type": "any"
-          }
-        ],
-        "result": {
-          "type": "string"
         },
         "type": "function"
       }

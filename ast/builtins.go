@@ -195,7 +195,7 @@ var DefaultBuiltins = [...]*Builtin{
 	ParseNanos,
 	ParseRFC3339Nanos,
 	ParseDurationNanos,
-	Timestamp,
+	Format,
 	Date,
 	Clock,
 	Weekday,
@@ -2145,9 +2145,9 @@ var ParseDurationNanos = &Builtin{
 	),
 }
 
-var Timestamp = &Builtin{
-	Name:        "time.timestamp",
-	Description: "Returns the timestamp for the nanoseconds since epoch.",
+var Format = &Builtin{
+	Name:        "time.format",
+	Description: "Returns the formatted timestamp for the nanoseconds since epoch.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.NewAny(
@@ -2156,7 +2156,7 @@ var Timestamp = &Builtin{
 				types.NewArray([]types.Type{types.N, types.S, types.S}, nil),
 			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string (see golang supported time formats)"),
 		),
-		types.Named("timestamp", types.S).Description("the timestamp represented for the nanoseconds since the epoch in the supplied timezone (or UTC)"),
+		types.Named("formatted timestamp", types.S).Description("the formatted timestamp represented for the nanoseconds since the epoch in the supplied timezone (or UTC)"),
 	),
 }
 

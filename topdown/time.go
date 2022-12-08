@@ -82,7 +82,7 @@ func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func
 	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
 }
 
-func builtinTimestamp(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinFormat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	t, layout, err := tzTime(operands[0].Value)
 	if err != nil {
 		return err
@@ -304,7 +304,7 @@ func init() {
 	RegisterBuiltinFunc(ast.ParseRFC3339Nanos.Name, builtinTimeParseRFC3339Nanos)
 	RegisterBuiltinFunc(ast.ParseNanos.Name, builtinTimeParseNanos)
 	RegisterBuiltinFunc(ast.ParseDurationNanos.Name, builtinParseDurationNanos)
-	RegisterBuiltinFunc(ast.Timestamp.Name, builtinTimestamp)
+	RegisterBuiltinFunc(ast.Format.Name, builtinFormat)
 	RegisterBuiltinFunc(ast.Date.Name, builtinDate)
 	RegisterBuiltinFunc(ast.Clock.Name, builtinClock)
 	RegisterBuiltinFunc(ast.Weekday.Name, builtinWeekday)
