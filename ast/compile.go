@@ -803,7 +803,7 @@ func (c *Compiler) buildRuleIndices() {
 		if index.Build(rules) {
 			c.ruleIndices.Put(rules[0].Ref().GroundPrefix(), index)
 		}
-		return hasNonGroundKey // currently, we don't allow those branches to go deeper
+		return false
 	})
 
 }
