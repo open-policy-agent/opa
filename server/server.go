@@ -181,6 +181,7 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
 	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
+	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
 
 	// authorizer, if configured, needs the iCache to be set up already
 	s.Handler = s.initHandlerAuth(s.Handler)
@@ -2613,6 +2614,12 @@ func isPathOwned(path, root []string) bool {
 
 func (s *Server) updateCacheConfig(cacheConfig *iCache.Config) {
 	s.interQueryBuiltinCache.UpdateConfig(cacheConfig)
+}
+
+func (s *Server) updateNDCache(enabled bool) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.ndbCacheEnabled = enabled
 }
 
 func stringPathToDataRef(s string) (r ast.Ref) {
