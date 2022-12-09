@@ -172,6 +172,9 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+        env:
+          GOPROXY: direct
+          GOSUMDB: off 
       - run: govulncheck ./...
 
       - name: Slack Notification
