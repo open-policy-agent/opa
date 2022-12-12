@@ -717,6 +717,10 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
 			"SignedHeaders=accept;host;x-amz-date;x-amz-security-token,"+
 			"Signature=0237b0c789cad36212f0efba70c02549e1f659ab9caaca16423930cc7236c046", t)
+	// Ensure 'authorization' is not multi-valued.
+	if len(req.Header.Values("Authorization")) != 1 {
+		t.Fatal("Authorization header is multi-valued. This will break AWS v4 signing.")
+	}
 	// The multi-value headers are preserved
 	assertEq(req.Header.Values("Accept")[0], "text/plain", t)
 	assertEq(req.Header.Values("Accept")[1], "text/html", t)

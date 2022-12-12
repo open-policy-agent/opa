@@ -507,11 +507,11 @@ func signV4(req *http.Request, service string, credService awsCredentialService,
 
 	now := theTime.UTC()
 
-	signedHeaders := providers.AWSSignV4(req.Header, req.Method, req.URL, body, service, creds, now)
+	authHeader, awsHeaders := providers.AWSSignV4(req.Header, req.Method, req.URL, body, service, creds, now)
 
-	req.Header.Set("Authorization", strings.Join(signedHeaders["Authorization"], ""))
-	for k, v := range signedHeaders {
-		req.Header.Add(k, strings.Join(v, ","))
+	req.Header.Set("Authorization", authHeader)
+	for k, v := range awsHeaders {
+		req.Header.Add(k, v)
 	}
 
 	return nil
