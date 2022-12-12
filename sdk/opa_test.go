@@ -574,15 +574,16 @@ main = true
 	}
 
 	expectedProvenance := types.ProvenanceV1{
-		Version:   version.Version,
-		Vcs:       version.Vcs,
-		Timestamp: version.Timestamp,
-		Hostname:  version.Hostname,
+		Version: version.Version,
 		Bundles: map[string]types.ProvenanceBundleV1{
 			"test": {
 				Revision: "v1.0.0",
 			},
 		},
+	}
+
+	if result.Provenance.Version == "" {
+		t.Error("expected non empty provenance version")
 	}
 
 	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
