@@ -227,6 +227,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		Path:           options.Path,
 		Input:          &options.Input,
 		NDBuiltinCache: &options.NDBCache,
+		Metrics:        options.Metrics,
 	}
 
 	// Only use non-deterministic builtins cache if it's available.
@@ -256,6 +257,8 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
+				profiler:            options.Profiler,
+				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
@@ -277,6 +280,9 @@ type DecisionOptions struct {
 	NDBCache            interface{}         // specifies the non-deterministic builtins cache to use for evaluation.
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
+	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
+	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
+	Instrument          bool                // if true, instrumentation will be enabled
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -295,8 +301,10 @@ func newDecisionResult() (*DecisionResult, error) {
 }
 
 func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
-	m := metrics.New()
-	m.Timer(metrics.SDKDecisionEval).Start()
+	if record.Metrics == nil {
+		record.Metrics = metrics.New()
+	}
+	record.Metrics.Timer(metrics.SDKDecisionEval).Start()
 
 	result, err := newDecisionResult()
 	if err != nil {
@@ -308,7 +316,6 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	opa.mtx.Unlock()
 
 	record.DecisionID = result.ID
-	record.Metrics = m
 
 	if record.Timestamp.IsZero() {
 		record.Timestamp = time.Now().UTC()
@@ -325,7 +332,7 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 		work(s, result)
 	}
 
-	m.Timer(metrics.SDKDecisionEval).Stop()
+	record.Metrics.Timer(metrics.SDKDecisionEval).Stop()
 
 	if logger := logs.Lookup(s.manager); logger != nil {
 		if err := logger.Log(ctx, record); err != nil {
@@ -348,6 +355,7 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		Timestamp: options.Now,
 		Input:     &options.Input,
 		Query:     options.Query,
+		Metrics:   options.Metrics,
 	}
 
 	var pq *rego.PartialQueries
@@ -368,6 +376,8 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 				m:                   record.Metrics,
 				strictBuiltinErrors: options.StrictBuiltinErrors,
 				tracer:              options.Tracer,
+				profiler:            options.Profiler,
+				instrument:          options.Instrument,
 			})
 			if record.Error == nil {
 				result.Result, record.Error = options.Mapper.MapResults(pq)
@@ -409,6 +419,9 @@ type PartialOptions struct {
 	Mapper              PartialQueryMapper  // specifies the mapper to use when processing results
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
+	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
+	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
+	Instrument          bool                // if true, instrumentation will be enabled
 }
 
 type PartialResult struct {
@@ -460,6 +473,8 @@ type evalArgs struct {
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
+	profiler            topdown.QueryTracer
+	instrument          bool
 }
 
 func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[string]server.BundleInfo, error) {
@@ -484,6 +499,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 			rego.Transaction(args.txn),
 			rego.PrintHook(args.printHook),
 			rego.StrictBuiltinErrors(args.strictBuiltinErrors),
+			rego.Instrument(args.instrument),
 			rego.Runtime(args.runtime)).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
@@ -508,6 +524,9 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
 		rego.EvalQueryTracer(args.tracer),
+		rego.EvalMetrics(args.m),
+		rego.EvalQueryTracer(args.profiler),
+		rego.EvalInstrument(args.instrument),
 	)
 	if err != nil {
 		return nil, inputAST, bundles, err
@@ -531,6 +550,8 @@ type partialEvalArgs struct {
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
+	profiler            topdown.QueryTracer
+	instrument          bool
 }
 
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
@@ -557,6 +578,8 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 		rego.PrintHook(args.printHook),
 		rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 		rego.QueryTracer(args.tracer),
+		rego.QueryTracer(args.profiler),
+		rego.Instrument(args.instrument),
 	)
 
 	pq, err := re.Partial(ctx)
