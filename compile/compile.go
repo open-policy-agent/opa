@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -453,9 +454,10 @@ func (c *Compiler) initBundle() error {
 	sort.Strings(modules)
 
 	for _, module := range modules {
+		path := filepath.ToSlash(load.Files.Modules[module].Name)
 		result.Modules = append(result.Modules, bundle.ModuleFile{
-			URL:    load.Files.Modules[module].Name,
-			Path:   load.Files.Modules[module].Name,
+			URL:    path,
+			Path:   path,
 			Parsed: load.Files.Modules[module].Parsed,
 			Raw:    load.Files.Modules[module].Raw,
 		})
