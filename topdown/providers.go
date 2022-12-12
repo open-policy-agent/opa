@@ -7,7 +7,6 @@ package topdown
 import (
 	"encoding/json"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -173,10 +172,11 @@ func builtinAWSSigV4SignReq(ctx BuiltinContext, operands []*ast.Term, iter func(
 	}
 
 	// Sign the request object's headers, and reconstruct the headers map.
-	signedHeadersMap := providers.AWSSignV4(objectToMap(headers), method, theURL, body, service, awsCreds, signingTimestamp)
+	authHeader, signedHeadersMap := providers.AWSSignV4(objectToMap(headers), method, theURL, body, service, awsCreds, signingTimestamp)
 	signedHeadersObj := ast.NewObject()
+	signedHeadersObj.Insert(ast.StringTerm("Authorization"), ast.StringTerm(authHeader))
 	for k, v := range signedHeadersMap {
-		signedHeadersObj.Insert(ast.StringTerm(k), ast.StringTerm(strings.Join(v, ",")))
+		signedHeadersObj.Insert(ast.StringTerm(k), ast.StringTerm(v))
 	}
 
 	// Create new request object with updated headers.
