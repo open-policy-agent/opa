@@ -576,11 +576,8 @@ type partialEvalArgs struct {
 func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
 
 	provenance := types.ProvenanceV1{
-		Version:   version.Version,
-		Vcs:       version.Vcs,
-		Timestamp: version.Timestamp,
-		Hostname:  version.Hostname,
-		Bundles:   make(map[string]types.ProvenanceBundleV1),
+		Version: version.Version,
+		Bundles: make(map[string]types.ProvenanceBundleV1),
 	}
 
 	bundles, err := bundles(ctx, args.store, args.txn)
