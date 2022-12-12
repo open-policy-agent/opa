@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.47.3
+
+This is a bug fix release addressing an issue that prevented OPA from fetching bundles stored in S3 buckets.
+
+ - providers/aws: Refactor + fix 2x Authorization header append issue. ([#5472](https://github.com/open-policy-agent/opa/issues/5472)) authored by @philipaconrad, reported by @Hiieu
+
 ## 0.47.2 and 0.46.3
 
 This is a second security fix to address CVE-2022-41717/GO-2022-1144.
