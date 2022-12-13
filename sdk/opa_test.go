@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/server/types"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -524,6 +526,123 @@ main = true
 
 }
 
+func TestDecisionWithProvenance(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = true
+`,
+			".manifest": `{"revision": "v1.0.0"}`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	result, err := opa.Decision(ctx, sdk.DecisionOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision, ok := result.Result.(bool); !ok || !decision {
+		t.Fatal("expected true but got:", decision, ok)
+	}
+
+	expectedProvenance := types.ProvenanceV1{
+		Version: version.Version,
+		Bundles: map[string]types.ProvenanceBundleV1{
+			"test": {
+				Revision: "v1.0.0",
+			},
+		},
+	}
+
+	if result.Provenance.Version == "" {
+		t.Error("expected non empty provenance version")
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Fatalf("expected %v but got %v", expectedProvenance, result.Provenance)
+	}
+
+}
+
+func TestDecisionWithBundleData(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = data.foo
+`,
+			"data.json": `{"foo": "bar"}`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	result, err := opa.Decision(ctx, sdk.DecisionOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exp := "bar"
+	if act, ok := result.Result.(string); !ok || act != exp {
+		t.Fatalf("expected %s but got %s", exp, act)
+	}
+
+}
+
 func TestPartial(t *testing.T) {
 
 	ctx := context.Background()
@@ -940,6 +1059,81 @@ allow {
 	}
 	if exp, act := "data.test.allow = true", string(stats[1].Location.Text); exp != act {
 		t.Errorf("expected location %q got %q", exp, act)
+	}
+
+}
+
+func TestPartialWithProvenance(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package test
+
+allow {
+	data.junk.x = input.y
+}
+`,
+			".manifest": `{"revision": "v1.0.0"}`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	var result *sdk.PartialResult
+	if result, err = opa.Partial(ctx, sdk.PartialOptions{
+		Input:    map[string]int{"y": 2},
+		Query:    "data.test.allow = true",
+		Unknowns: []string{"data.junk.x"},
+		Mapper:   &sdk.RawMapper{},
+		Now:      time.Unix(0, 1619868194450288000).UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(*rego.PartialQueries); !ok || decision.Queries[0].String() != "2 = data.junk.x" {
+		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
+	}
+
+	expectedProvenance := types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+		Bundles: map[string]types.ProvenanceBundleV1{
+			"test": {
+				Revision: "v1.0.0",
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(result.Provenance, expectedProvenance) {
+		t.Fatalf("expected %v but got %v", expectedProvenance, result.Provenance)
 	}
 
 }

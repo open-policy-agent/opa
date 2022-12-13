@@ -25,12 +25,14 @@ import (
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/version"
 )
 
 // OPA represents an instance of the policy engine. OPA can be started with
@@ -242,7 +244,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		ctx,
 		&record,
 		func(s state, result *DecisionResult) {
-			result.Result, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
+			result.Result, result.Provenance, record.InputAST, record.Bundles, record.Error = evaluate(ctx, evalArgs{
 				runtime:             s.manager.Info,
 				printHook:           s.manager.PrintHook(),
 				compiler:            s.manager.GetCompiler(),
@@ -287,8 +289,9 @@ type DecisionOptions struct {
 
 // DecisionResult contains the output of query evaluation.
 type DecisionResult struct {
-	ID     string      // provides a globally unique identifier for this decision (which is included in the decision log.)
-	Result interface{} // provides the output of query evaluation.
+	ID         string             // provides a globally unique identifier for this decision (which is included in the decision log.)
+	Result     interface{}        // provides the output of query evaluation.
+	Provenance types.ProvenanceV1 // wraps the bundle build/version information
 }
 
 func newDecisionResult() (*DecisionResult, error) {
@@ -358,12 +361,14 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 		Metrics:   options.Metrics,
 	}
 
+	var provenance types.ProvenanceV1
+
 	var pq *rego.PartialQueries
 	decision, err := opa.executeTransaction(
 		ctx,
 		&record,
 		func(s state, result *DecisionResult) {
-			pq, record.InputAST, record.Bundles, record.Error = partial(ctx, partialEvalArgs{
+			pq, provenance, record.InputAST, record.Bundles, record.Error = partial(ctx, partialEvalArgs{
 				runtime:             s.manager.Info,
 				printHook:           s.manager.PrintHook(),
 				compiler:            s.manager.GetCompiler(),
@@ -397,9 +402,10 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 	}
 
 	return &PartialResult{
-		ID:     decision.ID,
-		Result: decision.Result,
-		AST:    pq,
+		ID:         decision.ID,
+		Result:     decision.Result,
+		AST:        pq,
+		Provenance: provenance,
 	}, record.Error
 }
 
@@ -425,9 +431,10 @@ type PartialOptions struct {
 }
 
 type PartialResult struct {
-	ID     string               // decision ID
-	Result interface{}          // mapped result
-	AST    *rego.PartialQueries // raw result
+	ID         string               // decision ID
+	Result     interface{}          // mapped result
+	AST        *rego.PartialQueries // raw result
+	Provenance types.ProvenanceV1   // wraps the bundle build/version information
 }
 
 // Error represents an internal error in the SDK.
@@ -477,16 +484,28 @@ type evalArgs struct {
 	instrument          bool
 }
 
-func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[string]server.BundleInfo, error) {
+func evaluate(ctx context.Context, args evalArgs) (interface{}, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
 
+	provenance := types.ProvenanceV1{
+		Version:   version.Version,
+		Vcs:       version.Vcs,
+		Timestamp: version.Timestamp,
+		Hostname:  version.Hostname,
+		Bundles:   make(map[string]types.ProvenanceBundleV1),
+	}
 	bundles, err := bundles(ctx, args.store, args.txn)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, provenance, nil, nil, err
+	}
+	for b, info := range bundles {
+		provenance.Bundles[b] = types.ProvenanceBundleV1{
+			Revision: info.Revision,
+		}
 	}
 
 	r, err := ref.ParseDataPath(args.path)
 	if err != nil {
-		return nil, nil, bundles, err
+		return nil, provenance, nil, bundles, err
 	}
 
 	pq, err := args.queryCache.Get(r.String(), func(query string) (*rego.PreparedEvalQuery, error) {
@@ -507,12 +526,12 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		return &pq, err
 	})
 	if err != nil {
-		return nil, nil, bundles, err
+		return nil, provenance, nil, bundles, err
 	}
 
 	inputAST, err := ast.InterfaceToValue(args.input)
 	if err != nil {
-		return nil, nil, bundles, err
+		return nil, provenance, nil, bundles, err
 	}
 
 	rs, err := pq.Eval(
@@ -529,12 +548,12 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, ast.Value, map[s
 		rego.EvalInstrument(args.instrument),
 	)
 	if err != nil {
-		return nil, inputAST, bundles, err
+		return nil, provenance, inputAST, bundles, err
 	} else if len(rs) == 0 {
-		return nil, inputAST, bundles, undefinedDecisionErr(args.path)
+		return nil, provenance, inputAST, bundles, undefinedDecisionErr(args.path)
 	}
 
-	return rs[0].Expressions[0].Value, inputAST, bundles, nil
+	return rs[0].Expressions[0].Value, provenance, inputAST, bundles, nil
 }
 
 type partialEvalArgs struct {
@@ -554,16 +573,26 @@ type partialEvalArgs struct {
 	instrument          bool
 }
 
-func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, ast.Value, map[string]server.BundleInfo, error) {
+func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, types.ProvenanceV1, ast.Value, map[string]server.BundleInfo, error) {
+
+	provenance := types.ProvenanceV1{
+		Version: version.Version,
+		Bundles: make(map[string]types.ProvenanceBundleV1),
+	}
 
 	bundles, err := bundles(ctx, args.store, args.txn)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, provenance, nil, nil, err
+	}
+	for b, info := range bundles {
+		provenance.Bundles[b] = types.ProvenanceBundleV1{
+			Revision: info.Revision,
+		}
 	}
 
 	inputAST, err := ast.InterfaceToValue(args.input)
 	if err != nil {
-		return nil, nil, bundles, err
+		return nil, provenance, nil, bundles, err
 	}
 	re := rego.New(
 		rego.Time(args.now),
@@ -584,9 +613,9 @@ func partial(ctx context.Context, args partialEvalArgs) (*rego.PartialQueries, a
 
 	pq, err := re.Partial(ctx)
 	if err != nil {
-		return nil, nil, bundles, err
+		return nil, provenance, nil, bundles, err
 	}
-	return pq, inputAST, bundles, err
+	return pq, provenance, inputAST, bundles, err
 }
 
 type queryCache struct {
