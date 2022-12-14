@@ -208,7 +208,7 @@ func (ub *URLBuilder) cloneRoute(name string) clonedRoute {
 	route := new(mux.Route)
 	root := new(url.URL)
 
-	*route = *ub.router.GetRoute(name) // clone the route
+	*route = *ub.router.Get(name) // clone the route
 	*root = *ub.root
 
 	return clonedRoute{Route: route, root: root, relative: ub.relative}
