@@ -1,6 +1,6 @@
 package v2
 
-import "github.com/gorilla/mux"
+import "github.com/open-policy-agent/opa/mux"
 
 // The following are definitions of the name under which all V2 routes are
 // registered. These symbols can be used to look up a route based on the name.
