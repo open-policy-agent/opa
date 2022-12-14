@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1938,7 +1938,7 @@ type methodsSubrouterTest struct {
 // methodHandler writes the method string in response.
 func methodHandler(method string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(method))
+		_, _ = w.Write([]byte(method))
 	}
 }
 
@@ -2569,7 +2569,7 @@ func TestSubrouterCustomMethodNotAllowed(t *testing.T) {
 				tt.Errorf("Expected status code 405 (got %d)", w.Code)
 			}
 
-			b, err := ioutil.ReadAll(w.Body)
+			b, err := io.ReadAll(w.Body)
 			if err != nil {
 				tt.Errorf("failed to read body: %v", err)
 			}
@@ -2646,14 +2646,6 @@ func stringMapEqual(m1, m2 map[string]string) bool {
 	return true
 }
 
-// stringHandler returns a handler func that writes a message 's' to the
-// http.ResponseWriter.
-func stringHandler(s string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(s))
-	}
-}
-
 // newRequest is a helper function to create a new request with a method and url.
 // The request returned is a 'server' request as opposed to a 'client' one through
 // simulated write onto the wire and read off of the wire.
@@ -2683,7 +2675,7 @@ func newRequest(method, url string) *http.Request {
 
 	// Simulate writing to wire
 	var buff bytes.Buffer
-	req.Write(&buff)
+	_ = req.Write(&buff)
 	ioreader := bufio.NewReader(&buff)
 
 	// Parse request off of 'wire'
