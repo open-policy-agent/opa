@@ -348,6 +348,11 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))
 		})
+	case Object:
+		x.Foreach(func(k, v *Term) {
+			vis.Walk(k)
+			vis.Walk(x.Get(k))
+		})
 	case *Array:
 		x.Foreach(func(t *Term) {
 			vis.Walk(t)
@@ -475,6 +480,11 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 			vis.Walk(x[i])
 		}
 	case *object:
+		x.Foreach(func(k, v *Term) {
+			vis.Walk(k)
+			vis.Walk(x.Get(k))
+		})
+	case Object:
 		x.Foreach(func(k, v *Term) {
 			vis.Walk(k)
 			vis.Walk(x.Get(k))
