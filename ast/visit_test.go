@@ -432,3 +432,45 @@ func TestVarVisitor(t *testing.T) {
 		}
 	}
 }
+
+func TestGenericVisitorLazyObject(t *testing.T) {
+	o := LazyObject(map[string]interface{}{"foo": 3})
+	act := 0
+	WalkTerms(o, func(n *Term) bool {
+		switch n.Value {
+		case String("foo"):
+			act++
+		case Number("3"):
+			act++
+		}
+
+		return false
+	})
+	if exp := 2; exp != act {
+		t.Errorf("expected %v, got %v", exp, act)
+	}
+}
+
+func TestGenericBeforeAfterVisitorLazyObject(t *testing.T) {
+	o := LazyObject(map[string]interface{}{"foo": 3})
+	act := 0
+	vis := NewBeforeAfterVisitor(func(x interface{}) bool {
+		t, ok := x.(*Term)
+		if !ok {
+			return false
+		}
+		switch t.Value {
+		case String("foo"):
+			act++
+		case Number("3"):
+			act++
+		}
+
+		return false
+	},
+		func(interface{}) {})
+	vis.Walk(o)
+	if exp := 2; exp != act {
+		t.Errorf("expected %v, got %v", exp, act)
+	}
+}
