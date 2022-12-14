@@ -59,11 +59,6 @@ type Router struct {
 	// Routes by name for URL building.
 	namedRoutes map[string]*Route
 
-	// If true, do not clear the request context after handling the request.
-	//
-	// Deprecated: No effect, since the context is stored on the request itself.
-	KeepContext bool
-
 	// configuration shared with `Route`
 	routeConf
 }
@@ -89,8 +84,6 @@ type routeConf struct {
 
 	// The scheme used when building URLs.
 	buildScheme string
-
-	buildVarsFunc BuildVarsFunc
 }
 
 // returns an effective deep copy of `routeConf`
@@ -335,58 +328,9 @@ func (r *Router) Schemes(schemes ...string) *Route {
 	return r.NewRoute().Schemes(schemes...)
 }
 
-// BuildVarsFunc registers a new route with a custom function for modifying
-// route variables before building a URL.
-func (r *Router) BuildVarsFunc(f BuildVarsFunc) *Route {
-	return r.NewRoute().BuildVarsFunc(f)
-}
-
-// Walk walks the router and all its sub-routers, calling walkFn for each route
-// in the tree. The routes are walked in the order they were added. Sub-routers
-// are explored depth-first.
-func (r *Router) Walk(walkFn WalkFunc) error {
-	return r.walk(walkFn, []*Route{})
-}
-
 // ErrSkipRouter is used as a return value from WalkFuncs to indicate that the
 // router that walk is about to descend down to should be skipped.
 var ErrSkipRouter = errors.New("skip this router")
-
-// WalkFunc is the type of the function called for each route visited by Walk.
-// At every invocation, it is given the current route, and the current router,
-// and a list of ancestor routes that lead to the current route.
-type WalkFunc func(route *Route, router *Router, ancestors []*Route) error
-
-func (r *Router) walk(walkFn WalkFunc, ancestors []*Route) error {
-	for _, t := range r.routes {
-		err := walkFn(t, r, ancestors)
-		if err == ErrSkipRouter {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		for _, sr := range t.matchers {
-			if h, ok := sr.(*Router); ok {
-				ancestors = append(ancestors, t)
-				err := h.walk(walkFn, ancestors)
-				if err != nil {
-					return err
-				}
-				ancestors = ancestors[:len(ancestors)-1]
-			}
-		}
-		if h, ok := t.handler.(*Router); ok {
-			ancestors = append(ancestors, t)
-			err := h.walk(walkFn, ancestors)
-			if err != nil {
-				return err
-			}
-			ancestors = ancestors[:len(ancestors)-1]
-		}
-	}
-	return nil
-}
 
 // ----------------------------------------------------------------------------
 // Context

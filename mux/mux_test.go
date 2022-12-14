@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -1159,44 +1158,6 @@ func TestMatcherFunc(t *testing.T) {
 	}
 }
 
-func TestBuildVarsFunc(t *testing.T) {
-	tests := []routeTest{
-		{
-			title: "BuildVarsFunc set on route",
-			route: new(Route).Path(`/111/{v1:\d}{v2:.*}`).BuildVarsFunc(func(vars map[string]string) map[string]string {
-				vars["v1"] = "3"
-				vars["v2"] = "a"
-				return vars
-			}),
-			request:      newRequest("GET", "http://localhost/111/2"),
-			path:         "/111/3a",
-			pathTemplate: `/111/{v1:\d}{v2:.*}`,
-			shouldMatch:  true,
-		},
-		{
-			title: "BuildVarsFunc set on route and parent route",
-			route: new(Route).PathPrefix(`/{v1:\d}`).BuildVarsFunc(func(vars map[string]string) map[string]string {
-				vars["v1"] = "2"
-				return vars
-			}).Subrouter().Path(`/{v2:\w}`).BuildVarsFunc(func(vars map[string]string) map[string]string {
-				vars["v2"] = "b"
-				return vars
-			}),
-			request:      newRequest("GET", "http://localhost/1/a"),
-			path:         "/2/b",
-			pathTemplate: `/{v1:\d}/{v2:\w}`,
-			shouldMatch:  true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.title, func(t *testing.T) {
-			testRoute(t, test)
-			testTemplate(t, test)
-		})
-	}
-}
-
 func TestSubRouter(t *testing.T) {
 	subrouter1 := new(Route).Host("{v1:[a-z]+}.google.com").Subrouter()
 	subrouter2 := new(Route).PathPrefix("/foo/{v1}").Subrouter()
@@ -1571,165 +1532,6 @@ func TestUseEncodedPath(t *testing.T) {
 			testRoute(t, test)
 			testTemplate(t, test)
 		})
-	}
-}
-
-func TestWalkSingleDepth(t *testing.T) {
-	r0 := NewRouter()
-	r1 := NewRouter()
-	r2 := NewRouter()
-
-	r0.Path("/g")
-	r0.Path("/o")
-	r0.Path("/d").Handler(r1)
-	r0.Path("/r").Handler(r2)
-	r0.Path("/a")
-
-	r1.Path("/z")
-	r1.Path("/i")
-	r1.Path("/l")
-	r1.Path("/l")
-
-	r2.Path("/i")
-	r2.Path("/l")
-	r2.Path("/l")
-
-	paths := []string{"g", "o", "r", "i", "l", "l", "a"}
-	depths := []int{0, 0, 0, 1, 1, 1, 0}
-	i := 0
-	err := r0.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		matcher := route.matchers[0].(*routeRegexp)
-		if matcher.template == "/d" {
-			return ErrSkipRouter
-		}
-		if len(ancestors) != depths[i] {
-			t.Errorf(`Expected depth of %d at i = %d; got "%d"`, depths[i], i, len(ancestors))
-		}
-		if matcher.template != "/"+paths[i] {
-			t.Errorf(`Expected "/%s" at i = %d; got "%s"`, paths[i], i, matcher.template)
-		}
-		i++
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-	if i != len(paths) {
-		t.Errorf("Expected %d routes, found %d", len(paths), i)
-	}
-}
-
-func TestWalkNested(t *testing.T) {
-	router := NewRouter()
-
-	routeSubrouter := func(r *Route) (*Route, *Router) {
-		return r, r.Subrouter()
-	}
-
-	gRoute, g := routeSubrouter(router.Path("/g"))
-	oRoute, o := routeSubrouter(g.PathPrefix("/o"))
-	rRoute, r := routeSubrouter(o.PathPrefix("/r"))
-	iRoute, i := routeSubrouter(r.PathPrefix("/i"))
-	l1Route, l1 := routeSubrouter(i.PathPrefix("/l"))
-	l2Route, l2 := routeSubrouter(l1.PathPrefix("/l"))
-	l2.Path("/a")
-
-	testCases := []struct {
-		path      string
-		ancestors []*Route
-	}{
-		{"/g", []*Route{}},
-		{"/g/o", []*Route{gRoute}},
-		{"/g/o/r", []*Route{gRoute, oRoute}},
-		{"/g/o/r/i", []*Route{gRoute, oRoute, rRoute}},
-		{"/g/o/r/i/l", []*Route{gRoute, oRoute, rRoute, iRoute}},
-		{"/g/o/r/i/l/l", []*Route{gRoute, oRoute, rRoute, iRoute, l1Route}},
-		{"/g/o/r/i/l/l/a", []*Route{gRoute, oRoute, rRoute, iRoute, l1Route, l2Route}},
-	}
-
-	idx := 0
-	err := router.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		path := testCases[idx].path
-		tpl := route.regexp.path.template
-		if tpl != path {
-			t.Errorf(`Expected %s got %s`, path, tpl)
-		}
-		currWantAncestors := testCases[idx].ancestors
-		if !reflect.DeepEqual(currWantAncestors, ancestors) {
-			t.Errorf(`Expected %+v got %+v`, currWantAncestors, ancestors)
-		}
-		idx++
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-	if idx != len(testCases) {
-		t.Errorf("Expected %d routes, found %d", len(testCases), idx)
-	}
-}
-
-func TestWalkSubrouters(t *testing.T) {
-	router := NewRouter()
-
-	g := router.Path("/g").Subrouter()
-	o := g.PathPrefix("/o").Subrouter()
-	o.Methods("GET")
-	o.Methods("PUT")
-
-	// all 4 routes should be matched
-	paths := []string{"/g", "/g/o", "/g/o", "/g/o"}
-	idx := 0
-	err := router.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		path := paths[idx]
-		tpl, _ := route.GetPathTemplate()
-		if tpl != path {
-			t.Errorf(`Expected %s got %s`, path, tpl)
-		}
-		idx++
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-	if idx != len(paths) {
-		t.Errorf("Expected %d routes, found %d", len(paths), idx)
-	}
-}
-
-func TestWalkErrorRoute(t *testing.T) {
-	router := NewRouter()
-	router.Path("/g")
-	expectedError := errors.New("error")
-	err := router.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		return expectedError
-	})
-	if err != expectedError {
-		t.Errorf("Expected %v routes, found %v", expectedError, err)
-	}
-}
-
-func TestWalkErrorMatcher(t *testing.T) {
-	router := NewRouter()
-	expectedError := router.Path("/g").Subrouter().Path("").GetError()
-	err := router.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		return route.GetError()
-	})
-	if err != expectedError {
-		t.Errorf("Expected %v routes, found %v", expectedError, err)
-	}
-}
-
-func TestWalkErrorHandler(t *testing.T) {
-	handler := NewRouter()
-	expectedError := handler.Path("/path").Subrouter().Path("").GetError()
-	router := NewRouter()
-	router.Path("/g").Handler(handler)
-	err := router.Walk(func(route *Route, router *Router, ancestors []*Route) error {
-		return route.GetError()
-	})
-	if err != expectedError {
-		t.Errorf("Expected %v routes, found %v", expectedError, err)
 	}
 }
 
@@ -2644,9 +2446,6 @@ func Test_copyRouteConf(t *testing.T) {
 		m MatcherFunc = func(*http.Request, *RouteMatch) bool {
 			return true
 		}
-		b BuildVarsFunc = func(i map[string]string) map[string]string {
-			return i
-		}
 		r, _ = newRouteRegexp("hi", regexpTypeHost, routeRegexpOptions{})
 	)
 
@@ -2669,7 +2468,6 @@ func Test_copyRouteConf(t *testing.T) {
 				regexp:         routeRegexpGroup{host: r, path: r, queries: []*routeRegexp{r}},
 				matchers:       []matcher{m},
 				buildScheme:    "https",
-				buildVarsFunc:  b,
 			},
 			routeConf{
 				useEncodedPath: true,
@@ -2678,7 +2476,6 @@ func Test_copyRouteConf(t *testing.T) {
 				regexp:         routeRegexpGroup{host: r, path: r, queries: []*routeRegexp{r}},
 				matchers:       []matcher{m},
 				buildScheme:    "https",
-				buildVarsFunc:  b,
 			},
 		},
 	}
@@ -2702,12 +2499,6 @@ func Test_copyRouteConf(t *testing.T) {
 				}
 				got.regexp.queries, tt.want.regexp.queries = nil, nil
 			}
-
-			// funcs not comparable, just compare nullity
-			if (got.buildVarsFunc == nil) != (tt.want.buildVarsFunc == nil) {
-				t.Errorf("build vars funcs unequal: %v %v", got.buildVarsFunc == nil, tt.want.buildVarsFunc == nil)
-			}
-			got.buildVarsFunc, tt.want.buildVarsFunc = nil, nil
 
 			// finish the deal
 			if !reflect.DeepEqual(got, tt.want) {

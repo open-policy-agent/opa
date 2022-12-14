@@ -17,8 +17,6 @@ import (
 type Route struct {
 	// Request handler for the route.
 	handler http.Handler
-	// If true, this route never matches: it is only used to build URLs.
-	buildOnly bool
 	// The name used to build URLs.
 	name string
 	// Error resulted from building a route.
@@ -39,7 +37,7 @@ func (r *Route) SkipClean() bool {
 
 // Match matches the route against the request.
 func (r *Route) Match(req *http.Request, match *RouteMatch) bool {
-	if r.buildOnly || r.err != nil {
+	if r.err != nil {
 		return false
 	}
 
@@ -104,12 +102,6 @@ func (r *Route) Match(req *http.Request, match *RouteMatch) bool {
 // GetError returns an error resulted from building the route, if any.
 func (r *Route) GetError() error {
 	return r.err
-}
-
-// BuildOnly sets the route to never match: it is only used to build URLs.
-func (r *Route) BuildOnly() *Route {
-	r.buildOnly = true
-	return r
 }
 
 // Handler --------------------------------------------------------------------
@@ -452,21 +444,6 @@ func (r *Route) Schemes(schemes ...string) *Route {
 // functions (which can modify route variables before a route's URL is built).
 type BuildVarsFunc func(map[string]string) map[string]string
 
-// BuildVarsFunc adds a custom function to be used to modify build variables
-// before a route's URL is built.
-func (r *Route) BuildVarsFunc(f BuildVarsFunc) *Route {
-	if r.buildVarsFunc != nil {
-		// compose the old and new functions
-		old := r.buildVarsFunc
-		r.buildVarsFunc = func(m map[string]string) map[string]string {
-			return f(old(m))
-		}
-	} else {
-		r.buildVarsFunc = f
-	}
-	return r
-}
-
 // Subrouter ------------------------------------------------------------------
 
 // Subrouter creates a subrouter for the route.
@@ -725,12 +702,5 @@ func (r *Route) prepareVars(pairs ...string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.buildVars(m), nil
-}
-
-func (r *Route) buildVars(m map[string]string) map[string]string {
-	if r.buildVarsFunc != nil {
-		m = r.buildVarsFunc(m)
-	}
-	return m
+	return m, nil
 }

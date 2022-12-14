@@ -670,7 +670,6 @@ func (s *Server) initRouters() {
 	for _, router := range []*mux.Router{mainRouter, diagRouter} {
 		router.StrictSlash(true)
 		router.UseEncodedPath()
-		router.StrictSlash(true)
 
 		if s.metrics != nil {
 			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
