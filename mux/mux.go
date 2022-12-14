@@ -64,9 +64,6 @@ type Router struct {
 	// Deprecated: No effect, since the context is stored on the request itself.
 	KeepContext bool
 
-	// Slice of middlewares to be called after a match is found
-	middlewares []middleware
-
 	// configuration shared with `Route`
 	routeConf
 }
@@ -138,12 +135,6 @@ func copyRouteRegexp(r *routeRegexp) *routeRegexp {
 func (r *Router) Match(req *http.Request, match *RouteMatch) bool {
 	for _, route := range r.routes {
 		if route.Match(req, match) {
-			// Build middleware chain if no error was found
-			if match.MatchErr == nil {
-				for i := len(r.middlewares) - 1; i >= 0; i-- {
-					match.Handler = r.middlewares[i].Middleware(match.Handler)
-				}
-			}
 			return true
 		}
 	}
