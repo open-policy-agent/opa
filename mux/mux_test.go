@@ -1600,7 +1600,7 @@ func TestWalkSingleDepth(t *testing.T) {
 	err := r0.Walk(func(route *Route, router *Router, ancestors []*Route) error {
 		matcher := route.matchers[0].(*routeRegexp)
 		if matcher.template == "/d" {
-			return SkipRouter
+			return ErrSkipRouter
 		}
 		if len(ancestors) != depths[i] {
 			t.Errorf(`Expected depth of %d at i = %d; got "%d"`, depths[i], i, len(ancestors))
@@ -1976,7 +1976,7 @@ func Test301Redirect(t *testing.T) {
 	}
 	r.ServeHTTP(&res, req)
 
-	if "http://localhost/api/?abc=def" != res.hh["Location"][0] {
+	if res.hh["Location"][0] != "http://localhost/api/?abc=def" {
 		t.Errorf("Should have complete URL with query string")
 	}
 }
