@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/open-policy-agent/opa/mux"
+	"github.com/gorilla/mux"
 )
 
 // URLBuilder creates registry API urls from a single base endpoint. It can be
@@ -208,7 +208,7 @@ func (ub *URLBuilder) cloneRoute(name string) clonedRoute {
 	route := new(mux.Route)
 	root := new(url.URL)
 
-	*route = *ub.router.Get(name) // clone the route
+	*route = *ub.router.GetRoute(name) // clone the route
 	*root = *ub.root
 
 	return clonedRoute{Route: route, root: root, relative: ub.relative}
