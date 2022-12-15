@@ -54,6 +54,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
 	strictBuiltinErrors    bool
+	builtinErrorBuffer     *[]Error
 	strictObjects          bool
 	printHook              print.Hook
 	tracingOpts            tracing.Options
@@ -256,6 +257,12 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
+// WithBuiltinErrorBuffer supplies an error slice to store built-in function errors.
+func (q *Query) WithBuiltinErrorBuffer(buf *[]Error) *Query {
+	q.builtinErrorBuffer = buf
+	return q
+}
+
 // WithResolver configures an external resolver to use for the given ref.
 func (q *Query) WithResolver(ref ast.Ref, r resolver.Resolver) *Query {
 	q.external.Put(ref, r)
@@ -419,8 +426,21 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 
 	support = e.saveSupport.List()
 
-	if q.strictBuiltinErrors && len(e.builtinErrors.errs) > 0 {
-		err = e.builtinErrors.errs[0]
+	if len(e.builtinErrors.errs) > 0 {
+		if q.strictBuiltinErrors {
+			err = e.builtinErrors.errs[0]
+		} else if q.builtinErrorBuffer != nil {
+			for _, err := range e.builtinErrors.errs {
+				if tdError, ok := err.(*Error); ok {
+					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), *tdError)
+				} else {
+					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), Error{
+						Code:    BuiltinErr,
+						Message: err.Error(),
+					})
+				}
+			}
+		}
 	}
 
 	for i := range support {
@@ -504,8 +524,21 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		return iter(qr)
 	})
 
-	if q.strictBuiltinErrors && err == nil && len(e.builtinErrors.errs) > 0 {
-		err = e.builtinErrors.errs[0]
+	if len(e.builtinErrors.errs) > 0 {
+		if q.strictBuiltinErrors {
+			err = e.builtinErrors.errs[0]
+		} else if q.builtinErrorBuffer != nil {
+			for _, err := range e.builtinErrors.errs {
+				if tdError, ok := err.(*Error); ok {
+					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), *tdError)
+				} else {
+					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), Error{
+						Code:    BuiltinErr,
+						Message: err.Error(),
+					})
+				}
+			}
+		}
 	}
 
 	q.metrics.Timer(metrics.RegoQueryEval).Stop()
