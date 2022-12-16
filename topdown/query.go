@@ -54,7 +54,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
 	strictBuiltinErrors    bool
-	builtinErrorBuffer     *[]Error
+	builtinErrorList       *[]Error
 	strictObjects          bool
 	printHook              print.Hook
 	tracingOpts            tracing.Options
@@ -257,9 +257,9 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
-// WithBuiltinErrorBuffer supplies an error slice to store built-in function errors.
-func (q *Query) WithBuiltinErrorBuffer(buf *[]Error) *Query {
-	q.builtinErrorBuffer = buf
+// WithBuiltinErrorList supplies an error slice to store built-in function errors.
+func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
+	q.builtinErrorList = list
 	return q
 }
 
@@ -429,12 +429,12 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if len(e.builtinErrors.errs) > 0 {
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
-		} else if q.builtinErrorBuffer != nil {
+		} else if q.builtinErrorList != nil {
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
-					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), *tdError)
+					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
 				} else {
-					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), Error{
+					*(q.builtinErrorList) = append(*(q.builtinErrorList), Error{
 						Code:    BuiltinErr,
 						Message: err.Error(),
 					})
@@ -527,12 +527,12 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if len(e.builtinErrors.errs) > 0 {
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
-		} else if q.builtinErrorBuffer != nil {
+		} else if q.builtinErrorList != nil {
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
-					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), *tdError)
+					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
 				} else {
-					*(q.builtinErrorBuffer) = append(*(q.builtinErrorBuffer), Error{
+					*(q.builtinErrorList) = append(*(q.builtinErrorList), Error{
 						Code:    BuiltinErr,
 						Message: err.Error(),
 					})

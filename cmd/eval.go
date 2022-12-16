@@ -380,7 +380,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	var builtInErrorCount int
 	if ectx.params.showBuiltinErrors {
-		builtInErrorCount = len(*(ectx.builtInErrors))
+		builtInErrorCount = len(*(ectx.builtInErrorList))
 	}
 
 	switch ectx.params.outputFormat.String() {
@@ -447,8 +447,8 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	}
 
 	result.Errors = pr.NewOutputErrors(resultErr)
-	if ectx.builtInErrors != nil {
-		for _, err := range *(ectx.builtInErrors) {
+	if ectx.builtInErrorList != nil {
+		for _, err := range *(ectx.builtInErrorList) {
 			result.Errors = append(result.Errors, pr.NewOutputErrors(&err)...)
 		}
 	}
@@ -489,14 +489,14 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 }
 
 type evalContext struct {
-	params        evalCommandParams
-	metrics       metrics.Metrics
-	profiler      *resettableProfiler
-	cover         *cover.Cover
-	tracer        *topdown.BufferTracer
-	regoArgs      []func(*rego.Rego)
-	evalArgs      []rego.EvalOption
-	builtInErrors *[]topdown.Error
+	params           evalCommandParams
+	metrics          metrics.Metrics
+	profiler         *resettableProfiler
+	cover            *cover.Cover
+	tracer           *topdown.BufferTracer
+	regoArgs         []func(*rego.Rego)
+	evalArgs         []rego.EvalOption
+	builtInErrorList *[]topdown.Error
 }
 
 func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
@@ -646,7 +646,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	var builtInErrors []topdown.Error
 	if params.showBuiltinErrors {
-		regoArgs = append(regoArgs, rego.BuiltinErrorBuffer(&builtInErrors))
+		regoArgs = append(regoArgs, rego.BuiltinErrorList(&builtInErrors))
 	}
 
 	if params.capabilities != nil {
@@ -658,14 +658,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	evalCtx := &evalContext{
-		params:        params,
-		metrics:       m,
-		profiler:      &rp,
-		cover:         c,
-		tracer:        tracer,
-		regoArgs:      regoArgs,
-		evalArgs:      evalArgs,
-		builtInErrors: &builtInErrors,
+		params:           params,
+		metrics:          m,
+		profiler:         &rp,
+		cover:            c,
+		tracer:           tracer,
+		regoArgs:         regoArgs,
+		evalArgs:         evalArgs,
+		builtInErrorList: &builtInErrors,
 	}
 
 	return evalCtx, nil

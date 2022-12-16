@@ -528,7 +528,7 @@ type Rego struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
 	strictBuiltinErrors    bool
-	builtinErrorBuffer     *[]topdown.Error
+	builtinErrorList       *[]topdown.Error
 	resolvers              []refResolver
 	schemaSet              *ast.SchemaSet
 	target                 string // target type (wasm, rego, etc.)
@@ -1056,10 +1056,10 @@ func StrictBuiltinErrors(yes bool) func(r *Rego) {
 	}
 }
 
-// BuiltinErrorBuffer supplies an error slice to store built-in function errors.
-func BuiltinErrorBuffer(buf *[]topdown.Error) func(r *Rego) {
+// BuiltinErrorList supplies an error slice to store built-in function errors.
+func BuiltinErrorList(list *[]topdown.Error) func(r *Rego) {
 	return func(r *Rego) {
-		r.builtinErrorBuffer = buf
+		r.builtinErrorList = list
 	}
 }
 
@@ -1967,7 +1967,7 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithEarlyExit(ectx.earlyExit).
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(r.strictBuiltinErrors).
-		WithBuiltinErrorBuffer(r.builtinErrorBuffer).
+		WithBuiltinErrorList(r.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
 		WithDistributedTracingOpts(r.distributedTacingOpts)

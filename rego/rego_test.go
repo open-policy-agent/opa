@@ -2253,10 +2253,10 @@ func TestStrictBuiltinErrors(t *testing.T) {
 	}
 }
 
-func TestBuiltinErrorBuffer(t *testing.T) {
+func TestBuiltinErrorList(t *testing.T) {
 	var buf []topdown.Error
 
-	_, err := New(Query("1/0"), BuiltinErrorBuffer(&buf)).Eval(context.Background())
+	_, err := New(Query("1/0"), BuiltinErrorList(&buf)).Eval(context.Background())
 	if err != nil {
 		t.Fatal("unexpected error")
 	}
