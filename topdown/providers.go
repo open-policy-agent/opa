@@ -104,7 +104,7 @@ func builtinAWSSigV4SignReq(ctx BuiltinContext, operands []*ast.Term, iter func(
 		return err
 	}
 	service := stringFromTerm(awsConfigObj.Get(ast.StringTerm("aws_service")))
-	awsCreds := aws.AWSCredentialsFromObject(awsConfigObj)
+	awsCreds := aws.CredentialsFromObject(awsConfigObj)
 
 	// Timestamp for signing.
 	var signingTimestamp time.Time
@@ -172,7 +172,7 @@ func builtinAWSSigV4SignReq(ctx BuiltinContext, operands []*ast.Term, iter func(
 	}
 
 	// Sign the request object's headers, and reconstruct the headers map.
-	authHeader, signedHeadersMap := aws.AWSSignV4(objectToMap(headers), method, theURL, body, service, awsCreds, signingTimestamp)
+	authHeader, signedHeadersMap := aws.SignV4(objectToMap(headers), method, theURL, body, service, awsCreds, signingTimestamp)
 	signedHeadersObj := ast.NewObject()
 	signedHeadersObj.Insert(ast.StringTerm("Authorization"), ast.StringTerm(authHeader))
 	for k, v := range signedHeadersMap {

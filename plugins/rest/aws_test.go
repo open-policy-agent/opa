@@ -63,7 +63,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 
 	t.Setenv("AWS_REGION", "us-east-1")
 
-	expectedCreds := aws.AWSCredentials{
+	expectedCreds := aws.Credentials{
 		AccessKey:    "MYAWSACCESSKEYGOESHERE",
 		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
 		RegionName:   "us-east-1",
@@ -136,7 +136,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected := aws.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    fooKey,
 			SecretKey:    fooSecret,
 			RegionName:   fooRegion,
@@ -159,7 +159,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected = aws.AWSCredentials{
+		expected = aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -202,7 +202,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := aws.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -251,7 +251,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := aws.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -415,7 +415,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	var creds aws.AWSCredentials
+	var creds aws.Credentials
 	creds, err = cs.credentials()
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.

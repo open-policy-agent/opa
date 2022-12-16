@@ -532,7 +532,7 @@ func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
 	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
 }
 
-func (acs *awsCredentialServiceChain) credentials() (aws.AWSCredentials, error) {
+func (acs *awsCredentialServiceChain) credentials() (aws.Credentials, error) {
 	for _, service := range acs.awsCredentialServices {
 		credential, err := service.credentials()
 		if err == nil {
@@ -545,7 +545,7 @@ func (acs *awsCredentialServiceChain) credentials() (aws.AWSCredentials, error) 
 			reflect.TypeOf(service).String(), err)
 	}
 
-	return aws.AWSCredentials{}, errors.New("all AWS credential providers failed")
+	return aws.Credentials{}, errors.New("all AWS credential providers failed")
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {

@@ -128,7 +128,7 @@ type v4aCredentials struct {
 }
 
 // retrievePrivateKey returns credentials suitable for SigV4a signing
-func retrievePrivateKey(symmetric AWSCredentials) (v4aCredentials, error) {
+func retrievePrivateKey(symmetric Credentials) (v4aCredentials, error) {
 	cache.m.Lock()
 	defer cache.m.Unlock()
 
@@ -375,8 +375,8 @@ type signedRequest struct {
 	StringToSign    string
 }
 
-// AWSSignV4a returns a map[string][]string of headers, including an added AWS V4a signature based on the config/credentials provided.
-func AWSSignV4a(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds AWSCredentials, theTime time.Time) map[string][]string {
+// SignV4a returns a map[string][]string of headers, including an added AWS V4a signature based on the config/credentials provided.
+func SignV4a(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds Credentials, theTime time.Time) map[string][]string {
 	bodyHexHash := fmt.Sprintf("%x", sha256.Sum256(body))
 
 	key, err := retrievePrivateKey(awsCreds)

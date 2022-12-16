@@ -57,7 +57,7 @@ const (
 
 // awsCredentialService represents the interface for AWS credential providers
 type awsCredentialService interface {
-	credentials() (aws.AWSCredentials, error)
+	credentials() (aws.Credentials, error)
 }
 
 // awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
@@ -65,8 +65,8 @@ type awsEnvironmentCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsEnvironmentCredentialService) credentials() (aws.AWSCredentials, error) {
-	var creds aws.AWSCredentials
+func (cs *awsEnvironmentCredentialService) credentials() (aws.Credentials, error) {
+	var creds aws.Credentials
 	creds.AccessKey = os.Getenv(accessKeyEnvVar)
 	if creds.AccessKey == "" {
 		return creds, errors.New("no " + accessKeyEnvVar + " set in environment")
@@ -113,8 +113,8 @@ type awsProfileCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsProfileCredentialService) credentials() (aws.AWSCredentials, error) {
-	var creds aws.AWSCredentials
+func (cs *awsProfileCredentialService) credentials() (aws.Credentials, error) {
+	var creds aws.Credentials
 
 	filename, err := cs.path()
 	if err != nil {
@@ -190,7 +190,7 @@ func (cs *awsProfileCredentialService) profile() string {
 type awsMetadataCredentialService struct {
 	RoleName        string `json:"iam_role,omitempty"`
 	RegionName      string `json:"aws_region"`
-	creds           aws.AWSCredentials
+	creds           aws.Credentials
 	expiration      time.Time
 	credServicePath string
 	tokenPath       string
@@ -307,7 +307,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsMetadataCredentialService) credentials() (aws.AWSCredentials, error) {
+func (cs *awsMetadataCredentialService) credentials() (aws.Credentials, error) {
 	err := cs.refreshFromService()
 	if err != nil {
 		return cs.creds, err
@@ -322,7 +322,7 @@ type awsWebIdentityCredentialService struct {
 	RegionName           string `json:"aws_region"`
 	SessionName          string `json:"session_name"`
 	stsURL               string
-	creds                aws.AWSCredentials
+	creds                aws.Credentials
 	expiration           time.Time
 	logger               logging.Logger
 }
@@ -432,7 +432,7 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsWebIdentityCredentialService) credentials() (aws.AWSCredentials, error) {
+func (cs *awsWebIdentityCredentialService) credentials() (aws.Credentials, error) {
 	err := cs.refreshFromService()
 	if err != nil {
 		return cs.creds, err
@@ -507,10 +507,10 @@ func signV4(req *http.Request, service string, credService awsCredentialService,
 	now := theTime.UTC()
 
 	if sigVersion == "4a" {
-		signedHeaders := aws.AWSSignV4a(req.Header, req.Method, req.URL, body, service, creds, now)
+		signedHeaders := aws.SignV4a(req.Header, req.Method, req.URL, body, service, creds, now)
 		req.Header = signedHeaders
 	} else {
-		authHeader, awsHeaders := aws.AWSSignV4(req.Header, req.Method, req.URL, body, service, creds, now)
+		authHeader, awsHeaders := aws.SignV4(req.Header, req.Method, req.URL, body, service, creds, now)
 		req.Header.Set("Authorization", authHeader)
 		for k, v := range awsHeaders {
 			req.Header.Add(k, v)
