@@ -3,12 +3,30 @@ set -eo pipefail
 OPA_EXEC="$1"
 TARGET="$2"
 
-opa() {
+github_actions_group() {
     local args="$*"
     echo "::group::$args"
-    $OPA_EXEC $args
+    $args
     echo "::endgroup::"
 }
+
+opa() {
+    local args="$*"
+    github_actions_group $OPA_EXEC $args
+}
+
+# assert_contains checks if the actual string contains the expected string.
+assert_contains() {
+    local expected="$1"
+    local actual="$2"
+    if [[ "$actual" != *"$expected"* ]]; then
+        echo "Expected '$expected' but got '$actual'"
+        exit 1
+    fi
+}
+
+
+
 
 opa version
 opa eval -t $TARGET 'time.now_ns()'
@@ -20,3 +38,7 @@ opa build --optimize 1 --output o1.tar.gz test/cli/smoke/data.yaml test/cli/smok
 echo '{"yay": "bar"}' | opa eval --format pretty --bundle o1.tar.gz -I data.test.result --fail
 opa build --optimize 2 --output o2.tar.gz  test/cli/smoke/data.yaml test/cli/smoke/test.rego
 echo '{"yay": "bar"}' | opa eval --format pretty --bundle o2.tar.gz -I data.test.result --fail
+
+# Tar paths 
+opa build --output o3.tar.gz test/cli/smoke
+github_actions_group assert_contains '/test/cli/smoke/test.rego' "$(tar -tf o3.tar.gz /test/cli/smoke/test.rego)"
