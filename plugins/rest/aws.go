@@ -19,8 +19,7 @@ import (
 	"time"
 
 	"github.com/go-ini/ini"
-
-	"github.com/open-policy-agent/opa/internal/providers"
+	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/logging"
 )
 
@@ -58,7 +57,7 @@ const (
 
 // awsCredentialService represents the interface for AWS credential providers
 type awsCredentialService interface {
-	credentials() (providers.AWSCredentials, error)
+	credentials() (aws.Credentials, error)
 }
 
 // awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
@@ -66,8 +65,8 @@ type awsEnvironmentCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsEnvironmentCredentialService) credentials() (providers.AWSCredentials, error) {
-	var creds providers.AWSCredentials
+func (cs *awsEnvironmentCredentialService) credentials() (aws.Credentials, error) {
+	var creds aws.Credentials
 	creds.AccessKey = os.Getenv(accessKeyEnvVar)
 	if creds.AccessKey == "" {
 		return creds, errors.New("no " + accessKeyEnvVar + " set in environment")
@@ -114,8 +113,8 @@ type awsProfileCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsProfileCredentialService) credentials() (providers.AWSCredentials, error) {
-	var creds providers.AWSCredentials
+func (cs *awsProfileCredentialService) credentials() (aws.Credentials, error) {
+	var creds aws.Credentials
 
 	filename, err := cs.path()
 	if err != nil {
@@ -142,7 +141,7 @@ func (cs *awsProfileCredentialService) credentials() (providers.AWSCredentials, 
 		return creds, fmt.Errorf("profile \"%v\" in credentials file %v does not contain \"%v\"", cs.Profile, cs.Path, secretKeyGlobalSetting)
 	}
 
-	creds.SessionToken = profile.Key(securityTokenGlobalSetting).String() //default to empty string
+	creds.SessionToken = profile.Key(securityTokenGlobalSetting).String() // default to empty string
 
 	if cs.RegionName == "" {
 		if cs.RegionName = os.Getenv(awsRegionEnvVar); cs.RegionName == "" {
@@ -191,7 +190,7 @@ func (cs *awsProfileCredentialService) profile() string {
 type awsMetadataCredentialService struct {
 	RoleName        string `json:"iam_role,omitempty"`
 	RegionName      string `json:"aws_region"`
-	creds           providers.AWSCredentials
+	creds           aws.Credentials
 	expiration      time.Time
 	credServicePath string
 	tokenPath       string
@@ -308,7 +307,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsMetadataCredentialService) credentials() (providers.AWSCredentials, error) {
+func (cs *awsMetadataCredentialService) credentials() (aws.Credentials, error) {
 	err := cs.refreshFromService()
 	if err != nil {
 		return cs.creds, err
@@ -323,7 +322,7 @@ type awsWebIdentityCredentialService struct {
 	RegionName           string `json:"aws_region"`
 	SessionName          string `json:"session_name"`
 	stsURL               string
-	creds                providers.AWSCredentials
+	creds                aws.Credentials
 	expiration           time.Time
 	logger               logging.Logger
 }
@@ -433,7 +432,7 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsWebIdentityCredentialService) credentials() (providers.AWSCredentials, error) {
+func (cs *awsWebIdentityCredentialService) credentials() (aws.Credentials, error) {
 	err := cs.refreshFromService()
 	if err != nil {
 		return cs.creds, err
@@ -482,7 +481,7 @@ func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc st
 }
 
 // signV4 modifies an http.Request to include an AWS V4 signature based on a credential provider
-func signV4(req *http.Request, service string, credService awsCredentialService, theTime time.Time) error {
+func signV4(req *http.Request, service string, credService awsCredentialService, theTime time.Time, sigVersion string) error {
 	// General ref. https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
 	// S3 ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
 	// APIGateway ref. https://docs.aws.amazon.com/apigateway/api-reference/signing-requests/
@@ -507,11 +506,15 @@ func signV4(req *http.Request, service string, credService awsCredentialService,
 
 	now := theTime.UTC()
 
-	authHeader, awsHeaders := providers.AWSSignV4(req.Header, req.Method, req.URL, body, service, creds, now)
-
-	req.Header.Set("Authorization", authHeader)
-	for k, v := range awsHeaders {
-		req.Header.Add(k, v)
+	if sigVersion == "4a" {
+		signedHeaders := aws.SignV4a(req.Header, req.Method, req.URL, body, service, creds, now)
+		req.Header = signedHeaders
+	} else {
+		authHeader, awsHeaders := aws.SignV4(req.Header, req.Method, req.URL, body, service, creds, now)
+		req.Header.Set("Authorization", authHeader)
+		for k, v := range awsHeaders {
+			req.Header.Add(k, v)
+		}
 	}
 
 	return nil

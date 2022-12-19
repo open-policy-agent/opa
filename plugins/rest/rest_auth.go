@@ -26,7 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/internal/jwx/jws/sign"
-	"github.com/open-policy-agent/opa/internal/providers"
+	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
@@ -518,6 +518,7 @@ type awsSigningAuthPlugin struct {
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
 	AWSService                string                           `json:"service,omitempty"`
+	AWSSignatureVersion       string                           `json:"signature_version,omitempty"`
 
 	logger logging.Logger
 }
@@ -531,7 +532,7 @@ func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
 	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
 }
 
-func (acs *awsCredentialServiceChain) credentials() (providers.AWSCredentials, error) {
+func (acs *awsCredentialServiceChain) credentials() (aws.Credentials, error) {
 	for _, service := range acs.awsCredentialServices {
 		credential, err := service.credentials()
 		if err == nil {
@@ -544,7 +545,7 @@ func (acs *awsCredentialServiceChain) credentials() (providers.AWSCredentials, e
 			reflect.TypeOf(service).String(), err)
 	}
 
-	return providers.AWSCredentials{}, errors.New("all AWS credential providers failed")
+	return aws.Credentials{}, errors.New("all AWS credential providers failed")
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
@@ -602,7 +603,7 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
 	ap.logger.Debug("Signing request with AWS credentials.")
-	return signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now())
+	return signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now(), ap.AWSSignatureVersion)
 }
 
 func (ap *awsSigningAuthPlugin) validateConfig() error {
@@ -630,6 +631,10 @@ func (ap *awsSigningAuthPlugin) validateConfig() error {
 
 	if ap.AWSService == "" {
 		ap.AWSService = awsSigv4SigningDefaultService
+	}
+
+	if ap.AWSSignatureVersion == "" {
+		ap.AWSSignatureVersion = "4"
 	}
 
 	return nil
