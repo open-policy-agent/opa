@@ -187,6 +187,7 @@
       "time.clock",
       "time.date",
       "time.diff",
+      "time.format",
       "time.now_ns",
       "time.parse_duration_ns",
       "time.parse_ns",
@@ -13497,6 +13498,26 @@
       "description": "difference between `ns1` and `ns2` (in their supplied timezones, if supplied, or UTC) as array of numbers: `[years, months, days, hours, minutes, seconds]`",
       "name": "output",
       "type": "array\u003cnumber, number, number, number, number, number\u003e"
+    },
+    "wasm": false
+  },
+  "time.format": {
+    "args": [
+      {
+        "description": "a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string (see golang supported time formats)",
+        "name": "x",
+        "type": "any\u003cnumber, array\u003cnumber, string\u003e, array\u003cnumber, string, string\u003e\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns the formatted timestamp for the nanoseconds since epoch.",
+    "introduced": "edge",
+    "result": {
+      "description": "the formatted timestamp represented for the nanoseconds since the epoch in the supplied timezone (or UTC)",
+      "name": "formatted timestamp",
+      "type": "string"
     },
     "wasm": false
   },

@@ -1,0 +1,35 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    time_ns := 1670006453141828752
+
+    a := time.format(time_ns)
+
+    b := time.format([time_ns, "Asia/Kolkata"])
+
+    c := time.format([time_ns,"Asia/Kolkata","Mon Jan 02 15:04:05 -0700 2006"])
+
+  note: time/format
+  query: >
+    data.test.a = no_timezone;
+    data.test.b = with_timezone;
+    data.test.c = with_layout
+  want_result:
+  - no_timezone: "2022-12-02T18:40:53.141828752Z"
+    with_timezone: "2022-12-03T00:10:53.141828752+05:30"
+    with_layout: "Sat Dec 03 00:10:53 +0530 2022"
+- data:
+  modules:
+  - |
+    package generated
+
+    p := time.format(1582977600 * 10e12)
+
+  note: time/format too big
+  query: data.generated.p = x
+  want_error: timestamp too big
+  want_error_code: eval_builtin_error
+  strict_error: true
