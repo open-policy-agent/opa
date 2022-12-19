@@ -192,6 +192,7 @@ type Manager struct {
 	router                       *mux.Router
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
+	registeredNDCacheTriggers    []func(bool)
 }
 
 type managerContextKey string
@@ -682,6 +683,10 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 		trigger(interQueryBuiltinCacheConfig)
 	}
 
+	for _, trigger := range m.registeredNDCacheTriggers {
+		trigger(config.NDBuiltinCache)
+	}
+
 	return nil
 }
 
@@ -922,4 +927,10 @@ func (m *Manager) PrometheusRegister() prometheus.Registerer {
 // TracerProvider gets the *trace.TracerProvider for this plugin manager.
 func (m *Manager) TracerProvider() *trace.TracerProvider {
 	return m.tracerProvider
+}
+
+func (m *Manager) RegisterNDCacheTrigger(trigger func(bool)) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.registeredNDCacheTriggers = append(m.registeredNDCacheTriggers, trigger)
 }
