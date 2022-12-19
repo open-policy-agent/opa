@@ -1154,7 +1154,7 @@ services:
     type: oci
     credentials:
       bearer:
-        schema: "Bearer"
+        scheme: "Bearer"
         token: "<mytoken>"
 
 bundles:
