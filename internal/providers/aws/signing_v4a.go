@@ -183,11 +183,16 @@ func (s *httpSigner) setRequiredSigningFields(headers http.Header, query url.Val
 	}
 }
 
+// Build modifies the Request attribute of the httpSigner, adding an Authorization header
 func (s *httpSigner) Build() (signedRequest, error) {
 	req := s.Request
 
 	query := req.URL.Query()
 	headers := req.Header
+
+	// seemingly required by S3/MRAP -- 403 Forbidden otherwise
+	headers.Set("host", req.URL.Host)
+	headers.Set("x-amz-content-sha256", s.PayloadHash)
 
 	s.setRequiredSigningFields(headers, query)
 
@@ -278,8 +283,7 @@ func (s *httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, he
 	signed = make(http.Header)
 
 	const hostHeader = "host"
-	headers := []string{hostHeader}
-	signed[hostHeader] = append(signed[hostHeader], host)
+	headers := make([]string, 0)
 
 	if length > 0 {
 		const contentLengthHeader = "content-length"
@@ -387,10 +391,6 @@ func SignV4a(headers map[string][]string, method string, theURL *url.URL, body [
 	bodyReader := bytes.NewReader(body)
 	req, _ := http.NewRequest(method, theURL.String(), bodyReader)
 	req.Header = headers
-
-	// seemingly required by S3/MRAP -- 400 Bad Request otherwise
-	req.Header.Set("host", theURL.Host)
-	req.Header.Set("x-amz-content-sha256", bodyHexHash)
 
 	signer := &httpSigner{
 		Request:     req,
