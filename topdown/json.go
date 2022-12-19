@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/edittree"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
@@ -130,13 +131,10 @@ func builtinJSONFilter(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	}
 
 	// Actually do the filtering
-	filterObj := pathsToObject(filters)
-	r, err := obj.Filter(filterObj)
-	if err != nil {
-		return err
-	}
+	et := edittree.NewEditTree(ast.NewTerm(obj))
+	r := et.Filter(filters)
 
-	return iter(ast.NewTerm(r))
+	return iter(r)
 }
 
 func getJSONPaths(operand ast.Value) ([]ast.Ref, error) {

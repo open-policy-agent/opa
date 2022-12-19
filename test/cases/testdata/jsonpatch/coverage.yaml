@@ -1,6 +1,6 @@
 cases:
 # These tests cover mostly error scenarios.
-- note: jsonpatch/set
+- note: jsonpatch/set-failure add-to-bad-path
   query: data.main.result = x
   want_result: []
   modules:
