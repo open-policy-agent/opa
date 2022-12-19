@@ -727,7 +727,7 @@ For *GHCR* (Github Container Registry) you can use a developer PAT (personal acc
 ```
  credentials:
       bearer:
-        schema: "Bearer"
+        scheme: "Bearer"
         token: "<PAT>"
 ```
 

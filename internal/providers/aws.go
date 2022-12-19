@@ -74,8 +74,8 @@ func sortKeys(strMap map[string][]string) []string {
 	return keys
 }
 
-// AWSSignV4 modifies a map[string][]string of headers to include an AWS V4 signature based on the config/credentials provided.
-func AWSSignV4(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds AWSCredentials, theTime time.Time) map[string][]string {
+// AWSSignV4 modifies a map[string][]string of headers to generate an AWS V4 signature + headers based on the config/credentials provided.
+func AWSSignV4(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds AWSCredentials, theTime time.Time) (string, map[string]string) {
 	// General ref. https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
 	// S3 ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
 	// APIGateway ref. https://docs.aws.amazon.com/apigateway/api-reference/signing-requests/
@@ -104,15 +104,17 @@ func AWSSignV4(headers map[string][]string, method string, theURL *url.URL, body
 	}
 
 	headersToSign := map[string][]string{}
-	// sign all of the aws headers that aren't on the ignore list.
+	// sign all of the aws headers.
+	for k, v := range awsHeaders {
+		headersToSign[k] = []string{v}
+	}
+
+	// sign all of the request's headers, except for those in the ignore list
 	for k, v := range headers {
 		lowercaseHeader := strings.ToLower(k)
 		if _, ok := awsSigv4IgnoredHeaders[lowercaseHeader]; !ok {
 			headersToSign[lowercaseHeader] = v
 		}
-	}
-	for k, v := range awsHeaders {
-		headersToSign[k] = []string{v}
 	}
 
 	// the "canonical request" is the normalized version of the AWS service access
@@ -153,19 +155,10 @@ func AWSSignV4(headers map[string][]string, method string, theURL *url.URL, body
 
 	// required format of Authorization header; n.b. the access key corresponding to
 	// the secret key is included here
-	authHdr := "AWS4-HMAC-SHA256 Credential=" + awsCreds.AccessKey + "/" + dateNow
-	authHdr += "/" + awsCreds.RegionName + "/" + service + "/aws4_request,"
-	authHdr += "SignedHeaders=" + headerList + ","
-	authHdr += "Signature=" + fmt.Sprintf("%x", signature)
+	authHeader := "AWS4-HMAC-SHA256 Credential=" + awsCreds.AccessKey + "/" + dateNow
+	authHeader += "/" + awsCreds.RegionName + "/" + service + "/aws4_request,"
+	authHeader += "SignedHeaders=" + headerList + ","
+	authHeader += "Signature=" + fmt.Sprintf("%x", signature)
 
-	// add the computed Authorization
-	out := make(map[string][]string, len(awsHeaders)+1)
-	out["Authorization"] = []string{authHdr}
-
-	// populate the other signed headers into the request
-	for k, v := range awsHeaders {
-		out[k] = []string{v}
-	}
-
-	return out
+	return authHeader, awsHeaders
 }
