@@ -1,3 +1,5 @@
+//go:build !usegorillamux
+
 // Copyright 2016 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
@@ -20,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/mux"
+	"github.com/open-policy-agent/opa/internal/mux"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"

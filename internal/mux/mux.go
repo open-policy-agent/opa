@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+
+	muxproto "github.com/open-policy-agent/opa/mux"
 )
 
 var (
@@ -20,6 +22,8 @@ var (
 	// ErrNotFound is returned when no route match is found.
 	ErrNotFound = errors.New("no matching route was found")
 )
+
+var _ muxproto.Router = (*Router)(nil)
 
 // NewRouter returns a new router instance.
 func NewRouter() *Router {
@@ -269,8 +273,8 @@ func (r *Router) Name(name string) *Route {
 
 // Handle registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.Handler().
-func (r *Router) Handle(path string, handler http.Handler) *Route {
-	return r.NewRoute().Path(path).Handler(handler)
+func (r *Router) Handle(path string, handler http.Handler) muxproto.Route {
+	return &RouteWrapper{inner: r.NewRoute().Path(path).Handler(handler)}
 }
 
 // HandleFunc registers a new route with a matcher for the URL path.

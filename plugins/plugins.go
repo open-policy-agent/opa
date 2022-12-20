@@ -8,7 +8,6 @@ package plugins
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,7 +22,6 @@ import (
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/logging"
-	"github.com/open-policy-agent/opa/mux"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/resolver/wasm"
 	"github.com/open-policy-agent/opa/storage"
@@ -156,44 +154,6 @@ func (s *Status) String() string {
 
 // StatusListener defines a handler to register for status updates.
 type StatusListener func(status map[string]*Status)
-
-// Manager implements lifecycle management of plugins and gives plugins access
-// to engine-wide components like storage.
-type Manager struct {
-	Store  storage.Store
-	Config *config.Config
-	Info   *ast.Term
-	ID     string
-
-	compiler                     *ast.Compiler
-	compilerMux                  sync.RWMutex
-	wasmResolvers                []*wasm.Resolver
-	wasmResolversMtx             sync.RWMutex
-	services                     map[string]rest.Client
-	keys                         map[string]*keys.Config
-	plugins                      []namedplugin
-	registeredTriggers           []func(storage.Transaction)
-	mtx                          sync.Mutex
-	pluginStatus                 map[string]*Status
-	pluginStatusListeners        map[string]StatusListener
-	initBundles                  map[string]*bundle.Bundle
-	initFiles                    loader.Result
-	maxErrors                    int
-	initialized                  bool
-	interQueryBuiltinCacheConfig *cache.Config
-	gracefulShutdownPeriod       int
-	registeredCacheTriggers      []func(*cache.Config)
-	logger                       logging.Logger
-	consoleLogger                logging.Logger
-	serverInitialized            chan struct{}
-	serverInitializedOnce        sync.Once
-	printHook                    print.Hook
-	enablePrintStatements        bool
-	router                       *mux.Router
-	prometheusRegister           prometheus.Registerer
-	tracerProvider               *trace.TracerProvider
-	registeredNDCacheTriggers    []func(bool)
-}
 
 type managerContextKey string
 type managerWasmResolverKey string
@@ -341,12 +301,6 @@ func EnablePrintStatements(yes bool) func(*Manager) {
 func PrintHook(h print.Hook) func(*Manager) {
 	return func(m *Manager) {
 		m.printHook = h
-	}
-}
-
-func WithRouter(r *mux.Router) func(*Manager) {
-	return func(m *Manager) {
-		m.router = r
 	}
 }
 
@@ -545,13 +499,6 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compilerMux.Lock()
 	defer m.compilerMux.Unlock()
 	m.compiler = compiler
-}
-
-// GetRouter returns the managers router if set
-func (m *Manager) GetRouter() *mux.Router {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	return m.router
 }
 
 // RegisterCompilerTrigger registers for change notifications when the compiler

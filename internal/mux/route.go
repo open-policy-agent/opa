@@ -11,7 +11,20 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	muxproto "github.com/open-policy-agent/opa/mux"
 )
+
+var _ muxproto.Route = (*RouteWrapper)(nil)
+
+type RouteWrapper struct {
+	inner *Route
+}
+
+func (r *RouteWrapper) Methods(methods ...string) muxproto.Route {
+	r.inner.Methods(methods...)
+	return r
+}
 
 // Route stores information to match a request and build URLs.
 type Route struct {

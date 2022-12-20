@@ -24,7 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/mux"
+	"github.com/open-policy-agent/opa/internal/mux"
+	muxproto "github.com/open-policy-agent/opa/mux"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -106,7 +107,7 @@ type Server struct {
 	Handler           http.Handler
 	DiagnosticHandler http.Handler
 
-	router                 *mux.Router
+	router                 muxproto.Router
 	addrs                  []string
 	diagAddrs              []string
 	h2cEnabled             bool
@@ -327,13 +328,6 @@ func (s *Server) WithDecisionIDFactory(f func() string) *Server {
 // WithRuntime sets the runtime data to provide to the evaluation engine.
 func (s *Server) WithRuntime(term *ast.Term) *Server {
 	s.runtime = term
-	return s
-}
-
-// WithRouter sets the mux.Router to attach OPA's HTTP API routes onto. If a
-// router is not supplied, the server will create it's own.
-func (s *Server) WithRouter(router *mux.Router) *Server {
-	s.router = router
 	return s
 }
 
@@ -661,16 +655,13 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 func (s *Server) initRouters() {
 	mainRouter := s.router
 	if mainRouter == nil {
-		mainRouter = mux.NewRouter()
+		mainRouter = mux.NewRouter().StrictSlash(true).UseEncodedPath()
 	}
 
-	diagRouter := mux.NewRouter()
+	diagRouter := mux.NewRouter().StrictSlash(true).UseEncodedPath()
 
 	// All routers get the same base configuration *and* diagnostic API's
-	for _, router := range []*mux.Router{mainRouter, diagRouter} {
-		router.StrictSlash(true)
-		router.UseEncodedPath()
-
+	for _, router := range []muxproto.Router{mainRouter, diagRouter} {
 		if s.metrics != nil {
 			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
 				router.Handle(path, handler).Methods(method)
@@ -685,15 +676,15 @@ func (s *Server) initRouters() {
 	}
 
 	if s.pprofEnabled {
-		mainRouter.HandleFunc("/debug/pprof/", pprof.Index)
+		mainRouter.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
 		mainRouter.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
 		mainRouter.Handle("/debug/pprof/block", pprof.Handler("block"))
 		mainRouter.Handle("/debug/pprof/heap", pprof.Handler("heap"))
 		mainRouter.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
-		mainRouter.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mainRouter.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mainRouter.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mainRouter.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mainRouter.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		mainRouter.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		mainRouter.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		mainRouter.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 	}
 
 	// Only the main mainRouter gets the OPA API's (data, policies, query, etc)
@@ -845,7 +836,7 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
+func (s *Server) registerHandler(router muxproto.Router, version int, path string, method string, h http.Handler) {
 	prefix := fmt.Sprintf("/v%d", version)
 	router.Handle(prefix+path, h).Methods(method)
 }
