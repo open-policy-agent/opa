@@ -366,6 +366,76 @@ func testEvalWithInvalidSchemaFile(input string, query string, schema string) er
 	return err
 }
 
+func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
+	query := "data.test.p"
+
+	files := map[string]string{
+		"input.json": `{
+				"foo": 42
+			}`,
+		"schema.json": `{
+				"properties": {
+					"foo": {
+						"$id": "#/properties/foo",
+						"type": "boolean"
+					}
+				}
+			}`,
+		"test.rego": policy,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.inputPath = filepath.Join(path, "input.json")
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		//params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
+
+		var buf bytes.Buffer
+		var defined bool
+		defined, err = eval([]string{query}, params, &buf)
+		if !defined || err != nil {
+			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+		}
+	})
+
+	return err
+}
+
+// Assert that 'schemas' annotations are only informing the type checker when the --schema flag is used
+func TestEvalWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
+	policyWithSchemaRef := `
+package test
+# METADATA
+# schemas:
+#   - input: schema["input"]
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}`
+
+	err := testEvalWithSchemasAnnotationButNoSchemaFlag(policyWithSchemaRef)
+	if err != nil {
+		t.Fatalf("unexpected error from eval with schema ref: %v", err)
+	}
+
+	policyWithInlinedSchema := `
+package test
+# METADATA
+# schemas:
+#   - input.foo: {"type": "boolean"}
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}`
+
+	err = testEvalWithSchemasAnnotationButNoSchemaFlag(policyWithInlinedSchema)
+	if err != nil {
+		t.Fatalf("unexpected error from eval with inlined schema: %v", err)
+	}
+}
+
 func testReadParamWithSchemaDir(input string, inputSchema string) error {
 	files := map[string]string{
 		"input.json":                          input,
