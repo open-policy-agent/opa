@@ -437,7 +437,7 @@ func ruleName(h *ast.Head) string {
 	case ast.String:
 		return string(last)
 	default:
-		panic("unreachable")
+		return ""
 	}
 }
 
