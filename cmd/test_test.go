@@ -3,11 +3,11 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"github.com/open-policy-agent/opa/util/test"
 	"testing"
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestFilterTraceDefault(t *testing.T) {
