@@ -373,14 +373,6 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		"input.json": `{
 				"foo": 42
 			}`,
-		"schema.json": `{
-				"properties": {
-					"foo": {
-						"$id": "#/properties/foo",
-						"type": "boolean"
-					}
-				}
-			}`,
 		"test.rego": policy,
 	}
 
@@ -390,7 +382,6 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		params := newEvalCommandParams()
 		params.inputPath = filepath.Join(path, "input.json")
 		params.dataPaths = newrepeatedStringFlag([]string{path})
-		//params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
 
 		var buf bytes.Buffer
 		var defined bool

@@ -408,8 +408,7 @@ func (c *Compiler) WithKeepModules(y bool) *Compiler {
 	return c
 }
 
-// WithUseTypeCheckAnnotations enables type checking in the compiler.
-// TODO: Invert
+// WithUseTypeCheckAnnotations use schema annotations during type checking
 func (c *Compiler) WithUseTypeCheckAnnotations(useTypeCheckAnnotations bool) *Compiler {
 	c.useTypeCheckAnnotations = useTypeCheckAnnotations
 	return c
