@@ -90,6 +90,14 @@
       "internal.member_3",
       "internal.print"
     ],
+    "json": [
+      "json.is_match_schema",
+      "json.match_schema"
+    ],
+    "jsonschema": [
+      "jsonschema.is_valid",
+      "jsonschema.validate"
+    ],
     "net": [
       "net.cidr_contains",
       "net.cidr_contains_matches",
@@ -8000,6 +8008,29 @@
     },
     "wasm": true
   },
+  "json.is_match_schema": {
+    "args": [
+      {
+        "name": "document",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      },
+      {
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the document matches the JSON schema.",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if the document matches the JSON schema. Otherwise `false`.",
+      "name": "output",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
   "json.is_valid": {
     "args": [
       {
@@ -8169,6 +8200,29 @@
       "type": "string"
     },
     "wasm": true
+  },
+  "json.match_schema": {
+    "args": [
+      {
+        "name": "document",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      },
+      {
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the document matches the JSON schema.",
+    "introduced": "edge",
+    "result": {
+      "description": "empty array if the document matches the JSON schema. Array of error objects otherwise.",
+      "name": "output",
+      "type": "array[object\u003cdesc: string, error: string, field: string, type: string\u003e]"
+    },
+    "wasm": false
   },
   "json.patch": {
     "args": [
@@ -8434,6 +8488,44 @@
       "type": "any"
     },
     "wasm": true
+  },
+  "jsonschema.is_valid": {
+    "args": [
+      {
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if the schema is a valid JSON schema. `false` otherwise.",
+      "name": "output",
+      "type": "boolean"
+    },
+    "wasm": false
+  },
+  "jsonschema.validate": {
+    "args": [
+      {
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+    "introduced": "edge",
+    "result": {
+      "description": "empty string if the schema is a valid JSON schema. Error string otherwise.",
+      "name": "output",
+      "type": "string"
+    },
+    "wasm": false
   },
   "lower": {
     "args": [

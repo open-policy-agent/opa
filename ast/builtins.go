@@ -244,6 +244,12 @@ var DefaultBuiltins = [...]*Builtin{
 	GraphQLIsValid,
 	GraphQLSchemaIsValid,
 
+	// JSON Schema
+	JSONSchemaIsValid,
+	JSONSchemaValidate,
+	JSONIsMatchSchema,
+	JSONMatchSchema,
+
 	// Cloud Provider Helpers
 	ProvidersAWSSignReqObj,
 
@@ -2646,6 +2652,73 @@ var GraphQLSchemaIsValid = &Builtin{
 			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
 		),
 		types.Named("output", types.B).Description("`true` if the schema is a valid GraphQL schema. `false` otherwise."),
+	),
+}
+
+/**
+ * JSON Schema
+ */
+
+// JSONSchemaIsValid returns true if the input is valid JSON schema,
+// and returns false for all other inputs.
+var JSONSchemaIsValid = &Builtin{
+	Name:        "jsonschema.is_valid",
+	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+		),
+		types.Named("output", types.B).Description("`true` if the schema is a valid JSON schema. `false` otherwise."),
+	),
+}
+
+// JSONSchemaValidate returns empty string if the input is valid JSON schema
+// and returns error string for all other inputs.
+var JSONSchemaValidate = &Builtin{
+	Name:        "jsonschema.validate",
+	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+		),
+		types.Named("output", types.S).Description("empty string if the schema is a valid JSON schema. Error string otherwise."),
+	),
+}
+
+// JSONIsMatchSchema returns true if the document matches the JSON schema, otherwise false.
+var JSONIsMatchSchema = &Builtin{
+	Name:        "json.is_match_schema",
+	Description: "Checks that the document matches the JSON schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("document", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+		),
+		types.Named("output", types.B).Description("`true` if the document matches the JSON schema. Otherwise `false`."),
+	),
+}
+
+// JSONMatchSchema returns empty array if the document matches the JSON schema,
+// and returns non-empty array with error objects otherwise.
+var JSONMatchSchema = &Builtin{
+	Name:        "json.match_schema",
+	Description: "Checks that the document matches the JSON schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("document", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))),
+		),
+		types.Named("output", types.NewArray(
+			nil, types.NewObject(
+				[]*types.StaticProperty{
+					{Key: "error", Value: types.S},
+					{Key: "type", Value: types.S},
+					{Key: "field", Value: types.S},
+					{Key: "desc", Value: types.S},
+				},
+				nil,
+			),
+		)).Description("empty array if the document matches the JSON schema. Array of error objects otherwise."),
 	),
 }
 
