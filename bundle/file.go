@@ -193,11 +193,11 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 		cleanedPath = fileName
 	}
 
-	if !strings.HasPrefix(cleanedPath, "/") {
-		cleanedPath = "/" + cleanedPath
+	if !strings.HasPrefix(cleanedPath, string(os.PathSeparator)) {
+		cleanedPath = string(os.PathSeparator) + cleanedPath
 	}
 
-	f := newDescriptor(path.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
+	f := newDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
 	return f, nil
 }
 
