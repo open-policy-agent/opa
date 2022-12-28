@@ -164,7 +164,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 					return nil
 				}
-				d.files = append(d.files, filepath.ToSlash(path))
+				d.files = append(d.files, path)
 			} else if info != nil && info.Mode().IsDir() {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, true)) {
 					return filepath.SkipDir
