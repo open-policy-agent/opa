@@ -26,10 +26,9 @@ func (h Halt) Unwrap() error { return h.Err }
 // Error is the error type returned by the Eval and Query functions when
 // an evaluation error occurs.
 type Error struct {
-	Code       string        `json:"code"`
-	Message    string        `json:"message"`
-	Location   *ast.Location `json:"location,omitempty"`
-	Occurances *int          `json:"occurances,omitempty"`
+	Code     string        `json:"code"`
+	Message  string        `json:"message"`
+	Location *ast.Location `json:"location,omitempty"`
 }
 
 const (
