@@ -257,7 +257,9 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 	return q
 }
 
-// WithBuiltinErrorList supplies an error slice to store built-in function errors.
+// WithBuiltinErrorList supplies a pointer to an Error slice to store built-in function errors
+// encountered during evaluation. This error slice can be inspected after evaluation to determine
+// which built-in function errors occurred.
 func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
 	q.builtinErrorList = list
 	return q
@@ -430,6 +432,10 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
 		} else if q.builtinErrorList != nil {
+			// If a builtinErrorList has been supplied, we must use pointer indirection
+			// to append to it. builtinErrorList is a slice pointer so that errors can be
+			// appended to it without returning a new slice and changing the interface
+			// of PartialRun.
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
 					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
@@ -528,6 +534,10 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
 		} else if q.builtinErrorList != nil {
+			// If a builtinErrorList has been supplied, we must use pointer indirection
+			// to append to it. builtinErrorList is a slice pointer so that errors can be
+			// appended to it without returning a new slice and changing the interface
+			// of Iter.
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
 					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
