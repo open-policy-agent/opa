@@ -3,6 +3,7 @@ package topdown
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"sort"
 	"time"
@@ -54,7 +55,7 @@ type Query struct {
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
 	strictBuiltinErrors    bool
-	builtinErrorList       *[]Error
+	builtinErrorAggregator *errorAggregator
 	strictObjects          bool
 	printHook              print.Hook
 	tracingOpts            tracing.Options
@@ -261,7 +262,7 @@ func (q *Query) WithStrictBuiltinErrors(yes bool) *Query {
 // encountered during evaluation. This error slice can be inspected after evaluation to determine
 // which built-in function errors occurred.
 func (q *Query) WithBuiltinErrorList(list *[]Error) *Query {
-	q.builtinErrorList = list
+	q.builtinErrorAggregator = newErrorAggregator(list)
 	return q
 }
 
@@ -431,22 +432,22 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if len(e.builtinErrors.errs) > 0 {
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
-		} else if q.builtinErrorList != nil {
-			// If a builtinErrorList has been supplied, we must use pointer indirection
-			// to append to it. builtinErrorList is a slice pointer so that errors can be
-			// appended to it without returning a new slice and changing the interface
-			// of PartialRun.
+		} else if q.builtinErrorAggregator != nil {
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
-					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
+					q.builtinErrorAggregator.Add(*tdError)
 				} else {
-					*(q.builtinErrorList) = append(*(q.builtinErrorList), Error{
+					q.builtinErrorAggregator.Add(Error{
 						Code:    BuiltinErr,
 						Message: err.Error(),
 					})
 				}
 			}
 		}
+	}
+
+	if q.builtinErrorAggregator != nil {
+		q.builtinErrorAggregator.Commit()
 	}
 
 	for i := range support {
@@ -533,16 +534,12 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if len(e.builtinErrors.errs) > 0 {
 		if q.strictBuiltinErrors {
 			err = e.builtinErrors.errs[0]
-		} else if q.builtinErrorList != nil {
-			// If a builtinErrorList has been supplied, we must use pointer indirection
-			// to append to it. builtinErrorList is a slice pointer so that errors can be
-			// appended to it without returning a new slice and changing the interface
-			// of Iter.
+		} else if q.builtinErrorAggregator != nil {
 			for _, err := range e.builtinErrors.errs {
 				if tdError, ok := err.(*Error); ok {
-					*(q.builtinErrorList) = append(*(q.builtinErrorList), *tdError)
+					q.builtinErrorAggregator.Add(*tdError)
 				} else {
-					*(q.builtinErrorList) = append(*(q.builtinErrorList), Error{
+					q.builtinErrorAggregator.Add(Error{
 						Code:    BuiltinErr,
 						Message: err.Error(),
 					})
@@ -551,6 +548,67 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		}
 	}
 
+	if q.builtinErrorAggregator != nil {
+		q.builtinErrorAggregator.Commit()
+	}
+
 	q.metrics.Timer(metrics.RegoQueryEval).Stop()
 	return err
+}
+
+type aggregatedErrorIndexItem struct {
+	Err   Error
+	Index int
+	Count int
+}
+
+type errorAggregator struct {
+	errorList *[]Error
+
+	nextID int
+
+	errors map[string]aggregatedErrorIndexItem
+}
+
+func newErrorAggregator(errorList *[]Error) *errorAggregator {
+	return &errorAggregator{
+		errorList: errorList,
+		errors:    make(map[string]aggregatedErrorIndexItem),
+	}
+}
+
+func (e *errorAggregator) Add(errs ...Error) {
+	for _, err := range errs {
+		e.nextID++
+
+		key := fmt.Sprintf("%s-%s-%s", err.Code, err.Message, err.Location.String())
+
+		aggErr, ok := e.errors[key]
+		if !ok {
+			e.errors[key] = aggregatedErrorIndexItem{
+				Err:   err,
+				Count: 1,
+				Index: e.nextID,
+			}
+			continue
+		}
+		aggErr.Count++
+	}
+}
+
+func (e *errorAggregator) Commit() {
+	// Sort errors by the order they were first encountered.
+	aggregatedErrors := []aggregatedErrorIndexItem{}
+
+	for _, aggError := range e.errors {
+		aggregatedErrors = append(aggregatedErrors, aggError)
+	}
+
+	sort.Slice(aggregatedErrors, func(i, j int) bool {
+		return aggregatedErrors[i].Index < aggregatedErrors[j].Index
+	})
+
+	for _, aggError := range aggregatedErrors {
+		*e.errorList = append(*e.errorList, aggError.Err)
+	}
 }
