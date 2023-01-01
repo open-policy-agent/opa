@@ -64,8 +64,16 @@ type Manager struct {
 	registeredNDCacheTriggers    []func(bool)
 }
 
+// WithRouter sets the runtime's router on the Manager.
+//
+// Note: Using this to change the provided manager's configured router has no effect on the runtime.
 func WithRouter(r muxproto.Router) func(*Manager) {
 	return func(m *Manager) {
 		m.router = r
 	}
+}
+
+// GetRouter returns the router configured on the OPA runtime.
+func (m *Manager) GetRouter() muxproto.Router {
+	return m.router
 }

@@ -109,7 +109,7 @@ install: generate
 	$(GO) install $(GO_TAGS) -ldflags $(LDFLAGS)
 
 .PHONY: test
-test: go-test wasm-test
+test: go-test wasm-test go-test-gorilla
 
 .PHONY: go-build
 go-build: generate
@@ -118,6 +118,10 @@ go-build: generate
 .PHONY: go-test
 go-test: generate
 	$(GO) test $(GO_TAGS),slow ./...
+
+.PHONY: go-test-gorilla
+go-test-gorilla: generate
+	$(GO) test $(GO_TAGS),slow,usegorillamux ./server ./runtime ./plugins
 
 .PHONY: race-detector
 race-detector: generate

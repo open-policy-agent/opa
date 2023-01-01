@@ -65,6 +65,9 @@ type Manager struct {
 	registeredNDCacheTriggers    []func(bool)
 }
 
+// WithRouter sets the runtime's router on the Manager.
+//
+// Note: Using this to change the provided manager's configured router has no effect on the runtime.
 func WithRouter(r *mux.Router) func(*Manager) {
 	return func(m *Manager) {
 		m.router = r
