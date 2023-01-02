@@ -311,7 +311,7 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 		"schema.json": schema,
 	}
 
-	policyFilePresent := len(policy) > 0
+	policyFilePresent := policy != ""
 	if policyFilePresent {
 		files["policy.rego"] = policy
 	}
@@ -327,10 +327,9 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 		params.schema = &schemaFlags{path: filepath.Join(path, "schema.json")}
 
 		var buf bytes.Buffer
-		var defined bool
-		defined, err = eval([]string{query}, params, &buf)
-		if !expTypeErr && (!defined || err != nil) {
-			err = fmt.Errorf("unexpected error or undefined from evaluation: %v", err)
+		defined, evalErr := eval([]string{query}, params, &buf)
+		if !expTypeErr && (!defined || evalErr != nil) {
+			err = fmt.Errorf("unexpected error or undefined from evaluation: %v", evalErr)
 			return
 		}
 
@@ -342,9 +341,7 @@ func testEvalWithSchemaFile(t *testing.T, input string, query string, schema str
 
 		if expTypeErr {
 			if len(output.Errors) != 1 || output.Errors[0].Code != "rego_type_error" {
-				err = fmt.Errorf("expected type conflict")
-			} else {
-				err = nil
+				err = fmt.Errorf("expected type conflict, got %v", output.Errors)
 			}
 			return
 		}

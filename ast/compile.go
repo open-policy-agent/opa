@@ -409,8 +409,8 @@ func (c *Compiler) WithKeepModules(y bool) *Compiler {
 }
 
 // WithUseTypeCheckAnnotations use schema annotations during type checking
-func (c *Compiler) WithUseTypeCheckAnnotations(useTypeCheckAnnotations bool) *Compiler {
-	c.useTypeCheckAnnotations = useTypeCheckAnnotations
+func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
+	c.useTypeCheckAnnotations = enabled
 	return c
 }
 
