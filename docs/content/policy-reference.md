@@ -296,7 +296,7 @@ fruit.orange.color(x) = true if x == "orange"          # function
 ```
 
 For reasons of backwards-compatibility, partial sets need to use `contains` in
-their rule hesas, i.e.
+their rule heads, i.e.
 
 ```live:rules/ref_heads/set:module:read_only
 fruit.box contains "apples" if true
