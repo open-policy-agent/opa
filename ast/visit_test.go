@@ -108,7 +108,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 	vis.Walk(rule)
 
 	if len(elems) != 254 {
-		t.Errorf("Expected exactly 246 elements in AST but got %d: %v", len(elems), elems)
+		t.Errorf("Expected exactly 254 elements in AST but got %d: %v", len(elems), elems)
 	}
 }
 
