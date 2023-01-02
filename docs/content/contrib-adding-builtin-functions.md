@@ -8,7 +8,7 @@ weight: 5
 can be added inside the `topdown` package.
 
 Built-in functions may be upstreamed if they are generally useful and provide functionality that would be
-impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid thirdparty
+impractical to implement natively in Rego (e.g., CIDR arithmetic). Implementations should avoid third-party
 dependencies. If absolutely necessary, consider importing the code manually into the `internal` package.
 
 {{< info >}}
