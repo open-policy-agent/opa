@@ -203,7 +203,7 @@ On the other hand, this annotation does not constrain other paths under `data`. 
 
 Note that the second `allow` rule doesn't have a METADATA comment block attached to it, and hence will not be type checked with any schemas.
 
-On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` alongwith the `--schema` parameter for type checking a set of `*.rego` policy files.
+On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` along with the `--schema` parameter for type checking a set of `*.rego` policy files.
 
 The *scope* of the `schema` annotation can be controlled through the [scope](../annotations#scope) annotation
 

@@ -2043,9 +2043,9 @@ Content-Type: application/json
 OPA currently supports the following query performance metrics:
 
 - **timer_rego_input_parse_ns**: time taken (in nanoseconds) to parse the input
-- **timer_rego_query_parse_ns**: time taken (in nanonseconds) to parse the query.
-- **timer_rego_query_compile_ns**: time taken (in nanonseconds) to compile the query.
-- **timer_rego_query_eval_ns**: time taken (in nanonseconds) to evaluate the query.
+- **timer_rego_query_parse_ns**: time taken (in nanoseconds) to parse the query.
+- **timer_rego_query_compile_ns**: time taken (in nanoseconds) to compile the query.
+- **timer_rego_query_eval_ns**: time taken (in nanoseconds) to evaluate the query.
 - **timer_rego_module_parse_ns**: time taken (in nanoseconds) to parse the input policy module.
 - **timer_rego_module_compile_ns**: time taken (in nanoseconds) to compile the loaded policy modules.
 - **timer_server_handler_ns**: time take (in nanoseconds) to handle the API request.
