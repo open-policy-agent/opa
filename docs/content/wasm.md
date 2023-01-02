@@ -257,7 +257,7 @@ The (optional) `input` document for a policy can be provided by loading a JSON
  returned address. After the raw string is loaded into memory you will need to
  call the `opa_json_parse` exported method to get an address to the parsed input
  document for use in evaluations. Set the address via the
- `opa_eval_ctx_set_input` exported functoin supplying the evaluation context
+ `opa_eval_ctx_set_input` exported function supplying the evaluation context
  address and parsed input document address.
 
 #### External Data
