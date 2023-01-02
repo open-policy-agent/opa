@@ -19,7 +19,7 @@ These sessions are open format for community members to ask questions. Use this 
 
   * [Book a slot](https://calendly.com/peter-styra/opa-office-hours)
 
-Following each OPA release we will announce new features, the road map for the next release, and open the floor for community members to share what they're working on. Want to talk at one of these meetings simply add your topics to the meeting notes for the upcoming meeting. 
+Following each OPA release we will announce new features, the road map for the next release, and open the floor for community members to share what they're working on. Want to talk at one of these meetings simply add your topics to the meeting notes for the upcoming meeting.
 
   * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
   * [Zoom](https://zoom.us/j/97827947600)
@@ -39,11 +39,12 @@ Following each OPA release we will announce new features, the road map for the n
 
 ## Want to integrate OPA?
 
-* See
+* See the high-level [Go SDK](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-sdk) or the low-level Go API
   [![GoDoc](https://godoc.org/github.com/open-policy-agent/opa?status.svg)](https://godoc.org/github.com/open-policy-agent/opa/rego)
   to integrate OPA with services written in Go.
 * See [REST API](https://www.openpolicyagent.org/docs/rest-api.html) to
   integrate OPA with services written in other languages.
+* See the [integration docs](https://www.openpolicyagent.org/docs/latest/integration/) for more options.
 
 ## Want to contribute to OPA?
 

@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/internal/providers"
+	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -30,12 +31,21 @@ type metadataPayload struct {
 	Expiration      time.Time
 }
 
-// quicky and dirty assertions
+// quick and dirty assertions
 func assertEq(expected string, actual string, t *testing.T) {
 	t.Helper()
 	if actual != expected {
 		t.Error("expected: ", expected, " but got: ", actual)
 	}
+}
+func assertIn(candidates []string, actual string, t *testing.T) {
+	t.Helper()
+	for _, expected := range candidates {
+		if actual == expected {
+			return
+		}
+	}
+	t.Error("value: '", actual, "' not found in: ", candidates)
 }
 
 func assertErr(expected string, actual error, t *testing.T) {
@@ -62,7 +72,7 @@ func TestEnvironmentCredentialService(t *testing.T) {
 
 	t.Setenv("AWS_REGION", "us-east-1")
 
-	expectedCreds := providers.AWSCredentials{
+	expectedCreds := aws.Credentials{
 		AccessKey:    "MYAWSACCESSKEYGOESHERE",
 		SecretKey:    "MYAWSSECRETACCESSKEYGOESHERE",
 		RegionName:   "us-east-1",
@@ -135,7 +145,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected := providers.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    fooKey,
 			SecretKey:    fooSecret,
 			RegionName:   fooRegion,
@@ -158,7 +168,7 @@ aws_secret_access_key=%v
 			t.Fatal(err)
 		}
 
-		expected = providers.AWSCredentials{
+		expected = aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -201,7 +211,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := providers.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -250,7 +260,7 @@ aws_session_token=%s
 			t.Fatal(err)
 		}
 
-		expected := providers.AWSCredentials{
+		expected := aws.Credentials{
 			AccessKey:    defaultKey,
 			SecretKey:    defaultSecret,
 			RegionName:   defaultRegion,
@@ -414,7 +424,7 @@ func TestMetadataCredentialService(t *testing.T) {
 		tokenPath:       ts.server.URL + "/latest/api/token",
 		logger:          logging.Get(),
 	}
-	var creds providers.AWSCredentials
+	var creds aws.Credentials
 	creds, err = cs.credentials()
 	if err != nil {
 		// Cannot proceed with test if unable to fetch credentials.
@@ -480,7 +490,7 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.SessionToken, ts.payload.Token, t)
 }
 
-func TestV4Signing(t *testing.T) {
+func TestMetadataServiceErrorHandled(t *testing.T) {
 	ts := ec2CredTestServer{}
 	ts.start()
 	defer ts.stop()
@@ -494,12 +504,18 @@ func TestV4Signing(t *testing.T) {
 		logger:          logging.Get(),
 	}
 	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
-	err := signV4(req, "s3", cs, time.Unix(1556129697, 0))
+	err := signV4(req, "s3", cs, time.Unix(1556129697, 0), "4")
 
 	assertErr("error getting AWS credentials: metadata HTTP request returned unexpected status: 404 Not Found", err, t)
+}
+
+func TestV4Signing(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
 
 	// happy path: sign correctly
-	cs = &awsMetadataCredentialService{
+	cs := &awsMetadataCredentialService{
 		RoleName:        "my_iam_role", // not present
 		RegionName:      "us-east-1",
 		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
@@ -512,23 +528,55 @@ func TestV4Signing(t *testing.T) {
 		Code:            "Success",
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
-	req, _ = http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
-	err = signV4(req, "s3", cs, time.Unix(1556129697, 0))
+	req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
 
-	if err != nil {
-		t.Fatal("unexpected error during signing")
+	// force a non-random source so that we can predict the v4a signing key and, thus, signature
+	myReader := strings.NewReader("000000000000000000000000000000000")
+	aws.SetRandomSource(myReader)
+	defer func() { aws.SetRandomSource(rand.Reader) }()
+
+	tests := []struct {
+		sigVersion            string
+		expectedAuthorization []string
+	}{
+		{
+			sigVersion: "4",
+			expectedAuthorization: []string{
+				"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/s3/aws4_request," +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token," +
+					"Signature=d3f0561abae5e35d9ee2c15e678bb7acacc4b4743707a8f7fbcbfdb519078990",
+			},
+		},
+		{
+			sigVersion: "4a",
+			expectedAuthorization: []string{
+				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=304402207d1bcb6fb68d85be3e9f6948a8dc8596a531b3f5a82ca2350acabe98941312bc02207d81ed07c7356226d93611820548a806c8e1f0cc72ff41ba672d23901e5a06bf",
+				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=3045022100f951364b6495e3fe6be830a3550043bfd98e5312f79091e7c87bd51455cfb93c02203a4ca3e29ad63b6a9b473172e6ebb870f3d1947f2c44334bfd7eb74dbda4ec97",
+			},
+		},
 	}
 
-	// expect mandatory headers
-	assertEq(req.Header.Get("Host"), "mybucket.s3.amazonaws.com", t)
-	assertEq(req.Header.Get("Authorization"),
-		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/s3/aws4_request,"+
-			"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token,"+
-			"Signature=d3f0561abae5e35d9ee2c15e678bb7acacc4b4743707a8f7fbcbfdb519078990", t)
-	assertEq(req.Header.Get("X-Amz-Content-Sha256"),
-		"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", t)
-	assertEq(req.Header.Get("X-Amz-Date"), "20190424T181457Z", t)
-	assertEq(req.Header.Get("X-Amz-Security-Token"), "MYAWSSECURITYTOKENGOESHERE", t)
+	for _, test := range tests {
+		err := signV4(req, "s3", cs, time.Unix(1556129697, 0), test.sigVersion)
+
+		if err != nil {
+			t.Fatal("unexpected error during signing", err)
+		}
+
+		// expect mandatory headers
+		assertEq("mybucket.s3.amazonaws.com", req.Header.Get("Host"), t)
+		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+		assertEq("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			req.Header.Get("X-Amz-Content-Sha256"), t)
+		assertEq("20190424T181457Z", req.Header.Get("X-Amz-Date"), t)
+		assertEq("MYAWSSECURITYTOKENGOESHERE", req.Header.Get("X-Amz-Security-Token"), t)
+	}
 }
 
 func TestV4SigningForApiGateway(t *testing.T) {
@@ -553,7 +601,7 @@ func TestV4SigningForApiGateway(t *testing.T) {
 		strings.NewReader("{ \"payload\": 42 }"))
 	req.Header.Set("Content-Type", "application/json")
 
-	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0), "4")
 
 	if err != nil {
 		t.Fatal("unexpected error during signing")
@@ -598,20 +646,51 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 	req.Header.Set("Authorization", "Auth header will be overwritten, and shouldn't be signed")
 	req.Header.Set("X-Amzn-Trace-Id", "Some trace id")
 
-	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+	// force a non-random source so that we can predict the v4a signing key and, thus, signature
+	myReader := strings.NewReader("000000000000000000000000000000000")
+	aws.SetRandomSource(myReader)
+	defer func() { aws.SetRandomSource(rand.Reader) }()
 
-	if err != nil {
-		t.Fatal("unexpected error during signing")
+	tests := []struct {
+		sigVersion            string
+		expectedAuthorization []string
+	}{
+		{
+			sigVersion: "4",
+			expectedAuthorization: []string{"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request," +
+				"SignedHeaders=content-type;host;x-amz-date;x-amz-security-token," +
+				"Signature=c8ee72cc45050b255bcbf19defc693f7cd788959b5380fa0985de6e865635339",
+			},
+		},
+		{
+			sigVersion: "4a",
+			expectedAuthorization: []string{
+				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=30450221009f3b0cda178456dfd1bec61b78bdbd115c0cf497eaa52c58bbb2850ad9c49c3002207009cb88a1219a4a6626056c31823a6b5bc2728bc88bc98a06e12e1148482c94",
+				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=304602210088b5a5ccf9e37aac765f7e6bf0507577eb1b919b80bc3c385b8856c7ab7a9912022100f4c558e36be338c9644240b722e06333ea9a5305b2e638d56ad0105995c9b1f7",
+			},
+		},
 	}
 
-	// Check the signed headers doesn't include user-agent, authorization or x-amz-trace-id
-	assertEq(req.Header.Get("Authorization"),
-		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
-			"SignedHeaders=content-type;host;x-amz-date;x-amz-security-token,"+
-			"Signature=c8ee72cc45050b255bcbf19defc693f7cd788959b5380fa0985de6e865635339", t)
-	// The headers omitted from signing should still be present in the request
-	assertEq(req.Header.Get("User-Agent"), "Unit Tests!", t)
-	assertEq(req.Header.Get("X-Amzn-Trace-Id"), "Some trace id", t)
+	for _, test := range tests {
+		err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0), test.sigVersion)
+
+		if err != nil {
+			t.Fatal("unexpected error during signing")
+		}
+
+		// Check the signed headers doesn't include user-agent, authorization or x-amz-trace-id
+		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+		// The headers omitted from signing should still be present in the request
+		assertEq(req.Header.Get("User-Agent"), "Unit Tests!", t)
+		assertEq(req.Header.Get("X-Amzn-Trace-Id"), "Some trace id", t)
+	}
+
 }
 
 func TestV4SigningCustomPort(t *testing.T) {
@@ -633,7 +712,7 @@ func TestV4SigningCustomPort(t *testing.T) {
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
 	req, _ := http.NewRequest("GET", "https://custom.s3.server:9000/bundle.tar.gz", strings.NewReader(""))
-	err := signV4(req, "s3", cs, time.Unix(1556129697, 0))
+	err := signV4(req, "s3", cs, time.Unix(1556129697, 0), "4")
 
 	if err != nil {
 		t.Fatal("unexpected error during signing")
@@ -669,18 +748,33 @@ func TestV4SigningDoesNotMutateBody(t *testing.T) {
 		Code:            "Success",
 		Token:           "MYAWSSECURITYTOKENGOESHERE",
 		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
-	req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
-		strings.NewReader("{ \"payload\": 42 }"))
 
-	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+	// force a non-random source so that we can predict the v4a signing key and, thus, signature
+	myReader := strings.NewReader("000000000000000000000000000000000")
+	aws.SetRandomSource(myReader)
+	defer func() { aws.SetRandomSource(rand.Reader) }()
 
-	if err != nil {
-		t.Fatal("unexpected error during signing")
+	tests := []struct {
+		sigVersion string
+	}{
+		{sigVersion: "4"},
+		{sigVersion: "4a"},
 	}
 
-	// Read the body and check that it was not mutated
-	body, _ := io.ReadAll(req.Body)
-	assertEq(string(body), "{ \"payload\": 42 }", t)
+	for _, test := range tests {
+		req, _ := http.NewRequest("POST", "https://myrestapi.execute-api.us-east-1.amazonaws.com/prod/logs",
+			strings.NewReader("{ \"payload\": 42 }"))
+
+		err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0), test.sigVersion)
+
+		if err != nil {
+			t.Fatal("unexpected error during signing")
+		}
+
+		// Read the body and check that it was not mutated
+		body, _ := io.ReadAll(req.Body)
+		assertEq(string(body), "{ \"payload\": 42 }", t)
+	}
 }
 
 func TestV4SigningWithMultiValueHeaders(t *testing.T) {
@@ -706,24 +800,53 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 	req.Header.Add("Accept", "text/plain")
 	req.Header.Add("Accept", "text/html")
 
-	err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0))
+	// force a non-random source so that we can predict the v4a signing key and, thus, signature
+	myReader := strings.NewReader("000000000000000000000000000000000")
+	aws.SetRandomSource(myReader)
+	defer func() { aws.SetRandomSource(rand.Reader) }()
 
-	if err != nil {
-		t.Fatal("unexpected error during signing")
+	tests := []struct {
+		sigVersion            string
+		expectedAuthorization []string
+	}{
+		{
+			sigVersion: "4",
+			expectedAuthorization: []string{
+				"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request," +
+					"SignedHeaders=accept;host;x-amz-date;x-amz-security-token," +
+					"Signature=0237b0c789cad36212f0efba70c02549e1f659ab9caaca16423930cc7236c046",
+			},
+		},
+		{
+			sigVersion: "4a",
+			expectedAuthorization: []string{
+				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=304402202d5f2d4d42fe59b2e61fa455cb35a335139d109c2d37aaa8946d45fd0fb4989c022068238cbfbc80326f5cc391f2b6837910191ceabb58ec0bf986c0141f76046594",
+				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=304502206ac05ae8f63689e989227fac6c6c16008c25c1d66903f6535610df6496942701022100e1db05ec77d5142462537f7fd4d14db1d1e9b5c8c14643f2434206fe7284dfd6",
+			},
+		},
 	}
 
-	// Check the signed headers includes our multi-value 'accept' header
-	assertEq(req.Header.Get("Authorization"),
-		"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/execute-api/aws4_request,"+
-			"SignedHeaders=accept;host;x-amz-date;x-amz-security-token,"+
-			"Signature=0237b0c789cad36212f0efba70c02549e1f659ab9caaca16423930cc7236c046", t)
-	// Ensure 'authorization' is not multi-valued.
-	if len(req.Header.Values("Authorization")) != 1 {
-		t.Fatal("Authorization header is multi-valued. This will break AWS v4 signing.")
+	for _, test := range tests {
+		err := signV4(req, "execute-api", cs, time.Unix(1556129697, 0), test.sigVersion)
+
+		if err != nil {
+			t.Fatal("unexpected error during signing")
+		}
+		if len(req.Header.Values("Authorization")) != 1 {
+			t.Fatal("Authorization header is multi-valued. This will break AWS v4 signing.")
+		}
+		// Check the signed headers includes our multi-value 'accept' header
+		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+		// The multi-value headers are preserved
+		assertEq("text/plain", req.Header.Values("Accept")[0], t)
+		assertEq("text/html", req.Header.Values("Accept")[1], t)
 	}
-	// The multi-value headers are preserved
-	assertEq(req.Header.Values("Accept")[0], "text/plain", t)
-	assertEq(req.Header.Values("Accept")[1], "text/html", t)
 }
 
 // simulate EC2 metadata service

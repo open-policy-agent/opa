@@ -449,15 +449,18 @@ Consider requiring authentication in order to prevent unauthorized read access t
 
 #### AWS Signature
 
-OPA will authenticate with an [AWS4 HMAC](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) signature. Several methods of obtaining the
-necessary credentials are available; exactly one must be specified to use the AWS signature
-authentication method.
+OPA will authenticate with an [AWS Version 4](https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html) or version 4A signature. While version 4 is the default, version 4A must be used when making requests that might be handled by more than one region, such as an [S3 Multi-Region Access Point](https://docs.aws.amazon.com/AmazonS3/latest/userguide/MultiRegionAccessPoints.html). You must use version 4A for this or requests will fail when routed to a different region than the one indicated in a version 4 signature. Furthermore, using version 4a also requires that temporary credentials are retrieved from a [regional AWS STS endpoint](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html), rather than the global STS endpoint.
+
+Several methods of obtaining the necessary credentials are available; exactly one must be specified to use the AWS signature authentication method.
 
 The AWS service for which to sign the request can be specified in the `service` field. If omitted, the default is `s3`.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `services[_].credentials.s3_signing.service` | `string` | No | The AWS service to sign requests with, eg `execute-api` or `s3`. Default: `s3` |
+The AWS signature version to sign the request with can be specified in the `signature_version` field. If omitted, the default is `4`. The only other valid value is `4a`.
+
+| Field                                                  | Type | Required | Description                                                                    |
+|--------------------------------------------------------| --- | --- |--------------------------------------------------------------------------------|
+| `services[_].credentials.s3_signing.service`           | `string` | No | The AWS service to sign requests with, eg `execute-api` or `s3`. Default: `s3` |
+| `services[_].credentials.s3_signing.signature_version` | `string` | No | The AWS signature version to sign requests with, eg `4` or `4a`. Default: `4`  |
 
 ##### Using Static Environment Credentials
 If specifying `environment_credentials`, OPA will expect to find environment variables

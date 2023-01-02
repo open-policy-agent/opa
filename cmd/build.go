@@ -306,6 +306,10 @@ func dobuild(params buildParams, args []string) error {
 		compiler = compiler.WithBundleVerificationKeyID(params.pubKeyID)
 	}
 
+	if params.target.String() == compile.TargetPlan {
+		compiler = compiler.WithEnablePrintStatements(true)
+	}
+
 	err = compiler.Build(context.Background())
 	if err != nil {
 		return err

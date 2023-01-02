@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.47.4
+
+This is a bug fix release addressing a panic in `opa test`.
+
+ - tester/runner: Fix panic'ing case in utility function. ([#5496](https://github.com/open-policy-agent/opa/issues/5496)) authored by @philipaconrad
+
 ## 0.47.3
 
 This is a bug fix release addressing an issue that prevented OPA from fetching bundles stored in S3 buckets.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-package providers
+package aws
 
 import (
 	"crypto/hmac"
@@ -32,15 +32,15 @@ var awsSigv4IgnoredHeaders = map[string]struct{}{
 	"x-amzn-trace-id": {},
 }
 
-type AWSCredentials struct {
+type Credentials struct {
 	AccessKey    string
 	SecretKey    string
 	RegionName   string
 	SessionToken string
 }
 
-func AWSCredentialsFromObject(v ast.Object) AWSCredentials {
-	var creds AWSCredentials
+func CredentialsFromObject(v ast.Object) Credentials {
+	var creds Credentials
 	awsAccessKey := v.Get(ast.StringTerm("aws_access_key"))
 	awsSecretKey := v.Get(ast.StringTerm("aws_secret_access_key"))
 	awsRegion := v.Get(ast.StringTerm("aws_region"))
@@ -74,8 +74,8 @@ func sortKeys(strMap map[string][]string) []string {
 	return keys
 }
 
-// AWSSignV4 modifies a map[string][]string of headers to generate an AWS V4 signature + headers based on the config/credentials provided.
-func AWSSignV4(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds AWSCredentials, theTime time.Time) (string, map[string]string) {
+// SignV4 modifies a map[string][]string of headers to generate an AWS V4 signature + headers based on the config/credentials provided.
+func SignV4(headers map[string][]string, method string, theURL *url.URL, body []byte, service string, awsCreds Credentials, theTime time.Time) (string, map[string]string) {
 	// General ref. https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
 	// S3 ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
 	// APIGateway ref. https://docs.aws.amazon.com/apigateway/api-reference/signing-requests/

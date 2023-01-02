@@ -1537,6 +1537,70 @@ func TestInterQueryBuiltinCacheConfigUpdate(t *testing.T) {
 	}
 }
 
+func TestNDBuiltinCacheConfigUpdate(t *testing.T) {
+	type exampleConfig struct {
+		v bool
+	}
+	var config1 *exampleConfig
+	var config2 *exampleConfig
+	manager, err := plugins.New([]byte(`{
+		"discovery": {"name": "config"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+  }`), "test-id", inmem.New())
+	manager.RegisterNDCacheTrigger(func(x bool) {
+		if config1 == nil {
+			config1 = &exampleConfig{v: x}
+		} else if config2 == nil {
+			config2 = &exampleConfig{v: x}
+		} else {
+			t.Fatal("Expected cache trigger to only be called twice")
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	initialBundle := makeDataBundle(1, `{
+		"config": {
+			"nd_builtin_cache": true
+		}
+	}`)
+
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle})
+
+	// Verify NDBuiltinCache is triggered with initial config
+	if config1 == nil || config1.v != true {
+		t.Fatalf("Expected ND builtin cache to be enabled after initial discovery, got: %v", config1.v)
+	}
+
+	// Verify NDBuiltinCache is reconfigured
+	updatedBundle := makeDataBundle(2, `{
+		"config": {
+			"nd_builtin_cache": false
+		}
+	}`)
+
+	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	if config2 == nil || config2.v != false {
+		t.Fatalf("Expected ND builtin cache to be disabled after discovery reconfigure, got: %v", config2.v)
+	}
+}
+
 func TestPluginManualTriggerLifecycle(t *testing.T) {
 	ctx := context.Background()
 	m := metrics.New()

@@ -81,6 +81,11 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 			a.b.test_duplicate { false }
 			a.b.test_duplicate { true }
 			a.b.test_duplicate { true }`,
+		// Regression test for issue #5496.
+		"/d_test.rego": `package test
+
+		a[0] := 1
+		test_pass { true }`,
 	}
 
 	tests := expectedTestResults{
@@ -96,6 +101,7 @@ func testRun(t *testing.T, conf testRunConfig) map[string]*ast.Module {
 		{"data.baz", "a.b.test_duplicate"}:         {false, true, false},
 		{"data.baz", "a.b[\"test_duplicate#01\"]"}: {false, false, false},
 		{"data.baz", "a.b[\"test_duplicate#02\"]"}: {false, false, false},
+		{"data.test", "test_pass"}:                 {false, false, false},
 	}
 
 	var modules map[string]*ast.Module
