@@ -29,6 +29,7 @@ t[x] = y {
 	y = [[x, z] | x = "x"; z = "z"]
 	z = {"foo": [x, z] | x = "x"; z = "z"}
 	s = {1 | a[i] = "foo"}
+	some x0, y0, z0
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
@@ -37,264 +38,10 @@ p { false } else { false } else { true }
 fn([x, y]) = z { json.unmarshal(x, z); z > y }
 `)
 	vis := &testVis{}
-
 	NewGenericVisitor(vis.Visit).Walk(rule)
 
-	/*
-		mod
-			package
-				data.a.b
-					term
-						data
-					term
-						a
-					term
-						b
-			import
-				term
-					input.x.y
-						term
-							input
-						term
-							x
-						term
-							y
-						z
-			rule
-				head
-					t
-					args
-					term
-						x
-					term
-						y
-				body
-					expr1
-						term
-							ref
-								term
-									=
-						term
-							ref1
-								term
-									p
-								term
-									x
-						term
-							object1
-								term
-									"foo"
-								term
-									array
-										term
-											y
-										term
-											2
-										term
-											object2
-												term
-													"bar"
-												term
-													3
-					expr2
-						term
-							ref2
-								term
-									q
-								term
-									x
-					expr3
-						term
-							ref
-								term
-									=
-						term
-							y
-						term
-							compr
-								term
-									array
-										term
-											x
-										term
-											z
-								body
-									expr4
-										term
-											ref
-												term
-													=
-										term
-											x
-										term
-											"x"
-									expr5
-										term
-											ref
-												term
-													=
-										term
-											z
-										term
-											"z"
-					expr4
-						term
-							ref
-								term
-									=
-						term
-							z
-						term
-							compr
-								key
-									term
-										"foo"
-								value
-									array
-										term
-											x
-										term
-											z
-								body
-									expr1
-										term
-											ref
-												term
-													=
-										term
-											x
-										term
-											"x"
-									expr2
-										term
-											ref
-												term
-													=
-										term
-											z
-										term
-											"z"
-					expr5
-						term
-							ref
-								term
-									=
-						term
-							s
-						term
-							compr
-								term
-									1
-								body
-									expr1
-										term
-											ref
-												term
-													=
-										term
-											ref
-												term
-													a
-												term
-													i
-
-										term
-											"foo"
-					expr6
-						term
-							ref
-								term
-									count
-						term
-							set
-								term
-									1
-								term
-									2
-								term
-									3
-						term
-							n
-						with
-							term
-								input.foo.bar
-									term
-										input
-									term
-										foo
-									term
-										bar
-							term
-								baz
-			rule
-				head
-					p
-					args
-					<nil> # not counted
-					term
-						true
-				body
-					expr
-						term
-							false
-				rule
-					head
-						p
-						args
-						<nil> # not counted
-						term
-							true
-					body
-						expr
-							term
-								false
-					rule
-						head
-							p
-							args
-							<nil> # not counted
-							term
-								true
-						body
-							expr
-								term
-									true
-			func
-				head
-					fn
-					args
-						term
-							array
-								term
-									x
-								term
-									y
-					term
-						z
-				body
-					expr1
-						term
-							ref
-								term
-									json
-								term
-									unmarshal
-						term
-							x
-						term
-							z
-					expr2
-						term
-							ref
-								term
-									>
-						term
-							z
-						term
-							y
-	*/
-	if len(vis.elems) != 246 {
-		t.Errorf("Expected exactly 246 elements in AST but got %d: %v", len(vis.elems), vis.elems)
+	if exp, act := 254, len(vis.elems); exp != act {
+		t.Errorf("Expected exactly %d elements in AST but got %d: %v", exp, act, vis.elems)
 	}
 }
 
@@ -344,6 +91,7 @@ t[x] = y {
 	y = [[x, z] | x = "x"; z = "z"]
 	z = {"foo": [x, z] | x = "x"; z = "z"}
 	s = {1 | a[i] = "foo"}
+	some x0, y0, z0
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
@@ -359,7 +107,7 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 	})
 	vis.Walk(rule)
 
-	if len(elems) != 246 {
+	if len(elems) != 254 {
 		t.Errorf("Expected exactly 246 elements in AST but got %d: %v", len(elems), elems)
 	}
 }
@@ -375,6 +123,7 @@ t[x] = y {
 	y = [[x, z] | x = "x"; z = "z"]
 	z = {"foo": [x, z] | x = "x"; z = "z"}
 	s = {1 | a[i] = "foo"}
+	some x0, y0, z0
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
@@ -393,11 +142,11 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 		})
 	vis.Walk(rule)
 
-	if exp, act := 256, len(before); exp != act {
+	if exp, act := 264, len(before); exp != act {
 		t.Errorf("Expected exactly %d before elements in AST but got %d: %v", exp, act, before)
 	}
 
-	if exp, act := 256, len(before); exp != act {
+	if exp, act := 264, len(before); exp != act {
 		t.Errorf("Expected exactly %d after elements in AST but got %d: %v", exp, act, after)
 	}
 }
@@ -414,22 +163,25 @@ func TestVarVisitor(t *testing.T) {
 		{"data.foo[x] = bar.baz[y]", VarVisitorParams{SkipRefHead: true}, "[x, y]"},
 		{`foo = [x | data.a[i] = x]`, VarVisitorParams{SkipClosures: true}, "[foo, eq]"},
 		{`x = 1; y = 2; z = x + y; count([x, y, z], z)`, VarVisitorParams{}, "[x, y, z, eq, plus, count]"},
+		{"some x, y", VarVisitorParams{}, "[x, y]"},
 	}
 
 	for _, tc := range tests {
-		stmt := MustParseStatement(tc.stmt)
+		t.Run(tc.stmt, func(t *testing.T) {
+			stmt := MustParseStatement(tc.stmt)
 
-		expected := NewVarSet()
-		MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
-			expected.Add(x.Value.(Var))
+			expected := NewVarSet()
+			MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
+				expected.Add(x.Value.(Var))
+			})
+
+			vis := NewVarVisitor().WithParams(tc.params)
+			vis.Walk(stmt)
+
+			if !vis.Vars().Equal(expected) {
+				t.Errorf("Params %#v expected %v but got: %v", tc.params, expected, vis.Vars())
+			}
 		})
-
-		vis := NewVarVisitor().WithParams(tc.params)
-		vis.Walk(stmt)
-
-		if !vis.Vars().Equal(expected) {
-			t.Errorf("For %v w/ %v expected %v but got: %v", stmt, tc.params, expected, vis.Vars())
-		}
 	}
 }
 
