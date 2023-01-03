@@ -331,7 +331,6 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		}
 		return nil
 	}
-
 	expr := e.query[e.index]
 
 	e.traceEval(expr)
@@ -1879,7 +1878,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 		cacheKey[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
-	cached := e.e.virtualCache.Get(cacheKey)
+	cached, _ := e.e.virtualCache.Get(cacheKey)
 	if cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		if argCount == len(e.terms)-1 { // f(x)
@@ -2407,7 +2406,7 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) error {
 
 	cacheKey := e.plugged[:e.pos+1]
-	result := e.e.virtualCache.Get(cacheKey)
+	result, _ := e.e.virtualCache.Get(cacheKey)
 	if result != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.e.biunify(result, e.rterm, e.bindings, e.rbindings, iter)
@@ -2669,7 +2668,7 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 		return hint, nil
 	}
 
-	if cached := e.e.virtualCache.Get(e.plugged[:e.pos+1]); cached != nil { // have full extent cached
+	if cached, _ := e.e.virtualCache.Get(e.plugged[:e.pos+1]); cached != nil { // have full extent cached
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		hint.hit = true
 		return hint, e.evalTerm(iter, e.pos+1, cached, e.bindings)
@@ -2680,7 +2679,7 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 	if plugged.IsGround() {
 		hint.key = append(e.plugged[:e.pos+1], plugged)
 
-		if cached := e.e.virtualCache.Get(hint.key); cached != nil {
+		if cached, _ := e.e.virtualCache.Get(hint.key); cached != nil {
 			e.e.instr.counterIncr(evalOpVirtualCacheHit)
 			hint.hit = true
 			return hint, e.evalTerm(iter, e.pos+2, cached, e.bindings)
@@ -2768,8 +2767,12 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
-	cached := e.e.virtualCache.Get(e.plugged[:e.pos+1])
-	if cached != nil {
+	cached, undefined := e.e.virtualCache.Get(e.plugged[:e.pos+1])
+	if undefined {
+		return nil
+	}
+
+	if cached != nil  {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.evalTerm(iter, cached, e.bindings)
 	}
@@ -2803,6 +2806,11 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
 		return err
 	}
+
+	if prev == nil {
+		e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
+	}
+
 
 	return nil
 }

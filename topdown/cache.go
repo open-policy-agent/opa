@@ -14,8 +14,9 @@ type virtualCache struct {
 }
 
 type virtualCacheElem struct {
-	value    *ast.Term
-	children *util.HashMap
+	value     *ast.Term
+	children  *util.HashMap
+	undefined bool
 }
 
 func newVirtualCache() *virtualCache {
@@ -32,16 +33,20 @@ func (c *virtualCache) Pop() {
 	c.stack = c.stack[:len(c.stack)-1]
 }
 
-func (c *virtualCache) Get(ref ast.Ref) *ast.Term {
+func (c *virtualCache) Get(ref ast.Ref) (*ast.Term, bool) {
 	node := c.stack[len(c.stack)-1]
 	for i := 0; i < len(ref); i++ {
 		x, ok := node.children.Get(ref[i])
 		if !ok {
-			return nil
+			return nil, false
 		}
 		node = x.(*virtualCacheElem)
 	}
-	return node.value
+	if node.undefined {
+		return nil, true
+	} else {
+		return node.value, false
+	}
 }
 
 func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
@@ -56,7 +61,11 @@ func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
 			node = next
 		}
 	}
-	node.value = value
+	if value != nil {
+		node.value = value
+	} else {
+		node.undefined = true
+	}
 }
 
 func newVirtualCacheElem() *virtualCacheElem {
