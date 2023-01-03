@@ -2253,6 +2253,23 @@ func TestStrictBuiltinErrors(t *testing.T) {
 	}
 }
 
+func TestBuiltinErrorList(t *testing.T) {
+	var buf []topdown.Error
+
+	_, err := New(Query("1/0"), BuiltinErrorList(&buf)).Eval(context.Background())
+	if err != nil {
+		t.Fatal("unexpected error")
+	}
+
+	if len(buf) != 1 {
+		t.Fatal("expected 1 error in buffer")
+	}
+
+	if buf[0].Error() != "1/0: eval_builtin_error: div: divide by zero" {
+		t.Fatal("expected divide by zero error but got:", buf[0].Error())
+	}
+}
+
 func TestTimeSeedingOptions(t *testing.T) {
 
 	ctx := context.Background()
