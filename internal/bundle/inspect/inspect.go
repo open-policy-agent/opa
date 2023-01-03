@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -128,11 +129,11 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 
 	for _, f := range descriptors {
 		path := filepath.Clean(f.Path())
-		key := strings.Split(strings.TrimPrefix(path, "/"), "/")
+		key := strings.Split(strings.TrimPrefix(path, string(os.PathSeparator)), string(os.PathSeparator))
 
 		value := path
 		if bl.IsDir {
-			value = f.URL()
+			value = filepath.Clean(f.URL())
 		}
 
 		if len(key) > 1 {

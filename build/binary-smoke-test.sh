@@ -3,6 +3,11 @@ set -eo pipefail
 OPA_EXEC="$1"
 TARGET="$2"
 
+PATH_SEPARATOR="/"
+if [[ $OPA_EXEC == *".exe" ]]; then
+    PATH_SEPARATOR="\\"
+fi
+
 github_actions_group() {
     local args="$*"
     echo "::group::$args"
@@ -25,9 +30,6 @@ assert_contains() {
     fi
 }
 
-
-
-
 opa version
 opa eval -t $TARGET 'time.now_ns()'
 opa eval --format pretty --bundle test/cli/smoke/golden-bundle.tar.gz --input test/cli/smoke/input.json data.test.result --fail
@@ -42,3 +44,8 @@ echo '{"yay": "bar"}' | opa eval --format pretty --bundle o2.tar.gz -I data.test
 # Tar paths 
 opa build --output o3.tar.gz test/cli/smoke
 github_actions_group assert_contains '/test/cli/smoke/test.rego' "$(tar -tf o3.tar.gz /test/cli/smoke/test.rego)"
+
+# Data files - correct namespaces
+echo "::group:: Data files - correct namespaces"
+assert_contains "data.namespace | test${PATH_SEPARATOR}cli${PATH_SEPARATOR}smoke${PATH_SEPARATOR}namespace${PATH_SEPARATOR}data.json" "$(opa inspect test/cli/smoke)"
+echo "::endgroup::"
