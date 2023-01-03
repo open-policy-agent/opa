@@ -342,13 +342,6 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
-	$(DOCKER) build \
-		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
-		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
-		--platform linux/$* \
-		.
 endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
@@ -376,14 +369,6 @@ push-manifest-list-%: ensure-executable-bin
 		--push \
 		.
 	$(DOCKER) buildx build \
-		--tag $(DOCKER_IMAGE):$*-rootless \
-		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
-		--platform $(DOCKER_PLATFORMS) \
-		--push \
-		.
-	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
 		--build-arg BASE=gcr.io/distroless/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
@@ -401,10 +386,9 @@ ci-image-smoke-test-%: image-quick-%
 ifneq ($(GOARCH),arm64) # we build only static images for arm64
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION) version
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-debug version
-	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless version
 
-	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION)-rootless |\
-	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-rootless \
+	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION) |\
+	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION) \
 	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
 endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
