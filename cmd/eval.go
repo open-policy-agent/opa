@@ -44,6 +44,7 @@ type evalCommandParams struct {
 	disableIndexing     bool
 	disableEarlyExit    bool
 	strictBuiltinErrors bool
+	showBuiltinErrors   bool
 	dataPaths           repeatedStringFlag
 	inputPath           string
 	imports             repeatedStringFlag
@@ -289,7 +290,8 @@ access.
 	evalCommand.Flags().BoolVarP(&params.shallowInlining, "shallow-inlining", "", false, "disable inlining of rules that depend on unknowns")
 	evalCommand.Flags().BoolVar(&params.disableIndexing, "disable-indexing", false, "disable indexing optimizations")
 	evalCommand.Flags().BoolVar(&params.disableEarlyExit, "disable-early-exit", false, "disable 'early exit' optimizations")
-	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat built-in function errors as fatal")
+	evalCommand.Flags().BoolVarP(&params.strictBuiltinErrors, "strict-builtin-errors", "", false, "treat the first built-in function error encountered as fatal")
+	evalCommand.Flags().BoolVarP(&params.showBuiltinErrors, "show-builtin-errors", "", false, "collect and return all encountered built-in errors, built in errors are not fatal")
 	evalCommand.Flags().BoolVarP(&params.instrument, "instrument", "", false, "enable query instrumentation metrics (implies --metrics)")
 	evalCommand.Flags().BoolVarP(&params.profile, "profile", "", false, "perform expression profiling")
 	evalCommand.Flags().VarP(&params.profileCriteria, "profile-sort", "", "set sort order of expression profiler results")
@@ -376,6 +378,11 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		result.AggregatedMetrics = timersAggregated
 	}
 
+	var builtInErrorCount int
+	if ectx.params.showBuiltinErrors {
+		builtInErrorCount = len(*(ectx.builtInErrorList))
+	}
+
 	switch ectx.params.outputFormat.String() {
 	case evalBindingsOutput:
 		err = pr.Bindings(w, result)
@@ -393,7 +400,11 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 
 	if err != nil {
 		return false, err
-	} else if len(result.Errors) > 0 {
+	} else if errorCount := len(result.Errors); errorCount > 0 && errorCount != builtInErrorCount {
+		// if we only have built-in errors, we don't want to return an error. If
+		// strict-builtin-errors is set the first built-in error will be returned
+		// in a result error instead.
+
 		// If the rego package returned an error, return a special error here so
 		// that the command doesn't print the same error twice. The error will
 		// have been printed above by the presentation package.
@@ -436,6 +447,11 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	}
 
 	result.Errors = pr.NewOutputErrors(resultErr)
+	if ectx.builtInErrorList != nil {
+		for _, err := range *(ectx.builtInErrorList) {
+			result.Errors = append(result.Errors, pr.NewOutputErrors(&err)...)
+		}
+	}
 
 	if ectx.params.explain != nil {
 		switch ectx.params.explain.String() {
@@ -473,13 +489,14 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 }
 
 type evalContext struct {
-	params   evalCommandParams
-	metrics  metrics.Metrics
-	profiler *resettableProfiler
-	cover    *cover.Cover
-	tracer   *topdown.BufferTracer
-	regoArgs []func(*rego.Rego)
-	evalArgs []rego.EvalOption
+	params           evalCommandParams
+	metrics          metrics.Metrics
+	profiler         *resettableProfiler
+	cover            *cover.Cover
+	tracer           *topdown.BufferTracer
+	regoArgs         []func(*rego.Rego)
+	evalArgs         []rego.EvalOption
+	builtInErrorList *[]topdown.Error
 }
 
 func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
@@ -622,6 +639,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strictBuiltinErrors {
 		regoArgs = append(regoArgs, rego.StrictBuiltinErrors(true))
+		if params.showBuiltinErrors {
+			return nil, fmt.Errorf("cannot use --show-builtin-errors with --strict-builtin-errors, --strict-builtin-errors will return the first built-in error encountered immediately")
+		}
+	}
+
+	var builtInErrors []topdown.Error
+	if params.showBuiltinErrors {
+		regoArgs = append(regoArgs, rego.BuiltinErrorList(&builtInErrors))
 	}
 
 	if params.capabilities != nil {
@@ -633,13 +658,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	evalCtx := &evalContext{
-		params:   params,
-		metrics:  m,
-		profiler: &rp,
-		cover:    c,
-		tracer:   tracer,
-		regoArgs: regoArgs,
-		evalArgs: evalArgs,
+		params:           params,
+		metrics:          m,
+		profiler:         &rp,
+		cover:            c,
+		tracer:           tracer,
+		regoArgs:         regoArgs,
+		evalArgs:         evalArgs,
+		builtInErrorList: &builtInErrors,
 	}
 
 	return evalCtx, nil

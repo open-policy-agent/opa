@@ -547,10 +547,11 @@ opa eval <query> [flags]
       --profile-sort string                               set sort order of expression profiler results
   -s, --schema string                                     set schema file path or directory path
       --shallow-inlining                                  disable inlining of rules that depend on unknowns
+      --show-builtin-errors                               collect and return all encountered built-in errors, built in errors are not fatal
       --stdin                                             read query from stdin
   -I, --stdin-input                                       read input document from stdin
   -S, --strict                                            enable compiler strict mode
-      --strict-builtin-errors                             treat built-in function errors as fatal
+      --strict-builtin-errors                             treat the first built-in function error encountered as fatal
   -t, --target {rego,wasm}                                set the runtime to exercise (default rego)
       --timeout duration                                  set eval timeout (default unlimited)
   -u, --unknowns stringArray                              set paths to treat as unknown during partial evaluation (default [input])
