@@ -4,11 +4,11 @@
 {{/* In the current "ctx" the file path refers to the doc we are linking to, not the page we are on */}}
 {{- $contentVersion := index (split .ctx.File.Path "/") 1 -}}
 {{- $isRoot := eq (len (split .ctx.File.Path "/")) 2 -}}
-{{- $isThisPage := eq .ctx.URL .pageUrl -}}
+{{- $isThisPage := eq .ctx.Permalink .pageUrl -}}
 {{- $title := cond (isset .ctx.Params "navtitle") (.ctx.Params.navtitle) .ctx.Title -}}
 {{- if not $isRoot -}}
 {{- if eq .version $contentVersion -}}
-{{- $linkRef := .ctx.URL -}}
+{{- $linkRef := .ctx.Permalink -}}
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ $linkRef }}">
   {{ $title }}
 </a>
