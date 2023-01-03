@@ -188,7 +188,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	fh := newLazyFile(fileName)
 
 	// Trim off the root directory and return path as if chrooted
-	cleanedPath := strings.TrimPrefix(fileName, d.root)
+	cleanedPath := strings.TrimPrefix(fileName, filepath.FromSlash(d.root))
 	if d.root == "." && filepath.Base(fileName) == ManifestExt {
 		cleanedPath = fileName
 	}
