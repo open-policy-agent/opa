@@ -8714,7 +8714,8 @@ deny {
 }
 `
 
-	c := NewCompiler()
+	c := NewCompiler().
+		WithUseTypeCheckAnnotations(true)
 	var schema interface{}
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)

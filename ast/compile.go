@@ -102,26 +102,27 @@ type Compiler struct {
 		metricName string
 		f          func()
 	}
-	maxErrs               int
-	sorted                []string // list of sorted module names
-	pathExists            func([]string) (bool, error)
-	after                 map[string][]CompilerStageDefinition
-	metrics               metrics.Metrics
-	capabilities          *Capabilities                 // user-supplied capabilities
-	builtins              map[string]*Builtin           // universe of built-in functions
-	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	deprecatedBuiltinsMap map[string]struct{}           // set of deprecated, but not removed, built-in functions
-	enablePrintStatements bool                          // indicates if print statements should be elided (default)
-	comprehensionIndices  map[*Term]*ComprehensionIndex // comprehension key index
-	initialized           bool                          // indicates if init() has been called
-	debug                 debug.Debug                   // emits debug information produced during compilation
-	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType             types.Type                    // global input type retrieved from schema set
-	annotationSet         *AnnotationSet                // hierarchical set of annotations
-	strict                bool                          // enforce strict compilation checks
-	keepModules           bool                          // whether to keep the unprocessed, parse modules (below)
-	parsedModules         map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	maxErrs                 int
+	sorted                  []string // list of sorted module names
+	pathExists              func([]string) (bool, error)
+	after                   map[string][]CompilerStageDefinition
+	metrics                 metrics.Metrics
+	capabilities            *Capabilities                 // user-supplied capabilities
+	builtins                map[string]*Builtin           // universe of built-in functions
+	customBuiltins          map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap       map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	deprecatedBuiltinsMap   map[string]struct{}           // set of deprecated, but not removed, built-in functions
+	enablePrintStatements   bool                          // indicates if print statements should be elided (default)
+	comprehensionIndices    map[*Term]*ComprehensionIndex // comprehension key index
+	initialized             bool                          // indicates if init() has been called
+	debug                   debug.Debug                   // emits debug information produced during compilation
+	schemaSet               *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType               types.Type                    // global input type retrieved from schema set
+	annotationSet           *AnnotationSet                // hierarchical set of annotations
+	strict                  bool                          // enforce strict compilation checks
+	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
+	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -404,6 +405,12 @@ func (c *Compiler) WithStrict(strict bool) *Compiler {
 // map that was passed into Compile().`
 func (c *Compiler) WithKeepModules(y bool) *Compiler {
 	c.keepModules = y
+	return c
+}
+
+// WithUseTypeCheckAnnotations use schema annotations during type checking
+func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
+	c.useTypeCheckAnnotations = enabled
 	return c
 }
 
@@ -1305,7 +1312,11 @@ func (c *Compiler) checkTypes() {
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
-	env, errs := checker.CheckTypes(c.TypeEnv, sorted, c.annotationSet)
+	var as *AnnotationSet
+	if c.useTypeCheckAnnotations {
+		as = c.annotationSet
+	}
+	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
 	for _, err := range errs {
 		c.err(err)
 	}

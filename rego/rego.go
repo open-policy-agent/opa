@@ -1147,7 +1147,8 @@ func New(options ...func(r *Rego)) *Rego {
 			WithSchemas(r.schemaSet).
 			WithCapabilities(r.capabilities).
 			WithEnablePrintStatements(r.enablePrintStatements).
-			WithStrict(r.strict)
+			WithStrict(r.strict).
+			WithUseTypeCheckAnnotations(r.schemaSet != nil)
 	}
 
 	if r.store == nil {

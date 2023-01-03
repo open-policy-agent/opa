@@ -2219,7 +2219,9 @@ q = p`,
 					ss.Put(ref, schema)
 				}
 
-				compiler := NewCompiler().WithSchemas(ss)
+				compiler := NewCompiler().
+					WithSchemas(ss).
+					WithUseTypeCheckAnnotations(true)
 				compiler.Compile(modules)
 				if compiler.Failed() {
 					t.Fatal("unexpected error:", compiler.Errors)
