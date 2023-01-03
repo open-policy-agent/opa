@@ -141,6 +141,10 @@ func walk(v Visitor, x interface{}) {
 		Walk(w, x.Value)
 		Walk(w, x.Domain)
 		Walk(w, x.Body)
+	case *SomeDecl:
+		for i := range x.Symbols {
+			Walk(w, x.Symbols[i])
+		}
 	}
 }
 
@@ -383,6 +387,10 @@ func (vis *GenericVisitor) Walk(x interface{}) {
 		vis.Walk(x.Value)
 		vis.Walk(x.Domain)
 		vis.Walk(x.Body)
+	case *SomeDecl:
+		for i := range x.Symbols {
+			vis.Walk(x.Symbols[i])
+		}
 	}
 }
 
@@ -519,6 +527,10 @@ func (vis *BeforeAfterVisitor) Walk(x interface{}) {
 		vis.Walk(x.Value)
 		vis.Walk(x.Domain)
 		vis.Walk(x.Body)
+	case *SomeDecl:
+		for i := range x.Symbols {
+			vis.Walk(x.Symbols[i])
+		}
 	}
 }
 
@@ -759,5 +771,9 @@ func (vis *VarVisitor) Walk(x interface{}) {
 		vis.Walk(x.Value)
 		vis.Walk(x.Domain)
 		vis.Walk(x.Body)
+	case *SomeDecl:
+		for i := range x.Symbols {
+			vis.Walk(x.Symbols[i])
+		}
 	}
 }
