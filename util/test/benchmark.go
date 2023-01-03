@@ -61,9 +61,9 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 			not input.bench_test_collector_mambo_number_%[3]d
 			result := { "result": %[3]d, "error": null }
 		}
-		`, idx, idx % 3, idx % 5)
+		`, idx, idx%3, idx%5)
 		ruleBuilder += fmt.Sprintf("    bar.bench_test_%[1]d == %[1]d\n", idx)
-		if idx % 10 == 0 {
+		if idx%10 == 0 {
 			bazMod += fmt.Sprintf(`rule_%d {
 				%s
 			}`, idx, ruleBuilder)

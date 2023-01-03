@@ -2772,7 +2772,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		return nil
 	}
 
-	if cached != nil  {
+	if cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.evalTerm(iter, cached, e.bindings)
 	}
@@ -2810,7 +2810,6 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	if prev == nil {
 		e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
 	}
-
 
 	return nil
 }

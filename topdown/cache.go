@@ -44,9 +44,9 @@ func (c *virtualCache) Get(ref ast.Ref) (*ast.Term, bool) {
 	}
 	if node.undefined {
 		return nil, true
-	} else {
-		return node.value, false
 	}
+
+	return node.value, false
 }
 
 func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
