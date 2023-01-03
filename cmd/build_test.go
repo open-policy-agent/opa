@@ -392,6 +392,73 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 	})
 }
 
+func TestBuildPlanWithPrintStatements(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+
+			p { print("hello") }
+		`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newBuildParams()
+		if err := params.target.Set("plan"); err != nil {
+			t.Fatal(err)
+		}
+		params.entrypoints.v = []string{"test"}
+		params.outputFile = path.Join(root, "bundle.tar.gz")
+
+		err := dobuild(params, []string{root})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f, err := os.Open(params.outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+
+		gr, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tr := tar.NewReader(gr)
+		var found bool
+
+		for {
+			f, err := tr.Next()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if f.Name == "/plan.json" {
+				found = true
+				plan, err := io.ReadAll(tr)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(plan), "internal.print") {
+					t.Error("expected plan.json to contain reference to internal.print built-in function")
+				}
+			}
+		}
+
+		if !found {
+			t.Error("plan.json not found")
+		}
+	})
+}
+
 func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
 
 	tests := []struct {
