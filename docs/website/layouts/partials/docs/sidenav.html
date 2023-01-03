@@ -8,8 +8,8 @@
 {{ $management := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib    := where $allDocs ".Params.kind" "eq" "contrib" }}
 {{ $misc       := where $allDocs ".Params.kind" "eq" "misc" }}
-{{ $pageUrl    := .URL }}
-{{ $isDocsHome := eq .URL $docsHome.URL }}
+{{ $pageUrl    := .Permalink }}
+{{ $isDocsHome := eq .Permalink $docsHome.Permalink }}
 {{ $version    := index (split .File.Path "/") 1 }}
 {{ $latest     := index site.Data.releases 1 }}
 

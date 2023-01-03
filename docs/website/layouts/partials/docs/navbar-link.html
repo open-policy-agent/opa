@@ -7,7 +7,7 @@
 {{- $title := cond (isset .ctx.Params "navtitle") (.ctx.Params.navtitle) .ctx.Title -}}
 {{- if not $isRoot -}}
 {{- if eq .version $contentVersion -}}
-{{- $linkRef := .ctx.URL -}}
+{{- $linkRef := .ctx.Permalink -}}
 <a class="navbar-item" href="{{ $linkRef }}">
   {{ $title }}
 </a>
