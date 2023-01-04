@@ -2769,6 +2769,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	cached, undefined := e.e.virtualCache.Get(e.plugged[:e.pos+1])
 	if undefined {
+		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return nil
 	}
 
