@@ -31,6 +31,18 @@ func TestVirtualCacheInvalidate(t *testing.T) {
 	}
 }
 
+func TestSetAndRetriveUndefined(t *testing.T) {
+	cache := newVirtualCache()
+	cache.Put(ast.MustParseRef("data.foo.bar"), nil)
+	result, undefined := cache.Get(ast.MustParseRef("data.foo.bar"))
+	if result != nil {
+		t.Fatal("Expected nil result but got:", result)
+	}
+	if !undefined {
+		t.Fatal("Expected 'undefined' flag to be false got true")
+	}
+}
+
 func TestBaseCacheGetExactMatch(t *testing.T) {
 	cache := newBaseCache()
 	cache.Put(ast.MustParseRef("data.x.foo"), ast.StringTerm("bar").Value)

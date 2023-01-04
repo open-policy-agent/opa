@@ -1,4 +1,4 @@
-package rego_test
+package rego
 
 import (
 	"context"
@@ -6,9 +6,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/internal/runtime"
-	"github.com/open-policy-agent/opa/rego"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -42,11 +40,11 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			pq, err := rego.New(
-				rego.Query(query),
-				rego.Compiler(compiler),
-				rego.Store(store),
-				rego.Runtime(info),
+			pq, err := New(
+				Query(query),
+				Compiler(compiler),
+				Store(store),
+				Runtime(info),
 			).PrepareForEval(ctx)
 
 			if err != nil {
@@ -56,13 +54,11 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				var result pr.Output
-
-				result.Result, err = pq.Eval(
+				_, err = pq.Eval(
 					ctx,
-					rego.EvalParsedInput(inputAST),
-					rego.EvalRuleIndexing(true),
-					rego.EvalEarlyExit(true),
+					EvalParsedInput(inputAST),
+					EvalRuleIndexing(true),
+					EvalEarlyExit(true),
 				)
 
 				if err != nil {
