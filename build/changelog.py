@@ -46,20 +46,6 @@ def fetch(url, token):
     else:
         return result
 
-
-def get_maintainers():
-    with open("MAINTAINERS.md", "r") as f:
-        contents = f.read()
-    maintainers = re.findall(r"[^\s]+@[^\s]+", contents)
-    return maintainers
-
-maintainers = get_maintainers()
-
-
-def is_maintainer(commit_message):
-    author = author_email(commit_message)
-    return author in maintainers
-
 org_members_usernames = []
 def get_org_members(token):
     url = "https://api.github.com/orgs/open-policy-agent/members?per_page=100"
@@ -72,7 +58,6 @@ def get_org_members(token):
         if login:
             org_members_usernames.append(str(login))
         if email:
-            maintainers.append(str(email))
             github_ids[email]=login
 
 def author_email(commit_message):
@@ -101,9 +86,7 @@ def get_github_id(commit_message, commit_id, token):
 
 def mention_author(commit_message, commit_id, token):
     username = get_github_id(commit_message, commit_id, token)
-    if username not in org_members_usernames:
-        return "authored by @{author}".format(author=username)
-    return ""
+    return "authored by @{author}".format(author=username)
 
 def get_issue_reporter(issue_id, token):
     url = "https://api.github.com/repos/open-policy-agent/opa/issues/{issue_id}".format(issue_id=issue_id)
@@ -163,8 +146,7 @@ def main():
         mention = ""
         reporter = ""
         commit_message = get_commit_message(commit_id)
-        if not is_maintainer(commit_message):
-            mention = mention_author(commit_message, commit_id, args.token)
+        mention = mention_author(commit_message, commit_id, args.token)
         issue_id = fixes_issue_id(commit_message)
         if issue_id:
             reporter = get_issue_reporter(issue_id, args.token)
