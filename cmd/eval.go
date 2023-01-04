@@ -125,11 +125,10 @@ func validateEvalParams(p *evalCommandParams, cmdArgs []string) error {
 
 	if p.profileLimit.isFlagSet() || p.profileCriteria.isFlagSet() {
 		p.profile = true
-	}
-	if p.profile {
 		p.metrics = true
 	}
-	if p.instrument {
+
+	if !p.metrics && p.instrument {
 		p.metrics = true
 	}
 	return nil
