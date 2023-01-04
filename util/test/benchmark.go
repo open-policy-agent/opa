@@ -42,7 +42,6 @@ func PartialObjectBenchmarkCrossModule(n int) []string {
 
 	bazMod := "package test.baz\nimport data.test.bar\n"
 	ruleBuilder := ""
-	//bazRules := ""
 
 	for idx := 1; idx <= n; idx++ {
 		barMod += fmt.Sprintf(`
