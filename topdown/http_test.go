@@ -2430,6 +2430,7 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 }
 
+// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
 func TestCertSelectionLogic(t *testing.T) {
 	const (
 		localCaFile = "testdata/ca.pem"
