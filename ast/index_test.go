@@ -42,6 +42,16 @@ func (r testResolver) Resolve(ref Ref) (Value, error) {
 
 func TestBaseDocEqIndexing(t *testing.T) {
 	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
+
+	expectOnlyGroundRefs := func(exp bool) func(*testing.T, *IndexResult) {
+		return func(t *testing.T, res *IndexResult) {
+			t.Helper()
+			if act := res.OnlyGroundRefs; exp != act {
+				t.Errorf("OnlyGroundRefs: expected %v, got %v", exp, act)
+			}
+		}
+	}
+
 	everyMod := MustParseModuleWithOpts(`package test
 	p { every _ in [] { input.a = 1 } }`, opts)
 
@@ -221,15 +231,16 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	`)
 
 	tests := []struct {
-		note       string
-		module     *Module
-		ruleset    string
-		ruleRef    Ref
-		input      string
-		unknowns   []string
-		args       []Value
-		expectedRS interface{}
-		expectedDR *Rule
+		note        string
+		module      *Module
+		ruleset     string
+		ruleRef     Ref
+		input       string
+		unknowns    []string
+		args        []Value
+		expectedRS  interface{}
+		expectedDR  *Rule
+		checkResult func(*testing.T, *IndexResult)
 	}{
 		{
 			note:    "exact match",
@@ -238,6 +249,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: []string{
 				`exact { input.x = 3; input.y = 4 }`,
 			},
+			checkResult: expectOnlyGroundRefs(true), // covering base case
 		},
 		{
 			note:    "undefined match",
@@ -660,32 +672,36 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			expectedRS: RuleSet([]*Rule{everyModWithDomain.Rules[0]}),
 		},
 		{
-			note:       "ref: single value, ground ref",
-			module:     refMod,
-			ruleRef:    MustParseRef("ref.single.value.ground"),
-			input:      `{"x": 1}`,
-			expectedRS: RuleSet([]*Rule{refMod.Rules[0]}),
+			note:        "ref: single value, ground ref",
+			module:      refMod,
+			ruleRef:     MustParseRef("ref.single.value.ground"),
+			input:       `{"x": 1}`,
+			expectedRS:  RuleSet([]*Rule{refMod.Rules[0]}),
+			checkResult: expectOnlyGroundRefs(true),
 		},
 		{
-			note:       "ref: single value, ground ref and non-ground ref",
-			module:     refMod,
-			ruleRef:    MustParseRef("ref.multiple.single.value"),
-			input:      `{"x": 1, "y": "Y"}`,
-			expectedRS: RuleSet([]*Rule{refMod.Rules[3], refMod.Rules[4]}),
+			note:        "ref: single value, ground ref and non-ground ref",
+			module:      refMod,
+			ruleRef:     MustParseRef("ref.multiple.single.value"),
+			input:       `{"x": 1, "y": "Y"}`,
+			expectedRS:  RuleSet([]*Rule{refMod.Rules[3], refMod.Rules[4]}),
+			checkResult: expectOnlyGroundRefs(false),
 		},
 		{
-			note:       "ref: single value, var in ref",
-			module:     refMod,
-			ruleRef:    MustParseRef("ref.single.value.key[k]"),
-			input:      `{"k": 1, "v": 2}`,
-			expectedRS: RuleSet([]*Rule{refMod.Rules[1]}),
+			note:        "ref: single value, var in ref",
+			module:      refMod,
+			ruleRef:     MustParseRef("ref.single.value.key[k]"),
+			input:       `{"k": 1, "v": 2}`,
+			expectedRS:  RuleSet([]*Rule{refMod.Rules[1]}),
+			checkResult: expectOnlyGroundRefs(false),
 		},
 		{
-			note:       "ref: multi value, ground ref",
-			module:     refMod,
-			ruleRef:    MustParseRef("ref.multi.value.ground"),
-			input:      `{"x": 1}`,
-			expectedRS: RuleSet([]*Rule{refMod.Rules[2]}),
+			note:        "ref: multi value, ground ref",
+			module:      refMod,
+			ruleRef:     MustParseRef("ref.multi.value.ground"),
+			input:       `{"x": 1}`,
+			expectedRS:  RuleSet([]*Rule{refMod.Rules[2]}),
+			checkResult: expectOnlyGroundRefs(true),
 		},
 		// {
 		// 	note:       "ref: multi value, var in ref",
@@ -756,6 +772,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			result, err := index.Lookup(testResolver{input: input, unknownRefs: unknownRefs, args: tc.args})
 			if err != nil {
 				t.Fatalf("Unexpected error during index lookup: %v", err)
+			}
+
+			if tc.checkResult != nil {
+				tc.checkResult(t, result)
 			}
 
 			if !NewRuleSet(result.Rules...).Equal(expectedRS) {
