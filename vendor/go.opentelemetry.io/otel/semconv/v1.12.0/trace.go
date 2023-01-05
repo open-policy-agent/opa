@@ -14,7 +14,7 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.10.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 import "go.opentelemetry.io/otel/attribute"
 
@@ -656,6 +656,8 @@ const (
 	// Required: No
 	// Stability: stable
 	// Examples: 'example.com'
+	// Note: `net.peer.name` SHOULD NOT be set if capturing it would require an extra
+	// DNS lookup.
 	NetPeerNameKey = attribute.Key("net.peer.name")
 	// Like `net.peer.ip` but for the host IP. Useful in case of a multi-IP host.
 	//
@@ -1020,12 +1022,14 @@ const (
 )
 
 var (
-	// HTTP 1.0
+	// HTTP/1.0
 	HTTPFlavorHTTP10 = HTTPFlavorKey.String("1.0")
-	// HTTP 1.1
+	// HTTP/1.1
 	HTTPFlavorHTTP11 = HTTPFlavorKey.String("1.1")
-	// HTTP 2
+	// HTTP/2
 	HTTPFlavorHTTP20 = HTTPFlavorKey.String("2.0")
+	// HTTP/3
+	HTTPFlavorHTTP30 = HTTPFlavorKey.String("3.0")
 	// SPDY protocol
 	HTTPFlavorSPDY = HTTPFlavorKey.String("SPDY")
 	// QUIC protocol
