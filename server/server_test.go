@@ -1034,6 +1034,7 @@ func TestCompileV1Observability(t *testing.T) {
 			"timer_rego_partial_eval_ns",
 			"timer_rego_query_compile_ns",
 			"timer_rego_query_parse_ns",
+			"timer_rego_module_parse_ns",
 			"timer_server_handler_ns",
 			"counter_disk_read_keys",
 			"timer_disk_read_ns",

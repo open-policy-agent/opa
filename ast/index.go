@@ -32,11 +32,12 @@ type RuleIndex interface {
 
 // IndexResult contains the result of an index lookup.
 type IndexResult struct {
-	Kind      RuleKind
-	Rules     []*Rule
-	Else      map[*Rule][]*Rule
-	Default   *Rule
-	EarlyExit bool
+	Kind           RuleKind
+	Rules          []*Rule
+	Else           map[*Rule][]*Rule
+	Default        *Rule
+	EarlyExit      bool
+	OnlyGroundRefs bool
 }
 
 // NewIndexResult returns a new IndexResult object.
@@ -53,18 +54,20 @@ func (ir *IndexResult) Empty() bool {
 }
 
 type baseDocEqIndex struct {
-	skipIndexing Set
-	isVirtual    func(Ref) bool
-	root         *trieNode
-	defaultRule  *Rule
-	kind         RuleKind
+	skipIndexing   Set
+	isVirtual      func(Ref) bool
+	root           *trieNode
+	defaultRule    *Rule
+	kind           RuleKind
+	onlyGroundRefs bool
 }
 
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 	return &baseDocEqIndex{
-		skipIndexing: NewSet(NewTerm(InternalPrint.Ref())),
-		isVirtual:    isVirtual,
-		root:         newTrieNodeImpl(),
+		skipIndexing:   NewSet(NewTerm(InternalPrint.Ref())),
+		isVirtual:      isVirtual,
+		root:           newTrieNodeImpl(),
+		onlyGroundRefs: true,
 	}
 }
 
@@ -82,6 +85,9 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			if rule.Default {
 				i.defaultRule = rule
 				return false
+			}
+			if i.onlyGroundRefs {
+				i.onlyGroundRefs = rule.Head.Reference.IsGround()
 			}
 			var skip bool
 			for _, expr := range rule.Body {
@@ -134,6 +140,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
+	result.OnlyGroundRefs = i.onlyGroundRefs
 	result.Rules = make([]*Rule, 0, len(tr.ordering))
 
 	for _, pos := range tr.ordering {

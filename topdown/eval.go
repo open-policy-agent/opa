@@ -17,7 +17,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util"
 )
 
 type evalIterator func(*eval) error
@@ -2093,14 +2092,13 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {
 				r := evalVirtual{
-					onlyGroundRefs: onlyGroundRefs(node.Values),
-					e:              e.e,
-					ref:            e.ref,
-					plugged:        e.plugged,
-					pos:            e.pos,
-					bindings:       e.bindings,
-					rterm:          e.rterm,
-					rbindings:      e.rbindings,
+					e:         e.e,
+					ref:       e.ref,
+					plugged:   e.plugged,
+					pos:       e.pos,
+					bindings:  e.bindings,
+					rterm:     e.rterm,
+					rbindings: e.rbindings,
 				}
 				r.plugged[e.pos] = plugged
 				return r.eval(iter)
@@ -2110,16 +2108,6 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	cpy.node = node
 	return cpy.eval(iter)
-}
-
-func onlyGroundRefs(values []util.T) bool {
-	for _, v := range values {
-		rule := v.(*ast.Rule)
-		if !rule.Head.Reference.IsGround() {
-			return false
-		}
-	}
-	return true
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
@@ -2260,14 +2248,13 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 }
 
 type evalVirtual struct {
-	onlyGroundRefs bool
-	e              *eval
-	ref            ast.Ref
-	plugged        ast.Ref
-	pos            int
-	bindings       *bindings
-	rterm          *ast.Term
-	rbindings      *bindings
+	e         *eval
+	ref       ast.Ref
+	plugged   ast.Ref
+	pos       int
+	bindings  *bindings
+	rterm     *ast.Term
+	rbindings *bindings
 }
 
 func (e evalVirtual) eval(iter unifyIterator) error {
@@ -2300,7 +2287,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	case ast.SingleValue:
 		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
 		//           to start reworking things here
-		if e.onlyGroundRefs {
+		if ir.OnlyGroundRefs {
 			eval := evalVirtualComplete{
 				e:         e.e,
 				ref:       e.ref,

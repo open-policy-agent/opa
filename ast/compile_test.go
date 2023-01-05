@@ -1734,6 +1734,27 @@ p {
 	}
 }
 
+func TestCompilerCheckSafetyFunctionAndContainsKeyword(t *testing.T) {
+	_, err := CompileModules(map[string]string{"test.rego": `package play
+
+			import future.keywords.contains
+
+			p(id) contains x {
+				x := id
+			}`})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	errs := err.(Errors)
+	if !strings.Contains(errs[0].Message, "the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })") {
+		t.Fatal("wrong error message:", err)
+	}
+	if errs[0].Location.Row != 5 {
+		t.Fatal("expected error on line 5 but got:", errs[0].Location.Row)
+	}
+}
+
 func TestCompilerCheckTypes(t *testing.T) {
 	c := NewCompiler()
 	modules := getCompilerTestModules()

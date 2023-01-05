@@ -72,6 +72,11 @@ production users that have added themselves (in alphabetical order):
   OPA-based admission controllers, covering single-tenant environments and hard
   multi-tenancy configurations.
 
+* [Digraph](https://www.getdigraph.com) is a developer-first cloud compliance platform
+  that uses OPA to let security teams detect and resolve non-compliant infrastructure
+  changes before they're deployed to production, and produce audit trails to eliminate
+  manual work and accelerate audit processes like SOC and ISO.
+
 * [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
   accounts and generate compliance reports and notifications.
