@@ -452,6 +452,9 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	isTLS := false
 	client := &http.Client{
 		Timeout: timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	if tlsInsecureSkipVerify {
@@ -560,9 +563,9 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	}
 
 	// check if redirects are enabled
-	if !enableRedirect {
-		client.CheckRedirect = func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
+	if enableRedirect {
+		client.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
+			return verifyURLHost(bctx, req.URL.String())
 		}
 	}
 
