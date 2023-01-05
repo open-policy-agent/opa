@@ -151,7 +151,7 @@ how they can be referenced inside of policies, and the actual mechanism(s) for l
 
 Data loaded asynchronously into OPA is cached in-memory so that it can be read efficiently
 during policy evaluation. Similarly, policies are also cached in-memory to ensure
-high-performance and and high-availability. Data _pulled_ synchronously can also be
+high-performance and high-availability. Data _pulled_ synchronously can also be
 cached in-memory. For more information on loading external data into OPA, including tradeoffs,
 see the [External Data](../external-data) page.
 
