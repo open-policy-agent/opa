@@ -1696,7 +1696,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
 
-	for i := 0; i < len(e.terms); i++ {
+	for i := range e.terms {
 		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
@@ -1723,25 +1723,19 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		if v, ok := e.bctx.NDBuiltinCache.Get(e.bi.Name, ast.NewArray(operands[:endIndex]...)); ok {
 			switch {
 			case e.bi.Decl.Result() == nil:
-				err = iter()
+				return iter()
 			case len(operands) == numDeclArgs:
-				if v.Compare(ast.Boolean(false)) != 0 {
-					err = iter()
-				} // else: nothing to do, don't iter()
+				if v.Compare(ast.Boolean(false)) == 0 {
+					return nil // nothing to do
+				}
+				return iter()
 			default:
-				err = e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
+				return e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
 			}
-
-			if err != nil {
-				return Halt{Err: err}
-			}
-
-			return nil
 		}
 
-		e.e.instr.startTimer(evalOpBuiltinCall)
-
 		// Otherwise, we'll need to go through the normal unify flow.
+		e.e.instr.startTimer(evalOpBuiltinCall)
 	}
 
 	// Normal unification flow for builtins:
@@ -1770,6 +1764,9 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		}
 
 		if err != nil {
+			// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
+			// record them into builtinErrors below. The errors set here are coming from
+			// the call to iter(), not from the builtin implementation.
 			err = Halt{Err: err}
 		}
 
