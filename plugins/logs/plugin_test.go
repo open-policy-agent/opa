@@ -1705,6 +1705,7 @@ func TestPluginMasking(t *testing.T) {
 					if tc.errManager.Error() != err.Error() {
 						t.Fatalf("expected error %s, but got %s", tc.errManager.Error(), err.Error())
 					}
+					return
 				}
 			}
 
