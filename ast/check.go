@@ -213,7 +213,6 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	var tpe types.Type
 
 	if len(rule.Head.Args) > 0 {
-
 		// If args are not referred to in body, infer as any.
 		WalkVars(rule.Head.Args, func(v Var) bool {
 			if cpy.Get(v) == nil {

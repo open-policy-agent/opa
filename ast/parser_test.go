@@ -1751,6 +1751,32 @@ func TestRuleContains(t *testing.T) {
 	}
 }
 
+func TestRuleContainsFail(t *testing.T) {
+	opts := ParserOptions{FutureKeywords: []string{"contains", "if", "every"}}
+
+	tests := []struct {
+		note     string
+		rule     string
+		expected string
+	}{
+		{
+			note:     "contains used with a 1+ argument function",
+			rule:     "p(a) contains x { x := a }",
+			expected: "the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })",
+		},
+		{
+			note:     "contains used with a 0 argument function",
+			rule:     "p() contains x { x := 1 }",
+			expected: "the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			assertParseErrorContains(t, tc.note, tc.rule, tc.expected, opts)
+		})
+	}
+}
+
 func TestRuleIf(t *testing.T) {
 	opts := ParserOptions{FutureKeywords: []string{"contains", "if", "every"}}
 

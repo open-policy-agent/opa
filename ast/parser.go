@@ -831,6 +831,10 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	switch p.s.tok {
 	case tokens.Contains: // NOTE: no Value for `contains` heads, we return here
+		// Catch error case of using 'contains' with a function definition rule head.
+		if head.Args != nil {
+			p.illegal("the contains keyword can only be used with multi-value rule definitions (e.g., %s contains <VALUE> { ... })", name)
+		}
 		p.scan()
 		head.Key = p.parseTermInfixCall()
 		if head.Key == nil {
