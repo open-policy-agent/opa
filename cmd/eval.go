@@ -449,6 +449,7 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 	result.Errors = pr.NewOutputErrors(resultErr)
 	if ectx.builtInErrorList != nil {
 		for _, err := range *(ectx.builtInErrorList) {
+			err := err
 			result.Errors = append(result.Errors, pr.NewOutputErrors(&err)...)
 		}
 	}

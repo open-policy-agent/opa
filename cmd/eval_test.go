@@ -57,6 +57,75 @@ func TestEvalExitCode(t *testing.T) {
 	}
 }
 
+func TestEvalWithShowBuiltinErrors(t *testing.T) {
+	files := map[string]string{
+		"x.rego": `package x
+
+p {
+	1/0
+}
+
+q {
+	1/0
+}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.showBuiltinErrors = true
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.x"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("unexpected undefined or error: %v", err)
+		}
+
+		var output presentation.Output
+
+		if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+			t.Fatal(err)
+		}
+
+		if len(output.Errors) != 2 {
+			t.Fatalf("Expected 2 errors in result, got:%v", len(output.Errors))
+		}
+
+		expectedCode := "eval_builtin_error"
+		expectedMessage := "div: divide by zero"
+
+		if code := output.Errors[0].Code; code != expectedCode {
+			t.Fatalf("expected code '%v', got '%v'", expectedCode, code)
+		}
+		if msg := output.Errors[0].Message; msg != expectedMessage {
+			t.Fatalf("expected message '%v', got '%v'", expectedMessage, msg)
+		}
+
+		if code := output.Errors[1].Code; code != expectedCode {
+			t.Fatalf("expected code '%v', got '%v'", expectedCode, code)
+		}
+		if msg := output.Errors[1].Message; msg != expectedMessage {
+			t.Fatalf("expected message '%v', got '%v'", expectedMessage, msg)
+		}
+
+		loc1, ok1 := output.Errors[0].Location.(map[string]interface{})
+		if !ok1 {
+			t.Fatal("unexpected location type")
+		}
+
+		loc2, ok2 := output.Errors[1].Location.(map[string]interface{})
+		if !ok2 {
+			t.Fatal("unexpected location type")
+		}
+
+		if loc1["row"] == loc2["row"] {
+			t.Fatal("expected 2 distinct error occurrences in policy")
+		}
+	})
+}
+
 func TestEvalWithProfiler(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
