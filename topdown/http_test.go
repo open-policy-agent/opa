@@ -752,6 +752,73 @@ func TestHTTPRedirectEnable(t *testing.T) {
 	runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
 }
 
+func TestHTTPRedirectAllowNet(t *testing.T) {
+
+	// test server
+	baseURL, teardown := getTestServer()
+	defer teardown()
+
+	// host
+	serverURL, err := url.Parse(baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverHost := strings.Split(serverURL.Host, ":")[0]
+
+	// expected result
+	expectedResult := make(map[string]interface{})
+	expectedResult["status"] = "200 OK"
+	expectedResult["status_code"] = http.StatusOK
+	expectedResult["body"] = nil
+	expectedResult["raw_body"] = ""
+
+	resultObj := ast.MustInterfaceToValue(expectedResult)
+
+	expectedError := &Error{Code: "eval_builtin_error", Message: fmt.Sprintf("http.send: unallowed host: %s", serverHost)}
+
+	rules := []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "enable_redirect": true, "force_json_decode": true}, resp); x := remove_headers(resp) }`, baseURL)}
+
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		options  func(*Query) *Query
+		expected interface{}
+	}{
+		{
+			"http.send allow_net nil",
+			rules,
+			setAllowNet(nil),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net match",
+			rules,
+			setAllowNet([]string{serverHost}),
+			resultObj.String(),
+		},
+		{
+			"http.send allow_net empty",
+			rules,
+			setAllowNet([]string{}),
+			expectedError,
+		},
+		{
+			"http.send allow_net no match",
+			rules,
+			setAllowNet([]string{"example.com"}),
+			expectedError,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, append(tc.rules, httpSendHelperRules...), tc.expected, tc.options)
+	}
+}
+
 func TestHTTPSendRaiseError(t *testing.T) {
 
 	// test server
