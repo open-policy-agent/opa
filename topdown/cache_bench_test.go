@@ -39,7 +39,7 @@ func BenchmarkVirtualCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		idx := i % max
 		cache.Put(keys[idx], values[idx])
-		result := cache.Get(keys[idx])
+		result, _ := cache.Get(keys[idx])
 		if !result.Equal(values[idx]) {
 			b.Fatal("expected equal")
 		}

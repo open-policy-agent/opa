@@ -11,6 +11,73 @@ import (
 	"text/template"
 )
 
+// PartialObjectBenchmarkCrossModule returns a module with n "bench_test_" prefixed rules
+// that each refer to another "cond_bench_" prefixed rule
+func PartialObjectBenchmarkCrossModule(n int) []string {
+	fooMod := `package test.foo
+    import data.test.bar
+	import data.test.baz
+
+	output[key] := value {
+		value := bar[key]
+		startswith("bench_test_", key)
+	}`
+	barMod := "package test.bar\n"
+	barMod += `
+	cond_bench_0 {
+		contains(lower(input.test_input_0), lower("input_01"))
+	}
+	cond_bench_1 {
+		contains(lower(input.test_input_1), lower("input"))
+	}
+	cond_bench_2 {
+		contains(lower(input.test_input_2), lower("input_10"))
+	}
+    bench_test_out_result := load_tests(test_collector)
+
+    load_tests(in) := out {
+		out := in
+	}
+    `
+
+	bazMod := "package test.baz\nimport data.test.bar\n"
+	ruleBuilder := ""
+
+	for idx := 1; idx <= n; idx++ {
+		barMod += fmt.Sprintf(`
+		bench_test_%[1]d := result {
+            input.bench_test_collector_mambo_number_%[3]d
+			result := input.bench_test_collector_mambo_number_%[3]d
+        } else := result {
+			is_null(bench_test_out_result.mambo_number_%[3]d.error)
+			result := bench_test_out_result.mambo_number_%[3]d.result
+		}
+
+        test_collector["mambo_number_%[3]d"] := result {
+			cond_bench_%[2]d
+			not %[3]d == 2
+			not %[3]d == 3
+			not input.bench_test_collector_mambo_number_%[3]d
+			result := { "result": %[3]d, "error": null }
+		}
+		`, idx, idx%3, idx%5)
+		ruleBuilder += fmt.Sprintf("    bar.bench_test_%[1]d == %[1]d\n", idx)
+		if idx%10 == 0 {
+			bazMod += fmt.Sprintf(`rule_%d {
+				%s
+			}`, idx, ruleBuilder)
+			fooMod += fmt.Sprintf(`
+			final_decision = "allow" {
+				baz.rule_%d
+			}
+			`, idx)
+			ruleBuilder = ""
+		}
+	}
+
+	return []string{fooMod, barMod, bazMod}
+}
+
 // ArrayIterationBenchmarkModule returns a module that iterates an array
 // with `n` elements
 func ArrayIterationBenchmarkModule(n int) string {
