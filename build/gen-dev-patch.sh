@@ -49,6 +49,8 @@ $(awk "1;/## $LAST_VERSION/{exit}" CHANGELOG.md | sed '$d')
 
 ## Unreleased
 
+[empty, no unreleased changes have been noted in the changelog]
+
 ## $LAST_VERSION
 $(sed "1,/## $LAST_VERSION/d" CHANGELOG.md)
 EOF
