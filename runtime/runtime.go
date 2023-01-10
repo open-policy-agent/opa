@@ -396,6 +396,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 // StartServer starts the runtime in server mode. This function will block the
 // calling goroutine and will exit the program on error.
 func (rt *Runtime) StartServer(ctx context.Context) {
+	executeInitPolicy(rt)
+
 	err := rt.Serve(ctx)
 	if err != nil {
 		os.Exit(1)

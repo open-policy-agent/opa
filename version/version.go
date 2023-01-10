@@ -6,6 +6,7 @@
 package version
 
 import (
+	"os"
 	"runtime"
 )
 
@@ -17,6 +18,13 @@ var GoVersion = runtime.Version()
 
 // Platform is the runtime OS and architecture of this OPA binary
 var Platform = runtime.GOOS + "/" + runtime.GOARCH
+
+// Image is set to 'official' in released OPA images, otherwise it is empty
+var Image = os.Getenv("OPA_DOCKER_IMAGE")
+
+// ImageFlavor is set released images and it used in initialization
+// policies to determine start up messages
+var ImageFlavor = os.Getenv("OPA_DOCKER_IMAGE_FLAVOR")
 
 // Additional version information that is displayed by the "version" command and used to
 // identify the version of running instances of OPA.
