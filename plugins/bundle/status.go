@@ -6,10 +6,9 @@ package bundle
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/download"
@@ -63,29 +62,32 @@ func (s *Status) SetBundleSize(size int) {
 // SetError updates the status object to reflect a failure to download or
 // activate. If err is nil, the error status is cleared.
 func (s *Status) SetError(err error) {
-
-	if err == nil {
+	var (
+		astErrors ast.Errors
+		httpError download.HTTPError
+	)
+	switch {
+	case err == nil:
 		s.Code = ""
 		s.HTTPCode = ""
 		s.Message = ""
 		s.Errors = nil
-		return
-	}
 
-	switch cause := errors.Cause(err).(type) {
-	case ast.Errors:
+	case errors.As(err, &astErrors):
 		s.Code = errCode
 		s.HTTPCode = ""
 		s.Message = types.MsgCompileModuleError
-		s.Errors = make([]error, len(cause))
-		for i := range cause {
-			s.Errors[i] = cause[i]
+		s.Errors = make([]error, len(astErrors))
+		for i := range astErrors {
+			s.Errors[i] = astErrors[i]
 		}
-	case download.HTTPError:
+
+	case errors.As(err, &httpError):
 		s.Code = errCode
-		s.HTTPCode = json.Number(strconv.Itoa(cause.StatusCode))
+		s.HTTPCode = json.Number(strconv.Itoa(httpError.StatusCode))
 		s.Message = err.Error()
 		s.Errors = nil
+
 	default:
 		s.Code = errCode
 		s.HTTPCode = ""
