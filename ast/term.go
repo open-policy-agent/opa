@@ -8,6 +8,7 @@ package ast
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -20,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/OneOfOne/xxhash"
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/util"
