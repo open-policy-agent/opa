@@ -14,7 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -26,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/resolver/wasm"
+	"github.com/open-policy-agent/opa/router"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
@@ -189,7 +189,7 @@ type Manager struct {
 	serverInitializedOnce        sync.Once
 	printHook                    print.Hook
 	enablePrintStatements        bool
-	router                       *mux.Router
+	router                       router.RouterI
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
 	registeredNDCacheTriggers    []func(bool)
@@ -344,7 +344,7 @@ func PrintHook(h print.Hook) func(*Manager) {
 	}
 }
 
-func WithRouter(r *mux.Router) func(*Manager) {
+func WithRouter(r router.RouterI) func(*Manager) {
 	return func(m *Manager) {
 		m.router = r
 	}
@@ -548,7 +548,7 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 }
 
 // GetRouter returns the managers router if set
-func (m *Manager) GetRouter() *mux.Router {
+func (m *Manager) GetRouter() router.RouterI {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.router

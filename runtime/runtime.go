@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -34,6 +33,7 @@ import (
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
 	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/internal/report"
+	ginrouter "github.com/open-policy-agent/opa/internal/router"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/internal/uuid"
@@ -44,6 +44,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/repl"
+	"github.com/open-policy-agent/opa/router"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
@@ -203,7 +204,7 @@ type Params struct {
 	// Router is the router to which handlers for the REST API are added.
 	// Router uses a first-matching-route-wins strategy, so no existing routes are overridden
 	// If it is nil, a new mux.Router will be created
-	Router *mux.Router
+	Router router.RouterI
 
 	// DiskStorage, if set, will make the runtime instantiate a disk-backed storage
 	// implementation (instead of the default, in-memory store).
@@ -316,7 +317,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	if params.Router == nil {
-		params.Router = mux.NewRouter()
+		params.Router = ginrouter.New()
 	}
 
 	metrics := prometheus.New(metrics.New(), errorLogger(logger))

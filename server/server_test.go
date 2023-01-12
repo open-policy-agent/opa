@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
 
@@ -29,6 +28,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
+	ginrouter "github.com/open-policy-agent/opa/internal/router"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
@@ -4335,10 +4335,10 @@ func TestMixedAddrTypes(t *testing.T) {
 }
 
 func TestCustomRoute(t *testing.T) {
-	router := mux.NewRouter()
-	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, r *http.Request) {
+	router := ginrouter.New()
+	router.Any("/customEndpoint", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
-	})
+	}))
 	f := newFixture(t, func(server *Server) {
 		server.WithRouter(router)
 	})

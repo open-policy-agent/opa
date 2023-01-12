@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -34,12 +33,14 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/json/patch"
+	ginrouter "github.com/open-policy-agent/opa/internal/router"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/router"
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
@@ -106,7 +107,7 @@ type Server struct {
 	Handler           http.Handler
 	DiagnosticHandler http.Handler
 
-	router                 *mux.Router
+	router                 router.RouterI
 	addrs                  []string
 	diagAddrs              []string
 	h2cEnabled             bool
@@ -332,7 +333,7 @@ func (s *Server) WithRuntime(term *ast.Term) *Server {
 
 // WithRouter sets the mux.Router to attach OPA's HTTP API routes onto. If a
 // router is not supplied, the server will create it's own.
-func (s *Server) WithRouter(router *mux.Router) *Server {
+func (s *Server) WithRouter(router router.RouterI) *Server {
 	s.router = router
 	return s
 }
@@ -661,89 +662,68 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 func (s *Server) initRouters() {
 	mainRouter := s.router
 	if mainRouter == nil {
-		mainRouter = mux.NewRouter()
+		mainRouter = ginrouter.New()
 	}
 
-	diagRouter := mux.NewRouter()
+	diagRouter := ginrouter.New()
 
+	arbitraryPath := "*path"
 	// All routers get the same base configuration *and* diagnostic API's
-	for _, router := range []*mux.Router{mainRouter, diagRouter} {
-		router.StrictSlash(true)
-		router.UseEncodedPath()
-		router.StrictSlash(true)
+	for _, router := range []router.RouterI{mainRouter, diagRouter} {
+		router.RedirectTrailingSlash(true)
+		router.EscapePath(true)
 
 		if s.metrics != nil {
 			s.metrics.RegisterEndpoints(func(path, method string, handler http.Handler) {
-				router.Handle(path, handler).Methods(method)
+				router.Handle(method, path, handler)
 			})
 		}
 
-		router.Handle("/health", s.instrumentHandler(s.unversionedGetHealth, PromHandlerHealth)).Methods(http.MethodGet)
+		router.Handle(http.MethodGet, "/health", s.instrumentHandler(s.unversionedGetHealth, PromHandlerHealth))
 		// Use this route to evaluate health policy defined at system.health
 		// By convention, policy is typically defined at system.health.live and system.health.ready, and is
 		// evaluated by calling /health/live and /health/ready respectively.
-		router.Handle("/health/{path:.+}", s.instrumentHandler(s.unversionedGetHealthWithPolicy, PromHandlerHealth)).Methods(http.MethodGet)
+		router.Handle(http.MethodGet, "/health/"+arbitraryPath, s.instrumentHandler(s.unversionedGetHealthWithPolicy, PromHandlerHealth))
 	}
 
 	if s.pprofEnabled {
-		mainRouter.HandleFunc("/debug/pprof/", pprof.Index)
-		mainRouter.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
-		mainRouter.Handle("/debug/pprof/block", pprof.Handler("block"))
-		mainRouter.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-		mainRouter.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
-		mainRouter.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mainRouter.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mainRouter.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mainRouter.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mainRouter.Any("/debug/pprof/", http.HandlerFunc(pprof.Index))
+		mainRouter.Any("/debug/pprof/allocs", pprof.Handler("allocs"))
+		mainRouter.Any("/debug/pprof/block", pprof.Handler("block"))
+		mainRouter.Any("/debug/pprof/heap", pprof.Handler("heap"))
+		mainRouter.Any("/debug/pprof/mutex", pprof.Handler("mutex"))
+		mainRouter.Any("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		mainRouter.Any("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		mainRouter.Any("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		mainRouter.Any("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 	}
 
 	// Only the main mainRouter gets the OPA API's (data, policies, query, etc)
-	s.registerHandler(mainRouter, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
+	s.registerHandler(mainRouter, 0, "/data/"+arbitraryPath, http.MethodPost, redirectTrailingSlash(s.instrumentHandler(s.v0DataPost, PromHandlerV0Data)))
 	s.registerHandler(mainRouter, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/"+arbitraryPath, http.MethodDelete, redirectTrailingSlash(s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data)))
+	s.registerHandler(mainRouter, 1, "/data/"+arbitraryPath, http.MethodPut, redirectTrailingSlash(s.instrumentHandler(s.v1DataPut, PromHandlerV1Data)))
 	s.registerHandler(mainRouter, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/"+arbitraryPath, http.MethodGet, redirectTrailingSlash(s.instrumentHandler(s.v1DataGet, PromHandlerV1Data)))
 	s.registerHandler(mainRouter, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/"+arbitraryPath, http.MethodPatch, redirectTrailingSlash(s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data)))
 	s.registerHandler(mainRouter, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
+	s.registerHandler(mainRouter, 1, "/data/"+arbitraryPath, http.MethodPost, redirectTrailingSlash(s.instrumentHandler(s.v1DataPost, PromHandlerV1Data)))
 	s.registerHandler(mainRouter, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
 	s.registerHandler(mainRouter, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
+	s.registerHandler(mainRouter, 1, "/policies/"+arbitraryPath, http.MethodDelete, redirectTrailingSlash(s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies)))
+	s.registerHandler(mainRouter, 1, "/policies/"+arbitraryPath, http.MethodGet, redirectTrailingSlash(s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies)))
+	s.registerHandler(mainRouter, 1, "/policies/"+arbitraryPath, http.MethodPut, redirectTrailingSlash(s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies)))
 	s.registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
 	s.registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
 	s.registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
 	s.registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
 	s.registerHandler(mainRouter, 1, "/status", http.MethodGet, s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
-	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
-	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
+	mainRouter.Handle(http.MethodPost, "/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex))
+	mainRouter.Handle(http.MethodGet, "/", s.instrumentHandler(s.indexGet, PromHandlerIndex))
 
 	// These are catch all handlers that respond http.StatusMethodNotAllowed for resources that exist but the method is not allowed
-	mainRouter.Handle("/v0/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut, http.MethodTrace)
-	mainRouter.Handle("/v0/data", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodGet, http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodPatch, http.MethodPut,
-		http.MethodTrace)
-	// v1 Data catch all
-	mainRouter.Handle("/v1/data/{path:.*}", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodOptions, http.MethodTrace)
-	mainRouter.Handle("/v1/data", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace)
-	// Policies catch all
-	mainRouter.Handle("/v1/policies", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut,
-		http.MethodPatch)
-	// Policies (/policies/{path.+} catch all
-	mainRouter.Handle("/v1/policies/{path:.*}", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodOptions, http.MethodTrace, http.MethodPost)
-	// Query catch all
-	mainRouter.Handle("/v1/query/{path:.*}", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPost, http.MethodPut, http.MethodPatch)
-	mainRouter.Handle("/v1/query", s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch)).Methods(http.MethodHead,
-		http.MethodConnect, http.MethodDelete, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodPatch)
+	mainRouter.HandleMethodNotAllowed(s.instrumentHandler(writer.HTTPStatus(http.StatusMethodNotAllowed), PromHandlerCatch))
 
 	s.Handler = mainRouter
 	s.DiagnosticHandler = diagRouter
@@ -846,9 +826,9 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
+func (s *Server) registerHandler(router router.RouterI, version int, path string, method string, h http.Handler) {
 	prefix := fmt.Sprintf("/v%d", version)
-	router.Handle(prefix+path, h).Methods(method)
+	router.Handle(method, prefix+path, h)
 }
 
 type bundleRevisions struct {
@@ -905,7 +885,7 @@ func (s *Server) unversionedPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) v0DataPost(w http.ResponseWriter, r *http.Request) {
-	s.v0QueryPath(w, r, mux.Vars(r)["path"], false)
+	s.v0QueryPath(w, r, strings.TrimLeft(router.GetParams(r.Context())["path"], "/"), false)
 }
 
 func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath string, useDefaultDecisionPath bool) {
@@ -1184,8 +1164,8 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 		}
 	}()
 
-	vars := mux.Vars(r)
-	urlPath := vars["path"]
+	vars := router.GetParams(r.Context())
+	urlPath := strings.TrimLeft(vars["path"], "/")
 	healthDataPath := fmt.Sprintf("/system/health/%s", urlPath)
 	healthDataPath = stringPathToDataRef(healthDataPath).String()
 
@@ -1324,8 +1304,8 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	annotateSpan(ctx, decisionID)
 
-	vars := mux.Vars(r)
-	urlPath := vars["path"]
+	vars := router.GetParams(r.Context())
+	urlPath := strings.TrimLeft(vars["path"], "/")
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
@@ -1497,7 +1477,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	ops := []types.PatchV1{}
 
@@ -1508,7 +1488,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 	}
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	patches, err := s.prepareV1PatchSlice(vars["path"], ops)
+	patches, err := s.prepareV1PatchSlice(strings.TrimLeft(vars["path"], "/"), ops)
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
@@ -1564,8 +1544,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	annotateSpan(ctx, decisionID)
 
-	vars := mux.Vars(r)
-	urlPath := vars["path"]
+	vars := router.GetParams(r.Context())
+	urlPath := strings.TrimLeft(vars["path"], "/")
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
@@ -1732,13 +1712,26 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, http.StatusOK, result, pretty)
 }
 
+func redirectTrailingSlash(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if l := len(p); l > 0 && p[l-1] == '/' {
+			r.URL.Path = p[:len(p)-1]
+			http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+			return
+		}
+		// Serve request to inner
+		h.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 	m := metrics.New()
 	m.Timer(metrics.ServerHandler).Start()
 	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
@@ -1751,7 +1744,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", path))
 		return
 	}
 
@@ -1819,12 +1812,12 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 	defer m.Timer(metrics.ServerHandler).Stop()
 
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
-		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", vars["path"]))
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "bad path: %v", path))
 		return
 	}
 
@@ -1870,11 +1863,11 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
-	id, err := url.PathUnescape(vars["path"])
+	id, err := url.PathUnescape(strings.TrimLeft(vars["path"], "/"))
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -1936,9 +1929,9 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 
-	path, err := url.PathUnescape(vars["path"])
+	path, err := url.PathUnescape(strings.TrimLeft(vars["path"], "/"))
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
@@ -2019,9 +2012,9 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars := router.GetParams(r.Context())
 
-	id, err := url.PathUnescape(vars["path"])
+	id, err := url.PathUnescape(strings.TrimLeft(vars["path"], "/"))
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
