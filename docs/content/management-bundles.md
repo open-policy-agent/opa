@@ -680,6 +680,12 @@ Both methods are going to need a policy for either the service account or the IA
 3. Once the policy has been created, it can be assigned to the role.
 4. With the role created, go to the EC2 instance view. Select an instance where OPA will run and select "Actions" -> "Security" -> "Modify IAM role". Select the role created in previous steps.
 
+##### Web Identity Credentials
+
+Using EKS IAM Roles for Service Account (Web Identity) Credential
+
+1. Please read [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html/) to setup.
+
 ##### Testing Authentication
 
 Use the [AWS CLI tools](https://aws.amazon.com/cli/) (see ["Upload Bundle"](#upload-bundle) below).
@@ -727,6 +733,26 @@ services:
         metadata_credentials:
           aws_region: eu-north-1
           iam_role: my-opa-bucket-access-role
+
+bundles:
+  authz:
+    service: s3
+    resource: bundle.tar.gz
+```
+
+**NOTE:** the S3 `url` is the bucket's regional endpoint.
+
+##### Web Identity Credentials
+
+```yaml
+services:
+  s3:
+    url: https://my-example-opa-bucket.s3.eu-north-1.amazonaws.com
+    credentials:
+      s3_signing:
+        web_identity_credentials:
+          aws_region: eu-north-1
+          session_name: my-open-policy-agent # Optional. Default: open-policy-agent
 
 bundles:
   authz:
