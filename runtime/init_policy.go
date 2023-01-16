@@ -159,7 +159,10 @@ func evalInitPolicy(policyFS embed.FS, policyFSBasePath string, input map[string
 		return result, fmt.Errorf("failed to read init policy dir: %w", err)
 	}
 
-	var regoArgs []func(*rego.Rego)
+	regoArgs := []func(*rego.Rego){
+		rego.Query("data.init"),
+		rego.Input(input),
+	}
 
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -172,9 +175,6 @@ func evalInitPolicy(policyFS embed.FS, policyFSBasePath string, input map[string
 		}
 		regoArgs = append(regoArgs, rego.Module(entry.Name(), string(data)))
 	}
-
-	regoArgs = append(regoArgs, rego.Query("data.init"))
-	regoArgs = append(regoArgs, rego.Input(input))
 
 	r := rego.New(regoArgs...)
 
