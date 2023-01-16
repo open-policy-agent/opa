@@ -4,11 +4,12 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/version"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/version"
 )
 
 //go:embed internal/init_policy
