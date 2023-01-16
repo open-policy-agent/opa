@@ -333,6 +333,7 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg IMAGE_FLAVOR=default \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
@@ -340,6 +341,7 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg IMAGE_FLAVOR=debug \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
@@ -347,6 +349,7 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000:1000 \
 		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg IMAGE_FLAVOR=rootless \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
@@ -354,6 +357,7 @@ endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
 		--build-arg BASE=cgr.dev/chainguard/static \
+		--build-arg IMAGE_FLAVOR=static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -366,6 +370,7 @@ push-manifest-list-%: ensure-executable-bin
 		--tag $(DOCKER_IMAGE):$* \
 		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg IMAGE_FLAVOR=default \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
@@ -374,6 +379,7 @@ push-manifest-list-%: ensure-executable-bin
 		--tag $(DOCKER_IMAGE):$*-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
+		--build-arg IMAGE_FLAVOR=debug \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
@@ -381,6 +387,7 @@ push-manifest-list-%: ensure-executable-bin
 		--tag $(DOCKER_IMAGE):$*-rootless \
 		--build-arg USER=1000:1000 \
 		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg IMAGE_FLAVOR=rootless \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
@@ -388,6 +395,7 @@ push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
 		--build-arg BASE=cgr.dev/chainguard/static \
+		--build-arg IMAGE_FLAVOR=static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \

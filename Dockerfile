@@ -3,6 +3,7 @@
 # license that can be found in the LICENSE file.
 
 ARG BASE
+ARG IMAGE_FLAVOR=unknown
 
 FROM ${BASE}
 
@@ -13,6 +14,8 @@ LABEL org.opencontainers.image.source="https://github.com/open-policy-agent/opa"
 # Docker image, so that we may print a warning when uid or gid == 0 (root)
 # Remove once https://github.com/open-policy-agent/opa/issues/4295 is done
 ENV OPA_DOCKER_IMAGE="official"
+
+ENV OPA_DOCKER_IMAGE_FLAVOR="${IMAGE_FLAVOR}"
 
 # Any non-zero number will do, and unfortunately a named user will not, as k8s
 # pod securityContext runAsNonRoot can't resolve the user ID:
