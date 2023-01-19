@@ -15,6 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
@@ -47,6 +48,7 @@ type runCmdParams struct {
 	pubKeyID           string
 	skipBundleVerify   bool
 	excludeVerifyFiles []string
+	schema             *schemaFlags
 }
 
 func newRunParams() runCmdParams {
@@ -57,6 +59,7 @@ func newRunParams() runCmdParams {
 		minTLSVersion:  util.NewEnumFlag("1.2", []string{"1.0", "1.1", "1.2", "1.3"}),
 		logLevel:       util.NewEnumFlag("info", []string{"debug", "info", "error"}),
 		logFormat:      util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
+		schema:         &schemaFlags{},
 	}
 }
 
@@ -190,6 +193,7 @@ To skip bundle verification, use the --skip-verify flag.
 	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
+	runCommand.Flags().StringVar(&cmdParams.schema.path, "schema", "", "set schema file path or directory path")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
@@ -297,6 +301,13 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	if params.rt.BundleVerificationConfig != nil && !params.rt.BundleMode {
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
+
+	schemaSet, err := loader.Schemas(params.schema.path)
+	if err != nil {
+		return nil, err
+	}
+
+	params.rt.SchemaSet = schemaSet
 
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {

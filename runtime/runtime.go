@@ -211,6 +211,9 @@ type Params struct {
 	DiskStorage *disk.Options
 
 	DistributedTracingOpts tracing.Options
+
+	// SchemaSet specifies the mapping of a path to a schema.
+	SchemaSet *ast.SchemaSet
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -298,7 +301,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil)
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.SchemaSet != nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -363,7 +366,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
-		plugins.WithTracerProvider(tracerProvider))
+		plugins.WithTracerProvider(tracerProvider),
+		plugins.WithSchemas(params.SchemaSet))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

@@ -65,6 +65,7 @@ type Downloader struct {
 	longPollingEnabled bool
 	lazyLoadingMode    bool
 	bundleName         string
+	processAnnotations bool
 }
 
 type downloaderResponse struct {
@@ -131,6 +132,12 @@ func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
 // WithBundleName specifies the name of the downloaded bundle.
 func (d *Downloader) WithBundleName(bundleName string) *Downloader {
 	d.bundleName = bundleName
+	return d
+}
+
+// WithProcessAnnotations enables annotation processing during .rego file parsing in the downloaded bundle.
+func (d *Downloader) WithProcessAnnotations(yes bool) *Downloader {
+	d.processAnnotations = yes
 	return d
 }
 
@@ -324,7 +331,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				WithBundleVerificationConfig(d.bvc).
 				WithBundleEtag(etag).
 				WithLazyLoadingMode(d.lazyLoadingMode).
-				WithBundleName(d.bundleName)
+				WithBundleName(d.bundleName).
+				WithProcessAnnotations(d.processAnnotations)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}

@@ -193,6 +193,7 @@ type Manager struct {
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
 	registeredNDCacheTriggers    []func(bool)
+	schemaSet                    *ast.SchemaSet
 }
 
 type managerContextKey string
@@ -364,6 +365,13 @@ func WithTracerProvider(tracerProvider *trace.TracerProvider) func(*Manager) {
 	}
 }
 
+// WithSchemas sets a schemaSet to the manager
+func WithSchemas(schemaSet *ast.SchemaSet) func(*Manager) {
+	return func(m *Manager) {
+		m.schemaSet = schemaSet
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -445,6 +453,7 @@ func (m *Manager) Init(ctx context.Context) error {
 			Bundles:               m.initBundles,
 			MaxErrors:             m.maxErrors,
 			EnablePrintStatements: m.enablePrintStatements,
+			SchemaSet:             m.schemaSet,
 		})
 
 		if err != nil {
@@ -476,6 +485,13 @@ func (m *Manager) Labels() map[string]string {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	return m.Config.Labels
+}
+
+// SchemaSet returns the schemaSet which is a mapping of a path to a schema.
+func (m *Manager) SchemaSet() *ast.SchemaSet {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.schemaSet
 }
 
 // InterQueryBuiltinCacheConfig returns the configuration for the inter-query cache.

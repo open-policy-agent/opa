@@ -27,6 +27,7 @@ type InsertAndCompileOptions struct {
 	Bundles               map[string]*bundle.Bundle
 	MaxErrors             int
 	EnablePrintStatements bool
+	SchemaSet             *ast.SchemaSet
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -53,7 +54,9 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 	compiler := ast.NewCompiler().
 		SetErrorLimit(opts.MaxErrors).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
-		WithEnablePrintStatements(opts.EnablePrintStatements)
+		WithEnablePrintStatements(opts.EnablePrintStatements).
+		WithSchemas(opts.SchemaSet).
+		WithUseTypeCheckAnnotations(opts.SchemaSet != nil)
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{
