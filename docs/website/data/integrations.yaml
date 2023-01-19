@@ -1995,9 +1995,9 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
-  wirelesssecuritylab:
+  ccbr:
     name: ccbr
-    link: https://github.com/wirelesssecuritylab/
+    link: https://github.com/wirelesssecuritylab/ccbr
   ansible:
     name: Ansible
     link: https://www.ansible.com
