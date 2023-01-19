@@ -3987,6 +3987,7 @@ func TestAnnotations(t *testing.T) {
 		expNumComments int
 		expAnnotations []*Annotations
 		expError       string
+		expErrorRow    int
 	}{
 		{
 			note: "Single valid annotation",
@@ -4200,6 +4201,14 @@ public_servers[server] {
 }`,
 			expNumComments: 5,
 			expError:       "rego_parse_error: yaml: unmarshal errors:\n  line 3: cannot unmarshal !!str",
+			expErrorRow:    11,
+		},
+		{
+			note: "Ill-structured (invalid) annotation with control character (vertical tab)",
+			module: "# METADATA\n" +
+				"# title: foo\vbar\n" +
+				"package opa.examples\n",
+			expError: "rego_parse_error: yaml: control characters are not allowed",
 		},
 		{
 			note: "Indentation error in yaml",
@@ -4550,6 +4559,15 @@ p { input = "str" }`,
 				if tc.expError == "" || !strings.Contains(err.Error(), tc.expError) {
 					t.Fatalf("Unexpected parse error when getting annotations: %v", err)
 				}
+				if tc.expErrorRow != 0 {
+					if errs, ok := err.(Errors); !ok {
+						t.Fatalf("expected ast.Errors, got %v", err)
+					} else if len(errs) != 1 {
+						t.Fatalf("expected exactly one ast.Error, got %v: %v", len(errs), errs)
+					} else if loc := errs[0].Location; tc.expErrorRow != loc.Row {
+						t.Fatalf("expected error location row %v, got %v", tc.expErrorRow, loc.Row)
+					}
+				}
 				return
 			} else if tc.expError != "" {
 				t.Fatalf("Expected err: %v but no error from parse module", tc.expError)
@@ -4561,6 +4579,139 @@ p { input = "str" }`,
 
 			if annotationsCompare(tc.expAnnotations, mod.Annotations) != 0 {
 				t.Fatalf("expected %v but got %v", tc.expAnnotations, mod.Annotations)
+			}
+		})
+	}
+}
+
+func TestAnnotationsAugmentedError(t *testing.T) {
+	tests := []struct {
+		note           string
+		module         string
+		expAnnotations []*Annotations
+		expErrorHint   string
+		expErrorRow    int
+	}{
+		{
+			note: "no whitespace after key/value separator",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# description:p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['p'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  4,
+		},
+		{
+			note: "non-breaking whitespace (\\u00A0) after key/value separator",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# description:\u00A0p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['\\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  4,
+		},
+		{
+			note: "non-breaking whitespace (\\u00A0) after key/value separator (different line)",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# title: P\n" +
+				"# description:\u00A0p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 5, symbol(s) ['\\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  5,
+		},
+		{
+			note: "non-breaking whitespace (\\u00A0) after key/value separator (different line)",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# title:\n" +
+				"#   P\n" +
+				"# description:\u00A0p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 6, symbol(s) ['\\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  6,
+		},
+		{
+			note: "non-breaking whitespace (\\u00A0) after key/value separator (different line)",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# title:\u00A0P\n" +
+				"# description: p is true\n" +
+				"# scope: rule\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['\\u00a0'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  5,
+		},
+		{
+			note: "thin whitespace (\\u2009) after key/value separator",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# description:\u2009p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['\\u2009'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  4,
+		},
+		{
+			note: "ideographic whitespace (\\u3000) after key/value separator",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# description:\u3000p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['\\u3000'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  4,
+		},
+		{
+			note: "several offending runes after key/value separator on single line",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# descr:iption:\u3000p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['i' '\\u3000'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow:  4,
+		},
+		{
+			note: "several offending runes after key/value separator on single line",
+			module: "package opa.examples\n" +
+				"\n" +
+				"# METADATA\n" +
+				"# title:\u3000p\n" +
+				"# scope: rule\n" +
+				"# description:\u2009p is true\n" +
+				"p := true\n",
+			expErrorHint: "Hint: on line 4, symbol(s) ['\\u3000'] immediately following a key/value separator ':' is not a legal yaml space character\n" +
+				"  Hint: on line 6, symbol(s) ['\\u2009'] immediately following a key/value separator ':' is not a legal yaml space character",
+			expErrorRow: 5,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
+				ProcessAnnotation: true,
+			})
+
+			if err == nil {
+				t.Fatalf("Expected err with hint: %v but no error from parse module", tc.expErrorHint)
+			}
+
+			if !strings.Contains(err.Error(), tc.expErrorHint) {
+				t.Fatalf("Unexpected parse error when getting annotations: %v", err)
+			}
+
+			if errs, ok := err.(Errors); !ok {
+				t.Fatalf("expected ast.Errors, got %v", err)
+			} else if len(errs) != 1 {
+				t.Fatalf("expected exactly one ast.Error, got %v: %v", len(errs), errs)
+			} else if loc := errs[0].Location; tc.expErrorRow != loc.Row {
+				t.Fatalf("expected error location row %v, got %v", tc.expErrorRow, loc.Row)
 			}
 		})
 	}
