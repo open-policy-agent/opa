@@ -4702,9 +4702,7 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 				t.Fatalf("Expected err with hint: %v but no error from parse module", tc.expErrorHint)
 			}
 
-			msg := err.Error()
-			fmt.Println(msg)
-			if !strings.Contains(msg, tc.expErrorHint) {
+			if !strings.Contains(err.Error(), tc.expErrorHint) {
 				t.Fatalf("Unexpected parse error when getting annotations: %v", err)
 			}
 

@@ -2253,7 +2253,10 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	return &result, nil
 }
 
+// augmentYamlError augments a YAML error with hints intended to help the user figure out the cause of an otherwise cryptic error.
+// These are hints, instead of proper errors, because they are educated guesses, and aren't guaranteed to be correct.
 func augmentYamlError(err error, comments []*Comment) error {
+	// Adding hints for when key/value ':' separator isn't suffixed with a legal YAML space symbol
 	for _, comment := range comments {
 		txt := string(comment.Text)
 		parts := strings.Split(txt, ":")
