@@ -1529,6 +1529,20 @@ integrations:
       - https://github.com/StyraInc/graphql-apollo-example
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
+  
+  wirelesssecuritylab:
+    title: ccbr
+    description:  |
+      CCBR is a policy management system project. It uses the policy language Rego to implement the CIS benchmark test of cloud native kubernetes. In addition, it integrates gatekeeper, manages its constraint templates, constraints and policies, and supports policy deployment and audit inspection.
+    labels:
+      category: network
+      layer: application
+    software:
+      - ccbr
+    code:
+      - https://github.com/wirelesssecuritylab/ccbr
+    inventors:
+      - wirelesssecuritylab
 
   spacelift:
      title: Spacelift
@@ -1733,6 +1747,9 @@ organizations:
   hashicorp:
     name: HashiCorp
     link: https://www.hashicorp.com/
+  wirelesssecuritylab:
+    name: WirelessSecurityLab
+    link: https://github.com/wirelesssecuritylab/
   megaease:
     name: MegaEase
     link: https://www.megaease.com/
@@ -1978,6 +1995,9 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
+  ccbr:
+    name: ccbr
+    link: https://github.com/wirelesssecuritylab/ccbr
   ansible:
     name: Ansible
     link: https://www.ansible.com
