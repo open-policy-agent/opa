@@ -1530,6 +1530,20 @@ integrations:
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
 
+  ccbr:
+    title: ccbr
+    description:  |
+      CCBR is a policy management system project. It uses the policy language Rego to implement the CIS benchmark test of cloud native kubernetes. In addition, it integrates gatekeeper, manages its constraint templates, constraints and policies, and supports policy deployment and audit inspection.
+    labels:
+      category: security
+      layer: application
+    software:
+      - ccbr
+    code:
+      - https://github.com/wirelesssecuritylab/ccbr
+    inventors:
+      - wirelesssecuritylab
+
   spacelift:
      title: Spacelift
      description: Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.
@@ -1978,6 +1992,9 @@ software:
   graphql:
     name: graphql
     link: https://graphql.org/
+  ccbr:
+    name: ccbr
+    link: https://github.com/wirelesssecuritylab/ccbr
   ansible:
     name: Ansible
     link: https://www.ansible.com
