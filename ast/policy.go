@@ -149,50 +149,61 @@ type (
 
 	// Comment contains the raw text from the comment in the definition.
 	Comment struct {
+		// TODO: these fields have inconsistent JSON keys with other structs in this package.
 		Text     []byte
 		Location *Location
+
+		jsonFields map[string]bool
 	}
 
 	// Package represents the namespace of the documents produced
 	// by rules inside the module.
 	Package struct {
-		Location *Location `json:"-"`
 		Path     Ref       `json:"path"`
+		Location *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	// Import represents a dependency on a document outside of the policy
 	// namespace. Imports are optional.
 	Import struct {
-		Location *Location `json:"-"`
 		Path     *Term     `json:"path"`
 		Alias    Var       `json:"alias,omitempty"`
+		Location *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Location *Location `json:"-"`
 		Default  bool      `json:"default,omitempty"`
 		Head     *Head     `json:"head"`
 		Body     Body      `json:"body"`
 		Else     *Rule     `json:"else,omitempty"`
+		Location *Location `json:"location,omitempty"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be
 		// left unset. The pointer is not included in any standard operations
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
+
+		jsonFields map[string]bool
 	}
 
 	// Head represents the head of a rule.
 	Head struct {
-		Location  *Location `json:"-"`
 		Name      Var       `json:"name,omitempty"`
 		Reference Ref       `json:"ref,omitempty"`
 		Args      Args      `json:"args,omitempty"`
 		Key       *Term     `json:"key,omitempty"`
 		Value     *Term     `json:"value,omitempty"`
 		Assign    bool      `json:"assign,omitempty"`
+		Location  *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	// Args represents zero or more arguments to a rule.
@@ -206,31 +217,39 @@ type (
 	Expr struct {
 		With      []*With     `json:"with,omitempty"`
 		Terms     interface{} `json:"terms"`
-		Location  *Location   `json:"-"`
 		Index     int         `json:"index"`
 		Generated bool        `json:"generated,omitempty"`
 		Negated   bool        `json:"negated,omitempty"`
+		Location  *Location   `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
 	SomeDecl struct {
-		Location *Location `json:"-"`
 		Symbols  []*Term   `json:"symbols"`
+		Location *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	Every struct {
-		Location *Location `json:"-"`
 		Key      *Term     `json:"key"`
 		Value    *Term     `json:"value"`
 		Domain   *Term     `json:"domain"`
 		Body     Body      `json:"body"`
+		Location *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 
 	// With represents a modifier on an expression.
 	With struct {
-		Location *Location `json:"-"`
 		Target   *Term     `json:"target"`
 		Value    *Term     `json:"value"`
+		Location *Location `json:"location,omitempty"`
+
+		jsonFields map[string]bool
 	}
 )
 
@@ -409,6 +428,25 @@ func (c *Comment) Equal(other *Comment) bool {
 	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
 }
 
+func (c *Comment) exposeJSONFields(fields map[string]bool) {
+	// Note: this is not used for location since Comments have legacy JSON marshaling behavior
+	c.jsonFields = fields
+}
+
+func (c *Comment) MarshalJSON() ([]byte, error) {
+	// TODO: Comment has inconsistent JSON field names starting with an upper case letter.
+	data := map[string]interface{}{
+		"Text": c.Text,
+	}
+
+	// TODO: Comment Location is also always included for legacy reasons. jsonFields data is ignored.
+	if c.Location != nil {
+		data["Location"] = c.Location
+	}
+
+	return json.Marshal(data)
+}
+
 // Compare returns an integer indicating whether pkg is less than, equal to,
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
@@ -451,6 +489,24 @@ func (pkg *Package) String() string {
 	path[0] = VarTerm(string(pkg.Path[1].Value.(String)))
 	copy(path[1:], pkg.Path[2:])
 	return fmt.Sprintf("package %v", path)
+}
+
+func (pkg *Package) exposeJSONFields(fields map[string]bool) {
+	pkg.jsonFields = fields
+}
+
+func (pkg *Package) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"path": pkg.Path,
+	}
+
+	if showLocation, ok := pkg.jsonFields["location"]; ok && showLocation {
+		if pkg.Location != nil {
+			data["location"] = pkg.Location
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 // IsValidImportPath returns an error indicating if the import path is invalid.
@@ -545,6 +601,28 @@ func (imp *Import) String() string {
 	return strings.Join(buf, " ")
 }
 
+func (imp *Import) exposeJSONFields(fields map[string]bool) {
+	imp.jsonFields = fields
+}
+
+func (imp *Import) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"path": imp.Path,
+	}
+
+	if len(imp.Alias) != 0 {
+		data["alias"] = imp.Alias
+	}
+
+	if showLocation, ok := imp.jsonFields["location"]; ok && showLocation {
+		if imp.Location != nil {
+			data["location"] = imp.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
 // Compare returns an integer indicating whether rule is less than, equal to,
 // or greater than other.
 func (rule *Rule) Compare(other *Rule) int {
@@ -632,6 +710,33 @@ func (rule *Rule) String() string {
 		buf = append(buf, rule.Else.elseString())
 	}
 	return strings.Join(buf, " ")
+}
+
+func (rule *Rule) exposeJSONFields(fields map[string]bool) {
+	rule.jsonFields = fields
+}
+
+func (rule *Rule) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"head": rule.Head,
+		"body": rule.Body,
+	}
+
+	if rule.Default {
+		data["default"] = true
+	}
+
+	if rule.Else != nil {
+		data["else"] = rule.Else
+	}
+
+	if showLocation, ok := rule.jsonFields["location"]; ok && showLocation {
+		if rule.Location != nil {
+			data["location"] = rule.Location
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 func (rule *Rule) elseString() string {
@@ -823,17 +928,31 @@ func (head *Head) String() string {
 	return buf.String()
 }
 
+func (head *Head) exposeJSONFields(fields map[string]bool) {
+	head.jsonFields = fields
+}
+
 func (head *Head) MarshalJSON() ([]byte, error) {
+	var loc *Location
+	if showLocation, ok := head.jsonFields["location"]; ok && showLocation {
+		if head.Location != nil {
+			loc = head.Location
+		}
+	}
+
 	// NOTE(sr): we do this to override the rendering of `head.Reference`.
 	// It's still what'll be used via the default means of encoding/json
 	// for unmarshaling a json object into a Head struct!
+	// NOTE(charlieegan3): we also need to optionally include the location
 	type h Head
 	return json.Marshal(struct {
 		h
-		Ref Ref `json:"ref"`
+		Ref      Ref       `json:"ref"`
+		Location *Location `json:"location,omitempty"`
 	}{
-		h:   h(*head),
-		Ref: head.Ref(),
+		h:        h(*head),
+		Ref:      head.Ref(),
+		Location: loc,
 	})
 }
 
@@ -924,7 +1043,8 @@ func (body Body) MarshalJSON() ([]byte, error) {
 	if len(body) == 0 {
 		return []byte(`[]`), nil
 	}
-	return json.Marshal([]*Expr(body))
+	ret, err := json.Marshal([]*Expr(body))
+	return ret, err
 }
 
 // Append adds the expr to the body and updates the expr's index accordingly.
@@ -1352,6 +1472,37 @@ func (expr *Expr) String() string {
 	return strings.Join(buf, " ")
 }
 
+func (expr *Expr) exposeJSONFields(fields map[string]bool) {
+	expr.jsonFields = fields
+}
+
+func (expr *Expr) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"terms": expr.Terms,
+		"index": expr.Index,
+	}
+
+	if len(expr.With) > 0 {
+		data["with"] = expr.With
+	}
+
+	if expr.Generated {
+		data["generated"] = true
+	}
+
+	if expr.Negated {
+		data["negated"] = true
+	}
+
+	if showLocation, ok := expr.jsonFields["location"]; ok && showLocation {
+		if expr.Location != nil {
+			data["location"] = expr.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
 // UnmarshalJSON parses the byte array and stores the result in expr.
 func (expr *Expr) UnmarshalJSON(bs []byte) error {
 	v := map[string]interface{}{}
@@ -1417,6 +1568,24 @@ func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
 }
 
+func (d *SomeDecl) exposeJSONFields(fields map[string]bool) {
+	d.jsonFields = fields
+}
+
+func (d *SomeDecl) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"symbols": d.Symbols,
+	}
+
+	if showLocation, ok := d.jsonFields["location"]; ok && showLocation {
+		if d.Location != nil {
+			data["location"] = d.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
 func (q *Every) String() string {
 	if q.Key != nil {
 		return fmt.Sprintf("every %s, %s in %s { %s }",
@@ -1471,6 +1640,27 @@ func (q *Every) KeyValueVars() VarSet {
 	}
 	vis.Walk(q.Value)
 	return vis.vars
+}
+
+func (q *Every) exposeJSONFields(fields map[string]bool) {
+	q.jsonFields = fields
+}
+
+func (q *Every) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"key":    q.Key,
+		"value":  q.Value,
+		"domain": q.Domain,
+		"body":   q.Body,
+	}
+
+	if showLocation, ok := q.jsonFields["location"]; ok && showLocation {
+		if q.Location != nil {
+			data["location"] = q.Location
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 func (w *With) String() string {
@@ -1529,6 +1719,25 @@ func (w *With) Loc() *Location {
 // SetLoc sets the location on w.
 func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
+}
+
+func (w *With) exposeJSONFields(fields map[string]bool) {
+	w.jsonFields = fields
+}
+
+func (w *With) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"target": w.Target,
+		"value":  w.Value,
+	}
+
+	if showLocation, ok := w.jsonFields["location"]; ok && showLocation {
+		if w.Location != nil {
+			data["location"] = w.Location
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 // Copy returns a deep copy of the AST node x. If x is not an AST node, x is returned unmodified.

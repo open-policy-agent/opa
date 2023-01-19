@@ -291,8 +291,10 @@ func MustInterfaceToValue(x interface{}) Value {
 
 // Term is an argument to a function.
 type Term struct {
-	Value    Value     `json:"value"` // the value of the Term as represented in Go
-	Location *Location `json:"-"`     // the location of the Term in the source
+	Value    Value     `json:"value"`              // the value of the Term as represented in Go
+	Location *Location `json:"location,omitempty"` // the location of the Term in the source
+
+	jsonFields map[string]bool
 }
 
 // NewTerm returns a new Term object.
@@ -417,6 +419,10 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
+func (term *Term) exposeJSONFields(fields map[string]bool) {
+	term.jsonFields = fields
+}
+
 // MarshalJSON returns the JSON encoding of the term.
 //
 // Specialized marshalling logic is required to include a type hint for Value.
@@ -424,6 +430,11 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 	d := map[string]interface{}{
 		"type":  TypeName(term.Value),
 		"value": term.Value,
+	}
+	if showLocation, ok := term.jsonFields["location"]; ok && showLocation {
+		if term.Location != nil {
+			d["location"] = term.Location
+		}
 	}
 	return json.Marshal(d)
 }
@@ -444,6 +455,14 @@ func (term *Term) UnmarshalJSON(bs []byte) error {
 		return err
 	}
 	term.Value = val
+
+	if loc, ok := v["location"].(map[string]interface{}); ok {
+		term.Location = &Location{}
+		err := unmarshalLocation(term.Location, loc)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -2897,6 +2916,14 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 			return fmt.Errorf("ast: unable to unmarshal negated field with type: %T (expected true or false)", v["negated"])
 		}
 	}
+	if generatedRaw, ok := v["generated"]; ok {
+		if b, ok := generatedRaw.(bool); ok {
+			expr.Generated = b
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal generated field with type: %T (expected true or false)", v["generated"])
+		}
+	}
+
 	if err := unmarshalExprIndex(expr, v); err != nil {
 		return err
 	}
@@ -2929,6 +2956,46 @@ func unmarshalExpr(expr *Expr, v map[string]interface{}) error {
 			expr.With = ws
 		}
 	}
+	if loc, ok := v["location"].(map[string]interface{}); ok {
+		expr.Location = &Location{}
+		if err := unmarshalLocation(expr.Location, loc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func unmarshalLocation(loc *Location, v map[string]interface{}) error {
+	if x, ok := v["file"]; ok {
+		if s, ok := x.(string); ok {
+			loc.File = s
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal file field with type: %T (expected string)", v["file"])
+		}
+	}
+	if x, ok := v["row"]; ok {
+		if n, ok := x.(json.Number); ok {
+			i64, err := n.Int64()
+			if err != nil {
+				return err
+			}
+			loc.Row = int(i64)
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal row field with type: %T (expected number)", v["row"])
+		}
+	}
+	if x, ok := v["col"]; ok {
+		if n, ok := x.(json.Number); ok {
+			i64, err := n.Int64()
+			if err != nil {
+				return err
+			}
+			loc.Col = int(i64)
+		} else {
+			return fmt.Errorf("ast: unable to unmarshal col field with type: %T (expected number)", v["col"])
+		}
+	}
+
 	return nil
 }
 
@@ -2946,11 +3013,22 @@ func unmarshalExprIndex(expr *Expr, v map[string]interface{}) error {
 }
 
 func unmarshalTerm(m map[string]interface{}) (*Term, error) {
+	var term Term
+
 	v, err := unmarshalValue(m)
 	if err != nil {
 		return nil, err
 	}
-	return &Term{Value: v}, nil
+	term.Value = v
+
+	if loc, ok := m["location"].(map[string]interface{}); ok {
+		term.Location = &Location{}
+		if err := unmarshalLocation(term.Location, loc); err != nil {
+			return nil, err
+		}
+	}
+
+	return &term, nil
 }
 
 func unmarshalTermSlice(s []interface{}) ([]*Term, error) {

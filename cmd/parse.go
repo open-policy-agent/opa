@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -24,9 +25,11 @@ const (
 )
 
 var parseParams = struct {
-	format *util.EnumFlag
+	format      *util.EnumFlag
+	jsonInclude string
 }{
-	format: util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+	format:      util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+	jsonInclude: "",
 }
 
 var parseCommand = &cobra.Command{
@@ -49,20 +52,45 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 		return 0
 	}
 
-	result, err := loader.RegoWithOpts(args[0], ast.ParserOptions{ProcessAnnotation: true})
+	exposeLocation := false
+	exposeComments := true
+	for _, opt := range strings.Split(parseParams.jsonInclude, ",") {
+		value := true
+		if strings.HasPrefix(opt, "-") {
+			value = false
+		}
+
+		if strings.HasSuffix(opt, "locations") {
+			exposeLocation = value
+		}
+		if strings.HasSuffix(opt, "comments") {
+			exposeComments = value
+		}
+	}
+
+	result, err := loader.RegoWithOpts(args[0], ast.ParserOptions{
+		ProcessAnnotation: true,
+		JSONFields: map[string]bool{
+			"location": exposeLocation,
+		},
+	})
+	if err != nil {
+		_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
+		return 1
+	}
+
+	if !exposeComments {
+		result.Parsed.Comments = nil
+	}
 
 	switch parseParams.format.String() {
 	case parseFormatJSON:
+		bs, err := json.MarshalIndent(result.Parsed, "", "  ")
 		if err != nil {
 			_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 			return 1
 		}
 
-		bs, err := json.MarshalIndent(result.Parsed, "", "  ")
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 1
-		}
 		fmt.Println(string(bs))
 	default:
 		if err != nil {
@@ -77,5 +105,7 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 
 func init() {
 	parseCommand.Flags().VarP(parseParams.format, "format", "f", "set output format")
+	parseCommand.Flags().StringVarP(&parseParams.jsonInclude, "json-include", "", "", "select optional elements, current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
+
 	RootCommand.AddCommand(parseCommand)
 }

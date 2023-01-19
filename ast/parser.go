@@ -101,6 +101,7 @@ type ParserOptions struct {
 	AllFutureKeywords  bool
 	FutureKeywords     []string
 	SkipRules          bool
+	JSONFields         map[string]bool
 	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
@@ -174,6 +175,12 @@ func (p *Parser) WithCapabilities(c *Capabilities) *Parser {
 // WithSkipRules instructs the parser not to attempt to parse Rule statements.
 func (p *Parser) WithSkipRules(skip bool) *Parser {
 	p.po.SkipRules = skip
+	return p
+}
+
+// WithJSONFields sets the JSON fields that should be exposed in the JSON
+func (p *Parser) WithJSONFields(jsonFields map[string]bool) *Parser {
+	p.po.JSONFields = jsonFields
 	return p
 }
 
@@ -355,6 +362,17 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
+	}
+
+	for i := range stmts {
+		vis := NewGenericVisitor(func(x interface{}) bool {
+			if x, ok := x.(customJSON); ok {
+				x.exposeJSONFields(p.po.JSONFields)
+			}
+			return false
+		})
+
+		vis.Walk(stmts[i])
 	}
 
 	return stmts, p.s.comments, p.s.errors
@@ -891,7 +909,6 @@ func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
 	}
 
 	for {
-
 		expr := p.parseLiteral()
 		if expr == nil {
 			return nil
