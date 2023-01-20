@@ -22,6 +22,7 @@ const (
 	CodeEvaluation        = "evaluation_error"
 	CodeUnauthorized      = "unauthorized"
 	CodeInvalidParameter  = "invalid_parameter"
+	CodeInvalidInput      = "invalid_input"
 	CodeInvalidOperation  = "invalid_operation"
 	CodeResourceNotFound  = "resource_not_found"
 	CodeResourceConflict  = "resource_conflict"

@@ -19,10 +19,13 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/open-policy-agent/opa/internal/gojsonschema"
 
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
@@ -138,6 +141,7 @@ type Server struct {
 	allPluginsOkOnce       bool
 	distributedTracingOpts tracing.Options
 	ndbCacheEnabled        bool
+	schemaPath             string
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -355,6 +359,12 @@ func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
 // WithNDBCacheEnabled sets whether the ND builtins cache is to be used.
 func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	s.ndbCacheEnabled = ndbCacheEnabled
+	return s
+}
+
+// WithSchemaPath sets the schema file or directory path to be used.
+func (s *Server) WithSchemaPath(schemaPath string) *Server {
+	s.schemaPath = schemaPath
 	return s
 }
 
@@ -1594,6 +1604,20 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Stop()
 
+	if s.schemaPath != "" {
+		errs := s.validateInput(*goInput)
+		if errs != nil {
+			newErr := types.NewErrorV1(types.CodeInvalidInput, "error(s) occurred while validating input")
+
+			for _, e := range errs {
+				newErr = newErr.WithError(e)
+			}
+
+			writer.Error(w, http.StatusBadRequest, newErr)
+			return
+		}
+	}
+
 	txn, err := s.store.NewTransaction(ctx, storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)})
 	if err != nil {
 		writer.ErrorAuto(w, err)
@@ -2305,6 +2329,73 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 	resp.Result = &st
 
 	writer.JSON(w, http.StatusOK, resp, pretty)
+}
+
+func (s *Server) validateInput(input interface{}) []types.BadRequestErr {
+
+	info, err := os.Stat(s.schemaPath)
+	if err != nil {
+		return []types.BadRequestErr{types.BadRequestErr(err.Error())}
+	}
+
+	if !info.IsDir() {
+		bs, err := os.ReadFile(s.schemaPath)
+		if err != nil {
+			return []types.BadRequestErr{types.BadRequestErr(err.Error())}
+		}
+
+		result, err := gojsonschema.Validate(gojsonschema.NewBytesLoader(bs), gojsonschema.NewGoLoader(input))
+		if err != nil {
+			return []types.BadRequestErr{types.BadRequestErr(err.Error())}
+		}
+
+		if result.Valid() {
+			return nil
+		}
+
+		errs := []types.BadRequestErr{}
+		for _, err := range result.Errors() {
+			errs = append(errs, types.BadRequestErr(err.String()))
+		}
+		return errs
+	}
+
+	errs := []types.BadRequestErr{}
+	err = filepath.Walk(s.schemaPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			} else if info.IsDir() {
+				return nil
+			}
+
+			bs, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			result, err := gojsonschema.Validate(gojsonschema.NewBytesLoader(bs), gojsonschema.NewGoLoader(input))
+			if err != nil {
+				return err
+			}
+
+			if !result.Valid() {
+				for _, e := range result.Errors() {
+					errs = append(errs, types.BadRequestErr(e.String()))
+				}
+			}
+			return nil
+		})
+
+	if err != nil {
+		return []types.BadRequestErr{types.BadRequestErr(err.Error())}
+	}
+
+	if len(errs) != 0 {
+		return errs
+	}
+
+	return nil
 }
 
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {

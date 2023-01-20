@@ -212,8 +212,8 @@ type Params struct {
 
 	DistributedTracingOpts tracing.Options
 
-	// SchemaSet specifies the mapping of a path to a schema.
-	SchemaSet *ast.SchemaSet
+	// SchemaPath specifies the schema file or directory path
+	SchemaPath string
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -301,7 +301,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, params.SchemaSet != nil, nil)
+	schemaSet, err := loader.Schemas(params.SchemaPath)
+	if err != nil {
+		return nil, fmt.Errorf("load error: %w", err)
+	}
+
+	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, schemaSet != nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -367,7 +372,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
-		plugins.WithSchemas(params.SchemaSet))
+		plugins.WithSchemas(schemaSet))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -482,7 +487,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithRuntime(rt.Manager.Info).
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
-		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
+		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
+		WithSchemaPath(rt.Params.SchemaPath)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {

@@ -54,9 +54,13 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 	compiler := ast.NewCompiler().
 		SetErrorLimit(opts.MaxErrors).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, opts.Store, opts.Txn)).
-		WithEnablePrintStatements(opts.EnablePrintStatements).
-		WithSchemas(opts.SchemaSet).
-		WithUseTypeCheckAnnotations(opts.SchemaSet != nil)
+		WithEnablePrintStatements(opts.EnablePrintStatements)
+
+	if opts.SchemaSet != nil {
+		compiler = compiler.WithSchemas(opts.SchemaSet).
+			WithUseTypeCheckAnnotations(true)
+	}
+
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{

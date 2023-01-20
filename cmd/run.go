@@ -15,7 +15,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
@@ -302,12 +301,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
-	schemaSet, err := loader.Schemas(params.schema.path)
-	if err != nil {
-		return nil, err
-	}
-
-	params.rt.SchemaSet = schemaSet
+	params.rt.SchemaPath = params.schema.path
 
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {

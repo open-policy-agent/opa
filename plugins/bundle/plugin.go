@@ -584,9 +584,12 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 		}
 
 		compiler = compiler.WithPathConflictsCheck(storage.NonEmpty(ctx, p.manager.Store, txn)).
-			WithEnablePrintStatements(p.manager.EnablePrintStatements()).
-			WithSchemas(p.manager.SchemaSet()).
-			WithUseTypeCheckAnnotations(p.manager.SchemaSet() != nil)
+			WithEnablePrintStatements(p.manager.EnablePrintStatements())
+
+		if p.manager.SchemaSet() != nil {
+			compiler = compiler.WithSchemas(p.manager.SchemaSet()).
+				WithUseTypeCheckAnnotations(true)
+		}
 
 		var activateErr error
 
