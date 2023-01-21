@@ -20,6 +20,7 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/logging"
+	testLog "github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/server"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -368,7 +369,6 @@ func TestServerInitialized(t *testing.T) {
 		t.Fatal("expected ServerInitializedChannel to be closed")
 	}
 }
-
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
@@ -478,4 +478,54 @@ func getTestRuntime(ctx context.Context, t *testing.T, logger logging.Logger) *R
 		t.Fatalf("Unexpected error %v", err)
 	}
 	return rt
+}
+
+func TestAddrWarningMessage(t *testing.T) {
+	testCases := []struct {
+		name          string
+		addrSetByUser bool
+		containsMsg   bool
+	}{
+		{"WarningMessage", false, true},
+		{"NoWarningMessage", true, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+			defer cancel()
+
+			params := NewParams()
+
+			logger := testLog.New()
+			logLevel := logging.Info
+
+			params.Logger = logger
+			params.Addrs = &[]string{":8181"}
+			params.AddrSetByUser = tc.addrSetByUser
+			params.GracefulShutdownPeriod = 1
+			rt, err := NewRuntime(ctx, params)
+			if err != nil {
+				t.Fatalf("Unexpected error %v", err)
+			}
+
+			done := make(chan struct{})
+			go func() {
+				rt.StartServer(ctx)
+				close(done)
+			}()
+			<-done
+
+			warning := " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
+			containsWarning := strings.Contains(logger.Entries()[0].Message, warning)
+
+			if containsWarning != tc.containsMsg {
+				t.Fatal("Mismatch between OPA server displaying the interface warning message and user setting the server address")
+			}
+
+			if logger.GetLevel() != logLevel {
+				t.Fatalf("Expected log level to be: \"%v\" but got \"%v\"", logLevel, logger.GetLevel())
+			}
+		})
+	}
 }

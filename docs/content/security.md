@@ -88,6 +88,21 @@ curl -k https://localhost:8181/v1/data
 We have to use cURL's `-k/--insecure` flag because we are using a self-signed certificate.
 {{< /info >}}
 
+## Interface Binding
+
+OPA can be configured to listen on specific interfaces using the `--addr` flag. For example:
+
+```bash
+opa run --server \
+  --log-level debug \
+  --addr localhost:8181 \
+```
+
+By default, OPA binds to the 0.0.0.0 interface, which allows the OPA server to be exposed to services running outside of the same machine. It's important to note that binding OPA to the 0.0.0.0 interface by itself is not inherently insecure in a trusted environment, exposing OPA to the outside world would also require opening ports and likely a similar procedure on a gateway layer above.
+
+In situations where OPA is not intended to be exposed to remote services, it is recommended to bind OPA to the localhost interface, which only allows connections from the same machine. If it is necessary to expose OPA to remote services, ensure to follow the security recommendations on this page, such as requiring authentication.
+
+
 ## Authentication and Authorization
 
 This section shows how to configure OPA to authenticate and authorize client

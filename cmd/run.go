@@ -168,9 +168,11 @@ for existing bundle files or directories following the bundle structure.
 
 To skip bundle verification, use the --skip-verify flag.
 `,
+
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			rt, err := initRuntime(ctx, cmdParams, args)
+			addrSetByUser := cmd.Flags().Changed("addr")
+			rt, err := initRuntime(ctx, cmdParams, args, addrSetByUser)
 			if err != nil {
 				fmt.Println("error:", err)
 				os.Exit(1)
@@ -236,7 +238,7 @@ Flags:
 	RootCommand.AddCommand(runCommand)
 }
 
-func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runtime.Runtime, error) {
+func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSetByUser bool) (*runtime.Runtime, error) {
 	authenticationSchemes := map[string]server.AuthenticationScheme{
 		"token": server.AuthenticationToken,
 		"tls":   server.AuthenticationTLS,
@@ -316,6 +318,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	}
 
 	rt.SetDistributedTracingLogging()
+	rt.Params.AddrSetByUser = addrSetByUser
 
 	return rt, nil
 }
