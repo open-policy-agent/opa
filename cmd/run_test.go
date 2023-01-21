@@ -14,13 +14,14 @@ import (
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/test/e2e"
+	"github.com/spf13/cobra"
 )
 
 func TestRunServerBase(t *testing.T) {
 	params := newTestRunParams()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil)
+	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -52,7 +53,7 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params.rt.DiagnosticAddrs = &[]string{":0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil)
+	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -93,7 +94,7 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	params.pubKey = "secret"
 	params.serverMode = false
 
-	_, err := initRuntime(context.Background(), params, nil)
+	_, err := initRuntime(context.Background(), params, nil, false)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
@@ -124,7 +125,7 @@ func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil)
+	rt, err := initRuntime(ctx, params, nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -169,6 +170,44 @@ func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 		if _, err := time.Parse(format, rec.Time); err != nil {
 			t.Fatalf("incorrect timestamp format %q: %v", rec.Time, err)
 		}
+	}
+}
+
+func TestInitRuntimeAddrSetByUser(t *testing.T) {
+	testCases := []struct {
+		name        string
+		addrValue   string
+		addrFlagSet bool
+	}{
+		{"AddrSetByUser_True", "localhost:8181", true},
+		{"AddrSetByUser_False", "", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().String("addr", "", "set address")
+			if tc.addrFlagSet {
+				if err := cmd.Flags().Set("addr", tc.addrValue); err != nil {
+					t.Fatalf("Failed to set addr flag: %v", err)
+				}
+			}
+
+			params := newTestRunParams()
+			params.rt.Addrs = &[]string{":0"}
+			ctx, cancel := context.WithCancel(context.Background())
+
+			rt, err := initRuntime(ctx, params, []string{}, cmd.Flags().Changed("addr"))
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if rt.Params.AddrSetByUser != tc.addrFlagSet {
+				t.Errorf("Expected AddrSetByUser to be %v, but got %v", tc.addrFlagSet, rt.Params.AddrSetByUser)
+			}
+
+			cancel()
+		})
 	}
 }
 
