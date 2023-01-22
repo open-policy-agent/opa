@@ -747,6 +747,13 @@ func TestCheckBuiltinErrors(t *testing.T) {
 			),
 		),
 	})
+	RegisterBuiltin(&Builtin{
+		Name: "fake_named_number",
+		Decl: types.NewFunction(
+			types.Args(),
+			types.Named("number", types.N),
+		),
+	})
 
 	tests := []struct {
 		note  string
@@ -761,6 +768,7 @@ func TestCheckBuiltinErrors(t *testing.T) {
 		{"objects-bad-input", `sum({"a": 1, "b": 2}, x)`},
 		{"sets-any", `sum({1,2,"3",4}, x)`},
 		{"virtual-ref", `plus(data.test.p, data.coffee, 0)`},
+		{"named-type", `plus(1, fake_named_number())`},
 	}
 
 	env := newTestEnv([]string{

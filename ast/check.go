@@ -780,6 +780,15 @@ func unifies(a, b types.Type) bool {
 		return false
 	}
 
+	named, ok := a.(*types.NamedType)
+	if ok {
+		return unifies(named.Type, b)
+	}
+	named, ok = b.(*types.NamedType)
+	if ok {
+		return unifies(a, named.Type)
+	}
+
 	switch a := a.(type) {
 	case types.Null:
 		_, ok := b.(types.Null)
@@ -825,7 +834,7 @@ func unifies(a, b types.Type) bool {
 		}
 		return false
 	default:
-		panic("unreachable")
+		panic(fmt.Sprintf("unreachable: %T", a))
 	}
 }
 
