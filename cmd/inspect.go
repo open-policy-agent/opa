@@ -94,11 +94,15 @@ that file and summarize its structure and contents.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := doInspect(params, args[0], os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

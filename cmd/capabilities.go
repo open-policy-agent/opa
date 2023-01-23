@@ -81,7 +81,10 @@ Print the capabilities of a capabilities file
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			cs, err := doCapabilities(capabilitiesParams)
 			if err != nil {
 				return err

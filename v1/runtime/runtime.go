@@ -571,7 +571,7 @@ func (rt *Runtime) ServerStatus() ServerStatus {
 }
 
 // StartServer starts the runtime in server mode. This function will block the
-// calling goroutine and will exit the program on error.
+// calling goroutine.
 func (rt *Runtime) StartServer(ctx context.Context) {
 	err := rt.Serve(ctx)
 	if err != nil {
@@ -791,10 +791,10 @@ func (rt *Runtime) DiagnosticAddrs() []string {
 }
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
-func (rt *Runtime) StartREPL(ctx context.Context) {
+func (rt *Runtime) StartREPL(ctx context.Context) error {
 	if err := rt.Manager.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
-		os.Exit(1)
+		return err
 	}
 
 	defer rt.Manager.Stop(ctx)
@@ -808,7 +808,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
 			fmt.Fprintln(rt.Params.Output, "error opening watch:", err)
-			os.Exit(1) //nolint:gocritic
+			return err
 		}
 	}
 
@@ -819,7 +819,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	}
 
 	rt.repl = repl
-	repl.Loop(ctx)
+	return repl.Loop(ctx)
 }
 
 // SetDistributedTracingLogging configures the distributed tracing's ErrorHandler,

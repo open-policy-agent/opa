@@ -293,8 +293,15 @@ different Rego versions:
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
-			os.Exit(opaFmt(args, fmtParams))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			exit := opaFmt(args, fmtParams)
+			if exit != 0 {
+				return newExitError(exit)
+			}
+			return nil
+
 		},
 	}
 

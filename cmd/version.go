@@ -28,8 +28,10 @@ func init() {
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, _ []string) {
-			generateCmdOutput(os.Stdout, check)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			return generateCmdOutput(os.Stdout, check)
 		},
 	}
 
@@ -39,7 +41,7 @@ func init() {
 	RootCommand.AddCommand(versionCommand)
 }
 
-func generateCmdOutput(out io.Writer, check bool) {
+func generateCmdOutput(out io.Writer, check bool) error {
 	fmt.Fprintln(out, "Version: "+version2.Version)
 	fmt.Fprintln(out, "Build Commit: "+version2.Vcs)
 	fmt.Fprintln(out, "Build Timestamp: "+version2.Timestamp)
@@ -62,9 +64,10 @@ func generateCmdOutput(out io.Writer, check bool) {
 		err := checkOPAUpdate(out)
 		if err != nil {
 			fmt.Fprintf(out, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 	}
+	return nil
 }
 
 func checkOPAUpdate(out io.Writer) error {

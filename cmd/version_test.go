@@ -21,7 +21,9 @@ import (
 func TestGenerateCmdOutputDisableCheckFlag(t *testing.T) {
 	var stdout bytes.Buffer
 
-	generateCmdOutput(&stdout, false)
+	if err := generateCmdOutput(&stdout, false); err != nil {
+		t.Fatal(err)
+	}
 
 	expectOutputKeys(t, stdout.String(), []string{
 		"Version",
@@ -62,7 +64,9 @@ func TestGenerateCmdOutputWithCheckFlagNoError(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	generateCmdOutput(&stdout, true)
+	if err := generateCmdOutput(&stdout, true); err != nil {
+		t.Fatal(err)
+	}
 
 	expectOutputKeys(t, stdout.String(), []string{
 		"Version",

@@ -237,11 +237,15 @@ against OPA v0.22.0:
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(Cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := dobuild(buildParams, args); err != nil {
 				fmt.Println("error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

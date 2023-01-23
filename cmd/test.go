@@ -542,8 +542,15 @@ recommended as some updates might cause them to be dropped by OPA.
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(_ *cobra.Command, args []string) {
-			os.Exit(opaTest(args, testParams))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
+			exit := opaTest(args, testParams)
+			if exit != 0 {
+				return newExitError(exit)
+			}
+			return nil
 		},
 	}
 

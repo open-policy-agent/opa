@@ -56,8 +56,15 @@ var parseCommand = &cobra.Command{
 		}
 		return env.CmdFlags.CheckEnvironmentVariables(cmd)
 	},
-	Run: func(_ *cobra.Command, args []string) {
-		os.Exit(parse(args, &configuredParseParams, os.Stdout, os.Stderr))
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceErrors = true
+		cmd.SilenceUsage = true
+
+		exit := parse(args, &configuredParseParams, os.Stdout, os.Stderr)
+		if exit != 0 {
+			return newExitError(exit)
+		}
+		return nil
 	},
 }
 
