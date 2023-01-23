@@ -192,11 +192,15 @@ and exit with a non-zero exit code.`,
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := checkModules(checkParams, args); err != nil {
 				outputErrors(checkParams.format.String(), err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

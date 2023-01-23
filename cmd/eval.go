@@ -295,18 +295,22 @@ access.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {
 				if _, ok := err.(regoError); !ok {
 					fmt.Fprintln(os.Stderr, err)
 				}
-				os.Exit(2)
+				return newExitError(2)
 			}
 
 			if (params.fail && !defined) || (params.failDefined && defined) {
-				os.Exit(1)
+				return newExitError(1)
 			}
+			return nil
 		},
 	}
 

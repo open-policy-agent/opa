@@ -89,14 +89,20 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 			}
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			exit, err := benchMain(args, params, os.Stdout, &goBenchRunner{})
 			if err != nil {
 				// NOTE: err should only be non-nil if a (highly unlikely)
 				// presentation error occurs.
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			}
-			os.Exit(exit)
+			if exit != 0 {
+				return newExitError(exit)
+			}
+			return nil
 		},
 	}
 

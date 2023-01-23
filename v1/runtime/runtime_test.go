@@ -319,7 +319,7 @@ func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		go rt.StartREPL(ctx)
+		go func() { _ = rt.StartREPL(ctx) }()
 
 		if !test.Eventually(t, 5*time.Second, func() bool {
 			return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
@@ -458,7 +458,7 @@ p contains 1 if {
 					t.Fatal(err)
 				}
 
-				go rt.StartREPL(ctx)
+				go func() { _ = rt.StartREPL(ctx) }()
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
 					return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")

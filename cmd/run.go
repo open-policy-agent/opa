@@ -202,15 +202,18 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			ctx := context.Background()
 			addrSetByUser := cmd.Flags().Changed("addr")
 			rt, err := initRuntime(ctx, cmdParams, args, addrSetByUser)
 			if err != nil {
 				fmt.Println("error:", err)
-				os.Exit(1)
+				return err
 			}
-			startRuntime(ctx, rt, cmdParams.serverMode)
+			return startRuntime(ctx, rt, cmdParams.serverMode)
 		},
 	}
 
@@ -388,12 +391,11 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	return rt, nil
 }
 
-func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
+func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) error {
 	if serverMode {
-		rt.StartServer(ctx)
-	} else {
-		rt.StartREPL(ctx)
+		return rt.Serve(ctx)
 	}
+	return rt.StartREPL(ctx)
 }
 
 func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {

@@ -61,13 +61,17 @@ e.g., opa exec --decision /foo/bar/baz ...
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			params.Paths = args
 			params.BundlePaths = bundlePaths.v
 			if err := runExec(params); err != nil {
 				logging.Get().WithFields(map[string]any{"err": err}).Error("Unexpected error.")
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

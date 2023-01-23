@@ -92,11 +92,14 @@ data.policy.is_admin.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
 			if err := deps(args, params, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

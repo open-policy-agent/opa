@@ -95,11 +95,15 @@ by the input location.`,
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
 			if err := dofindDefinition(findDefinitionParams, os.Stdin, os.Stdout, args); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
-				os.Exit(1)
+				return err
 			}
+			return nil
 		},
 	}
 

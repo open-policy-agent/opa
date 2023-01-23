@@ -5,14 +5,27 @@
 package main
 
 import (
+	"errors"
 	"os"
 
 	"github.com/open-policy-agent/opa/cmd"
 )
 
 func main() {
+	var exit int
+	defer func() {
+		if exit != 0 {
+			os.Exit(exit)
+		}
+	}() // orderly shutdown, run all defer routines
+
 	if err := cmd.RootCommand.Execute(); err != nil {
-		os.Exit(1)
+		var e *cmd.ExitError
+		if errors.As(err, &e) {
+			exit = e.Exit
+		} else {
+			exit = 1
+		}
 	}
 }
 
