@@ -234,7 +234,7 @@ func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error 
 				}
 			case "rule":
 				if r := ref.GetRule(); r != nil {
-					entrypoint = r.Ref()
+					entrypoint = r.Ref().GroundPrefix()
 				}
 			default:
 				continue // Wrong scope type. Bail out early.

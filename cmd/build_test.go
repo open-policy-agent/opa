@@ -482,6 +482,100 @@ f(x) { p[x] }
 			err: nil,
 		},
 		{
+			note: "set generation with annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p[x] {
+	{"a", "b"}[x]
+}
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "set generation with annotated entrypoint (contains if)",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+import future.keywords
+
+# METADATA
+# entrypoint: true
+p contains x if {
+	{"a", "b"}[x]
+}
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "object generation with annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p[i] := x {
+	x := ["a", "b"][i]
+}
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "object generation with annotated entrypoint (if)",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+import future.keywords
+
+# METADATA
+# entrypoint: true
+p[i] if {
+	{"a", "b"}[i]
+}
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "dots in head with annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p.a.b if {
+	true
+}
+		`,
+			},
+			err: nil,
+		},
+		{
+			note: "dots in head object generation with annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p.a.b[i] := x {
+	x := ["a", "b"][i]
+}
+		`,
+			},
+			err: nil,
+		},
+		{
 			note: "no annotated entrypoint",
 			files: map[string]string{
 				"test.rego": `
