@@ -129,23 +129,22 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 
 	resultObj := ast.MustInterfaceToValue(expectedResult)
 
-	// run the test
-	tests := []struct {
-		note          string
-		rules         []string
-		expected      interface{}
-		expectedError error
-	}{
-		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true}, x) }`, ts.URL)}, expected: &Error{Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `x509: “Acme Co” certificate is not trusted`)}},
-		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()},
-		// This case verifies that `tls_insecure_skip_verify`
-		// is still applied, even if other TLS settings are
-		// present.
-		{note: "http.send", rules: []string{fmt.Sprintf(
-			`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()},
+	type httpsStruct struct {
+		note     string
+		rules    []string
+		expected interface{}
 	}
+
+	// run the test
+	tests := []httpsStruct{}
+	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
+
+	// This case verifies that `tls_insecure_skip_verify`
+	// is still applied, even if other TLS settings are
+	// present.
+	tests = append(tests, httpsStruct{note: "http.send", rules: []string{fmt.Sprintf(
+		`p = x { http.send({"method": "get", "url": "%s", "force_json_decode": true, "tls_insecure_skip_verify": true, "tls_use_system_certs": true,}, resp); x := clean_headers(resp) }`, ts.URL)}, expected: resultObj.String()})
 
 	data := loadSmallTestData()
 

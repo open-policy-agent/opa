@@ -243,7 +243,13 @@ allow {
 The `entrypoint` annotation is a boolean used to mark rules and packages that should be used as entrypoints for a policy.
 This value is false by default, and can only be used at `rule` or `package` scope.
 
-The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with `-e`.
+The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
+[`--entrypoint`](../cli/#options-1).
+
+{{< info >}}
+Unless the `--prune-unused` flag is used, any rule transitively referring to a
+package or rule declared as an entrypoint will also be enumerated as an entrypoint.
+{{< /info >}}
 
 
 ### Custom
