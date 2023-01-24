@@ -3713,7 +3713,7 @@
       "v0.48.0",
       "edge"
     ],
-    "description": "Returns one or more certificates from the given base64 encoded string containing DER encoded certificates that have been concatenated.",
+    "description": "Returns zero or more certificates from the given encoded string containing\nDER certificate data.\n\nIf the input is empty, the function will return null. The input string should be a list of one or more\nconcatenated PEM blocks. The whole input of concatenated PEM blocks can optionally be Base64 encoded.",
     "introduced": "v0.17.0",
     "result": {
       "description": "parsed X.509 certificates represented as objects",
