@@ -4,8 +4,13 @@ OPA_EXEC="$1"
 TARGET="$2"
 
 PATH_SEPARATOR="/"
+BASE_PATH=$(pwd)
+TEST_PATH="${BASE_PATH}/test/cli/smoke/namespace/data.json"
 if [[ $OPA_EXEC == *".exe" ]]; then
     PATH_SEPARATOR="\\"
+    BASE_PATH=$(pwd -W)
+    TEST_PATH="$(echo ${BASE_PATH}/test/cli/smoke/namespace/data.json | sed 's/^\///' | sed 's/\//\\\\/g')"
+    BASE_PATH=$(echo ${BASE_PATH} | sed 's/^\///' | sed 's/\//\\/g')
 fi
 
 github_actions_group() {
@@ -30,6 +35,16 @@ assert_contains() {
     fi
 }
 
+# assert_not_contains checks if the actual string does not contain the expected string.
+assert_not_contains() {
+    local expected="$1"
+    local actual="$2"
+    if [[ "$actual" == *"$expected"* ]]; then
+        echo "Didn't expect '$expected' in '$actual'"
+        exit 0
+    fi
+}
+
 opa version
 opa eval -t $TARGET 'time.now_ns()'
 opa eval --format pretty --bundle test/cli/smoke/golden-bundle.tar.gz --input test/cli/smoke/input.json data.test.result --fail
@@ -48,4 +63,10 @@ github_actions_group assert_contains '/test/cli/smoke/test.rego' "$(tar -tf o3.t
 # Data files - correct namespaces
 echo "::group:: Data files - correct namespaces"
 assert_contains "data.namespace | test${PATH_SEPARATOR}cli${PATH_SEPARATOR}smoke${PATH_SEPARATOR}namespace${PATH_SEPARATOR}data.json" "$(opa inspect test/cli/smoke)"
+echo "::endgroup::"
+
+# Data files - correct root path
+echo "::group:: Data files - correct root path"
+assert_contains "${TEST_PATH}" "$(opa inspect ${BASE_PATH}/test/cli/smoke -f json)"
+assert_not_contains "\\\\${TEST_PATH}" "$(opa inspect ${BASE_PATH}/test/cli/smoke -f json)"
 echo "::endgroup::"
