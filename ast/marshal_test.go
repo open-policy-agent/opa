@@ -387,9 +387,6 @@ func TestImport_UnmarshalJSON(t *testing.T) {
 				return &Import{
 					Path:     &term,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonFields: map[string]bool{
-						"location": false,
-					},
 				}
 			}(),
 		},
