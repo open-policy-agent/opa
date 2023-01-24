@@ -207,7 +207,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 			Comment: &Comment{
 				Text: []byte("comment"),
 			},
-			ExpectedJSON: `{"Text":"Y29tbWVudA=="}`,
+			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":null}`,
 		},
 		"location excluded, still included for legacy reasons": {
 			Comment: &Comment{
@@ -217,7 +217,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 					"location": false, // ignored
 				},
 			},
-			ExpectedJSON: `{"Location":{"file":"example.rego","row":1,"col":2},"Text":"Y29tbWVudA=="}`,
+			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
 		},
 		"location included": {
 			Comment: &Comment{
@@ -227,7 +227,7 @@ func TestComment_MarshalJSON(t *testing.T) {
 					"location": true, // ignored
 				},
 			},
-			ExpectedJSON: `{"Location":{"file":"example.rego","row":1,"col":2},"Text":"Y29tbWVudA=="}`,
+			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
 		},
 	}
 

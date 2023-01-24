@@ -433,20 +433,6 @@ func (c *Comment) exposeJSONFields(fields map[string]bool) {
 	c.jsonFields = fields
 }
 
-func (c *Comment) MarshalJSON() ([]byte, error) {
-	// TODO: Comment has inconsistent JSON field names starting with an upper case letter.
-	data := map[string]interface{}{
-		"Text": c.Text,
-	}
-
-	// TODO: Comment Location is also always included for legacy reasons. jsonFields data is ignored.
-	if c.Location != nil {
-		data["Location"] = c.Location
-	}
-
-	return json.Marshal(data)
-}
-
 // Compare returns an integer indicating whether pkg is less than, equal to,
 // or greater than other.
 func (pkg *Package) Compare(other *Package) int {
