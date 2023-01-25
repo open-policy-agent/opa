@@ -438,7 +438,9 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 		WithBundleVerificationConfig(source.Signing).
 		WithSizeLimitBytes(source.SizeLimitBytes).
 		WithBundlePersistence(p.persistBundle(name)).
-		WithLazyLoadingMode(true).WithBundleName(name).WithProcessAnnotations(p.manager.SchemaSet() != nil)
+		WithLazyLoadingMode(true).
+		WithBundleName(name).
+		WithProcessAnnotations(p.manager.SchemaSet() != nil)
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {

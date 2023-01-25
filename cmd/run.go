@@ -48,6 +48,7 @@ type runCmdParams struct {
 	skipBundleVerify   bool
 	excludeVerifyFiles []string
 	schema             *schemaFlags
+	validateInput      bool
 }
 
 func newRunParams() runCmdParams {
@@ -196,6 +197,7 @@ To skip bundle verification, use the --skip-verify flag.
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
+	addValidateInputFlag(runCommand.Flags(), &cmdParams.validateInput, false)
 
 	runCommand.Flags().BoolVar(&cmdParams.skipVersionCheck, "skip-version-check", false, "disables anonymous version reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)")
 	err := runCommand.Flags().MarkDeprecated("skip-version-check", "\"skip-version-check\" is deprecated. Use \"disable-telemetry\" instead")
@@ -302,6 +304,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string) (*runt
 	}
 
 	params.rt.SchemaPath = params.schema.path
+	params.rt.ValidateInput = params.validateInput
 
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {

@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	fileurl "github.com/open-policy-agent/opa/internal/file/url"
+
 	"github.com/open-policy-agent/opa/internal/gojsonschema"
 
 	"github.com/gorilla/mux"
@@ -142,6 +144,8 @@ type Server struct {
 	distributedTracingOpts tracing.Options
 	ndbCacheEnabled        bool
 	schemaPath             string
+	schemas                []*gojsonschema.Schema
+	validateInput          bool
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -164,6 +168,14 @@ func New() *Server {
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.initRouters()
+
+	if s.schemaPath != "" {
+		err := s.loadAndCompileSchemas()
+		if err != nil {
+			return nil, err
+
+		}
+	}
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -365,6 +377,13 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 // WithSchemaPath sets the schema file or directory path to be used.
 func (s *Server) WithSchemaPath(schemaPath string) *Server {
 	s.schemaPath = schemaPath
+	return s
+}
+
+// WithValidateInput controls whether OPA will validate the user-provided input against any provided schema(s).
+// If enabled, this will run before policy evaluation.
+func (s *Server) WithValidateInput(validate bool) *Server {
+	s.validateInput = validate
 	return s
 }
 
@@ -1604,8 +1623,8 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Stop()
 
-	if s.schemaPath != "" {
-		errs := s.validateInput(*goInput)
+	if len(s.schemas) != 0 && s.validateInput {
+		errs := s.doValidateInput(*goInput)
 		if errs != nil {
 			newErr := types.NewErrorV1(types.CodeInvalidInput, "error(s) occurred while validating input")
 
@@ -2331,20 +2350,12 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 	writer.JSON(w, http.StatusOK, resp, pretty)
 }
 
-func (s *Server) validateInput(input interface{}) []types.BadRequestErr {
+func (s *Server) doValidateInput(input interface{}) []types.BadRequestErr {
 
-	info, err := os.Stat(s.schemaPath)
-	if err != nil {
-		return []types.BadRequestErr{types.BadRequestErr(err.Error())}
-	}
+	dl := gojsonschema.NewGoLoader(input)
 
-	if !info.IsDir() {
-		bs, err := os.ReadFile(s.schemaPath)
-		if err != nil {
-			return []types.BadRequestErr{types.BadRequestErr(err.Error())}
-		}
-
-		result, err := gojsonschema.Validate(gojsonschema.NewBytesLoader(bs), gojsonschema.NewGoLoader(input))
+	for _, schema := range s.schemas {
+		result, err := schema.Validate(dl)
 		if err != nil {
 			return []types.BadRequestErr{types.BadRequestErr(err.Error())}
 		}
@@ -2357,41 +2368,6 @@ func (s *Server) validateInput(input interface{}) []types.BadRequestErr {
 		for _, err := range result.Errors() {
 			errs = append(errs, types.BadRequestErr(err.String()))
 		}
-		return errs
-	}
-
-	errs := []types.BadRequestErr{}
-	err = filepath.Walk(s.schemaPath,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			} else if info.IsDir() {
-				return nil
-			}
-
-			bs, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			result, err := gojsonschema.Validate(gojsonschema.NewBytesLoader(bs), gojsonschema.NewGoLoader(input))
-			if err != nil {
-				return err
-			}
-
-			if !result.Valid() {
-				for _, e := range result.Errors() {
-					errs = append(errs, types.BadRequestErr(e.String()))
-				}
-			}
-			return nil
-		})
-
-	if err != nil {
-		return []types.BadRequestErr{types.BadRequestErr(err.Error())}
-	}
-
-	if len(errs) != 0 {
 		return errs
 	}
 
@@ -2711,6 +2687,70 @@ func (s *Server) updateNDCache(enabled bool) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.ndbCacheEnabled = enabled
+}
+
+func (s *Server) loadAndCompileSchemas() error {
+
+	path, err := fileurl.Clean(s.schemaPath)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	paths := []string{}
+
+	if !info.IsDir() {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, abs)
+	} else {
+		err = filepath.Walk(path,
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				} else if info.IsDir() {
+					return nil
+				}
+				abs, err := filepath.Abs(path)
+				if err != nil {
+					return err
+				}
+				paths = append(paths, abs)
+				return nil
+			})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// load schemas
+	sl := gojsonschema.NewSchemaLoader()
+	sl.Validate = true
+
+	for _, p := range paths {
+		err := sl.AddSchema("file://"+p, gojsonschema.NewReferenceLoader("file://"+p))
+		if err != nil {
+			return fmt.Errorf("failed to load schema: %v", err)
+		}
+	}
+
+	// compile schemas
+	for _, p := range paths {
+		schemaCompiled, err := sl.Compile(gojsonschema.NewReferenceLoader("file://" + p))
+		if err != nil {
+			return fmt.Errorf("failed to compile schema: %v", err)
+		}
+		s.schemas = append(s.schemas, schemaCompiled)
+	}
+
+	return nil
 }
 
 func stringPathToDataRef(s string) (r ast.Ref) {

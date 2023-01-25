@@ -137,6 +137,10 @@ func addUnknownsFlag(fs *pflag.FlagSet, unknowns *[]string, value []string) {
 	fs.StringArrayVarP(unknowns, "unknowns", "u", value, "set paths to treat as unknown during partial evaluation")
 }
 
+func addValidateInputFlag(fs *pflag.FlagSet, validate *bool, value bool) {
+	fs.BoolVarP(validate, "validate-input", "", value, "validate input against the schema(s) provided via --schema")
+}
+
 type schemaFlags struct {
 	path string
 }

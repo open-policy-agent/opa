@@ -214,6 +214,10 @@ type Params struct {
 
 	// SchemaPath specifies the schema file or directory path
 	SchemaPath string
+
+	// ValidateInput flag controls whether OPA will validate the input against any provided schema(s).
+	// Input validation if enabled, will run before policy evaluation.
+	ValidateInput bool
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -488,7 +492,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
 		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts).
-		WithSchemaPath(rt.Params.SchemaPath)
+		WithSchemaPath(rt.Params.SchemaPath).
+		WithValidateInput(rt.Params.ValidateInput)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
 	if lp := logs.Lookup(rt.Manager); lp != nil {
