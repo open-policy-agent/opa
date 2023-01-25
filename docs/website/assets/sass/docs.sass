@@ -15,7 +15,6 @@ $panel-header-logo-width: 85%
   +row
   position: relative
   overflow: hidden
-  height: 100vh
 
   .is-scrollable
     overflow-y: auto
@@ -133,3 +132,29 @@ $panel-header-logo-width: 85%
 .dashboard-panel-content
   margin: 0 0 0 2rem
   padding: 0 2rem 0 0
+
+.banner-version-warning
+  margin-bottom: 0 !important // override bulma default
+  border-radius: 0
+  font-size: 1.2rem
+  font-weight: bold
+  border-top: 1rem solid transparent
+  border-bottom: 1rem solid transparent
+
+  position: fixed
+  width: 100%
+  z-index: 100
+
+
+  &.is-danger
+    border-image: 50 repeating-linear-gradient(75deg, #cc0f35 0, #cc0f35 1rem, transparent 0, transparent 2rem);
+  &.is-warning
+    border-image: 50 repeating-linear-gradient(75deg, #946c00 0, #946c00 1rem, transparent 0, transparent 2rem);
+
+  &.hidden
+    visibility: hidden
+    position: relative
+
+  .message-body
+    border: none
+    border-radius: 0

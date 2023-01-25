@@ -1,0 +1,47 @@
+{{- $latest := "latest" -}}
+{{- if eq (len site.Data.releases) 1 -}}
+{{- $latest = "edge" -}}
+{{- end -}}
+
+{{ $releases            := site.Data.releases }}
+
+{{ $version             := index (split .File.Path "/") 1 }}
+
+{{ $latestVersionString := printf "%s" (index $releases 1) }}
+{{- if eq (len $releases) 1 -}}
+{{- $latestVersionString = "(dev preview)" -}}
+{{- end -}}
+
+{{ $rank := 1 }}
+{{- range $index, $ver := site.Data.releases -}}
+{{- if eq $ver $version -}}
+{{ $rank = $index }}
+{{- end -}}
+{{- end -}}
+{{ $ancient := gt $rank 5 }}
+
+{{- if (eq $version "edge") }}
+  <div class="message is-danger banner-version-warning">
+    <div class="message-body">
+      This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+    </div>
+  </div>
+  <!-- this is here to add make sure the space in the dom is retained and pushes down the dashboard the correct amount-->
+  <div class="message is-danger banner-version-warning hidden">
+    <div class="message-body">
+      This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+    </div>
+  </div>
+{{- else if (and (ne $version "latest") (ne $version $latest)) }}
+  <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
+    <div class="message-body">
+      These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+    </div>
+  </div>
+  <!-- this is here to add make sure the space in the dom is retained and pushes down the dashboard the correct amount-->
+  <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning hidden ">
+    <div class="message-body">
+      These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+    </div>
+  </div>
+{{- end }}
