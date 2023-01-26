@@ -216,7 +216,9 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 			if r := ref.GetRule(); r != nil {
 				fmt.Fprintln(out, "Rule:    ", r.Head.Name)
 			}
-			fmt.Fprintln(out, "Location:", ref.Location.String())
+			if loc := ref.Location; loc != nil {
+				fmt.Fprintln(out, "Location:", loc.String())
+			}
 			if a := ref.Annotations; a != nil && a.Entrypoint {
 				fmt.Fprintln(out, "Entrypoint:", a.Entrypoint)
 			}

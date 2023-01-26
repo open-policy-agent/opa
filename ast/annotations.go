@@ -75,6 +75,10 @@ type (
 		Annotations *Annotations `json:"annotations,omitempty"`
 		node        Node         // The node the annotations are applied to
 	}
+
+	AnnotationsRefSet []*AnnotationsRef
+
+	FlatAnnotationsRefSet AnnotationsRefSet
 )
 
 func (a *Annotations) String() string {
@@ -172,8 +176,13 @@ func (a *Annotations) GetTargetPath() Ref {
 }
 
 func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
+	var loc *Location
+	if a.node != nil {
+		loc = a.node.Loc()
+	}
+
 	return &AnnotationsRef{
-		Location:    a.node.Loc(),
+		Location:    loc,
 		Path:        a.GetTargetPath(),
 		Annotations: a,
 		node:        a.node,
@@ -678,7 +687,7 @@ func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 
 // Flatten returns a flattened list view of this AnnotationSet.
 // The returned slice is sorted, first by the annotations' target path, then by their target location
-func (as *AnnotationSet) Flatten() []*AnnotationsRef {
+func (as *AnnotationSet) Flatten() FlatAnnotationsRefSet {
 	// This preallocation often won't be optimal, but it's superior to starting with a nil slice.
 	refs := make([]*AnnotationsRef, 0, len(as.byPath.Children)+len(as.byRule)+len(as.byPackage))
 
@@ -696,13 +705,7 @@ func (as *AnnotationSet) Flatten() []*AnnotationsRef {
 
 	// Sort by path, then annotation location, for stable output
 	sort.SliceStable(refs, func(i, j int) bool {
-		if refs[i].Path.Compare(refs[j].Path) < 0 {
-			return true
-		}
-		if refs[i].Annotations.Location.Compare(refs[j].Annotations.Location) < 0 {
-			return true
-		}
-		return false
+		return refs[i].Compare(refs[j]) < 0
 	})
 
 	return refs
@@ -715,7 +718,7 @@ func (as *AnnotationSet) Flatten() []*AnnotationsRef {
 // 2. The 'package' scope entry, if any
 // 3. Entries for the 'subpackages' scope, if any; ordered from the closest package path to the fartest. E.g.: 'do.re.mi', 'do.re', 'do'
 // The returned slice is guaranteed to always contain at least one entry, corresponding to the given rule.
-func (as *AnnotationSet) Chain(rule *Rule) []*AnnotationsRef {
+func (as *AnnotationSet) Chain(rule *Rule) AnnotationsRefSet {
 	var refs []*AnnotationsRef
 
 	ruleAnnots := as.GetRuleScope(rule)
@@ -759,6 +762,26 @@ func (as *AnnotationSet) Chain(rule *Rule) []*AnnotationsRef {
 	}
 
 	return refs
+}
+
+func (ars FlatAnnotationsRefSet) Insert(ar *AnnotationsRef) FlatAnnotationsRefSet {
+	result := make(FlatAnnotationsRefSet, 0, len(ars)+1)
+
+	// insertion sort, first by path, then location
+	for i, current := range ars {
+		if ar.Compare(current) < 0 {
+			result = append(result, ar)
+			result = append(result, ars[i:]...)
+			break
+		}
+		result = append(result, current)
+	}
+
+	if len(result) < len(ars)+1 {
+		result = append(result, ar)
+	}
+
+	return result
 }
 
 func newAnnotationTree() *annotationTreeNode {
@@ -823,4 +846,16 @@ func (t *annotationTreeNode) flatten(refs []*AnnotationsRef) []*AnnotationsRef {
 		refs = c.flatten(refs)
 	}
 	return refs
+}
+
+func (ar *AnnotationsRef) Compare(other *AnnotationsRef) int {
+	if c := ar.Path.Compare(other.Path); c != 0 {
+		return c
+	}
+
+	if c := ar.Annotations.Location.Compare(other.Annotations.Location); c != 0 {
+		return c
+	}
+
+	return ar.Annotations.Compare(other.Annotations)
 }
