@@ -675,53 +675,14 @@ func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 }
 
 func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err = os.MkdirAll(path, os.ModePerm)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if raw == nil {
-		return "", fmt.Errorf("no raw bundle bytes to persist to disk")
-	}
-
-	dest, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
-	if err != nil {
-		return "", err
-	}
-	defer dest.Close()
-
-	_, err = io.Copy(dest, raw)
-	return dest.Name(), err
+	return bundleUtils.SaveBundleToDisk(path, raw)
 }
 
 func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
-	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
-
-	if _, err := os.Stat(bundlePath); err == nil {
-		f, err := os.Open(filepath.Join(bundlePath))
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-
-		r := bundle.NewReader(f)
-
-		if src != nil {
-			r = r.WithBundleVerificationConfig(src.Signing)
-		}
-
-		b, err := r.Read()
-		if err != nil {
-			return nil, err
-		}
-		return &b, nil
-	} else if os.IsNotExist(err) {
-		return nil, nil
-	} else {
-		return nil, err
+	if src != nil {
+		return bundleUtils.LoadBundleFromDisk(path, name, src.Signing)
 	}
+	return bundleUtils.LoadBundleFromDisk(path, name, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {

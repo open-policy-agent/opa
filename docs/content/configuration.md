@@ -840,18 +840,19 @@ included in the actual bundle gzipped tarball.
 
 ### Discovery
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `discovery.resource` | `string` | Yes | Resource path to use to download bundle from configured service. |
+| Field | Type | Required | Description                                                                                                                                                 |
+| --- | --- | --- |-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `discovery.resource` | `string` | Yes | Resource path to use to download bundle from configured service.                                                                                            |
 | `discovery.service` | `string` | No | Name of the service to use to contact remote server. If omitted, the configuration must contain exactly one service. Discovery will default to this service. |
-| `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration. |
-| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
-| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
-| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
-| `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
-| `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
-| `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
-| `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+| `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration.    |
+| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads.                                                                                             |
+| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads.                                                                                             |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`.                                                       |
+| `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available.                                                      |
+| `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification.                                                                                                   |
+| `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification.                                                                                                             |
+| `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification.                                                                                                         |
+| `discovery.persist` | `bool` | No | Persist activated discovery bundle to disk.                                                                                                                 |
 
 > ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
 > and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other
