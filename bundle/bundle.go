@@ -127,8 +127,9 @@ type Manifest struct {
 
 // WasmResolver maps a wasm module to an entrypoint ref.
 type WasmResolver struct {
-	Entrypoint string `json:"entrypoint,omitempty"`
-	Module     string `json:"module,omitempty"`
+	Entrypoint string             `json:"entrypoint,omitempty"`
+	Module     string             `json:"module,omitempty"`
+	Metadata   []*ast.Annotations `json:"metadata,omitempty"`
 }
 
 // Init initializes the manifest. If you instantiate a manifest
@@ -164,6 +165,10 @@ func (m Manifest) Equal(other Manifest) bool {
 	}
 
 	return m.equalWasmResolversAndRoots(other)
+}
+
+func (m Manifest) Empty() bool {
+	return m.Equal(Manifest{})
 }
 
 // Copy returns a deep copy of the manifest.
@@ -210,7 +215,7 @@ func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
 	}
 
 	for i := 0; i < len(m.WasmResolvers); i++ {
-		if m.WasmResolvers[i] != other.WasmResolvers[i] {
+		if reflect.DeepEqual(m.WasmResolvers[i], other.WasmResolvers[i]) {
 			return false
 		}
 	}
@@ -849,7 +854,7 @@ func (w *Writer) writePlan(tw *tar.Writer, bundle Bundle) error {
 
 func writeManifest(tw *tar.Writer, bundle Bundle) error {
 
-	if bundle.Manifest.Equal(Manifest{}) {
+	if bundle.Manifest.Empty() {
 		return nil
 	}
 
@@ -926,7 +931,7 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 	// parse the manifest into a JSON structure;
 	// then recursively order the fields of all objects alphabetically and then apply
 	// the hash function to result to compute the hash.
-	if !b.Manifest.Equal(Manifest{}) {
+	if !b.Manifest.Empty() {
 		mbs, err := json.Marshal(b.Manifest)
 		if err != nil {
 			return files, err

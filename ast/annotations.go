@@ -37,6 +37,7 @@ type (
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
 		Custom           map[string]interface{}       `json:"custom,omitempty"`
 		node             Node
+		comments         []*Comment
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -89,6 +90,15 @@ func (a *Annotations) Loc() *Location {
 // SetLoc updates the location of this annotation.
 func (a *Annotations) SetLoc(l *Location) {
 	a.Location = l
+}
+
+// EndLoc returns the location of this annotation's last comment line.
+func (a *Annotations) EndLoc() *Location {
+	count := len(a.comments)
+	if count == 0 {
+		return a.Location
+	}
+	return a.comments[count-1].Location
 }
 
 // Compare returns an integer indicating if a is less than, equal to, or greater
