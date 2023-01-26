@@ -3431,7 +3431,7 @@ func TestUnversionedPost(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, post())
 
-	expected := `{"agg":6}`
+	expected := "{\"agg\":6}\n"
 	if f.recorder.Code != 200 || f.recorder.Body.String() != expected {
 		t.Fatalf(`Expected HTTP 200 / %v but got: %v`, expected, f.recorder)
 	}
