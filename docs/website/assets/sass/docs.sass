@@ -144,6 +144,9 @@ $panel-header-logo-width: 85%
   .message-body
     border: none
     border-radius: 0
+    button.delete
+      float: right
+      margin-top: 0.25rem
 
   // this is used to make the banner appear in the same position as the page
   // scrolls
@@ -154,9 +157,11 @@ $panel-header-logo-width: 85%
   // different types of message should have different colors. The colors are
   // duplicated from the bulma since we're not using variables
   &.is-danger
-    border-image: 50 repeating-linear-gradient(75deg, #cc0f35 0, #cc0f35 1rem, transparent 0, transparent 2rem);
+    border-image: 50 repeating-linear-gradient(75deg, #cc0f35 0, #cc0f35 1rem, transparent 0, transparent 2rem)
   &.is-warning
-    border-image: 50 repeating-linear-gradient(75deg, #946c00 0, #946c00 1rem, transparent 0, transparent 2rem);
+    border-image: 50 repeating-linear-gradient(75deg, #946c00 0, #946c00 1rem, transparent 0, transparent 2rem)
+  &.is-info
+    border-image: 50 repeating-linear-gradient(75deg, #296fa8 0, #296fa8 1rem, transparent 0, transparent 2rem)
 
   // the hidden clone of the message is used to 'push down' the dashboard
   // when a message is being displayed by the correct amount
