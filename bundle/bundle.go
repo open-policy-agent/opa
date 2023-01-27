@@ -215,7 +215,7 @@ func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
 	}
 
 	for i := 0; i < len(m.WasmResolvers); i++ {
-		if reflect.DeepEqual(m.WasmResolvers[i], other.WasmResolvers[i]) {
+		if !reflect.DeepEqual(m.WasmResolvers[i], other.WasmResolvers[i]) {
 			return false
 		}
 	}
@@ -598,6 +598,10 @@ func (r *Reader) Read() (Bundle, error) {
 		} else if strings.HasSuffix(path, ManifestExt) {
 			if err := util.NewJSONDecoder(&buf).Decode(&bundle.Manifest); err != nil {
 				return bundle, fmt.Errorf("bundle load failed on manifest decode: %w", err)
+			}
+			// Prefix Wasm module file path with root dir path, should we be reading a directory and not a tarball
+			for i, wr := range bundle.Manifest.WasmResolvers {
+				bundle.Manifest.WasmResolvers[i].Module = r.loader.FilePrefix() + wr.Module
 			}
 		}
 	}

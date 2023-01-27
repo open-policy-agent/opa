@@ -115,6 +115,7 @@ type DirectoryLoader interface {
 	// descriptor should *always* be closed when no longer needed.
 	NextFile() (*Descriptor, error)
 	WithFilter(filter filter.LoaderFilter) DirectoryLoader
+	FilePrefix() string
 }
 
 type dirLoader struct {
@@ -199,6 +200,10 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 
 	f := newDescriptor(path.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
 	return f, nil
+}
+
+func (d *dirLoader) FilePrefix() string {
+	return d.root
 }
 
 type tarballLoader struct {
@@ -330,6 +335,10 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	t.idx++
 
 	return newDescriptor(path.Join(t.baseURL, f.name), f.name, f.reader), nil
+}
+
+func (t *tarballLoader) FilePrefix() string {
+	return ""
 }
 
 // Next implements the storage.Iterator interface.
