@@ -24,8 +24,7 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 		// In case of string pass it as is as a raw JSON string.
 		// Make pre-check that it's a valid JSON at all because gojsonschema won't do that.
 		if !json.Valid([]byte(x)) {
-			err = errors.New("invalid JSON string")
-			break
+			return nil, errors.New("invalid JSON string")
 		}
 		loader = gojsonschema.NewStringLoader(string(x))
 	case ast.Object:
@@ -34,18 +33,16 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 		var asJSON interface{}
 		asJSON, err = ast.JSON(value)
 		if err != nil {
-			break
+			return nil, err
 		}
 		data, err = json.Marshal(asJSON)
+		if err != nil {
+			return nil, err
+		}
 		loader = gojsonschema.NewStringLoader(string(data))
 	default:
 		// Any other cases will produce an error.
 		return nil, errors.New("wrong type, expected string or object")
-	}
-
-	// Catch JSON marshaling errors.
-	if err != nil {
-		return nil, err
 	}
 
 	return loader, nil
@@ -118,11 +115,12 @@ func builtinJSONMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*a
 	// In case of validation errors produce Rego array of objects to describe the errors.
 	arr := ast.NewArray()
 	for _, re := range result.Errors() {
-		o := ast.NewObject()
-		o.Insert(ast.StringTerm("error"), ast.StringTerm(re.String()))
-		o.Insert(ast.StringTerm("type"), ast.StringTerm(re.Type()))
-		o.Insert(ast.StringTerm("field"), ast.StringTerm(re.Field()))
-		o.Insert(ast.StringTerm("desc"), ast.StringTerm(re.Description()))
+		o := ast.NewObject(
+			[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm(re.String())},
+			[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm(re.Type())},
+			[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm(re.Field())},
+			[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm(re.Description())},
+		)
 		arr = arr.Append(ast.NewTerm(o))
 	}
 

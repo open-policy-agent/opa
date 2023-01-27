@@ -47,28 +47,22 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 		},
 		{
 			note: "object simple schema",
-			schema: func() ast.Object {
-				obj := ast.NewObject()
-				obj.Insert(
+			schema: ast.NewObject(
+				[...]*ast.Term{
 					ast.StringTerm("properties"),
-					ast.NewTerm(func() ast.Object {
-						obj := ast.NewObject()
-						obj.Insert(
+					ast.NewTerm(ast.NewObject(
+						[...]*ast.Term{
 							ast.StringTerm("id"),
-							ast.NewTerm(func() ast.Object {
-								obj := ast.NewObject()
-								obj.Insert(
+							ast.NewTerm(ast.NewObject(
+								[...]*ast.Term{
 									ast.StringTerm("type"),
 									ast.StringTerm("integer"),
-								)
-								return obj
-							}()),
-						)
-						return obj
-					}()),
-				)
-				return obj
-			}(),
+								},
+							)),
+						},
+					)),
+				},
+			),
 			valid: true,
 		},
 	}
@@ -320,14 +314,12 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 				"required": ["id"]
 			}
 			`),
-			result: ast.NewArray(ast.NewTerm(func() ast.Object {
-				obj := ast.NewObject()
-				obj.Insert(ast.StringTerm("error"), ast.StringTerm("id: Invalid type. Expected: integer, given: string"))
-				obj.Insert(ast.StringTerm("type"), ast.StringTerm("invalid_type"))
-				obj.Insert(ast.StringTerm("field"), ast.StringTerm("id"))
-				obj.Insert(ast.StringTerm("desc"), ast.StringTerm("Invalid type. Expected: integer, given: string"))
-				return obj
-			}())),
+			result: ast.NewArray(ast.NewTerm(ast.NewObject(
+				[...]*ast.Term{ast.StringTerm("error"), ast.StringTerm("id: Invalid type. Expected: integer, given: string")},
+				[...]*ast.Term{ast.StringTerm("type"), ast.StringTerm("invalid_type")},
+				[...]*ast.Term{ast.StringTerm("field"), ast.StringTerm("id")},
+				[...]*ast.Term{ast.StringTerm("desc"), ast.StringTerm("Invalid type. Expected: integer, given: string")},
+			))),
 			err: false,
 		},
 	}
