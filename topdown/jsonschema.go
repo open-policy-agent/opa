@@ -162,7 +162,7 @@ func builtinJSONIsMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(
 
 func init() {
 	RegisterBuiltinFunc(ast.JSONSchemaIsValid.Name, builtinJSONSchemaIsValid)
-	RegisterBuiltinFunc(ast.JSONSchemaValidate.Name, builtinJSONSchemaValidate)
+	RegisterBuiltinFunc(ast.JSONSchemaVerify.Name, builtinJSONSchemaValidate)
 	RegisterBuiltinFunc(ast.JSONIsMatchSchema.Name, builtinJSONIsMatchSchema)
 	RegisterBuiltinFunc(ast.JSONMatchSchema.Name, builtinJSONMatchSchema)
 }

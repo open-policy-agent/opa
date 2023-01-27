@@ -96,7 +96,7 @@
     ],
     "jsonschema": [
       "jsonschema.is_valid",
-      "jsonschema.validate"
+      "jsonschema.verify"
     ],
     "net": [
       "net.cidr_contains",
@@ -8508,7 +8508,7 @@
     },
     "wasm": false
   },
-  "jsonschema.validate": {
+  "jsonschema.verify": {
     "args": [
       {
         "name": "schema",

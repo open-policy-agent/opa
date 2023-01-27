@@ -246,7 +246,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// JSON Schema
 	JSONSchemaIsValid,
-	JSONSchemaValidate,
+	JSONSchemaVerify,
 	JSONIsMatchSchema,
 	JSONMatchSchema,
 
@@ -2672,10 +2672,10 @@ var JSONSchemaIsValid = &Builtin{
 	),
 }
 
-// JSONSchemaValidate returns empty string if the input is valid JSON schema
+// JSONSchemaVerify returns empty string if the input is valid JSON schema
 // and returns error string for all other inputs.
-var JSONSchemaValidate = &Builtin{
-	Name:        "jsonschema.validate",
+var JSONSchemaVerify = &Builtin{
+	Name:        "jsonschema.verify",
 	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
 	Decl: types.NewFunction(
 		types.Args(
