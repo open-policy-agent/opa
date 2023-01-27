@@ -219,8 +219,13 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 			if loc := ref.Location; loc != nil {
 				fmt.Fprintln(out, "Location:", loc.String())
 			}
-			if a := ref.Annotations; a != nil && a.Entrypoint {
-				fmt.Fprintln(out, "Entrypoint:", a.Entrypoint)
+			if a := ref.Annotations; a != nil {
+				if len(a.Scope) > 0 {
+					fmt.Fprintln(out, "Scope:", a.Scope)
+				}
+				if a.Entrypoint {
+					fmt.Fprintln(out, "Entrypoint:", a.Entrypoint)
+				}
 			}
 			fmt.Fprintln(out)
 

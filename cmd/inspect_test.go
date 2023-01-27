@@ -265,6 +265,31 @@ package test
 # custom:
 #  rule: rule-custom
 p = 1`,
+		".manifest": `
+{
+	"revision": "",
+	"roots": [
+		""
+	],
+	"wasm": [
+		{
+			"entrypoint": "test/a",
+			"module": "/policy.wasm"
+		},
+		{
+			"entrypoint": "test/b",
+			"module": "/policy.wasm",
+			"metadata": [
+				{
+					"scope": "rule",
+					"title": "WASM RULE B",
+					"entrypoint": true
+				}
+			]
+		}
+	]
+}`,
+		"policy.wasm": "",
 	}
 
 	test.WithTempFS(files, func(rootDir string) {
@@ -288,6 +313,7 @@ pkg-descr
 
 Package:  test
 Location: %[1]s/x.rego:16
+Scope: package
 
 Organizations:
  pkg-org
@@ -305,6 +331,13 @@ Related Resources:
 Custom:
  pkg: "pkg-custom"
 
+WASM RULE B
+===========
+
+Location: %[1]s/policy.wasm:0
+Scope: rule
+Entrypoint: true
+
 doc-title
 =========
 
@@ -313,6 +346,7 @@ doc-descr
 Package:  test
 Rule:     p
 Location: %[1]s/x.rego:50
+Scope: document
 
 Organizations:
  doc-org
@@ -338,6 +372,7 @@ rule-title
 Package:  test
 Rule:     p
 Location: %[1]s/x.rego:50
+Scope: rule
 
 Organizations:
  rule-org
