@@ -41,14 +41,14 @@ schema {
 }
 
 type Query {
-  employeeByID(id: String): Employee
+  employeeByID(id: String!): Employee
 }
 ```
 
 Every GraphQL service has a `query` type, and may or may not have a `mutation` type.
 These types are special because they define the entry points of *every* GraphQL query for the API covered by that schema.
 
-For our example above, we've defined exactly one query entry point, the parameterized query `user(id: Int)`.
+For our example above, we've defined exactly one query entry point, the parameterized query `employeeByID(id: String!)`.
 
 ### 2. Create a policy bundle.
 
