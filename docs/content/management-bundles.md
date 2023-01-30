@@ -27,7 +27,7 @@ The CLI command [`opa build`](../cli/#opa-build) gives you the capability to bui
 
 Here is a basic example on how to build a bundle from a folder called `foo`. The bundle will be named by default `bundle.tar.gz`.
 ```console
-$ ls
+$ ls foo/
 example.rego
 
 $ opa build -b foo/
