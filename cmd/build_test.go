@@ -900,7 +900,6 @@ p2 := 2
 							t.Fatal(err)
 						}
 						manifest := util.MustUnmarshalJSON(data)
-						//fmt.Printf("MANIFEST: %v", manifest)
 						if !reflect.DeepEqual(manifest, util.MustUnmarshalJSON([]byte(tc.manifest))) {
 							t.Fatalf("expected manifest\n\n%v\n\nbut got\n\n%v", tc.manifest, string(util.MustMarshalJSON(manifest)))
 						}

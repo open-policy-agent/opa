@@ -215,12 +215,43 @@ func (m Manifest) equalWasmResolversAndRoots(other Manifest) bool {
 	}
 
 	for i := 0; i < len(m.WasmResolvers); i++ {
-		if !reflect.DeepEqual(m.WasmResolvers[i], other.WasmResolvers[i]) {
+		if !m.WasmResolvers[i].Equal(&other.WasmResolvers[i]) {
 			return false
 		}
 	}
 
 	return m.rootSet().Equal(other.rootSet())
+}
+
+func (wr *WasmResolver) Equal(other *WasmResolver) bool {
+	if wr == nil && other == nil {
+		return true
+	}
+
+	if wr == nil || other == nil {
+		return false
+	}
+
+	if wr.Module != other.Module {
+		return false
+	}
+
+	if wr.Entrypoint != other.Entrypoint {
+		return false
+	}
+
+	metaLen := len(wr.Metadata)
+	if metaLen != len(other.Metadata) {
+		return false
+	}
+
+	for i := 0; i < metaLen; i++ {
+		if wr.Metadata[i].Compare(other.Metadata[i]) != 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 type stringSet map[string]struct{}
