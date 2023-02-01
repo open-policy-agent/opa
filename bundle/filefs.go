@@ -98,7 +98,3 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	f := newDescriptor(fileNameWithSlash, fileNameWithSlash, fh).withCloser(fh)
 	return f, nil
 }
-
-func (d *dirLoaderFS) FilePrefix() string {
-	return ""
-}
