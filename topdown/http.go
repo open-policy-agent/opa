@@ -69,8 +69,24 @@ var allowedKeyNames = [...]string{
 	"caching_mode",
 }
 
+// ref: https://www.rfc-editor.org/rfc/rfc7231#section-6.1
+var cacheableHTTPStatusCodes = [...]int{
+	http.StatusOK,
+	http.StatusNonAuthoritativeInfo,
+	http.StatusNoContent,
+	http.StatusPartialContent,
+	http.StatusMultipleChoices,
+	http.StatusMovedPermanently,
+	http.StatusNotFound,
+	http.StatusMethodNotAllowed,
+	http.StatusGone,
+	http.StatusRequestURITooLong,
+	http.StatusNotImplemented,
+}
+
 var (
 	allowedKeys                 = ast.NewSet()
+	cacheableCodes              = ast.NewSet()
 	requiredKeys                = ast.NewSet(ast.StringTerm("method"), ast.StringTerm("url"))
 	httpSendLatencyMetricKey    = "rego_builtin_" + strings.ReplaceAll(ast.HTTPSend.Name, ".", "_")
 	httpSendInterQueryCacheHits = httpSendLatencyMetricKey + "_interquery_cache_hits"
@@ -162,6 +178,7 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 
 func init() {
 	createAllowedKeys()
+	createCacheableHTTPStatusCodes()
 	initDefaults()
 	RegisterBuiltinFunc(ast.HTTPSend.Name, builtinHTTPSend)
 }
@@ -779,7 +796,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 
 // insertIntoHTTPSendInterQueryCache inserts given key and value in the inter-query cache
 func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) error {
-	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) {
+	if resp == nil || (!forceCaching(cacheParams) && !canStore(resp.Header)) || !cacheableCodes.Contains(ast.IntNumberTerm(resp.StatusCode)) {
 		return nil
 	}
 
@@ -814,6 +831,12 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 func createAllowedKeys() {
 	for _, element := range allowedKeyNames {
 		allowedKeys.Add(ast.StringTerm(element))
+	}
+}
+
+func createCacheableHTTPStatusCodes() {
+	for _, element := range cacheableHTTPStatusCodes {
+		cacheableCodes.Add(ast.IntNumberTerm(element))
 	}
 }
 
@@ -1321,7 +1344,10 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	insertIntoHTTPSendCache(c.bctx, c.key, result)
+	if cacheableCodes.Contains(ast.IntNumberTerm(value.StatusCode)) {
+		insertIntoHTTPSendCache(c.bctx, c.key, result)
+	}
+
 	return result, nil
 }
 
