@@ -55,7 +55,7 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 		flattened := as.Flatten()
 
 		for _, wr := range bi.Manifest.WasmResolvers {
-			if as := wr.Metadata; len(as) > 0 {
+			if as := wr.Annotations; len(as) > 0 {
 				path, err := ast.PtrRef(ast.DefaultRootDocument, wr.Entrypoint)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse Wasm entrypoint in manifest: %s", err)

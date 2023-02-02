@@ -432,7 +432,7 @@ p = 1`},
 		{
 			"entrypoint": "test/b",
 			"module": "/policy.wasm",
-			"metadata": [
+			"annotations": [
 				{
 					"scope": "rule",
 					"title": "WASM RULE B",

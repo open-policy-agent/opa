@@ -127,9 +127,9 @@ type Manifest struct {
 
 // WasmResolver maps a wasm module to an entrypoint ref.
 type WasmResolver struct {
-	Entrypoint string             `json:"entrypoint,omitempty"`
-	Module     string             `json:"module,omitempty"`
-	Metadata   []*ast.Annotations `json:"metadata,omitempty"`
+	Entrypoint  string             `json:"entrypoint,omitempty"`
+	Module      string             `json:"module,omitempty"`
+	Annotations []*ast.Annotations `json:"annotations,omitempty"`
 }
 
 // Init initializes the manifest. If you instantiate a manifest
@@ -240,13 +240,13 @@ func (wr *WasmResolver) Equal(other *WasmResolver) bool {
 		return false
 	}
 
-	metaLen := len(wr.Metadata)
-	if metaLen != len(other.Metadata) {
+	annotLen := len(wr.Annotations)
+	if annotLen != len(other.Annotations) {
 		return false
 	}
 
-	for i := 0; i < metaLen; i++ {
-		if wr.Metadata[i].Compare(other.Metadata[i]) != 0 {
+	for i := 0; i < annotLen; i++ {
+		if wr.Annotations[i].Compare(other.Annotations[i]) != 0 {
 			return false
 		}
 	}

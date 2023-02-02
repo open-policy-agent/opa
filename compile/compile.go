@@ -648,15 +648,15 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 	for i, e := range c.entrypointrefs {
 		entrypointPath := c.entrypoints[i]
 
-		var metadata []*ast.Annotations
+		var annotations []*ast.Annotations
 		if !c.isPackage(e) {
-			metadata = findAnnotationsForTerm(e, flattenedAnnotations)
+			annotations = findAnnotationsForTerm(e, flattenedAnnotations)
 		}
 
 		c.bundle.Manifest.WasmResolvers = append(c.bundle.Manifest.WasmResolvers, bundle.WasmResolver{
-			Module:     "/" + strings.TrimLeft(modulePath, "/"),
-			Entrypoint: entrypointPath,
-			Metadata:   metadata,
+			Module:      "/" + strings.TrimLeft(modulePath, "/"),
+			Entrypoint:  entrypointPath,
+			Annotations: annotations,
 		})
 	}
 

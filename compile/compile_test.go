@@ -665,10 +665,6 @@ q = true`,
 			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
 		}
 
-		if compiler.bundle.Manifest.WasmResolvers[0].Metadata != nil {
-			t.Fatalf("expected entrypoint to")
-		}
-
 		expWasmResolvers := []bundle.WasmResolver{
 			{
 				Entrypoint: "test",
@@ -677,7 +673,7 @@ q = true`,
 			{
 				Entrypoint: "policy/q",
 				Module:     "/policy.wasm",
-				Metadata: []*ast.Annotations{
+				Annotations: []*ast.Annotations{
 					{
 						Title: "All my Q rules",
 						Scope: "document",
@@ -691,7 +687,7 @@ q = true`,
 			{
 				Entrypoint: "test/p",
 				Module:     "/policy.wasm",
-				Metadata: []*ast.Annotations{
+				Annotations: []*ast.Annotations{
 					{
 						Title:      "My P rule",
 						Scope:      "rule",
