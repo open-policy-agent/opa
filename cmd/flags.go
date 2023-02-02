@@ -184,8 +184,8 @@ func addReadAstValuesFromStoreFlag(fs *pflag.FlagSet, readAstValuesFromStore *bo
 	fs.BoolVar(readAstValuesFromStore, "optimize-store-for-read-speed", value, "optimize default in-memory store for read speed. Has possible negative impact on memory footprint and write speed. See https://www.openpolicyagent.org/docs/latest/policy-performance/#storage-optimization for more details.")
 }
 
-func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {
-	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running OPA server")
+func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool, brand string) {
+	fs.BoolVar(e2e, "e2e", value, "run benchmarks against a running "+brand+" server")
 }
 
 func newExplainFlag(modes []string) *util.EnumFlag {

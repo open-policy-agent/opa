@@ -187,7 +187,9 @@ func (r regoError) Unwrap() error {
 	return r.wrapped
 }
 
-func init() {
+func initEval(root *cobra.Command, _ string) {
+	executable := root.Name()
+
 	params := newEvalCommandParams()
 
 	evalCommand := &cobra.Command{
@@ -198,15 +200,15 @@ func init() {
 
 To evaluate a simple query:
 
-    $ opa eval 'x := 1; y := 2; x < y'
+    $ ` + executable + ` eval 'x := 1; y := 2; x < y'
 
 To evaluate a query against JSON data:
 
-    $ opa eval --data data.json 'name := data.names[_]'
+    $ ` + executable + ` eval --data data.json 'name := data.names[_]'
 
 To evaluate a query against JSON data supplied with a file:// URL:
 
-    $ opa eval --data file:///path/to/file.json 'data'
+    $ ` + executable + ` eval --data file:///path/to/file.json 'data'
 
 
 File & Bundle Loading
@@ -216,7 +218,7 @@ The --bundle flag will load data files and Rego files contained
 in the bundle specified by the path. It can be either a
 compressed tar archive bundle file or a directory tree.
 
-    $ opa eval --bundle /some/path 'data'
+    $ ` + executable + ` eval --bundle /some/path 'data'
 
 Where /some/path contains:
 
@@ -269,8 +271,8 @@ Schema
 The -s/--schema flag provides one or more JSON Schemas used to validate references to the input or data documents.
 Loads a single JSON file, applying it to the input document; or all the schema files under the specified directory.
 
-    $ opa eval --data policy.rego --input input.json --schema schema.json
-    $ opa eval --data policy.rego --input input.json --schema schemas/
+    $ ` + executable + ` eval --data policy.rego --input input.json --schema schema.json
+    $ ` + executable + ` eval --data policy.rego --input input.json --schema schemas/
 
 Capabilities
 ------------
@@ -364,7 +366,7 @@ access.
 	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
 	addReadAstValuesFromStoreFlag(evalCommand.Flags(), &params.ReadAstValuesFromStore, false)
 
-	RootCommand.AddCommand(evalCommand)
+	root.AddCommand(evalCommand)
 }
 
 func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
