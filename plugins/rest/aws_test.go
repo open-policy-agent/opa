@@ -550,14 +550,14 @@ func TestV4Signing(t *testing.T) {
 		{
 			sigVersion: "4a",
 			expectedAuthorization: []string{
-				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=3045022031b9dd601cd02650193586a32721d0614bf2e34bbc76cff0d9812366d1dc8878022100d0cfbd91bd2dd98f1e2d7feb9091c48f8b66a20174922770ec9e3b74db8e1826",
+				// this signature is for go 1.18+. Remove this and only test for a single value when OPA drops go 1.19
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
 					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
 					"Signature=304402207d1bcb6fb68d85be3e9f6948a8dc8596a531b3f5a82ca2350acabe98941312bc02207d81ed07c7356226d93611820548a806c8e1f0cc72ff41ba672d23901e5a06bf",
-				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
-				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/s3/aws4_request, " +
-					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=3045022100f951364b6495e3fe6be830a3550043bfd98e5312f79091e7c87bd51455cfb93c02203a4ca3e29ad63b6a9b473172e6ebb870f3d1947f2c44334bfd7eb74dbda4ec97",
 			},
 		},
 	}
@@ -665,14 +665,14 @@ func TestV4SigningOmitsIgnoredHeaders(t *testing.T) {
 		{
 			sigVersion: "4a",
 			expectedAuthorization: []string{
-				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=3045022100e62b33949d5d5666c1cc737db6673600d7893b977df48e4eb64a6e8747582a2f022011f56ad285472956a3e00c6971d03ebd8ecb579804d8fd91a6fb483a1f502118",
+				// this signature is for go 1.18+. Remove this and only test for a single value when OPA drops go 1.19
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
 					"Signature=30450221009f3b0cda178456dfd1bec61b78bdbd115c0cf497eaa52c58bbb2850ad9c49c3002207009cb88a1219a4a6626056c31823a6b5bc2728bc88bc98a06e12e1148482c94",
-				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
-				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
-					"SignedHeaders=content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=304602210088b5a5ccf9e37aac765f7e6bf0507577eb1b919b80bc3c385b8856c7ab7a9912022100f4c558e36be338c9644240b722e06333ea9a5305b2e638d56ad0105995c9b1f7",
 			},
 		},
 	}
@@ -820,14 +820,14 @@ func TestV4SigningWithMultiValueHeaders(t *testing.T) {
 		{
 			sigVersion: "4a",
 			expectedAuthorization: []string{
-				// this signature is for go 1.18+, which changed crypto/ecdsa so signatures differ from go 1.17
+				// this signature is for go 1.20+, which changed crypto/ecdsa so signatures differ from go 1.18
+				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
+					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
+					"Signature=3046022100f7fd07e2a00b1be3074be0c2e3871bd42ddc4c01549b1ffc4809ef3fafde80780221008c6bf906cdb9040ebeb94d1134598e7920fa8cb7bda91b00ce0ab9838b79631b",
+				// this signature is for go 1.18+. Remove this and only test for a single value when OPA drops go 1.19
 				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
 					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
 					"Signature=304402202d5f2d4d42fe59b2e61fa455cb35a335139d109c2d37aaa8946d45fd0fb4989c022068238cbfbc80326f5cc391f2b6837910191ceabb58ec0bf986c0141f76046594",
-				// this signature is for go 1.17. Remove this and only test for a single value when OPA drops go 1.17
-				"AWS4-ECDSA-P256-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/execute-api/aws4_request, " +
-					"SignedHeaders=accept;content-length;host;x-amz-content-sha256;x-amz-date;x-amz-region-set;x-amz-security-token, " +
-					"Signature=304502206ac05ae8f63689e989227fac6c6c16008c25c1d66903f6535610df6496942701022100e1db05ec77d5142462537f7fd4d14db1d1e9b5c8c14643f2434206fe7284dfd6",
 			},
 		},
 	}
