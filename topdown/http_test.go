@@ -44,7 +44,6 @@ type Person struct {
 
 // TestHTTPGetRequest returns the list of persons
 func TestHTTPGetRequest(t *testing.T) {
-
 	var people []Person
 
 	// test data
@@ -99,7 +98,6 @@ func TestHTTPGetRequest(t *testing.T) {
 
 // TestHTTPGetRequest returns the list of persons
 func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
-
 	var people []Person
 
 	// test data
@@ -154,7 +152,6 @@ func TestHTTPGetRequestTlsInsecureSkipVerify(t *testing.T) {
 }
 
 func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/json-no-header":
@@ -295,7 +292,6 @@ func TestHTTPEnableJSONOrYAMLDecode(t *testing.T) {
 }
 
 func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
-
 	headers := make(map[string][]string)
 	w.Header().Set("Content-Type", "application/json")
 	for k, v := range r.Header {
@@ -308,7 +304,6 @@ func echoCustomHeaders(w http.ResponseWriter, r *http.Request) {
 
 // TestHTTPSendCustomRequestHeaders adds custom headers to request
 func TestHTTPSendCustomRequestHeaders(t *testing.T) {
-
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(echoCustomHeaders))
 	defer ts.Close()
@@ -361,7 +356,6 @@ func TestHTTPSendCustomRequestHeaders(t *testing.T) {
 
 // TestHTTPHostHeader tests Host header support
 func TestHTTPHostHeader(t *testing.T) {
-
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -399,9 +393,7 @@ func TestHTTPHostHeader(t *testing.T) {
 
 // TestHTTPPostRequest adds a new person
 func TestHTTPPostRequest(t *testing.T) {
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		contentType := r.Header.Get("Content-Type")
 
 		bs, err := io.ReadAll(r.Body)
@@ -501,7 +493,6 @@ func TestHTTPPostRequest(t *testing.T) {
 }
 
 func TestHTTPDeleteRequest(t *testing.T) {
-
 	var people []Person
 
 	// test data
@@ -510,7 +501,6 @@ func TestHTTPDeleteRequest(t *testing.T) {
 
 	// test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		var person Person
 		if r.Body == nil {
 			http.Error(w, "Please send a request body", 400)
@@ -579,7 +569,6 @@ func TestHTTPDeleteRequest(t *testing.T) {
 // TestInvalidKeyError returns an error when an invalid key is passed in the
 // http.send builtin
 func TestInvalidKeyError(t *testing.T) {
-
 	// run the test
 	tests := []struct {
 		note     string
@@ -692,7 +681,6 @@ func TestParseTimeout(t *testing.T) {
 
 // TestHTTPRedirectDisable tests redirects are not enabled by default
 func TestHTTPRedirectDisable(t *testing.T) {
-
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -719,12 +707,10 @@ func TestHTTPRedirectDisable(t *testing.T) {
 
 	// run the test
 	runTopDownTestCase(t, data, "http.send", rules, resultObj.String())
-
 }
 
 // TestHTTPRedirectEnable tests redirects are enabled
 func TestHTTPRedirectEnable(t *testing.T) {
-
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -752,7 +738,6 @@ func TestHTTPRedirectEnable(t *testing.T) {
 }
 
 func TestHTTPRedirectAllowNet(t *testing.T) {
-
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -819,7 +804,6 @@ func TestHTTPRedirectAllowNet(t *testing.T) {
 }
 
 func TestHTTPSendRaiseError(t *testing.T) {
-
 	// test server
 	baseURL, teardown := getTestServer()
 	defer teardown()
@@ -995,7 +979,6 @@ func TestHTTPSendCaching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1188,7 +1171,6 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1574,7 +1556,6 @@ func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests = append(requests, r)
@@ -1646,7 +1627,6 @@ func TestGetCachingMode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			actual, err := getCachingMode(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -1728,7 +1708,6 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			actual, err := parseMaxAgeCacheDirective(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -1747,13 +1726,11 @@ func TestParseMaxAgeCacheDirective(t *testing.T) {
 			if actual != tc.expected {
 				t.Fatalf("Expected value for max-age %v but got %v", tc.expected, actual)
 			}
-
 		})
 	}
 }
 
 func TestNewForceCacheParams(t *testing.T) {
-
 	tests := []struct {
 		note      string
 		input     ast.Object
@@ -1793,7 +1770,6 @@ func TestNewForceCacheParams(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			actual, err := newForceCacheParams(tc.input)
 			if tc.wantError {
 				if err == nil {
@@ -1859,7 +1835,6 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-
 			actual, err := getBoolValFromReqObj(tc.input, tc.key)
 			if tc.wantError {
 				if err == nil {
@@ -1878,7 +1853,6 @@ func TestGetBoolValFromReqObj(t *testing.T) {
 			if actual != tc.expected {
 				t.Fatalf("Expected value for key %v is %v but got %v", tc.key, tc.expected, actual)
 			}
-
 		})
 	}
 }
@@ -1908,7 +1882,7 @@ func TestNewInterQueryCacheValue(t *testing.T) {
 	headers.Set("Date", date)
 
 	// test data
-	var b = []byte(`[{"ID": "1", "Firstname": "John"}]`)
+	b := []byte(`[{"ID": "1", "Firstname": "John"}]`)
 
 	response := &http.Response{
 		Status:     "200 OK",
@@ -1993,7 +1967,6 @@ func getTLSTestServer() (ts *httptest.Server) {
 }
 
 func TestHTTPSClient(t *testing.T) {
-
 	const (
 		localClientCertFile  = "testdata/client-cert.pem"
 		localClientCert2File = "testdata/client-cert-2.pem"
@@ -2222,7 +2195,6 @@ func TestHTTPSClient(t *testing.T) {
 	})
 
 	t.Run("Negative Test: No Root Ca", func(t *testing.T) {
-
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -2233,7 +2205,6 @@ func TestHTTPSClient(t *testing.T) {
 	})
 
 	t.Run("Negative Test: Wrong Cert/Key Pair", func(t *testing.T) {
-
 		expectedResult := &Error{Code: BuiltinErr, Message: "tls: private key does not match public key", Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -2244,7 +2215,6 @@ func TestHTTPSClient(t *testing.T) {
 	})
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
-
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -2290,7 +2260,6 @@ func TestHTTPSClient(t *testing.T) {
 }
 
 func TestHTTPSNoClientCerts(t *testing.T) {
-
 	const (
 		localCaFile         = "testdata/ca.pem"
 		localServerCertFile = "testdata/server-cert.pem"
@@ -2485,7 +2454,6 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 
 	t.Run("Negative Test: System Certs do not include local rootCA", func(t *testing.T) {
-
 		expectedResult := &Error{Code: BuiltinErr, Message: fixupDarwinGo118("x509: certificate signed by unknown authority", `“my-server” certificate is not standards compliant`), Location: nil}
 		data := loadSmallTestData()
 		rule := []string{fmt.Sprintf(
@@ -2496,6 +2464,17 @@ func TestHTTPSNoClientCerts(t *testing.T) {
 	})
 }
 
+// Note(philipc): In Go 1.18, the crypto/x509 package deprecated the
+// (*CertPool).Subjects() function. The precise reasoning for why this was
+// done traces back to:
+//
+//	https://github.com/golang/go/issues/46287
+//
+// For now, most projects seem to be working around this deprecation by
+// changing how they verify certificates, and when CertPools are needed in
+// tests, some larger projects have just slapped linter ignores on the
+// offending callsites. Since we only use (*CertPool).Subjects() here for
+// tests, we've gone with using linter ignores for now.
 func TestCertSelectionLogic(t *testing.T) {
 	const (
 		localCaFile = "testdata/ca.pem"
@@ -2553,7 +2532,7 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "tls_use_system_certs set to true",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true)},
-			expected: systemCertsPool.Subjects(),
+			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
@@ -2565,25 +2544,25 @@ func TestCertSelectionLogic(t *testing.T) {
 		{
 			note:     "no CAs specified",
 			input:    nil,
-			expected: systemCertsPool.Subjects(),
+			expected: systemCertsPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use system certs",
 		},
 		{
 			note:     "CA cert provided directly",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert"): ast.StringTerm(string(ca))},
-			expected: caPool.Subjects(),
+			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use provided CA certs",
 		},
 		{
 			note:     "CA cert file path provided",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_file"): ast.StringTerm(localCaFile)},
-			expected: caPool.Subjects(),
+			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use provided CA certs in file",
 		},
 		{
 			note:     "CA cert provided in env variable",
 			input:    map[*ast.Term]*ast.Term{ast.StringTerm("tls_ca_cert_env_variable"): ast.StringTerm("CLIENT_CA_ENV")},
-			expected: caPool.Subjects(),
+			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use provided CA certs in env variable",
 		},
 		{
@@ -2592,7 +2571,7 @@ func TestCertSelectionLogic(t *testing.T) {
 				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
 				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(false),
 			},
-			expected: caPool.Subjects(),
+			expected: caPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use provided CA certs only",
 		},
 		{
@@ -2601,7 +2580,7 @@ func TestCertSelectionLogic(t *testing.T) {
 				ast.StringTerm("tls_ca_cert"):          ast.StringTerm(string(ca)),
 				ast.StringTerm("tls_use_system_certs"): ast.BooleanTerm(true),
 			},
-			expected: systemCertsAndCaPool.Subjects(),
+			expected: systemCertsAndCaPool.Subjects(), // nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 			msg:      "Expected TLS config to use provided CA certs and system certs",
 		},
 	}
@@ -2618,6 +2597,7 @@ func TestCertSelectionLogic(t *testing.T) {
 					t.Fatalf(tc.msg)
 				}
 			} else {
+				// nolint:staticcheck // ignoring the deprecated (*CertPool).Subjects() call here because it's in a test.
 				if !reflect.DeepEqual(tlsConfig.RootCAs.Subjects(), tc.expected) {
 					t.Fatal(tc.msg)
 				}
@@ -2729,7 +2709,6 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 }
 
 func TestHTTPSendMetrics(t *testing.T) {
-
 	// run test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -2882,12 +2861,12 @@ func (m *tracemock) NewTransport(rt http.RoundTripper, _ tracing.Options) http.R
 	m.called++
 	return rt
 }
+
 func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler {
 	panic("unreachable")
 }
 
 func TestDistributedTracingEnabled(t *testing.T) {
-
 	mock := tracemock{}
 	tracing.RegisterHTTPTracing(&mock)
 
@@ -2910,7 +2889,6 @@ func TestDistributedTracingEnabled(t *testing.T) {
 }
 
 func TestDistributedTracingDisabled(t *testing.T) {
-
 	mock := tracemock{}
 	tracing.RegisterHTTPTracing(&mock)
 
@@ -2932,7 +2910,6 @@ func TestDistributedTracingDisabled(t *testing.T) {
 }
 
 func TestHTTPGetRequestAllowNet(t *testing.T) {
-
 	// test data
 	body := map[string]bool{"ok": true}
 
