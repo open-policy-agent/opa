@@ -19,7 +19,8 @@ func main() {
 		}
 	}() // orderly shutdown, run all defer routines
 
-	if err := cmd.RootCommand.Execute(); err != nil {
+	root := cmd.Command(nil, "OPA")
+	if err := root.Execute(); err != nil {
 		var e *cmd.ExitError
 		if errors.As(err, &e) {
 			exit = e.Exit

@@ -40,7 +40,7 @@ func (p *findDefinitionParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func init() {
+func initOracle(root *cobra.Command, brand string) {
 
 	var findDefinitionParams findDefinitionParams
 
@@ -112,7 +112,7 @@ by the input location.`,
 	oracleCommand.AddCommand(findDefinitionCommand)
 	addV0CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v0Compatible, false)
 	addV1CompatibleFlag(oracleCommand.Flags(), &findDefinitionParams.v1Compatible, false)
-	RootCommand.AddCommand(oracleCommand)
+	root.AddCommand(oracleCommand)
 }
 
 func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Writer, args []string) error {

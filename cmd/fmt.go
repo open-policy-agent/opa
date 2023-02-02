@@ -246,10 +246,10 @@ func newError(msg string, a ...any) fmtError {
 	}
 }
 
-func init() {
+func initFmt(root *cobra.Command, _ string) {
+	cmd := root.Name()
 	fmtParams := newFmtCommandParams()
-
-	var formatCommand = &cobra.Command{
+	formatCommand := &cobra.Command{
 		Use:   "fmt [path [...]]",
 		Short: "Format Rego source files",
 		Long: `Format Rego source files.
@@ -275,18 +275,18 @@ code if a file would be reformatted.
 The 'fmt' command can be run in several compatibility modes for consuming and outputting
 different Rego versions:
 
-* ` + "`" + `opa fmt` + "`" + `:
+* ` + "`" + cmd + ` fmt` + "`" + `:
   * v1 Rego is formatted to v1
   * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT removed
   * ` + "`" + `rego.v1` + "`" + `/` + "`" + `future.keywords` + "`" + ` imports are NOT added if missing
   * v0 rego is rejected
-* ` + "`" + `opa fmt --v0-compatible` + "`" + `:
+* ` + "`" + cmd + ` fmt --v0-compatible` + "`" + `:
   * v0 Rego is formatted to v0
   * v1 Rego is rejected
-* ` + "`" + `opa fmt --v0-v1` + "`" + `:
+* ` + "`" + cmd + ` fmt --v0-v1` + "`" + `:
   * v0 Rego is formatted to be compatible with v0 AND v1
   * v1 Rego is rejected
-* ` + "`" + `opa fmt --v0-v1 --v1-compatible` + "`" + `:
+* ` + "`" + cmd + ` fmt --v0-v1 --v1-compatible` + "`" + `:
   * v1 Rego is formatted to be compatible with v0 AND v1
   * v0 Rego is rejected
 `,
@@ -301,7 +301,6 @@ different Rego versions:
 				return newExitError(exit)
 			}
 			return nil
-
 		},
 	}
 
@@ -316,5 +315,5 @@ different Rego versions:
 	formatCommand.Flags().BoolVar(&fmtParams.dropV0Imports, "drop-v0-imports", false, "drop v0 imports from the formatted code, such as 'rego.v1' and 'future.keywords'")
 	addCapabilitiesFlag(formatCommand.Flags(), fmtParams.capabilitiesFlag)
 
-	RootCommand.AddCommand(formatCommand)
+	root.AddCommand(formatCommand)
 }

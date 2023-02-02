@@ -69,34 +69,35 @@ func (p *buildParams) regoVersion() ast.RegoVersion {
 	return ast.DefaultRegoVersion
 }
 
-func init() {
+func initBuild(root *cobra.Command, brand string) {
+	executable := root.Name()
 
 	buildParams := newBuildParams()
 
 	var buildCommand = &cobra.Command{
 		Use:   "build <path> [<path> [...]]",
-		Short: "Build an OPA bundle",
-		Long: `Build an OPA bundle.
+		Short: `Build an ` + brand + ` bundle`,
+		Long: `Build an ` + brand + ` bundle.
 
-The 'build' command packages OPA policy and data files into bundles. Bundles are
+The 'build' command packages ` + brand + ` policy and data files into bundles. Bundles are
 gzipped tarballs containing policies and data. Paths referring to directories are
 loaded recursively.
 
     $ ls
     example.rego
 
-    $ opa build -b .
+    $ ` + executable + ` build -b .
 
-You can load bundles into OPA on the command-line:
+You can load bundles into ` + brand + ` on the command-line:
 
     $ ls
     bundle.tar.gz example.rego
 
-    $ opa run bundle.tar.gz
+    $ ` + executable + ` run bundle.tar.gz
 
-You can also configure OPA to download bundles from remote HTTP endpoints:
+You can also configure ` + brand + ` to download bundles from remote HTTP endpoints:
 
-    $ opa run --server \
+    $ ` + executable + ` run --server \
         --set bundles.example.resource=bundle.tar.gz \
         --set services.example.url=http://localhost:8080
 
@@ -136,9 +137,9 @@ The 'build' command supports targets (specified by -t):
             original policy or data files.
 
     plan    The plan target emits a bundle containing a plan, i.e., an intermediate
-            representation compiled from the input files for each specified entrypoint.
-            This is for further processing, OPA cannot evaluate a "plan bundle" like it
-            can evaluate a wasm or rego bundle.
+			representation compiled from the input files for each specified entrypoint.
+			This is for further processing, ` + brand + ` cannot evaluate a "plan bundle" like it
+			can evaluate a wasm or rego bundle.
 
 The -e flag tells the 'build' command which documents (entrypoints) will be queried by 
 the software asking for policy decisions, so that it can focus optimization efforts and 
@@ -161,7 +162,7 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signing.
 
 Example:
 
-    $ opa build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
+    $ ` + executable + ` build --verification-key /path/to/public_key.pem --signing-key /path/to/private_key.pem --bundle foo
 
 Where foo has the following structure:
 
@@ -196,7 +197,7 @@ see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-fo
 Capabilities
 ------------
 
-The 'build' command can validate policies against a configurable set of OPA capabilities.
+The 'build' command can validate policies against a configurable set of ` + brand + ` capabilities.
 The capabilities define the built-in functions and other language features that policies
 may depend on. For example, the following capabilities file only permits the policy to
 depend on the "plus" built-in function ('+'):
@@ -224,12 +225,12 @@ depend on the "plus" built-in function ('+'):
         ]
     }
 
-Capabilities can be used to validate policies against a specific version of OPA.
-The OPA repository contains a set of capabilities files for each OPA release. For example,
+Capabilities can be used to validate policies against a specific version of ` + brand + `.
+The ` + brand + ` repository contains a set of capabilities files for each ` + brand + ` release. For example,
 the following command builds a directory of policies ('./policies') and validates them
-against OPA v0.22.0:
+against ` + brand + ` v0.22.0:
 
-    opa build ./policies --capabilities v0.22.0
+    ` + executable + ` build ./policies --capabilities v0.22.0
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -279,7 +280,7 @@ against OPA v0.22.0:
 	addV0CompatibleFlag(buildCommand.Flags(), &buildParams.v0Compatible, false)
 	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible, false)
 
-	RootCommand.AddCommand(buildCommand)
+	root.AddCommand(buildCommand)
 }
 
 func dobuild(params buildParams, args []string) error {
