@@ -75,7 +75,6 @@ func RegisterPlugin(name string, factory plugins.Factory) {
 
 // Params stores the configuration for an OPA instance.
 type Params struct {
-
 	// Globally unique identifier for this OPA instance. If an ID is not specified,
 	// the runtime will generate one.
 	ID string
@@ -249,7 +248,6 @@ type Runtime struct {
 // NewRuntime returns a new Runtime object initialized with params. Clients must
 // call StartServer() or StartREPL() to start the runtime in either mode.
 func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
-
 	if params.ID == "" {
 		var err error
 		params.ID, err = generateInstanceID()
@@ -406,7 +404,6 @@ func (rt *Runtime) StartServer(ctx context.Context) {
 // will block until either: an error occurs, the context is canceled, or
 // a SIGTERM or SIGKILL signal is sent.
 func (rt *Runtime) Serve(ctx context.Context) error {
-
 	if rt.Params.Addrs == nil {
 		return fmt.Errorf("at least one address must be configured in runtime parameters")
 	}
@@ -432,7 +429,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	undo, err := maxprocs.Set(maxprocs.Logger(func(f string, a ...interface{}) {
 		rt.logger.Debug(f, a...)
 	}))
-
 	if err != nil {
 		rt.logger.WithFields(map[string]interface{}{"err": err}).Debug("Failed to set GOMAXPROCS from CPU quota.")
 	}
@@ -593,7 +589,6 @@ func (rt *Runtime) DiagnosticAddrs() []string {
 
 // StartREPL starts the runtime in REPL mode. This function will block the calling goroutine.
 func (rt *Runtime) StartREPL(ctx context.Context) {
-
 	if err := rt.Manager.Start(ctx); err != nil {
 		fmt.Fprintln(rt.Params.Output, "error starting plugins:", err)
 		os.Exit(1)
@@ -616,7 +611,6 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 		go func() {
 			repl.SetOPAVersionReport(rt.checkOPAUpdate(ctx).Slice())
 		}()
-
 	}
 	repl.Loop(ctx)
 }
@@ -634,7 +628,7 @@ func (rt *Runtime) checkOPAUpdate(ctx context.Context) *report.DataResponse {
 
 func (rt *Runtime) checkOPAUpdateLoop(ctx context.Context, uploadDuration time.Duration, done chan struct{}) {
 	ticker := time.NewTicker(uploadDuration)
-	mr.Seed(time.Now().UnixNano())
+	mr.New(mr.NewSource(time.Now().UnixNano())) // Seed the PRNG.
 
 	for {
 		resp, err := rt.reporter.SendReport(ctx)
@@ -677,7 +671,6 @@ func (rt *Runtime) decisionIDFactory() string {
 }
 
 func (rt *Runtime) decisionLogger(ctx context.Context, event *server.Info) error {
-
 	plugin := logs.Lookup(rt.Manager)
 	if plugin == nil {
 		return nil
@@ -715,7 +708,6 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-
 	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true, false, nil)
 	if err != nil {
 		return err
@@ -724,7 +716,6 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 	removed = loader.CleanPath(removed)
 
 	return storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
-
 		if !rt.Params.BundleMode {
 			ids, err := rt.Store.ListPolicies(ctx, txn)
 			if err != nil {
@@ -827,7 +818,6 @@ func (rt *Runtime) onReloadLogger(d time.Duration, err error) {
 }
 
 func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
-
 	watchPaths, err := getWatchPaths(rootPaths)
 	if err != nil {
 		return nil, err

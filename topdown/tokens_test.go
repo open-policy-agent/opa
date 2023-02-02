@@ -472,8 +472,8 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
 	  }, x)`
 	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.05wmHY3NomU1jr7yvusBvKwhthRklPuJhUPOkoeIn5e5n_GXvE25EfRs9AJK2wOy6NoY2ljhj07M9BMtV0dfyA"
-	if strings.HasPrefix(runtime.Version(), "go1.17") {
-		encodedSigned = "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.-LoHxtbT8t_TnqlLyONI4BtjvfkySO8TcoCFENqTTH2AKxvn29nAjxOdlbY-0EKVM2nJ4ukCx4IGtZtuwXr0VQ"
+	if strings.HasPrefix(runtime.Version(), "go1.20") {
+		encodedSigned = "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.GRp6wIqDZuYnvQH50hnIy559LdrjUux76v1ynxX6lH0XtlgwreyR16x2JMnuElo79X3zUbqlWrZITICv86arew"
 	}
 
 	for i := 0; i < 10; i++ {
@@ -492,6 +492,7 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 		if exp, act := 1, len(qrs); exp != act {
 			t.Fatalf("expected %d results, got %d", exp, act)
 		}
+
 		if exp, act := ast.String(encodedSigned), qrs[0][ast.Var("x")].Value; !exp.Equal(act) {
 			t.Fatalf("unexpected result: want %v, got %v", exp, act)
 		}

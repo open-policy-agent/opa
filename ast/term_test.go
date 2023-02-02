@@ -19,7 +19,6 @@ import (
 )
 
 func TestInterfaceToValue(t *testing.T) {
-
 	// Test util package unmarshalled inputs
 	input := `
 	{
@@ -86,11 +85,9 @@ func TestInterfaceToValue(t *testing.T) {
 			t.Fatalf("Expected %v but got: %v", expected, v)
 		}
 	}
-
 }
 
 func TestInterfaceToValueStructs(t *testing.T) {
-
 	var x struct {
 		Foo struct {
 			Baz string `json:"baz"`
@@ -161,7 +158,6 @@ func TestObjectInsertGetLen(t *testing.T) {
 }
 
 func TestObjectSetOperations(t *testing.T) {
-
 	a := MustParseTerm(`{"a": "b", "c": "d"}`).Value.(Object)
 	b := MustParseTerm(`{"c": "q", "d": "e"}`).Value.(Object)
 
@@ -267,7 +263,6 @@ func TestObjectFilter(t *testing.T) {
 }
 
 func TestTermBadJSON(t *testing.T) {
-
 	input := `{
 		"Value": [[
 			{"Value": [{"Value": "a", "Type": "var"}, {"Value": "x", "Type": "string"}], "Type": "ref"},
@@ -285,7 +280,6 @@ func TestTermBadJSON(t *testing.T) {
 	if !reflect.DeepEqual(expected, err) {
 		t.Errorf("Expected %v but got: %v", expected, err)
 	}
-
 }
 
 func TestTermEqual(t *testing.T) {
@@ -323,7 +317,6 @@ func TestTermEqual(t *testing.T) {
 }
 
 func TestFind(t *testing.T) {
-
 	term := MustParseTerm(`{"foo": [1,{"bar": {2,3,4}}], "baz": {"qux": ["hello", "world"]}}`)
 
 	tests := []struct {
@@ -360,7 +353,6 @@ func TestFind(t *testing.T) {
 }
 
 func TestHashObject(t *testing.T) {
-
 	doc := `{"a": [[true, {"b": [null]}, {"c": "d"}]], "e": {100: a[i].b}, "k": ["foo" | true], "o": {"foo": "bar" | true}, "sc": {"foo" | true}, "s": {1, 2, {3, 4}}, "big": 1e+1000}`
 
 	stmt1 := MustParseStatement(doc)
@@ -389,7 +381,6 @@ func TestHashObject(t *testing.T) {
 }
 
 func TestHashArray(t *testing.T) {
-
 	doc := `[{"a": [[true, {"b": [null]}, {"c": "d"}]]}, 100, true, [a[i].b], {100: a[i].b}, ["foo" | true], {"foo": "bar" | true}, {"foo" | true}, {1, 2, {3, 4}}, 1e+1000]`
 
 	stmt1 := MustParseStatement(doc)
@@ -421,7 +412,6 @@ func TestHashArray(t *testing.T) {
 }
 
 func TestHashSet(t *testing.T) {
-
 	doc := `{{"a": [[true, {"b": [null]}, {"c": "d"}]]}, 100, 100, 100, true, [a[i].b], {100: a[i].b}, ["foo" | true], {"foo": "bar" | true}, {"foo" | true}, {1, 2, {3, 4}}, 1e+1000}`
 
 	stmt1 := MustParseStatement(doc)
@@ -446,7 +436,6 @@ func TestHashSet(t *testing.T) {
 }
 
 func TestTermIsGround(t *testing.T) {
-
 	tests := []struct {
 		note     string
 		term     string
@@ -480,7 +469,6 @@ func TestTermIsGround(t *testing.T) {
 			t.Errorf("Expected term %v to be %s (test case %d: %v)", term, expected, i, tc.note)
 		}
 	}
-
 }
 
 func TestObjectRemainsGround(t *testing.T) {
@@ -524,7 +512,6 @@ func TestIsConstant(t *testing.T) {
 }
 
 func TestIsScalar(t *testing.T) {
-
 	tests := []struct {
 		term     string
 		expected bool
@@ -578,7 +565,6 @@ func TestTermString(t *testing.T) {
 }
 
 func TestRefHasPrefix(t *testing.T) {
-
 	a := MustParseRef("foo.bar.baz")
 	b := MustParseRef("foo.bar")
 	c := MustParseRef("foo.bar[0][x]")
@@ -718,7 +704,6 @@ func TestRefPtr(t *testing.T) {
 	if _, err := ref.Ptr(); err == nil {
 		t.Fatal("Expected error from x[1]")
 	}
-
 }
 
 func TestSetEqual(t *testing.T) {
@@ -750,7 +735,6 @@ func TestSetEqual(t *testing.T) {
 }
 
 func TestSetMap(t *testing.T) {
-
 	set := MustParseTerm(`{"foo", "bar", "baz", "qux"}`).Value.(Set)
 
 	result, err := set.Map(func(term *Term) (*Term, error) {
@@ -760,7 +744,6 @@ func TestSetMap(t *testing.T) {
 		}
 		return term, nil
 	})
-
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -778,7 +761,6 @@ func TestSetMap(t *testing.T) {
 	if !reflect.DeepEqual(err, fmt.Errorf("oops")) {
 		t.Fatalf("Expected oops to be returned but got: %v, %v", result, err)
 	}
-
 }
 
 func TestSetAddContainsLen(t *testing.T) {
@@ -817,7 +799,6 @@ func TestSetAddContainsLen(t *testing.T) {
 }
 
 func TestSetOperations(t *testing.T) {
-
 	tests := []struct {
 		a  string
 		b  string
@@ -884,7 +865,7 @@ func TestSetConcurrentReads(t *testing.T) {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
-	rand.Seed(10000)
+	rand.New(rand.NewSource(10000)) // Seed the PRNG.
 	rand.Shuffle(len(numbers), func(i, j int) {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
@@ -926,7 +907,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 		numbers[i] = IntNumberTerm(i)
 	}
 	// Shuffle numbers array for random insertion order.
-	rand.Seed(10000)
+	rand.New(rand.NewSource(10000)) // Seed the PRNG.
 	rand.Shuffle(len(numbers), func(i, j int) {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 	})
@@ -962,7 +943,6 @@ func TestObjectConcurrentReads(t *testing.T) {
 }
 
 func TestArrayOperations(t *testing.T) {
-
 	arr := MustParseTerm(`[1,2,3,4]`).Value.(*Array)
 
 	getTests := []struct {
@@ -1087,7 +1067,6 @@ func TestArrayOperations(t *testing.T) {
 }
 
 func TestValueToInterface(t *testing.T) {
-
 	// Happy path
 	term := MustParseTerm(`{
 		"foo": [1, "two", true, null, {3,
