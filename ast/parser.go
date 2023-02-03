@@ -2188,6 +2188,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	}
 
 	var result Annotations
+	result.comments = b.comments
 	result.Scope = raw.Scope
 	result.Entrypoint = raw.Entrypoint
 	result.Title = raw.Title
