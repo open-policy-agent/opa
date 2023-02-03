@@ -77,7 +77,7 @@ func TestServerSpan(t *testing.T) {
 			attribute.Int("http.status_code", 200),
 			attribute.String("http.target", "/v0/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 2),
+			attribute.Int("http.wrote_bytes", 3),
 			attribute.String("net.transport", "ip_tcp"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -111,7 +111,7 @@ func TestServerSpan(t *testing.T) {
 			attribute.Int("http.status_code", 200),
 			attribute.String("http.target", "/v1/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 66),
+			attribute.Int("http.wrote_bytes", 67),
 			attribute.String("net.transport", "ip_tcp"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))

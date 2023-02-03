@@ -7,7 +7,7 @@ require (
 	github.com/agnivade/levenshtein v1.1.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
-	github.com/containerd/containerd v1.6.15
+	github.com/containerd/containerd v1.6.16
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
@@ -40,7 +40,7 @@ require (
 	go.uber.org/automaxprocs v1.5.1
 	golang.org/x/net v0.5.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
-	google.golang.org/grpc v1.52.0
+	google.golang.org/grpc v1.52.3
 	gopkg.in/yaml.v2 v2.4.0
 	oras.land/oras-go v1.2.2
 )

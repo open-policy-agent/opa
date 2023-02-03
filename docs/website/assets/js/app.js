@@ -1,3 +1,9 @@
+function initBannerVersionWarningCloseButton() {
+  $(".banner-version-warning").find(".delete").click(function() {
+    $(".banner-version-warning").remove();
+  });
+}
+
 function navbarBurger() {
   $(".navbar-burger").click(function() {
     $(".navbar-burger").toggleClass("is-active");
@@ -18,6 +24,8 @@ $(function() {
 
 document.addEventListener("DOMContentLoaded", function(event) {
   anchors.add();
+
+  initBannerVersionWarningCloseButton();
 
   // TODO: We should probably look into updating the tocbot library
   // but for now we can pad the bottom of the content to make

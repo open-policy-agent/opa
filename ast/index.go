@@ -442,7 +442,7 @@ type trieNode struct {
 	next      *trieNode
 	any       *trieNode
 	undefined *trieNode
-	scalars   map[Value]*trieNode
+	scalars   *util.HashMap
 	array     *trieNode
 	rules     []*ruleNode
 }
@@ -465,11 +465,14 @@ func (node *trieNode) String() string {
 	if node.array != nil {
 		flags = append(flags, fmt.Sprintf("array:%p", node.array))
 	}
-	if len(node.scalars) > 0 {
-		buf := make([]string, 0, len(node.scalars))
-		for k, v := range node.scalars {
-			buf = append(buf, fmt.Sprintf("scalar(%v):%p", k, v))
-		}
+	if node.scalars.Len() > 0 {
+		buf := make([]string, 0, node.scalars.Len())
+		node.scalars.Iter(func(k, v util.T) bool {
+			key := k.(Value)
+			val := v.(*trieNode)
+			buf = append(buf, fmt.Sprintf("scalar(%v):%p", key, val))
+			return false
+		})
 		sort.Strings(buf)
 		flags = append(flags, strings.Join(buf, " "))
 	}
@@ -505,7 +508,7 @@ type ruleNode struct {
 
 func newTrieNodeImpl() *trieNode {
 	return &trieNode{
-		scalars: map[Value]*trieNode{},
+		scalars: util.NewHashMap(valueEq, valueHash),
 	}
 }
 
@@ -520,9 +523,13 @@ func (node *trieNode) Do(walker trieWalker) {
 	if node.undefined != nil {
 		node.undefined.Do(next)
 	}
-	for _, child := range node.scalars {
+
+	node.scalars.Iter(func(_, v util.T) bool {
+		child := v.(*trieNode)
 		child.Do(next)
-	}
+		return false
+	})
+
 	if node.array != nil {
 		node.array.Do(next)
 	}
@@ -579,12 +586,12 @@ func (node *trieNode) insertValue(value Value) *trieNode {
 		}
 		return node.any
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars[value]
+		child, ok := node.scalars.Get(value)
 		if !ok {
 			child = newTrieNodeImpl()
-			node.scalars[value] = child
+			node.scalars.Put(value, child)
 		}
-		return child
+		return child.(*trieNode)
 	case *Array:
 		if node.array == nil {
 			node.array = newTrieNodeImpl()
@@ -608,12 +615,12 @@ func (node *trieNode) insertArray(arr *Array) *trieNode {
 		}
 		return node.any.insertArray(arr.Slice(1, -1))
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars[head]
+		child, ok := node.scalars.Get(head)
 		if !ok {
 			child = newTrieNodeImpl()
-			node.scalars[head] = child
+			node.scalars.Put(head, child)
 		}
-		return child.insertArray(arr.Slice(1, -1))
+		return child.(*trieNode).insertArray(arr.Slice(1, -1))
 	}
 
 	panic("illegal value")
@@ -674,11 +681,11 @@ func (node *trieNode) traverseValue(resolver ValueResolver, tr *trieTraversalRes
 		return node.array.traverseArray(resolver, tr, value)
 
 	case Null, Boolean, Number, String:
-		child, ok := node.scalars[value]
+		child, ok := node.scalars.Get(value)
 		if !ok {
 			return nil
 		}
-		return child.Traverse(resolver, tr)
+		return child.(*trieNode).Traverse(resolver, tr)
 	}
 
 	return nil
@@ -703,12 +710,11 @@ func (node *trieNode) traverseArray(resolver ValueResolver, tr *trieTraversalRes
 		}
 	}
 
-	child, ok := node.scalars[head]
+	child, ok := node.scalars.Get(head)
 	if !ok {
 		return nil
 	}
-
-	return child.traverseArray(resolver, tr, arr.Slice(1, -1))
+	return child.(*trieNode).traverseArray(resolver, tr, arr.Slice(1, -1))
 }
 
 func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalResult) error {
@@ -733,13 +739,16 @@ func (node *trieNode) traverseUnknown(resolver ValueResolver, tr *trieTraversalR
 		return err
 	}
 
-	for _, child := range node.scalars {
-		if err := child.traverseUnknown(resolver, tr); err != nil {
-			return err
+	var iterErr error
+	node.scalars.Iter(func(_, v util.T) bool {
+		child := v.(*trieNode)
+		if iterErr = child.traverseUnknown(resolver, tr); iterErr != nil {
+			return true
 		}
-	}
+		return false
+	})
 
-	return nil
+	return iterErr
 }
 
 // If term `a` is one of the function's operands, we store a Ref: `args[0]`

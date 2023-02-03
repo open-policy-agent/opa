@@ -2626,6 +2626,108 @@ func TestCertSelectionLogic(t *testing.T) {
 	}
 }
 
+func TestHTTPSendCacheDefaultStatusCodesIntraQueryCache(t *testing.T) {
+
+	// run test server
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		if len(requests)%2 == 0 {
+			headers := w.Header()
+			headers["Cache-Control"] = []string{"max-age=290304000, public"}
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+
+	defer ts.Close()
+
+	t.Run("non-cacheable status code: intra-query cache", func(t *testing.T) {
+		base := fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL)
+		query := fmt.Sprintf("%v;%v;%v", base, base, base)
+
+		q := NewQuery(ast.MustParseBody(query))
+
+		// Execute three http.send calls within a query.
+		// Since the server returns a http.StatusInternalServerError on the first request, this should NOT be cached as
+		// http.StatusInternalServerError is not a cacheable status code. The second request should result in OPA reaching
+		// out to the server again and getting a http.StatusOK response status code.
+		// The third request should now be served from the cache.
+
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedReqCount := 2
+		if len(requests) != expectedReqCount {
+			t.Fatalf("Expected to get %d requests, got %d", expectedReqCount, len(requests))
+		}
+	})
+}
+
+func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
+
+	// run test server
+	var requests []*http.Request
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r)
+		if len(requests)%2 == 0 {
+			headers := w.Header()
+			headers["Cache-Control"] = []string{"max-age=290304000, public"}
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+
+	defer ts.Close()
+
+	t.Run("non-cacheable status code: inter-query cache", func(t *testing.T) {
+
+		// add an inter-query cache
+		config, _ := iCache.ParseCachingConfig(nil)
+		interQueryCache := iCache.NewInterQueryCache(config)
+
+		m := metrics.New()
+
+		q := NewQuery(ast.MustParseBody(fmt.Sprintf(`http.send({"method": "get", "url": %q, "cache": true})`, ts.URL))).
+			WithMetrics(m).WithInterQueryBuiltinCache(interQueryCache)
+
+		// Execute three queries.
+		// Since the server returns a http.StatusInternalServerError on the first request, this should NOT be cached as
+		// http.StatusInternalServerError is not a cacheable status code. The second request should result in OPA reaching
+		// out to the server again and getting a http.StatusOK response status code.
+		// The third request should now be served from the cache.
+
+		_, err := q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = q.Run(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		expectedReqCount := 2
+		if len(requests) != expectedReqCount {
+			t.Fatalf("Expected to get %d requests, got %d", expectedReqCount, len(requests))
+		}
+
+		// verify http.send inter-query cache hit metric is incremented due to the third request.
+		if exp, act := uint64(1), m.Counter(httpSendInterQueryCacheHits).Value(); exp != act {
+			t.Fatalf("expected %d cache hits, got %d", exp, act)
+		}
+	})
+}
+
 func TestHTTPSendMetrics(t *testing.T) {
 
 	// run test server
