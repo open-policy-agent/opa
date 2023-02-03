@@ -1,5 +1,6 @@
 cases:
   - data:
+    note: regometadatachain/simple
     modules:
       - |
         # METADATA
@@ -13,7 +14,6 @@ cases:
         p := x {
             x := rego.metadata.chain()
         }
-    note: regometadatachain/simple
     query: data.testing.p = x
     want_result:
       - x:
@@ -31,6 +31,7 @@ cases:
             path:
               - testing
   - data:
+    note: regometadatachain/rule mixed scope
     modules:
       - |
         # METADATA
@@ -51,7 +52,6 @@ cases:
         p := x {
             x := rego.metadata.chain()
         }
-    note: regometadatachain/rule mixed scope
     query: data.testing.p = x
     want_result:
       - x:
@@ -74,3 +74,25 @@ cases:
               scope: package
             path:
               - testing
+  - data:
+    note: regometadatachain/package spanning modules
+    modules:
+      - |
+        # METADATA
+        # description: A set of package annotations seen across multiple modules
+        package testing
+      - |
+        package testing
+        
+        p := rego.metadata.chain()
+    query: data.testing.p = x
+    want_result:
+      - x:
+          - path:
+              - testing
+              - p
+          - path:
+              - testing
+            annotations:
+              scope: package
+              description: A set of package annotations seen across multiple modules
