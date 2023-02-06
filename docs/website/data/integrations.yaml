@@ -1219,7 +1219,7 @@ integrations:
     code:
       - https://github.com/permitio/opal
     tutorials:
-      - https://github.com/permitio/opal/blob/master/docs/index.md
+      - https://github.com/permitio/opal/tree/master/documentation/docs/tutorials
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
 
