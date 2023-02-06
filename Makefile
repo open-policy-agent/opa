@@ -250,7 +250,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
 	golang:$(GOVERSION) \
-	make
+	git config --global --add safe.directory "*" && make
 
 .PHONY: ci-go-%
 ci-go-%: generate
