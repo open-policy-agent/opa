@@ -9,7 +9,7 @@ This release focuses on bugfixes and documentation improvements, as well as a fe
 
 ### Runtime, Tooling, SDK
 
-- runtime: Update rule index's trie node scalars to use custom map ([#5585](https://github.com/open-policy-agent/opa/issues/5585)) authored by @ashutosh-narkar reported by @alvarogomez93
+- runtime: Update rule index's trie node scalar handling so that numerics compare correctly ([#5585](https://github.com/open-policy-agent/opa/issues/5585)) authored by @ashutosh-narkar reported by @alvarogomez93
 - ast: Improve error information when metadata yaml fails to compile ([#4475](https://github.com/open-policy-agent/opa/issues/4475)) authored by @johanfylling reported by @johanfylling
 - compile: Allow object generating rules to be annotated as entrypoints ([#5577](https://github.com/open-policy-agent/opa/issues/5577)) authored by @johanfylling reported by @johanfylling
 - perf: Use `json.Encode` to avoid extra allocation (authored by @anderseknert)
@@ -32,7 +32,6 @@ This release focuses on bugfixes and documentation improvements, as well as a fe
   - ccbr (authored by @niuzhi)
 
 - Website:
-  - Make warning banner closeable, edge is now blue (authored by @charlieegan3)
   - Show prominent warning when viewing old docs (authored by @charlieegan3)
   - Prevent navbar clipping on narrow screens + sticky nav  (authored by @charlieegan3)
 
