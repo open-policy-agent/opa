@@ -284,7 +284,9 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
 		WithFollowSymlinks(fl.followSymlinks).
-		WithRegoVersion(fl.opts.RegoVersion)
+		WithRegoVersion(fl.opts.RegoVersion).
+		WithLazyLoadingMode(fl.bundleLazyLoading).
+		WithBundleName(path)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
