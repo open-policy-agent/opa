@@ -70,6 +70,8 @@ jobs:
         with:
           name: generated
 
+      - name: fix git safe.directory
+        run: git config --global --add safe.directory /src
       - name: Build
         run: make ${{ matrix.targets }}
         env:
