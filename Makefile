@@ -269,6 +269,7 @@ ci-wasm: wasm-test
 
 .PHONY: ci-build-linux
 ci-build-linux: ensure-release-dir ensure-linux-toolchain
+	git config --global --add safe.directory /src
 	@$(MAKE) build GOOS=linux
 	chmod +x opa_linux_$(GOARCH)
 	mv opa_linux_$(GOARCH) $(RELEASE_DIR)/
