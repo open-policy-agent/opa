@@ -11,7 +11,7 @@ WASM_ENABLED ?= 1
 # > -buildmode=exe
 # > Build the listed main packages and everything they import into
 # > executables. Packages not named main are ignored.
-GO := CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="-buildmode=exe" go
+GO := CGO_ENABLED=$(CGO_ENABLED) GOFLAGS="-buildmode=exe -buildvcs=false" go
 GO_TEST_TIMEOUT := -timeout 30m
 
 GOVERSION ?= $(shell cat ./.go-version)
