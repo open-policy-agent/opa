@@ -3,7 +3,48 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.49.0
+
+This release focuses on bugfixes and documentation improvements, as well as a few small performance improvements.
+
+### Runtime, Tooling, SDK
+
+- runtime: Update rule index's trie node scalar handling so that numerics compare correctly ([#5585](https://github.com/open-policy-agent/opa/issues/5585)) authored by @ashutosh-narkar reported by @alvarogomez93
+- ast: Improve error information when metadata yaml fails to compile ([#4475](https://github.com/open-policy-agent/opa/issues/4475)) authored and reported by @johanfylling
+- bundle: Retain metadata annotations for Wasm entrypoints during inspection ([#5588](https://github.com/open-policy-agent/opa/issues/5588)) authored and reported by @johanfylling
+- compile: Allow object generating rules to be annotated as entrypoints ([#5577](https://github.com/open-policy-agent/opa/issues/5577)) authored and reported by @johanfylling
+- plugins/discovery: Support for persisting and loading discovery bundle from disk ([#2886](https://github.com/open-policy-agent/opa/issues/2886)) authored by @ashutosh-narkar reported by @anderseknert
+- perf: Use `json.Encode` to avoid extra allocation (authored by @anderseknert)
+- `opa inspect`: Fix prefix error when inspecting bundle from root ([#5503](https://github.com/open-policy-agent/opa/issues/5503)) authored by @harikannan512 reported by @HarshPathakhp
+- topdown: `http.send` to cache responses based on status code ([#5617](https://github.com/open-policy-agent/opa/issues/5617)) authored by @ashutosh-narkar
+- types: Add GoDoc about named types (authored by @wata727)
+- deps: Remove `github.com/pkg/errors` dependency (authored by @Iceber)
+
+
+### Docs
+
+- Update entrypoint documentation ([#5565](https://github.com/open-policy-agent/opa/issues/5565)) authored by @johanfylling reported by @robertgartman
+- Add missing folder argument in bundle build example (authored by @charlieegan3)
+- Clarify `crypto.x509.parse_certificates` docs (authored by @charlieegan3)
+- Added AWS S3 Web Identity Credentials info to tutorial (authored by @vishrana)
+- docs/graphql: non-nullable id argument and typo fix (authored by @philipaconrad)
+
+### Website + Ecosystem
+
+- Ecosystem:
+  - ccbr (authored by @niuzhi)
+
+- Website:
+  - Show prominent warning when viewing old docs (authored by @charlieegan3)
+  - Prevent navbar clipping on narrow screens + sticky nav  (authored by @charlieegan3)
+
+### Miscellaneous
+
+Dependency bumps:
+- build: bump golang 1.19.4 -> 1.19.5 (authored by @yanggangtony)
+- ci: aquasecurity/trivy-action from 0.8.0 to 0.9.0
+- github.com/containerd/containerd from 1.6.15 to 1.6.16
+- google.golang.org/grpc from 1.51.0 to 1.52.3
 
 ## 0.48.0
 
