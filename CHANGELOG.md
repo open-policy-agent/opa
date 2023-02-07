@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.49.0
 
 This release focuses on bugfixes and documentation improvements, as well as a few small performance improvements.
