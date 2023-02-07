@@ -17,6 +17,9 @@ GO_TEST_TIMEOUT := -timeout 30m
 GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
+#
+# NOTE(sr): this is 1.19.5 without the git version bump causing build breakage because of .git ownership mismatches
+GOIMAGE := golang@sha256:bb9811fad43a7d6fd2173248d8331b2dcf5ac9af20976b1937ecd214c5b8c383
 
 ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
 WASM_ENABLED=0
@@ -62,7 +65,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
+RELEASE_BUILD_IMAGE := $(GOIMAGE)
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -249,7 +252,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
-	golang:$(GOVERSION) \
+	$(GOIMAGE) \
 	make
 
 .PHONY: ci-go-%
@@ -467,7 +470,7 @@ check-go-module:
 	  -v $(PWD):/src \
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
-	  golang:$(GOVERSION) \
+	  $(GOIMAGE) \
 	  go mod vendor -v
 
 ######################################################
