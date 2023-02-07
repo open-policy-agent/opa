@@ -252,6 +252,26 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	golang:$(GOVERSION) \
 	git config --global --add safe.directory "*" && make
 
+
+CI_GOLANG_DOCKER_MAKE_WIN := $(DOCKER) run \
+	$(DOCKER_FLAGS) \
+	-u $(DOCKER_UID):$(DOCKER_GID) \
+	-v $(PWD):/src \
+	-w /src \
+	-e GOCACHE=/src/.go/cache \
+	-e GOARCH=$(GOARCH) \
+	-e CGO_ENABLED=$(CGO_ENABLED) \
+	-e WASM_ENABLED=$(WASM_ENABLED) \
+	-e FUZZ_TIME=$(FUZZ_TIME) \
+	-e TELEMETRY_URL=$(TELEMETRY_URL) \
+	golang:$(GOVERSION) \
+	make
+
+
+.PHONY: fi-go-%
+fi-go-%: generate
+	$(CI_GOLANG_DOCKER_MAKE_WIN) $*
+
 .PHONY: ci-go-%
 ci-go-%: generate
 	$(CI_GOLANG_DOCKER_MAKE) $*

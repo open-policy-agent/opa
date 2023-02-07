@@ -47,7 +47,7 @@ jobs:
             arch: arm64
           - os: windows
             run: ubuntu-22.04
-            targets: ci-go-ci-build-windows
+            targets: fi-go-ci-build-windows
           - os: darwin
             run: macos-latest
             targets: ci-build-darwin ci-build-darwin-arm64-static
