@@ -265,7 +265,7 @@ CI_GOLANG_DOCKER_MAKE_WIN := $(DOCKER) run \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
 	golang:$(GOVERSION) \
-	git config --global --add safe.directory /src && make
+	make
 
 
 .PHONY: fi-go-%
@@ -320,6 +320,7 @@ ci-build-darwin-arm64-static: ensure-release-dir
 .PHONY: ci-build-windows
 ci-build-windows: ensure-release-dir
 	build/ensure-windows-toolchain.sh
+	git config --global --add safe.directory /src
 	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
