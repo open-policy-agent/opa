@@ -220,3 +220,14 @@ func FromContext(ctx context.Context) (*RequestContext, bool) {
 	requestContext, ok := ctx.Value(reqCtxKey).(*RequestContext)
 	return requestContext, ok
 }
+
+const decisionCtxKey = requestContextKey("decision_id")
+
+func WithDecisionID(parent context.Context, id string) context.Context {
+	return context.WithValue(parent, decisionCtxKey, id)
+}
+
+func DecisionIDFromContext(ctx context.Context) (string, bool) {
+	s, ok := ctx.Value(decisionCtxKey).(string)
+	return s, ok
+}
