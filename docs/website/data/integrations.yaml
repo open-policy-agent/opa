@@ -1529,7 +1529,7 @@ integrations:
       - https://github.com/StyraInc/graphql-apollo-example
     tutorials:
       - https://www.openpolicyagent.org/docs/graphql-api-authorization/
-  
+
   wirelesssecuritylab:
     title: ccbr
     description:  |
@@ -1580,6 +1580,34 @@ integrations:
       - https://github.com/megaease/easegress
     inventors:
       - megaease
+
+  styra-load:
+    title: Styra Load
+    description: Styra Load is the only enterprise-grade authorization engine built to provide resource-efficient performance for data-heavy workloads while connecting natively to your existing data sources.
+    software:
+      - styra-load
+    labels:
+      category: authorization
+      type: poweredbyopa
+    tutorials:
+      - https://docs.styra.com/load
+      - https://docs.styra.com/load/performance-testing
+      - https://docs.styra.com/load/configuration/data/kafka-streams-api
+    code:
+      - https://github.com/StyraInc/load
+    inventors:
+      - styra
+    blogs:
+      - https://www.styra.com/blog/introducing-styra-load-enterprise-opa-distribution-for-data-heavy-authorization/
+    videos:
+      - title: "Start Loving Your Data-heavy Authorization"
+        speakers:
+          - name: Torin Sandall
+            organization: styra
+          - name: Chris Hendrix
+            organization: styra
+        venue: online
+        link: https://www.youtube.com/watch?v=Is1iBPr1YVs
 
 organizations:
   styra:
@@ -1928,7 +1956,10 @@ software:
     link: https://graphene-python.org
   styra-das:
     name: Styra DAS
-    link: https://www.styra.com
+    link: https://www.styra.com/styra-das/
+  styra-load:
+    name: Styra Load
+    link: https://www.styra.com/styra-load/
   kustomize:
     name: Kustomize
     link: https://kustomize.io
