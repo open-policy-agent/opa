@@ -1599,6 +1599,15 @@ integrations:
       - styra
     blogs:
       - https://www.styra.com/blog/introducing-styra-load-enterprise-opa-distribution-for-data-heavy-authorization/
+    videos:
+      - title: "Start Loving Your Data-heavy Authorization"
+        speakers:
+          - name: Torin Sandall
+            organization: styra
+          - name: Chris Hendrix
+            organization: styra
+        venue: online
+        link: https://www.youtube.com/watch?v=Is1iBPr1YVs
 
 organizations:
   styra:
