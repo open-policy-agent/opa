@@ -2713,24 +2713,23 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 		return ast.InterfaceToValue(parsed)
 	}
 
-	bs, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	bs = bytes.TrimSpace(bs)
-	if len(bs) == 0 {
-		return nil, nil
-	}
-
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
-		if err := util.Unmarshal(bs, &x); err != nil {
+		bs, err := io.ReadAll(r.Body)
+		if err != nil {
 			return nil, err
 		}
-	} else if err := util.UnmarshalJSON(bs, &x); err != nil {
-		return nil, err
+		if len(bs) > 0 {
+			if err = util.Unmarshal(bs, &x); err != nil {
+				return nil, fmt.Errorf("body contains malformed input document: %w", err)
+			}
+		}
+	} else {
+		dec := util.NewJSONDecoder(r.Body)
+		if err := dec.Decode(&x); err != nil && err != io.EOF {
+			return nil, fmt.Errorf("body contains malformed input document: %w", err)
+		}
 	}
 
 	return ast.InterfaceToValue(x)
@@ -2756,36 +2755,33 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 		return nil, nil
 	}
 
-	bs, err := io.ReadAll(r.Body)
+	var request types.DataRequestV1
 
-	if err != nil {
-		return nil, err
-	}
-
-	if len(bs) > 0 {
-
-		ct := r.Header.Get("Content-Type")
-
-		var request types.DataRequestV1
-
-		// There is no standard for yaml mime-type so we just look for
-		// anything related
-		if strings.Contains(ct, "yaml") {
-			if err := util.Unmarshal(bs, &request); err != nil {
+	ct := r.Header.Get("Content-Type")
+	// There is no standard for yaml mime-type so we just look for
+	// anything related
+	if strings.Contains(ct, "yaml") {
+		bs, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		if len(bs) > 0 {
+			if err = util.Unmarshal(bs, &request); err != nil {
 				return nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
-		} else if err := util.UnmarshalJSON(bs, &request); err != nil {
+		}
+	} else {
+		dec := util.NewJSONDecoder(r.Body)
+		if err := dec.Decode(&request); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
-
-		if request.Input == nil {
-			return nil, nil
-		}
-
-		return ast.InterfaceToValue(*request.Input)
 	}
 
-	return nil, nil
+	if request.Input == nil {
+		return nil, nil
+	}
+
+	return ast.InterfaceToValue(*request.Input)
 }
 
 type compileRequest struct {
