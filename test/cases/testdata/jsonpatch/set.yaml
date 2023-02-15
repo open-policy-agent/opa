@@ -1,7 +1,7 @@
 cases:
 # Here are some tests that cover dealing with sets and json.patch, since that
 # is not covered by the spec.
-- note: jsonpatch/set
+- note: jsonpatch/set-success basic-remove
   query: data.main.result.foo = x
   want_result:
   - x:
@@ -14,7 +14,7 @@ cases:
     patch = [{"op": "remove", "path": "foo/b"}]
     result = r {r = json.patch(doc, patch)}
   sort_bindings: true
-- note: jsonpatch/set
+- note: jsonpatch/set-success basic-add
   query: data.main.result.foo = x
   want_result:
   - x:
@@ -29,7 +29,7 @@ cases:
     patch = [{"op": "add", "path": "foo/d", "value": "d"}]
     result = r {r = json.patch(doc, patch)}
   sort_bindings: true
-- note: jsonpatch/set
+- note: jsonpatch/set-failure add-with-mismatched-key-value
   query: data.main.result.foo = x
   want_result: [] # value does not match key
   modules:
@@ -38,7 +38,7 @@ cases:
     doc = {"foo": {"a", "b", "c"}}
     patch = [{"op": "add", "path": "foo/d", "value": "e"}]
     result = r {r = json.patch(doc, patch)}
-- note: jsonpatch/set
+- note: jsonpatch/set-success basic-move
   query: 'data.main.result.foo = x; data.main.result.bar = z'
   want_result:
   - x:
@@ -54,7 +54,7 @@ cases:
     patch = [{"op": "move", "from": "foo/a", "path": "bar/a"}]
     result = r {r = json.patch(doc, patch)}
   sort_bindings: true
-- note: jsonpatch/set
+- note: jsonpatch/set-success add-to-nested-array
   query: data.main.result = x
   want_result:
   - x:

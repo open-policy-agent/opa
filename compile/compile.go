@@ -642,18 +642,53 @@ func (c *Compiler) compileWasm(ctx context.Context) error {
 		Raw:  buf.Bytes(),
 	}}
 
+	flattenedAnnotations := c.compiler.GetAnnotationSet().Flatten()
+
 	// Each entrypoint needs an entry in the manifest
-	for i := range c.entrypointrefs {
+	for i, e := range c.entrypointrefs {
 		entrypointPath := c.entrypoints[i]
 
+		var annotations []*ast.Annotations
+		if !c.isPackage(e) {
+			annotations = findAnnotationsForTerm(e, flattenedAnnotations)
+		}
+
 		c.bundle.Manifest.WasmResolvers = append(c.bundle.Manifest.WasmResolvers, bundle.WasmResolver{
-			Module:     "/" + strings.TrimLeft(modulePath, "/"),
-			Entrypoint: entrypointPath,
+			Module:      "/" + strings.TrimLeft(modulePath, "/"),
+			Entrypoint:  entrypointPath,
+			Annotations: annotations,
 		})
 	}
 
 	// Remove the entrypoints from remaining source rego files
 	return pruneBundleEntrypoints(c.bundle, c.entrypointrefs)
+}
+
+func (c *Compiler) isPackage(term *ast.Term) bool {
+	for _, m := range c.compiler.Modules {
+		if m.Package.Path.Equal(term.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+// findAnnotationsForTerm returns a slice of all annotations directly associated with the given term.
+func findAnnotationsForTerm(term *ast.Term, annotationRefs []*ast.AnnotationsRef) []*ast.Annotations {
+	r, ok := term.Value.(ast.Ref)
+	if !ok {
+		return nil
+	}
+
+	var result []*ast.Annotations
+
+	for _, ar := range annotationRefs {
+		if r.Equal(ar.Path) {
+			result = append(result, ar.Annotations)
+		}
+	}
+
+	return result
 }
 
 // pruneBundleEntrypoints will modify modules in the provided bundle to remove
@@ -691,11 +726,43 @@ func pruneBundleEntrypoints(b *bundle.Bundle, entrypointrefs []*ast.Term) error 
 				}
 			}
 
-			// If any rules were dropped update the module accordingly
-			if len(rules) != len(mf.Parsed.Rules) {
+			// Drop any Annotations for rules matching the entrypoint path
+			var annotations []*ast.Annotations
+			var prunedAnnotations []*ast.Annotations
+			for _, annotation := range mf.Parsed.Annotations {
+				p := annotation.GetTargetPath()
+				// We prune annotations of dropped rules, but not packages, as the Rego file is always retained
+				if p.Equal(entrypoint.Value) && !mf.Parsed.Package.Path.Equal(entrypoint.Value) {
+					prunedAnnotations = append(prunedAnnotations, annotation)
+				} else {
+					annotations = append(annotations, annotation)
+				}
+			}
+
+			// Drop comments associated with pruned annotations
+			var comments []*ast.Comment
+			for _, comment := range mf.Parsed.Comments {
+				pruned := false
+				for _, annotation := range prunedAnnotations {
+					if comment.Location.Row >= annotation.Location.Row &&
+						comment.Location.Row <= annotation.EndLoc().Row {
+						pruned = true
+						break
+					}
+				}
+
+				if !pruned {
+					comments = append(comments, comment)
+				}
+			}
+
+			// If any rules or annotations were dropped update the module accordingly
+			if len(rules) != len(mf.Parsed.Rules) || len(comments) != len(mf.Parsed.Comments) {
 				mf.Parsed.Rules = rules
+				mf.Parsed.Annotations = annotations
+				mf.Parsed.Comments = comments
 				// Remove the original raw source, we're editing the AST
-				// directly so it wont be in sync anymore.
+				// directly, so it won't be in sync anymore.
 				mf.Raw = nil
 			}
 		}

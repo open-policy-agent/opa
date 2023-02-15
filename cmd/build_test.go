@@ -9,12 +9,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/loader"
-
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -585,7 +586,7 @@ package test
 p[1]
 
 f(x) { p[x] }
-		`,
+`,
 			},
 			err: fmt.Errorf("plan compilation requires at least one entrypoint"),
 		},
@@ -613,6 +614,301 @@ f(x) { p[x] }
 				_, err = loader.NewFileLoader().AsBundle(params.outputFile)
 				if err != nil {
 					t.Fatal(err)
+				}
+			})
+		})
+	}
+}
+
+func TestBuildWasmWithAnnotations(t *testing.T) {
+	tests := []struct {
+		note        string
+		files       map[string]string
+		entrypoints []string
+		manifest    string
+	}{
+		{
+			note: "last rule is annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# title: P1
+p1 := 1
+
+# METADATA
+# title: P2
+# entrypoint: true
+p2 := 2
+`,
+			},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test/p2",
+		"module":"/policy.wasm",
+		"annotations":[{
+			"scope":"rule",
+			"title":"P2",
+			"entrypoint":true
+		}]
+	}]
+}
+`,
+		},
+		{
+			note: "last rule is (not annotated) entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# title: P1
+p1 := 1
+
+# METADATA
+# title: P2
+p2 := 2
+`,
+			},
+			entrypoints: []string{"test/p2"},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test/p2",
+		"module":"/policy.wasm",
+		"annotations":[{
+			"scope":"rule",
+			"title":"P2"
+		}]
+	}]
+}
+`,
+		},
+		{
+			note: "rules in multiple files are entrypoints",
+			files: map[string]string{
+				"test1.rego": `
+package test
+
+# METADATA
+# title: P1
+p1 := 1
+
+# METADATA
+# title: P2
+# entrypoint: true
+p2 := 2
+`,
+				"test2.rego": `
+package test
+
+# METADATA
+# title: P3
+p3 := 3
+
+# METADATA
+# title: P4
+p4 := 4
+`,
+				"test3.rego": `
+package test.foo
+
+# METADATA
+# title: BAR
+# entrypoint: true
+bar := "baz"
+`,
+			},
+			entrypoints: []string{"test/p3"},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test/p3",
+		"annotations":[{"scope":"rule","title":"P3"}],
+		"module":"/policy.wasm"
+	},{
+		"entrypoint":"test/foo/bar",
+		"module":"/policy.wasm",
+		"annotations":[{
+			"scope":"rule",
+			"title":"BAR",
+			"entrypoint":true
+		}]
+	},{
+		"entrypoint":"test/p2",
+		"module":"/policy.wasm",
+		"annotations":[{
+			"scope":"rule",
+			"title":"P2",
+			"entrypoint":true
+		}]
+	}]
+}
+`,
+		},
+		{
+			note: "rule with multiple metadata blocks",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# title: P doc
+# scope: document
+
+# METADATA
+# title: P
+# entrypoint: true
+p := 1
+`,
+			},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test/p",
+		"module":"/policy.wasm",
+		"annotations":[{
+			"scope":"document",
+			"title":"P doc"
+		},{
+			"scope":"rule",
+			"title":"P",
+			"entrypoint":true
+		}]
+	}]
+}
+`,
+		},
+
+		// Package annotations are not injected into manifest, as package definition is always retained in Rego source.
+		{
+			note: "package is annotated entrypoint",
+			files: map[string]string{
+				"test.rego": `
+# METADATA
+# title: PKG
+# entrypoint: true
+package test
+
+# METADATA
+# title: P1
+p1 := 1
+
+# METADATA
+# title: P2
+p2 := 2
+`,
+			},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test",
+		"module":"/policy.wasm"
+	}]
+}
+`,
+		},
+		{
+			note: "package is (not annotated) entrypoint",
+			files: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# title: P1
+p1 := 1
+
+# METADATA
+# title: P2
+p2 := 2
+`,
+			},
+			entrypoints: []string{"test"},
+			manifest: `
+{
+	"revision":"",
+	"roots":[""],
+	"wasm":[{
+		"entrypoint":"test",
+		"module":"/policy.wasm"
+	}]
+}
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				if err := params.target.Set("wasm"); err != nil {
+					t.Fatal(err)
+				}
+				params.pruneUnused = true
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.entrypoints.v = tc.entrypoints
+
+				// Build should fail if entrypoint is not discovered from annotations.
+				err := dobuild(params, []string{root})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				// Check that manifest has expected content
+				f, err := os.Open(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+
+				gr, err := gzip.NewReader(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				tr := tar.NewReader(gr)
+
+				found := false
+				for {
+					f, err := tr.Next()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatal(err)
+					}
+					if f.Name == "/.manifest" {
+						found = true
+						data, err := io.ReadAll(tr)
+						if err != nil {
+							t.Fatal(err)
+						}
+						manifest := util.MustUnmarshalJSON(data)
+						if !reflect.DeepEqual(manifest, util.MustUnmarshalJSON([]byte(tc.manifest))) {
+							t.Fatalf("expected manifest\n\n%v\n\nbut got\n\n%v", tc.manifest, string(util.MustMarshalJSON(manifest)))
+						}
+						break
+					}
+				}
+
+				if !found {
+					t.Fatal("no manifest found in bundle")
 				}
 			})
 		})

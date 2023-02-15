@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
@@ -30,24 +32,33 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
-// Name is the discovery plugin name that will be registered with the plugin manager.
-const Name = "discovery"
+const (
+	// Name is the discovery plugin name that will be registered with the plugin manager.
+	Name = "discovery"
+
+	// maxActivationRetry represents the maximum number of attempts
+	// to activate a persisted discovery bundle. The value chosen for
+	// maxActivationRetry ensures that too much time is not spent to activate
+	// a bundle that will never successfully activate.
+	maxActivationRetry = 10
+)
 
 // Discovery implements configuration discovery for OPA. When discovery is
 // started it will periodically download a configuration bundle and try to
 // reconfigure the OPA.
 type Discovery struct {
-	manager      *plugins.Manager
-	config       *Config
-	factories    map[string]plugins.Factory
-	downloader   bundle.Loader                       // discovery bundle downloader
-	status       *bundle.Status                      // discovery status
-	listenersMtx sync.Mutex                          // lock for listener map
-	listeners    map[interface{}]func(bundle.Status) // listeners for discovery update events
-	etag         string                              // discovery bundle etag for caching purposes
-	metrics      metrics.Metrics
-	readyOnce    sync.Once
-	logger       logging.Logger
+	manager           *plugins.Manager
+	config            *Config
+	factories         map[string]plugins.Factory
+	downloader        bundle.Loader                       // discovery bundle downloader
+	status            *bundle.Status                      // discovery status
+	listenersMtx      sync.Mutex                          // lock for listener map
+	listeners         map[interface{}]func(bundle.Status) // listeners for discovery update events
+	etag              string                              // discovery bundle etag for caching purposes
+	metrics           metrics.Metrics
+	readyOnce         sync.Once
+	logger            logging.Logger
+	bundlePersistPath string
 }
 
 // Factories provides a set of factory functions to use for
@@ -116,6 +127,15 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 
 // Start starts the dynamic discovery process if configured.
 func (c *Discovery) Start(ctx context.Context) error {
+
+	bundlePersistPath, err := c.getBundlePersistPath()
+	if err != nil {
+		return err
+	}
+	c.bundlePersistPath = bundlePersistPath
+
+	c.loadAndActivateBundleFromDisk(ctx)
+
 	if c.downloader != nil {
 		c.downloader.Start(ctx)
 	} else {
@@ -171,6 +191,94 @@ func (c *Discovery) RegisterListener(name interface{}, f func(bundle.Status)) {
 	c.listeners[name] = f
 }
 
+func (c *Discovery) getBundlePersistPath() (string, error) {
+	persistDir, err := c.manager.Config.GetPersistenceDirectory()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(persistDir, "bundles"), nil
+}
+
+func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
+
+	if c.config != nil && c.config.Persist {
+		b, err := c.loadBundleFromDisk()
+		if err != nil {
+			c.logger.Error("Failed to load discovery bundle from disk: %v", err)
+			c.status.SetError(err)
+			return
+		}
+
+		if b == nil {
+			return
+		}
+
+		for retry := 0; retry < maxActivationRetry; retry++ {
+
+			ps, err := c.processBundle(ctx, b)
+			if err != nil {
+				c.logger.Error("Discovery bundle processing error occurred: %v", err)
+				c.status.SetError(err)
+				continue
+			}
+
+			for _, p := range ps.Start {
+				if err := p.Start(ctx); err != nil {
+					c.logger.Error("Failed to start configured plugins: %v", err)
+					c.status.SetError(err)
+					return
+				}
+			}
+
+			for _, p := range ps.Reconfig {
+				p.Plugin.Reconfigure(ctx, p.Config)
+			}
+
+			c.status.SetError(nil)
+			c.status.SetActivateSuccess(b.Manifest.Revision)
+
+			// On the first activation success mark the plugin as being in OK state
+			c.readyOnce.Do(func() {
+				c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
+			})
+
+			c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
+		}
+	}
+}
+
+func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
+	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, *c.config.Name, c.config.Signing)
+}
+
+func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
+
+	bundleDir := filepath.Join(c.bundlePersistPath, *c.config.Name)
+	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
+
+	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
+	if saveErr != nil {
+		c.logger.Error("Failed to save new discovery bundle to disk: %v", saveErr)
+
+		if err := os.Remove(tmpFile); err != nil {
+			c.logger.Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
+		}
+
+		if _, err := os.Stat(bundleFile); err == nil {
+			c.logger.Warn("Older version of activated discovery bundle persisted, ignoring error")
+			return nil
+		}
+		return saveErr
+	}
+
+	return os.Rename(tmpFile, bundleFile)
+}
+
+func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
+	return bundleUtils.SaveBundleToDisk(path, raw)
+}
+
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
 
 	c.processUpdate(ctx, u)
@@ -209,6 +317,19 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 			c.status.SetError(err)
 			c.downloader.ClearCache()
 			return
+		}
+
+		if c.config != nil && c.config.Persist {
+			c.logger.Debug("Persisting discovery bundle to disk in progress.")
+
+			err := c.saveBundleToDisk(u.Raw)
+			if err != nil {
+				c.logger.Error("Persisting discovery bundle to disk failed: %v", err)
+				c.status.SetError(err)
+				c.downloader.SetCache("")
+				return
+			}
+			c.logger.Debug("Discovery bundle persisted to disk successfully at path %v.", filepath.Join(c.bundlePersistPath, *c.config.Name))
 		}
 
 		c.status.SetError(nil)

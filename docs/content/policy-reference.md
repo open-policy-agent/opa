@@ -902,7 +902,8 @@ instead of halting evaluation, if `http.send` encounters an error, it can return
 set to `0` and `error` describing the actual error. This can be activated by setting the `raise_error` field
 in the `request` object to `false`.
 
-If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its freshness and validity.
+If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its
+freshness and validity.
 
 `http.send` uses the `Cache-Control` and `Expires` response headers to check the freshness of the cached response.
 Specifically if the [max-age](https://tools.ietf.org/html/rfc7234#section-5.2.2.8) `Cache-Control` directive is set, `http.send`
@@ -918,6 +919,10 @@ conjunction with the `force_cache_duration_seconds` field. If `force_cache` is `
 **must** be specified and `http.send` will use this value to check the freshness of the cached response.
 
 Also, if `force_cache` is `true`, it overrides the `cache` field.
+
+`http.send` only caches responses with the following HTTP status codes: `200`, `203`, `204`, `206`, `300`, `301`,
+`404`, `405`, `410`, `414`, and `501`. This is behavior is as per https://www.rfc-editor.org/rfc/rfc7231#section-6.1 and
+is enforced when caching responses within a single query or across queries via the `cache` and `force_cache` request fields.
 
 {{< info >}}
 `http.send` uses the `Date` response header to calculate the current age of the response by comparing it with the current time.
@@ -1238,7 +1243,7 @@ If possible, prefer using an explicit `input` or `data` value instead of `opa.ru
 
 | Built-in | Description | Details |
 | ------- |-------------|---------------|
-| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no affect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | {{< builtin-tags internal.print >}} |
+| <span class="opa-keep-it-together">``print(...)``</span> | ``print`` is used to output the values of variables for debugging purposes. ``print`` calls have no effect on the result of queries or rules. All variables passed to `print` must be assigned inside of the query or rule. If any of the `print` arguments are undefined, their values are represented as `<undefined>` in the output stream. Because policies can be invoked via different interfaces (e.g., CLI, HTTP API, etc.) the exact output format differs. See the table below for details. | {{< builtin-tags internal.print >}} |
 
 API | Output | Memo
 --- | --- | ---

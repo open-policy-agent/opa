@@ -11,28 +11,28 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Join the [OPA Slack](https://slack.openpolicyagent.org) for day-to-day conversations with the OPA community.
 - Need Support? Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 
-## Join the OPA office hours
+## Join the OPA Office Hours
 
-**Every week at 10:00 PT / 19:00 CET**
+**Every Week at these times** 
+  * 10:00 PT / 19:00 CET
+  * 01:30 PT / 10:30 CET
 
-These sessions are open format for community members to ask questions. Use this time to get unblocked with your OPA deployments, learn more about the project, or to get more involved in the community.
+These sessions are open format for community members. Come and ask about new features or the road map for the next release. You can use this time to get unblocked with your OPA deployments, learn more about the project, or to get more involved in the community.
 
-  * [Book a slot](https://calendly.com/peter-styra/opa-office-hours)
+  * [Book a slot](https://calendly.com/styra-devrel/opa-office-hours)
 
-Following each OPA release we will announce new features, the road map for the next release, and open the floor for community members to share what they're working on. Want to talk at one of these meetings simply add your topics to the meeting notes for the upcoming meeting.
-
-  * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
-  * [Zoom](https://zoom.us/j/97827947600)
+*Watch a replay of a previous office hours on [YouTube](https://www.youtube.com/watch?v=TxFZPrbc9jk&list=PLW-2W4VHBA4RRhCHiiaKHZsDFx-FwH8VU)*
 
 ## Want to learn more about OPA?
 
 - Go to [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
 - Browse [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for news about OPA, community, policy and authorization.
+- Watch OPA's [YouTube](https://www.youtube.com/channel/UClDMRN5HlqD3di5MMf-SV4A) channel for past office hours and other content.
 - Try OPA with the [Rego Playground](https://play.openpolicyagent.org) to experiment with policies and share your work.
 - View the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
 - Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your organization use OPA in production? Support the OPA project by submitting a PR to add your organization to the list with a short description of your OPA use cases!
 
-## Want to get OPA?
+## Want to download OPA?
 
 - [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for Docker images.
 - [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binary releases and changelogs.
@@ -83,6 +83,7 @@ For concrete examples of how to integrate OPA with systems like [Kubernetes](htt
 
 ## Presentations
 
+- OPA maintainers talk @ Kubecon NA 2022: [video](https://www.youtube.com/watch?v=RMiovzGGCfI)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2022: [video](https://www.youtube.com/watch?v=MhyQxIp1H58)
 - Open Policy Agent Intro @ KubeCon EU 2021: [Video](https://www.youtube.com/watch?v=2CgeiWkliaw)
 - Using Open Policy Agent to Meet Evolving Policy Requirements @ KubeCon NA 2020: [video](https://www.youtube.com/watch?v=zVuM7F_BTyc)

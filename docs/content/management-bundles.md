@@ -680,6 +680,79 @@ Both methods are going to need a policy for either the service account or the IA
 3. Once the policy has been created, it can be assigned to the role.
 4. With the role created, go to the EC2 instance view. Select an instance where OPA will run and select "Actions" -> "Security" -> "Modify IAM role". Select the role created in previous steps.
 
+##### Web Identity Credentials
+
+Using EKS IAM Roles for Service Account (Web Identity) Credential.
+
+Below are steps to use OpenID connect provider and kubernetes.
+
+1. Go to the "IAM" section of the AWS console.
+2. Click Add provider and select OpenID connect.
+3. For Provider URL enter the one belonging to your chosen kubernetes cluster.
+4. Click on Get thumbprint
+5. For the audience enter: sts.amazonaws.com
+6. Add the provider.
+7. Once the provider is added, copy the ARN for the identity provider. Here's  an example ARN: arn:aws:iam::<your AWS account ID>:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF
+8. Create an IAM role (eg: app_dev_role) with the policy created above and assign it to the kubernetes service account.
+9. Go to Trust relationships inside the created role and click Edit trust relationship and enter the following policy document.
+  ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "<the ARN of the Identity provider from step 7, e.g. arn:aws:iam::123456789012:oidc-provider/oidc.eks.ap-northeast-1.amazonaws.com/id/DFGHJKKJHGF34HFDFGHY44TRFDE4RGDF where 123456789012 is the account ID of your AWS account, and DFGHJK...4RGDF is the OpenID Connect URL's end>"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "<the OpenID connect URL, e.g. oidc.eks.ap-northeast-1.amazonaws.com/id/B7060B6E991747ADDDC61ADD4B7875CF>:sub": "system:serviceaccount:<kubernetes namespace, e.g. app-dev>:<the kubernetes serviceaccount name, eg: app-dev-service-account>"
+            }
+          }
+        }
+      ]
+    }
+  ```
+10. Create the kubernetes service account.
+    ```yaml
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        annotations:
+          eks.amazonaws.com/role-arn: <the ARN of the IAM role from your account, e.g. arn:aws:iam::<aws_account eg, 123456789012>:role/app_dev_role>
+        name: <service account name, e.g. app-dev-service-account>
+        namespace: <k8 namespace, e.g. app-dev>
+      automountServiceAccountToken: false
+    ```
+11. Configure your kubernetes resources to use this service account.
+    ```yaml
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        ******
+      spec:
+        ******
+        template:
+          *******
+          spec:
+            serviceAccountName: app-dev-service-account # <--- like this
+            automountServiceAccountToken: true
+            containers:
+            ******
+    ```
+
+You should now be able to access AWS services from your kubernetes cluster.
+
+The above steps should add the following variable to the pod.
+
+```bash
+AWS_ROLE_ARN=<the ARN of the IAM role from your account, e.g. arn:aws:iam::123456789012:role/app_dev_role>
+AWS_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
+```
+
+Please read [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) for more details.
+
 ##### Testing Authentication
 
 Use the [AWS CLI tools](https://aws.amazon.com/cli/) (see ["Upload Bundle"](#upload-bundle) below).
@@ -727,6 +800,26 @@ services:
         metadata_credentials:
           aws_region: eu-north-1
           iam_role: my-opa-bucket-access-role
+
+bundles:
+  authz:
+    service: s3
+    resource: bundle.tar.gz
+```
+
+**NOTE:** the S3 `url` is the bucket's regional endpoint.
+
+##### Web Identity Credentials
+
+```yaml
+services:
+  s3:
+    url: https://my-example-opa-bucket.s3.eu-north-1.amazonaws.com
+    credentials:
+      s3_signing:
+        web_identity_credentials:
+          aws_region: eu-north-1
+          session_name: my-open-policy-agent # Optional. Default: open-policy-agent
 
 bundles:
   authz:

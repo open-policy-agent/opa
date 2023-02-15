@@ -19,6 +19,8 @@ For this tutorial, our desired policy is:
 * A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
 
 
+{{< danger >}} GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only. {{< /danger >}}
+
 ## Prerequisites
 
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run a demo web server along with OPA.
