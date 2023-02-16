@@ -7,7 +7,7 @@ require (
 	github.com/agnivade/levenshtein v1.1.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
-	github.com/containerd/containerd v1.6.17
+	github.com/containerd/containerd v1.6.18
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
@@ -38,7 +38,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.7.0
 	go.opentelemetry.io/otel/trace v1.7.0
 	go.uber.org/automaxprocs v1.5.1
-	golang.org/x/net v0.6.0
+	golang.org/x/net v0.7.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/grpc v1.53.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
