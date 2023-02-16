@@ -59,7 +59,7 @@ type (
 
 	AnnotationSet struct {
 		byRule    map[*Rule][]*Annotations
-		byPackage map[*Package]*Annotations
+		byPackage map[int]*Annotations
 		byPath    *annotationTreeNode
 		modules   []*Module // Modules this set was constructed from
 	}
@@ -481,7 +481,8 @@ func validateAnnotationScopeAttachment(a *Annotations) *Error {
 		return newScopeAttachmentErr(a, "package")
 	}
 
-	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'", a.Scope)
+	return NewError(ParseErr, a.Loc(), "invalid annotation scope '%v'. Use one of '%s', '%s', '%s', or '%s'",
+		a.Scope, annotationScopeRule, annotationScopeDocument, annotationScopePackage, annotationScopeSubpackages)
 }
 
 func validateAnnotationEntrypointAttachment(a *Annotations) *Error {
@@ -595,7 +596,7 @@ func (s *SchemaAnnotation) String() string {
 func newAnnotationSet() *AnnotationSet {
 	return &AnnotationSet{
 		byRule:    map[*Rule][]*Annotations{},
-		byPackage: map[*Package]*Annotations{},
+		byPackage: map[int]*Annotations{},
 		byPath:    newAnnotationTree(),
 	}
 }
@@ -628,10 +629,11 @@ func (as *AnnotationSet) add(a *Annotations) *Error {
 		}
 	case annotationScopePackage:
 		if pkg, ok := a.node.(*Package); ok {
-			if exist, ok := as.byPackage[pkg]; ok {
+			hash := pkg.Path.Hash()
+			if exist, ok := as.byPackage[hash]; ok {
 				return errAnnotationRedeclared(a, exist.Location)
 			}
-			as.byPackage[pkg] = a
+			as.byPackage[hash] = a
 		}
 	case annotationScopeDocument:
 		if rule, ok := a.node.(*Rule); ok {
@@ -682,7 +684,7 @@ func (as *AnnotationSet) GetPackageScope(pkg *Package) *Annotations {
 	if as == nil {
 		return nil
 	}
-	return as.byPackage[pkg]
+	return as.byPackage[pkg.Path.Hash()]
 }
 
 // Flatten returns a flattened list view of this AnnotationSet.

@@ -330,35 +330,6 @@ package root2`,
 			},
 		},
 		{
-			note: "overlapping package paths",
-			modules: map[string]string{
-				"mod1": `# METADATA
-# title: TEST1
-package test`,
-				"mod2": `# METADATA
-# title: TEST2
-package test`,
-			},
-			expected: []AnnotationsRef{
-				{
-					Path:     MustParseRef("data.test"),
-					Location: &Location{File: "mod1", Row: 3},
-					Annotations: &Annotations{
-						Scope: "package",
-						Title: "TEST1",
-					},
-				},
-				{
-					Path:     MustParseRef("data.test"),
-					Location: &Location{File: "mod2", Row: 3},
-					Annotations: &Annotations{
-						Scope: "package",
-						Title: "TEST2",
-					},
-				},
-			},
-		},
-		{
 			note: "overlapping rule paths (same module)",
 			modules: map[string]string{
 				"mod": `package test
@@ -697,7 +668,7 @@ package root.foo`,
 
 # METADATA
 # title: BAR-other
-# description: This metadata is on the path of the queried rule, but shouldn't show up in the result as it's in a different module.
+# description: This metadata is on the path of the queried rule, and should show up in the result even though it's in a different module.
 package root.foo.bar
 
 # METADATA
@@ -705,20 +676,18 @@ package root.foo.bar
 # description: document scope applied to rule in other module
 # title: P-doc
 p = 1`,
-				"rule": `# METADATA
-# title: BAR
-package root.foo.bar
+				"rule": `package root.foo.bar
 
 # METADATA
 # title: P
 p = 1`,
 			},
 			moduleToAnalyze:     "rule",
-			ruleOnLineToAnalyze: 7,
+			ruleOnLineToAnalyze: 5,
 			expected: []AnnotationsRef{
 				{
 					Path:     MustParseRef("data.root.foo.bar.p"),
-					Location: &Location{File: "rule", Row: 7},
+					Location: &Location{File: "rule", Row: 5},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P",
@@ -735,10 +704,11 @@ p = 1`,
 				},
 				{
 					Path:     MustParseRef("data.root.foo.bar"),
-					Location: &Location{File: "rule", Row: 3},
+					Location: &Location{File: "root.foo.bar", Row: 9},
 					Annotations: &Annotations{
-						Scope: "package",
-						Title: "BAR",
+						Scope:       "package",
+						Title:       "BAR-other",
+						Description: "This metadata is on the path of the queried rule, and should show up in the result even though it's in a different module.",
 					},
 				},
 				{

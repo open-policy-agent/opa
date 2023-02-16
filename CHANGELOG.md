@@ -5,6 +5,18 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Runtime
+
+- ast: Annotations scoped to package carries across module ([#5251](https://github.com/open-policy-agent/opa/issues/5251)).
+
+### Breaking changes
+
+The change to the `package` scope in [#5251](https://github.com/open-policy-agent/opa/issues/5251) may cause compile-time errors and behavioural changes to type checking when the `schemas` annotation is used, and to rules calling the `rego.metadata.chain()` built-in function:
+
+- Existing projects with the same package declared in multiple files will trigger a `rego_type_error: package annotation redeclared` error _if_ two or more of these are annotated with the `package` scope.
+- If using the `package` scope, the `schemas` annotation will be applied to type checking also for rules declared in another file than the annotation declaration, as long as the package is the same.
+- The chain of metadata returned by the `rego.metadata.chain()` built-in function will now contain an entry for the package even if the annotations are declared in another file, if the scope is `package`. 
+
 ## 0.49.0
 
 This release focuses on bugfixes and documentation improvements, as well as a few small performance improvements.
