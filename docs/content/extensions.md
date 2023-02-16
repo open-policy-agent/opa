@@ -149,7 +149,7 @@ func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 
 	if err := ast.As(a.Value, &org); err != nil {
 		return nil, err
-	} else if ast.As(b.Value, &repo); err != nil {
+	} else if err := ast.As(b.Value, &repo); err != nil {
 		return nil, err
 	}
 
@@ -420,7 +420,7 @@ func main() {
 
 				if err := ast.As(a.Value, &org); err != nil {
 					return nil, err
-				} else if ast.As(b.Value, &repo); err != nil {
+				} else if err := ast.As(b.Value, &repo); err != nil {
 					return nil, err
 				}
 
@@ -493,7 +493,7 @@ func main() {
 
 			if err := ast.As(a.Value, &org); err != nil {
 				return nil, err
-			} else if ast.As(b.Value, &repo); err != nil {
+			} else if err := ast.As(b.Value, &repo); err != nil {
 				return nil, err
 			}
 
