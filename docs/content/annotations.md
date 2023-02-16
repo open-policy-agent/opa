@@ -58,9 +58,9 @@ supported are:
 * `subpackages` - applies to all of the rules in the package and all subpackages (recursively, across multiple files)
 
 Since the `document` scope annotation applies to all rules with the same name in the same package 
-and the `packages` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with 
+and the `package` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with 
 these scopes are applied over all files with applicable package- and rule paths. 
-As there is no ordering across files in the same package, the `document`, `scope`, and `subpackages` scope annotations 
+As there is no ordering across files in the same package, the `document`, `package`, and `subpackages` scope annotations 
 can only be specified **once** per path. 
 The `document` scope annotation can be applied to any rule in the set (i.e., ordering does not matter.)
 
