@@ -90,7 +90,7 @@ services:
     depends_on:
     - bundle_server
   api_server:
-    image: openpolicyagent/demo-restful-api:0.3
+    image: openpolicyagent/demo-restful-api
     ports:
     - 5000:5000
     environment:
