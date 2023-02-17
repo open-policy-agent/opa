@@ -1309,6 +1309,7 @@ func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
 	checker := newTypeChecker().
+		WithAllowNet(c.capabilities.AllowNet).
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
