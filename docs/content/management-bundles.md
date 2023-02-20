@@ -501,23 +501,25 @@ bundle.RegisterVerifier("custom", &CustomVerifier{})
 
 A regular _snapshot_ bundle represents the entirety of OPA’s policy and data cache. When a new _snapshot_ bundle is
 downloaded, OPA will erase and overwrite all the policy and data in its cache before activating the new bundle. We can
-optionally scope the bundle to a subset of OPA’s policy and data cache by defining the `roots` in the bundle's manifest.
+optionally scope the bundle to a subset of OPA’s policy and data cache by defining the `roots` in the bundle's `.manifest` file.
 
 Although OPA [caches](#caching) snapshot bundles to avoid unnecessary retransmission,
 servers must still retransmit the entire snapshot when any change occurs. If you need
 to propagate small changes to bundles without waiting for polling delays, consider
 using _delta_ bundles in conjunction with [HTTP Long Polling](#http-long-polling).
 
-_Delta_ bundles provide a more efficient way to make data changes by containing patches to data instead of snapshots.
-_Delta_ bundles are similar to _snapshot_ bundles in terms of structure and layout semantics. A _delta_ bundle contains a
+_Delta_ bundles provide a more efficient way to make data changes by containing patches to data instead of complete snapshots.
+_Delta_ bundles are structured differently from _snapshot_ bundles. A _delta_ bundle contains a
 single `patch.json` file at the root of the bundle which includes a [JSON Patch](https://datatracker.ietf.org/doc/html/rfc6902)
-(i.e., an array of JSON objects). The operations in the JSON Patch will be applied to OPA's in-memory store in order.
-_Delta_ bundles currently support updates to data only and not on policies. Hence, by leveraging _delta_ bundles along with
-[HTTP Long Polling](#http-long-polling), bundle services can propagate data changes to OPAs more quickly and efficiently.
+(i.e., an array of one or more JSON objects). The operations in the JSON Patch will be applied to OPA's in-memory store in order.
+
+{{< info >}}
+_Delta_ bundles currently support updates to data only and not policies. 
+{{< /info >}}
 
 #### Delta Bundle File Format
 
-OPA expects a _delta_ bundle to contain an optional `.manifest` file and a required `patch.json` file that specifies a list of
+OPA expects a _delta_ bundle to contain an optional `.manifest` file and a required `patch.json` file that specifies a list of one or more
 patch operations on the data. OPA will generate an error if a _delta_ bundle contains any policy, data or wasm binary files.
 If the `.manifest` file specifies any `roots`, any data patch outside the bundle's roots will cause an error.
 
@@ -548,6 +550,25 @@ declares `roots` or `wasm` fields, a _delta_ bundle update MUST have the same va
 the scope of the original bundle or update Wasm resolvers. A _delta_ bundle can however contain different
 values for the bundle's `revision` and `metadata`.
 
+{{< danger >}}
+An empty list of operations in a _delta_ bundle `patch.json` will remove all the data from OPA's in-memory store. I.e., the following are equivalent:
+
+```json
+{
+  "data": []
+}
+```
+
+```json
+{
+  "data": [
+    { "op": "replace", "path": "/", "value": {} }
+  ]
+}
+  ```
+If there are no operations to apply to the data, the bundle server should return the same [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) value as the last update. OPA will send the last `Etag` value in the [`If-None-Match`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-None-Match) Header.
+{{< /danger >}}
+
 #### Delta Bundle Patch Operations
 
 Each patch operation defined in the `patch.json` file must have exactly one `op` member which indicates the
@@ -567,14 +588,11 @@ The `"path"` field defines a JSON pointer path to the location to perform the op
 
 The `"value"` field defines the value to be added or replaced. Only required for `"upsert"` and  `"replace"` operations.
 
-#### Limitations
+#### Current Limitations
 
-* _Delta_ bundles only support updates to data
-
-* _Delta_ bundles do not support bundle signing
-
-* Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`
-
+* _Delta_ bundles only support updates to data. Policies cannot be updated using _delta_ bundles.
+* _Delta_ bundles do not support bundle signing.
+* Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`.
 
 #### Delta Bundle FAQ
 
