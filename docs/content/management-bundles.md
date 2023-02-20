@@ -550,6 +550,25 @@ declares `roots` or `wasm` fields, a _delta_ bundle update MUST have the same va
 the scope of the original bundle or update Wasm resolvers. A _delta_ bundle can however contain different
 values for the bundle's `revision` and `metadata`.
 
+{{< danger >}}
+An empty list of operations in a _delta_ bundle `patch.json` will remove all the data from OPA's in-memory store. I.e., the following are equivalent:
+
+```json
+{
+  "data": []
+}
+```
+
+```json
+{
+  "data": [
+    { "op": "replace", "path": "/", "value": {} }
+  ]
+}
+  ```
+If there are no operations to apply to the data, the bundle server should return the same [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) value as the last update. OPA will send the last `Etag` value in the [`If-None-Match`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-None-Match) Header.
+{{< /danger >}}
+
 #### Delta Bundle Patch Operations
 
 Each patch operation defined in the `patch.json` file must have exactly one `op` member which indicates the
@@ -569,28 +588,11 @@ The `"path"` field defines a JSON pointer path to the location to perform the op
 
 The `"value"` field defines the value to be added or replaced. Only required for `"upsert"` and  `"replace"` operations.
 
-#### Limitations
+#### Current Limitations
 
 * _Delta_ bundles only support updates to data. Policies cannot be updated using _delta_ bundles.
 * _Delta_ bundles do not support bundle signing.
 * Unlike _snapshot_ bundles, activated _delta_ bundles are not persisted to disk when the `bundles[_].persist` field is `true`.
-* An empty list of operations in a _delta_ bundle `patch.json` will remove all the data from OPA's in-memory store. I.e., the following are equivalent:
-
-  ```json
-  {
-    "data": []
-  }
-  ```
-
-  ```json
-  {
-    "data": [
-      { "op": "replace", "path": "/", "value": {} }
-    ]
-  }
-  ```
-  If there are no operations to apply to the data, the bundle server should return the same [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) value as the last update. OPA will also send the last `Etag` value in the [`If-None-Match`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-None-Match) Header.
-
 
 #### Delta Bundle FAQ
 
