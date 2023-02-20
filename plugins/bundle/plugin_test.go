@@ -8,6 +8,7 @@ package bundle
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -353,6 +354,107 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 			t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
 		}
 	})
+}
+
+func TestPluginBundleETag(t *testing.T) {
+	var err error
+
+	persistenceDir, err := os.MkdirTemp("", "bundle-plugin-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(persistenceDir)
+	persistenceDirName := persistenceDir
+
+	ctx := context.Background()
+	manager := getTestManager()
+	manager.Config.PersistenceDirectory = &persistenceDirName
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"test-bundle": {
+				Persist: true,
+			},
+		},
+	}, manager)
+	bundleName := "test-bundle"
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	plugin.bundlePersistPath, err = plugin.getBundlePersistPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	etag := "foobar"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: etag, Roots: &[]string{"a"}},
+		Data: map[string]interface{}{
+			"a": map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	}
+
+	buf := bytes.NewBuffer(nil)
+	err = bundle.NewWriter(buf).Write(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// simulate initial download response (200)
+	plugin.oneShot(ctx, bundleName, download.Update{ETag: etag, Bundle: &b, Metrics: metrics.New(), Raw: bytes.NewReader(buf.Bytes())})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// simulate second download response (304), etag should remain unchanged in persisted bundle dir
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: nil})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if status.Type != bundle.SnapshotBundleType {
+		t.Fatalf("expected delta bundle but got %v", status.Type)
+	}
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{"a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": "bar"}`))
+	if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
+	}
+
+	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, "bundle.tar.gz")); errors.Is(err, os.ErrNotExist) {
+		t.Fatal("bundle.tar.gz was not persisted")
+	}
+
+	manifestPath := filepath.Join(persistenceDir, "bundles", bundleName, "manifest.json")
+	if _, err := os.Stat(manifestPath); errors.Is(err, os.ErrNotExist) {
+		t.Fatal("manifest.json was not persisted")
+	}
+
+	bs, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var manifestData map[string]string
+	err = json.Unmarshal(bs, &manifestData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if manifestData["etag"] != etag {
+		t.Fatalf("Expected etag to be %s but got %s", etag, manifestData["etag"])
+	}
 }
 
 func TestPluginOneShotDeltaBundle(t *testing.T) {

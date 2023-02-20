@@ -7,6 +7,7 @@ package bundle
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -144,7 +145,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 
 // Reconfigure notifies the plugin that it's configuration has changed.
 // Any bundle configs that have changed or been added/removed will take
-// affect.
+// effect.
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Reconfiguring should not occur in parallel, lock to ensure
 	// nothing swaps underneath us with the current p.config and the updated one.
@@ -517,6 +518,18 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 				}
 				return
 			}
+
+			err = p.saveBundleManifestToDisk(name, u.ETag)
+			if err != nil {
+				p.log(name).Error("Persisting bundle manifest to disk failed: %v", err)
+				p.status[name].SetError(err)
+				if !p.stopped {
+					etag := p.etags[name]
+					p.downloaders[name].SetCache(etag)
+				}
+				return
+			}
+
 			p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
 		}
 
@@ -672,6 +685,27 @@ func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 	}
 
 	return os.Rename(tmpFile, bundleFile)
+}
+
+func (p *Plugin) saveBundleManifestToDisk(name string, etag string) error {
+	bundleDir := filepath.Join(p.bundlePersistPath, name)
+	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
+
+	d := map[string]string{
+		"etag": etag,
+	}
+
+	bs, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Errorf("failed to marshal bundle manifest: %w", err)
+	}
+
+	err = os.WriteFile(bundleManifestFile, bs, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save bundle manifest to disk: %w", err)
+	}
+
+	return nil
 }
 
 func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
