@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	mr "math/rand"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -283,6 +284,22 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		stdLogger.SetFormatter(internal_logging.GetFormatter(params.Logging.Format, params.Logging.TimestampFormat))
 		logger = stdLogger
 	}
+
+	var filePaths []string
+	urlPathCount := 0
+	for _, path := range params.Paths {
+		if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+			urlPathCount++
+			override, err := urlPathToConfigOverride(urlPathCount, path)
+			if err != nil {
+				return nil, err
+			}
+			params.ConfigOverrides = append(params.ConfigOverrides, override...)
+		} else {
+			filePaths = append(filePaths, path)
+		}
+	}
+	params.Paths = filePaths
 
 	config, err := config.Load(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles)
 	if err != nil {
@@ -846,6 +863,25 @@ func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 	}
 
 	return watcher, nil
+}
+
+func urlPathToConfigOverride(pathCount int, path string) ([]string, error) {
+	uri, err := url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+	baseURL := uri.Scheme + "://" + uri.Host
+	urlPath := uri.Path
+	if uri.RawQuery != "" {
+		urlPath += "?" + uri.RawQuery
+	}
+
+	return []string{
+		fmt.Sprintf("services.cli%d.url=%s", pathCount, baseURL),
+		fmt.Sprintf("bundles.cli%d.service=cli%d", pathCount, pathCount),
+		fmt.Sprintf("bundles.cli%d.resource=%s", pathCount, urlPath),
+		fmt.Sprintf("bundles.cli%d.persist=true", pathCount),
+	}, nil
 }
 
 func errorLogger(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {

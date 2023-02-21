@@ -369,6 +369,52 @@ func TestServerInitialized(t *testing.T) {
 	}
 }
 
+func TestUrlPathToConfigOverride(t *testing.T) {
+	params := NewParams()
+	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
+	ctx := context.Background()
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var serviceConf map[string]interface{}
+	if err = json.Unmarshal(rt.Manager.Config.Services, &serviceConf); err != nil {
+		t.Fatal(err)
+	}
+
+	cliService, ok := serviceConf["cli1"].(map[string]interface{})
+	if !ok {
+		t.Fatal("excpected service configuration for 'cli1' service")
+	}
+
+	if cliService["url"] != "https://www.example.com" {
+		t.Error("expected cli1 service url value: 'https://www.example.com'")
+	}
+
+	var bundleConf map[string]interface{}
+	if err = json.Unmarshal(rt.Manager.Config.Bundles, &bundleConf); err != nil {
+		t.Fatal(err)
+	}
+
+	cliBundle, ok := bundleConf["cli1"].(map[string]interface{})
+	if !ok {
+		t.Fatal("excpected bundle configuration for 'cli1' bundle")
+	}
+
+	if cliBundle["service"] != "cli1" {
+		t.Error("expected cli1 bundle service value: 'cli1'")
+	}
+
+	if cliBundle["resource"] != "/bundles/bundle.tar.gz" {
+		t.Error("expected cli1 bundle resource value: 'bundles/bundle.tar.gz'")
+	}
+
+	if cliBundle["persist"] != true {
+		t.Error("expected cli1 bundle persist value: true")
+	}
+}
+
 func getTestServer(update interface{}, statusCode int) (baseURL string, teardownFn func()) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
