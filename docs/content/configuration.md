@@ -190,6 +190,25 @@ Because the entire `0` index was overwritten.
 
 It is highly recommended to use objects/maps instead of lists for configuration for this reason.
 
+##### Remote Bundles Override Shorthand
+
+When running the server to quickly try a remote public bundle — such as those published from the
+[Rego Playground](https://play.openpolicyagent.org), you may find it convenient to provide the URL of the
+bundle directly, rather than via repeated `--set` flags:
+
+```shell
+opa run -s https://example.com/bundles/bundle.tar.gz
+```
+
+The above shorthand command is identical to:
+
+```shell
+opa run -s --set "services.cli1.url=https://example.com" \
+           --set "bundles.cli1.service=cli1" \
+           --set "bundles.cli1.resource=/bundles/bundle.tar.gz" \
+           --set "bundles.cli1.persist=true"
+```
+
 ###### Empty objects
 If you need to set an empty object with the CLI overrides, for example with plugin configuration like:
 
