@@ -76,6 +76,12 @@ distributed_tracing:
   service_name: opa
   sample_percentage: 50
   encryption: "off"
+
+server:
+  encoding:
+    gzip:
+        min_length: 1024,
+        compression_level: 9
 ```
 
 #### Environment Variable Substitution
@@ -925,3 +931,13 @@ with data put into the configured `directory`.
 | `storage.disk.badger` | `string` | No (default: empty) | "Superflags" passed to Badger allowing to modify advanced options. |
 
 See [the docs on disk storage](../misc-disk/) for details about the settings.
+
+### Server
+
+The `server` configuration sets the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
+The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
+
+| Field                                    | Type  | Required            | Description                                                                                                                                                                                                                                  |
+|------------------------------------------|-------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `server.encoding.gzip.min_length`        | `int` | No, (default: 1024) | Specifies the minimum length of the response to compress                                                                                                                                                                                     |
+| `server.encoding.gzip.compression_level` | `int` | No, (default: 9)    | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants |

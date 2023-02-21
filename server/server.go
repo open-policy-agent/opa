@@ -6,6 +6,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -24,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	serverEncodingPlugin "github.com/open-policy-agent/opa/plugins/server/encoding"
+
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -41,6 +44,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
+	"github.com/open-policy-agent/opa/server/handlers"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
@@ -185,6 +189,11 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	// authorizer, if configured, needs the iCache to be set up already
 	s.Handler = s.initHandlerAuth(s.Handler)
+	// compression handler
+	s.Handler, err = s.initHandlerCompression(s.Handler)
+	if err != nil {
+		return nil, err
+	}
 	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	return s, s.store.Commit(ctx, txn)
@@ -656,6 +665,21 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 	}
 
 	return handler
+}
+
+func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
+	var encodingRawConfig json.RawMessage
+	serverConfig := s.manager.Config.Server
+	if serverConfig != nil {
+		encodingRawConfig = serverConfig.Encoding
+	}
+	encodingConfig, err := serverEncodingPlugin.NewConfigBuilder().WithBytes(encodingRawConfig).Parse()
+	if err != nil {
+		return nil, err
+	}
+	compressHandler := handlers.CompressHandler(handler, *encodingConfig.Gzip.MinLength, *encodingConfig.Gzip.CompressionLevel)
+
+	return compressHandler, nil
 }
 
 func (s *Server) initRouters() {
@@ -1243,7 +1267,15 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	request, reqErr := readInputCompilePostV1(r.Body)
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		reqErr := types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body")
+		writer.Error(w, http.StatusBadRequest, reqErr)
+		return
+	}
+
+	request, reqErr := readInputCompilePostV1(body)
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
@@ -2713,10 +2745,16 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 		return ast.InterfaceToValue(parsed)
 	}
 
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not decompress the body: %w", err)
+	}
+
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
-		bs, err := io.ReadAll(r.Body)
+		bs, err := io.ReadAll(body)
 		if err != nil {
 			return nil, err
 		}
@@ -2726,7 +2764,7 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(r.Body)
+		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&x); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2757,11 +2795,17 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 
 	var request types.DataRequestV1
 
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not decompress the body: %w", err)
+	}
+
 	ct := r.Header.Get("Content-Type")
 	// There is no standard for yaml mime-type so we just look for
 	// anything related
 	if strings.Contains(ct, "yaml") {
-		bs, err := io.ReadAll(r.Body)
+		bs, err := io.ReadAll(body)
 		if err != nil {
 			return nil, err
 		}
@@ -2771,7 +2815,7 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(r.Body)
+		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2980,4 +3024,20 @@ func annotateSpan(ctx context.Context, decisionID string) {
 	}
 	trace.SpanFromContext(ctx).
 		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
+}
+
+func readPlainBody(r *http.Request) (io.ReadCloser, error) {
+	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		gzReader, err := gzip.NewReader(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		bytesBody, err := io.ReadAll(gzReader)
+		if err != nil {
+			return nil, err
+		}
+		defer gzReader.Close()
+		return io.NopCloser(bytes.NewReader(bytesBody)), err
+	}
+	return r.Body, nil
 }

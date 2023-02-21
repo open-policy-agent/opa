@@ -196,6 +196,14 @@ func TestActiveConfig(t *testing.T) {
 		"plugins": {
 			"some-plugin": {}
 		},
+		"server": {
+			"encoding": {
+				"gzip": {
+					"min_length": 1024,
+					"compression_level": 1
+				}
+			}
+		},
 		"discovery": {"name": "config"}`
 
 	serviceObj := `"services": {
@@ -248,6 +256,14 @@ func TestActiveConfig(t *testing.T) {
 		},
 		"plugins": {
 			"some-plugin": {}
+		},
+		"server": {
+			"encoding": {
+				"gzip": {
+					"min_length": 1024,
+					"compression_level": 1
+				}
+			}
 		},
 		"default_authorization_decision": "/system/authz/allow",
 		"default_decision": "/system/main",
