@@ -17,6 +17,27 @@ The change to the `package` scope in [#5251](https://github.com/open-policy-agen
 - If using the `package` scope, the `schemas` annotation will be applied to type checking also for rules declared in another file than the annotation declaration, as long as the package is the same.
 - The chain of metadata returned by the `rego.metadata.chain()` built-in function will now contain an entry for the package even if the annotations are declared in another file, if the scope is `package`. 
 
+## 0.49.1
+
+This is a bug fix release addressing the following Golang security issues:
+
+### Golang security fix CVE-2022-41723
+
+> A maliciously crafted HTTP/2 stream could cause excessive CPU consumption in the HPACK decoder, sufficient to cause a
+> denial of service from a small number of small requests.
+
+### Golang security fix CVE-2022-41724
+
+> Large handshake records may cause panics in crypto/tls. Both clients and servers may send large TLS handshake records
+> which cause servers and clients, respectively, to panic when attempting to construct responses.
+
+### Golang security fix CVE-2022-41722
+
+> A path traversal vulnerability exists in filepath.Clean on Windows. On Windows, the filepath.Clean function could
+> transform an invalid path such as "a/../c:/b" into the valid path "c:\b". This transformation of a relative
+> (if invalid) path into an absolute path could enable a directory traversal attack.
+> After fix, the filepath.Clean function transforms this path into the relative (but still invalid) path ".\c:\b".
+
 ## 0.49.0
 
 This release focuses on bugfixes and documentation improvements, as well as a few small performance improvements.
