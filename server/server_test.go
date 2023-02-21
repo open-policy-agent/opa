@@ -7,10 +7,12 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1760,6 +1762,160 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
+	}
+}
+
+func TestDataPostV0CompressedResponse(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import input.example.flag
+allow_request { flag == true }
+`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedEncoding := "gzip"
+
+	// execute the request
+	req := newReqV0(http.MethodPost, "/data/opa/examples/allow_request", "{\"example\": {\"flag\": true}}")
+	req.Header.Set("Accept-Encoding", expectedEncoding)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	// check for content encoding
+	receivedEncodingHeaderValue := f.recorder.Header().Get("Content-Encoding")
+	if receivedEncodingHeaderValue != expectedEncoding {
+		t.Fatalf("Expected Content-Encoding %v but got: %v", expectedEncoding, receivedEncodingHeaderValue)
+	}
+
+	// unzip the response
+	reader := bytes.NewReader(f.recorder.Body.Bytes())
+	gzReader, err := gzip.NewReader(reader)
+	if err != nil {
+		t.Fatalf("Unexpected gzip error: %v", err)
+	}
+	plainOutput, err := io.ReadAll(gzReader)
+	if err != nil {
+		t.Fatalf("Unexpected error on reading the response: %v", err)
+	}
+
+	expected := "true"
+	result := strings.TrimSuffix(string(plainOutput), "\n")
+	if plainOutput == nil || result != expected {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestDataPostV1CompressedResponse(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	err := f.v1(http.MethodPut, "/policies/test", `package test
+default hello := false
+hello {
+	input.message == "world"
+}
+`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedEncoding := "gzip"
+
+	// execute the request
+	req := newReqV1(http.MethodPost, "/data/test", "{\"input\": {\"message\": \"world\"}}")
+	req.Header.Set("Accept-Encoding", expectedEncoding)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	// check for content encoding
+	receivedEncodingHeaderValue := f.recorder.Header().Get("Content-Encoding")
+	if receivedEncodingHeaderValue != expectedEncoding {
+		t.Fatalf("Expected Content-Encoding %v but got: %v", expectedEncoding, receivedEncodingHeaderValue)
+	}
+
+	// unzip and unmarshall the response
+	reader := bytes.NewReader(f.recorder.Body.Bytes())
+	gzReader, err := gzip.NewReader(reader)
+	if err != nil {
+		t.Fatalf("Unexpected gzip error: %v", err)
+	}
+	if err := util.NewJSONDecoder(gzReader).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	var expected interface{}
+	if err := util.UnmarshalJSON([]byte(`{"hello": true}`), &expected); err != nil {
+		panic(err)
+	}
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, *result.Result)
+	}
+}
+
+func TestCompileV1CompressedResponse(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	mod := `package test
+
+	p {
+		input.x = 1
+	}
+
+	q {
+		data.a[i] = input.x
+	}
+
+	default r = true
+
+	r { input.x = 1 }
+
+	custom_func(x) { data.a[i] == x }
+
+	s { custom_func(input.x) }
+	`
+	err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedEncoding := "gzip"
+
+	// execute the request
+	req := newReqV1(http.MethodPost, "/compile", `{"unknowns": ["input"], "query": "data.test.p = true"}`)
+	req.Header.Set("Accept-Encoding", expectedEncoding)
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.CompileResponseV1
+
+	// check for content encoding
+	receivedEncodingHeaderValue := f.recorder.Header().Get("Content-Encoding")
+	if receivedEncodingHeaderValue != expectedEncoding {
+		t.Fatalf("Expected Content-Encoding %v but got: %v", expectedEncoding, receivedEncodingHeaderValue)
+	}
+
+	// unzip and unmarshall the response
+	reader := bytes.NewReader(f.recorder.Body.Bytes())
+	gzReader, err := gzip.NewReader(reader)
+	if err != nil {
+		t.Fatalf("Unexpected gzip error: %v", err)
+	}
+	if err := util.NewJSONDecoder(gzReader).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	var expected interface{}
+	expectedStr := fmt.Sprintf(`{"queries": [%v]}`, string(util.MustMarshalJSON(ast.MustParseBody("input.x = 1"))))
+	if err := util.UnmarshalJSON([]byte(expectedStr), &expected); err != nil {
+		panic(err)
+	}
+
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, *result.Result)
 	}
 }
 

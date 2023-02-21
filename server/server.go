@@ -41,6 +41,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server/authorizer"
+	"github.com/open-policy-agent/opa/server/handlers"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/server/writer"
@@ -185,6 +186,8 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 
 	// authorizer, if configured, needs the iCache to be set up already
 	s.Handler = s.initHandlerAuth(s.Handler)
+	// compression handler
+	s.Handler = s.initHandlerCompression(s.Handler)
 	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
 
 	return s, s.store.Commit(ctx, txn)
@@ -656,6 +659,10 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 	}
 
 	return handler
+}
+
+func (s *Server) initHandlerCompression(handler http.Handler) http.Handler {
+	return handlers.CompressHandler(handler)
 }
 
 func (s *Server) initRouters() {

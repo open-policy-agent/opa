@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
@@ -127,6 +128,13 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// metrics endpoint does so when the client accepts it (e.g. prometheus)
 				fields["resp_body"] = "[compressed payload]"
 
+			case gzipAccepted(r.Header) && (isDataEndpoint(r) || isCompileEndpoint(r)):
+				// data and compile endpoints might compress the response
+				reader := bytes.NewReader(recorder.buf.Bytes())
+				gzReader, _ := gzip.NewReader(reader)
+				plainOutput, _ := io.ReadAll(gzReader)
+				fields["resp_body"] = string(plainOutput)
+
 			default:
 				fields["resp_body"] = recorder.buf.String()
 			}
@@ -154,6 +162,14 @@ func isPprofEndpoint(req *http.Request) bool {
 
 func isMetricsEndpoint(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/metrics")
+}
+
+func isDataEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/v1/data") || strings.HasPrefix(req.URL.Path, "/v0/data")
+}
+
+func isCompileEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/v1/compile")
 }
 
 type recorder struct {

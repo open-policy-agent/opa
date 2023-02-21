@@ -109,8 +109,11 @@ func TestRequestLogging(t *testing.T) {
 		{
 			"/metrics", "*/*", "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.", // rest omitted
 		},
-		{ // accept-encoding does not matter for "our" handlers -- they don't compress
+		{ // the data handler can compress the response
 			"/v1/data", "gzip", "{\"result\":{}}",
+		},
+		{ // the handlers return plain data
+			"/v1/data", "*/*", "{\"result\":{}}",
 		},
 		{ // accept-encoding does not matter for pprof: it's always protobuf
 			"/debug/pprof/cmdline", "*/*", "[binary payload]",
