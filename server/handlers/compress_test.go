@@ -1,25 +1,27 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strconv"
 	"testing"
 )
 
-var contentType = "text/plain; charset=utf-8"
+const (
+	gzipEncoding = "gzip"
+	requestBody  = "Hello World!\n"
+)
 
-func executeRequest(w *httptest.ResponseRecorder, acceptEncoding string) {
+func executeRequest(w *httptest.ResponseRecorder, path string, acceptEncoding string) {
 	CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", strconv.Itoa(9*1024))
-		w.Header().Set("Content-Type", contentType)
-		for i := 0; i < 1024; i++ {
-			io.WriteString(w, "Hello World!\n")
-		}
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, requestBody)
 	})).ServeHTTP(w, &http.Request{
-		URL:    &url.URL{Path: "/v1/data"},
+		URL:    &url.URL{Path: path},
 		Method: "GET",
 		Header: http.Header{
 			"Accept-Encoding": []string{acceptEncoding},
@@ -27,20 +29,62 @@ func executeRequest(w *httptest.ResponseRecorder, acceptEncoding string) {
 	})
 }
 
-func TestCompressHandlerWithGzip(t *testing.T) {
+func TestCompressHandlerWithGzipOnInScopeEndpoints(t *testing.T) {
+	endpoints := []string{"/v0/data", "/v1/data", "/v1/compile"}
+	for _, endpoint := range endpoints {
+		w := httptest.NewRecorder()
+		executeRequest(w, endpoint, gzipEncoding)
+		contentEncodingValue := w.Result().Header.Get("Content-Encoding")
+		if contentEncodingValue != gzipEncoding {
+			t.Errorf("wrong content encoding, got %q want %q", contentEncodingValue, gzipEncoding)
+		}
+		expectedLength := len(zipString(requestBody))
+		receivedLength := w.Body.Len()
+		if receivedLength != expectedLength {
+			t.Errorf("wrong len, got %d want %d", w.Body.Len(), expectedLength)
+		}
+		receivedBody := unzip(w.Body.Bytes())
+		if receivedBody != requestBody {
+			t.Errorf("wrong body, got %v, want %v", receivedBody, requestBody)
+		}
+	}
+}
+
+func TestHandlerOnEndpointsWithoutCompression(t *testing.T) {
 	w := httptest.NewRecorder()
-	executeRequest(w, "gzip")
-	if w.Result().Header.Get("Content-Encoding") != "gzip" {
-		t.Errorf("wrong content encoding, got %q want %q", w.HeaderMap.Get("Content-Encoding"), "gzip")
+	executeRequest(w, "/metrics", gzipEncoding)
+	contentEncodingValue := w.Result().Header.Get("Content-Encoding")
+	if contentEncodingValue != "" {
+		t.Errorf("wrong content encoding, got %q want %q", contentEncodingValue, gzipEncoding)
 	}
-	if w.Result().Header.Get("Content-Type") != "text/plain; charset=utf-8" {
-		t.Errorf("wrong content type, got %s want %s", w.HeaderMap.Get("Content-Type"), "text/plain; charset=utf-8")
+	expectedLength := len(requestBody)
+	receivedLength := w.Body.Len()
+	if receivedLength != expectedLength {
+		t.Errorf("wrong len, got %d want %d", w.Body.Len(), expectedLength)
 	}
-	//expectedLength := len("Hello World!") * 1024
-	//if w.Body.Len() != expectedLength {
-	//	t.Errorf("wrong len, got %d want %d", w.Body.Len(), expectedLength)
-	//}
-	//if l := w.Result().Header.Get("Content-Length"); l != "" {
-	//	t.Errorf("wrong content-length. got %q expected %q", l, "")
-	//}
+}
+
+func zipString(input string) []byte {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write([]byte(input)); err != nil {
+		log.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func unzip(body []byte) string {
+	reader := bytes.NewReader(body)
+	gzReader, err := gzip.NewReader(reader)
+	if err != nil {
+		log.Fatalf("Unexpected gzip error: %v", err)
+	}
+	plainOutput, err := io.ReadAll(gzReader)
+	if err != nil {
+		log.Fatalf("Unexpected gzip error: %v", err)
+	}
+	return string(plainOutput)
 }

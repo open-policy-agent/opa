@@ -74,7 +74,16 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				bs, r.Body, err = readBody(r.Body)
 			}
 			if err == nil {
-				fields["req_body"] = string(bs)
+				if gzipReceived(r.Header) {
+					// the request is compressed
+					reader := bytes.NewReader(bs)
+					gzReader, _ := gzip.NewReader(reader)
+					plainOutput, _ := io.ReadAll(gzReader)
+					defer gzReader.Close()
+					fields["req_body"] = string(plainOutput)
+				} else {
+					fields["req_body"] = string(bs)
+				}
 			} else {
 				fields["err"] = err
 			}
@@ -146,6 +155,18 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func gzipAccepted(header http.Header) bool {
 	a := header.Get("Accept-Encoding")
+	parts := strings.Split(a, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
+			return true
+		}
+	}
+	return false
+}
+
+func gzipReceived(header http.Header) bool {
+	a := header.Get("Content-Encoding")
 	parts := strings.Split(a, ",")
 	for _, part := range parts {
 		part = strings.TrimSpace(part)

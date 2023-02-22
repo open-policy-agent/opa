@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1824,7 +1825,7 @@ hello {
 	expectedEncoding := "gzip"
 
 	// execute the request
-	req := newReqV1(http.MethodPost, "/data/test", "{\"input\": {\"message\": \"world\"}}")
+	req := newReqV1(http.MethodPost, "/data/test", `{"input": {"message": "world"}}`)
 	req.Header.Set("Accept-Encoding", expectedEncoding)
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, req)
@@ -1905,6 +1906,118 @@ func TestCompileV1CompressedResponse(t *testing.T) {
 		t.Fatalf("Unexpected gzip error: %v", err)
 	}
 	if err := util.NewJSONDecoder(gzReader).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	var expected interface{}
+	expectedStr := fmt.Sprintf(`{"queries": [%v]}`, string(util.MustMarshalJSON(ast.MustParseBody("input.x = 1"))))
+	if err := util.UnmarshalJSON([]byte(expectedStr), &expected); err != nil {
+		panic(err)
+	}
+
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, *result.Result)
+	}
+}
+
+func TestDataPostV0CompressedRequest(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import input.example.flag
+allow_request { flag == true }
+`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// execute the request
+	compressedBoy := zipString(`{"example": {"flag": true}}`)
+	req := newStreamedReqV0(http.MethodPost, "/data/opa/examples/allow_request", bytes.NewReader(compressedBoy))
+	req.Header.Set("Content-Encoding", "gzip")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	expected := "true"
+	result := strings.TrimSuffix(string(f.recorder.Body.Bytes()), "\n")
+	if result != expected {
+		t.Fatalf("Expected %v but got: %v", expected, result)
+	}
+}
+
+func TestDataPostV1CompressedRequest(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	err := f.v1(http.MethodPut, "/policies/test", `package test
+default hello := false
+hello {
+	input.message == "world"
+}
+`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// execute the request
+	compressedBoy := zipString(`{"input": {"message": "world"}}`)
+	req := newStreamedReqV1(http.MethodPost, "/data/test", bytes.NewReader(compressedBoy))
+	req.Header.Set("Content-Encoding", "gzip")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	// unmarshall the response
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	var expected interface{}
+	if err := util.UnmarshalJSON([]byte(`{"hello": true}`), &expected); err != nil {
+		panic(err)
+	}
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, *result.Result)
+	}
+}
+
+func TestCompileV1CompressedRequest(t *testing.T) {
+	f := newFixture(t)
+	// create the policy
+	mod := `package test
+
+	p {
+		input.x = 1
+	}
+
+	q {
+		data.a[i] = input.x
+	}
+
+	default r = true
+
+	r { input.x = 1 }
+
+	custom_func(x) { data.a[i] == x }
+
+	s { custom_func(input.x) }
+	`
+	err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// execute the request
+	compressedBoy := zipString(`{"unknowns": ["input"], "query": "data.test.p = true"}`)
+	req := newStreamedReqV1(http.MethodPost, "/compile", bytes.NewReader(compressedBoy))
+	req.Header.Set("Content-Encoding", "gzip")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.CompileResponseV1
+
+	// unmarshall the response
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
 		t.Fatalf("Unexpected JSON decode error: %v", err)
 	}
 
@@ -4253,6 +4366,26 @@ func newReqUnversioned(method, path, body string) *http.Request {
 	return req
 }
 
+func newStreamedReqV0(method string, path string, body io.Reader) *http.Request {
+	return newStreamedReq(0, method, path, body)
+}
+
+func newStreamedReqV1(method string, path string, body io.Reader) *http.Request {
+	return newStreamedReq(1, method, path, body)
+}
+
+func newStreamedReq(version int, method string, path string, body io.Reader) *http.Request {
+	return newStreamedReqUnversioned(method, fmt.Sprintf("/v%d", version)+path, body)
+}
+
+func newStreamedReqUnversioned(method string, path string, body io.Reader) *http.Request {
+	req, err := http.NewRequest(method, path, body)
+	if err != nil {
+		panic(err)
+	}
+	return req
+}
+
 func mustUnmarshalTrace(t types.TraceV1) (trace types.TraceV1Raw) {
 	if err := json.Unmarshal(t, &trace); err != nil {
 		panic("not reached")
@@ -4633,4 +4766,16 @@ func (m mockHTTPListener) Shutdown(context.Context) error {
 
 func (m mockHTTPListener) Type() httpListenerType {
 	return m.t
+}
+
+func zipString(input string) []byte {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write([]byte(input)); err != nil {
+		log.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return b.Bytes()
 }

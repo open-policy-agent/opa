@@ -6,6 +6,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -1250,7 +1251,15 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.ServerHandler).Start()
 	m.Timer(metrics.RegoQueryParse).Start()
 
-	request, reqErr := readInputCompilePostV1(r.Body)
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		reqErr := types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body")
+		writer.Error(w, http.StatusBadRequest, reqErr)
+		return
+	}
+
+	request, reqErr := readInputCompilePostV1(body)
 	if reqErr != nil {
 		writer.Error(w, http.StatusBadRequest, reqErr)
 		return
@@ -2720,10 +2729,16 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 		return ast.InterfaceToValue(parsed)
 	}
 
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not decompress the body: %w", err)
+	}
+
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
-		bs, err := io.ReadAll(r.Body)
+		bs, err := io.ReadAll(body)
 		if err != nil {
 			return nil, err
 		}
@@ -2733,7 +2748,7 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(r.Body)
+		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&x); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2764,11 +2779,17 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 
 	var request types.DataRequestV1
 
+	// decompress the input if sent as zip
+	body, err := readPlainBody(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not decompress the body: %w", err)
+	}
+
 	ct := r.Header.Get("Content-Type")
 	// There is no standard for yaml mime-type so we just look for
 	// anything related
 	if strings.Contains(ct, "yaml") {
-		bs, err := io.ReadAll(r.Body)
+		bs, err := io.ReadAll(body)
 		if err != nil {
 			return nil, err
 		}
@@ -2778,7 +2799,7 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(r.Body)
+		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2987,4 +3008,13 @@ func annotateSpan(ctx context.Context, decisionID string) {
 	}
 	trace.SpanFromContext(ctx).
 		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
+}
+
+func readPlainBody(r *http.Request) (io.ReadCloser, error) {
+	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		plainBody, err := gzip.NewReader(r.Body)
+		defer plainBody.Close()
+		return plainBody, err
+	}
+	return r.Body, nil
 }
