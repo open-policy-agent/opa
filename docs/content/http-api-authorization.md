@@ -63,6 +63,7 @@ allow {
 
 ```shell
 opa build example.rego
+cd ..
 ```
 
 You should now see a policy bundle (`bundle.tar.gz`) in your working directory (`./bundles/bundle.tar.gz`).
