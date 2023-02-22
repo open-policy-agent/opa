@@ -2,7 +2,6 @@ title = "Open Policy Agent"
 baseURL = "https://openpolicyagent.org"
 languageCode = "en"
 disableKinds = ["taxonomy", "taxonomyTerm"]
-googleAnalytics = "UA-84550302-1"
 
 pygmentsCodeFences = true
 pygmentsUseClasses = false
@@ -37,7 +36,7 @@ navbar = "/img/logos/opa-icon-white.png"
 
 [params.ui]
 [params.ui.feedback]
-# Requires googleAnalytics to be set to track feedback events
+# Requires Google Analytics to be enabled for the site.
 # Set hide_feedback: true in a page's front matter to disable feedback for that page
 enable = true
 
