@@ -8,6 +8,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ### Runtime
 
 - ast: Annotations scoped to package carries across module ([#5251](https://github.com/open-policy-agent/opa/issues/5251)).
+- ast: strict check of unused vars is extended to include arguments ([#5602](https://github.com/open-policy-agent/opa/issues/5602))
 
 ### Breaking changes
 
@@ -16,6 +17,8 @@ The change to the `package` scope in [#5251](https://github.com/open-policy-agen
 - Existing projects with the same package declared in multiple files will trigger a `rego_type_error: package annotation redeclared` error _if_ two or more of these are annotated with the `package` scope.
 - If using the `package` scope, the `schemas` annotation will be applied to type checking also for rules declared in another file than the annotation declaration, as long as the package is the same.
 - The chain of metadata returned by the `rego.metadata.chain()` built-in function will now contain an entry for the package even if the annotations are declared in another file, if the scope is `package`. 
+
+Another change in [#5602](https://github.com/open-policy-agent/opa/issues/5251) may cause compile-time errors for policies that have unused arguments in the scope when the strict mode is enabled. These variables could be replaced with `_` (wildcard) or get cleaned up if they are not intended to be used in the body of the functions.
 
 ## 0.49.1
 
