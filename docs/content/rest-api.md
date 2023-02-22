@@ -820,6 +820,8 @@ The request body contains an object that specifies a value for [The input Docume
 #### Request Headers
 
 - **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body
 
 #### Query Parameters
 
@@ -939,6 +941,8 @@ array documents.
 #### Request Headers
 
 - **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body
 
 #### Query Parameters
 
@@ -1289,6 +1293,11 @@ Compile API requests contain the following fields:
 | `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
 | `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation. Only `disableInlining` option is supported. (default: undefined). |
 | `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
+
+### Request Headers
+
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body
 
 #### Query Parameters
 
