@@ -54,7 +54,7 @@ allow {
 allow {
     some username
     input.method == "GET"
-    input.path = ["finance", "salary", username]
+    input.path == ["finance", "salary", username]
     subordinates[input.user][_] == username
 }
 ```
@@ -212,7 +212,7 @@ package httpapi.authz
 # Allow HR members to get anyone's salary.
 allow {
     input.method == "GET"
-    input.path = ["finance", "salary", _]
+    input.path == ["finance", "salary", _]
     input.user == hr[_]
 }
 
@@ -262,7 +262,7 @@ default allow := false
 allow {
     some username
     input.method == "GET"
-    input.path = ["finance", "salary", username]
+    input.path == ["finance", "salary", username]
     token.payload.user == username
     user_owns_token
 }
@@ -271,7 +271,7 @@ allow {
 allow {
     some username
     input.method == "GET"
-    input.path = ["finance", "salary", username]
+    input.path == ["finance", "salary", username]
     token.payload.subordinates[_] == username
     user_owns_token
 }
@@ -279,7 +279,7 @@ allow {
 # Allow HR members to get anyone's salary.
 allow {
     input.method == "GET"
-    input.path = ["finance", "salary", _]
+    input.path == ["finance", "salary", _]
     token.payload.hr == true
     user_owns_token
 }
