@@ -356,7 +356,7 @@ func TestPluginOneShotDiskStorageMetrics(t *testing.T) {
 	})
 }
 
-func TestPluginBundleETag(t *testing.T) {
+func TestPluginBundleETagPersistenceDir(t *testing.T) {
 	var err error
 
 	persistenceDir, err := os.MkdirTemp("", "bundle-plugin-test")
@@ -2984,6 +2984,127 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 		if val != "foo" {
 			t.Fatalf("Expected etag foo but got %v", val)
+		}
+	})
+}
+
+func TestPluginReadBundleEtagFromPersistenceDir(t *testing.T) {
+
+	var notModifiedCount int
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		etag := r.Header.Get("If-None-Match")
+		if etag == "foo" {
+			notModifiedCount++
+			w.WriteHeader(304)
+			return
+		}
+
+		t.Fatalf("unexpected request to server")
+	}))
+
+	test.WithTempFS(nil, func(dir string) {
+		ctx := context.Background()
+
+		store, err := disk.New(ctx, logging.NewNoOpLogger(), nil, disk.Options{
+			Dir: dir,
+			Partitions: []storage.Path{
+				storage.MustParsePath("/foo"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// create a persistence directory with some state from a previous run
+		persistenceDir, err := os.MkdirTemp("", "bundle-plugin-test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		//defer os.RemoveAll(persistenceDir)
+		persistenceDirName := persistenceDir
+		fmt.Println(persistenceDirName)
+
+		err = os.MkdirAll(path.Join(persistenceDir, "bundles", "test"), 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := bundle.Bundle{
+			Data: map[string]interface{}{
+				"key": "value",
+			},
+			Etag: "foo",
+		}
+
+		file, err := os.OpenFile(path.Join(persistenceDir, "bundles", "test", "bundle.tar.gz"), os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = bundle.NewWriter(file).Write(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = os.WriteFile(path.Join(persistenceDir, "bundles", "test", "manifest.json"), []byte(`{"etag": "foo"}`), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// setup plugin pointing at fake server
+		manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		"services": {
+				"default": {
+					"url": %q
+				}
+			}
+		}`, s.URL)), store)
+		manager.Config.PersistenceDirectory = &persistenceDirName
+
+		var mode plugins.TriggerMode = "manual"
+
+		plugin := New(&Config{
+			Bundles: map[string]*Source{
+				"test": {
+					Service:        "default",
+					Resource:       "bundle.tar.gz",
+					SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+					Config:         download.Config{Trigger: &mode},
+					Persist:        true,
+				},
+			},
+		}, manager)
+
+		statusCh := make(chan map[string]*Status)
+
+		// register for bundle updates to observe changes and start the plugin
+		plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+			statusCh <- st
+		})
+
+		err = plugin.Start(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		val, ok := plugin.etags["test"]
+		if !ok {
+			t.Fatal("Expected etag entry for bundle \"test\"")
+		}
+
+		if val != "foo" {
+			t.Fatalf("Expected etag foo but got %v", val)
+		}
+
+		// manually trigger bundle download
+		go func() {
+			_ = plugin.Loaders()["test"].Trigger(ctx)
+		}()
+
+		<-statusCh
+
+		if notModifiedCount != 1 {
+			t.Fatalf("Expected one bundle response with HTTP status 304 but got %v", notModifiedCount)
 		}
 	})
 }
