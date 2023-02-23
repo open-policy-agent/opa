@@ -6,7 +6,6 @@ package bundle
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/resolver/wasm"
 	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/util"
 )
 
 // LoadWasmResolversFromStore will lookup all Wasm modules from the store along with the
@@ -118,15 +118,9 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 			}
 			defer f.Close()
 
-			manifestBytes, err := io.ReadAll(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read manifest file: %w", err)
-			}
-
 			var d map[string]interface{}
-			err = json.Unmarshal(manifestBytes, &d)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal manifest file: %w", err)
+			if err := util.NewJSONDecoder(f).Decode(&d); err != nil && err != io.EOF {
+				return nil, fmt.Errorf("failed to decode manifest file: %w", err)
 			}
 
 			b.Etag, _ = d["etag"].(string)
