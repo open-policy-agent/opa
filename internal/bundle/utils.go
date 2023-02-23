@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -90,6 +91,7 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
 	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
+	manifestPath := filepath.Join(path, name, "manifest.json")
 
 	if _, err := os.Stat(bundlePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePath))
@@ -108,6 +110,28 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 		if err != nil {
 			return nil, err
 		}
+
+		if _, err := os.Stat(manifestPath); err == nil {
+			f, err := os.Open(filepath.Join(manifestPath))
+			if err != nil {
+				return nil, fmt.Errorf("failed to open manifest file: %w", err)
+			}
+			defer f.Close()
+
+			manifestBytes, err := io.ReadAll(f)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read manifest file: %w", err)
+			}
+
+			var d map[string]interface{}
+			err = json.Unmarshal(manifestBytes, &d)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal manifest file: %w", err)
+			}
+
+			b.Etag, _ = d["etag"].(string)
+		}
+
 		return &b, nil
 	} else if os.IsNotExist(err) {
 		return nil, nil
