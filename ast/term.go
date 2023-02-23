@@ -294,7 +294,7 @@ type Term struct {
 	Value    Value     `json:"value"`              // the value of the Term as represented in Go
 	Location *Location `json:"location,omitempty"` // the location of the Term in the source
 
-	jsonFields map[string]bool
+	jsonOptions JSONOptions
 }
 
 // NewTerm returns a new Term object.
@@ -419,8 +419,8 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
-func (term *Term) exposeJSONFields(fields map[string]bool) {
-	term.jsonFields = fields
+func (term *Term) setJSONOptions(opts JSONOptions) {
+	term.jsonOptions = opts
 }
 
 // MarshalJSON returns the JSON encoding of the term.
@@ -431,7 +431,7 @@ func (term *Term) MarshalJSON() ([]byte, error) {
 		"type":  TypeName(term.Value),
 		"value": term.Value,
 	}
-	if showLocation, ok := term.jsonFields["location"]; ok && showLocation {
+	if term.jsonOptions.MarshalOptions.IncludeLocation.Term {
 		if term.Location != nil {
 			d["location"] = term.Location
 		}

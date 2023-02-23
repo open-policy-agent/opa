@@ -153,7 +153,7 @@ type (
 		Text     []byte
 		Location *Location
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// Package represents the namespace of the documents produced
@@ -162,7 +162,7 @@ type (
 		Path     Ref       `json:"path"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// Import represents a dependency on a document outside of the policy
@@ -172,7 +172,7 @@ type (
 		Alias    Var       `json:"alias,omitempty"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
@@ -190,7 +190,7 @@ type (
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// Head represents the head of a rule.
@@ -203,7 +203,7 @@ type (
 		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// Args represents zero or more arguments to a rule.
@@ -222,7 +222,7 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Location  *Location   `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
@@ -230,7 +230,7 @@ type (
 		Symbols  []*Term   `json:"symbols"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	Every struct {
@@ -240,7 +240,7 @@ type (
 		Body     Body      `json:"body"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 
 	// With represents a modifier on an expression.
@@ -249,7 +249,7 @@ type (
 		Value    *Term     `json:"value"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 	}
 )
 
@@ -428,9 +428,10 @@ func (c *Comment) Equal(other *Comment) bool {
 	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
 }
 
-func (c *Comment) exposeJSONFields(fields map[string]bool) {
-	// Note: this is not used for location since Comments have legacy JSON marshaling behavior
-	c.jsonFields = fields
+func (c *Comment) setJSONOptions(opts JSONOptions) {
+	// Note: this is not used for location since Comments use default JSON marshaling
+	// behavior with struct field names in JSON.
+	c.jsonOptions = opts
 }
 
 // Compare returns an integer indicating whether pkg is less than, equal to,
@@ -477,8 +478,8 @@ func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", path)
 }
 
-func (pkg *Package) exposeJSONFields(fields map[string]bool) {
-	pkg.jsonFields = fields
+func (pkg *Package) setJSONOptions(opts JSONOptions) {
+	pkg.jsonOptions = opts
 }
 
 func (pkg *Package) MarshalJSON() ([]byte, error) {
@@ -486,7 +487,7 @@ func (pkg *Package) MarshalJSON() ([]byte, error) {
 		"path": pkg.Path,
 	}
 
-	if showLocation, ok := pkg.jsonFields["location"]; ok && showLocation {
+	if pkg.jsonOptions.MarshalOptions.IncludeLocation.Package {
 		if pkg.Location != nil {
 			data["location"] = pkg.Location
 		}
@@ -587,8 +588,8 @@ func (imp *Import) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (imp *Import) exposeJSONFields(fields map[string]bool) {
-	imp.jsonFields = fields
+func (imp *Import) setJSONOptions(opts JSONOptions) {
+	imp.jsonOptions = opts
 }
 
 func (imp *Import) MarshalJSON() ([]byte, error) {
@@ -600,7 +601,7 @@ func (imp *Import) MarshalJSON() ([]byte, error) {
 		data["alias"] = imp.Alias
 	}
 
-	if showLocation, ok := imp.jsonFields["location"]; ok && showLocation {
+	if imp.jsonOptions.MarshalOptions.IncludeLocation.Import {
 		if imp.Location != nil {
 			data["location"] = imp.Location
 		}
@@ -698,8 +699,8 @@ func (rule *Rule) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (rule *Rule) exposeJSONFields(fields map[string]bool) {
-	rule.jsonFields = fields
+func (rule *Rule) setJSONOptions(opts JSONOptions) {
+	rule.jsonOptions = opts
 }
 
 func (rule *Rule) MarshalJSON() ([]byte, error) {
@@ -716,7 +717,7 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 		data["else"] = rule.Else
 	}
 
-	if showLocation, ok := rule.jsonFields["location"]; ok && showLocation {
+	if rule.jsonOptions.MarshalOptions.IncludeLocation.Rule {
 		if rule.Location != nil {
 			data["location"] = rule.Location
 		}
@@ -914,13 +915,13 @@ func (head *Head) String() string {
 	return buf.String()
 }
 
-func (head *Head) exposeJSONFields(fields map[string]bool) {
-	head.jsonFields = fields
+func (head *Head) setJSONOptions(opts JSONOptions) {
+	head.jsonOptions = opts
 }
 
 func (head *Head) MarshalJSON() ([]byte, error) {
 	var loc *Location
-	if showLocation, ok := head.jsonFields["location"]; ok && showLocation {
+	if head.jsonOptions.MarshalOptions.IncludeLocation.Head {
 		if head.Location != nil {
 			loc = head.Location
 		}
@@ -1458,8 +1459,8 @@ func (expr *Expr) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (expr *Expr) exposeJSONFields(fields map[string]bool) {
-	expr.jsonFields = fields
+func (expr *Expr) setJSONOptions(opts JSONOptions) {
+	expr.jsonOptions = opts
 }
 
 func (expr *Expr) MarshalJSON() ([]byte, error) {
@@ -1480,7 +1481,7 @@ func (expr *Expr) MarshalJSON() ([]byte, error) {
 		data["negated"] = true
 	}
 
-	if showLocation, ok := expr.jsonFields["location"]; ok && showLocation {
+	if expr.jsonOptions.MarshalOptions.IncludeLocation.Expr {
 		if expr.Location != nil {
 			data["location"] = expr.Location
 		}
@@ -1554,8 +1555,8 @@ func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
 }
 
-func (d *SomeDecl) exposeJSONFields(fields map[string]bool) {
-	d.jsonFields = fields
+func (d *SomeDecl) setJSONOptions(opts JSONOptions) {
+	d.jsonOptions = opts
 }
 
 func (d *SomeDecl) MarshalJSON() ([]byte, error) {
@@ -1563,7 +1564,7 @@ func (d *SomeDecl) MarshalJSON() ([]byte, error) {
 		"symbols": d.Symbols,
 	}
 
-	if showLocation, ok := d.jsonFields["location"]; ok && showLocation {
+	if d.jsonOptions.MarshalOptions.IncludeLocation.SomeDecl {
 		if d.Location != nil {
 			data["location"] = d.Location
 		}
@@ -1628,8 +1629,8 @@ func (q *Every) KeyValueVars() VarSet {
 	return vis.vars
 }
 
-func (q *Every) exposeJSONFields(fields map[string]bool) {
-	q.jsonFields = fields
+func (q *Every) setJSONOptions(opts JSONOptions) {
+	q.jsonOptions = opts
 }
 
 func (q *Every) MarshalJSON() ([]byte, error) {
@@ -1640,7 +1641,7 @@ func (q *Every) MarshalJSON() ([]byte, error) {
 		"body":   q.Body,
 	}
 
-	if showLocation, ok := q.jsonFields["location"]; ok && showLocation {
+	if q.jsonOptions.MarshalOptions.IncludeLocation.Every {
 		if q.Location != nil {
 			data["location"] = q.Location
 		}
@@ -1707,8 +1708,8 @@ func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
 }
 
-func (w *With) exposeJSONFields(fields map[string]bool) {
-	w.jsonFields = fields
+func (w *With) setJSONOptions(opts JSONOptions) {
+	w.jsonOptions = opts
 }
 
 func (w *With) MarshalJSON() ([]byte, error) {
@@ -1717,7 +1718,7 @@ func (w *With) MarshalJSON() ([]byte, error) {
 		"value":  w.Value,
 	}
 
-	if showLocation, ok := w.jsonFields["location"]; ok && showLocation {
+	if w.jsonOptions.MarshalOptions.IncludeLocation.With {
 		if w.Location != nil {
 			data["location"] = w.Location
 		}

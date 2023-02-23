@@ -37,9 +37,9 @@ type (
 		Custom           map[string]interface{}       `json:"custom,omitempty"`
 		Location         *Location                    `json:"location,omitempty"`
 
-		comments   []*Comment
-		node       Node
-		jsonFields map[string]bool
+		comments    []*Comment
+		node        Node
+		jsonOptions JSONOptions
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -76,7 +76,7 @@ type (
 		Annotations *Annotations `json:"annotations,omitempty"`
 		Location    *Location    `json:"location,omitempty"` // The location of the node the annotations are applied to
 
-		jsonFields map[string]bool
+		jsonOptions JSONOptions
 
 		node Node // The node the annotations are applied to
 	}
@@ -180,8 +180,8 @@ func (a *Annotations) GetTargetPath() Ref {
 	}
 }
 
-func (a *Annotations) exposeJSONFields(jsonFields map[string]bool) {
-	a.jsonFields = jsonFields
+func (a *Annotations) setJSONOptions(opts JSONOptions) {
+	a.jsonOptions = opts
 }
 
 func (a *Annotations) MarshalJSON() ([]byte, error) {
@@ -225,7 +225,7 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		data["custom"] = a.Custom
 	}
 
-	if showLocation, ok := a.jsonFields["location"]; ok && showLocation {
+	if a.jsonOptions.MarshalOptions.IncludeLocation.Annotations {
 		if a.Location != nil {
 			data["location"] = a.Location
 		}
@@ -277,7 +277,7 @@ func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
 		data["annotations"] = ar.Annotations
 	}
 
-	if showLocation, ok := ar.jsonFields["location"]; ok && showLocation {
+	if ar.jsonOptions.MarshalOptions.IncludeLocation.AnnotationsRef {
 		if ar.Location != nil {
 			data["location"] = ar.Location
 		}

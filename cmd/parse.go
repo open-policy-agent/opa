@@ -68,12 +68,29 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 		}
 	}
 
-	result, err := loader.RegoWithOpts(args[0], ast.ParserOptions{
-		ProcessAnnotation: true,
-		JSONFields: map[string]bool{
-			"location": exposeLocation,
-		},
-	})
+	parserOpts := ast.ParserOptions{ProcessAnnotation: true}
+	if exposeLocation {
+		parserOpts.JSONOptions = &ast.JSONOptions{
+			MarshalOptions: ast.JSONMarshalOptions{
+				IncludeLocation: ast.NodeToggle{
+					Term:           true,
+					Package:        true,
+					Comment:        true,
+					Import:         true,
+					Rule:           true,
+					Head:           true,
+					Expr:           true,
+					SomeDecl:       true,
+					Every:          true,
+					With:           true,
+					Annotations:    true,
+					AnnotationsRef: true,
+				},
+			},
+		}
+	}
+
+	result, err := loader.RegoWithOpts(args[0], parserOpts)
 	if err != nil {
 		_ = pr.JSON(stderr, pr.Output{Errors: pr.NewOutputErrors(err)})
 		return 1

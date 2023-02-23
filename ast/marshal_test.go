@@ -29,8 +29,12 @@ func TestTerm_MarshalJSON(t *testing.T) {
 				return &Term{
 					Value:    v,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonFields: map[string]bool{
-						"location": false,
+					jsonOptions: JSONOptions{
+						MarshalOptions: JSONMarshalOptions{
+							IncludeLocation: NodeToggle{
+								Term: false,
+							},
+						},
 					},
 				}
 			}(),
@@ -42,8 +46,12 @@ func TestTerm_MarshalJSON(t *testing.T) {
 				return &Term{
 					Value:    v,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonFields: map[string]bool{
-						"location": true,
+					jsonOptions: JSONOptions{
+						MarshalOptions: JSONMarshalOptions{
+							IncludeLocation: NodeToggle{
+								Term: true,
+							},
+						},
 					},
 				}
 			}(),
@@ -125,8 +133,12 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			Package: &Package{
 				Path:     EmptyRef(),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{
-					"location": false,
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Package: false,
+						},
+					},
 				},
 			},
 			ExpectedJSON: `{"path":[]}`,
@@ -135,8 +147,12 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			Package: &Package{
 				Path:     EmptyRef(),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{
-					"location": true,
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Package: true,
+						},
+					},
 				},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"path":[]}`,
@@ -213,8 +229,12 @@ func TestComment_MarshalJSON(t *testing.T) {
 			Comment: &Comment{
 				Text:     []byte("comment"),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{
-					"location": false, // ignored
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Comment: false, // ignored
+						},
+					},
 				},
 			},
 			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
@@ -223,8 +243,12 @@ func TestComment_MarshalJSON(t *testing.T) {
 			Comment: &Comment{
 				Text:     []byte("comment"),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{
-					"location": true, // ignored
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Comment: true, // ignored
+						},
+					},
 				},
 			},
 			ExpectedJSON: `{"Text":"Y29tbWVudA==","Location":{"file":"example.rego","row":1,"col":2}}`,
@@ -322,8 +346,12 @@ func TestImport_MarshalJSON(t *testing.T) {
 				return &Import{
 					Path:     &term,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonFields: map[string]bool{
-						"location": false,
+					jsonOptions: JSONOptions{
+						MarshalOptions: JSONMarshalOptions{
+							IncludeLocation: NodeToggle{
+								Import: false,
+							},
+						},
 					},
 				}
 			}(),
@@ -339,8 +367,12 @@ func TestImport_MarshalJSON(t *testing.T) {
 				return &Import{
 					Path:     &term,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonFields: map[string]bool{
-						"location": true,
+					jsonOptions: JSONOptions{
+						MarshalOptions: JSONMarshalOptions{
+							IncludeLocation: NodeToggle{
+								Import: true,
+							},
+						},
 					},
 				}
 			}(),
@@ -439,8 +471,12 @@ func TestRule_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Rule: func() *Rule {
 				r := rule.Copy()
-				r.jsonFields = map[string]bool{
-					"location": false,
+				r.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Rule: false,
+						},
+					},
 				}
 				return r
 			}(),
@@ -449,8 +485,12 @@ func TestRule_MarshalJSON(t *testing.T) {
 		"location included": {
 			Rule: func() *Rule {
 				r := rule.Copy()
-				r.jsonFields = map[string]bool{
-					"location": true,
+				r.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Rule: true,
+						},
+					},
 				}
 				return r
 			}(),
@@ -554,9 +594,14 @@ func TestHead_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Head: func() *Head {
 				h := head.Copy()
-				h.jsonFields = map[string]bool{
-					"location": false,
+				h.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Head: false,
+						},
+					},
 				}
+
 				return h
 			}(),
 			ExpectedJSON: `{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]}`,
@@ -564,8 +609,12 @@ func TestHead_MarshalJSON(t *testing.T) {
 		"location included": {
 			Head: func() *Head {
 				h := head.Copy()
-				h.jsonFields = map[string]bool{
-					"location": true,
+				h.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Head: true,
+						},
+					},
 				}
 				return h
 			}(),
@@ -669,9 +718,14 @@ func TestExpr_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Expr: func() *Expr {
 				e := expr.Copy()
-				e.jsonFields = map[string]bool{
-					"location": false,
+				e.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Expr: false,
+						},
+					},
 				}
+
 				return e
 			}(),
 			ExpectedJSON: `{"index":0,"terms":{"type":"boolean","value":true}}`,
@@ -679,8 +733,12 @@ func TestExpr_MarshalJSON(t *testing.T) {
 		"location included": {
 			Expr: func() *Expr {
 				e := expr.Copy()
-				e.jsonFields = map[string]bool{
-					"location": true,
+				e.jsonOptions = JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Expr: true,
+						},
+					},
 				}
 				return e
 			}(),
@@ -777,17 +835,17 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 		},
 		"location excluded": {
 			SomeDecl: &SomeDecl{
-				Symbols:    []*Term{term},
-				Location:   NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{"location": false},
+				Symbols:     []*Term{term},
+				Location:    NewLocation([]byte{}, "example.rego", 1, 2),
+				jsonOptions: JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{SomeDecl: false}}},
 			},
 			ExpectedJSON: `{"symbols":[{"type":"string","value":"example"}]}`,
 		},
 		"location included": {
 			SomeDecl: &SomeDecl{
-				Symbols:    []*Term{term},
-				Location:   NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonFields: map[string]bool{"location": true},
+				Symbols:     []*Term{term},
+				Location:    NewLocation([]byte{}, "example.rego", 1, 2),
+				jsonOptions: JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{SomeDecl: true}}},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"symbols":[{"type":"string","value":"example"}]}`,
 		},
@@ -888,7 +946,7 @@ allow {
 		"location excluded": {
 			Every: func() *Every {
 				e := every.Copy()
-				e.jsonFields = map[string]bool{"location": false}
+				e.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{Every: false}}}
 				return e
 			}(),
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"value":{"type":"var","value":"e"}}`,
@@ -896,7 +954,7 @@ allow {
 		"location included": {
 			Every: func() *Every {
 				e := every.Copy()
-				e.jsonFields = map[string]bool{"location": true}
+				e.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{Every: true}}}
 				return e
 			}(),
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"location":{"file":"example.rego","row":7,"col":2},"value":{"type":"var","value":"e"}}`,
@@ -1013,7 +1071,7 @@ b {
 		"location excluded": {
 			With: func() *With {
 				w := with.Copy()
-				w.jsonFields = map[string]bool{"location": false}
+				w.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{With: false}}}
 				return w
 			}(),
 			ExpectedJSON: `{"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
@@ -1021,7 +1079,7 @@ b {
 		"location included": {
 			With: func() *With {
 				w := with.Copy()
-				w.jsonFields = map[string]bool{"location": true}
+				w.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{With: true}}}
 				return w
 			}(),
 			ExpectedJSON: `{"location":{"file":"example.rego","row":7,"col":4},"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
@@ -1136,7 +1194,11 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonFields: map[string]bool{"location": false},
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{Annotations: false},
+					},
+				},
 			},
 			ExpectedJSON: `{"custom":{"foo":"bar"},"description":"My desc","entrypoint":true,"organizations":["org1"],"scope":"rule","title":"My rule"}`,
 		},
@@ -1152,7 +1214,11 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonFields: map[string]bool{"location": true},
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{Annotations: true},
+					},
+				},
 			},
 			ExpectedJSON: `{"custom":{"foo":"bar"},"description":"My desc","entrypoint":true,"location":{"file":"example.rego","row":1,"col":4},"organizations":["org1"],"scope":"rule","title":"My rule"}`,
 		},
@@ -1247,8 +1313,11 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 				Path:        []*Term{},
 				Annotations: &Annotations{},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 4),
-
-				jsonFields: map[string]bool{"location": false},
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{AnnotationsRef: false},
+					},
+				},
 			},
 			ExpectedJSON: `{"annotations":{"scope":""},"path":[]}`,
 		},
@@ -1258,7 +1327,11 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 				Annotations: &Annotations{},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonFields: map[string]bool{"location": true},
+				jsonOptions: JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{AnnotationsRef: true},
+					},
+				},
 			},
 			ExpectedJSON: `{"annotations":{"scope":""},"location":{"file":"example.rego","row":1,"col":4},"path":[]}`,
 		},

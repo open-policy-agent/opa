@@ -594,7 +594,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		WithAllFutureKeywords(popts.AllFutureKeywords).
 		WithCapabilities(popts.Capabilities).
 		WithSkipRules(popts.SkipRules).
-		WithJSONFields(popts.JSONFields).
+		WithJSONOptions(popts.JSONOptions).
 		withUnreleasedKeywords(popts.unreleasedKeywords)
 
 	stmts, comments, errs := parser.Parse()
