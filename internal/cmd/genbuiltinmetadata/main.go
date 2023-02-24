@@ -151,19 +151,22 @@ func sortedCaps() []versionedCaps {
 }
 
 func builtinCategories(b *ast.Builtin) []string {
+	if b.IsDeprecated() {
+		return nil
+	}
 	if len(b.Categories) > 0 {
 		return b.Categories
 	}
 	if s := strings.Split(b.Name, "."); len(s) > 1 {
 		return []string{s[0]}
 	}
-	if !b.IsDeprecated() {
-		switch b.Name {
-		case "assign", "eq", "print":
-			// Do nothing.
-		default:
-			log.Printf("WARN: not categorized: %s", b.Name)
-		}
+
+	switch b.Name {
+	case "assign", "eq", "print":
+		// Do nothing.
+	default:
+		log.Printf("WARN: not categorized: %s", b.Name)
 	}
+
 	return nil
 }
