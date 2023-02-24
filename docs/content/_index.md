@@ -385,7 +385,7 @@ At some point in the future, the keyword will become _standard_, and the import 
 become a no-op that can safely be removed. This should give all users ample time to
 update their policies, so that the new keyword will not cause clashes with existing
 variable names.
-[See the docs on _future keywords_](#future-keywords) for more information.
+[See the docs on _future keywords_](./policy-language/#future-keywords) for more information.
 {{< /info >}}
 
 ##### FOR SOME (`some`)

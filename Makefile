@@ -17,9 +17,6 @@ GO_TEST_TIMEOUT := -timeout 30m
 GOVERSION ?= $(shell cat ./.go-version)
 GOARCH := $(shell go env GOARCH)
 GOOS := $(shell go env GOOS)
-#
-# NOTE(sr): this is 1.19.5 without the git version bump causing build breakage because of .git ownership mismatches
-GOIMAGE := golang@sha256:bb9811fad43a7d6fd2173248d8331b2dcf5ac9af20976b1937ecd214c5b8c383
 
 ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
 WASM_ENABLED=0
@@ -30,7 +27,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.50.1
+GOLANGCI_LINT_VERSION := v1.51.0
 
 DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
@@ -65,7 +62,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := $(GOIMAGE)
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -252,16 +249,15 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
-	$(GOIMAGE) \
-	make
+	golang:$(GOVERSION)
 
 .PHONY: ci-go-%
 ci-go-%: generate
-	$(CI_GOLANG_DOCKER_MAKE) $*
+	$(CI_GOLANG_DOCKER_MAKE) /bin/bash -c "git config --system --add safe.directory /src && make $*"
 
 .PHONY: ci-release-test
 ci-release-test: generate
-	$(CI_GOLANG_DOCKER_MAKE) test perf wasm-sdk-e2e-test check
+	$(CI_GOLANG_DOCKER_MAKE) make test perf wasm-sdk-e2e-test check
 
 .PHONY: ci-check-working-copy
 ci-check-working-copy: generate
@@ -470,8 +466,8 @@ check-go-module:
 	  -v $(PWD):/src \
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
-	  $(GOIMAGE) \
-	  go mod vendor -v
+	  golang:$(GOVERSION) \
+	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
 
 ######################################################
 #

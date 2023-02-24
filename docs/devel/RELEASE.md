@@ -180,7 +180,7 @@ make release-patch VERSION=0.14.1 > ~/release.patch
 Apply the patch to the working copy and preview the changes:
 
 ```bash
-patch -p1 < ~/dev.patch
+patch -p1 < ~/release.patch
 git diff
 ```
 

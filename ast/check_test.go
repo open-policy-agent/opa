@@ -7,6 +7,8 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -2268,4 +2270,99 @@ q = p`,
 		})
 	}
 
+}
+
+func TestRemoteSchema(t *testing.T) {
+	schema := `{"type": "boolean"}`
+
+	schemaCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		schemaCalled = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(schema))
+	}))
+	defer server.Close()
+
+	policy := fmt.Sprintf(`
+package test
+
+# METADATA
+# schemas:
+# - input: {$ref: "%s"}
+p {
+	input == 42
+}`, server.URL)
+
+	module, err := ParseModuleWithOpts("policy.rego", policy, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modules := map[string]*Module{"policy.rego": module}
+
+	compiler := NewCompiler().
+		WithUseTypeCheckAnnotations(true)
+	compiler.Compile(modules)
+
+	if !compiler.Failed() {
+		t.Fatal("expected error, got none")
+	}
+
+	expectedTypeError := "rego_type_error: match error"
+	if !strings.Contains(compiler.Errors.Error(), expectedTypeError) {
+		t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+			expectedTypeError, compiler.Errors.Error())
+	}
+
+	if !schemaCalled {
+		t.Fatal("expected schema server to be called, was not")
+	}
+}
+
+func TestRemoteSchemaHostNotAllowed(t *testing.T) {
+	capabilities := CapabilitiesForThisVersion()
+	capabilities.AllowNet = []string{}
+	schema := `{"type": "boolean"}`
+
+	schemaCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		schemaCalled = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(schema))
+	}))
+	defer server.Close()
+
+	policy := fmt.Sprintf(`
+package test
+
+# METADATA
+# schemas:
+# - input: {$ref: "%s"}
+p {
+	input == 42
+}`, server.URL)
+
+	module, err := ParseModuleWithOpts("policy.rego", policy, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modules := map[string]*Module{"policy.rego": module}
+
+	compiler := NewCompiler().
+		WithUseTypeCheckAnnotations(true).
+		WithCapabilities(capabilities)
+	compiler.Compile(modules)
+
+	if !compiler.Failed() {
+		t.Fatal("expected error, got none")
+	}
+
+	expectedTypeError := "rego_type_error: unable to compile the schema: remote reference loading disabled"
+	if !strings.Contains(compiler.Errors.Error(), expectedTypeError) {
+		t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+			expectedTypeError, compiler.Errors.Error())
+	}
+
+	if schemaCalled {
+		t.Fatal("expected schema server to not be called, was")
+	}
 }

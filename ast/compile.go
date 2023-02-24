@@ -1309,6 +1309,7 @@ func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
 	checker := newTypeChecker().
+		WithAllowNet(c.capabilities.AllowNet).
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
@@ -4728,11 +4729,11 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
+	errs = checkUnusedAssignedAndArgVars(body[0].Loc(), stack, used, errs, strict)
 	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
 }
 
-func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
+func checkUnusedAssignedAndArgVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
 
 	if !strict || len(errs) > 0 {
 		return errs
@@ -4744,7 +4745,7 @@ func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSe
 	for v, occ := range dvs.occurrence {
 		// A var that was assigned in this scope must have been seen (used) more than once (the time of assignment) in
 		// the same, or nested, scope to be counted as used.
-		if !v.IsWildcard() && occ == assignedVar && stack.Count(v) <= 1 {
+		if !v.IsWildcard() && stack.Count(v) <= 1 && (occ == assignedVar || occ == argVar) {
 			unused.Add(dvs.vs[v])
 		}
 	}
