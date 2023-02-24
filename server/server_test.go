@@ -1939,7 +1939,7 @@ allow_request { flag == true }
 	f.server.Handler.ServeHTTP(f.recorder, req)
 
 	expected := "true"
-	result := strings.TrimSuffix(string(f.recorder.Body.Bytes()), "\n")
+	result := strings.TrimSuffix(f.recorder.Body.String(), "\n")
 	if result != expected {
 		t.Fatalf("Expected %v but got: %v", expected, result)
 	}

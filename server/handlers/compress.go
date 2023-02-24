@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -54,7 +55,10 @@ func CompressHandler(handler http.Handler) http.Handler {
 		defer func() {
 			gzipWriter.Close()
 			responseWriter.Header().Set("Content-Length", fmt.Sprint(len(b.Bytes())))
-			responseWriter.Write(b.Bytes())
+			_, err := responseWriter.Write(b.Bytes())
+			if err != nil {
+				log.Fatalf("Error writing the compressed response: %v", err)
+			}
 		}()
 
 		crw := &compressResponseWriter{Writer: gzipWriter, ResponseWriter: responseWriter}

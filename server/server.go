@@ -3013,7 +3013,9 @@ func annotateSpan(ctx context.Context, decisionID string) {
 func readPlainBody(r *http.Request) (io.ReadCloser, error) {
 	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 		plainBody, err := gzip.NewReader(r.Body)
-		defer plainBody.Close()
+		if err != nil {
+			defer plainBody.Close()
+		}
 		return plainBody, err
 	}
 	return r.Body, nil

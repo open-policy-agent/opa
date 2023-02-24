@@ -19,7 +19,10 @@ const (
 func executeRequest(w *httptest.ResponseRecorder, path string, acceptEncoding string) {
 	CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, requestBody)
+		_, err := io.WriteString(w, requestBody)
+		if err != nil {
+			log.Fatalf("Error writing the request body: %v", err)
+		}
 	})).ServeHTTP(w, &http.Request{
 		URL:    &url.URL{Path: path},
 		Method: "GET",
