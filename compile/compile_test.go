@@ -627,6 +627,89 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 	})
 }
 
+func TestCompilerWasmTargetAnnotations(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `
+# METADATA
+# title: My test package
+package test
+
+# METADATA
+# title: My P rule
+# entrypoint: true
+p = true`,
+		"policy.rego": `
+package policy
+
+# METADATA
+# title: All my Q rules
+# scope: document
+
+# METADATA
+# title: My Q rule
+q = true`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+
+		compiler := New().WithPaths(root).WithTarget("wasm").
+			WithEntrypoints("test", "policy/q").
+			WithRegoAnnotationEntrypoints(true)
+
+		err := compiler.Build(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(compiler.bundle.WasmModules) != 1 {
+			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+		}
+
+		expWasmResolvers := []bundle.WasmResolver{
+			{
+				Entrypoint: "test",
+				Module:     "/policy.wasm",
+			},
+			{
+				Entrypoint: "policy/q",
+				Module:     "/policy.wasm",
+				Annotations: []*ast.Annotations{
+					{
+						Title: "All my Q rules",
+						Scope: "document",
+					},
+					{
+						Title: "My Q rule",
+						Scope: "rule",
+					},
+				},
+			},
+			{
+				Entrypoint: "test/p",
+				Module:     "/policy.wasm",
+				Annotations: []*ast.Annotations{
+					{
+						Title:      "My P rule",
+						Scope:      "rule",
+						Entrypoint: true,
+					},
+				},
+			},
+		}
+
+		if len(expWasmResolvers) != len(compiler.bundle.Manifest.WasmResolvers) {
+			t.Fatalf("\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n", expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+		}
+
+		for i, expWasmResolver := range expWasmResolvers {
+			if !expWasmResolver.Equal(&compiler.bundle.Manifest.WasmResolvers[i]) {
+				t.Fatalf("WasmResolver at index %v mismatch\n\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n",
+					i, expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+			}
+		}
+	})
+}
+
 func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test

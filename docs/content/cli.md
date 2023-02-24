@@ -127,13 +127,15 @@ The 'build' command supports targets (specified by -t):
             original policy or data files.
 
     plan    The plan target emits a bundle containing a plan, i.e., an intermediate
-			representation compiled from the input files for each specified entrypoint.
-			This is for further processing, OPA cannot evaluate a "plan bundle" like it
-			can evaluate a wasm or rego bundle.
+            representation compiled from the input files for each specified entrypoint.
+            This is for further processing, OPA cannot evaluate a "plan bundle" like it
+            can evaluate a wasm or rego bundle.
 
-The -e flag tells the 'build' command which documents will be queried by the software
-asking for policy decisions, so that it can focus optimization efforts and ensure
-that document is not eliminated by the optimizer.
+The -e flag tells the 'build' command which documents (entrypoints) will be queried by 
+the software asking for policy decisions, so that it can focus optimization efforts and 
+ensure that document is not eliminated by the optimizer.
+Note: Unless the --prune-unused flag is used, any rule transitively referring to a 
+package or rule declared as an entrypoint will also be enumerated as an entrypoint.
 
 ### Signing
 
@@ -547,10 +549,11 @@ opa eval <query> [flags]
       --profile-sort string                               set sort order of expression profiler results
   -s, --schema string                                     set schema file path or directory path
       --shallow-inlining                                  disable inlining of rules that depend on unknowns
+      --show-builtin-errors                               collect and return all encountered built-in errors, built in errors are not fatal
       --stdin                                             read query from stdin
   -I, --stdin-input                                       read input document from stdin
   -S, --strict                                            enable compiler strict mode
-      --strict-builtin-errors                             treat built-in function errors as fatal
+      --strict-builtin-errors                             treat the first built-in function error encountered as fatal
   -t, --target {rego,wasm}                                set the runtime to exercise (default rego)
       --timeout duration                                  set eval timeout (default unlimited)
   -u, --unknowns stringArray                              set paths to treat as unknown during partial evaluation (default [input])
@@ -772,6 +775,18 @@ Use the "help input" command in the interactive shell to see more options.
 File paths can be specified as URLs to resolve ambiguity in paths containing colons:
 
     $ opa run file:///c:/path/to/data.json
+
+URL paths to remote public bundles (http or https) will be parsed as shorthand
+configuration equivalent of using repeated --set flags to accomplish the same:
+
+	$ opa run -s https://example.com/bundles/bundle.tar.gz
+
+The above shorthand command is identical to:
+
+    $ opa run -s --set "services.cli1.url=https://example.com" \
+                 --set "bundles.cli1.service=cli1" \
+                 --set "bundles.cli1.resource=/bundles/bundle.tar.gz" \
+                 --set "bundles.cli1.persist=true"
 
 The 'run' command can also verify the signature of a signed bundle.
 A signed bundle is a normal OPA bundle that includes a file

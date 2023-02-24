@@ -98,7 +98,8 @@ func checkModules(params checkParams, args []string) error {
 		WithCapabilities(capabilities).
 		WithSchemas(ss).
 		WithEnablePrintStatements(true).
-		WithStrict(params.strict)
+		WithStrict(params.strict).
+		WithUseTypeCheckAnnotations(ss != nil)
 
 	compiler.Compile(modules)
 	if compiler.Failed() {

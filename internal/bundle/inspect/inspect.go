@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -51,7 +52,24 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 		if len(errs) > 0 {
 			return nil, errs
 		}
-		bi.Annotations = as.Flatten()
+		flattened := as.Flatten()
+
+		for _, wr := range bi.Manifest.WasmResolvers {
+			if as := wr.Annotations; len(as) > 0 {
+				path, err := ast.PtrRef(ast.DefaultRootDocument, wr.Entrypoint)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse Wasm entrypoint in manifest: %s", err)
+				}
+				for _, a := range as {
+					ar := ast.NewAnnotationsRef(a)
+					ar.Path = path
+					ar.Location = ast.NewLocation(nil, wr.Module, 0, 0)
+					flattened = flattened.Insert(ar)
+				}
+			}
+		}
+
+		bi.Annotations = flattened
 	}
 
 	err = bi.getBundleDataWasmAndSignatures(path)
@@ -128,11 +146,11 @@ func (bi *Info) getBundleDataWasmAndSignatures(name string) error {
 
 	for _, f := range descriptors {
 		path := filepath.Clean(f.Path())
-		key := strings.Split(strings.TrimPrefix(path, "/"), "/")
+		key := strings.Split(strings.TrimPrefix(path, string(os.PathSeparator)), string(os.PathSeparator))
 
 		value := path
 		if bl.IsDir {
-			value = f.URL()
+			value = filepath.Clean(f.URL())
 		}
 
 		if len(key) > 1 {

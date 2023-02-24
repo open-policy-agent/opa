@@ -27,7 +27,7 @@ ifeq ($(WASM_ENABLED),1)
 GO_TAGS = -tags=opa_wasm
 endif
 
-GOLANGCI_LINT_VERSION := v1.50.1
+GOLANGCI_LINT_VERSION := v1.51.0
 
 DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
@@ -249,16 +249,15 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
-	golang:$(GOVERSION) \
-	make
+	golang:$(GOVERSION)
 
 .PHONY: ci-go-%
 ci-go-%: generate
-	$(CI_GOLANG_DOCKER_MAKE) $*
+	$(CI_GOLANG_DOCKER_MAKE) /bin/bash -c "git config --system --add safe.directory /src && make $*"
 
 .PHONY: ci-release-test
 ci-release-test: generate
-	$(CI_GOLANG_DOCKER_MAKE) test perf wasm-sdk-e2e-test check
+	$(CI_GOLANG_DOCKER_MAKE) make test perf wasm-sdk-e2e-test check
 
 .PHONY: ci-check-working-copy
 ci-check-working-copy: generate
@@ -332,10 +331,11 @@ image-quick-%: ensure-executable-bin
 ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
+	# TODO: update busybox shell debug images to image without openssl
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
@@ -345,14 +345,14 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
-		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BASE=cgr.dev/chainguard/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -363,11 +363,12 @@ endif
 push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$* \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
+	# TODO: update busybox shell debug images to image without openssl
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
 		--build-arg BASE=gcr.io/distroless/cc:debug \
@@ -378,14 +379,14 @@ push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-rootless \
 		--build-arg USER=1000:1000 \
-		--build-arg BASE=gcr.io/distroless/cc \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
 		.
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
-		--build-arg BASE=gcr.io/distroless/static \
+		--build-arg BASE=cgr.dev/chainguard/static \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
@@ -466,7 +467,7 @@ check-go-module:
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
 	  golang:$(GOVERSION) \
-	  go mod vendor -v
+	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
 
 ######################################################
 #

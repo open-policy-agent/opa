@@ -17,7 +17,6 @@ import (
 	"github.com/open-policy-agent/opa/topdown/print"
 	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util"
 )
 
 type evalIterator func(*eval) error
@@ -331,7 +330,6 @@ func (e *eval) evalExpr(iter evalIterator) error {
 		}
 		return nil
 	}
-
 	expr := e.query[e.index]
 
 	e.traceEval(expr)
@@ -1697,7 +1695,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	operands := make([]*ast.Term, len(e.terms))
 
-	for i := 0; i < len(e.terms); i++ {
+	for i := range e.terms {
 		operands[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
@@ -1724,25 +1722,19 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		if v, ok := e.bctx.NDBuiltinCache.Get(e.bi.Name, ast.NewArray(operands[:endIndex]...)); ok {
 			switch {
 			case e.bi.Decl.Result() == nil:
-				err = iter()
+				return iter()
 			case len(operands) == numDeclArgs:
-				if v.Compare(ast.Boolean(false)) != 0 {
-					err = iter()
-				} // else: nothing to do, don't iter()
+				if v.Compare(ast.Boolean(false)) == 0 {
+					return nil // nothing to do
+				}
+				return iter()
 			default:
-				err = e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
+				return e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
 			}
-
-			if err != nil {
-				return Halt{Err: err}
-			}
-
-			return nil
 		}
 
-		e.e.instr.startTimer(evalOpBuiltinCall)
-
 		// Otherwise, we'll need to go through the normal unify flow.
+		e.e.instr.startTimer(evalOpBuiltinCall)
 	}
 
 	// Normal unification flow for builtins:
@@ -1771,6 +1763,9 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		}
 
 		if err != nil {
+			// NOTE(sr): We wrap the errors here into Halt{} because we don't want to
+			// record them into builtinErrors below. The errors set here are coming from
+			// the call to iter(), not from the builtin implementation.
 			err = Halt{Err: err}
 		}
 
@@ -1879,7 +1874,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 		cacheKey[i] = e.e.bindings.Plug(e.terms[i])
 	}
 
-	cached := e.e.virtualCache.Get(cacheKey)
+	cached, _ := e.e.virtualCache.Get(cacheKey)
 	if cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		if argCount == len(e.terms)-1 { // f(x)
@@ -2094,14 +2089,13 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 			node = e.node.Child(plugged.Value)
 			if node != nil && len(node.Values) > 0 {
 				r := evalVirtual{
-					onlyGroundRefs: onlyGroundRefs(node.Values),
-					e:              e.e,
-					ref:            e.ref,
-					plugged:        e.plugged,
-					pos:            e.pos,
-					bindings:       e.bindings,
-					rterm:          e.rterm,
-					rbindings:      e.rbindings,
+					e:         e.e,
+					ref:       e.ref,
+					plugged:   e.plugged,
+					pos:       e.pos,
+					bindings:  e.bindings,
+					rterm:     e.rterm,
+					rbindings: e.rbindings,
 				}
 				r.plugged[e.pos] = plugged
 				return r.eval(iter)
@@ -2111,16 +2105,6 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
 	cpy.node = node
 	return cpy.eval(iter)
-}
-
-func onlyGroundRefs(values []util.T) bool {
-	for _, v := range values {
-		rule := v.(*ast.Rule)
-		if !rule.Head.Reference.IsGround() {
-			return false
-		}
-	}
-	return true
 }
 
 func (e evalTree) enumerate(iter unifyIterator) error {
@@ -2261,14 +2245,13 @@ func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error
 }
 
 type evalVirtual struct {
-	onlyGroundRefs bool
-	e              *eval
-	ref            ast.Ref
-	plugged        ast.Ref
-	pos            int
-	bindings       *bindings
-	rterm          *ast.Term
-	rbindings      *bindings
+	e         *eval
+	ref       ast.Ref
+	plugged   ast.Ref
+	pos       int
+	bindings  *bindings
+	rterm     *ast.Term
+	rbindings *bindings
 }
 
 func (e evalVirtual) eval(iter unifyIterator) error {
@@ -2301,7 +2284,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	case ast.SingleValue:
 		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
 		//           to start reworking things here
-		if e.onlyGroundRefs {
+		if ir.OnlyGroundRefs {
 			eval := evalVirtualComplete{
 				e:         e.e,
 				ref:       e.ref,
@@ -2407,7 +2390,7 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 func (e evalVirtualPartial) evalAllRules(iter unifyIterator, rules []*ast.Rule) error {
 
 	cacheKey := e.plugged[:e.pos+1]
-	result := e.e.virtualCache.Get(cacheKey)
+	result, _ := e.e.virtualCache.Get(cacheKey)
 	if result != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.e.biunify(result, e.rterm, e.bindings, e.rbindings, iter)
@@ -2669,7 +2652,7 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 		return hint, nil
 	}
 
-	if cached := e.e.virtualCache.Get(e.plugged[:e.pos+1]); cached != nil { // have full extent cached
+	if cached, _ := e.e.virtualCache.Get(e.plugged[:e.pos+1]); cached != nil { // have full extent cached
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		hint.hit = true
 		return hint, e.evalTerm(iter, e.pos+1, cached, e.bindings)
@@ -2680,7 +2663,7 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 	if plugged.IsGround() {
 		hint.key = append(e.plugged[:e.pos+1], plugged)
 
-		if cached := e.e.virtualCache.Get(hint.key); cached != nil {
+		if cached, _ := e.e.virtualCache.Get(hint.key); cached != nil {
 			e.e.instr.counterIncr(evalOpVirtualCacheHit)
 			hint.hit = true
 			return hint, e.evalTerm(iter, e.pos+2, cached, e.bindings)
@@ -2768,7 +2751,12 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
-	cached := e.e.virtualCache.Get(e.plugged[:e.pos+1])
+	cached, undefined := e.e.virtualCache.Get(e.plugged[:e.pos+1])
+	if undefined {
+		e.e.instr.counterIncr(evalOpVirtualCacheHit)
+		return nil
+	}
+
 	if cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.evalTerm(iter, cached, e.bindings)
@@ -2802,6 +2790,10 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	if e.ir.Default != nil && prev == nil {
 		_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
 		return err
+	}
+
+	if prev == nil {
+		e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
 	}
 
 	return nil

@@ -7,6 +7,8 @@ package ast
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -1972,39 +1974,39 @@ whocan[user] {
 	schemaSet.Put(MustParseRef(`schema["acl-schema"]`), dschema)
 
 	tests := []struct {
-		note   string
-		module string
-		err    string
+		note    string
+		modules []string
+		err     string
 	}{
-		{note: "data and input annotations", module: module1},
-		{note: "correct data override", module: module2},
-		{note: "incorrect data override", module: module3, err: "undefined ref: input.user"},
-		{note: "missing schema", module: module4, err: "undefined schema: schema.missing"},
-		{note: "overriding ref with length greater than one and not existing", module: module8, err: "undefined ref: input.apple.banana"},
-		{note: "overriding ref with length greater than one and existing prefix", module: module9},
-		{note: "overriding ref with length greater than one and existing prefix with type error", module: module10, err: "undefined ref: input.apple.orange.banana.fruit"},
-		{note: "overriding ref with length greater than one and existing ref", module: module11, err: "undefined ref: input.apple.orange.user"},
-		{note: "overriding ref of size one", module: module12, err: "undefined ref: input.user"},
-		{note: "overriding annotation written with brackets", module: module13, err: "undefined ref: input.apple.orange.fruit"},
-		{note: "overriding strict", module: module14, err: "undefined ref: input.request.object.spec.typo"},
-		{note: "data annotation but no input schema", module: module15},
-		{note: "data schema annotation does not overly restrict data expression", module: module16},
-		{note: "correct defer annotation on another rule has no effect base case", module: module17},
-		{note: "correct defer annotation on another rule has no effect", module: module18},
-		{note: "overriding ref with data prefix", module: module19, err: "data.acl.foo.blah"},
-		{note: "data annotation type error", module: module20, err: "data.acl.foo"},
-		{note: "more than one rule with metadata", module: module21},
-		{note: "more than one rule with metadata with type error", module: module22, err: "undefined ref"},
-		{note: "document scope", err: "test.rego:8: rego_type_error: match error", module: `package test
+		{note: "data and input annotations", modules: []string{module1}},
+		{note: "correct data override", modules: []string{module2}},
+		{note: "incorrect data override", modules: []string{module3}, err: "undefined ref: input.user"},
+		{note: "missing schema", modules: []string{module4}, err: "undefined schema: schema.missing"},
+		{note: "overriding ref with length greater than one and not existing", modules: []string{module8}, err: "undefined ref: input.apple.banana"},
+		{note: "overriding ref with length greater than one and existing prefix", modules: []string{module9}},
+		{note: "overriding ref with length greater than one and existing prefix with type error", modules: []string{module10}, err: "undefined ref: input.apple.orange.banana.fruit"},
+		{note: "overriding ref with length greater than one and existing ref", modules: []string{module11}, err: "undefined ref: input.apple.orange.user"},
+		{note: "overriding ref of size one", modules: []string{module12}, err: "undefined ref: input.user"},
+		{note: "overriding annotation written with brackets", modules: []string{module13}, err: "undefined ref: input.apple.orange.fruit"},
+		{note: "overriding strict", modules: []string{module14}, err: "undefined ref: input.request.object.spec.typo"},
+		{note: "data annotation but no input schema", modules: []string{module15}},
+		{note: "data schema annotation does not overly restrict data expression", modules: []string{module16}},
+		{note: "correct defer annotation on another rule has no effect base case", modules: []string{module17}},
+		{note: "correct defer annotation on another rule has no effect", modules: []string{module18}},
+		{note: "overriding ref with data prefix", modules: []string{module19}, err: "data.acl.foo.blah"},
+		{note: "data annotation type error", modules: []string{module20}, err: "data.acl.foo"},
+		{note: "more than one rule with metadata", modules: []string{module21}},
+		{note: "more than one rule with metadata with type error", modules: []string{module22}, err: "undefined ref"},
+		{note: "document scope", err: "test1.rego:8: rego_type_error: match error", modules: []string{`package test
 # METADATA
 # scope: document
 # schemas:
 # - input.foo: schema.number
 p { input.foo = 7 }
 
-p { input.foo = [] }`},
+p { input.foo = [] }`}},
 
-		{note: "rule scope overrides document scope", module: `package test
+		{note: "rule scope overrides document scope", modules: []string{`package test
 
 # METADATA
 # scope: document
@@ -2016,9 +2018,9 @@ p { input.foo = 7 }
 # scope: rule
 # schemas:
 # - input.foo: schema.string
-p { input.foo = "str" }`},
+p { input.foo = "str" }`}},
 
-		{note: "rule scope merges with document scope", err: "test.rego:15: rego_type_error: match error", module: `package test
+		{note: "rule scope merges with document scope", err: "test1.rego:15: rego_type_error: match error", modules: []string{`package test
 
 # METADATA
 # scope: document
@@ -2033,9 +2035,9 @@ p { input.bar = 7 }
 p {
 	input.foo = "str"
 	input.bar = "str"
-}`},
+}`}},
 
-		{note: "document scope conflict", err: "test.rego:9: rego_type_error: document annotation redeclared: test.rego:3", module: `package test
+		{note: "document scope conflict", err: "test1.rego:9: rego_type_error: document annotation redeclared: test1.rego:3", modules: []string{`package test
 
 # METADATA
 # scope: document
@@ -2047,17 +2049,45 @@ p { input.foo = 7 }
 # scope: document
 # schemas:
 # - input.foo: schema.string
-p { input.foo = "str" }`},
+p { input.foo = "str" }`}},
 
-		{note: "subpackages scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+		{note: "package scope in other module", modules: []string{`# METADATA
+# scope: package
+# schemas:
+# - input.foo: schema.number
+package test`, `package test
+
+p { input.foo = 7 }`}},
+
+		{note: "package scope in other module type conflict", err: "test2.rego:3: rego_type_error: match error", modules: []string{`# METADATA
+# scope: package
+# schemas:
+# - input.foo: schema.string
+package test`, `package test
+
+p { input.foo = 7 }`}},
+
+		{note: "package scope conflict", err: "test2.rego:1: rego_type_error: package annotation redeclared: test1.rego:1", modules: []string{`# METADATA
+# scope: package
+# schemas:
+# - input.foo: schema.string
+package test`, `# METADATA
+# scope: package
+# schemas:
+# - input.foo: schema.number
+package test
+
+p { input.foo = 7 }`}},
+
+		{note: "subpackages scope", err: "test1.rego:7: rego_type_error: match error", modules: []string{`# METADATA
 # scope: subpackages
 # schemas:
 # - input: schema.number
 package test
 
-p { input = "str" }`},
+p { input = "str" }`}},
 
-		{note: "document scope overrides subpackages scope", module: `# METADATA
+		{note: "document scope overrides subpackages scope", modules: []string{`# METADATA
 # scope: subpackages
 # schemas:
 # - input: schema.number
@@ -2067,9 +2097,9 @@ package test
 # scope: document
 # schemas:
 # - input: schema.string
-p { input = "str" }`},
+p { input = "str" }`}},
 
-		{note: "document scope overrides subpackages scope and finds error", err: "test.rego:11: rego_type_error: match error", module: `# METADATA
+		{note: "document scope overrides subpackages scope and finds error", err: "test1.rego:11: rego_type_error: match error", modules: []string{`# METADATA
 # scope: subpackages
 # schemas:
 # - input: schema.string
@@ -2079,17 +2109,17 @@ package test
 # scope: rule
 # schemas:
 # - input: schema.number
-p { input = "str" }`},
+p { input = "str" }`}},
 
-		{note: "package scope", err: "test.rego:7: rego_type_error: match error", module: `# METADATA
+		{note: "package scope", err: "test1.rego:7: rego_type_error: match error", modules: []string{`# METADATA
 # scope: package
 # schemas:
 # - input: schema.string
 package test
 
-p { input = 7 }`},
+p { input = 7 }`}},
 
-		{note: "rule scope overrides package scope", module: `# METADATA
+		{note: "rule scope overrides package scope", modules: []string{`# METADATA
 # scope: package
 # schemas:
 # - input: schema.string
@@ -2099,16 +2129,16 @@ package test
 # scope: rule
 # schemas:
 # - input: schema.number
-p { input = 7 }`},
+p { input = 7 }`}},
 
-		{note: "inline definition", err: "test.rego:7: rego_type_error: match error", module: `package test
+		{note: "inline definition", err: "test1.rego:7: rego_type_error: match error", modules: []string{`package test
 
 # METADATA
 # scope: rule
 # schemas:
 # - input: {"type": "string"}
-p { input = 7 }`},
-		{note: "document scope is unordered", err: "test.rego:3: rego_type_error: match error", module: `package test
+p { input = 7 }`}},
+		{note: "document scope is unordered", err: "test1.rego:3: rego_type_error: match error", modules: []string{`package test
 
 p { input = 7 }
 
@@ -2116,28 +2146,33 @@ p { input = 7 }
 # scope: document
 # schemas:
 # - input: schema.string
-p { input = "foo" }`},
+p { input = "foo" }`}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			mod, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{
-				ProcessAnnotation: true,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-
+			var modules []*Module
 			var elems []util.T
-			for _, rule := range mod.Rules {
-				elems = append(elems, rule)
-				for next := rule.Else; next != nil; next = next.Else {
-					elems = append(elems, next)
+
+			for i, module := range tc.modules {
+				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
+					ProcessAnnotation: true,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				modules = append(modules, mod)
+
+				for _, rule := range mod.Rules {
+					elems = append(elems, rule)
+					for next := rule.Else; next != nil; next = next.Else {
+						elems = append(elems, next)
+					}
 				}
 			}
 
 			oldTypeEnv := newTypeChecker().WithSchemaSet(schemaSet).Env(BuiltinMap)
-			as, errors := BuildAnnotationSet(asModuleSlice(mod))
+			as, errors := BuildAnnotationSet(modules)
 			typeenv, checkErrors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems, as)
 			errors = append(errors, checkErrors...)
 			if len(errors) > 0 {
@@ -2157,10 +2192,6 @@ p { input = "foo" }`},
 
 		})
 	}
-}
-
-func asModuleSlice(modules ...*Module) []*Module {
-	return modules
 }
 
 func TestCheckAnnotationInference(t *testing.T) {
@@ -2219,7 +2250,9 @@ q = p`,
 					ss.Put(ref, schema)
 				}
 
-				compiler := NewCompiler().WithSchemas(ss)
+				compiler := NewCompiler().
+					WithSchemas(ss).
+					WithUseTypeCheckAnnotations(true)
 				compiler.Compile(modules)
 				if compiler.Failed() {
 					t.Fatal("unexpected error:", compiler.Errors)
@@ -2237,4 +2270,99 @@ q = p`,
 		})
 	}
 
+}
+
+func TestRemoteSchema(t *testing.T) {
+	schema := `{"type": "boolean"}`
+
+	schemaCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		schemaCalled = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(schema))
+	}))
+	defer server.Close()
+
+	policy := fmt.Sprintf(`
+package test
+
+# METADATA
+# schemas:
+# - input: {$ref: "%s"}
+p {
+	input == 42
+}`, server.URL)
+
+	module, err := ParseModuleWithOpts("policy.rego", policy, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modules := map[string]*Module{"policy.rego": module}
+
+	compiler := NewCompiler().
+		WithUseTypeCheckAnnotations(true)
+	compiler.Compile(modules)
+
+	if !compiler.Failed() {
+		t.Fatal("expected error, got none")
+	}
+
+	expectedTypeError := "rego_type_error: match error"
+	if !strings.Contains(compiler.Errors.Error(), expectedTypeError) {
+		t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+			expectedTypeError, compiler.Errors.Error())
+	}
+
+	if !schemaCalled {
+		t.Fatal("expected schema server to be called, was not")
+	}
+}
+
+func TestRemoteSchemaHostNotAllowed(t *testing.T) {
+	capabilities := CapabilitiesForThisVersion()
+	capabilities.AllowNet = []string{}
+	schema := `{"type": "boolean"}`
+
+	schemaCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		schemaCalled = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(schema))
+	}))
+	defer server.Close()
+
+	policy := fmt.Sprintf(`
+package test
+
+# METADATA
+# schemas:
+# - input: {$ref: "%s"}
+p {
+	input == 42
+}`, server.URL)
+
+	module, err := ParseModuleWithOpts("policy.rego", policy, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modules := map[string]*Module{"policy.rego": module}
+
+	compiler := NewCompiler().
+		WithUseTypeCheckAnnotations(true).
+		WithCapabilities(capabilities)
+	compiler.Compile(modules)
+
+	if !compiler.Failed() {
+		t.Fatal("expected error, got none")
+	}
+
+	expectedTypeError := "rego_type_error: unable to compile the schema: remote reference loading disabled"
+	if !strings.Contains(compiler.Errors.Error(), expectedTypeError) {
+		t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s",
+			expectedTypeError, compiler.Errors.Error())
+	}
+
+	if schemaCalled {
+		t.Fatal("expected schema server to not be called, was")
+	}
 }

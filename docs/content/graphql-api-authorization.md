@@ -19,6 +19,8 @@ For this tutorial, our desired policy is:
 * A manager can see their direct reports' salaries (`query user($id: <user>) { salary }` is permitted for `<user>`'s manager)
 
 
+{{< danger >}} GraphQL API Authorization with OPA is currently experimental and the following tutorial is intended for demonstration purposes only. {{< /danger >}}
+
 ## Prerequisites
 
 This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/) to run a demo web server along with OPA.
@@ -41,14 +43,14 @@ schema {
 }
 
 type Query {
-  employeeByID(id: String): Employee
+  employeeByID(id: String!): Employee
 }
 ```
 
 Every GraphQL service has a `query` type, and may or may not have a `mutation` type.
 These types are special because they define the entry points of *every* GraphQL query for the API covered by that schema.
 
-For our example above, we've defined exactly one query entry point, the parameterized query `user(id: Int)`.
+For our example above, we've defined exactly one query entry point, the parameterized query `employeeByID(id: String!)`.
 
 ### 2. Create a policy bundle.
 

@@ -15,7 +15,6 @@ $panel-header-logo-width: 85%
   +row
   position: relative
   overflow: hidden
-  height: 100vh
 
   .is-scrollable
     overflow-y: auto
@@ -130,6 +129,57 @@ $panel-header-logo-width: 85%
 .highlight
   margin-bottom: 1.5rem // matches what live-blocks does
 
+.dashboard-wrapper
+  display: flex
+  flex-flow: column
+  height: 100%
+  max-height: 100vh
+
+.dashboard
+  flex: 1 1 auto
+
+  .navbar
+    @media screen and (min-width: 1024px)
+      position: sticky
+      top: 0
+
 .dashboard-panel-content
   margin: 0 0 0 2rem
   padding: 0 2rem 0 0
+
+.banner-version-warning
+  // override bulma defaults for messages
+  margin-bottom: 0 !important
+  border-radius: 0
+  font-size: 1.2rem
+  font-weight: bold
+  border-top: 1rem solid transparent
+  border-bottom: 1rem solid transparent
+  .message-body
+    border: none
+    border-radius: 0
+    button.delete
+      float: right
+      margin-top: 0.25rem
+
+  // this is used to make the banner appear in the same position as the page
+  // scrolls
+  position: fixed
+  width: 100%
+  z-index: 100
+
+  // different types of message should have different colors. The colors are
+  // duplicated from the bulma since we're not using variables
+  &.is-danger
+    border-image: 50 repeating-linear-gradient(75deg, #cc0f35 0, #cc0f35 1rem, transparent 0, transparent 2rem)
+  &.is-warning
+    border-image: 50 repeating-linear-gradient(75deg, #946c00 0, #946c00 1rem, transparent 0, transparent 2rem)
+  &.is-info
+    border-image: 50 repeating-linear-gradient(75deg, #296fa8 0, #296fa8 1rem, transparent 0, transparent 2rem)
+
+  // the hidden clone of the message is used to 'push down' the dashboard
+  // when a message is being displayed by the correct amount
+  &.hidden
+    flex: 0 1 auto
+    visibility: hidden
+    position: relative

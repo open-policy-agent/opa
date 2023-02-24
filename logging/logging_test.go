@@ -2,8 +2,12 @@ package logging
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/internal/uuid"
 )
 
 func TestWithFields(t *testing.T) {
@@ -124,5 +128,21 @@ func TestRequestContextFields(t *testing.T) {
 
 	if fieldvalue.(string) != "/test" {
 		t.Fatal("Fields did not contain the configured req_path value")
+	}
+}
+
+func TestDecsionIDFromContext(t *testing.T) {
+	id, err := uuid.New(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := WithDecisionID(context.Background(), id)
+
+	act, ok := DecisionIDFromContext(ctx)
+	if !ok {
+		t.Fatalf("expected 'ok' to be true")
+	}
+	if exp := id; act != exp {
+		t.Errorf("Expected %q to be %q", act, exp)
 	}
 }

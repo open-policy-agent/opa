@@ -1,0 +1,16 @@
+cases:
+- modules:
+  - |
+    package rules
+
+    p {
+      time.now_ns(now)
+    }
+
+    q { p with data.x as 7 }
+  note: "with: ndb_cache-issue"
+  query: data.rules = x
+  want_result:
+  - x:
+      p: true
+      q: true

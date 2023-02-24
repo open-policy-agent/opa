@@ -5,13 +5,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/open-policy-agent/opa/dependencies"
 	"github.com/open-policy-agent/opa/internal/presentation"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"

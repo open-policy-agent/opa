@@ -2,10 +2,10 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
-// NOTE(sr): Different go runtime metrics on 1.19.
+// NOTE(an): Different go runtime metrics on 1.20.
 // This can be removed when we drop support for go 1.19.
-//go:build go1.19
-// +build go1.19
+//go:build go1.20
+// +build go1.20
 
 package prometheus
 
@@ -100,6 +100,18 @@ func TestJSONSerialization(t *testing.T) {
 			"go_memstats_lookups_total",
 			"go_memstats_mallocs_total",
 			"go_memstats_frees_total",
+			"go_cpu_classes_idle_cpu_seconds_total",
+			"go_cpu_classes_gc_mark_dedicated_cpu_seconds_total",
+			"go_cpu_classes_scavenge_background_cpu_seconds_total",
+			"go_cpu_classes_user_cpu_seconds_total",
+			"go_cpu_classes_scavenge_assist_cpu_seconds_total",
+			"go_cpu_classes_gc_mark_idle_cpu_seconds_total",
+			"go_cpu_classes_scavenge_total_cpu_seconds_total",
+			"go_cpu_classes_gc_mark_assist_cpu_seconds_total",
+			"go_cpu_classes_total_cpu_seconds_total",
+			"go_cpu_classes_gc_total_cpu_seconds_total",
+			"go_sync_mutex_wait_total_seconds_total",
+			"go_cpu_classes_gc_pause_cpu_seconds_total",
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",

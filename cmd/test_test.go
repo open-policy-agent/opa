@@ -7,6 +7,7 @@ import (
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestFilterTraceDefault(t *testing.T) {
@@ -206,4 +207,64 @@ func failTrace(t *testing.T) []*topdown.Event {
 	}
 
 	return *tracer
+}
+
+func testSchemasAnnotation(mod string) error {
+	query := "data.test.test_p"
+
+	files := map[string]string{
+		"test.rego": mod,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+		_, err = rego.New(
+			rego.Module("test.rego", mod),
+			rego.Trace(true),
+			rego.Query(query),
+		).Eval(context.Background())
+	})
+
+	return err
+}
+
+// Assert that 'schemas' annotations are ignored
+func TestSchemasAnnotation(t *testing.T) {
+	policyWithSchemaRef := `
+package test
+# METADATA
+# schemas:
+#   - input: schema["input"]
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}
+
+test_p {
+    p with input.foo as 42
+}`
+
+	err := testSchemasAnnotation(policyWithSchemaRef)
+	if err != nil {
+		t.Fatalf("unexpected error when schema ref is present: %v", err)
+	}
+
+	policyWithInlinedSchema := `
+package test
+# METADATA
+# schemas:
+#   - input.foo: {"type": "boolean"}
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}
+
+test_p {
+    p with input.foo as 42
+}`
+
+	err = testSchemasAnnotation(policyWithInlinedSchema)
+	if err != nil {
+		t.Fatalf("unexpected error when inlined schema is present: %v", err)
+	}
 }

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -17,8 +18,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file/archive"

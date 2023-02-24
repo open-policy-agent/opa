@@ -27,7 +27,11 @@ p { q }
 
 q = true`)
 
-	files := map[string]string{"test.rego": onDiskModule}
+	files := map[string]string{
+		"test.rego":    onDiskModule,
+		"document.txt": "this should not be included",
+		"ignore.json":  `{"neither": "should this"}`,
+	}
 
 	test.WithTempFS(files, func(rootDir string) {
 

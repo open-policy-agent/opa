@@ -9,7 +9,7 @@ path = "/badge-endpoint/*"
 function = "badge"
 
 [build.environment]
-HUGO_VERSION = "0.88.1"
+HUGO_VERSION = "0.109.0"
 
 [context.deploy-preview]
 command = "make netlify-preview WASM_ENABLED=0 CGO_ENABLED=0"

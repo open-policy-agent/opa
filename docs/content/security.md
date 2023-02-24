@@ -399,18 +399,18 @@ CA, but will later be used to illustrate the authorization policy.
 
 ```bash
 # CA
-openssl genrsa -out ca-key.pem 2048
-openssl req -x509 -new -nodes -key ca-key.pem -days 1000 -out ca.pem -subj "/CN=my-ca"
+openssl ecparam -out ca-key.pem -name secp256r1 -genkey 
+openssl req -x509 -new -nodes -key ca-key.pem -days 30 -out ca.pem -subj "/CN=my-ca"
 
 # client 1
-openssl genrsa -out client-key.pem 2048
-openssl req -new -key client-key.pem -out csr.pem -subj "/CN=my-client"
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert.pem -days 1000
+openssl ecparam -out client-key-1.pem -name secp256r1 -genkey 
+openssl req -new -key client-key-1.pem -out csr.pem -subj "/CN=my-client-1" 
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-1.pem -days 10 -sha256
 
 # client 2
-openssl genrsa -out client-key-2.pem 2048
+openssl ecparam -out client-key-2.pem -name secp256r1 -genkey 
 openssl req -new -key client-key-2.pem -out csr.pem -subj "/CN=my-client-2"
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 1000
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 10 -sha256
 
 # create server cert with IP and DNS SANs
 cat <<EOF >req.cnf
@@ -431,7 +431,7 @@ IP.1 = 127.0.0.1
 EOF
 openssl genrsa -out server-key.pem 2048
 openssl req -new -key server-key.pem -out csr.pem -subj "/CN=my-server" -config req.cnf
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 1000 -extensions v3_req -extfile req.cnf
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 10 -extensions v3_req -extfile req.cnf
 ```
 
 We also create a simple authorization policy file, called `check.rego`:
@@ -439,14 +439,16 @@ We also create a simple authorization policy file, called `check.rego`:
 ```live:system_authz_x509:module:read_only
 package system.authz
 
+import future.keywords.if
+
 # client_cns may defined in policy or pushed into OPA as data.
 client_cns := {
-	"my-client": true
+	"my-client-1": true
 }
 
 default allow := false
 
-allow {                                        # Allow request if
+allow if {
 	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
 	client_cns[cn]                         # the name is a known client.
 }
@@ -463,7 +465,7 @@ $ opa run -s \
   --authorization=basic \
   -a https://127.0.0.1:8181 \
   check.rego
-INFO[2019-01-14T10:24:52+01:00] First line of log stream.                     addrs="[https://127.0.0.1:8181]" insecure_addr=
+{"addrs":["https://127.0.0.1:8181"],"diagnostic-addrs":[],"level":"info","msg":"Initializing server.","time":"2023-01-04T10:31:12Z"}
 ```
 
 We can use `curl` to validate our TLS-based authentication setup:
@@ -472,8 +474,8 @@ First, we use the client certificate that was signed by the CA, and has a subjec
 matching our authorization policy:
 
 ```console
-$ curl --key client-key.pem \
-  --cert client-cert.pem \
+$ curl --key client-key-1.pem \
+  --cert client-cert-1.pem \
   --cacert ca.pem \
   --resolve opa.example.com:8181:127.0.0.1 \
   https://opa.example.com:8181/v1/data
@@ -503,7 +505,7 @@ $ curl --key client-key-2.pem \
 Finally, we'll attempt to query without a client certificate:
 ```console
 $ curl --cacert ca.pem https://127.0.0.1:8181/v1/data
-curl: (35) error:14094412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate
+curl: (56) LibreSSL SSL_read: error:1404C412:SSL routines:ST_OK:sslv3 alert bad certificate, errno 0
 ```
 
 As you can see, TLS-based authentication disallows these request completely.

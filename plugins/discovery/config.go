@@ -26,6 +26,7 @@ type Config struct {
 	Service         string                     `json:"service"`            // the name of the service used to download discovery bundle from
 	Resource        *string                    `json:"resource,omitempty"` // the resource path which will be downloaded from the service
 	Signing         *bundle.VerificationConfig `json:"signing,omitempty"`  // configuration used to verify a signed bundle
+	Persist         bool                       `json:"persist"`            // control whether to persist activated discovery bundle to disk
 
 	service string
 	path    string

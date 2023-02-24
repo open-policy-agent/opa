@@ -102,26 +102,27 @@ type Compiler struct {
 		metricName string
 		f          func()
 	}
-	maxErrs               int
-	sorted                []string // list of sorted module names
-	pathExists            func([]string) (bool, error)
-	after                 map[string][]CompilerStageDefinition
-	metrics               metrics.Metrics
-	capabilities          *Capabilities                 // user-supplied capabilities
-	builtins              map[string]*Builtin           // universe of built-in functions
-	customBuiltins        map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap     map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	deprecatedBuiltinsMap map[string]struct{}           // set of deprecated, but not removed, built-in functions
-	enablePrintStatements bool                          // indicates if print statements should be elided (default)
-	comprehensionIndices  map[*Term]*ComprehensionIndex // comprehension key index
-	initialized           bool                          // indicates if init() has been called
-	debug                 debug.Debug                   // emits debug information produced during compilation
-	schemaSet             *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType             types.Type                    // global input type retrieved from schema set
-	annotationSet         *AnnotationSet                // hierarchical set of annotations
-	strict                bool                          // enforce strict compilation checks
-	keepModules           bool                          // whether to keep the unprocessed, parse modules (below)
-	parsedModules         map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	maxErrs                 int
+	sorted                  []string // list of sorted module names
+	pathExists              func([]string) (bool, error)
+	after                   map[string][]CompilerStageDefinition
+	metrics                 metrics.Metrics
+	capabilities            *Capabilities                 // user-supplied capabilities
+	builtins                map[string]*Builtin           // universe of built-in functions
+	customBuiltins          map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap       map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	deprecatedBuiltinsMap   map[string]struct{}           // set of deprecated, but not removed, built-in functions
+	enablePrintStatements   bool                          // indicates if print statements should be elided (default)
+	comprehensionIndices    map[*Term]*ComprehensionIndex // comprehension key index
+	initialized             bool                          // indicates if init() has been called
+	debug                   debug.Debug                   // emits debug information produced during compilation
+	schemaSet               *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType               types.Type                    // global input type retrieved from schema set
+	annotationSet           *AnnotationSet                // hierarchical set of annotations
+	strict                  bool                          // enforce strict compilation checks
+	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
+	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -404,6 +405,12 @@ func (c *Compiler) WithStrict(strict bool) *Compiler {
 // map that was passed into Compile().`
 func (c *Compiler) WithKeepModules(y bool) *Compiler {
 	c.keepModules = y
+	return c
+}
+
+// WithUseTypeCheckAnnotations use schema annotations during type checking
+func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
+	c.useTypeCheckAnnotations = enabled
 	return c
 }
 
@@ -1302,10 +1309,15 @@ func (c *Compiler) checkTypes() {
 	// Recursion is caught in earlier step, so this cannot fail.
 	sorted, _ := c.Graph.Sort()
 	checker := newTypeChecker().
+		WithAllowNet(c.capabilities.AllowNet).
 		WithSchemaSet(c.schemaSet).
 		WithInputType(c.inputType).
 		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
-	env, errs := checker.CheckTypes(c.TypeEnv, sorted, c.annotationSet)
+	var as *AnnotationSet
+	if c.useTypeCheckAnnotations {
+		as = c.annotationSet
+	}
+	env, errs := checker.CheckTypes(c.TypeEnv, sorted, as)
 	for _, err := range errs {
 		c.err(err)
 	}
@@ -4717,11 +4729,11 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
+	errs = checkUnusedAssignedAndArgVars(body[0].Loc(), stack, used, errs, strict)
 	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
 }
 
-func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
+func checkUnusedAssignedAndArgVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
 
 	if !strict || len(errs) > 0 {
 		return errs
@@ -4733,7 +4745,7 @@ func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSe
 	for v, occ := range dvs.occurrence {
 		// A var that was assigned in this scope must have been seen (used) more than once (the time of assignment) in
 		// the same, or nested, scope to be counted as used.
-		if !v.IsWildcard() && occ == assignedVar && stack.Count(v) <= 1 {
+		if !v.IsWildcard() && stack.Count(v) <= 1 && (occ == assignedVar || occ == argVar) {
 			unused.Add(dvs.vs[v])
 		}
 	}

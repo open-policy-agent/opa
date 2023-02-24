@@ -1734,6 +1734,27 @@ p {
 	}
 }
 
+func TestCompilerCheckSafetyFunctionAndContainsKeyword(t *testing.T) {
+	_, err := CompileModules(map[string]string{"test.rego": `package play
+
+			import future.keywords.contains
+
+			p(id) contains x {
+				x := id
+			}`})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	errs := err.(Errors)
+	if !strings.Contains(errs[0].Message, "the contains keyword can only be used with multi-value rule definitions (e.g., p contains <VALUE> { ... })") {
+		t.Fatal("wrong error message:", err)
+	}
+	if errs[0].Location.Row != 5 {
+		t.Fatal("expected error on line 5 but got:", errs[0].Location.Row)
+	}
+}
+
 func TestCompilerCheckTypes(t *testing.T) {
 	c := NewCompiler()
 	modules := getCompilerTestModules()
@@ -5028,6 +5049,104 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, result)
 				}
 			}
+		})
+	}
+}
+
+func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
+	tests := []strictnessTestCase{
+		{
+			note: "one of the two function args is not used - issue 5602 regression test",
+			module: `package test
+			func(x, y) {
+				x = 1
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("x = 1"), "", 3, 5),
+					Message:  "assigned var y unused",
+				},
+			},
+		},
+		{
+			note: "multiple unused argvar in scope - issue 5602 regression test",
+			module: `package test
+			func(x, y) {
+				input.baz = 1
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
+					Message:  "assigned var x unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
+					Message:  "assigned var y unused",
+				},
+			},
+		},
+		{
+			note: "some unused argvar in scope - issue 5602 regression test",
+			module: `package test
+			func(x, y) {
+				input.test == "foo"
+				x = 1
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
+					Message:  "assigned var y unused",
+				},
+			},
+		},
+		{
+			note: "wildcard argvar that's ignored - issue 5602 regression test",
+			module: `package test
+			func(x, _) {
+				input.test == "foo"
+				x = 1
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "wildcard argvar that's ignored - issue 5602 regression test",
+			module: `package test
+			func(x, _) {
+				input.test == "foo"
+			 }`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
+					Message:  "assigned var x unused",
+				},
+			},
+		},
+		{
+			note: "argvar not used in body but in head - issue 5602 regression test",
+			module: `package test
+			func(x) := x {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+	}
+
+	t.Helper()
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(true)
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+			compileStages(compiler, nil)
+
+			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
 		})
 	}
 }
@@ -8714,7 +8833,8 @@ deny {
 }
 `
 
-	c := NewCompiler()
+	c := NewCompiler().
+		WithUseTypeCheckAnnotations(true)
 	var schema interface{}
 	if err := json.Unmarshal([]byte(jsonSchema), &schema); err != nil {
 		t.Fatal(err)

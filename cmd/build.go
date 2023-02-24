@@ -117,13 +117,15 @@ The 'build' command supports targets (specified by -t):
             original policy or data files.
 
     plan    The plan target emits a bundle containing a plan, i.e., an intermediate
-			representation compiled from the input files for each specified entrypoint.
-			This is for further processing, OPA cannot evaluate a "plan bundle" like it
-			can evaluate a wasm or rego bundle.
+            representation compiled from the input files for each specified entrypoint.
+            This is for further processing, OPA cannot evaluate a "plan bundle" like it
+            can evaluate a wasm or rego bundle.
 
-The -e flag tells the 'build' command which documents will be queried by the software
-asking for policy decisions, so that it can focus optimization efforts and ensure
-that document is not eliminated by the optimizer.
+The -e flag tells the 'build' command which documents (entrypoints) will be queried by 
+the software asking for policy decisions, so that it can focus optimization efforts and 
+ensure that document is not eliminated by the optimizer.
+Note: Unless the --prune-unused flag is used, any rule transitively referring to a 
+package or rule declared as an entrypoint will also be enumerated as an entrypoint.
 
 Signing
 -------
@@ -304,6 +306,10 @@ func dobuild(params buildParams, args []string) error {
 
 	if params.claimsFile == "" {
 		compiler = compiler.WithBundleVerificationKeyID(params.pubKeyID)
+	}
+
+	if params.target.String() == compile.TargetPlan {
+		compiler = compiler.WithEnablePrintStatements(true)
 	}
 
 	err = compiler.Build(context.Background())

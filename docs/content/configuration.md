@@ -190,6 +190,25 @@ Because the entire `0` index was overwritten.
 
 It is highly recommended to use objects/maps instead of lists for configuration for this reason.
 
+##### Remote Bundles Override Shorthand
+
+When running the server to quickly try a remote public bundle — such as those published from the
+[Rego Playground](https://play.openpolicyagent.org), you may find it convenient to provide the URL of the
+bundle directly, rather than via repeated `--set` flags:
+
+```shell
+opa run -s https://example.com/bundles/bundle.tar.gz
+```
+
+The above shorthand command is identical to:
+
+```shell
+opa run -s --set "services.cli1.url=https://example.com" \
+           --set "bundles.cli1.service=cli1" \
+           --set "bundles.cli1.resource=/bundles/bundle.tar.gz" \
+           --set "bundles.cli1.persist=true"
+```
+
 ###### Empty objects
 If you need to set an empty object with the CLI overrides, for example with plugin configuration like:
 
@@ -298,8 +317,8 @@ bundles:
 persistence_directory: ${PERSISTENCE_PATH}
 ```
 
-When using an OCI service type the downloader uses the persistence path to store the layers of the downloaded repository. This storage path should be maintained by the user. 
-If persistence is not configured the OCI downloader will store the layers in the system's temporary directory to allow automatic cleanup on system restart. 
+When using an OCI service type the downloader uses the persistence path to store the layers of the downloaded repository. This storage path should be maintained by the user.
+If persistence is not configured the OCI downloader will store the layers in the system's temporary directory to allow automatic cleanup on system restart.
 
 #### Bearer Token
 
@@ -574,8 +593,8 @@ bundles:
 
 #### Azure Managed Identities Token
 
-OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token. 
-The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) 
+OPA will authenticate with an [Azure managed identities](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) token.
+The [token request](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http)
 can be configured via the plugin to customize the base URL, API version, and resource. Specific managed identity IDs can be optionally provided as well.
 
 | Field | Type | Required | Description |
@@ -583,30 +602,30 @@ can be configured via the plugin to customize the base URL, API version, and res
 | `services[_].credentials.azure_managed_identity.endpoint` | `string` | No | Request endpoint. (default: `http://169.254.169.254/metadata/identity/oauth2/token`, the Azure Instance Metadata Service endpoint (recommended))|
 | `services[_].credentials.azure_managed_identity.api_version` | `string` | No | API version to use. (default: `2018-02-01`, the minimum version) |
 | `services[_].credentials.azure_managed_identity.resource` | `string` | No | App ID URI of the target resource. (default: `https://storage.azure.com/`) |
-| `services[_].credentials.azure_managed_identity.object_id` | `string` | No | Optional object ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
-| `services[_].credentials.azure_managed_identity.client_id` | `string` | No | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
-| `services[_].credentials.azure_managed_identity.mi_res_id` | `string` | No | Optional Azure Resource ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identites. |
+| `services[_].credentials.azure_managed_identity.object_id` | `string` | No | Optional object ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities. |
+| `services[_].credentials.azure_managed_identity.client_id` | `string` | No | Optional client ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities. |
+| `services[_].credentials.azure_managed_identity.mi_res_id` | `string` | No | Optional Azure Resource ID of the managed identity you would like the token for. Required, if your VM has multiple user-assigned managed identities. |
 
 ##### Example
 Use an [Azure storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-overview) as a bundle service backend.
 Note that the `x-ms-version` header must be specified for the storage account service, and a minimum version of `2017-11-09` must be provided as per [Azure documentation](https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-azure-active-directory#call-storage-operations-with-oauth-tokens).
 
 ```yaml
-services: 
-  azure_storage_account: 
+services:
+  azure_storage_account:
     url: ${STORAGE_ACCOUNT_URL}
     headers:
       x-ms-version: 2017-11-09
     response_header_timeout_seconds: 5
-    credentials: 
+    credentials:
       azure_managed_identity: {}
 
-bundles: 
-  authz: 
+bundles:
+  authz:
     service: azure_storage_account
     resource: bundles/http/example/authz.tar.gz
     persist: true
-    polling: 
+    polling:
       min_delay_seconds: 60
       max_delay_seconds: 120
 ```
@@ -716,7 +735,7 @@ func init() {
 
 When using a private image from an OCI registry the credentials are mandatory as the OCI downloader needs the credentials for the pull operation.
 
-Examples of setting credetials for pulling private images: 
+Examples of setting credetials for pulling private images:
 *AWS ECR* private image usually requires at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
 ```
  credentials:
@@ -724,7 +743,7 @@ Examples of setting credetials for pulling private images:
         scheme: "Basic"
         token: "<username>:<password>"
 ```
-The OCI downloader includes a base64 encoder for these credentials so they can be supplied as shown above. 
+The OCI downloader includes a base64 encoder for these credentials so they can be supplied as shown above.
 
 For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
 ```
@@ -840,18 +859,19 @@ included in the actual bundle gzipped tarball.
 
 ### Discovery
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `discovery.resource` | `string` | Yes | Resource path to use to download bundle from configured service. |
+| Field | Type | Required | Description                                                                                                                                                 |
+| --- | --- | --- |-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `discovery.resource` | `string` | Yes | Resource path to use to download bundle from configured service.                                                                                            |
 | `discovery.service` | `string` | No | Name of the service to use to contact remote server. If omitted, the configuration must contain exactly one service. Discovery will default to this service. |
-| `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration. |
-| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads. |
-| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads. |
-| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
-| `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
-| `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
-| `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification. |
-| `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification. |
+| `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration.    |
+| `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads.                                                                                             |
+| `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads.                                                                                             |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`.                                                       |
+| `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available.                                                      |
+| `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification.                                                                                                   |
+| `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification.                                                                                                             |
+| `discovery.signing.exclude_files` | `array` | No | Files in the bundle to exclude during verification.                                                                                                         |
+| `discovery.persist` | `bool` | No | Persist activated discovery bundle to disk.                                                                                                                 |
 
 > ⚠️ The plugin trigger mode configured on the discovery plugin will be inherited by the bundle, decision log
 > and status plugins. For example, if the discovery plugin is configured to use the manual trigger mode, all other

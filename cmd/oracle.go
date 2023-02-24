@@ -106,7 +106,14 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 		if len(params.bundlePaths.v) > 1 {
 			return errors.New("not implemented: multiple bundle paths")
 		}
-		b, err = loader.NewFileLoader().WithSkipBundleVerification(true).AsBundle(params.bundlePaths.v[0])
+		b, err = loader.NewFileLoader().
+			WithSkipBundleVerification(true).
+			WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
+				// While directories may contain other things of interest for OPA (json, yaml..),
+				// only .rego will work reliably for the purpose of finding definitions
+				return strings.HasPrefix(info.Name(), ".rego")
+			}).
+			AsBundle(params.bundlePaths.v[0])
 		if err != nil {
 			return err
 		}
@@ -123,9 +130,16 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 	var bs []byte
 
 	if params.stdinBuffer {
-		bs, err = io.ReadAll(stdin)
+		stat, err := os.Stdin.Stat()
 		if err != nil {
 			return err
+		}
+		// Only read from stdin when there is something actually there
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			bs, err = io.ReadAll(stdin)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -28,6 +28,12 @@ This tutorial requires [Docker Compose](https://docs.docker.com/compose/install/
 
 Create a policy that allows users to request their own salary as well as the salary of their direct subordinates.
 
+**First** create a directory named `bundles` and cd into it.
+```sh
+mkdir bundles
+cd bundles
+```
+
 **example.rego**:
 
 ```live:example:module:openable
@@ -53,13 +59,14 @@ allow {
 }
 ```
 
-Then, build a bundle.
+**Then**, build a bundle.
 
 ```shell
 opa build example.rego
+cd ..
 ```
 
-You should now see a policy bundle (`bundle.tar.gz`) in your working directory.
+You should now see a policy bundle (`bundle.tar.gz`) in your working directory (`./bundles/bundle.tar.gz`).
 
 ### 2. Bootstrap the tutorial environment using Docker Compose.
 

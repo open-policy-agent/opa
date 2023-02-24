@@ -288,6 +288,7 @@ pkg-descr
 
 Package:  test
 Location: %[1]s/x.rego:16
+Scope: package
 
 Organizations:
  pkg-org
@@ -313,6 +314,7 @@ doc-descr
 Package:  test
 Rule:     p
 Location: %[1]s/x.rego:50
+Scope: document
 
 Organizations:
  doc-org
@@ -338,6 +340,7 @@ rule-title
 Package:  test
 Rule:     p
 Location: %[1]s/x.rego:50
+Scope: rule
 
 Organizations:
  rule-org
@@ -354,6 +357,206 @@ Related Resources:
 
 Custom:
  rule: "rule-custom"`, rootDir))
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+		}
+
+	})
+}
+
+func TestDoInspectTarballPrettyWithAnnotations(t *testing.T) {
+
+	files := [][2]string{
+		{"x.rego", `# METADATA
+# title: pkg-title
+# description: pkg-descr
+# organizations:
+# - pkg-org
+# related_resources:
+# - https://pkg
+# - ref: https://pkg
+#   description: rr-pkg-note
+# authors:
+# - pkg-author
+# schemas:
+# - input: {"type": "boolean"}
+# custom:
+#  pkg: pkg-custom
+package test
+
+# METADATA
+# scope: document
+# title: doc-title
+# description: doc-descr
+# organizations:
+# - doc-org
+# related_resources:
+# - https://doc
+# - ref: https://doc
+#   description: rr-doc-note
+# authors:
+# - doc-author
+# schemas:
+# - input: {"type": "integer"}
+# custom:
+#  doc: doc-custom
+
+# METADATA
+# title: rule-title
+# description: rule-title
+# organizations:
+# - rule-org
+# related_resources:
+# - https://rule
+# - ref: https://rule
+#   description: rr-rule-note
+# authors:
+# - rule-author
+# schemas:
+# - input: {"type": "string"}
+# custom:
+#  rule: rule-custom
+p = 1`},
+		{".manifest", `
+{
+	"revision": "",
+	"roots": [
+		""
+	],
+	"wasm": [
+		{
+			"entrypoint": "test/a",
+			"module": "/policy.wasm"
+		},
+		{
+			"entrypoint": "test/b",
+			"module": "/policy.wasm",
+			"annotations": [
+				{
+					"scope": "rule",
+					"title": "WASM RULE B",
+					"entrypoint": true
+				}
+			]
+		}
+	]
+}`},
+		{"policy.wasm", ""},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		ps := newInspectCommandParams()
+		ps.listAnnotations = true
+		var out bytes.Buffer
+
+		err = doInspect(ps, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		bs := out.Bytes()
+		idx := bytes.Index(bs, []byte(`ANNOTATIONS`)) // skip NAMESPACE box
+		output := strings.TrimSpace(string(bs[idx:]))
+		expected := strings.TrimSpace(`
+ANNOTATIONS:
+pkg-title
+=========
+
+pkg-descr
+
+Package:  test
+Location: /x.rego:16
+Scope: package
+
+Organizations:
+ pkg-org
+
+Authors:
+ pkg-author
+
+Schemas:
+ input: {"type":"boolean"}
+
+Related Resources:
+ https://pkg 
+ https://pkg rr-pkg-note
+
+Custom:
+ pkg: "pkg-custom"
+
+WASM RULE B
+===========
+
+Location: /policy.wasm:0
+Scope: rule
+Entrypoint: true
+
+doc-title
+=========
+
+doc-descr
+
+Package:  test
+Rule:     p
+Location: /x.rego:50
+Scope: document
+
+Organizations:
+ doc-org
+
+Authors:
+ doc-author
+
+Schemas:
+ input: {"type":"integer"}
+
+Related Resources:
+ https://doc 
+ https://doc rr-doc-note
+
+Custom:
+ doc: "doc-custom"
+
+rule-title
+==========
+
+rule-title
+
+Package:  test
+Rule:     p
+Location: /x.rego:50
+Scope: rule
+
+Organizations:
+ rule-org
+
+Authors:
+ rule-author
+
+Schemas:
+ input: {"type":"string"}
+
+Related Resources:
+ https://rule 
+ https://rule rr-rule-note
+
+Custom:
+ rule: "rule-custom"`)
 
 		if output != expected {
 			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)

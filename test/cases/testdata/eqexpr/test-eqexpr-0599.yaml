@@ -1,0 +1,19 @@
+cases:
+  - input_term: "1.0"
+    modules:
+      - |
+        package test
+        p { input == 1.0 }
+    note: "eqexpr/indexing: input is 1.0"
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - input_term: "1"
+    modules:
+      - |
+        package test
+        p { input == 1.0 }
+    note: "eqexpr/indexing: input is 1"
+    query: data.test.p = x
+    want_result:
+      - x: true

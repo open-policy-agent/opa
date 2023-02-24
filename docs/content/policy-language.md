@@ -1506,7 +1506,7 @@ deny if input.token != "secret"
 This keyword allows more expressive rule heads for partial set rules:
 
 ```live:eg/kws/contains:module:read_only
-deny contains msg { msg := "forbdiden" }
+deny contains msg { msg := "forbidden" }
 ```
 
 `contains` was introduced in [v0.42.0](https://github.com/open-policy-agent/opa/releases/tag/v0.42.0).
@@ -1853,7 +1853,8 @@ default <name> := <term>
 
 The term may be any scalar, composite, or comprehension value but it may not be
 a variable or reference. If the value is a composite then it may not contain
-variables or references.
+variables or references. Comprehensions however may, as the result of a
+comprehension is never undefined.
 
 ## Else Keyword
 

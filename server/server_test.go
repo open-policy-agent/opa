@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
 
@@ -1034,6 +1034,7 @@ func TestCompileV1Observability(t *testing.T) {
 			"timer_rego_partial_eval_ns",
 			"timer_rego_query_compile_ns",
 			"timer_rego_query_parse_ns",
+			"timer_rego_module_parse_ns",
 			"timer_server_handler_ns",
 			"counter_disk_read_keys",
 			"timer_disk_read_ns",
@@ -3430,7 +3431,7 @@ func TestUnversionedPost(t *testing.T) {
 	f.reset()
 	f.server.Handler.ServeHTTP(f.recorder, post())
 
-	expected := `{"agg":6}`
+	expected := "{\"agg\":6}\n"
 	if f.recorder.Code != 200 || f.recorder.Body.String() != expected {
 		t.Fatalf(`Expected HTTP 200 / %v but got: %v`, expected, f.recorder)
 	}

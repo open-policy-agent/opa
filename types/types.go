@@ -48,6 +48,8 @@ func NewNull() Null {
 	return Null{}
 }
 
+// NamedType represents a type alias with an arbitrary name and description.
+// This is useful for generating documentation for built-in functions.
 type NamedType struct {
 	Name, Descr string
 	Type        Type
@@ -77,6 +79,9 @@ func (n *NamedType) Description(d string) *NamedType {
 	return n
 }
 
+// Named returns the passed type as a named type.
+// Named types are only valid at the top level of built-in functions.
+// Note that nested named types cause panic.
 func Named(name string, t Type) *NamedType {
 	return &NamedType{
 		Type: t,

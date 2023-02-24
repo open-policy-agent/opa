@@ -17,7 +17,7 @@
 {{ $contrib     := where $allDocs ".Params.kind" "eq" "contrib" }}
 {{ $misc        := where $allDocs ".Params.kind" "eq" "misc" }}
 {{ $version     := index (split .File.Path "/") 1 }}
-{{ $pageUrl     := .URL }}
+{{ $pageUrl     := .Permalink }}
 <nav class="navbar is-primary">
   <div class="navbar-brand is-hidden-desktop">
     <a class="navbar-item" href="{{ $home }}">
@@ -37,7 +37,7 @@
         Core Docs
       </span>
 
-      <a class="navbar-item" href="{{ $docsHome.URL }}">
+      <a class="navbar-item" href="{{ $docsHome.Permalink }}">
         {{ $docsHome.Name }}
       </a>
 
