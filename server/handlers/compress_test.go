@@ -16,7 +16,7 @@ const (
 	requestBody  = "Hello World!\n"
 )
 
-func executeRequest(w *httptest.ResponseRecorder, path string, acceptEncoding string) {
+func executeRequest(w *httptest.ResponseRecorder, path string, method string, acceptEncoding string) {
 	CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, err := io.WriteString(w, requestBody)
@@ -25,7 +25,7 @@ func executeRequest(w *httptest.ResponseRecorder, path string, acceptEncoding st
 		}
 	})).ServeHTTP(w, &http.Request{
 		URL:    &url.URL{Path: path},
-		Method: "GET",
+		Method: method,
 		Header: http.Header{
 			"Accept-Encoding": []string{acceptEncoding},
 		},
@@ -36,7 +36,7 @@ func TestCompressHandlerWithGzipOnInScopeEndpoints(t *testing.T) {
 	endpoints := []string{"/v0/data", "/v1/data", "/v1/compile"}
 	for _, endpoint := range endpoints {
 		w := httptest.NewRecorder()
-		executeRequest(w, endpoint, gzipEncoding)
+		executeRequest(w, endpoint, "POST", gzipEncoding)
 		contentEncodingValue := w.Result().Header.Get("Content-Encoding")
 		if contentEncodingValue != gzipEncoding {
 			t.Errorf("wrong content encoding, got %q want %q", contentEncodingValue, gzipEncoding)
@@ -55,7 +55,7 @@ func TestCompressHandlerWithGzipOnInScopeEndpoints(t *testing.T) {
 
 func TestHandlerOnEndpointsWithoutCompression(t *testing.T) {
 	w := httptest.NewRecorder()
-	executeRequest(w, "/metrics", gzipEncoding)
+	executeRequest(w, "/metrics", "GET", gzipEncoding)
 	contentEncodingValue := w.Result().Header.Get("Content-Encoding")
 	if contentEncodingValue != "" {
 		t.Errorf("wrong content encoding, got %q want %q", contentEncodingValue, gzipEncoding)

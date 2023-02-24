@@ -34,9 +34,9 @@ func (w *compressResponseWriter) Write(b []byte) (int, error) {
 
 func CompressHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		// this handler applies only for data and compile endpoints
-		shouldApplyCompression := isDataEndpoint(request) || isCompileEndpoint(request)
-		if !shouldApplyCompression {
+		// this handler applies only for data and compile endpoints for selected HTTP methods
+		enabledForEndpoint := isDataEndpoint(request) || isCompileEndpoint(request)
+		if !enabledForEndpoint {
 			handler.ServeHTTP(responseWriter, request)
 			return
 		}
@@ -54,10 +54,10 @@ func CompressHandler(handler http.Handler) http.Handler {
 		gzipWriter.Reset(&b)
 		defer func() {
 			gzipWriter.Close()
-			responseWriter.Header().Set("Content-Length", fmt.Sprint(len(b.Bytes())))
+			responseWriter.Header().Set(contentLengthHeader, fmt.Sprint(len(b.Bytes())))
 			_, err := responseWriter.Write(b.Bytes())
 			if err != nil {
-				log.Fatalf("Error writing the compressed response: %v", err)
+				log.Fatalf("Error writing the compressed response: %s\n", err)
 			}
 		}()
 
@@ -67,11 +67,21 @@ func CompressHandler(handler http.Handler) http.Handler {
 }
 
 func isDataEndpoint(req *http.Request) bool {
-	return strings.HasPrefix(req.URL.Path, "/v1/data") || strings.HasPrefix(req.URL.Path, "/v0/data")
+	isPostOrGetMethod := isPostMethod(req) || isGetMethod(req)
+	isV1rV0 := strings.HasPrefix(req.URL.Path, "/v1/data") || strings.HasPrefix(req.URL.Path, "/v0/data")
+	return isPostOrGetMethod && isV1rV0
 }
 
 func isCompileEndpoint(req *http.Request) bool {
-	return strings.HasPrefix(req.URL.Path, "/v1/compile")
+	return isPostMethod(req) && strings.HasPrefix(req.URL.Path, "/v1/compile")
+}
+
+func isPostMethod(req *http.Request) bool {
+	return req.Method == "POST"
+}
+
+func isGetMethod(req *http.Request) bool {
+	return req.Method == "GET"
 }
 
 var gzipPool = sync.Pool{

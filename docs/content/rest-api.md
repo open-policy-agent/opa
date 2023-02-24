@@ -732,6 +732,10 @@ The path separator is used to access values inside object and array documents. I
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
 
+#### Request Headers
+
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body
+
 #### Status Codes
 
 - **200** - no error
