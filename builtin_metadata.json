@@ -97,7 +97,6 @@
       "net.cidr_intersects",
       "net.cidr_is_valid",
       "net.cidr_merge",
-      "net.cidr_overlap",
       "net.lookup_ip_addr"
     ],
     "numbers": [
