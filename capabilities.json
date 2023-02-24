@@ -2053,55 +2053,6 @@
       }
     },
     {
-      "name": "json.is_match_schema",
-      "decl": {
-        "args": [
-          {
-            "of": [
-              {
-                "type": "string"
-              },
-              {
-                "dynamic": {
-                  "key": {
-                    "type": "any"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              }
-            ],
-            "type": "any"
-          },
-          {
-            "of": [
-              {
-                "type": "string"
-              },
-              {
-                "dynamic": {
-                  "key": {
-                    "type": "any"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              }
-            ],
-            "type": "any"
-          }
-        ],
-        "result": {
-          "type": "boolean"
-        },
-        "type": "function"
-      }
-    },
-    {
       "name": "json.is_valid",
       "decl": {
         "args": [
@@ -2173,35 +2124,43 @@
           }
         ],
         "result": {
-          "dynamic": {
-            "static": [
-              {
-                "key": "desc",
-                "value": {
-                  "type": "string"
-                }
+          "static": [
+            {
+              "type": "boolean"
+            },
+            {
+              "dynamic": {
+                "static": [
+                  {
+                    "key": "desc",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "error",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "field",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "type",
+                    "value": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "type": "object"
               },
-              {
-                "key": "error",
-                "value": {
-                  "type": "string"
-                }
-              },
-              {
-                "key": "field",
-                "value": {
-                  "type": "string"
-                }
-              },
-              {
-                "key": "type",
-                "value": {
-                  "type": "string"
-                }
-              }
-            ],
-            "type": "object"
-          },
+              "type": "array"
+            }
+          ],
           "type": "array"
         },
         "type": "function"
@@ -2325,36 +2284,6 @@
       }
     },
     {
-      "name": "jsonschema.is_valid",
-      "decl": {
-        "args": [
-          {
-            "of": [
-              {
-                "type": "string"
-              },
-              {
-                "dynamic": {
-                  "key": {
-                    "type": "any"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "type": "object"
-              }
-            ],
-            "type": "any"
-          }
-        ],
-        "result": {
-          "type": "boolean"
-        },
-        "type": "function"
-      }
-    },
-    {
       "name": "jsonschema.verify",
       "decl": {
         "args": [
@@ -2379,7 +2308,23 @@
           }
         ],
         "result": {
-          "type": "string"
+          "static": [
+            {
+              "type": "boolean"
+            },
+            {
+              "of": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "any"
+            }
+          ],
+          "type": "array"
         },
         "type": "function"
       }

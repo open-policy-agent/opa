@@ -90,14 +90,6 @@
       "internal.member_3",
       "internal.print"
     ],
-    "json": [
-      "json.is_match_schema",
-      "json.match_schema"
-    ],
-    "jsonschema": [
-      "jsonschema.is_valid",
-      "jsonschema.verify"
-    ],
     "net": [
       "net.cidr_contains",
       "net.cidr_contains_matches",
@@ -123,8 +115,10 @@
     ],
     "object": [
       "json.filter",
+      "json.match_schema",
       "json.patch",
       "json.remove",
+      "jsonschema.verify",
       "object.filter",
       "object.get",
       "object.keys",
@@ -8284,29 +8278,6 @@
     },
     "wasm": true
   },
-  "json.is_match_schema": {
-    "args": [
-      {
-        "name": "document",
-        "type": "any\u003cstring, object[any: any]\u003e"
-      },
-      {
-        "name": "schema",
-        "type": "any\u003cstring, object[any: any]\u003e"
-      }
-    ],
-    "available": [
-      "edge"
-    ],
-    "description": "Checks that the document matches the JSON schema.",
-    "introduced": "edge",
-    "result": {
-      "description": "`true` if the document matches the JSON schema. Otherwise `false`.",
-      "name": "output",
-      "type": "boolean"
-    },
-    "wasm": false
-  },
   "json.is_valid": {
     "args": [
       {
@@ -8486,10 +8457,12 @@
   "json.match_schema": {
     "args": [
       {
+        "description": "document to verify by schema",
         "name": "document",
         "type": "any\u003cstring, object[any: any]\u003e"
       },
       {
+        "description": "schema to verify document by",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -8500,9 +8473,9 @@
     "description": "Checks that the document matches the JSON schema.",
     "introduced": "edge",
     "result": {
-      "description": "empty array if the document matches the JSON schema. Array of error objects otherwise.",
+      "description": "`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `true` and `errors` is an array of objects describing the error(s).",
       "name": "output",
-      "type": "array[object\u003cdesc: string, error: string, field: string, type: string\u003e]"
+      "type": "array\u003cboolean, array[object\u003cdesc: string, error: string, field: string, type: string\u003e]\u003e"
     },
     "wasm": false
   },
@@ -8780,28 +8753,10 @@
     },
     "wasm": true
   },
-  "jsonschema.is_valid": {
-    "args": [
-      {
-        "name": "schema",
-        "type": "any\u003cstring, object[any: any]\u003e"
-      }
-    ],
-    "available": [
-      "edge"
-    ],
-    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
-    "introduced": "edge",
-    "result": {
-      "description": "`true` if the schema is a valid JSON schema. `false` otherwise.",
-      "name": "output",
-      "type": "boolean"
-    },
-    "wasm": false
-  },
   "jsonschema.verify": {
     "args": [
       {
+        "description": "the schema to verify",
         "name": "schema",
         "type": "any\u003cstring, object[any: any]\u003e"
       }
@@ -8812,9 +8767,9 @@
     "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
     "introduced": "edge",
     "result": {
-      "description": "empty string if the schema is a valid JSON schema. Error string otherwise.",
+      "description": "`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error.",
       "name": "output",
-      "type": "string"
+      "type": "array\u003cboolean, any\u003cnull, string\u003e\u003e"
     },
     "wasm": false
   },

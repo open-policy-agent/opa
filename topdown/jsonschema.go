@@ -28,18 +28,13 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 		}
 		loader = gojsonschema.NewStringLoader(string(x))
 	case ast.Object:
-		// In case of object serialize it to JSON string and acts like case above.
-		var data []byte
-		var asJSON interface{}
-		asJSON, err = ast.JSON(value)
+		// In case of object serialize it to JSON representation.
+		var data interface{}
+		data, err = ast.JSON(value)
 		if err != nil {
 			return nil, err
 		}
-		data, err = json.Marshal(asJSON)
-		if err != nil {
-			return nil, err
-		}
-		loader = gojsonschema.NewStringLoader(string(data))
+		loader = gojsonschema.NewGoLoader(data)
 	default:
 		// Any other cases will produce an error.
 		return nil, errors.New("wrong type, expected string or object")
@@ -48,42 +43,29 @@ func astValueToJSONSchemaLoader(value ast.Value) (gojsonschema.JSONLoader, error
 	return loader, nil
 }
 
-// builtinJSONSchemaIsValid accepts 1 argument which can be string or object and checks if it is valid JSON schema.
-func builtinJSONSchemaIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Take first argument and make JSON Loader from it.
-	loader, err := astValueToJSONSchemaLoader(operands[0].Value)
-	if err != nil {
-		return iter(ast.BooleanTerm(false))
-	}
-
-	// Check that schema is correct and parses without errors.
-	if _, err = gojsonschema.NewSchema(loader); err != nil {
-		return iter(ast.BooleanTerm(false))
-	}
-
-	return iter(ast.BooleanTerm(true))
+func newResultTerm(valid bool, data *ast.Term) *ast.Term {
+	return ast.ArrayTerm(ast.BooleanTerm(valid), data)
 }
 
 // builtinJSONSchemaValidate accepts 1 argument which can be string or object and checks if it is valid JSON schema.
-// Returns string in case of error or empty string otherwise.
+// Returns array [false, <string>] with error string at index 1, or [true, ""] with empty string at index 1 otherwise.
 func builtinJSONSchemaValidate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Take first argument and make JSON Loader from it.
 	loader, err := astValueToJSONSchemaLoader(operands[0].Value)
 	if err != nil {
-		return iter(ast.StringTerm("jsonschema: " + err.Error()))
+		return iter(newResultTerm(false, ast.StringTerm("jsonschema: "+err.Error())))
 	}
 
 	// Check that schema is correct and parses without errors.
 	if _, err = gojsonschema.NewSchema(loader); err != nil {
-		return iter(ast.StringTerm("jsonschema: " + err.Error()))
+		return iter(newResultTerm(false, ast.StringTerm("jsonschema: "+err.Error())))
 	}
 
-	return iter(ast.StringTerm(""))
+	return iter(newResultTerm(true, ast.NullTerm()))
 }
 
 // builtinJSONMatchSchema accepts 2 arguments both can be string or object and verifies if the document matches the JSON schema.
-// Returns an array of errors or empty array.
-// Returns an empty array if no errors are found.
+// Returns an array where first element is a boolean indicating a successful match, and the second is an array of errors that is empty on success and populated on failure.
 // In case of internal error returns empty array.
 func builtinJSONMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Take first argument and make JSON Loader from it.
@@ -100,14 +82,8 @@ func builtinJSONMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*a
 		return err
 	}
 
-	// Make new schema instance to provide validations.
-	schema, err := gojsonschema.NewSchema(schemaLoader)
-	if err != nil {
-		return err
-	}
-
-	// Use the schema instance to validate the document.
-	result, err := schema.Validate(documentLoader)
+	// Use schema to validate document.
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
 		return err
 	}
@@ -124,45 +100,10 @@ func builtinJSONMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*a
 		arr = arr.Append(ast.NewTerm(o))
 	}
 
-	return iter(ast.NewTerm(arr))
-}
-
-// builtinJSONIsMatchSchema accepts 2 arguments both can be string or object and verifies if the document matches the JSON schema.
-// Returns true if the document matches the schema.
-func builtinJSONIsMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	// Take first argument and make JSON Loader from it.
-	// This is a JSON document made from Rego JSON string or object.
-	documentLoader, err := astValueToJSONSchemaLoader(operands[0].Value)
-	if err != nil {
-		return err
-	}
-
-	// Take second argument and make JSON Loader from it.
-	// This is a JSON schema made from Rego JSON string or object.
-	schemaLoader, err := astValueToJSONSchemaLoader(operands[1].Value)
-	if err != nil {
-		return err
-	}
-
-	// Make new schema instance to provide validations.
-	schema, err := gojsonschema.NewSchema(schemaLoader)
-	if err != nil {
-		return err
-	}
-
-	// Use the schema instance to validate the document.
-	result, err := schema.Validate(documentLoader)
-	if err != nil {
-		return err
-	}
-
-	// Return true/false only without errors explanation.
-	return iter(ast.BooleanTerm(result.Valid()))
+	return iter(newResultTerm(result.Valid(), ast.NewTerm(arr)))
 }
 
 func init() {
-	RegisterBuiltinFunc(ast.JSONSchemaIsValid.Name, builtinJSONSchemaIsValid)
 	RegisterBuiltinFunc(ast.JSONSchemaVerify.Name, builtinJSONSchemaValidate)
-	RegisterBuiltinFunc(ast.JSONIsMatchSchema.Name, builtinJSONIsMatchSchema)
 	RegisterBuiltinFunc(ast.JSONMatchSchema.Name, builtinJSONMatchSchema)
 }
