@@ -286,11 +286,54 @@ func TestDumpPath(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	// NOTE: We are converting the path to lowercase in repl.OneShot.
-	// In file systems that are case-sensitive, this test will fail if we use
-	// a CamelCase directory name.
-	// See: https://github.com/open-policy-agent/opa/pull/5227#issuecomment-1273975492
 	dir, err := os.MkdirTemp("", "dump-path-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			t.Errorf("error cleaning up with RemoveAll(): %v", err)
+		}
+	})
+	file := filepath.Join(dir, "tmpfile")
+	if err := repl.OneShot(ctx, fmt.Sprintf("dump %s", file)); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if buffer.String() != "" {
+		t.Errorf("Expected no output but got: %v", buffer.String())
+	}
+
+	bs, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatalf("Expected file read to succeed but got: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := util.UnmarshalJSON(bs, &result); err != nil {
+		t.Fatalf("Expected json unmarshal to succeed but got: %v", err)
+	}
+
+	if !reflect.DeepEqual(data, result) {
+		t.Fatalf("Expected dumped json to equal %v but got: %v", data, result)
+	}
+}
+
+func TestDumpPathCaseSensitive(t *testing.T) {
+	ctx := context.Background()
+	input := `{"a": [1,2,3,4]}`
+	var data map[string]interface{}
+	err := util.UnmarshalJSON([]byte(input), &data)
+	if err != nil {
+		panic(err)
+	}
+	store := inmem.NewFromObject(data)
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer)
+
+	dir, err := os.MkdirTemp("", "DumpPathCaseSensitiveTest")
 	if err != nil {
 		t.Fatal(err)
 	}
