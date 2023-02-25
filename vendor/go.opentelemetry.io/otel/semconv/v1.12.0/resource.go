@@ -14,9 +14,54 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.10.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 import "go.opentelemetry.io/otel/attribute"
+
+// The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).
+const (
+	// Array of brand name and version separated by a space
+	//
+	// Type: string[]
+	// Required: No
+	// Stability: stable
+	// Examples: ' Not A;Brand 99', 'Chromium 99', 'Chrome 99'
+	// Note: This value is intended to be taken from the [UA client hints
+	// API](https://wicg.github.io/ua-client-hints/#interface)
+	// (navigator.userAgentData.brands).
+	BrowserBrandsKey = attribute.Key("browser.brands")
+	// The platform on which the browser is running
+	//
+	// Type: string
+	// Required: No
+	// Stability: stable
+	// Examples: 'Windows', 'macOS', 'Android'
+	// Note: This value is intended to be taken from the [UA client hints
+	// API](https://wicg.github.io/ua-client-hints/#interface)
+	// (navigator.userAgentData.platform). If unavailable, the legacy
+	// `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD
+	// be left unset in order for the values to be consistent.
+	// The list of possible values is defined in the [W3C User-Agent Client Hints
+	// specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform).
+	// Note that some (but not all) of these values can overlap with values in the
+	// [os.type and os.name attributes](./os.md). However, for consistency, the values
+	// in the `browser.platform` attribute should capture the exact value that the
+	// user agent provides.
+	BrowserPlatformKey = attribute.Key("browser.platform")
+	// Full user-agent string provided by the browser
+	//
+	// Type: string
+	// Required: No
+	// Stability: stable
+	// Examples: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
+	// (KHTML, '
+	//  'like Gecko) Chrome/95.0.4638.54 Safari/537.36'
+	// Note: The user-agent value SHOULD be provided only from browsers that do not
+	// have a mechanism to retrieve brands and platform individually from the User-
+	// Agent Client Hints API. To retrieve the value, the legacy `navigator.userAgent`
+	// API can be used.
+	BrowserUserAgentKey = attribute.Key("browser.user_agent")
+)
 
 // A cloud environment (e.g. GCP, Azure, AWS)
 const (
@@ -350,12 +395,24 @@ const (
 	// Type: string
 	// Required: Always
 	// Stability: stable
-	// Examples: 'my-function'
+	// Examples: 'my-function', 'myazurefunctionapp/some-function-name'
 	// Note: This is the name of the function as configured/deployed on the FaaS
-	// platform and is usually different from the name of the callback function (which
-	// may be stored in the
+	// platform and is usually different from the name of the callback
+	// function (which may be stored in the
 	// [`code.namespace`/`code.function`](../../trace/semantic_conventions/span-
-	// general.md#source-code-attributes) span attributes).
+	// general.md#source-code-attributes)
+	// span attributes).
+
+	// For some cloud providers, the above definition is ambiguous. The following
+	// definition of function name MUST be used for this attribute
+	// (and consequently the span name) for the listed cloud providers/products:
+
+	// * **Azure:**  The full name `<FUNCAPP>/<FUNC>`, i.e., function app name
+	//   followed by a forward slash followed by the function name (this form
+	//   can also be seen in the resource JSON for the function).
+	//   This means that a span attribute MUST be used, as an Azure function
+	//   app can host multiple functions that would usually share
+	//   a TracerProvider (see also the `faas.id` attribute).
 	FaaSNameKey = attribute.Key("faas.name")
 	// The unique ID of the single function that this runtime instance executes.
 	//
@@ -363,27 +420,31 @@ const (
 	// Required: No
 	// Stability: stable
 	// Examples: 'arn:aws:lambda:us-west-2:123456789012:function:my-function'
-	// Note: Depending on the cloud provider, use:
+	// Note: On some cloud providers, it may not be possible to determine the full ID
+	// at startup,
+	// so consider setting `faas.id` as a span attribute instead.
+
+	// The exact value to use for `faas.id` depends on the cloud provider:
 
 	// * **AWS Lambda:** The function
 	// [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-
 	// namespaces.html).
-	// Take care not to use the "invoked ARN" directly but replace any
-	// [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-
-	// aliases.html) with the resolved function version, as the same runtime instance
-	// may be invokable with multiple
-	// different aliases.
+	//   Take care not to use the "invoked ARN" directly but replace any
+	//   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-
+	// aliases.html)
+	//   with the resolved function version, as the same runtime instance may be
+	// invokable with
+	//   multiple different aliases.
 	// * **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-
 	// resource-names)
 	// * **Azure:** The [Fully Qualified Resource ID](https://docs.microsoft.com/en-
-	// us/rest/api/resources/resources/get-by-id).
-
-	// On some providers, it may not be possible to determine the full ID at startup,
-	// which is why this field cannot be made required. For example, on AWS the
-	// account ID
-	// part of the ARN is not available without calling another AWS API
-	// which may be deemed too slow for a short-running lambda function.
-	// As an alternative, consider setting `faas.id` as a span attribute instead.
+	// us/rest/api/resources/resources/get-by-id) of the invoked function,
+	//   *not* the function app, having the form
+	//   `/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.We
+	// b/sites/<FUNCAPP>/functions/<FUNC>`.
+	//   This means that a span attribute MUST be used, as an Azure function app can
+	// host multiple functions that would usually share
+	//   a TracerProvider.
 	FaaSIDKey = attribute.Key("faas.id")
 	// The immutable version of the function being executed.
 	//
@@ -742,7 +803,7 @@ var (
 	OSTypeHPUX = OSTypeKey.String("hpux")
 	// AIX (Advanced Interactive eXecutive)
 	OSTypeAIX = OSTypeKey.String("aix")
-	// Oracle Solaris
+	// SunOS, Oracle Solaris
 	OSTypeSolaris = OSTypeKey.String("solaris")
 	// IBM z/OS
 	OSTypeZOS = OSTypeKey.String("z_os")
