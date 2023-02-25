@@ -105,7 +105,7 @@ func doCapabilities(params capabilitiesParams) (string, error) {
 		return "", err
 	}
 
-	bs, err := json.MarshalIndent(c, "", " ")
+	bs, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return "", err
 	}
