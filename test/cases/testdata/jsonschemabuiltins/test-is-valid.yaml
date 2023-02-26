@@ -1,0 +1,47 @@
+cases:
+- note: jsonschemabuiltins/is_valid
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    documents = [
+      "plainstring",
+      {},
+      false
+    ]
+
+    schema := "{ \"type\": \"string\" }"
+
+    p = [x | doc = documents[_]; jsonschema.is_valid(schema, doc, x)]
+  strict_error: true
+  want_result:
+  - x:
+    - true
+    - false
+    - false
+
+- note: jsonschemabuiltins/validate
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    documents = [
+      "plainstring",
+      {},
+      false
+    ]
+
+    schema := "{ \"type\": \"string\" }"
+
+    p = [x | doc = documents[_]; jsonschema.validate(schema, doc, x)]
+  strict_error: true
+  want_result:
+  - x:
+    - []
+    - [{"description": "Invalid type. Expected: string, given: object", "error": "(Root): Invalid type. Expected: string, given: object", "field": "(Root)", "type": "invalid_type"}]
+    - [{"description": "Invalid type. Expected: string, given: boolean", "error": "(Root): Invalid type. Expected: string, given: boolean", "field": "(Root)", "type": "invalid_type"}]
+
+    
+

@@ -172,6 +172,10 @@ var DefaultBuiltins = [...]*Builtin{
 	JSONRemove,
 	JSONPatch,
 
+	// JSON Schema
+	JSONSchemaIsValid,
+	JSONSchemaValidate,
+
 	// Tokens
 	JWTDecode,
 	JWTVerifyRS256,
@@ -2911,6 +2915,50 @@ var SemVerCompare = &Builtin{
 		),
 		types.Named("result", types.N).Description("`-1` if `a < b`; `1` if `a > b`; `0` if `a == b`"),
 	),
+}
+
+/**
+ * JSON Schema
+ */
+
+var jsonschema = category("jsonschema")
+
+var JSONSchemaIsValid = &Builtin{
+	Name:        "jsonschema.is_valid",
+	Description: "Validates that the input is valid according to the passed JSON schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.S),
+			types.Named("doc", types.A),
+		),
+		types.Named("result", types.B).Description("`true` if `doc` is a valid instance of the json schema passed in `schema`"),
+	),
+	Categories: jsonschema,
+}
+
+var JSONSchemaValidate = &Builtin{
+	Name:        "jsonschema.validate",
+	Description: "Validates against a passed JSON Schema and returns a set of validation errors.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.S),
+			types.Named("doc", types.A),
+		),
+		types.Named("result",
+			types.NewSet(
+				types.NewObject(
+					[]*types.StaticProperty{
+						{Key: "error", Value: types.S},
+						{Key: "type", Value: types.S},
+						{Key: "field", Value: types.S},
+						{Key: "desc", Value: types.S},
+					},
+					nil,
+				),
+			),
+		).Description("A set of validation errors if `doc` is invalid against `schema`"),
+	),
+	Categories: jsonschema,
 }
 
 /**
