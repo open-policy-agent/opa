@@ -23,15 +23,16 @@ func builtinJSONSchemaValidate(_ BuiltinContext, operands []*ast.Term, iter func
 		return err
 	}
 
-	var validationErrorTerms []*ast.Term
-	for _, err := range result.Errors() {
+	var validationErrorTerms []*ast.Term = make([]*ast.Term, len(result.Errors()))
+	for i, err := range result.Errors() {
 		term := ast.ObjectTerm(
 			[2]*ast.Term{ast.StringTerm("error"), ast.StringTerm(err.String())},
 			[2]*ast.Term{ast.StringTerm("type"), ast.StringTerm(err.Type())},
 			[2]*ast.Term{ast.StringTerm("field"), ast.StringTerm(err.Field())},
 			[2]*ast.Term{ast.StringTerm("description"), ast.StringTerm(err.Description())},
 		)
-		validationErrorTerms = append(validationErrorTerms, term)
+
+		validationErrorTerms[i] = term
 	}
 
 	return iter(ast.SetTerm(validationErrorTerms...))
