@@ -344,7 +344,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
+# golang.org/x/time v0.3.0
 ## explicit
 golang.org/x/time/rate
 # google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f
