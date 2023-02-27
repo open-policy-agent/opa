@@ -229,6 +229,7 @@ In-depth information on this topic can be found [here](../schemas#schema-annotat
 
 Schema files can be referenced by path, where each path starts with the `schema` namespace, and trailing components specify 
 the path of the schema file (sans file-ending) relative to the root directory specified by the `--schema` flag on applicable commands.
+If the `--schema` flag is not present, referenced schemas are ignored during type checking.
 
 ```live:rego/metadata/schemas_ref:module:read_only
 # METADATA
@@ -243,7 +244,9 @@ allow {
 
 #### Inlined Schema Format
 
-Schema definitions can be inlined by specifying the schema structure as a yaml map.
+Schema definitions can be inlined by specifying the schema structure as a YAML or JSON map.
+Inlined schemas are always used to inform type checking for the `eval`, `check`, and `test` commands; 
+in contrast to [by-reference schema annotations](#schema-reference-format), which require the `--schema` flag to be present in order to be evaluated.
 
 ```live:rego/metadata/schemas_inline:module:read_only
 # METADATA
