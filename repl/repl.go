@@ -1354,12 +1354,13 @@ type command struct {
 }
 
 func newCommand(line string) *command {
-	p := strings.Fields(strings.TrimSpace(strings.ToLower(line)))
+	p := strings.Fields(strings.TrimSpace(line))
 	if len(p) == 0 {
 		return nil
 	}
+	inputCommand := strings.ToLower(p[0])
 	for _, c := range builtin {
-		if c.name == p[0] {
+		if c.name == inputCommand {
 			return &command{
 				op:   c.name,
 				args: p[1:],
