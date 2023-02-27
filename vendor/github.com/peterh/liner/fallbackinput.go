@@ -1,4 +1,5 @@
-// +build !windows,!linux,!darwin,!openbsd,!freebsd,!netbsd
+//go:build !windows && !linux && !darwin && !openbsd && !freebsd && !netbsd && !solaris
+// +build !windows,!linux,!darwin,!openbsd,!freebsd,!netbsd,!solaris
 
 package liner
 
@@ -55,3 +56,5 @@ func (n noopMode) ApplyMode() error {
 func TerminalMode() (ModeApplier, error) {
 	return noopMode{}, nil
 }
+
+const cursorColumn = true
