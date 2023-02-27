@@ -78,7 +78,7 @@ github.com/felixge/httpsnoop
 # github.com/fortytw2/leaktest v1.3.0
 ## explicit
 github.com/fortytw2/leaktest
-# github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
+# github.com/foxcpp/go-mockdns v1.0.0
 ## explicit; go 1.13
 github.com/foxcpp/go-mockdns
 # github.com/fsnotify/fsnotify v1.6.0

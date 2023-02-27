@@ -10,7 +10,7 @@ require (
 	github.com/containerd/containerd v1.6.18
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/foxcpp/go-mockdns v0.0.0-20210729171921-fb145fc6f897
+	github.com/foxcpp/go-mockdns v1.0.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.67.0
