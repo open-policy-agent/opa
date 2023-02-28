@@ -102,15 +102,6 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 
 		r := bundle.NewCustomReader(bundle.NewTarballLoaderWithBaseURL(f, ""))
 
-		if bvc != nil {
-			r = r.WithBundleVerificationConfig(bvc)
-		}
-
-		b, err := r.Read()
-		if err != nil {
-			return nil, err
-		}
-
 		if _, err := os.Stat(manifestPath); err == nil {
 			f, err := os.Open(filepath.Join(manifestPath))
 			if err != nil {
@@ -123,7 +114,18 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 				return nil, fmt.Errorf("failed to decode manifest file: %w", err)
 			}
 
-			b.Etag, _ = d["etag"].(string)
+			if etag, ok := d["etag"].(string); ok {
+				r.WithBundleEtag(etag)
+			}
+		}
+
+		if bvc != nil {
+			r = r.WithBundleVerificationConfig(bvc)
+		}
+
+		b, err := r.Read()
+		if err != nil {
+			return nil, err
 		}
 
 		return &b, nil
