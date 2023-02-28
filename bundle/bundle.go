@@ -1254,6 +1254,10 @@ func Merge(bundles []*Bundle) (*Bundle, error) {
 
 	}
 
+	if result.Data == nil {
+		result.Data = map[string]interface{}{}
+	}
+
 	result.Manifest.Roots = &roots
 
 	if err := result.Manifest.validateAndInjectDefaults(result); err != nil {
