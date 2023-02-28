@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -470,14 +471,14 @@ func testEvalWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 		var defined bool
 		defined, err = eval([]string{query}, params, &buf)
 		if !defined || err != nil {
-			err = fmt.Errorf("Unexpected error or undefined from evaluation: %v", err)
+			err = fmt.Errorf(buf.String())
 		}
 	})
 
 	return err
 }
 
-// Assert that 'schemas' annotations are only informing the type checker when the --schema flag is used
+// Assert that 'schemas' annotations with schema refs are only informing the type checker when the --schema flag is used
 func TestEvalWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
 	policyWithSchemaRef := `
 package test
@@ -505,8 +506,9 @@ p {
 }`
 
 	err = testEvalWithSchemasAnnotationButNoSchemaFlag(policyWithInlinedSchema)
-	if err != nil {
-		t.Fatalf("unexpected error from eval with inlined schema: %v", err)
+	// We expect an error here, as inlined schemas are always used for type checking
+	if !strings.Contains(err.Error(), `"code": "rego_type_error"`) {
+		t.Fatalf("unexpected error from eval with inlined schema, got: %v", err)
 	}
 }
 

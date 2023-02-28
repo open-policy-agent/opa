@@ -120,3 +120,52 @@ p if "opa" in input.tools`,
 		})
 	}
 }
+
+func testCheckWithSchemasAnnotationButNoSchemaFlag(policy string) error {
+	files := map[string]string{
+		"test.rego": policy,
+	}
+
+	var err error
+	test.WithTempFS(files, func(path string) {
+		params := newCheckParams()
+
+		err = checkModules(params, []string{path})
+	})
+
+	return err
+}
+
+// Assert that 'schemas' annotations with schema refs are only informing the type checker when the --schema flag is used
+func TestCheckWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
+	policyWithSchemaRef := `
+package test
+# METADATA
+# schemas:
+#   - input: schema["input"]
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}`
+
+	err := testCheckWithSchemasAnnotationButNoSchemaFlag(policyWithSchemaRef)
+	if err != nil {
+		t.Fatalf("unexpected error from eval with schema ref: %v", err)
+	}
+
+	policyWithInlinedSchema := `
+package test
+# METADATA
+# schemas:
+#   - input.foo: {"type": "boolean"}
+p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	input.foo == 42 # type mismatch with schema that should be ignored
+}`
+
+	err = testCheckWithSchemasAnnotationButNoSchemaFlag(policyWithInlinedSchema)
+	// We expect an error here, as inlined schemas are always used for type checking
+	if !strings.Contains(err.Error(), "rego_type_error: match error") {
+		t.Fatalf("unexpected error from eval with inlined schema, got: %v", err)
+	}
+}
