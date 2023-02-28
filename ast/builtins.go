@@ -2664,7 +2664,7 @@ var GraphQLSchemaIsValid = &Builtin{
 // JSONSchemaVerify returns empty string if the input is valid JSON schema
 // and returns error string for all other inputs.
 var JSONSchemaVerify = &Builtin{
-	Name:        "jsonschema.verify",
+	Name:        "json.verify_schema",
 	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
 	Decl: types.NewFunction(
 		types.Args(
@@ -2706,7 +2706,7 @@ var JSONMatchSchema = &Builtin{
 				),
 			),
 		}, nil)).
-			Description("`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `true` and `errors` is an array of objects describing the error(s)."),
+			Description("`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s)."),
 	),
 	Categories: objectCat,
 }

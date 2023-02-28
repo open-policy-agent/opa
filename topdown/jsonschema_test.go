@@ -82,7 +82,7 @@ func TestAstValueToJSONSchemaLoader(t *testing.T) {
 	}
 }
 
-func TestBuiltinJSONSchemaValidate(t *testing.T) {
+func TestBuiltinJSONSchemaVerify(t *testing.T) {
 	cases := []struct {
 		note   string
 		schema ast.Value
@@ -136,7 +136,7 @@ func TestBuiltinJSONSchemaValidate(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 			result := ast.NullTerm().Value
-			err := builtinJSONSchemaValidate(
+			err := builtinJSONSchemaVerify(
 				BuiltinContext{},
 				[]*ast.Term{ast.NewTerm(tc.schema)},
 				func(term *ast.Term) error {

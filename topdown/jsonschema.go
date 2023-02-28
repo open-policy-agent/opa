@@ -47,9 +47,9 @@ func newResultTerm(valid bool, data *ast.Term) *ast.Term {
 	return ast.ArrayTerm(ast.BooleanTerm(valid), data)
 }
 
-// builtinJSONSchemaValidate accepts 1 argument which can be string or object and checks if it is valid JSON schema.
+// builtinJSONSchemaVerify accepts 1 argument which can be string or object and checks if it is valid JSON schema.
 // Returns array [false, <string>] with error string at index 1, or [true, ""] with empty string at index 1 otherwise.
-func builtinJSONSchemaValidate(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJSONSchemaVerify(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Take first argument and make JSON Loader from it.
 	loader, err := astValueToJSONSchemaLoader(operands[0].Value)
 	if err != nil {
@@ -104,6 +104,6 @@ func builtinJSONMatchSchema(_ BuiltinContext, operands []*ast.Term, iter func(*a
 }
 
 func init() {
-	RegisterBuiltinFunc(ast.JSONSchemaVerify.Name, builtinJSONSchemaValidate)
+	RegisterBuiltinFunc(ast.JSONSchemaVerify.Name, builtinJSONSchemaVerify)
 	RegisterBuiltinFunc(ast.JSONMatchSchema.Name, builtinJSONMatchSchema)
 }

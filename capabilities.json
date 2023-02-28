@@ -2284,7 +2284,7 @@
       }
     },
     {
-      "name": "jsonschema.verify",
+      "name": "json.verify_schema",
       "decl": {
         "args": [
           {
