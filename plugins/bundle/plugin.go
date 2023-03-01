@@ -6,6 +6,7 @@
 package bundle
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -508,20 +509,18 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := p.saveBundleToDisk(name, u.Raw)
+			d := map[string]string{
+				"etag": u.ETag,
+			}
+			bs, err := json.Marshal(d)
 			if err != nil {
-				p.log(name).Error("Persisting bundle to disk failed: %v", err)
-				p.status[name].SetError(err)
-				if !p.stopped {
-					etag := p.etags[name]
-					p.downloaders[name].SetCache(etag)
-				}
+				p.log(name).Error("Failed to generate bundle manifest: %v", err)
 				return
 			}
 
-			err = p.saveBundleManifestToDisk(name, u.ETag)
+			err = p.saveBundleToDisk(name, u.Raw, bytes.NewReader(bs))
 			if err != nil {
-				p.log(name).Error("Persisting bundle manifest to disk failed: %v", err)
+				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
 				if !p.stopped {
 					etag := p.etags[name]
@@ -664,18 +663,14 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	return newBundles, updatedBundles, deletedBundles
 }
 
-func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
+func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest io.Reader) error {
 
 	bundleDir := filepath.Join(p.bundlePersistPath, name)
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
-	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
+	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
 		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
-
-		if err := os.Remove(tmpFile); err != nil {
-			p.log(name).Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
-		}
 
 		if _, err := os.Stat(bundleFile); err == nil {
 			p.log(name).Warn("Older version of activated bundle persisted, ignoring error")
@@ -684,32 +679,25 @@ func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 		return saveErr
 	}
 
-	return os.Rename(tmpFile, bundleFile)
-}
-
-func (p *Plugin) saveBundleManifestToDisk(name string, etag string) error {
-	bundleDir := filepath.Join(p.bundlePersistPath, name)
-	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
-
-	d := map[string]string{
-		"etag": etag,
+	err := os.Rename(tmpBundleFile, bundleFile)
+	if err != nil {
+		return fmt.Errorf("failed to rename bundle file: %w", err)
 	}
 
-	bs, err := json.Marshal(d)
-	if err != nil {
-		return fmt.Errorf("failed to marshal bundle manifest: %w", err)
-	}
-
-	err = os.WriteFile(bundleManifestFile, bs, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to save bundle manifest to disk: %w", err)
+	// setting a manifest is optional, if not nil, tmpManifestFile will contain the data
+	if rawManifest != nil {
+		bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
+		err := os.Rename(tmpManifestFile, bundleManifestFile)
+		if err != nil {
+			return fmt.Errorf("failed to rename manifest file: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
-	return bundleUtils.SaveBundleToDisk(path, raw)
+func saveCurrentBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
+	return bundleUtils.SaveBundleToDisk(path, rawBundle, rawManifest)
 }
 
 func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
