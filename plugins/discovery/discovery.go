@@ -6,6 +6,7 @@
 package discovery
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -243,6 +244,10 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 				c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 			})
 
+			if b.Etag != "" {
+				c.downloader.SetCache(b.Etag)
+			}
+
 			c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
 		}
 	}
@@ -252,17 +257,16 @@ func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
 	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
 }
 
-func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
-
+func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader) error {
 	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
-	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
+	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
 		c.logger.Error("Failed to save new discovery bundle to disk: %v", saveErr)
 
-		if err := os.Remove(tmpFile); err != nil {
-			c.logger.Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
+		if err := os.Remove(tmpBundleFile); err != nil {
+			c.logger.Warn("Failed to remove temp file ('%s'): %v", tmpBundleFile, err)
 		}
 
 		if _, err := os.Stat(bundleFile); err == nil {
@@ -272,11 +276,25 @@ func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
 		return saveErr
 	}
 
-	return os.Rename(tmpFile, bundleFile)
+	err := os.Rename(tmpBundleFile, bundleFile)
+	if err != nil {
+		return fmt.Errorf("failed to rename discovery bundle file: %w", err)
+	}
+
+	// setting a manifest is optional, if not nil, tmpManifestFile will contain the data
+	if rawManifest != nil {
+		bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
+		err := os.Rename(tmpManifestFile, bundleManifestFile)
+		if err != nil {
+			return fmt.Errorf("failed to rename discovery bundle manifest file: %w", err)
+		}
+	}
+
+	return nil
 }
 
-func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
-	return bundleUtils.SaveBundleToDisk(path, raw)
+func saveCurrentBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
+	return bundleUtils.SaveBundleToDisk(path, rawBundle, rawManifest)
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
@@ -322,7 +340,16 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 		if c.config != nil && c.config.Persist {
 			c.logger.Debug("Persisting discovery bundle to disk in progress.")
 
-			err := c.saveBundleToDisk(u.Raw)
+			d := map[string]string{
+				"etag": u.ETag,
+			}
+			bs, err := json.Marshal(d)
+			if err != nil {
+				c.logger.Error("Failed to generate discovery bundle manifest: %v", err)
+				return
+			}
+
+			err = c.saveBundleToDisk(u.Raw, bytes.NewReader(bs))
 			if err != nil {
 				c.logger.Error("Persisting discovery bundle to disk failed: %v", err)
 				c.status.SetError(err)
