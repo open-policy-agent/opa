@@ -69,10 +69,10 @@ func TestConfigValidation(t *testing.T) {
 		t.Run(fmt.Sprintf("TestConfigValidation_case_%d", i), func(t *testing.T) {
 			_, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices(test.services).WithKeyConfigs(keys).Parse()
 			if err != nil && !test.wantErr {
-				t.Fail()
+				t.Fatalf("unexpected error while parsing config: %s", err.Error())
 			}
 			if err == nil && test.wantErr {
-				t.Fail()
+				t.Fatal("expected error while parsing config, but got none")
 			}
 		})
 	}
@@ -137,7 +137,7 @@ func TestConfigService(t *testing.T) {
 		t.Run(fmt.Sprintf("TestConfigService_case_%d", i), func(t *testing.T) {
 			c, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices(test.services).Parse()
 			if err != nil {
-				t.Fatal("unexpected error while parsing config")
+				t.Fatalf("unexpected error while parsing config: %s", err)
 			}
 
 			if c.service != test.service {
@@ -174,7 +174,7 @@ func TestConfigPath(t *testing.T) {
 		t.Run(fmt.Sprintf("TestConfigDecision_case_%d", i), func(t *testing.T) {
 			c, err := NewConfigBuilder().WithBytes([]byte(test.input)).WithServices([]string{"service1"}).Parse()
 			if err != nil {
-				t.Fatal("unexpected error while parsing config")
+				t.Fatalf("unexpected error while parsing config: %s", err.Error())
 			}
 
 			if c.path != test.path {
