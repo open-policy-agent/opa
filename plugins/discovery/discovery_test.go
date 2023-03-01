@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -129,7 +130,7 @@ func TestProcessBundle(t *testing.T) {
 	initialBundle := makeDataBundle(1, `
 		{
 			"config": {
-				"bundle": {"name": "test1"},
+				"bundles": { "test1": {} },
 				"status": {},
 				"decision_logs": {}
 			}
@@ -153,7 +154,7 @@ func TestProcessBundle(t *testing.T) {
 	updatedBundle := makeDataBundle(1, `
 		{
 			"config": {
-				"bundle": {"name": "test2"},
+				"bundles": { "test2": {} },
 				"status": {"partition_name": "foo"},
 				"decision_logs": {"partition_name": "bar"}
 			}
@@ -172,7 +173,9 @@ func TestProcessBundle(t *testing.T) {
 	updatedBundle = makeDataBundle(2, `
 		{
 			"config": {
-				"bundle": {"service": "missing service name", "name": "test2"}
+				"bundles": {
+					"test2": {"service": "missing service name"}
+				}
 			}
 		}
 	`)
@@ -551,6 +554,22 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("expected test plugin to have a start count of 1 but got %v", count)
 	}
+
+	// verify the ETag was persisted to disk too
+	manifestFile, err := os.Open(filepath.Join(dir, ".opa", "config", "manifest.json"))
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+	defer manifestFile.Close()
+
+	manifestBytes, err := io.ReadAll(manifestFile)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if got, exp := string(manifestBytes), `{"etag":"etag-1"}`; got != exp {
+		t.Fatalf("expected manifest to be %v but got %v", exp, got)
+	}
 }
 
 func TestLoadAndActivateBundleFromDisk(t *testing.T) {
@@ -614,7 +633,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf)
+	err = disco.saveBundleToDisk(&buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -710,7 +729,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf)
+	err = disco.saveBundleToDisk(&buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -802,7 +821,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf)
+	err = disco.saveBundleToDisk(&buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -862,7 +881,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf)
+	err = disco.saveBundleToDisk(&buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -920,7 +939,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf)
+	err = disco.saveBundleToDisk(&buf, nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1072,7 +1091,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 	initialBundle := makeDataBundle(1, `
 		{
 			"config": {
-				"bundle": {"name": "test1"},
+				"bundles": {"test1": {}},
 				"status": {},
 				"decision_logs": {}
 			}
