@@ -260,6 +260,7 @@ func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
 func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader) error {
 	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
+	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 
 	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
@@ -276,6 +277,14 @@ func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader)
 		return saveErr
 	}
 
+	// remove the old manifest file if it exists to avoid inconsistent state if either of the following operations fail
+	if _, err := os.Stat(bundleManifestFile); err == nil {
+		err := os.Remove(bundleManifestFile)
+		if err != nil {
+			return fmt.Errorf("failed to remove old discovery bundle manifest file: %w", err)
+		}
+	}
+
 	err := os.Rename(tmpBundleFile, bundleFile)
 	if err != nil {
 		return fmt.Errorf("failed to rename discovery bundle file: %w", err)
@@ -283,7 +292,6 @@ func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader)
 
 	// setting a manifest is optional, if not nil, tmpManifestFile will contain the data
 	if rawManifest != nil {
-		bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 		err := os.Rename(tmpManifestFile, bundleManifestFile)
 		if err != nil {
 			return fmt.Errorf("failed to rename discovery bundle manifest file: %w", err)
