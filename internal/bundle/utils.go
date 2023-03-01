@@ -136,25 +136,77 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 	}
 }
 
-// SaveBundleToDisk saves the given raw bytes representing the bundle's content to disk
-func SaveBundleToDisk(path string, raw io.Reader) (string, error) {
+// SaveBundleToDisk saves the given raw bytes representing the bundle's content to disk. Passing nil for the rawManifest
+// will result in no manifest being persisted to disk.
+func SaveBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
+	var cleanupOperations []func()
+	var failed bool
+	defer func() {
+		if failed {
+			for _, cleanup := range cleanupOperations {
+				cleanup()
+			}
+		}
+	}()
+
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 
-	if raw == nil {
-		return "", fmt.Errorf("no raw bundle bytes to persist to disk")
+	// supplying no bundle data is an error case
+	if rawBundle == nil {
+		return "", "", fmt.Errorf("no raw bundle bytes to persist to disk")
 	}
 
-	dest, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
+	// create a temporary file to write the bundle to
+	destBundle, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
 	if err != nil {
-		return "", err
+		return "", "", fmt.Errorf("failed to create temporary bundle file: %w", err)
 	}
-	defer dest.Close()
+	defer destBundle.Close()
 
-	_, err = io.Copy(dest, raw)
-	return dest.Name(), err
+	cleanupOperations = append(cleanupOperations, func() {
+		os.Remove(destBundle.Name())
+	})
+
+	// handle the optional case where a bundle manifest is provided
+	var errManifest error
+	var destManifestName string
+	if rawManifest != nil {
+		destManifest, err := os.CreateTemp(path, ".manifest.json.*.tmp")
+		if err != nil {
+			return "", "", err
+		}
+		defer destManifest.Close()
+		cleanupOperations = append(cleanupOperations, func() {
+			os.Remove(destManifest.Name())
+		})
+
+		destManifestName = destManifest.Name()
+
+		// write the manifest to disk first
+		_, errManifest = io.Copy(destManifest, rawManifest)
+	}
+
+	// write the bundle to disk
+	_, errBundle := io.Copy(destBundle, rawBundle)
+
+	// handle errors from both the bundle or manifest write operations
+	if errBundle != nil && errManifest != nil {
+		failed = true
+		return "", "", fmt.Errorf("failed to save bundle and manifest to disk: %s, %s", errBundle, errManifest)
+	}
+	if errBundle != nil {
+		failed = true
+		return "", "", fmt.Errorf("failed to save bundle to disk: %s", errBundle)
+	}
+	if errManifest != nil {
+		failed = true
+		return "", "", fmt.Errorf("failed to save manifest to disk: %s", errManifest)
+	}
+
+	return destBundle.Name(), destManifestName, nil
 }
