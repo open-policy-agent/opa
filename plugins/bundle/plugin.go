@@ -667,6 +667,7 @@ func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest 
 
 	bundleDir := filepath.Join(p.bundlePersistPath, name)
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
+	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 
 	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
@@ -679,6 +680,14 @@ func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest 
 		return saveErr
 	}
 
+	// remove the old manifest file if it exists to avoid inconsistent state if either of the following operations fail
+	if _, err := os.Stat(bundleManifestFile); err == nil {
+		err := os.Remove(bundleManifestFile)
+		if err != nil {
+			return fmt.Errorf("failed to remove old bundle manifest file: %w", err)
+		}
+	}
+
 	err := os.Rename(tmpBundleFile, bundleFile)
 	if err != nil {
 		return fmt.Errorf("failed to rename bundle file: %w", err)
@@ -686,7 +695,6 @@ func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest 
 
 	// setting a manifest is optional, if not nil, tmpManifestFile will contain the data
 	if rawManifest != nil {
-		bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 		err := os.Rename(tmpManifestFile, bundleManifestFile)
 		if err != nil {
 			return fmt.Errorf("failed to rename manifest file: %w", err)
