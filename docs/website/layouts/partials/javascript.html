@@ -18,12 +18,6 @@
 {{ $apiKey  := site.Params.algolia_api_key }}
 <script>
   console.log("You are reading the docs for version {{ $version }} of Open Policy Agent");
-
-  window.onload = function() {
-    // Log a message to the console if the #search-bar element does not exist on the page
-    if (!document.getElementById('search-bar')) {
-      console.error('#search-bar element not found on the page')
-    }
     docsearch({
       container: '#docsearch',
       appId: 'P4N61UNFMP',
@@ -31,6 +25,5 @@
       apiKey: '{{ $apiKey }}',
       searchParameters: { 'facetFilters': ["version:{{ $version }}"] }
     });
-  }
 </script>
 {{ end }}
