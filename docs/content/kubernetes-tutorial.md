@@ -335,7 +335,7 @@ spec:
         # authentication and authorization on the daemon. See the Security page for
         # details: https://www.openpolicyagent.org/docs/security.html.
         - name: opa
-          image: openpolicyagent/opa:{{< current_docker_version >}}-rootless
+          image: openpolicyagent/opa:{{< current_docker_version >}}
           args:
             - "run"
             - "--server"
