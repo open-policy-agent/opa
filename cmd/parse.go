@@ -124,7 +124,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 
 func init() {
 	parseCommand.Flags().VarP(configuredParseParams.format, "format", "f", "set output format")
-	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "select optional elements, current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
+	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
 
 	RootCommand.AddCommand(parseCommand)
 }
