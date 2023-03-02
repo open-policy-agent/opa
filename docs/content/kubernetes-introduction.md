@@ -5,8 +5,8 @@ weight: 1
 ---
 
 In Kubernetes, [Admission
-Controllers](https://kubernetes.io/docs/admin/admission-controllers/) enforce
-policies on objects during create, update, and delete operations. Admission
+Controllers](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/)
+enforce policies on objects during create, update, and delete operations. Admission
 control is fundamental to policy enforcement in Kubernetes.
 
 For example, by deploying OPA as an admission controller you can:

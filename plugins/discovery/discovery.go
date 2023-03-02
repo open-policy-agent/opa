@@ -249,12 +249,12 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 }
 
 func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
-	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, *c.config.Name, c.config.Signing)
+	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
 }
 
 func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
 
-	bundleDir := filepath.Join(c.bundlePersistPath, *c.config.Name)
+	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
 	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
@@ -329,7 +329,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 				c.downloader.SetCache("")
 				return
 			}
-			c.logger.Debug("Discovery bundle persisted to disk successfully at path %v.", filepath.Join(c.bundlePersistPath, *c.config.Name))
+			c.logger.Debug("Discovery bundle persisted to disk successfully at path %v.", filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()))
 		}
 
 		c.status.SetError(nil)
@@ -427,6 +427,15 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	}
 
 	return getPluginSet(c.factories, c.manager, config, c.metrics, c.config.Trigger)
+}
+
+// discoveryBundleDirName returns the name of the directory where the discovery bundle will be persisted.
+// It wraps the deprecated config.Name and uses Name as a default.
+func (c *Discovery) discoveryBundleDirName() string {
+	if c.config.Name != nil {
+		return *c.config.Name
+	}
+	return Name
 }
 
 func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi.Bundle, query string) (*config.Config, error) {

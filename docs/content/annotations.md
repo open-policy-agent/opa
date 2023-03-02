@@ -225,9 +225,13 @@ allow {
 The `schemas` annotation is a list of key value pairs, associating schemas to data values.
 In-depth information on this topic can be found [here](../schemas#schema-annotations).
 
-#### Example
+#### Schema Reference Format
 
-```live:rego/metadata/schemas:module:read_only
+Schema files can be referenced by path, where each path starts with the `schema` namespace, and trailing components specify 
+the path of the schema file (sans file-ending) relative to the root directory specified by the `--schema` flag on applicable commands.
+If the `--schema` flag is not present, referenced schemas are ignored during type checking.
+
+```live:rego/metadata/schemas_ref:module:read_only
 # METADATA
 # schemas:
 #   - input: schema.input
@@ -235,6 +239,21 @@ In-depth information on this topic can be found [here](../schemas#schema-annotat
 allow {
     access := data.acl["alice"]
     access[_] == input.operation
+}
+```
+
+#### Inlined Schema Format
+
+Schema definitions can be inlined by specifying the schema structure as a YAML or JSON map.
+Inlined schemas are always used to inform type checking for the `eval`, `check`, and `test` commands; 
+in contrast to [by-reference schema annotations](#schema-reference-format), which require the `--schema` flag to be present in order to be evaluated.
+
+```live:rego/metadata/schemas_inline:module:read_only
+# METADATA
+# schemas:
+#   - input.x: {type: number}
+allow {
+    input.x == 42
 }
 ```
 

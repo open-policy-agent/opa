@@ -184,6 +184,9 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 				tc.err([]*Error{err})
 				continue
 			}
+			if ref == nil && refType == nil {
+				continue
+			}
 			prefixRef, t := getPrefix(env, ref)
 			if t == nil || len(prefixRef) == len(ref) {
 				env.tree.Put(ref, refType)
@@ -1213,6 +1216,9 @@ func processAnnotation(ss *SchemaSet, annot *SchemaAnnotation, rule *Rule, allow
 	var schema interface{}
 
 	if annot.Schema != nil {
+		if ss == nil {
+			return nil, nil, nil
+		}
 		schema = ss.Get(annot.Schema)
 		if schema == nil {
 			return nil, nil, NewError(TypeErr, rule.Location, "undefined schema: %v", annot.Schema)

@@ -3,8 +3,10 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
@@ -228,7 +230,7 @@ func testSchemasAnnotation(mod string) error {
 	return err
 }
 
-// Assert that 'schemas' annotations are ignored
+// Assert that 'schemas' annotations with schema ref are ignored, but not inlined schemas
 func TestSchemasAnnotation(t *testing.T) {
 	policyWithSchemaRef := `
 package test
@@ -264,7 +266,9 @@ test_p {
 }`
 
 	err = testSchemasAnnotation(policyWithInlinedSchema)
-	if err != nil {
-		t.Fatalf("unexpected error when inlined schema is present: %v", err)
+	if err == nil {
+		t.Fatalf("didn't get expected error when inlined schema is present")
+	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
+		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, err)
 	}
 }

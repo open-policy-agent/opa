@@ -1156,7 +1156,7 @@ func New(options ...func(r *Rego)) *Rego {
 			WithCapabilities(r.capabilities).
 			WithEnablePrintStatements(r.enablePrintStatements).
 			WithStrict(r.strict).
-			WithUseTypeCheckAnnotations(r.schemaSet != nil)
+			WithUseTypeCheckAnnotations(true)
 	}
 
 	if r.store == nil {
@@ -1753,7 +1753,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 
 	result, err := loader.NewFileLoader().
 		WithMetrics(m).
-		WithProcessAnnotation(r.schemaSet != nil).
+		WithProcessAnnotation(true).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
@@ -1782,7 +1782,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	for _, path := range r.bundlePaths {
 		bndl, err := loader.NewFileLoader().
 			WithMetrics(m).
-			WithProcessAnnotation(r.schemaSet != nil).
+			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
 			AsBundle(path)
 		if err != nil {

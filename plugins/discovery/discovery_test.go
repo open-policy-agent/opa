@@ -20,22 +20,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/storage"
-
-	"github.com/open-policy-agent/opa/rego"
-
-	"github.com/open-policy-agent/opa/logging/test"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
 	bundlePlugin "github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/logs"
 	"github.com/open-policy-agent/opa/plugins/status"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
+	"github.com/open-policy-agent/opa/storage"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
