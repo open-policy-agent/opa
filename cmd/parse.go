@@ -24,10 +24,12 @@ const (
 	parseFormatJSON   = "json"
 )
 
-var parseParams = struct {
+type parseParams struct {
 	format      *util.EnumFlag
 	jsonInclude string
-}{
+}
+
+var configuredParseParams = parseParams{
 	format:      util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
 	jsonInclude: "",
 }
@@ -43,18 +45,18 @@ var parseCommand = &cobra.Command{
 		return nil
 	},
 	Run: func(_ *cobra.Command, args []string) {
-		os.Exit(parse(args, os.Stdout, os.Stderr))
+		os.Exit(parse(args, &configuredParseParams, os.Stdout, os.Stderr))
 	},
 }
 
-func parse(args []string, stdout io.Writer, stderr io.Writer) int {
+func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
 		return 0
 	}
 
 	exposeLocation := false
 	exposeComments := true
-	for _, opt := range strings.Split(parseParams.jsonInclude, ",") {
+	for _, opt := range strings.Split(params.jsonInclude, ",") {
 		value := true
 		if strings.HasPrefix(opt, "-") {
 			value = false
@@ -100,7 +102,7 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 		result.Parsed.Comments = nil
 	}
 
-	switch parseParams.format.String() {
+	switch params.format.String() {
 	case parseFormatJSON:
 		bs, err := json.MarshalIndent(result.Parsed, "", "  ")
 		if err != nil {
@@ -108,7 +110,7 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 			return 1
 		}
 
-		fmt.Println(string(bs))
+		fmt.Fprint(stdout, string(bs)+"\n")
 	default:
 		if err != nil {
 			fmt.Fprintln(stderr, err)
@@ -121,8 +123,8 @@ func parse(args []string, stdout io.Writer, stderr io.Writer) int {
 }
 
 func init() {
-	parseCommand.Flags().VarP(parseParams.format, "format", "f", "set output format")
-	parseCommand.Flags().StringVarP(&parseParams.jsonInclude, "json-include", "", "", "select optional elements, current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
+	parseCommand.Flags().VarP(configuredParseParams.format, "format", "f", "set output format")
+	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "select optional elements, current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
 
 	RootCommand.AddCommand(parseCommand)
 }
