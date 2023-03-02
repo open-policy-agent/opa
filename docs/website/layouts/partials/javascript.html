@@ -1,6 +1,7 @@
 {{ $isDocsPage := eq .Section "docs" }}
 {{ $app        := resources.Get "js/app.js" | resources.ExecuteAsTemplate "js/app.js" . | fingerprint }}
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@docsearch/js@3"
+        onerror="console.error('Error loading the docsearch.min.js script')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"
         integrity="sha512-+NqPlbbtM1QqiK8ZAo4Yrj2c4lNQoGv8P79DPtKzj++l5jnN39rHA/xsqn8zE9l0uSoxaCdrOgFs6yjyfbBxSg=="
         crossorigin="anonymous"
@@ -18,12 +19,18 @@
 <script>
   console.log("You are reading the docs for version {{ $version }} of Open Policy Agent");
 
-  docsearch({
-    apiKey: '{{ $apiKey }}',
-    indexName: 'openpolicyagent',
-    inputSelector: '#search-bar',
-    algoliaOptions: { 'facetFilters': ["version:{{ $version }}"] },
-    debug: true
-  });
+  window.onload = function() {
+    // Log a message to the console if the #search-bar element does not exist on the page
+    if (!document.getElementById('search-bar')) {
+      console.error('#search-bar element not found on the page')
+    }
+    docsearch({
+      container: '#docsearch',
+      appId: 'P4N61UNFMP',
+      indexName: 'openpolicyagent',
+      apiKey: '{{ $apiKey }}',
+      searchParameters: { 'facetFilters': ["version:{{ $version }}"] }
+    });
+  }
 </script>
 {{ end }}
