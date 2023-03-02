@@ -444,7 +444,7 @@ func (term *Term) String() string {
 }
 
 // UnmarshalJSON parses the byte array and stores the result in term.
-// Specialized unmarshalling is required to handle Value.
+// Specialized unmarshalling is required to handle Value and Location.
 func (term *Term) UnmarshalJSON(bs []byte) error {
 	v := map[string]interface{}{}
 	if err := util.UnmarshalJSON(bs, &v); err != nil {
