@@ -244,6 +244,10 @@ var DefaultBuiltins = [...]*Builtin{
 	GraphQLIsValid,
 	GraphQLSchemaIsValid,
 
+	// JSON Schema
+	JSONSchemaVerify,
+	JSONMatchSchema,
+
 	// Cloud Provider Helpers
 	ProvidersAWSSignReqObj,
 
@@ -2651,6 +2655,60 @@ var GraphQLSchemaIsValid = &Builtin{
 		),
 		types.Named("output", types.B).Description("`true` if the schema is a valid GraphQL schema. `false` otherwise."),
 	),
+}
+
+/**
+ * JSON Schema
+ */
+
+// JSONSchemaVerify returns empty string if the input is valid JSON schema
+// and returns error string for all other inputs.
+var JSONSchemaVerify = &Builtin{
+	Name:        "json.verify_schema",
+	Description: "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("the schema to verify"),
+		),
+		types.Named("output", types.NewArray([]types.Type{
+			types.B,
+			types.NewAny(types.S, types.Null{}),
+		}, nil)).
+			Description("`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error."),
+	),
+	Categories: objectCat,
+}
+
+// JSONMatchSchema returns empty array if the document matches the JSON schema,
+// and returns non-empty array with error objects otherwise.
+var JSONMatchSchema = &Builtin{
+	Name:        "json.match_schema",
+	Description: "Checks that the document matches the JSON schema.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("document", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("document to verify by schema"),
+			types.Named("schema", types.NewAny(types.S, types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)))).
+				Description("schema to verify document by"),
+		),
+		types.Named("output", types.NewArray([]types.Type{
+			types.B,
+			types.NewArray(
+				nil, types.NewObject(
+					[]*types.StaticProperty{
+						{Key: "error", Value: types.S},
+						{Key: "type", Value: types.S},
+						{Key: "field", Value: types.S},
+						{Key: "desc", Value: types.S},
+					},
+					nil,
+				),
+			),
+		}, nil)).
+			Description("`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s)."),
+	),
+	Categories: objectCat,
 }
 
 /**

@@ -114,8 +114,10 @@
     ],
     "object": [
       "json.filter",
+      "json.match_schema",
       "json.patch",
       "json.remove",
+      "json.verify_schema",
       "object.filter",
       "object.get",
       "object.keys",
@@ -8545,6 +8547,31 @@
     },
     "wasm": true
   },
+  "json.match_schema": {
+    "args": [
+      {
+        "description": "document to verify by schema",
+        "name": "document",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      },
+      {
+        "description": "schema to verify document by",
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the document matches the JSON schema.",
+    "introduced": "edge",
+    "result": {
+      "description": "`output` is of the form `[match, errors]`. If the document is valid given the schema, then `match` is `true`, and `errors` is an empty array. Otherwise, `match` is `false` and `errors` is an array of objects describing the error(s).",
+      "name": "output",
+      "type": "array\u003cboolean, array[object\u003cdesc: string, error: string, field: string, type: string\u003e]\u003e"
+    },
+    "wasm": false
+  },
   "json.patch": {
     "args": [
       {
@@ -8821,6 +8848,26 @@
       "type": "any"
     },
     "wasm": true
+  },
+  "json.verify_schema": {
+    "args": [
+      {
+        "description": "the schema to verify",
+        "name": "schema",
+        "type": "any\u003cstring, object[any: any]\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Checks that the input is a valid JSON schema object. The schema can be either a JSON string or an JSON object.",
+    "introduced": "edge",
+    "result": {
+      "description": "`output` is of the form `[valid, error]`. If the schema is valid, then `valid` is `true`, and `error` is `null`. Otherwise, `valid` is `false` and `error` is a string describing the error.",
+      "name": "output",
+      "type": "array\u003cboolean, any\u003cnull, string\u003e\u003e"
+    },
+    "wasm": false
   },
   "lower": {
     "args": [

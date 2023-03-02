@@ -2081,6 +2081,92 @@
       }
     },
     {
+      "name": "json.match_schema",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
+          },
+          {
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "static": [
+            {
+              "type": "boolean"
+            },
+            {
+              "dynamic": {
+                "static": [
+                  {
+                    "key": "desc",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "error",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "field",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  {
+                    "key": "type",
+                    "value": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.patch",
       "decl": {
         "args": [
@@ -2193,6 +2279,52 @@
         ],
         "result": {
           "type": "any"
+        },
+        "type": "function"
+      }
+    },
+    {
+      "name": "json.verify_schema",
+      "decl": {
+        "args": [
+          {
+            "of": [
+              {
+                "type": "string"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "any"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "static": [
+            {
+              "type": "boolean"
+            },
+            {
+              "of": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "any"
+            }
+          ],
+          "type": "array"
         },
         "type": "function"
       }
