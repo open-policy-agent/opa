@@ -12,6 +12,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Breaking changes
 
+All published OPA images now run with a non-root uid/gid. The `uid:gid` is set to `1000:1000` for all images. As a result
+there is no longer a need for the `-rootless` image variant and hence it will be not be published after the current release.
+This change is in line with container security best practices. OPA can still be run with root privileges by explicitly setting the user,
+either with the `--user` argument for `docker run`, or by specifying the `securityContext` in the Kubernetes Pod specification.
+
 The change to the `package` scope in [#5251](https://github.com/open-policy-agent/opa/issues/5251) may cause compile-time errors and behavioural changes to type checking when the `schemas` annotation is used, and to rules calling the `rego.metadata.chain()` built-in function:
 
 - Existing projects with the same package declared in multiple files will trigger a `rego_type_error: package annotation redeclared` error _if_ two or more of these are annotated with the `package` scope.

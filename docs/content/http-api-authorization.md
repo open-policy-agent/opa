@@ -78,7 +78,7 @@ Next, create a `docker-compose.yml` file that runs OPA, a bundle server and the 
 version: '2'
 services:
   opa:
-    image: openpolicyagent/opa:{{< current_docker_version >}}-rootless
+    image: openpolicyagent/opa:{{< current_docker_version >}}
     ports:
     - 8181:8181
     # WARNING: OPA is NOT running with an authorization policy configured. This
