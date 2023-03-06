@@ -1,5 +1,5 @@
 title = "Open Policy Agent"
-baseURL = "https://openpolicyagent.org"
+baseURL = "https://www.openpolicyagent.org"
 languageCode = "en"
 disableKinds = ["taxonomy", "taxonomyTerm"]
 
