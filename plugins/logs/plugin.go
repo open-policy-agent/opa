@@ -29,7 +29,6 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -979,7 +978,6 @@ func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, event *
 
 		if p.drop == nil {
 			query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
-			interQueryCache := cache.NewInterQueryCache(p.manager.InterQueryBuiltinCacheConfig())
 			r := rego.New(
 				rego.ParsedQuery(query),
 				rego.Compiler(p.manager.GetCompiler()),
@@ -988,7 +986,6 @@ func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, event *
 				rego.Runtime(p.manager.Info),
 				rego.EnablePrintStatements(p.manager.EnablePrintStatements()),
 				rego.PrintHook(p.manager.PrintHook()),
-				rego.InterQueryBuiltinCache(interQueryCache),
 			)
 
 			pq, err := r.PrepareForEval(context.Background())
