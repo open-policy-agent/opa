@@ -354,7 +354,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
+			b, err := bundleUtils.LoadBundleFromDisk(p.bundlePersistPath, name, src.Signing)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
@@ -669,7 +669,7 @@ func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest 
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 
-	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
+	tmpBundleFile, tmpManifestFile, saveErr := bundleUtils.SaveBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
 		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
 
@@ -702,17 +702,6 @@ func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, rawManifest 
 	}
 
 	return nil
-}
-
-func saveCurrentBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
-	return bundleUtils.SaveBundleToDisk(path, rawBundle, rawManifest)
-}
-
-func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
-	if src != nil {
-		return bundleUtils.LoadBundleFromDisk(path, name, src.Signing)
-	}
-	return bundleUtils.LoadBundleFromDisk(path, name, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {

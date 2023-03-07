@@ -204,7 +204,7 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 
 	if c.config != nil && c.config.Persist {
-		b, err := c.loadBundleFromDisk()
+		b, err := bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
 		if err != nil {
 			c.logger.Error("Failed to load discovery bundle from disk: %v", err)
 			c.status.SetError(err)
@@ -253,16 +253,12 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 	}
 }
 
-func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
-	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
-}
-
 func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader) error {
 	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 	bundleManifestFile := filepath.Join(bundleDir, "manifest.json")
 
-	tmpBundleFile, tmpManifestFile, saveErr := saveCurrentBundleToDisk(bundleDir, rawBundle, rawManifest)
+	tmpBundleFile, tmpManifestFile, saveErr := bundleUtils.SaveBundleToDisk(bundleDir, rawBundle, rawManifest)
 	if saveErr != nil {
 		c.logger.Error("Failed to save new discovery bundle to disk: %v", saveErr)
 
@@ -299,10 +295,6 @@ func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, rawManifest io.Reader)
 	}
 
 	return nil
-}
-
-func saveCurrentBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
-	return bundleUtils.SaveBundleToDisk(path, rawBundle, rawManifest)
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
