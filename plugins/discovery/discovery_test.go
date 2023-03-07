@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -531,7 +532,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, disco, plugins.StateOK)
 
-	result, err := disco.loadBundleFromDisk()
+	result, err := bundleUtils.LoadBundleFromDisk(disco.bundlePersistPath, disco.discoveryBundleDirName(), disco.config.Signing)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
