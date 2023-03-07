@@ -2580,7 +2580,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 func TestSaveCurrentBundleToDisk(t *testing.T) {
 	srcDir := t.TempDir()
 
-	err := bundleUtils.SaveBundlePackageToDisk(
+	err := bundleUtils.SaveBundleToDisk(
 		srcDir,
 		getTestRawBundle(t),
 		&bundleUtils.SaveOptions{},
@@ -2594,7 +2594,7 @@ func TestSaveCurrentBundleToDisk(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	err = bundleUtils.SaveBundlePackageToDisk(srcDir, nil, &bundleUtils.SaveOptions{})
+	err = bundleUtils.SaveBundleToDisk(srcDir, nil, &bundleUtils.SaveOptions{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -3019,7 +3019,7 @@ func TestPluginReadBundleEtagFromPersistenceDir(t *testing.T) {
 			t.Fatal("unexpected error:", err)
 		}
 
-		err = bundleUtils.SaveBundlePackageToDisk(
+		err = bundleUtils.SaveBundleToDisk(
 			path.Join(persistenceDir, "bundles", "test"),
 			&buf,
 			&bundleUtils.SaveOptions{Etag: "foo"},

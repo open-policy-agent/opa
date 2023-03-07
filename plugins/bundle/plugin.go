@@ -653,7 +653,7 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 }
 
 func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, etag string) error {
-	return bundleUtils.SaveBundlePackageToDisk(
+	return bundleUtils.SaveBundleToDisk(
 		filepath.Join(p.bundlePersistPath, name),
 		rawBundle,
 		&bundleUtils.SaveOptions{Etag: etag},

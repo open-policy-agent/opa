@@ -266,7 +266,7 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 }
 
 func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, etag string) error {
-	return bundleUtils.SaveBundlePackageToDisk(
+	return bundleUtils.SaveBundleToDisk(
 		filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
 		rawBundle,
 		&bundleUtils.SaveOptions{Etag: etag},
