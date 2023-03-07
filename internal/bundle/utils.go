@@ -106,10 +106,8 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
-	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
-	bundlePackagePath := filepath.Join(path, name, "bundlePackage.tar.gz")
-
 	// if a bundlePackage exists, use that
+	bundlePackagePath := filepath.Join(path, name, "bundlePackage.tar.gz")
 	if _, err := os.Stat(bundlePackagePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePackagePath))
 		if err != nil {
@@ -145,6 +143,7 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 
 	// otherwise, load a legacy bundle file from disk. This does now support
 	// setting of the bundle etag.
+	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
 	if _, err := os.Stat(bundlePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePath))
 		if err != nil {
@@ -171,82 +170,9 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 	}
 }
 
-// SaveBundleToDisk saves the given raw bytes representing the bundle's content to disk. Passing nil for the rawManifest
-// will result in no manifest being persisted to disk.
-func SaveBundleToDisk(path string, rawBundle io.Reader, rawManifest io.Reader) (string, string, error) {
-	var cleanupOperations []func()
-	var failed bool
-	defer func() {
-		if failed {
-			for _, cleanup := range cleanupOperations {
-				cleanup()
-			}
-		}
-	}()
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err = os.MkdirAll(path, os.ModePerm)
-		if err != nil {
-			return "", "", err
-		}
-	}
-
-	// supplying no bundle data is an error case
-	if rawBundle == nil {
-		return "", "", fmt.Errorf("no raw bundle bytes to persist to disk")
-	}
-
-	// create a temporary file to write the bundle to
-	destBundle, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create temporary bundle file: %w", err)
-	}
-	defer destBundle.Close()
-
-	cleanupOperations = append(cleanupOperations, func() {
-		os.Remove(destBundle.Name())
-	})
-
-	// handle the optional case where a bundle manifest is provided
-	var errManifest error
-	var destManifestName string
-	if rawManifest != nil {
-		destManifest, err := os.CreateTemp(path, ".manifest.json.*.tmp")
-		if err != nil {
-			return "", "", err
-		}
-		defer destManifest.Close()
-		cleanupOperations = append(cleanupOperations, func() {
-			os.Remove(destManifest.Name())
-		})
-
-		destManifestName = destManifest.Name()
-
-		// write the manifest to disk first
-		_, errManifest = io.Copy(destManifest, rawManifest)
-	}
-
-	// write the bundle to disk
-	_, errBundle := io.Copy(destBundle, rawBundle)
-
-	// handle errors from both the bundle or manifest write operations
-	if errBundle != nil && errManifest != nil {
-		failed = true
-		return "", "", fmt.Errorf("failed to save bundle and manifest to disk: %s, %s", errBundle, errManifest)
-	}
-	if errBundle != nil {
-		failed = true
-		return "", "", fmt.Errorf("failed to save bundle to disk: %s", errBundle)
-	}
-	if errManifest != nil {
-		failed = true
-		return "", "", fmt.Errorf("failed to save manifest to disk: %s", errManifest)
-	}
-
-	return destBundle.Name(), destManifestName, nil
-}
-
-func SaveBundlePackageToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error {
+// SaveBundleToDisk persists a bundle to disk. Bundles are wrapped in a 'bundlePackage' in order
+// to support additional metadata (e.g. etag) that is not part of the original bundle.
+func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {

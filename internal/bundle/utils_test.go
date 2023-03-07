@@ -135,7 +135,7 @@ func TestSaveBundleToDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = SaveBundlePackageToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
+	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
