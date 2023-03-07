@@ -8,7 +8,6 @@ package bundle
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
@@ -433,28 +432,8 @@ func TestPluginBundleETagPersistenceDir(t *testing.T) {
 		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
 
-	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, "bundle.tar.gz")); errors.Is(err, os.ErrNotExist) {
-		t.Fatal("bundle.tar.gz was not persisted")
-	}
-
-	manifestPath := filepath.Join(persistenceDir, "bundles", bundleName, "manifest.json")
-	if _, err := os.Stat(manifestPath); errors.Is(err, os.ErrNotExist) {
-		t.Fatal("manifest.json was not persisted")
-	}
-
-	bs, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var manifestData map[string]string
-	err = json.Unmarshal(bs, &manifestData)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if manifestData["etag"] != etag {
-		t.Fatalf("Expected etag to be %s but got %s", etag, manifestData["etag"])
+	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, "bundlePackage.tar.gz")); errors.Is(err, os.ErrNotExist) {
+		t.Fatal("bundlePackage.tar.gz was not persisted")
 	}
 }
 
@@ -877,7 +856,7 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err := plugin.saveBundleToDisk(bundleName, &buf, nil)
+	err := plugin.saveBundleToDisk(bundleName, &buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -987,7 +966,7 @@ is_one(x) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err := plugin.saveBundleToDisk(bundleName, &buf1, nil)
+	err := plugin.saveBundleToDisk(bundleName, &buf1, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -997,7 +976,7 @@ is_one(x) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = plugin.saveBundleToDisk(bundleNameOther, &buf2, nil)
+	err = plugin.saveBundleToDisk(bundleNameOther, &buf2, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1063,7 +1042,7 @@ allow {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err := plugin.saveBundleToDisk(bundleName, &buf, nil)
+	err := plugin.saveBundleToDisk(bundleName, &buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2507,7 +2486,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 	plugin := New(&Config{Bundles: bundles}, manager)
 	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
 
-	err := plugin.saveBundleToDisk("foo", getTestRawBundle(t), nil)
+	err := plugin.saveBundleToDisk("foo", getTestRawBundle(t), "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2526,12 +2505,12 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t), nil)
+	err = plugin.saveBundleToDisk("foo", getTestRawBundle(t), "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	expectBundlePath := filepath.Join(dir, "bundles", "foo", "bundle.tar.gz")
+	expectBundlePath := filepath.Join(dir, "bundles", "foo", "bundlePackage.tar.gz")
 	_, err = os.Stat(expectBundlePath)
 	if err != nil {
 		t.Errorf("expected bundle persisted at path %v, %v", expectBundlePath, err)
@@ -2583,7 +2562,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = plugin.saveBundleToDisk("foo", &buf, nil)
+	err = plugin.saveBundleToDisk("foo", &buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2601,16 +2580,21 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 func TestSaveCurrentBundleToDisk(t *testing.T) {
 	srcDir := t.TempDir()
 
-	bundlePath, _, err := bundleUtils.SaveBundleToDisk(srcDir, getTestRawBundle(t), nil)
+	err := bundleUtils.SaveBundlePackageToDisk(
+		srcDir,
+		getTestRawBundle(t),
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
+	bundlePath := filepath.Join(srcDir, "bundlePackage.tar.gz")
 	if _, err := os.Stat(bundlePath); err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	_, _, err = bundleUtils.SaveBundleToDisk(srcDir, nil, nil)
+	err = bundleUtils.SaveBundlePackageToDisk(srcDir, nil, &bundleUtils.SaveOptions{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -3021,34 +3005,27 @@ func TestPluginReadBundleEtagFromPersistenceDir(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//defer os.RemoveAll(persistenceDir)
+		defer os.RemoveAll(persistenceDir)
 		persistenceDirName := persistenceDir
-
-		err = os.MkdirAll(path.Join(persistenceDir, "bundles", "test"), 0755)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		b := bundle.Bundle{
 			Data: map[string]interface{}{
 				"key": "value",
 			},
-			Etag: "foo",
+		}
+		var buf bytes.Buffer
+		err = bundle.NewWriter(&buf).Write(b)
+		if err != nil {
+			t.Fatal("unexpected error:", err)
 		}
 
-		file, err := os.OpenFile(path.Join(persistenceDir, "bundles", "test", "bundle.tar.gz"), os.O_CREATE|os.O_WRONLY, 0644)
+		err = bundleUtils.SaveBundlePackageToDisk(
+			path.Join(persistenceDir, "bundles", "test"),
+			&buf,
+			&bundleUtils.SaveOptions{Etag: "foo"},
+		)
 		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = bundle.NewWriter(file).Write(b)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = os.WriteFile(path.Join(persistenceDir, "bundles", "test", "manifest.json"), []byte(`{"etag": "foo"}`), 0644)
-		if err != nil {
-			t.Fatal(err)
+			t.Fatal("unexpected error:", err)
 		}
 
 		// setup plugin pointing at fake server

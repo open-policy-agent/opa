@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -555,22 +554,6 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("expected test plugin to have a start count of 1 but got %v", count)
 	}
-
-	// verify the ETag was persisted to disk too
-	manifestFile, err := os.Open(filepath.Join(dir, ".opa", "config", "manifest.json"))
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-	defer manifestFile.Close()
-
-	manifestBytes, err := io.ReadAll(manifestFile)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-
-	if got, exp := string(manifestBytes), `{"etag":"etag-1"}`; got != exp {
-		t.Fatalf("expected manifest to be %v but got %v", exp, got)
-	}
 }
 
 func TestLoadAndActivateBundleFromDisk(t *testing.T) {
@@ -634,7 +617,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf, nil)
+	err = disco.saveBundleToDisk(&buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -730,7 +713,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf, nil)
+	err = disco.saveBundleToDisk(&buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -822,7 +805,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf, nil)
+	err = disco.saveBundleToDisk(&buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -882,7 +865,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf, nil)
+	err = disco.saveBundleToDisk(&buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -940,12 +923,12 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = disco.saveBundleToDisk(&buf, nil)
+	err = disco.saveBundleToDisk(&buf, "")
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	expectBundlePath := filepath.Join(dir, "bundles", "config", "bundle.tar.gz")
+	expectBundlePath := filepath.Join(dir, "bundles", "config", "bundlePackage.tar.gz")
 	_, err = os.Stat(expectBundlePath)
 	if err != nil {
 		t.Errorf("expected bundle persisted at path %v, %v", expectBundlePath, err)
