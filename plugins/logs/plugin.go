@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -25,7 +24,9 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
+	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/open-policy-agent/opa/plugins/status"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -406,6 +407,7 @@ type Plugin struct {
 	limiter   *rate.Limiter
 	metrics   metrics.Metrics
 	logger    logging.Logger
+	status    *lstat.Status
 }
 
 type reconfigure struct {
@@ -496,6 +498,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		enc:      newChunkEncoder(*parsedConfig.Reporting.UploadSizeLimitBytes),
 		reconfig: make(chan reconfigure),
 		logger:   manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
+		status:   &lstat.Status{},
 	}
 
 	if parsedConfig.Reporting.MaxDecisionsPerSecond != nil {
@@ -767,6 +770,19 @@ func (p *Plugin) loop() {
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	uploaded, err := p.oneShot(ctx)
 
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.status.SetError(err)
+
+	if p.metrics != nil {
+		p.status.Metrics = p.metrics
+	}
+
+	if s := status.Lookup(p.manager); s != nil {
+		s.UpdateDecisionLogsStatus(*p.status)
+	}
+
 	if err != nil {
 		p.logger.Error("%v.", err)
 	} else if uploaded {
@@ -1036,7 +1052,7 @@ func uploadChunk(ctx context.Context, client rest.Client, uploadPath string, dat
 	defer util.Close(resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("log upload failed, server replied with HTTP %v %v", resp.StatusCode, http.StatusText(resp.StatusCode))
+		return lstat.HTTPError{StatusCode: resp.StatusCode}
 	}
 
 	return nil

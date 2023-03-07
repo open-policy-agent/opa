@@ -221,32 +221,36 @@ on the agent, updates will be sent to `/status`.
 
 Status updates contain the following fields:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `labels` | `object` | Set of key-value pairs that uniquely identify the OPA instance. |
-| `bundles` | `object` | Set of objects describing the status for each bundle configured with OPA. |
-| `bundles[_].name` | `string` | Name of bundle that the OPA instance is configured to download. |
-| `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation. |
-| `bundles[_].last_request` | `string` | RFC3339 timestamp of last bundle request. This timestamp should be >= to the successful request timestamp in normal operation. |
-| `bundles[_].last_successful_request` | `string` | RFC3339 timestamp of last successful bundle request. This timestamp should be >= to the successful download timestamp in normal operation. |
-| `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download. |
-| `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation. |
-| `bundles[_].metrics` | `object` | Metrics from the last update of the bundle. |
-| `bundles[_].code` | `string` | If present, indicates error(s) occurred activating this bundle. |
-| `bundles[_].message` | `string` | Human readable messages describing the error(s). |
-| `bundles[_].http_code` | `number` | If present, indicates an erroneous HTTP status code that OPA received downloading this bundle. |
-| `bundles[_].errors` | `array` | Collection of detailed parse or compile errors that occurred during activation of this bundle. |
-| `bundles[_].size` | `number` | Bundle size, in bytes |
-| `bundles[_].type` | `string` | Bundle type, either `snapshot` or `delta` |
-| `discovery.name` | `string` | Name of discovery bundle that the OPA instance is configured to download. |
-| `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation. |
-| `discovery.last_request` | `string` | RFC3339 timestamp of last discovery bundle request. This timestamp should be >= to the successful request timestamp in normal operation. |
+| Field               | Type | Description                                                                                                                                          |
+|---------------------| --- |------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `labels`            | `object` | Set of key-value pairs that uniquely identify the OPA instance.                                                                                      |
+| `bundles`           | `object` | Set of objects describing the status for each bundle configured with OPA.                                                                            |
+| `bundles[_].name`   | `string` | Name of bundle that the OPA instance is configured to download.                                                                                      |
+| `bundles[_].active_revision` | `string` | Opaque revision identifier of the last successful activation.                                                                                        |
+| `bundles[_].last_request` | `string` | RFC3339 timestamp of last bundle request. This timestamp should be >= to the successful request timestamp in normal operation.                       |
+| `bundles[_].last_successful_request` | `string` | RFC3339 timestamp of last successful bundle request. This timestamp should be >= to the successful download timestamp in normal operation.           |
+| `bundles[_].last_successful_download` | `string` | RFC3339 timestamp of last successful bundle download.                                                                                                |
+| `bundles[_].last_successful_activation` | `string` | RFC3339 timestamp of last successful bundle activation.                                                                                              |
+| `bundles[_].metrics` | `object` | Metrics from the last update of the bundle.                                                                                                          |
+| `bundles[_].code`   | `string` | If present, indicates error(s) occurred activating this bundle.                                                                                      |
+| `bundles[_].message` | `string` | Human readable messages describing the error(s).                                                                                                     |
+| `bundles[_].http_code` | `number` | If present, indicates an erroneous HTTP status code that OPA received downloading this bundle.                                                       |
+| `bundles[_].errors` | `array` | Collection of detailed parse or compile errors that occurred during activation of this bundle.                                                       |
+| `bundles[_].size`   | `number` | Bundle size, in bytes                                                                                                                                |
+| `bundles[_].type`   | `string` | Bundle type, either `snapshot` or `delta`                                                                                                            |
+| `discovery.name`    | `string` | Name of discovery bundle that the OPA instance is configured to download.                                                                            |
+| `discovery.active_revision` | `string` | Opaque revision identifier of the last successful discovery activation.                                                                              |
+| `discovery.last_request` | `string` | RFC3339 timestamp of last discovery bundle request. This timestamp should be >= to the successful request timestamp in normal operation.             |
 | `discovery.last_successful_request` | `string` | RFC3339 timestamp of last successful discovery bundle request. This timestamp should be >= to the successful download timestamp in normal operation. |
-| `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download. |
-| `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation. |
-| `plugins` | `object` | A set of objects describing the state of configured plugins in OPA's runtime. |
-| `plugins[_].state` | `string` | The state of each plugin. |
-| `metrics.prometheus` | `object` | Global performance metrics for the OPA instance. |
+| `discovery.last_successful_download` | `string` | RFC3339 timestamp of last successful discovery bundle download.                                                                                      |
+| `discovery.last_successful_activation` | `string` | RFC3339 timestamp of last successful discovery bundle activation.                                                                                    |
+| `decision_logs.code` | `string` | If present, indicates error(s) occurred during decision log upload event.                                                                            |
+| `decision_logs.message` | `string` | Human readable messages describing the error(s).                                                                                                     |
+| `decision_logs.http_code` | `number` | If present, indicates an erroneous HTTP status code that OPA received during a decision log upload event.                                            |
+| `decision_logs.metrics`   | `object` | Metrics from the last decision log upload event.                                                                                                     |
+| `plugins`           | `object` | A set of objects describing the state of configured plugins in OPA's runtime.                                                                        |
+| `plugins[_].state`  | `string` | The state of each plugin.                                                                                                                            |
+| `metrics.prometheus` | `object` | Global performance metrics for the OPA instance.                                                                                                     |
 
 If the discovery bundle download or activation failed, the status update will contain
 the following additional fields.
