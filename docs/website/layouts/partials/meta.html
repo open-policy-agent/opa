@@ -1,15 +1,15 @@
-{{ $isHome        := .IsHome }}
-{{ $isDoc         := eq .Section "docs" }}
-{{ $title         := cond $isHome site.Title .Title }}
-{{ $description   := .Param "description" }}
-{{ $pageType      := cond $isHome "website" "article" }}
-{{ $imageUrl      := "/img/logos/opa-horizontal-color.png" | absURL }}
-{{ $twitter       := site.Params.social.twitter }}
-{{ $version       := index (split .File.Path "/") 1 }}
-{{ $page          := trim .RelPermalink "/" }}
-{{ $releases      := site.Data.releases }}
-{{ $latestVersion := index $releases 1 }}
-{{ $isLatest      := or (eq $version $latestVersion) (eq $version "latest") }}
+{{ $isHome      := .IsHome }}
+{{ $isDoc       := eq .Section "docs" }}
+{{ $title       := cond $isHome site.Title .Title }}
+{{ $description := .Param "description" }}
+{{ $pageType    := cond $isHome "website" "article" }}
+{{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
+{{ $twitter     := site.Params.social.twitter }}
+{{ $version     := index (split .File.Path "/") 1 }}
+{{ $page       := trim .RelPermalink "/" }}
+{{ $releases   := site.Data.releases }}
+{{ $latest     := index $releases 1 }}
+{{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
 
 
 <!-- Basic metadata -->
@@ -52,11 +52,7 @@
 
 <!-- Algolia metadata -->
 <meta name="docsearch:language" content="en" />
-{{- if $isLatest -}}
-<link rel="docsearch:version" href="{{ $latestVersion }}">
-{{- else -}}
-<link rel="docsearch:version" href="{{ $version }}">
-{{- end -}}
+<meta name="docsearch:version" content="{{ $version }}" />
 
 <!-- Site generator -->
 {{ hugo.Generator }}
