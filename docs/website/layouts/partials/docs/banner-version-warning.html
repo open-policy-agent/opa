@@ -33,7 +33,7 @@
       This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
     </div>
   </div>
-{{- else if (and (ne $version "latest") (ne $version $latest)) }}
+{{- else if (and (ne $version $latest) (ne $version $latestVersionString)) }}
   <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
     <div class="message-body">
       These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
