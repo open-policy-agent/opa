@@ -323,6 +323,10 @@ func TestPluginStartSameInput(t *testing.T) {
 	if !reflect.DeepEqual(chunk3[expLen3-1], exp) {
 		t.Fatalf("Expected %+v but got %+v", exp, chunk3[expLen3-1])
 	}
+
+	if fixture.plugin.status.Code != "" {
+		t.Fatal("expected no error in status update")
+	}
 }
 
 func TestPluginStartChangingInputValues(t *testing.T) {
@@ -748,6 +752,155 @@ func TestPluginRateLimitFloat(t *testing.T) {
 	}
 
 	compareLogEvent(t, chunk[0], exp)
+}
+
+func TestPluginStatusUpdateHTTPError(t *testing.T) {
+	ctx := context.Background()
+
+	fixture := newTestFixture(t, testFixtureOptions{ReportingUploadSizeLimitBytes: 300})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 3)
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result1 interface{} = false
+
+	_ = fixture.plugin.Log(ctx, logServerInfo("abc", input, result1))
+	_ = fixture.plugin.Log(ctx, logServerInfo("def", input, result1))
+	_ = fixture.plugin.Log(ctx, logServerInfo("ghi", input, result1))
+
+	bufLen := fixture.plugin.buffer.Len()
+	if bufLen < 1 {
+		t.Fatal("Expected buffer length of at least 1")
+	}
+
+	fixture.server.expCode = 500
+	err := fixture.plugin.doOneShot(ctx)
+	if err == nil {
+		t.Fatal("Expected error")
+	}
+
+	<-fixture.server.ch
+
+	if fixture.plugin.buffer.Len() < bufLen {
+		t.Fatal("Expected buffer to be preserved")
+	}
+
+	if fixture.plugin.status.HTTPCode != "500" {
+		t.Fatal("expected http_code to be 500 instead of ", fixture.plugin.status.HTTPCode)
+	}
+
+	msg := "log upload failed, server replied with HTTP 500 Internal Server Error"
+	if fixture.plugin.status.Message != msg {
+		t.Fatalf("expected status message to be %v instead of %v", msg, fixture.plugin.status.Message)
+	}
+}
+
+func TestPluginStatusUpdate(t *testing.T) {
+	ctx := context.Background()
+	testLogger := test.New()
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	numDecisions := 1 // 1 decision per second
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger:                  testLogger,
+		ReportingMaxDecisionsPerSecond: float64(numDecisions),
+		ReportingUploadSizeLimitBytes:  300,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	fixture.plugin.metrics = metrics.New()
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	event1 := &server.Info{
+		DecisionID: "abc",
+		Path:       "foo/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-1",
+		Timestamp:  ts,
+	}
+
+	event2 := &server.Info{
+		DecisionID: "def",
+		Path:       "foo/baz",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-2",
+		Timestamp:  ts,
+	}
+
+	event3 := &server.Info{
+		DecisionID: "ghi",
+		Path:       "foo/aux",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-3",
+		Timestamp:  ts,
+	}
+
+	_ = fixture.plugin.Log(ctx, event1) // event 1 should be written into the encoder
+
+	fixture.plugin.mtx.Lock()
+	if fixture.plugin.enc.bytesWritten == 0 {
+		t.Fatal("Expected event to be written into the encoder")
+	}
+	fixture.plugin.mtx.Unlock()
+
+	// Create a status plugin that logs to console
+	pluginConfig := []byte(`{
+			"console": true,
+		}`)
+
+	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
+
+	fixture.manager.Register(status.Name, p)
+	if err := fixture.manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = fixture.plugin.Log(ctx, event2) // event 2 should not be written into the encoder as rate limit exceeded
+	_ = fixture.plugin.Log(ctx, event3) // event 3 should not be written into the encoder as rate limit exceeded
+
+	// Trigger a status update
+	fixture.server.expCode = 200
+	err = fixture.plugin.doOneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected error")
+	}
+
+	<-fixture.server.ch
+
+	// Give the logger / console some time to process and print the events
+	time.Sleep(10 * time.Millisecond)
+	p.Stop(ctx)
+
+	entries := testLogger.Entries()
+	if len(entries) == 0 {
+		t.Fatal("Expected log entries but got none")
+	}
+
+	// Pick the last entry as it should have the decision log update
+	e := entries[len(entries)-1]
+
+	if _, ok := e.Fields["decision_logs"]; !ok {
+		t.Fatal("Expected decision_log status update")
+	}
+
+	exp := map[string]interface{}{"metrics": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+
+	if !reflect.DeepEqual(e.Fields["decision_logs"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Fields["decision_logs"])
+	}
 }
 
 func TestPluginRateLimitRequeue(t *testing.T) {
