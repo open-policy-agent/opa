@@ -21,6 +21,9 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
+// BundlePackageFileName is the name of the file used to store bundle and associated metadata
+const BundlePackageFileName = "bundlePackage.tar.gz"
+
 // SaveOptions is a list of options which can be set when writing bundle data
 // to disk. Currently, only setting of the bundle's ETag is supported.
 type SaveOptions struct {
@@ -107,7 +110,7 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
 	// if a bundlePackage exists, use that
-	bundlePackagePath := filepath.Join(path, name, "bundlePackage.tar.gz")
+	bundlePackagePath := filepath.Join(path, name, BundlePackageFileName)
 	if _, err := os.Stat(bundlePackagePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePackagePath))
 		if err != nil {
@@ -209,7 +212,7 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 
 	zw := gzip.NewWriter(destBundlePackage)
 	// this should be the eventual target name of the bundle package file
-	zw.Name = "bundlePackage.tar.gz"
+	zw.Name = BundlePackageFileName
 
 	_, err = zw.Write(jsonPackageData)
 	if err != nil {
@@ -223,6 +226,6 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 
 	return os.Rename(
 		destBundlePackage.Name(),
-		filepath.Join(path, "bundlePackage.tar.gz"),
+		filepath.Join(path, BundlePackageFileName),
 	)
 }

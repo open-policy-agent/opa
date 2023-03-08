@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -265,14 +264,6 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 	}
 }
 
-func (c *Discovery) saveBundleToDisk(rawBundle io.Reader, etag string) error {
-	return bundleUtils.SaveBundleToDisk(
-		filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
-		rawBundle,
-		&bundleUtils.SaveOptions{Etag: etag},
-	)
-}
-
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
 
 	c.processUpdate(ctx, u)
@@ -315,8 +306,11 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		if c.config != nil && c.config.Persist {
 			c.logger.Debug("Persisting discovery bundle to disk in progress.")
-
-			err := c.saveBundleToDisk(u.Raw, u.ETag)
+			err := bundleUtils.SaveBundleToDisk(
+				filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
+				u.Raw,
+				&bundleUtils.SaveOptions{Etag: u.ETag},
+			)
 			if err != nil {
 				c.logger.Error("Persisting discovery bundle to disk failed: %v", err)
 				c.status.SetError(err)

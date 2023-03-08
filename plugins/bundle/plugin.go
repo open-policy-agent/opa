@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -507,7 +506,11 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := p.saveBundleToDisk(name, u.Raw, u.ETag)
+			err := bundleUtils.SaveBundleToDisk(
+				filepath.Join(p.bundlePersistPath, name),
+				u.Raw,
+				&bundleUtils.SaveOptions{Etag: u.ETag},
+			)
 			if err != nil {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
@@ -650,14 +653,6 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	}
 
 	return newBundles, updatedBundles, deletedBundles
-}
-
-func (p *Plugin) saveBundleToDisk(name string, rawBundle io.Reader, etag string) error {
-	return bundleUtils.SaveBundleToDisk(
-		filepath.Join(p.bundlePersistPath, name),
-		rawBundle,
-		&bundleUtils.SaveOptions{Etag: etag},
-	)
 }
 
 func (p *Plugin) log(name string) logging.Logger {
