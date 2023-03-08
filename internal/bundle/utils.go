@@ -30,6 +30,12 @@ type SaveOptions struct {
 	Etag string
 }
 
+// LoadOptions is a list of options which can be set when loading a bundle from disk.
+// Currently, only setting VerificationConfig is supported.
+type LoadOptions struct {
+	VerificationConfig *bundle.VerificationConfig
+}
+
 // bundlePackage represents a bundle and associated metadata which is ready to be
 // serialized to disk.
 type bundlePackage struct {
@@ -108,9 +114,9 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 }
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
-func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
+func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) {
 	// if a bundlePackage exists, use that
-	bundlePackagePath := filepath.Join(path, name, BundlePackageFileName)
+	bundlePackagePath := filepath.Join(path, BundlePackageFileName)
 	if _, err := os.Stat(bundlePackagePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePackagePath))
 		if err != nil {
@@ -129,8 +135,8 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 		}
 
 		r := bundle.NewReader(bytes.NewReader(bundlePackage.Bundle))
-		if bvc != nil {
-			r = r.WithBundleVerificationConfig(bvc)
+		if opts.VerificationConfig != nil {
+			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
 		}
 		if bundlePackage.Etag != "" {
 			r = r.WithBundleEtag(bundlePackage.Etag)
@@ -146,7 +152,7 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 
 	// otherwise, load a legacy bundle file from disk. This does now support
 	// setting of the bundle etag.
-	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
+	bundlePath := filepath.Join(path, "bundle.tar.gz")
 	if _, err := os.Stat(bundlePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePath))
 		if err != nil {
@@ -156,8 +162,8 @@ func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bun
 
 		r := bundle.NewCustomReader(bundle.NewTarballLoaderWithBaseURL(f, ""))
 
-		if bvc != nil {
-			r = r.WithBundleVerificationConfig(bvc)
+		if opts.VerificationConfig != nil {
+			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
 		}
 
 		b, err := r.Read()

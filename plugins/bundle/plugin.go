@@ -351,7 +351,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := bundleUtils.LoadBundleFromDisk(p.bundlePersistPath, name, src.Signing)
+			b, err := bundleUtils.LoadBundleFromDisk(filepath.Join(p.bundlePersistPath, name), &bundleUtils.LoadOptions{VerificationConfig: src.Signing})
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
