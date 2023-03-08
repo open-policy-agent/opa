@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	opaBundle "github.com/open-policy-agent/opa/bundle"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	opaBundle "github.com/open-policy-agent/opa/bundle"
 )
 
 func TestLoadBundleFromDisk_Legacy(t *testing.T) {
