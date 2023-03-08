@@ -979,6 +979,9 @@ is_one(x) {
 		&buf1,
 		&bundleUtils.SaveOptions{},
 	)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
 
 	var buf2 bytes.Buffer
 	if err := bundle.NewWriter(&buf2).UseModulePath(true).Write(b2); err != nil {
@@ -3432,19 +3435,6 @@ func getTestSignedBundle(t *testing.T) bundle.Bundle {
 		t.Fatal("Unexpected error:", err)
 	}
 	return b
-}
-
-func getTestRawBundle(t *testing.T) io.Reader {
-	t.Helper()
-
-	b := getTestBundle(t)
-
-	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-
-	return &buf
 }
 
 func validateStoreState(ctx context.Context, t *testing.T, store storage.Store, root string, expData interface{}, expIds []string, expBundleName string, expBundleRev string, expMetadata map[string]interface{}) {
