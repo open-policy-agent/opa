@@ -2708,6 +2708,130 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 	})
 }
 
+func TestIntraQueryCache_ClientError(t *testing.T) {
+	data := loadSmallTestData()
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected string
+	}{
+		{
+			note: "raised errors",
+			rules: []string{`p["one"] { 
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"}) 
+}`,
+				`p["two"] { 
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms"})
+}`},
+			expected: `["one", "two"]`,
+		},
+		{
+			note: "no raised errors",
+			rules: []string{`p["one"] { 
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false}) 
+	r.error.code == "eval_http_send_network_error"
+}`,
+				`p["two"] { 
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
+}`},
+			expected: `["one", "two"]`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var requests []*http.Request
+			// A HTTP server that always causes a timeout
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				w.WriteHeader(http.StatusOK)
+				time.Sleep(2 * time.Second)
+				_, _ = w.Write([]byte(`{"foo": "bar"}`)) // ignore error
+			}))
+			defer ts.Close()
+
+			var rules []string
+			for _, r := range tc.rules {
+				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
+			}
+
+			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+
+			if actualCount != 1 {
+				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
+			}
+		})
+	}
+}
+
+func TestInterQueryCache_ClientError(t *testing.T) {
+	data := loadSmallTestData()
+
+	tests := []struct {
+		note     string
+		rules    []string
+		expected string
+	}{
+		{
+			note: "raised errors",
+			rules: []string{`p["one"] { 
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true}) 
+}`,
+				`p["two"] { 
+	not http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true})
+}`},
+			expected: `["one", "two"]`,
+		},
+		{
+			note: "no raised errors",
+			rules: []string{`p["one"] { 
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false}) 
+	r.error.code == "eval_http_send_network_error"
+}`,
+				`p["two"] { 
+	r := http.send({"method": "GET", "url": "%URL%", "timeout": "10ms", "cache": true, "raise_error": false})
+	r.error.code == "eval_http_send_network_error"
+}`},
+			expected: `["one", "two"]`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var requests []*http.Request
+			// A HTTP server that always causes a timeout
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				w.WriteHeader(http.StatusOK)
+				time.Sleep(2 * time.Second)
+				_, _ = w.Write([]byte(`{"foo": "bar"}`)) // ignore error
+			}))
+			defer ts.Close()
+
+			var rules []string
+			for _, r := range tc.rules {
+				rules = append(rules, strings.ReplaceAll(r, "%URL%", ts.URL))
+			}
+
+			runTopDownTestCase(t, data, tc.note, rules, tc.expected)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+
+			if actualCount != 1 {
+				t.Fatalf("Expected exactly 1 call to HTTP server, got %v", actualCount)
+			}
+		})
+	}
+}
+
 func TestHTTPSendMetrics(t *testing.T) {
 	// run test server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

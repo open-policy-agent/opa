@@ -161,6 +161,7 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 	if resp == nil {
 		httpResp, err := reqExecutor.ExecuteHTTPRequest()
 		if err != nil {
+			reqExecutor.InsertErrorIntoCache(err)
 			return nil, err
 		}
 		defer util.Close(httpResp)
@@ -659,41 +660,108 @@ func isContentType(header http.Header, typ ...string) bool {
 	return false
 }
 
+type httpSendCacheEntry struct {
+	response *ast.Value
+	error    error
+}
+
+type httpSendCache struct {
+	entries *util.HashMap
+}
+
+func newHttpSendCache() *httpSendCache {
+	return &httpSendCache{
+		entries: util.NewHashMap(valueEq, valueHash),
+	}
+}
+
+func valueHash(v util.T) int {
+	return v.(ast.Value).Hash()
+}
+
+func valueEq(a, b util.T) bool {
+	av := a.(ast.Value)
+	bv := b.(ast.Value)
+	return av.Compare(bv) == 0
+}
+
+func (cache *httpSendCache) get(k ast.Value) *httpSendCacheEntry {
+	if v, ok := cache.entries.Get(k); ok {
+		v := v.(httpSendCacheEntry)
+		return &v
+	}
+	return nil
+}
+
+func (cache *httpSendCache) put(k ast.Value, v httpSendCacheEntry) {
+	cache.entries.Put(k, v)
+}
+
+func (cache *httpSendCache) putResponse(k ast.Value, v *ast.Value) {
+	cache.entries.Put(k, httpSendCacheEntry{response: v})
+}
+
+func (cache *httpSendCache) putError(k ast.Value, v error) {
+	cache.entries.Put(k, httpSendCacheEntry{error: v})
+}
+
 // In the BuiltinContext cache we only store a single entry that points to
 // our ValueMap which is the "real" http.send() cache.
-func getHTTPSendCache(bctx BuiltinContext) *ast.ValueMap {
+func getHTTPSendCache(bctx BuiltinContext) *httpSendCache {
 	raw, ok := bctx.Cache.Get(httpSendBuiltinCacheKey)
 	if !ok {
 		// Initialize if it isn't there
-		cache := ast.NewValueMap()
-		bctx.Cache.Put(httpSendBuiltinCacheKey, cache)
-		return cache
+		c := newHttpSendCache()
+		bctx.Cache.Put(httpSendBuiltinCacheKey, c)
+		return c
 	}
 
-	cache, ok := raw.(*ast.ValueMap)
+	c, ok := raw.(*httpSendCache)
 	if !ok {
 		return nil
 	}
-	return cache
+	return c
 }
 
 // checkHTTPSendCache checks for the given key's value in the cache
-func checkHTTPSendCache(bctx BuiltinContext, key ast.Object) ast.Value {
+func checkHTTPSendCache(bctx BuiltinContext, key ast.Object) (ast.Value, error) {
 	requestCache := getHTTPSendCache(bctx)
 	if requestCache == nil {
-		return nil
+		return nil, nil
 	}
 
-	return requestCache.Get(key)
+	v := requestCache.get(key)
+	if v != nil {
+		if v.error != nil {
+			return nil, v.error
+		}
+		if v.response != nil {
+			return *v.response, nil
+		}
+		// This should never happen
+	}
+
+	return nil, nil
 }
 
 func insertIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, value ast.Value) {
 	requestCache := getHTTPSendCache(bctx)
 	if requestCache == nil {
 		// Should never happen.. if it does just skip caching the value
+		// FIXME: return error instead, to prevent inconsistencies?
 		return
 	}
-	requestCache.Put(key, value)
+	requestCache.putResponse(key, &value)
+}
+
+func insertErrorIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, err error) {
+	requestCache := getHTTPSendCache(bctx)
+	if requestCache == nil {
+		// Should never happen.. if it does just skip caching the value
+		// FIXME: return error instead, to prevent inconsistencies?
+		return
+	}
+	requestCache.putError(key, err)
 }
 
 // checkHTTPSendInterQueryCache checks for the given key's value in the inter-query cache
@@ -1233,6 +1301,7 @@ func getResponseHeaders(headers http.Header) map[string]interface{} {
 type httpRequestExecutor interface {
 	CheckCache() (ast.Value, error)
 	InsertIntoCache(value *http.Response) (ast.Value, error)
+	InsertErrorIntoCache(err error)
 	ExecuteHTTPRequest() (*http.Response, error)
 }
 
@@ -1268,6 +1337,15 @@ func newInterQueryCache(bctx BuiltinContext, key ast.Object, forceCacheParams *f
 func (c *interQueryCache) CheckCache() (ast.Value, error) {
 	var err error
 
+	// Checking the intra-query cache first ensures consistency of errors and HTTP responses within a query.
+	resp, err := checkHTTPSendCache(c.bctx, c.key)
+	if err != nil {
+		return nil, err
+	}
+	if resp != nil {
+		return resp, nil
+	}
+
 	c.forceJSONDecode, err = getBoolValFromReqObj(c.key, ast.StringTerm("force_json_decode"))
 	if err != nil {
 		return nil, handleHTTPSendErr(c.bctx, err)
@@ -1277,15 +1355,7 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	resp, err := c.checkHTTPSendInterQueryCache()
-
-	// fallback to the http send cache if response not found in the inter-query cache or inter-query cache look-up results
-	// in an error
-	if resp == nil || err != nil {
-		return checkHTTPSendCache(c.bctx, c.key), nil
-	}
-
-	return resp, err
+	return c.checkHTTPSendInterQueryCache()
 }
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
@@ -1301,6 +1371,10 @@ func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		insertIntoHTTPSendCache(c.bctx, c.key, result)
 	}
 	return result, nil
+}
+
+func (c *interQueryCache) InsertErrorIntoCache(err error) {
+	insertErrorIntoHTTPSendCache(c.bctx, c.key, err)
 }
 
 // ExecuteHTTPRequest executes a HTTP request
@@ -1325,7 +1399,7 @@ func newIntraQueryCache(bctx BuiltinContext, key ast.Object) (*intraQueryCache, 
 
 // CheckCache checks the cache for the value of the key set on this object
 func (c *intraQueryCache) CheckCache() (ast.Value, error) {
-	return checkHTTPSendCache(c.bctx, c.key), nil
+	return checkHTTPSendCache(c.bctx, c.key)
 }
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
@@ -1349,6 +1423,10 @@ func (c *intraQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 	}
 
 	return result, nil
+}
+
+func (c *intraQueryCache) InsertErrorIntoCache(err error) {
+	insertErrorIntoHTTPSendCache(c.bctx, c.key, err)
 }
 
 // ExecuteHTTPRequest executes a HTTP request
