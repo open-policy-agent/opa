@@ -2,8 +2,6 @@ package bundle
 
 import (
 	"bytes"
-	"compress/gzip"
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -53,7 +51,7 @@ func TestLoadBundleFromDisk_Legacy(t *testing.T) {
 	}
 }
 
-func TestLoadBundleFromDisk(t *testing.T) {
+func TestLoadBundleFromDisk_BundlePackage(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
@@ -73,31 +71,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	bundlePackagePath := filepath.Join(tempDir, BundlePackageFileName)
-	f, err := os.Create(bundlePackagePath)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-
-	packageData := bundlePackage{
-		Etag:   "123",
-		Bundle: buf.Bytes(),
-	}
-
-	jsonPackageData, err := json.Marshal(packageData)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-
-	zw := gzip.NewWriter(f)
-	zw.Name = BundlePackageFileName
-
-	_, err = zw.Write(jsonPackageData)
-	if err != nil {
-		t.Fatal("unexpected error:", err)
-	}
-
-	err = zw.Close()
+	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
