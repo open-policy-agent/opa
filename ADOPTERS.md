@@ -6,6 +6,9 @@
 This is a list of organizations that have spoken publicly about their adoption or
 production users that have added themselves (in alphabetical order):
 
+* [2U, Inc](https://2u.com) has incorporated OPA into their SDLC for both Terraform and Kubernetes deployments.
+  Shift left!
+
 * [Appsflyer](https://www.appsflyer.com/) uses OPA to make consistent
   authorization decisions by hundreds of microservices for UI and API data
   access. All authorization decisions are delegated to OPA that is deployed as a
@@ -282,4 +285,5 @@ testing include:
 * [State Street Corporation](http://www.statestreet.com/)
 
 If you have adopted OPA and would like to be included in this list,
-feel free to submit a PR.
+feel free to submit a PR updating this file or
+[open an issue](https://github.com/open-policy-agent/opa/issues/new?assignees=&labels=adopt-opa&template=adopt-opa.yaml&title=organization_name+has+adopted+OPA).
