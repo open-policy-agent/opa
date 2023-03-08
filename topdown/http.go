@@ -669,7 +669,7 @@ type httpSendCache struct {
 	entries *util.HashMap
 }
 
-func newHttpSendCache() *httpSendCache {
+func newHTTPSendCache() *httpSendCache {
 	return &httpSendCache{
 		entries: util.NewHashMap(valueEq, valueHash),
 	}
@@ -693,10 +693,6 @@ func (cache *httpSendCache) get(k ast.Value) *httpSendCacheEntry {
 	return nil
 }
 
-func (cache *httpSendCache) put(k ast.Value, v httpSendCacheEntry) {
-	cache.entries.Put(k, v)
-}
-
 func (cache *httpSendCache) putResponse(k ast.Value, v *ast.Value) {
 	cache.entries.Put(k, httpSendCacheEntry{response: v})
 }
@@ -711,7 +707,7 @@ func getHTTPSendCache(bctx BuiltinContext) *httpSendCache {
 	raw, ok := bctx.Cache.Get(httpSendBuiltinCacheKey)
 	if !ok {
 		// Initialize if it isn't there
-		c := newHttpSendCache()
+		c := newHTTPSendCache()
 		bctx.Cache.Put(httpSendBuiltinCacheKey, c)
 		return c
 	}
