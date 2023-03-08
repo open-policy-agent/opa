@@ -672,7 +672,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
-	result, err := bundleUtils.LoadBundleFromDisk(plugin.bundlePersistPath, bundleName, nil)
+	result, err := bundleUtils.LoadBundleFromDisk(filepath.Join(plugin.bundlePersistPath, bundleName), &bundleUtils.LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -774,7 +774,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateOK)
 
 	// load signed bundle from disk
-	result, err := bundleUtils.LoadBundleFromDisk(plugin.bundlePersistPath, bundleName, bundles[bundleName].Signing)
+	result, err := bundleUtils.LoadBundleFromDisk(filepath.Join(plugin.bundlePersistPath, bundleName), &bundleUtils.LoadOptions{VerificationConfig: bundles[bundleName].Signing})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -2499,7 +2499,7 @@ func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
 func TestLoadBundleFromDisk(t *testing.T) {
 
 	// no bundle on disk
-	_, err := bundleUtils.LoadBundleFromDisk("foo", "bar", nil)
+	_, err := bundleUtils.LoadBundleFromDisk(filepath.Join("foo", "bar"), nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2507,8 +2507,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 	// create a test bundle and load it from disk
 	dir := t.TempDir()
 
-	bundleName := "foo"
-	bundleDir := filepath.Join(dir, bundleName)
+	bundleDir := filepath.Join(dir, "foo")
 
 	err = os.MkdirAll(bundleDir, os.ModePerm)
 	if err != nil {
@@ -2517,7 +2516,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 
 	b := writeTestBundleToDisk(t, bundleDir, false)
 
-	result, err := bundleUtils.LoadBundleFromDisk(dir, bundleName, nil)
+	result, err := bundleUtils.LoadBundleFromDisk(bundleDir, &bundleUtils.LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -2530,7 +2529,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 func TestLoadSignedBundleFromDisk(t *testing.T) {
 
 	// no bundle on disk
-	_, err := bundleUtils.LoadBundleFromDisk("foo", "bar", nil)
+	_, err := bundleUtils.LoadBundleFromDisk("foo/bar", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2538,8 +2537,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 	// create a test signed bundle and load it from disk
 	dir := t.TempDir()
 
-	bundleName := "foo"
-	bundleDir := filepath.Join(dir, bundleName)
+	bundleDir := filepath.Join(dir, "foo")
 
 	err = os.MkdirAll(bundleDir, os.ModePerm)
 	if err != nil {
@@ -2552,7 +2550,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 		Signing: bundle.NewVerificationConfig(map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
 	}
 
-	result, err := bundleUtils.LoadBundleFromDisk(dir, bundleName, src.Signing)
+	result, err := bundleUtils.LoadBundleFromDisk(bundleDir, &bundleUtils.LoadOptions{VerificationConfig: src.Signing})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}

@@ -42,7 +42,7 @@ func TestLoadBundleFromDisk_Legacy(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, "", nil)
+	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -101,7 +101,7 @@ func TestLoadBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, "", nil)
+	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -140,7 +140,7 @@ func TestSaveBundleToDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, "", nil)
+	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -198,7 +198,7 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 	}
 
 	// load the bundle and validate it
-	loadedBundle, err := LoadBundleFromDisk(tempDir, "", nil)
+	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -218,7 +218,7 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 	}
 
 	// load the new bundle and validate it
-	loadedBundle, err = LoadBundleFromDisk(tempDir, "", nil)
+	loadedBundle, err = LoadBundleFromDisk(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -252,15 +252,14 @@ func TestSaveBundleToDisk_NewPath(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	bundlePath := filepath.Join(tempDir, "foo", "bar")
-	bundleName := "example1"
+	bundlePath := filepath.Join(tempDir, "foo", "bar", "example1")
 
-	err = SaveBundleToDisk(filepath.Join(bundlePath, bundleName), &buf, &SaveOptions{Etag: "123"})
+	err = SaveBundleToDisk(bundlePath, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(bundlePath, bundleName, nil)
+	loadedBundle, err := LoadBundleFromDisk(bundlePath, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
