@@ -711,6 +711,7 @@ opa parse <path> [flags]
 ```
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for parse
+      --json-include string    include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.
 ```
 
 ____

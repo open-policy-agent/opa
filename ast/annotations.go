@@ -26,7 +26,6 @@ const (
 type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
-		Location         *Location                    `json:"-"`
 		Scope            string                       `json:"scope"`
 		Title            string                       `json:"title,omitempty"`
 		Entrypoint       bool                         `json:"entrypoint,omitempty"`
@@ -36,8 +35,11 @@ type (
 		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
 		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
 		Custom           map[string]interface{}       `json:"custom,omitempty"`
-		node             Node
-		comments         []*Comment
+		Location         *Location                    `json:"location,omitempty"`
+
+		comments    []*Comment
+		node        Node
+		jsonOptions JSONOptions
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -70,10 +72,13 @@ type (
 	}
 
 	AnnotationsRef struct {
-		Location    *Location    `json:"location"` // The location of the node the annotations are applied to
-		Path        Ref          `json:"path"`     // The path of the node the annotations are applied to
+		Path        Ref          `json:"path"` // The path of the node the annotations are applied to
 		Annotations *Annotations `json:"annotations,omitempty"`
-		node        Node         // The node the annotations are applied to
+		Location    *Location    `json:"location,omitempty"` // The location of the node the annotations are applied to
+
+		jsonOptions JSONOptions
+
+		node Node // The node the annotations are applied to
 	}
 
 	AnnotationsRefSet []*AnnotationsRef
@@ -82,7 +87,7 @@ type (
 )
 
 func (a *Annotations) String() string {
-	bs, _ := json.Marshal(a)
+	bs, _ := a.MarshalJSON()
 	return string(bs)
 }
 
@@ -175,6 +180,60 @@ func (a *Annotations) GetTargetPath() Ref {
 	}
 }
 
+func (a *Annotations) setJSONOptions(opts JSONOptions) {
+	a.jsonOptions = opts
+}
+
+func (a *Annotations) MarshalJSON() ([]byte, error) {
+	if a == nil {
+		return []byte(`{"scope":""}`), nil
+	}
+
+	data := map[string]interface{}{
+		"scope": a.Scope,
+	}
+
+	if a.Title != "" {
+		data["title"] = a.Title
+	}
+
+	if a.Description != "" {
+		data["description"] = a.Description
+	}
+
+	if a.Entrypoint {
+		data["entrypoint"] = a.Entrypoint
+	}
+
+	if len(a.Organizations) > 0 {
+		data["organizations"] = a.Organizations
+	}
+
+	if len(a.RelatedResources) > 0 {
+		data["related_resources"] = a.RelatedResources
+	}
+
+	if len(a.Authors) > 0 {
+		data["authors"] = a.Authors
+	}
+
+	if len(a.Schemas) > 0 {
+		data["schemas"] = a.Schemas
+	}
+
+	if len(a.Custom) > 0 {
+		data["custom"] = a.Custom
+	}
+
+	if a.jsonOptions.MarshalOptions.IncludeLocation.Annotations {
+		if a.Location != nil {
+			data["location"] = a.Location
+		}
+	}
+
+	return json.Marshal(data)
+}
+
 func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
 	var loc *Location
 	if a.node != nil {
@@ -207,6 +266,24 @@ func (ar *AnnotationsRef) GetRule() *Rule {
 	default:
 		return nil
 	}
+}
+
+func (ar *AnnotationsRef) MarshalJSON() ([]byte, error) {
+	data := map[string]interface{}{
+		"path": ar.Path,
+	}
+
+	if ar.Annotations != nil {
+		data["annotations"] = ar.Annotations
+	}
+
+	if ar.jsonOptions.MarshalOptions.IncludeLocation.AnnotationsRef {
+		if ar.Location != nil {
+			data["location"] = ar.Location
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 func scopeCompare(s1, s2 string) int {
