@@ -1162,7 +1162,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
                      "revision": "rev-1",
                      "roots": [""]
                   },
-                  "etag": ""
+                  "etag": "foo"
                }
             }
          }
@@ -1241,7 +1241,7 @@ func TestBundleLazyModeLifecycleNoBundleRoots(t *testing.T) {
                      "revision": "rev-2",
                      "roots": [""]
                   },
-                  "etag": ""
+                  "etag": "bar"
                }
             }
          }
@@ -1372,7 +1372,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
                      "revision": "rev-1",
                      "roots": [""]
                   },
-                  "etag": ""
+                  "etag": "foo"
                }
             }
          }
@@ -1451,7 +1451,7 @@ func TestBundleLazyModeLifecycleNoBundleRootsDiskStorage(t *testing.T) {
                      "revision": "rev-2",
                      "roots": [""]
                   },
-                  "etag": ""
+                  "etag": "bar"
                }
             }
          }
@@ -1598,14 +1598,14 @@ func TestBundleLazyModeLifecycleMixBundleTypeActivationDiskStorage(t *testing.T)
                      "revision": "snap-1",
                      "roots": ["a"]
                   },
-                  "etag": ""
+                  "etag": "foo"
                },
 			"bundle2": {
                   "manifest": {
                      "revision": "delta-1",
                      "roots": ["x"]
                   },
-                  "etag": ""
+                  "etag": "bar"
                }
             }
          }
@@ -1737,7 +1737,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
                      "revision": "rev-1",
                      "roots": ["a"]
                   },
-                  "etag": ""
+                  "etag": "foo"
                }
             }
          }
@@ -1816,7 +1816,7 @@ func TestBundleLazyModeLifecycleOldBundleEraseDiskStorage(t *testing.T) {
                      "revision": "rev-2",
                      "roots": ["c"]
                   },
-                  "etag": ""
+                  "etag": "bar"
                }
             }
          }
@@ -1949,7 +1949,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                      "revision": "rev-1",
                      "roots": ["a"]
                   },
-                  "etag": ""
+                  "etag": "foo"
                }
             }
          }
@@ -2028,7 +2028,7 @@ func TestBundleLazyModeLifecycleRestoreBackupDB(t *testing.T) {
                      "revision": "rev-1",
                      "roots": ["a"]
                   },
-                  "etag": ""
+                  "etag": "foo"
                }
             }
          }

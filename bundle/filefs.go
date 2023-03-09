@@ -35,6 +35,11 @@ func NewFSLoader(filesystem fs.FS) (DirectoryLoader, error) {
 	return &d, nil
 }
 
+// SupplementaryMetadata returns an empty SupplementaryMetadata object for this loader
+func (d *dirLoaderFS) SupplementaryMetadata() *SupplementaryMetadata {
+	return &SupplementaryMetadata{}
+}
+
 func (d *dirLoaderFS) walkDir(path string, dirEntry fs.DirEntry, err error) error {
 	if err != nil {
 		return err
