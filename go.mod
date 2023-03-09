@@ -96,3 +96,7 @@ require (
 // at a cost, its init function will lookup the current user, and on Windows, that's much
 // work.
 replace github.com/golang/glog => ./build/replacements/github.com/golang/glog
+
+// Before 0.15.0 OPA was not using go modules. We must retract these releases in order to have pkg.go.dev
+// show the latest versions. See: https://github.com/golang/go/issues/58925
+retract [v0.1.0-rc1, v0.14.2]
