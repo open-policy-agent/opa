@@ -60,6 +60,15 @@ on the agent, updates will be sent to `/status`.
       "type": "snapshot",
     }
   },
+  "decision_logs": {
+    "code": "decision_log_error",
+    "message": "Upload Failed",
+    "http_code": "400",
+    "metrics": {
+      "counter_decision_logs_dropped": "2",
+      "decision_logs_nd_builtin_cache_dropped": "1"
+    }
+  },
   "plugins": {
     "bundle": {
       "state": "OK"
