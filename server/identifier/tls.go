@@ -24,6 +24,7 @@ func (h *TLSBased) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if tls := r.TLS; tls != nil {
 		if certs := tls.PeerCertificates; len(certs) > 0 {
 			r = SetIdentity(r, certs[0].Subject.ToRDNSequence().String())
+			r = SetClientCertificates(r, certs)
 		}
 	}
 
