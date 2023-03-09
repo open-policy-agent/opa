@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
@@ -73,8 +74,26 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				bs, r.Body, err = readBody(r.Body)
 			}
 			if err == nil {
-				fields["req_body"] = string(bs)
-			} else {
+				if gzipReceived(r.Header) {
+					// the request is compressed
+					var gzReader *gzip.Reader
+					var plainOutput []byte
+					reader := bytes.NewReader(bs)
+					gzReader, err = gzip.NewReader(reader)
+					if err == nil {
+						plainOutput, err = io.ReadAll(gzReader)
+						if err == nil {
+							defer gzReader.Close()
+							fields["req_body"] = string(plainOutput)
+						}
+					}
+				} else {
+					fields["req_body"] = string(bs)
+				}
+			}
+
+			// err can be thrown on different statements
+			if err != nil {
 				fields["err"] = err
 			}
 
@@ -127,6 +146,21 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// metrics endpoint does so when the client accepts it (e.g. prometheus)
 				fields["resp_body"] = "[compressed payload]"
 
+			case gzipAccepted(r.Header) && gzipReceived(w.Header()) && (isDataEndpoint(r) || isCompileEndpoint(r)):
+				// data and compile endpoints might compress the response
+				gzReader, gzErr := gzip.NewReader(recorder.buf)
+				if gzErr == nil {
+					plainOutput, readErr := io.ReadAll(gzReader)
+					if readErr == nil {
+						defer gzReader.Close()
+						fields["resp_body"] = string(plainOutput)
+					} else {
+						h.logger.Error("Failed to decompressed the payload: %v", readErr.Error())
+					}
+				} else {
+					h.logger.Error("Failed to read the compressed payload: %v", gzErr.Error())
+				}
+
 			default:
 				fields["resp_body"] = recorder.buf.String()
 			}
@@ -148,12 +182,32 @@ func gzipAccepted(header http.Header) bool {
 	return false
 }
 
+func gzipReceived(header http.Header) bool {
+	a := header.Get("Content-Encoding")
+	parts := strings.Split(a, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
+			return true
+		}
+	}
+	return false
+}
+
 func isPprofEndpoint(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/debug/pprof/")
 }
 
 func isMetricsEndpoint(req *http.Request) bool {
 	return strings.HasPrefix(req.URL.Path, "/metrics")
+}
+
+func isDataEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/v1/data") || strings.HasPrefix(req.URL.Path, "/v0/data")
+}
+
+func isCompileEndpoint(req *http.Request) bool {
+	return strings.HasPrefix(req.URL.Path, "/v1/compile")
 }
 
 type recorder struct {
