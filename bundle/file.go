@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -123,6 +124,7 @@ type DirectoryLoader interface {
 	NextFile() (*Descriptor, error)
 	WithFilter(filter filter.LoaderFilter) DirectoryLoader
 	WithPathFormat(PathFormat) DirectoryLoader
+	SupplementaryMetadata() *SupplementaryMetadata
 }
 
 type dirLoader struct {
@@ -157,6 +159,11 @@ func NewDirectoryLoader(root string) DirectoryLoader {
 		pathFormat: Chrooted,
 	}
 	return &d
+}
+
+// SupplementaryMetadata TODO
+func (d *dirLoader) SupplementaryMetadata() *SupplementaryMetadata {
+	return &SupplementaryMetadata{}
 }
 
 // WithFilter specifies the filter object to use to filter files while loading bundles
@@ -235,14 +242,15 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 }
 
 type tarballLoader struct {
-	baseURL    string
-	r          io.Reader
-	tr         *tar.Reader
-	files      []file
-	idx        int
-	filter     filter.LoaderFilter
-	skipDir    map[string]struct{}
-	pathFormat PathFormat
+	baseURL               string
+	r                     io.Reader
+	tr                    *tar.Reader
+	files                 []file
+	idx                   int
+	filter                filter.LoaderFilter
+	skipDir               map[string]struct{}
+	pathFormat            PathFormat
+	supplementaryMetadata *SupplementaryMetadata
 }
 
 type file struct {
@@ -252,7 +260,8 @@ type file struct {
 	raw    []byte
 }
 
-// NewTarballLoader is deprecated. Use NewTarballLoaderWithBaseURL instead.
+// NewTarballLoader
+// Deprecated: Use NewTarballLoaderWithBaseURL instead.
 func NewTarballLoader(r io.Reader) DirectoryLoader {
 	l := tarballLoader{
 		r:          r,
@@ -271,6 +280,11 @@ func NewTarballLoaderWithBaseURL(r io.Reader, baseURL string) DirectoryLoader {
 		pathFormat: Passthrough,
 	}
 	return &l
+}
+
+// SupplementaryMetadata contains metadata to be set in the bundle's archive file.
+func (t *tarballLoader) SupplementaryMetadata() *SupplementaryMetadata {
+	return t.supplementaryMetadata
 }
 
 // WithFilter specifies the filter object to use to filter files while loading bundles
@@ -292,6 +306,14 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 		gr, err := gzip.NewReader(t.r)
 		if err != nil {
 			return nil, fmt.Errorf("archive read failed: %w", err)
+		}
+
+		if gr.Comment != "" {
+			var sd SupplementaryMetadata
+			if err := json.Unmarshal([]byte(gr.Comment), &sd); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal archive metadata: %w", err)
+			}
+			t.supplementaryMetadata = &sd
 		}
 
 		t.tr = tar.NewReader(gr)

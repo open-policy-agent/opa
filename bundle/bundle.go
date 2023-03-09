@@ -517,10 +517,17 @@ func (r *Reader) Read() (Bundle, error) {
 	var descriptors []*Descriptor
 	var err error
 	var raw []Raw
+	var supplementaryMetadata SupplementaryMetadata
 
-	bundle.Signatures, bundle.Patch, descriptors, err = preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes)
+	supplementaryMetadata, bundle.Signatures, bundle.Patch, descriptors, err =
+		preProcessBundle(r.loader, r.skipVerify, r.sizeLimitBytes)
 	if err != nil {
 		return bundle, err
+	}
+
+	// only use the etag from the bundle if it is not already set on the reader
+	if supplementaryMetadata.ETag != "" && r.etag == "" {
+		r.etag = supplementaryMetadata.ETag
 	}
 
 	bundle.lazyLoadingMode = r.lazyLoadingMode
@@ -808,7 +815,13 @@ func (w *Writer) DisableFormat(yes bool) *Writer {
 
 // Write writes the bundle to the writer's output stream.
 func (w *Writer) Write(bundle Bundle) error {
+	var err error
+
 	gw := gzip.NewWriter(w.w)
+	gw.Comment, err = bundle.archiveMetadata()
+	if err != nil {
+		return fmt.Errorf("failed to set bundle archive metadata: %w", err)
+	}
 	tw := tar.NewWriter(gw)
 
 	bundleType := bundle.Type()
@@ -1206,6 +1219,24 @@ func (b *Bundle) readData(key []string) *interface{} {
 	return &child
 }
 
+// SupplementaryMetadata is metadata about a bundle to be stashed in an archive.
+type SupplementaryMetadata struct {
+	ETag string `json:"etag"`
+}
+
+func (b *Bundle) archiveMetadata() (string, error) {
+	metadata := SupplementaryMetadata{
+		ETag: b.Etag,
+	}
+
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
 // Type returns the type of the bundle.
 func (b *Bundle) Type() string {
 	if len(b.Patch.Data) != 0 {
@@ -1393,10 +1424,11 @@ func IsStructuredDoc(name string) bool {
 		filepath.Base(name) == SignaturesFile || filepath.Base(name) == ManifestExt
 }
 
-func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (SignaturesConfig, Patch, []*Descriptor, error) {
+func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes int64) (SupplementaryMetadata, SignaturesConfig, Patch, []*Descriptor, error) {
 	descriptors := []*Descriptor{}
 	var signatures SignaturesConfig
 	var patch Patch
+	var metadata SupplementaryMetadata
 
 	for {
 		f, err := loader.NextFile()
@@ -1405,18 +1437,18 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 		}
 
 		if err != nil {
-			return signatures, patch, nil, fmt.Errorf("bundle read failed: %w", err)
+			return metadata, signatures, patch, nil, fmt.Errorf("bundle read failed: %w", err)
 		}
 
 		// check for the signatures file
 		if !skipVerify && strings.HasSuffix(f.Path(), SignaturesFile) {
 			buf, err := readFile(f, sizeLimitBytes)
 			if err != nil {
-				return signatures, patch, nil, err
+				return metadata, signatures, patch, nil, err
 			}
 
 			if err := util.NewJSONDecoder(&buf).Decode(&signatures); err != nil {
-				return signatures, patch, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
+				return metadata, signatures, patch, nil, fmt.Errorf("bundle load failed on signatures decode: %w", err)
 			}
 		} else if !strings.HasSuffix(f.Path(), SignaturesFile) {
 			descriptors = append(descriptors, f)
@@ -1429,18 +1461,24 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 
 				buf, err := readFile(f, sizeLimitBytes)
 				if err != nil {
-					return signatures, patch, nil, err
+					return metadata, signatures, patch, nil, err
 				}
 
 				if err := util.NewJSONDecoder(&buf).Decode(&patch); err != nil {
-					return signatures, patch, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
+					return metadata, signatures, patch, nil, fmt.Errorf("bundle load failed on patch decode: %w", err)
 				}
 
 				f.reader = &b
 			}
 		}
 	}
-	return signatures, patch, descriptors, nil
+
+	// this must come last since supplementary metadata can depend on the reading of data
+	if sd := loader.SupplementaryMetadata(); sd != nil {
+		metadata = *sd
+	}
+
+	return metadata, signatures, patch, descriptors, nil
 }
 
 func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {

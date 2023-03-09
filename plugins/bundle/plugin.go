@@ -506,11 +506,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := bundleUtils.SaveBundleToDisk(
-				filepath.Join(p.bundlePersistPath, name),
-				u.Raw,
-				&bundleUtils.SaveOptions{Etag: u.ETag},
-			)
+			err := bundleUtils.SaveBundleToDisk(filepath.Join(p.bundlePersistPath, name), u.Raw)
 			if err != nil {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
