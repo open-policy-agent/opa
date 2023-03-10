@@ -3,27 +3,118 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.50.0
 
-### Runtime
+This release contains a mix of new features, bugfixes, security fixes, optimizations and build updates related to
+OPA's published images.
 
-- ast: Annotations scoped to package carries across module ([#5251](https://github.com/open-policy-agent/opa/issues/5251)).
-- ast: strict check of unused vars is extended to include arguments ([#5602](https://github.com/open-policy-agent/opa/issues/5602))
+### New Built-in Functions: JSON Schema Verification and Validation
 
-### Breaking changes
+These new built-in functions add functionality to verify and validate JSON Schema ([#5486](https://github.com/open-policy-agent/opa/pull/5486)) (co-authored by @jkulvich and @johanfylling).
+
+- `json.verify_schema`: Checks that the input is a valid JSON schema object
+- `json.match_schema`: Checks that the document matches the JSON schema
+
+See the [documentation](https://www.openpolicyagent.org/docs/v0.50.0/policy-reference/#object) for all details.
+
+### Annotations scoped to `package` carries across modules
+
+`package` scoped schema annotations are now applied across modules instead of only local to the module where
+it's declared  ([#5251](https://github.com/open-policy-agent/opa/issues/5251)) (authored by @johanfylling). This change may cause compile-time errors and behavioural changes to
+type checking when the `schemas` annotation is used, and to rules calling the `rego.metadata.chain()` built-in function:
+
+  - Existing projects with the same package declared in multiple files will trigger a `rego_type_error: package annotation redeclared`
+error _if_ two or more of these are annotated with the `package` scope.
+  - If using the `package` scope, the `schemas` annotation will be applied to type checking also for rules declared in
+another file than the annotation declaration, as long as the package is the same.
+  - The chain of metadata returned by the `rego.metadata.chain()` built-in function will now contain an entry for the
+package even if the annotations are declared in another file, if the scope is `package`.
+
+### Remote bundle URL shorthand for `run` command
+
+To load a remote bundle using `opa run`, the `set` directive can be provided multiple times as shown below:
+```
+ $ opa run -s --set "services.default.url=https://example.com" \
+              --set "bundles.example.service=default" \
+              --set "bundles.example.resource=/bundles/bundle.tar.gz" \
+              --set "bundles.example.persist=true"
+```
+
+The following command can be used as a shorthand to easily start OPA with a remote bundle ([#5674](https://github.com/open-policy-agent/opa/issues/5674)) (authored by @anderseknert):
+```
+$ opa run -s https://example.com/bundles/bundle.tar.gz
+```
+
+### Performance Improvements for `json.patch` Built-in Function
+
+Performance improvements in `json.patch` were achieved with the introduction of a new `EditTree` data structure,
+which is built for applying in-place modifications to an `ast.Term`, and can render the final result of all edits efficiently
+by applying all patches in a JSON-Patch sequence rapidly, and then collapsing all edits at the end with minimal wasted `ast.Term` copying (authored by @philipaconrad).
+For more details and benchmarks refer [#5494](https://github.com/open-policy-agent/opa/pull/5494) and [#5390](https://github.com/open-policy-agent/opa/pull/5390).
+
+### Surface decision log errors via status API
+
+Errors encountered during decision log uploads will now be surfaced via the Status API in addition to being logged. This
+functionality should give users greater visibility into any issues OPA may face while processing, uploading logs etc ([#5637](https://github.com/open-policy-agent/opa/issues/5637)) (authored by @ashutosh-narkar).
+
+See the [documentation](https://www.openpolicyagent.org/docs/v0.50.0/management-status/#status-service-api) for more details.
+
+### OPA Published Images Update
 
 All published OPA images now run with a non-root uid/gid. The `uid:gid` is set to `1000:1000` for all images. As a result
-there is no longer a need for the `-rootless` image variant and hence it will be not be published after the current release.
+there is no longer a need for the `-rootless` image variant and hence it will be not be published as part of future releases.
 This change is in line with container security best practices. OPA can still be run with root privileges by explicitly setting the user,
 either with the `--user` argument for `docker run`, or by specifying the `securityContext` in the Kubernetes Pod specification.
 
-The change to the `package` scope in [#5251](https://github.com/open-policy-agent/opa/issues/5251) may cause compile-time errors and behavioural changes to type checking when the `schemas` annotation is used, and to rules calling the `rego.metadata.chain()` built-in function:
 
-- Existing projects with the same package declared in multiple files will trigger a `rego_type_error: package annotation redeclared` error _if_ two or more of these are annotated with the `package` scope.
-- If using the `package` scope, the `schemas` annotation will be applied to type checking also for rules declared in another file than the annotation declaration, as long as the package is the same.
-- The chain of metadata returned by the `rego.metadata.chain()` built-in function will now contain an entry for the package even if the annotations are declared in another file, if the scope is `package`. 
+### Runtime, Tooling, SDK
 
-Another change in [#5602](https://github.com/open-policy-agent/opa/issues/5251) may cause compile-time errors for policies that have unused arguments in the scope when the strict mode is enabled. These variables could be replaced with `_` (wildcard) or get cleaned up if they are not intended to be used in the body of the functions.
+- server: Support compression of response payloads if HTTP client supports it ([#5310](https://github.com/open-policy-agent/opa/issues/5310)) authored by @AdrianArnautu
+- bundle: Ensure the bundle resulting from merging a set of bundles does not contain `nil` data ([#5703](https://github.com/open-policy-agent/opa/issues/5703))  authored by @anderseknert
+- repl: Use lowercase for repl commands only and keep any provided arguments as-is ([#5229](https://github.com/open-policy-agent/opa/issues/5229)) authored by @Trolloldem
+- metrics: New endpoint `/metrics/alloc_bytes` to show OPA's memory utilization ([#5715](https://github.com/open-policy-agent/opa/pull/5715)) authored by @anderseknert
+- server: When using OPA TLS authorization, authz policy authors will now have access to the client certificates
+presented as part of the TLS connection. This new data will be available under the key `client_certificates` ([#5538](https://github.com/open-policy-agent/opa/issues/5538))  authored by @charlieegan3
+- server: Use streaming implementation of json.Decode rather than using an intermediate buffer for the incoming request ([#5661](https://github.com/open-policy-agent/opa/pull/5661)) authored by @anderseknert
+
+### Topdown and Rego
+
+- ast: Extend compiler `strict` mode check to include unused arguments ([#5602](https://github.com/open-policy-agent/opa/issues/5602)) authored by @boranx. This change may cause
+compile-time errors for policies that have unused arguments in the scope when the `strict` mode is enabled. These
+variables could be replaced with `_` (wildcard) or get cleaned up if they are not intended to be used in the body of the functions.
+- ast: Respect inlined `schemas` annotations even if `--schema` flag isn't used ([#5506](https://github.com/open-policy-agent/opa/issues/5506)) authored by @johanfylling
+- ast: Force type-checker to respect `allow_net` capability when fetching remote schemas ([#5670](https://github.com/open-policy-agent/opa/issues/5670)) authored by @johanfylling
+- ast/parse: Provide custom parsing options that allow location information of AST nodes to be included in their JSON
+representation. This location information can be used by tools that work with the  OPA AST ([#3143](https://github.com/open-policy-agent/opa/issues/3143))  authored by @charlieegan3
+
+### Docs
+
+- docs/policy-reference: Fix typo in policy reference doc ([#5654](https://github.com/open-policy-agent/opa/pull/5654)) authored by @alvarogomez93
+- docs/extensions: Fix sample code provided in the custom built-in implementation example ([#5666](https://github.com/open-policy-agent/opa/pull/5666)) authored by @Ronnie-personal
+- docs/bundles: Clarify delta bundle behavior when it contains an empty list of patch operations ([#5629](https://github.com/open-policy-agent/opa/issues/5629))  authored by @charlieegan3
+- docs/http-api-authz: Update the HTTP API authz tutorial with steps related to proper bundle creation ([#5682](https://github.com/open-policy-agent/opa/pull/5682)) authored by @lamoboos223
+- Fix broken 'future keywords' url link ([#5686](https://github.com/open-policy-agent/opa/pull/5686)) authored by @neelanjan00
+
+
+### Website + Ecosystem
+
+- Ecosystem:
+  - Styra Load ([#5659](https://github.com/open-policy-agent/opa/pull/5659)) authored by @charlieegan3
+
+- Website:
+  - Update OPA documentation search to use Algolia v3 ([#5706](https://github.com/open-policy-agent/opa/pull/5706)) authored by @Parsifal-M
+  - Drop Google Universal Analytics (UA) code as part of Google Analytics 4 migration (authored by @chalin)
+
+### Miscellaneous
+
+- Dependency bumps, notably:
+  - golang from 1.20.1 to 1.20.2
+  - github.com/containerd/containerd from 1.6.16 to 1.6.19
+  - github.com/golang/protobuf from 1.5.2 to 1.5.3
+  - golang.org/x/net from 0.5.0 to 0.8.0
+  - google.golang.org/grpc from 1.52.3 to 1.53.0
+  - OpenTelemetry-related dependencies (#5701)
+
 
 ## 0.49.2
 
