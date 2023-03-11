@@ -19,7 +19,6 @@ import (
 )
 
 func TestGenerateSignedToken(t *testing.T) {
-
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 		{"/a/b/c/data.json", "[1,2,3]"},
@@ -70,7 +69,6 @@ func TestGenerateSignedToken(t *testing.T) {
 }
 
 func TestGenerateSignedTokenWithClaims(t *testing.T) {
-
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 		{"/a/b/d/data.json", "true"},
@@ -96,8 +94,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 	}
 
 	test.WithTempFS(map[string]string{}, func(rootDir string) {
-		claims := make(map[string]interface{})
-		claims["scope"] = "read"
+		claims := map[string]interface{}{"scope": "read"}
 
 		claimBytes, err := json.Marshal(claims)
 		if err != nil {
@@ -106,7 +103,7 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 
 		// create claims file
 		claimsFile := filepath.Join(rootDir, "claims.json")
-		if err := os.WriteFile(claimsFile, claimBytes, 0644); err != nil {
+		if err := os.WriteFile(claimsFile, claimBytes, 0o644); err != nil {
 			t.Fatalf("Unexpected error: %s", err)
 		}
 
@@ -138,7 +135,6 @@ func TestGenerateSignedTokenWithClaims(t *testing.T) {
 }
 
 func TestGeneratePayload(t *testing.T) {
-
 	files := [][2]string{
 		{"/.manifest", `{"revision": "quickbrownfaux"}`},
 	}

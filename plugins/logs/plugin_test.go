@@ -91,7 +91,6 @@ func TestPluginCustomBackend(t *testing.T) {
 }
 
 func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
-
 	ctx := context.Background()
 	backend := testPlugin{}
 	testLogger := test.New()
@@ -250,7 +249,6 @@ func TestPluginQueriesAndPaths(t *testing.T) {
 }
 
 func TestPluginStartSameInput(t *testing.T) {
-
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -330,7 +328,6 @@ func TestPluginStartSameInput(t *testing.T) {
 }
 
 func TestPluginStartChangingInputValues(t *testing.T) {
-
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -399,7 +396,6 @@ func TestPluginStartChangingInputValues(t *testing.T) {
 }
 
 func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
-
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -460,7 +456,6 @@ func TestPluginStartChangingInputKeysAndValues(t *testing.T) {
 }
 
 func TestPluginRequeue(t *testing.T) {
-
 	ctx := context.Background()
 
 	fixture := newTestFixture(t)
@@ -1439,7 +1434,6 @@ func TestPluginTerminatesAfterGracefulShutdownPeriodWithoutLogs(t *testing.T) {
 }
 
 func TestPluginReconfigure(t *testing.T) {
-
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 	defer fixture.server.stop()
@@ -1485,7 +1479,6 @@ func TestPluginReconfigure(t *testing.T) {
 }
 
 func TestPluginReconfigureUploadSizeLimit(t *testing.T) {
-
 	ctx := context.Background()
 	limit := int64(300)
 
@@ -1930,7 +1923,6 @@ func TestPluginMasking(t *testing.T) {
 				}
 
 			}
-
 		})
 	}
 }
@@ -1972,7 +1964,7 @@ func TestPluginDrop(t *testing.T) {
 			ctx := context.Background()
 			store := inmem.New()
 
-			//checks if raw policy is valid and stores policy in store
+			// checks if raw policy is valid and stores policy in store
 			err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
 				if err := store.UpsertPolicy(ctx, txn, "test.rego", tc.rawPolicy); err != nil {
 					return err
@@ -2044,7 +2036,6 @@ type testFixture struct {
 }
 
 func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
-
 	var options testFixtureOptions
 	if len(opts) > 0 {
 		options = opts[0]
@@ -2152,7 +2143,6 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 		plugin:        p,
 		server:        &ts,
 	}
-
 }
 
 func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
@@ -2167,7 +2157,6 @@ func TestParseConfigUseDefaultServiceNoConsole(t *testing.T) {
 	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
-
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -2189,7 +2178,6 @@ func TestParseConfigDefaultServiceWithConsole(t *testing.T) {
 	}`)
 
 	config, err := ParseConfig([]byte(loggerConfig), services, nil)
-
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -2235,7 +2223,6 @@ func TestParseConfigTriggerMode(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-
 			c, err := NewConfigBuilder().WithBytes(tc.config).WithServices([]string{"s0"}).WithTriggerMode(&tc.expected).Parse()
 
 			if tc.wantErr {
@@ -2443,7 +2430,6 @@ func TestEventV1ToAST(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-
 			// Ensure that the custom AST() function gives the same
 			// result as round tripping through JSON
 
@@ -2459,13 +2445,11 @@ func TestEventV1ToAST(t *testing.T) {
 			if expected.Compare(actual) != 0 {
 				t.Fatalf("\nExpected:\n%s\n\nGot:\n%s\n\n", expected, actual)
 			}
-
 		})
 	}
 }
 
 func TestPluginDefaultResourcePath(t *testing.T) {
-
 	ctx := context.Background()
 
 	testServerPath := "/logs"
@@ -2502,7 +2486,6 @@ func TestPluginDefaultResourcePath(t *testing.T) {
 }
 
 func TestPluginResourcePathAndPartitionName(t *testing.T) {
-
 	ctx := context.Background()
 
 	resourcePath := "/resource/path"
@@ -2543,7 +2526,6 @@ func TestPluginResourcePathAndPartitionName(t *testing.T) {
 }
 
 func TestPluginResourcePath(t *testing.T) {
-
 	ctx := context.Background()
 
 	resourcePath := "/plugin/log/path"
@@ -2639,8 +2621,8 @@ func getValueForUser(idx int) string {
 }
 
 func generateInputMap(idx int) map[string]interface{} {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	result := make(map[string]interface{})
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	result := make(map[string]interface{}, 20)
 
 	for i := 0; i < 20; i++ {
 		n := idx % len(letters)
@@ -2648,7 +2630,6 @@ func generateInputMap(idx int) map[string]interface{} {
 		result[key] = fmt.Sprint(idx)
 	}
 	return result
-
 }
 
 func getWellKnownMetrics() metrics.Metrics {
@@ -2699,7 +2680,6 @@ func compareLogEvent(t *testing.T, actual []byte, exp EventV1) {
 }
 
 func testStatus() *bundle.Status {
-
 	tDownload, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:00.0000000Z")
 	tActivate, _ := time.Parse(time.RFC3339Nano, "2018-01-01T00:00:01.0000000Z")
 

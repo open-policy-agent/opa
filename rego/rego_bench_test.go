@@ -21,7 +21,7 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 			mods := test.PartialObjectBenchmarkCrossModule(n)
 			query := "data.test.foo"
 
-			input := make(map[string]interface{})
+			input := make(map[string]interface{}, 4)
 			for idx := 0; idx <= 3; idx++ {
 				input[fmt.Sprintf("test_input_%d", idx)] = "test_input_10"
 			}
@@ -46,7 +46,6 @@ func BenchmarkPartialObjectRuleCrossModule(b *testing.B) {
 				Store(store),
 				Runtime(info),
 			).PrepareForEval(ctx)
-
 			if err != nil {
 				b.Fatal(err)
 			}

@@ -335,7 +335,6 @@ func Deactivate(opts *DeactivateOpts) error {
 }
 
 func activateBundles(opts *ActivateOpts) error {
-
 	// Build collections of bundle names, modules, and roots to erase
 	erase := map[string]struct{}{}
 	names := map[string]struct{}{}
@@ -387,9 +386,7 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Validate data in bundle does not contain paths outside the bundle's roots.
 	for _, b := range snapshotBundles {
-
 		if b.lazyLoadingMode {
-
 			for _, item := range b.Raw {
 				path := filepath.ToSlash(item.Path)
 
@@ -442,7 +439,7 @@ func activateBundles(opts *ActivateOpts) error {
 	}
 
 	// Compile the modules all at once to avoid having to re-do work.
-	remainingAndExtra := make(map[string]*ast.Module)
+	remainingAndExtra := make(map[string]*ast.Module, len(remaining)+len(opts.ExtraModules))
 	for name, mod := range remaining {
 		remainingAndExtra[name] = mod
 	}
@@ -528,7 +525,6 @@ func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
 }
 
 func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error {
-
 	// Check that the manifest roots and wasm resolvers in the delta bundle
 	// match with those currently in the store
 	for name, b := range bundles {
@@ -584,7 +580,6 @@ func activateDeltaBundles(opts *ActivateOpts, bundles map[string]*Bundle) error 
 // erase bundles by name and roots. This will clear all policies and data at its roots and remove its
 // manifest from storage.
 func eraseBundles(ctx context.Context, store storage.Store, txn storage.Transaction, names map[string]struct{}, roots map[string]struct{}) (map[string]*ast.Module, error) {
-
 	if err := eraseData(ctx, store, txn, roots); err != nil {
 		return nil, err
 	}
@@ -632,7 +627,6 @@ func eraseData(ctx context.Context, store storage.Store, txn storage.Transaction
 }
 
 func erasePolicies(ctx context.Context, store storage.Store, txn storage.Transaction, roots map[string]struct{}) (map[string]*ast.Module, error) {
-
 	ids, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -756,7 +750,6 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 }
 
 func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
-
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -793,7 +786,6 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 }
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
-
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
 
@@ -962,8 +954,10 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 
 // LegacyManifestStoragePath is the older unnamed bundle path for manifests to be stored.
 // Deprecated: Use ManifestStoragePath and named bundles instead.
-var legacyManifestStoragePath = storage.MustParsePath("/system/bundle/manifest")
-var legacyRevisionStoragePath = append(legacyManifestStoragePath, "revision")
+var (
+	legacyManifestStoragePath = storage.MustParsePath("/system/bundle/manifest")
+	legacyRevisionStoragePath = append(legacyManifestStoragePath, "revision")
+)
 
 // LegacyWriteManifestToStore will write the bundle manifest to the older single (unnamed) bundle manifest location.
 // Deprecated: Use WriteManifestToStore and named bundles instead.

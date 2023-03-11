@@ -56,7 +56,6 @@ func BenchmarkArrayPlugging(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
@@ -69,7 +68,6 @@ func BenchmarkArrayPlugging(b *testing.B) {
 
 					return nil
 				})
-
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -133,7 +131,6 @@ func BenchmarkLargeJSON(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 
 		err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 			q := NewQuery(query).
 				WithCompiler(compiler).
 				WithStore(store).
@@ -146,7 +143,6 @@ func BenchmarkLargeJSON(b *testing.B) {
 
 			return nil
 		})
-
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -179,7 +175,6 @@ func BenchmarkConcurrency8Writers(b *testing.B) {
 }
 
 func benchmarkConcurrency(b *testing.B, params []storage.TransactionParams) {
-
 	mod, data := test.GenerateConcurrencyBenchmarkData()
 	ctx := context.Background()
 	store := inmem.NewFromObject(data)
@@ -275,7 +270,6 @@ func BenchmarkVirtualDocs1000x1000(b *testing.B) {
 }
 
 func runVirtualDocsBenchmark(b *testing.B, numTotalRules, numHitRules int) {
-
 	mod, inp := test.GenerateVirtualDocsBenchmarkData(numTotalRules, numHitRules)
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
@@ -331,7 +325,6 @@ func BenchmarkPartialEvalCompile(b *testing.B) {
 }
 
 func runPartialEvalBenchmark(b *testing.B, numRoles int) {
-
 	ctx := context.Background()
 	compiler := ast.NewCompiler()
 	compiler.Compile(map[string]*ast.Module{
@@ -409,13 +402,11 @@ func runPartialEvalBenchmark(b *testing.B, numRoles int) {
 }
 
 func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
-
 	ctx := context.Background()
 	data := generatePartialEvalBenchmarkData(numRoles)
 	store := inmem.NewFromObject(data)
 
 	err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -472,7 +463,6 @@ func runPartialEvalCompileBenchmark(b *testing.B, numRoles int) {
 
 		return nil
 	})
-
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -527,7 +517,6 @@ func generatePartialEvalBenchmarkData(numRoles int) map[string]interface{} {
 }
 
 func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
-
 	tmpl, err := template.New("Test").Parse(`{
 		"operation": "operation-{{ . }}",
 		"resource": "resource-{{ . }}",
@@ -549,7 +538,6 @@ func generatePartialEvalBenchmarkInput(numRoles int) *ast.Term {
 }
 
 func BenchmarkWalk(b *testing.B) {
-
 	ctx := context.Background()
 	sizes := []int{100, 1000, 2000, 3000}
 
@@ -582,7 +570,6 @@ func BenchmarkWalk(b *testing.B) {
 			}
 		})
 	}
-
 }
 
 func genWalkBenchmarkData(n int) map[string]interface{} {
@@ -738,8 +725,8 @@ func BenchmarkObjectSubset(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			all := make(map[string]string)
-			evens := make(map[string]string)
+			all := make(map[string]string, n)
+			evens := make(map[string]string, n/2)
 
 			for i := 0; i < n; i++ {
 				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
@@ -763,7 +750,6 @@ func BenchmarkObjectSubset(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
@@ -776,7 +762,6 @@ func BenchmarkObjectSubset(b *testing.B) {
 
 					return nil
 				})
-
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -795,8 +780,8 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			all := make(map[string]string)
-			evens := make(map[string]string)
+			all := make(map[string]string, n)
+			evens := make(map[string]string, n/2)
 
 			for i := 0; i < n; i++ {
 				all[fmt.Sprint(i)] = fmt.Sprint(i * 2)
@@ -830,7 +815,6 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
@@ -843,7 +827,6 @@ func BenchmarkObjectSubsetSlow(b *testing.B) {
 
 					return nil
 				})
-
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -920,7 +903,6 @@ func BenchmarkGlob(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				err := storage.Txn(ctx, store, storage.TransactionParams{}, func(txn storage.Transaction) error {
-
 					q := NewQuery(query).
 						WithCompiler(compiler).
 						WithStore(store).
@@ -933,7 +915,6 @@ func BenchmarkGlob(b *testing.B) {
 
 					return nil
 				})
-
 				if err != nil {
 					b.Fatal(err)
 				}

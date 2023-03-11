@@ -69,7 +69,9 @@ func (l *StandardLogger) SetFormatter(formatter logrus.Formatter) {
 // WithFields provides additional fields to include in log output
 func (l *StandardLogger) WithFields(fields map[string]interface{}) Logger {
 	cp := *l
-	cp.fields = make(map[string]interface{})
+	// We attempt to prealloc fields here. In the event that the two maps
+	// contain identical keys, we won't have oversized the map.
+	cp.fields = make(map[string]interface{}, max(len(cp.fields), len(fields)))
 	for k, v := range l.fields {
 		cp.fields[k] = v
 	}
@@ -77,6 +79,14 @@ func (l *StandardLogger) WithFields(fields map[string]interface{}) Logger {
 		cp.fields[k] = v
 	}
 	return &cp
+}
+
+// Utility function.
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // getFields returns additional fields of this logger

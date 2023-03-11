@@ -89,24 +89,27 @@ func (*DefaultSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, k
 }
 
 func generatePayload(files []FileInfo, sc *SigningConfig, keyID string) ([]byte, error) {
-	payload := make(map[string]interface{})
-	payload["files"] = files
+	var payload map[string]interface{}
 
 	if sc.ClaimsPath != "" {
 		claims, err := sc.GetClaims()
 		if err != nil {
 			return nil, err
 		}
+		// Delay initialization of payload, so that we can prealloc.
+		payload = make(map[string]interface{}, len(claims)+1)
 
 		for claim, value := range claims {
 			payload[claim] = value
 		}
 	} else {
+		payload = make(map[string]interface{})
 		if keyID != "" {
 			// keyid claim is deprecated but include it for backwards compatibility.
 			payload["keyid"] = keyID
 		}
 	}
+	payload["files"] = files
 	return json.Marshal(payload)
 }
 

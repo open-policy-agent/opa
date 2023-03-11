@@ -40,7 +40,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 		entries: l.entries,
 		fields:  l.fields,
 	}
-	flds := make(map[string]interface{})
+	flds := make(map[string]interface{}, max(len(cp.fields), len(fields)))
 	for k, v := range cp.fields {
 		flds[k] = v
 	}
@@ -49,6 +49,14 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 	}
 	cp.fields = flds
 	return &cp
+}
+
+// Utility function.
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // Debug buffers a log message.

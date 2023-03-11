@@ -35,7 +35,7 @@ type Verifier interface {
 func VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
 	// default implementation does not return a nil for map, so don't
 	// do it here either
-	files := make(map[string]FileInfo)
+	files := map[string]FileInfo{}
 	var plugin string
 	// for backwards compatibility, check if there is no plugin specified, and use default
 	if sc.Plugin == "" {
@@ -57,7 +57,7 @@ type DefaultVerifier struct{}
 // VerifyBundleSignature verifies the bundle signature using the given public keys or secret.
 // If a signature is verified, it keeps track of the files specified in the JWT payload
 func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
-	files := make(map[string]FileInfo)
+	files := map[string]FileInfo{}
 
 	if len(sc.Signatures) == 0 {
 		return files, fmt.Errorf(".signatures.json: missing JWT (expected exactly one)")
@@ -73,6 +73,8 @@ func (*DefaultVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *Verifica
 			return files, err
 		}
 
+		// Prealloc map for FileInfo structs.
+		files = make(map[string]FileInfo, len(payload.Files))
 		for _, file := range payload.Files {
 			files[file.Name] = file
 		}

@@ -151,7 +151,6 @@ func (m *Manifest) AddRoot(r string) {
 
 // Equal returns true if m is semantically equivalent to other.
 func (m Manifest) Equal(other Manifest) bool {
-
 	// This is safe since both are passed by value.
 	m.Init()
 	other.Init()
@@ -185,7 +184,7 @@ func (m Manifest) Copy() Manifest {
 	metadata := m.Metadata
 
 	if metadata != nil {
-		m.Metadata = make(map[string]interface{})
+		m.Metadata = make(map[string]interface{}, len(metadata))
 		for k, v := range metadata {
 			m.Metadata[k] = v
 		}
@@ -269,7 +268,6 @@ func (ss stringSet) Equal(other stringSet) bool {
 }
 
 func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
-
 	m.Init()
 
 	// Validate roots in bundle.
@@ -497,7 +495,6 @@ func (r *Reader) ParserOptions() ast.ParserOptions {
 
 // Read returns a new Bundle loaded from the reader.
 func (r *Reader) Read() (Bundle, error) {
-
 	var bundle Bundle
 	var descriptors []*Descriptor
 	var err error
@@ -884,7 +881,6 @@ func (w *Writer) writePlan(tw *tar.Writer, bundle Bundle) error {
 }
 
 func writeManifest(tw *tar.Writer, bundle Bundle) error {
-
 	if bundle.Manifest.Empty() {
 		return nil
 	}
@@ -899,7 +895,6 @@ func writeManifest(tw *tar.Writer, bundle Bundle) error {
 }
 
 func writePatch(tw *tar.Writer, bundle Bundle) error {
-
 	var buf bytes.Buffer
 
 	if err := json.NewEncoder(&buf).Encode(bundle.Patch); err != nil {
@@ -910,7 +905,6 @@ func writePatch(tw *tar.Writer, bundle Bundle) error {
 }
 
 func writeSignatures(tw *tar.Writer, bundle Bundle) error {
-
 	if bundle.Signatures.isEmpty() {
 		return nil
 	}
@@ -924,7 +918,6 @@ func writeSignatures(tw *tar.Writer, bundle Bundle) error {
 }
 
 func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
-
 	files := []FileInfo{}
 
 	bs, err := hash.HashFile(b.Data)
@@ -1012,7 +1005,6 @@ func (b *Bundle) FormatModules(useModulePath bool) error {
 
 // GenerateSignature generates the signature for the given bundle.
 func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, useModulePath bool) error {
-
 	hash, err := NewSignatureHasher(HashingAlgorithm(defaultHashingAlg))
 	if err != nil {
 		return err
@@ -1061,7 +1053,6 @@ func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, u
 // ParsedModules returns a map of parsed modules with names that are
 // unique and human readable for the given a bundle name.
 func (b *Bundle) ParsedModules(bundleName string) map[string]*ast.Module {
-
 	mods := make(map[string]*ast.Module, len(b.Modules))
 
 	for _, mf := range b.Modules {
@@ -1104,7 +1095,6 @@ func (b Bundle) Equal(other Bundle) bool {
 
 // Copy returns a deep copy of the bundle.
 func (b Bundle) Copy() Bundle {
-
 	// Copy data.
 	var x interface{} = b.Data
 
@@ -1149,7 +1139,6 @@ func (b *Bundle) insertData(key []string, value interface{}) error {
 }
 
 func (b *Bundle) readData(key []string) *interface{} {
-
 	if len(key) == 0 {
 		if len(b.Data) == 0 {
 			return nil
@@ -1217,7 +1206,6 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 // will have an empty revision except in the special case where a single bundle is provided
 // (and in that case the bundle is just returned unmodified.)
 func Merge(bundles []*Bundle) (*Bundle, error) {
-
 	if len(bundles) == 0 {
 		return nil, errors.New("expected at least one bundle")
 	}
@@ -1290,7 +1278,6 @@ func rootPathSegments(path string) []string {
 }
 
 func rootContains(root []string, other []string) bool {
-
 	// A single segment, empty string root always contains the other.
 	if len(root) == 1 && root[0] == "" {
 		return true

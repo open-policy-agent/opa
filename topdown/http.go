@@ -144,7 +144,6 @@ func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 }
 
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
-
 	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
 
 	reqExecutor, err := newHTTPRequestExecutor(bctx, req)
@@ -217,7 +216,6 @@ func initDefaults() {
 }
 
 func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
-
 	obj, err := builtins.ObjectOperand(term.Value, pos)
 	if err != nil {
 		return nil, err
@@ -236,7 +234,6 @@ func validateHTTPRequestOperand(term *ast.Term, pos int) (ast.Object, error) {
 	}
 
 	return obj, nil
-
 }
 
 // canonicalizeHeaders returns a copy of the headers where the keys are in
@@ -348,7 +345,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	var tlsConfig tls.Config
 	var customHeaders map[string]interface{}
 	var tlsInsecureSkipVerify bool
-	var timeout = defaultHTTPRequestTimeout
+	timeout := defaultHTTPRequestTimeout
 
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
@@ -977,7 +974,8 @@ func newInterQueryCacheData(bctx BuiltinContext, resp *http.Response, respBody [
 		RespBody:   respBody,
 		Status:     resp.Status,
 		StatusCode: resp.StatusCode,
-		Headers:    resp.Header}
+		Headers:    resp.Header,
+	}
 
 	return &cv, nil
 }
@@ -1175,7 +1173,6 @@ func parseMaxAgeCacheDirective(cc map[string]string) (deltaSeconds, error) {
 }
 
 func formatHTTPResponseToAST(resp *http.Response, forceJSONDecode, forceYAMLDecode bool) (ast.Value, []byte, error) {
-
 	resultRawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
@@ -1202,7 +1199,7 @@ func prepareASTResult(headers http.Header, forceJSONDecode, forceYAMLDecode bool
 		_ = util.Unmarshal(body, &resultBody)
 	}
 
-	result := make(map[string]interface{})
+	result := make(map[string]interface{}, 5)
 	result["status"] = status
 	result["status_code"] = statusCode
 	result["body"] = resultBody

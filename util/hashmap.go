@@ -39,6 +39,8 @@ func NewHashMap(eq func(T, T) bool, hash func(T) int) *HashMap {
 // Copy returns a shallow copy of this HashMap.
 func (h *HashMap) Copy() *HashMap {
 	cpy := NewHashMap(h.eq, h.hash)
+	// Prealloc the map used to store the hashed entries.
+	cpy.table = make(map[int]*hashEntry, h.Len())
 	h.Iter(func(k, v T) bool {
 		cpy.Put(k, v)
 		return false

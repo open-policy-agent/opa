@@ -698,7 +698,6 @@ type memo struct {
 type memokey string
 
 func memoize(decl *Function, bctx BuiltinContext, terms []*ast.Term, ifEmpty func() (*ast.Term, error)) (*ast.Term, error) {
-
 	if !decl.Memoize {
 		return ifEmpty()
 	}
@@ -1133,7 +1132,6 @@ func Strict(yes bool) func(r *Rego) {
 
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
-
 	r := &Rego{
 		parsedModules:   map[string]*ast.Module{},
 		capture:         map[*ast.Expr]ast.Var{},
@@ -1329,7 +1327,6 @@ func CompilePartial(yes bool) CompileOption {
 
 // Compile returns a compiled policy query.
 func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResult, error) {
-
 	var cfg CompileContext
 
 	for _, opt := range opts {
@@ -1838,7 +1835,6 @@ func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.B
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
-
 	// Only compile again if there are new modules.
 	if len(r.bundles) > 0 || len(r.parsedModules) > 0 {
 
@@ -1948,7 +1944,6 @@ func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, m metrics.Met
 	compiled, err := qc.Compile(query)
 
 	return qc, compiled, err
-
 }
 
 func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
@@ -2012,7 +2007,6 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		rs = append(rs, result)
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -2025,7 +2019,6 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 }
 
 func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
-
 	input := ectx.rawInput
 	if ectx.parsedInput != nil {
 		i := interface{}(ectx.parsedInput)
@@ -2082,7 +2075,6 @@ func (r *Rego) evalWasm(ctx context.Context, ectx *EvalContext) (ResultSet, erro
 }
 
 func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result, error) {
-
 	rewritten := ectx.compiledQuery.compiler.RewrittenVars()
 
 	result := newResult()
@@ -2121,7 +2113,6 @@ func (r *Rego) generateResult(qr topdown.QueryResult, ectx *EvalContext) (Result
 }
 
 func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialResult, error) {
-
 	err := r.prepare(ctx, partialResultQueryType, []extraStage{
 		{
 			after: "ResolveRefs",
@@ -2212,7 +2203,6 @@ func (r *Rego) partialResult(ctx context.Context, pCfg *PrepareConfig) (PartialR
 }
 
 func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries, error) {
-
 	var unknowns []*ast.Term
 
 	switch {
@@ -2296,7 +2286,6 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 }
 
 func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) (ast.Body, error) {
-
 	checkCapture := iteration(query) || len(query) > 1
 
 	for _, expr := range query {
@@ -2409,7 +2398,6 @@ type transactionCloser func(ctx context.Context, err error) error
 // the configured Rego object. The returned function should be used to close the txn
 // regardless of status.
 func (r *Rego) getTxn(ctx context.Context) (storage.Transaction, transactionCloser, error) {
-
 	noopCloser := func(ctx context.Context, err error) error {
 		return nil // no-op default
 	}
@@ -2515,7 +2503,6 @@ type refResolver struct {
 }
 
 func iteration(x interface{}) bool {
-
 	var stopped bool
 
 	vis := ast.NewGenericVisitor(func(x interface{}) bool {
@@ -2550,7 +2537,6 @@ func iteration(x interface{}) bool {
 }
 
 func parseStringsToRefs(s []string) ([]ast.Ref, error) {
-
 	refs := make([]ast.Ref, len(s))
 	for i := range refs {
 		var err error

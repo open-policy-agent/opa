@@ -139,7 +139,6 @@ type benchRunner interface {
 }
 
 func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benchRunner) (int, error) {
-
 	ctx := context.Background()
 
 	if params.e2e {
@@ -209,11 +208,9 @@ func benchMain(args []string, params benchmarkCommandParams, w io.Writer, r benc
 	return 0, nil
 }
 
-type goBenchRunner struct {
-}
+type goBenchRunner struct{}
 
 func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
-
 	var hist, m metrics.Metrics
 	if params.metrics {
 		hist = metrics.New()
@@ -225,7 +222,6 @@ func (r *goBenchRunner) run(ctx context.Context, ectx *evalContext, params bench
 	var benchErr error
 
 	br := testing.Benchmark(func(b *testing.B) {
-
 		// Track memory allocations, if enabled
 		if params.benchMem {
 			b.ReportAllocs()
@@ -412,7 +408,6 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]interfac
 	var benchErr error
 
 	br := testing.Benchmark(func(b *testing.B) {
-
 		// Track memory allocations, if enabled
 		if params.benchMem {
 			b.ReportAllocs()
@@ -448,7 +443,6 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]interfac
 							b.FailNow()
 						}
 						hist.Histogram(name).Update(num)
-
 					}
 				}
 			}
@@ -463,7 +457,6 @@ func runE2E(params benchmarkCommandParams, url string, input map[string]interfac
 }
 
 func e2eQuery(params benchmarkCommandParams, url string, input map[string]interface{}) (types.MetricsV1, error) {
-
 	reqBody, err := json.Marshal(input)
 	if err != nil {
 		return nil, err

@@ -36,7 +36,7 @@ type Result struct {
 
 // ParsedModules returns the parsed modules stored on the result.
 func (l *Result) ParsedModules() map[string]*ast.Module {
-	modules := make(map[string]*ast.Module)
+	modules := make(map[string]*ast.Module, len(l.Modules))
 	for _, module := range l.Modules {
 		modules[module.Name] = module.Parsed
 	}
@@ -172,7 +172,6 @@ func (fl fileLoader) All(paths []string) (*Result, error) {
 // file/directory is excluded.
 func (fl fileLoader) Filtered(paths []string, filter Filter) (*Result, error) {
 	return all(fl.fsys, paths, filter, func(curr *Result, path string, depth int) error {
-
 		var (
 			bs  []byte
 			err error
@@ -316,7 +315,6 @@ func FilteredPathsFS(fsys fs.FS, paths []string, filter Filter) ([]string, error
 
 // Schemas loads a schema set from the specified file path.
 func Schemas(schemaPath string) (*ast.SchemaSet, error) {
-
 	var errs Errors
 	ss, err := loadSchemas(schemaPath)
 	if err != nil {
@@ -328,7 +326,6 @@ func Schemas(schemaPath string) (*ast.SchemaSet, error) {
 }
 
 func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
-
 	if schemaPath == "" {
 		return nil, nil
 	}
@@ -389,7 +386,6 @@ func loadSchemas(schemaPath string) (*ast.SchemaSet, error) {
 }
 
 func getSchemaSetByPathKey(path string) ast.Ref {
-
 	front := filepath.Dir(path)
 	last := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
@@ -609,7 +605,6 @@ func all(fsys fs.FS, paths []string, filter Filter, f func(*Result, string, int)
 }
 
 func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Result, depth int, f func(*Result, string, int) error) {
-
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		errors.add(err)

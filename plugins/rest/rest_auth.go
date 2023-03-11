@@ -189,7 +189,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 		"exp": now.Add(10 * time.Minute).Unix(),
 	}
 	if claims == nil {
-		claims = make(map[string]interface{})
+		claims = make(map[string]interface{}, len(baseClaims))
 	}
 	for k, v := range baseClaims {
 		claims[k] = v

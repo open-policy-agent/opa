@@ -275,7 +275,6 @@ func (p *Parser) presentParser() (*Parser, map[string]tokens.Token) {
 // comments as they are found. Any errors encountered while
 // parsing will be accumulated and returned as a list of Errors.
 func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
-
 	if p.po.Capabilities == nil {
 		p.po.Capabilities = CapabilitiesForThisVersion()
 	}
@@ -411,7 +410,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
-
 	annotStmts, errs := parseAnnotations(p.s.comments)
 	for _, err := range errs {
 		p.error(err.Location, err.Message)
@@ -425,8 +423,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 }
 
 func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
-
-	var hint = []byte("METADATA")
+	hint := []byte("METADATA")
 	var curr *metadataParser
 	var blocks []*metadataParser
 
@@ -463,7 +460,6 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 }
 
 func (p *Parser) parsePackage() *Package {
-
 	var pkg Package
 	pkg.SetLoc(p.s.Loc())
 
@@ -521,7 +517,6 @@ func (p *Parser) parsePackage() *Package {
 }
 
 func (p *Parser) parseImport() *Import {
-
 	var imp Import
 	imp.SetLoc(p.s.Loc())
 
@@ -591,7 +586,6 @@ func (p *Parser) parseImport() *Import {
 }
 
 func (p *Parser) parseRules() []*Rule {
-
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
 
@@ -751,7 +745,6 @@ func (p *Parser) parseRules() []*Rule {
 }
 
 func (p *Parser) parseElse(head *Head) *Rule {
-
 	var rule Rule
 	rule.SetLoc(p.s.Loc())
 
@@ -832,7 +825,6 @@ func (p *Parser) parseElse(head *Head) *Rule {
 }
 
 func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
-
 	head := &Head{}
 	loc := p.s.Loc()
 	defer func() {
@@ -968,7 +960,6 @@ func (p *Parser) parseQuery(requireSemi bool, end tokens.Token) Body {
 }
 
 func (p *Parser) parseLiteral() (expr *Expr) {
-
 	offset := p.s.loc.Offset
 	loc := p.s.Loc()
 
@@ -1029,7 +1020,6 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 }
 
 func (p *Parser) parseWith() []*With {
-
 	withs := []*With{}
 
 	for {
@@ -1080,7 +1070,6 @@ func (p *Parser) parseWith() []*With {
 }
 
 func (p *Parser) parseSome() *Expr {
-
 	decl := &SomeDecl{}
 	decl.SetLoc(p.s.Loc())
 
@@ -1224,7 +1213,6 @@ func (p *Parser) parseEvery() *Expr {
 }
 
 func (p *Parser) parseExpr() *Expr {
-
 	lhs := p.parseTermInfixCall()
 	if lhs == nil {
 		return nil
@@ -1554,7 +1542,6 @@ func (p *Parser) parseRawString() *Term {
 var setConstructor = RefTerm(VarTerm("set"))
 
 func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
-
 	loc := operator.Location
 	var end int
 
@@ -1583,7 +1570,6 @@ func (p *Parser) parseCall(operator *Term, offset int) (term *Term) {
 }
 
 func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
-
 	loc := head.Location
 	var end int
 
@@ -1648,7 +1634,6 @@ func (p *Parser) parseRef(head *Term, offset int) (term *Term) {
 }
 
 func (p *Parser) parseArray() (term *Term) {
-
 	loc := p.s.Loc()
 	offset := p.s.loc.Offset
 
@@ -1976,7 +1961,6 @@ func (p *Parser) parseTermOpName(ref Ref, values ...tokens.Token) *Term {
 }
 
 func (p *Parser) parseVar() *Term {
-
 	s := p.s.lit
 
 	term := VarTerm(s).SetLocation(p.s.Loc())
@@ -2070,7 +2054,6 @@ func (p *Parser) scanWS() {
 }
 
 func (p *Parser) doScan(skipws bool) {
-
 	// NOTE(tsandall): the last position is used to compute the "text" field for
 	// complex AST nodes. Whitespace never affects the last position of an AST
 	// node so do not update it when scanning.
@@ -2211,7 +2194,6 @@ func (b *metadataParser) Append(c *Comment) {
 var yamlLineErrRegex = regexp.MustCompile(`^yaml:(?: unmarshal errors:[\n\s]*)? line ([[:digit:]]+):`)
 
 func (b *metadataParser) Parse() (*Annotations, error) {
-
 	var raw rawAnnotation
 
 	if len(bytes.TrimSpace(b.buf.Bytes())) == 0 {
@@ -2290,7 +2272,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		result.Authors = append(result.Authors, author)
 	}
 
-	result.Custom = make(map[string]interface{})
+	result.Custom = make(map[string]interface{}, len(raw.Custom))
 	for k, v := range raw.Custom {
 		val, err := convertYAMLMapKeyTypes(v, nil)
 		if err != nil {
@@ -2349,7 +2331,6 @@ var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
 // supported by the compiler or evaluator today. Once we fix that, we can remove
 // this function.
 func parseSchemaRef(s string) (Ref, error) {
-
 	term, err := ParseTerm(s)
 	if err == nil {
 		switch v := term.Value.(type) {
@@ -2429,8 +2410,10 @@ func getSafeString(m map[string]interface{}, k string) string {
 	return ""
 }
 
-const emailPrefix = "<"
-const emailSuffix = ">"
+const (
+	emailPrefix = "<"
+	emailSuffix = ">"
+)
 
 // parseAuthor parses a string into an AuthorAnnotation. If the last word of the input string is enclosed within <>,
 // it is extracted as the author's email. The email may not contain whitelines, as it then will be interpreted as
