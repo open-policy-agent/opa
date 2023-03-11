@@ -307,6 +307,8 @@ allow if is_admin
 is_admin if "admin" in input.subject.groups
 `
 
+ctx := context.TODO()
+
 query, err := rego.New(
     rego.Query("x = data.example.authz.allow"),
     rego.Module("example.rego", module),
@@ -330,7 +332,6 @@ input := map[string]interface{}{
     },
 }
 
-ctx := context.TODO()
 results, err := query.Eval(ctx, rego.EvalInput(input))
 ```
 
