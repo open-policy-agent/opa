@@ -159,7 +159,7 @@ rule-name IS value IF body
 
 If the **value** is omitted, it defaults to **true**.
 
-When we query for the value of `t` we see the obvious result:
+When we query for the value of `t2` we see the obvious result:
 
 ```live:eg/rules:query:hidden
 t
