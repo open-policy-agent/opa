@@ -450,8 +450,8 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# oras.land/oras-go/v2 v2.0.0
-## explicit; go 1.18
+# oras.land/oras-go/v2 v2.0.1
+## explicit; go 1.19
 oras.land/oras-go/v2
 oras.land/oras-go/v2/content
 oras.land/oras-go/v2/content/oci

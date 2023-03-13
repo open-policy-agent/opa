@@ -92,10 +92,10 @@ func NewWithContext(ctx context.Context, root string) (*Store, error) {
 		return nil, err
 	}
 	if err := store.ensureOCILayoutFile(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
 	}
 	if err := store.loadIndexFile(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
 	}
 
 	return store, nil
@@ -219,7 +219,6 @@ func (s *Store) ensureOCILayoutFile() error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal OCI layout file: %w", err)
 		}
-
 		return os.WriteFile(layoutFilePath, layoutJSON, 0666)
 	}
 	defer layoutFile.Close()
@@ -233,18 +232,22 @@ func (s *Store) ensureOCILayoutFile() error {
 }
 
 // loadIndexFile reads index.json from the file system.
+// Create index.json if it does not exist.
 func (s *Store) loadIndexFile(ctx context.Context) error {
 	indexFile, err := os.Open(s.indexPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to open index file: %w", err)
 		}
+
+		// write index.json if it does not exist
 		s.index = &ocispec.Index{
 			Versioned: specs.Versioned{
 				SchemaVersion: 2, // historical value
 			},
+			Manifests: []ocispec.Descriptor{},
 		}
-		return nil
+		return s.writeIndexFile()
 	}
 	defer indexFile.Close()
 
@@ -274,13 +277,16 @@ func (s *Store) SaveIndex() error {
 		}
 		manifests = append(manifests, desc)
 	}
-
 	s.index.Manifests = manifests
+	return s.writeIndexFile()
+}
+
+// writeIndexFile writes the `index.json` file.
+func (s *Store) writeIndexFile() error {
 	indexJSON, err := json.Marshal(s.index)
 	if err != nil {
 		return fmt.Errorf("failed to marshal index file: %w", err)
 	}
-
 	return os.WriteFile(s.indexPath, indexJSON, 0666)
 }
 

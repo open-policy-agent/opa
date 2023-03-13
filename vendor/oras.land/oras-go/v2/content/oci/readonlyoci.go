@@ -54,10 +54,10 @@ func NewFromFS(ctx context.Context, fsys fs.FS) (*ReadOnlyStore, error) {
 	}
 
 	if err := store.validateOCILayoutFile(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
 	}
 	if err := store.loadIndexFile(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
 	}
 
 	return store, nil
