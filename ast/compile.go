@@ -936,16 +936,14 @@ func (c *Compiler) checkRuleConflicts() {
 			for _, rule := range mod.Rules {
 				ref := rule.Head.Ref().GroundPrefix()
 				childNode, tail := node.find(ref)
-				if childNode != nil {
+				if childNode != nil && len(tail) == 0 {
 					for _, childMod := range childNode.Modules {
-						if len(tail) == 0 {
-							// Avoid recursively checking a module for equality unless we know it's a possible self-match.
-							if childMod.Equal(mod) {
-								continue // don't self-conflict
-							}
-							msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref(), rule.Loc())
-							c.err(NewError(TypeErr, mod.Package.Loc(), msg))
+						// Avoid recursively checking a module for equality unless we know it's a possible self-match.
+						if childMod.Equal(mod) {
+							continue // don't self-conflict
 						}
+						msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref(), rule.Loc())
+						c.err(NewError(TypeErr, mod.Package.Loc(), msg))
 					}
 				}
 			}
