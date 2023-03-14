@@ -868,9 +868,9 @@ func (c *Compiler) checkRuleConflicts() {
 			return false // go deeper
 		}
 
-		kinds := map[RuleKind]struct{}{}
+		kinds := make(map[RuleKind]struct{}, len(node.Values))
 		defaultRules := 0
-		arities := map[int]struct{}{}
+		arities := make(map[int]struct{}, len(node.Values))
 		name := ""
 		var singleValueConflicts []Ref
 
@@ -936,15 +936,14 @@ func (c *Compiler) checkRuleConflicts() {
 			for _, rule := range mod.Rules {
 				ref := rule.Head.Ref().GroundPrefix()
 				childNode, tail := node.find(ref)
-				if childNode != nil {
+				if childNode != nil && len(tail) == 0 {
 					for _, childMod := range childNode.Modules {
+						// Avoid recursively checking a module for equality unless we know it's a possible self-match.
 						if childMod.Equal(mod) {
 							continue // don't self-conflict
 						}
-						if len(tail) == 0 {
-							msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref(), rule.Loc())
-							c.err(NewError(TypeErr, mod.Package.Loc(), msg))
-						}
+						msg := fmt.Sprintf("%v conflicts with rule %v defined at %v", childMod.Package, rule.Head.Ref(), rule.Loc())
+						c.err(NewError(TypeErr, mod.Package.Loc(), msg))
 					}
 				}
 			}
@@ -3145,6 +3144,10 @@ func (n *TreeNode) Find(ref Ref) *TreeNode {
 	return node
 }
 
+// Iteratively dereferences ref along the node's subtree.
+// - If matching fails immediately, the tail will contain the full ref.
+// - Partial matching will result in a tail of non-zero length.
+// - A complete match will result in a 0 length tail.
 func (n *TreeNode) find(ref Ref) (*TreeNode, Ref) {
 	node := n
 	for i := range ref {
