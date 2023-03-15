@@ -5052,7 +5052,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 	}
 }
 
-func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
+func TestCheckUnusedFunctionArgVars(t *testing.T) {
 	tests := []strictnessTestCase{
 		{
 			note: "one of the two function args is not used - issue 5602 regression test",
