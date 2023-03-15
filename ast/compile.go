@@ -2198,6 +2198,10 @@ func (c *Compiler) rewriteLocalVars() {
 
 			argsStack := newLocalDeclaredVars()
 
+			args := NewVarVisitor()
+			args.Walk(rule.Head.Args)
+			unusedArgs := args.Vars()
+
 			c.rewriteLocalArgVars(gen, argsStack, rule)
 
 			for rule := rule; rule != nil; rule = rule.Else {
@@ -2212,12 +2216,24 @@ func (c *Compiler) rewriteLocalVars() {
 				}
 
 				if rule.Head.Value != nil {
-					used.Update(rule.Head.Value.Vars())
+					valueVars := rule.Head.Value.Vars()
+					used.Update(valueVars)
+					for arg := range unusedArgs {
+						if valueVars.Contains(arg) {
+							delete(unusedArgs, arg)
+						}
+					}
 				}
 
 				stack := argsStack.Copy()
 
 				body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body, c.strict)
+
+				for arg := range unusedArgs {
+					if stack.Count(arg) > 1 {
+						delete(unusedArgs, arg)
+					}
+				}
 
 				for _, err := range errs {
 					c.err(err)
@@ -2247,6 +2263,15 @@ func (c *Compiler) rewriteLocalVars() {
 
 				if rule.Head.Value != nil {
 					rule.Head.Value, _ = transformTerm(localXform, rule.Head.Value)
+				}
+			}
+
+			if c.strict {
+				// Report an error for each unused function argument
+				for arg := range unusedArgs {
+					if !arg.IsWildcard() {
+						c.err(NewError(CompileErr, rule.Head.Location, "unused argument %v", arg))
+					}
 				}
 			}
 
@@ -4611,20 +4636,27 @@ func newLocalDeclaredVars() *localDeclaredVars {
 }
 
 func (s *localDeclaredVars) Copy() *localDeclaredVars {
-	stack := newLocalDeclaredVars()
+	stack := &localDeclaredVars{
+		vars:      []*declaredVarSet{},
+		rewritten: map[Var]Var{},
+	}
 
-	for k, v := range s.vars[0].vs {
-		stack.vars[0].vs[k] = v
+	for i := range s.vars {
+		stack.vars = append(stack.vars, newDeclaredVarSet())
+		for k, v := range s.vars[i].vs {
+			stack.vars[0].vs[k] = v
+		}
+		for k, v := range s.vars[i].reverse {
+			stack.vars[0].reverse[k] = v
+		}
+		for k, v := range s.vars[i].count {
+			stack.vars[0].count[k] = v
+		}
+		for k, v := range s.vars[i].occurrence {
+			stack.vars[0].occurrence[k] = v
+		}
 	}
-	for k, v := range s.vars[0].reverse {
-		stack.vars[0].reverse[k] = v
-	}
-	for k, v := range s.vars[0].count {
-		stack.vars[0].count[k] = v
-	}
-	for k, v := range s.vars[0].occurrence {
-		stack.vars[0].occurrence[k] = v
-	}
+
 	for k, v := range s.rewritten {
 		stack.rewritten[k] = v
 	}
@@ -4726,7 +4758,7 @@ func (s localDeclaredVars) Count(x Var) int {
 func rewriteLocalVars(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body, strict bool) (Body, map[Var]Var, Errors) {
 	var errs Errors
 	body, errs = rewriteDeclaredVarsInBody(g, stack, used, body, errs, strict)
-	return body, stack.Pop().vs, errs
+	return body, stack.Peek().vs, errs
 }
 
 func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, used VarSet, body Body, errs Errors, strict bool) (Body, Errors) {
@@ -4757,11 +4789,11 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedAndArgVars(body[0].Loc(), stack, used, errs, strict)
+	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
 	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
 }
 
-func checkUnusedAssignedAndArgVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
+func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
 
 	if !strict || len(errs) > 0 {
 		return errs
@@ -4773,7 +4805,7 @@ func checkUnusedAssignedAndArgVars(loc *Location, stack *localDeclaredVars, used
 	for v, occ := range dvs.occurrence {
 		// A var that was assigned in this scope must have been seen (used) more than once (the time of assignment) in
 		// the same, or nested, scope to be counted as used.
-		if !v.IsWildcard() && stack.Count(v) <= 1 && (occ == assignedVar || occ == argVar) {
+		if !v.IsWildcard() && stack.Count(v) <= 1 && occ == assignedVar {
 			unused.Add(dvs.vs[v])
 		}
 	}

@@ -5063,8 +5063,8 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("x = 1"), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5078,13 +5078,13 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
-					Message:  "assigned var x unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument x",
 				},
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5098,8 +5098,8 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5121,8 +5121,8 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
-					Message:  "assigned var x unused",
+					Location: NewLocation([]byte("func(x, _)"), "", 2, 4),
+					Message:  "unused argument x",
 				},
 			},
 		},
@@ -5147,7 +5147,7 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 		{
 			note: "argvar not used in primary body but in else body",
 			module: `package test
-			func(x, y) {
+			func(x) {
 				input.test == "foo"
 			} else := false {
 				input.test == x
@@ -5188,7 +5188,7 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "assigned var x unused",
+					Message:  "unused argument x",
 				},
 			},
 		},
@@ -5206,7 +5206,7 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "assigned var y unused",
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5224,7 +5224,7 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "assigned var z unused",
+					Message:  "unused argument z",
 				},
 			},
 		},
