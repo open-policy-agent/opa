@@ -1322,7 +1322,7 @@ func getNormalizedPath(path string) []string {
 	// other hand, if the path is empty, filepath.Dir will return '.'.
 	// Note: filepath.Dir can return paths with '\' separators, always use
 	// filepath.ToSlash to keep them normalized.
-	dirpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(path)), "/.")
+	dirpath := strings.TrimLeft(normalizePath(filepath.Dir(path)), "/.")
 	var key []string
 	if dirpath != "" {
 		key = strings.Split(dirpath, "/")
@@ -1359,7 +1359,9 @@ func modulePathWithPrefix(bundleName string, modulePath string) string {
 		prefix = filepath.Join(parsed.Host, parsed.Path)
 	}
 
-	return filepath.Join(prefix, modulePath)
+	// Note: filepath.Join can return paths with '\' separators, always use
+	// filepath.ToSlash to keep them normalized.
+	return normalizePath(filepath.Join(prefix, modulePath))
 }
 
 // IsStructuredDoc checks if the file name equals a structured file extension ex. ".json"
@@ -1430,4 +1432,8 @@ func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
 	}
 
 	return buf, nil
+}
+
+func normalizePath(p string) string {
+	return filepath.ToSlash(p)
 }
