@@ -5135,6 +5135,30 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{},
 		},
 		{
+			note: "argvar not used in body but in head value comprehension",
+			module: `package test
+			a := {"foo": 1}
+			func(x) := { x: v | v := a[x] } {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in body and shadowed in head value comprehension",
+			module: `package test
+			a := {"foo": 1}
+			func(x) := { x: v | x := "foo"; v := a[x] } {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x) := { x: v | x := \"foo\"; v := a[x] }"), "", 3, 4),
+					Message:  "unused argument x",
+				},
+			},
+		},
+		{
 			note: "argvar used in primary body but not in else body",
 			module: `package test
 			func(x) {

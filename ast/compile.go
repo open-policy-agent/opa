@@ -2172,8 +2172,6 @@ func (c *Compiler) rewriteLocalVars() {
 		gen := c.localvargen
 
 		WalkRules(mod, func(rule *Rule) bool {
-
-			// TODO: Write test for comprehension in head of rule else
 			// Rewrite assignments contained in head of rule. Assignments can
 			// occur in rule head if they're inside a comprehension. Note,
 			// assigned vars in comprehensions in the head will be rewritten
