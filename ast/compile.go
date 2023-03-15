@@ -2173,6 +2173,7 @@ func (c *Compiler) rewriteLocalVars() {
 
 		WalkRules(mod, func(rule *Rule) bool {
 
+			// TODO: Write test for comprehension in head of rule else
 			// Rewrite assignments contained in head of rule. Assignments can
 			// occur in rule head if they're inside a comprehension. Note,
 			// assigned vars in comprehensions in the head will be rewritten
@@ -2195,56 +2196,61 @@ func (c *Compiler) rewriteLocalVars() {
 				c.err(err)
 			}
 
-			// Rewrite assignments in body.
-			used := NewVarSet()
+			argsStack := newLocalDeclaredVars()
 
-			last := rule.Head.Ref()[len(rule.Head.Ref())-1]
-			used.Update(last.Vars())
+			c.rewriteLocalArgVars(gen, argsStack, rule)
 
-			if rule.Head.Key != nil {
-				used.Update(rule.Head.Key.Vars())
+			for rule := rule; rule != nil; rule = rule.Else {
+				// Rewrite assignments in body.
+				used := NewVarSet()
+
+				last := rule.Head.Ref()[len(rule.Head.Ref())-1]
+				used.Update(last.Vars())
+
+				if rule.Head.Key != nil {
+					used.Update(rule.Head.Key.Vars())
+				}
+
+				if rule.Head.Value != nil {
+					used.Update(rule.Head.Value.Vars())
+				}
+
+				stack := argsStack.Copy()
+
+				body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body, c.strict)
+
+				for _, err := range errs {
+					c.err(err)
+				}
+
+				// For rewritten vars use the collection of all variables that
+				// were in the stack at some point in time.
+				for k, v := range stack.rewritten {
+					c.RewrittenVars[k] = v
+				}
+
+				rule.Body = body
+
+				// Rewrite vars in head that refer to locally declared vars in the body.
+				localXform := rewriteHeadVarLocalTransform{declared: declared}
+
+				for i := range rule.Head.Args {
+					rule.Head.Args[i], _ = transformTerm(localXform, rule.Head.Args[i])
+				}
+
+				for i := 1; i < len(rule.Head.Ref()); i++ {
+					rule.Head.Reference[i], _ = transformTerm(localXform, rule.Head.Ref()[i])
+				}
+				if rule.Head.Key != nil {
+					rule.Head.Key, _ = transformTerm(localXform, rule.Head.Key)
+				}
+
+				if rule.Head.Value != nil {
+					rule.Head.Value, _ = transformTerm(localXform, rule.Head.Value)
+				}
 			}
 
-			if rule.Head.Value != nil {
-				used.Update(rule.Head.Value.Vars())
-			}
-
-			stack := newLocalDeclaredVars()
-
-			c.rewriteLocalArgVars(gen, stack, rule)
-
-			body, declared, errs := rewriteLocalVars(gen, stack, used, rule.Body, c.strict)
-			for _, err := range errs {
-				c.err(err)
-			}
-
-			// For rewritten vars use the collection of all variables that
-			// were in the stack at some point in time.
-			for k, v := range stack.rewritten {
-				c.RewrittenVars[k] = v
-			}
-
-			rule.Body = body
-
-			// Rewrite vars in head that refer to locally declared vars in the body.
-			localXform := rewriteHeadVarLocalTransform{declared: declared}
-
-			for i := range rule.Head.Args {
-				rule.Head.Args[i], _ = transformTerm(localXform, rule.Head.Args[i])
-			}
-
-			for i := 1; i < len(rule.Head.Ref()); i++ {
-				rule.Head.Reference[i], _ = transformTerm(localXform, rule.Head.Ref()[i])
-			}
-			if rule.Head.Key != nil {
-				rule.Head.Key, _ = transformTerm(localXform, rule.Head.Key)
-			}
-
-			if rule.Head.Value != nil {
-				rule.Head.Value, _ = transformTerm(localXform, rule.Head.Value)
-			}
-
-			return false
+			return true
 		})
 	}
 }
@@ -4602,6 +4608,28 @@ func newLocalDeclaredVars() *localDeclaredVars {
 		vars:      []*declaredVarSet{newDeclaredVarSet()},
 		rewritten: map[Var]Var{},
 	}
+}
+
+func (s *localDeclaredVars) Copy() *localDeclaredVars {
+	stack := newLocalDeclaredVars()
+
+	for k, v := range s.vars[0].vs {
+		stack.vars[0].vs[k] = v
+	}
+	for k, v := range s.vars[0].reverse {
+		stack.vars[0].reverse[k] = v
+	}
+	for k, v := range s.vars[0].count {
+		stack.vars[0].count[k] = v
+	}
+	for k, v := range s.vars[0].occurrence {
+		stack.vars[0].occurrence[k] = v
+	}
+	for k, v := range s.rewritten {
+		stack.rewritten[k] = v
+	}
+
+	return stack
 }
 
 func (s *localDeclaredVars) Push() {
