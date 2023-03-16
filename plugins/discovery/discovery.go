@@ -202,7 +202,10 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 
 	if c.config != nil && c.config.Persist {
-		b, err := bundleUtils.LoadBundleFromDisk(filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()), &bundleUtils.LoadOptions{VerificationConfig: c.config.Signing})
+		b, err := bundleUtils.LoadBundleFromDisk(
+			filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
+			&bundleUtils.LoadOptions{VerificationConfig: c.config.Signing},
+		)
 		if err != nil {
 			c.logger.Error("Failed to load discovery bundle from disk: %v", err)
 			c.status.SetError(err)

@@ -528,7 +528,10 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, disco, plugins.StateOK)
 
-	result, err := bundleUtils.LoadBundleFromDisk(filepath.Join(disco.bundlePersistPath, disco.discoveryBundleDirName()), &bundleUtils.LoadOptions{VerificationConfig: disco.config.Signing})
+	result, err := bundleUtils.LoadBundleFromDisk(
+		filepath.Join(disco.bundlePersistPath, disco.discoveryBundleDirName()),
+		&bundleUtils.LoadOptions{VerificationConfig: disco.config.Signing},
+	)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
