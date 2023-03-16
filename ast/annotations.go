@@ -245,6 +245,7 @@ func NewAnnotationsRef(a *Annotations) *AnnotationsRef {
 		Path:        a.GetTargetPath(),
 		Annotations: a,
 		node:        a.node,
+		jsonOptions: a.jsonOptions,
 	}
 }
 

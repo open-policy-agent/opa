@@ -343,9 +343,9 @@ func (it *iterator) Next() (*storage.Update, error) {
 		for _, item := range it.raw {
 			f := file{name: item.Path}
 
-			fpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(f.name)), "/.")
+			fpath := strings.TrimLeft(normalizePath(filepath.Dir(f.name)), "/.")
 			if strings.HasSuffix(f.name, RegoExt) {
-				fpath = strings.Trim(f.name, "/")
+				fpath = strings.Trim(normalizePath(f.name), "/")
 			}
 
 			p, ok := storage.ParsePathEscaped("/" + fpath)

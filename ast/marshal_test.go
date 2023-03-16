@@ -303,9 +303,9 @@ func TestImport_MarshalJSON(t *testing.T) {
 func TestRule_MarshalJSON(t *testing.T) {
 	rawModule := `
 	package foo
-	
+
 	# comment
-	
+
 	allow { true }
 	`
 
@@ -370,9 +370,9 @@ func TestRule_MarshalJSON(t *testing.T) {
 func TestHead_MarshalJSON(t *testing.T) {
 	rawModule := `
 	package foo
-	
+
 	# comment
-	
+
 	allow { true }
 	`
 
@@ -438,9 +438,9 @@ func TestHead_MarshalJSON(t *testing.T) {
 func TestExpr_MarshalJSON(t *testing.T) {
 	rawModule := `
 	package foo
-	
+
 	# comment
-	
+
 	allow { true }
 	`
 
@@ -614,8 +614,8 @@ func TestEvery_MarshalJSON(t *testing.T) {
 package foo
 
 import future.keywords.every
-	
-allow { 
+
+allow {
 	every e in [1,2,3] {
 		e == 1
     }
@@ -857,6 +857,116 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 			if got != exp {
 				t.Fatalf("expected:\n%s got\n%s", exp, got)
 			}
+		})
+	}
+}
+
+func TestNewAnnotationsRef_JSONOptions(t *testing.T) {
+	tests := []struct {
+		note     string
+		module   string
+		expected []string
+		options  ParserOptions
+	}{
+		{
+			note: "all JSON marshaller options set to true",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+# organizations:
+# - pkg
+# related_resources:
+# - https://pkg
+# authors:
+# - pkg
+# schemas:
+# - input.foo: {"type": "boolean"}
+# custom:
+#  pkg: pkg
+package test
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+# organizations:
+# - doc
+# related_resources:
+# - https://doc
+# authors:
+# - doc
+# schemas:
+# - input.bar: {"type": "integer"}
+# custom:
+#  doc: doc
+
+# METADATA
+# title: rule
+# description: rule
+# organizations:
+# - rule
+# related_resources:
+# - https://rule
+# authors:
+# - rule
+# schemas:
+# - input.baz: {"type": "string"}
+# custom:
+#  rule: rule
+p = 1`,
+			options: ParserOptions{
+				ProcessAnnotation: true,
+				JSONOptions: &JSONOptions{
+					MarshalOptions: JSONMarshalOptions{
+						IncludeLocation: NodeToggle{
+							Term:           true,
+							Package:        true,
+							Comment:        true,
+							Import:         true,
+							Rule:           true,
+							Head:           true,
+							Expr:           true,
+							SomeDecl:       true,
+							Every:          true,
+							With:           true,
+							Annotations:    true,
+							AnnotationsRef: true,
+						},
+					},
+				},
+			},
+			expected: []string{
+				`{"annotations":{"authors":[{"name":"pkg"}],"custom":{"pkg":"pkg"},"description":"pkg","location":{"file":"","row":1,"col":1},"organizations":["pkg"],"related_resources":[{"ref":"https://pkg"}],"schemas":[{"path":[{"type":"var","value":"input"},{"type":"string","value":"foo"}],"definition":{"type":"boolean"}}],"scope":"package","title":"pkg"},"location":{"file":"","row":14,"col":1},"path":[{"location":{"file":"","row":14,"col":9},"type":"var","value":"data"},{"location":{"file":"","row":14,"col":9},"type":"string","value":"test"}]}`,
+				`{"annotations":{"authors":[{"name":"doc"}],"custom":{"doc":"doc"},"description":"doc","location":{"file":"","row":16,"col":1},"organizations":["doc"],"related_resources":[{"ref":"https://doc"}],"schemas":[{"path":[{"type":"var","value":"input"},{"type":"string","value":"bar"}],"definition":{"type":"integer"}}],"scope":"document","title":"doc"},"location":{"file":"","row":44,"col":1},"path":[{"location":{"file":"","row":14,"col":9},"type":"var","value":"data"},{"location":{"file":"","row":14,"col":9},"type":"string","value":"test"},{"type":"string","value":"p"}]}`,
+				`{"annotations":{"authors":[{"name":"rule"}],"custom":{"rule":"rule"},"description":"rule","location":{"file":"","row":31,"col":1},"organizations":["rule"],"related_resources":[{"ref":"https://rule"}],"schemas":[{"path":[{"type":"var","value":"input"},{"type":"string","value":"baz"}],"definition":{"type":"string"}}],"scope":"rule","title":"rule"},"location":{"file":"","row":44,"col":1},"path":[{"location":{"file":"","row":14,"col":9},"type":"var","value":"data"},{"location":{"file":"","row":14,"col":9},"type":"string","value":"test"},{"type":"string","value":"p"}]}`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module := MustParseModuleWithOpts(tc.module, tc.options)
+
+			if len(tc.expected) != len(module.Annotations) {
+				t.Fatalf("expected %d annotations got %d", len(tc.expected), len(module.Annotations))
+			}
+
+			for i, a := range module.Annotations {
+				ref := NewAnnotationsRef(a)
+
+				bytes, err := json.Marshal(ref)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				got := string(bytes)
+				expected := tc.expected[i]
+
+				if got != expected {
+					t.Fatalf("expected:\n%s got\n%s", expected, got)
+				}
+			}
+
 		})
 	}
 }
