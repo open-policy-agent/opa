@@ -4800,11 +4800,11 @@ func rewriteDeclaredVarsInBody(g *localVarGenerator, stack *localDeclaredVars, u
 		cpy.Append(NewExpr(BooleanTerm(true)))
 	}
 
-	errs = checkUnusedAssignedVars(body[0].Loc(), stack, used, errs, strict)
+	errs = checkUnusedAssignedVars(body, stack, used, errs, strict)
 	return cpy, checkUnusedDeclaredVars(body, stack, used, cpy, errs)
 }
 
-func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
+func checkUnusedAssignedVars(body Body, stack *localDeclaredVars, used VarSet, errs Errors, strict bool) Errors {
 
 	if !strict || len(errs) > 0 {
 		return errs
@@ -4833,7 +4833,17 @@ func checkUnusedAssignedVars(loc *Location, stack *localDeclaredVars, used VarSe
 	unused = unused.Diff(rewrittenUsed)
 
 	for _, gv := range unused.Sorted() {
-		errs = append(errs, NewError(CompileErr, loc, "assigned var %v unused", dvs.reverse[gv]))
+		found := false
+		for i := range body {
+			if body[i].Vars(VarVisitorParams{}).Contains(gv) {
+				errs = append(errs, NewError(CompileErr, body[i].Loc(), "assigned var %v unused", dvs.reverse[gv]))
+				found = true
+				break
+			}
+		}
+		if !found {
+			errs = append(errs, NewError(CompileErr, body[0].Loc(), "assigned var %v unused", dvs.reverse[gv]))
+		}
 	}
 
 	return errs
