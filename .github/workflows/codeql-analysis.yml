@@ -37,7 +37,7 @@ jobs:
       run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
     - name: Install Go (${{ steps.go_version.outputs.go_version }})
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
 
