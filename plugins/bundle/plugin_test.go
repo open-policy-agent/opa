@@ -432,7 +432,7 @@ func TestPluginBundleETagPersistenceDir(t *testing.T) {
 		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
 
-	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, bundleUtils.BundlePackageFileName)); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, bundleUtils.PackageFileName)); errors.Is(err, os.ErrNotExist) {
 		t.Fatal("bundlePackage.tar.gz was not persisted")
 	}
 }
