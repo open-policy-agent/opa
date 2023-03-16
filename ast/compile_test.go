@@ -4195,16 +4195,15 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				module := MustParseModule(`
 					package test
 
-					f(__local0__) = __local1__ { __local0__ == 1; __local1__ = 2 } else = __local3__ { __local2__ == 3; __local3__ = 4 }
+					f(__local0__) = __local1__ { __local0__ == 1; __local1__ = 2 } else = __local2__ { __local0__ == 3; __local2__ = 4 }
 				`)
-				module.Rules[0].Else.Head.Args[0].Value = Var("__local2__")
+				module.Rules[0].Else.Head.Args[0].Value = Var("__local0__")
 				return module
 			},
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("x"),
 				Var("__local1__"): Var("y"),
-				Var("__local2__"): Var("x"),
-				Var("__local3__"): Var("y"),
+				Var("__local2__"): Var("y"),
 			},
 		},
 		{
@@ -5053,7 +5052,7 @@ func TestRewriteDeclaredVars(t *testing.T) {
 	}
 }
 
-func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
+func TestCheckUnusedFunctionArgVars(t *testing.T) {
 	tests := []strictnessTestCase{
 		{
 			note: "one of the two function args is not used - issue 5602 regression test",
@@ -5064,8 +5063,22 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("x = 1"), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
+				},
+			},
+		},
+		{
+			note: "one of the two ref-head function args is not used",
+			module: `package test
+			a.b.c.func(x, y) {
+				x = 1
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("a.b.c.func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5079,13 +5092,13 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
-					Message:  "assigned var x unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument x",
 				},
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.baz = 1"), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5099,8 +5112,8 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
-					Message:  "assigned var y unused",
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
 				},
 			},
 		},
@@ -5122,8 +5135,8 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{
 					Code:     CompileErr,
-					Location: NewLocation([]byte("input.test == \"foo\""), "", 3, 5),
-					Message:  "assigned var x unused",
+					Location: NewLocation([]byte("func(x, _)"), "", 2, 4),
+					Message:  "unused argument x",
 				},
 			},
 		},
@@ -5134,6 +5147,144 @@ func TestCheckUnusedAssignedAndArgVars(t *testing.T) {
 				input.test == "foo"
 			}`,
 			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in body but in head value comprehension",
+			module: `package test
+			a := {"foo": 1}
+			func(x) := { x: v | v := a[x] } {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in body and shadowed in head value comprehension",
+			module: `package test
+			a := {"foo": 1}
+			func(x) := { x: v | x := "foo"; v := a[x] } {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x) := { x: v | x := \"foo\"; v := a[x] }"), "", 3, 4),
+					Message:  "unused argument x",
+				},
+			},
+		},
+		{
+			note: "argvar used in primary body but not in else body",
+			module: `package test
+			func(x) {
+				input.test == x
+			} else := false {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar used in primary body but not in else body (with wildcard)",
+			module: `package test
+			func(x, _) {
+				input.test == x
+			} else := false {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in primary body but in else body",
+			module: `package test
+			func(x) {
+				input.test == "foo"
+			} else := false {
+				input.test == x
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in primary body but in else body (with wildcard)",
+			module: `package test
+			func(x, _) {
+				input.test == "foo"
+			} else := false {
+				input.test == x
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar used in primary body but not in implicit else body",
+			module: `package test
+			func(x) {
+				input.test == x
+			} else := false`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvars usage spread over multiple bodies",
+			module: `package test
+			func(x, y, z) {
+				input.test == x
+			} else {
+				input.test == y
+			} else {
+				input.test == z
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvars usage spread over multiple bodies, missing in first",
+			module: `package test
+			func(x, y, z) {
+				input.test == "foo"
+			} else {
+				input.test == y
+			} else {
+				input.test == z
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
+					Message:  "unused argument x",
+				},
+			},
+		},
+		{
+			note: "argvars usage spread over multiple bodies, missing in second",
+			module: `package test
+			func(x, y, z) {
+				input.test == x
+			} else {
+				input.test == "bar"
+			} else {
+				input.test == z
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
+					Message:  "unused argument y",
+				},
+			},
+		},
+		{
+			note: "argvars usage spread over multiple bodies, missing in third",
+			module: `package test
+			func(x, y, z) {
+				input.test == x
+			} else {
+				input.test == y
+			} else {
+				input.test == "baz"
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
+					Message:  "unused argument z",
+				},
+			},
 		},
 	}
 
@@ -5968,14 +6119,14 @@ func TestRewritePrintCallsWithElseImplicitArgs(t *testing.T) {
 	exp := MustParseModuleWithOpts(`package test
 
 	f(__local0__, __local1__) = true { __local0__ = __local1__ }
-	else = false { __local6__ = {__local4__ | __local4__ = __local2__}; __local7__ = {__local5__ | __local5__ = __local3__}; internal.print([__local6__, __local7__]) }
+	else = false { __local4__ = {__local2__ | __local2__ = __local0__}; __local5__ = {__local3__ | __local3__ = __local1__}; internal.print([__local4__, __local5__]) }
 	`, opts)
 
 	// NOTE(tsandall): we have to patch the implicit args on the else rule
 	// because of how the parser copies the arg names across from the first
 	// rule.
-	exp.Rules[0].Else.Head.Args[0] = VarTerm("__local2__")
-	exp.Rules[0].Else.Head.Args[1] = VarTerm("__local3__")
+	exp.Rules[0].Else.Head.Args[0] = VarTerm("__local0__")
+	exp.Rules[0].Else.Head.Args[1] = VarTerm("__local1__")
 
 	if !exp.Equal(c.Modules["test.rego"]) {
 		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, c.Modules["test.rego"])
