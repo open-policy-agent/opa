@@ -28,13 +28,12 @@ package gojsonschema
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 const circularReference = `{
@@ -117,8 +116,13 @@ func TestLoaders(t *testing.T) {
 
 	// drain reader
 	by, err := io.ReadAll(wrappedReader)
-	assert.Nil(t, err)
-	assert.Equal(t, simpleSchema, string(by))
+	if err != nil {
+		t.Error(err)
+	}
+
+	if simpleSchema != string(by) {
+		t.Errorf("Expected %s, got %s", simpleSchema, string(by))
+	}
 
 	// setup writer loaders
 	writer := &bytes.Buffer{}
@@ -126,8 +130,12 @@ func TestLoaders(t *testing.T) {
 
 	// fill writer
 	n, err := io.WriteString(wrappedWriter, simpleSchema)
-	assert.Nil(t, err)
-	assert.Equal(t, n, len(simpleSchema))
+	if err != nil {
+		t.Error(err)
+	}
+	if exp, got := n, len(simpleSchema); exp != got {
+		t.Errorf("Expected %d, got %d", exp, got)
+	}
 
 	loaders := []JSONLoader{
 		NewStringLoader(simpleSchema),
@@ -137,7 +145,9 @@ func TestLoaders(t *testing.T) {
 
 	for _, l := range loaders {
 		_, err := NewSchema(l)
-		assert.Nil(t, err, "loader: %T", l)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -159,8 +169,12 @@ func TestLoadersWithInvalidPattern(t *testing.T) {
 
 	// drain reader
 	by, err := io.ReadAll(wrappedReader)
-	assert.Nil(t, err)
-	assert.Equal(t, invalidPattern, string(by))
+	if err != nil {
+		t.Error(err)
+	}
+	if invalidPattern != string(by) {
+		t.Errorf("Expected %s, got %s", invalidPattern, string(by))
+	}
 
 	// setup writer loaders
 	writer := &bytes.Buffer{}
@@ -168,8 +182,12 @@ func TestLoadersWithInvalidPattern(t *testing.T) {
 
 	// fill writer
 	n, err := io.WriteString(wrappedWriter, invalidPattern)
-	assert.Nil(t, err)
-	assert.Equal(t, n, len(invalidPattern))
+	if err != nil {
+		t.Error(err)
+	}
+	if exp, got := n, len(invalidPattern); exp != got {
+		t.Errorf("Expected %d, got %d", exp, got)
+	}
 
 	loaders := []JSONLoader{
 		NewStringLoader(invalidPattern),
@@ -179,7 +197,9 @@ func TestLoadersWithInvalidPattern(t *testing.T) {
 
 	for _, l := range loaders {
 		_, err := NewSchema(l)
-		assert.NotNil(t, err, "expected error loading invalid pattern: %T", l)
+		if err == nil {
+			t.Errorf("Expected error loading invalid pattern: %T", l)
+		}
 	}
 }
 
@@ -254,19 +274,19 @@ func TestFragmentLoader(t *testing.T) {
 	invalidDocument := NewStringLoader(`"a"`)
 
 	result, err := schema.Validate(validDocument)
-
-	if assert.Nil(t, err, "Unexpected error while validating document: %T", err) {
-		if !result.Valid() {
-			t.Errorf("Got invalid validation result.")
-		}
+	if err != nil {
+		t.Errorf("Unexpected error while validating document: %T", err)
+	}
+	if !result.Valid() {
+		t.Errorf("Got invalid validation result.")
 	}
 
 	result, err = schema.Validate(invalidDocument)
-
-	if assert.Nil(t, err, "Unexpected error while validating document: %T", err) {
-		if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
-			t.Errorf("Got invalid validation result.")
-		}
+	if err != nil {
+		t.Errorf("Unexpected error while validating document: %T", err)
+	}
+	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
+		t.Errorf("Got invalid validation result.")
 	}
 }
 
@@ -280,10 +300,19 @@ func TestFileWithSpace(t *testing.T) {
 	fileName := filepath.Join(wd, "testdata", "extra", "file with space.json")
 	loader := NewReferenceLoader("file://" + filepath.ToSlash(fileName))
 
-	json, err := loader.LoadJSON()
+	data, err := loader.LoadJSON()
+	if err != nil {
+		t.Errorf("Unexpected error when trying to load a filepath containing a space: %s", err)
+	}
 
-	assert.Nil(t, err, "Unexpected error when trying to load a filepath containing a space")
-	assert.Equal(t, map[string]interface{}{"foo": true}, json, "Contents of the file do not match")
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		t.Errorf("Unexpected error when trying to marshal json: %s", err)
+	}
+
+	if exp, got := `{"foo":true}`, string(jsonBytes); exp != got {
+		t.Errorf("Contents of the file do not match, expected %s, got %s", exp, got)
+	}
 }
 
 func TestAdditionalPropertiesErrorMessage(t *testing.T) {
@@ -375,6 +404,10 @@ func TestIncorrectRef(t *testing.T) {
 	schemaLoader := NewStringLoader(incorrectRefSchema)
 	s, err := NewSchema(schemaLoader)
 
-	assert.Nil(t, s)
-	assert.Equal(t, "Object has no key 'fail'", err.Error())
+	if s != nil {
+		t.Errorf("Expected nil schema")
+	}
+	if err.Error() != "Object has no key 'fail'" {
+		t.Errorf("Expected error 'Object has no key 'fail'' but got '%s'", err.Error())
+	}
 }
