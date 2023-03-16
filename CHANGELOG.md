@@ -5,6 +5,21 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.50.1
+
+This is a bug fix release addressing the following issues:
+
+### Fixes
+
+- ast/compile: Guard recursive module equality check. ([#5756](https://github.com/open-policy-agent/opa/issues/5756)) authored by @philipaconrad. 
+  Resolves a performance regression when using large bundles.
+- ast: Relaxing strict-mode check for unused args in else-branching functions ([#5758](https://github.com/open-policy-agent/opa/issues/5758)) authored by @johanfylling reported by @ethanjli.
+
+### Miscellaneous
+
+- Use normalized policy paths as compiler module keys and store IDs (authored by @ashutosh-narkar). 
+  Resolves an issue with bundle loading on Windows.
+
 ## 0.50.0
 
 This release contains a mix of new features, bugfixes, security fixes, optimizations and build updates related to
