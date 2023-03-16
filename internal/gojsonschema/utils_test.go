@@ -28,8 +28,6 @@ package gojsonschema
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCheckJsonNumber(t *testing.T) {
@@ -52,8 +50,9 @@ func TestCheckJsonNumber(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		assert.Equal(t, testCase.isInt, checkJSONInteger(testCase.value))
-		assert.Equal(t, testCase.isInt, checkJSONInteger(testCase.value))
+		if exp, got := testCase.isInt, checkJSONInteger(testCase.value); exp != got {
+			t.Errorf("Expected %v, got %v for %v", exp, got, testCase.value)
+		}
 	}
 
 }
