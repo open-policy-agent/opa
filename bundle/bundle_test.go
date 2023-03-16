@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -1041,7 +1042,6 @@ func TestRoundtripDeprecatedWrite(t *testing.T) {
 func TestRoundtrip(t *testing.T) {
 
 	bundle := Bundle{
-		Etag: "foo",
 		Data: map[string]interface{}{
 			"foo": map[string]interface{}{
 				"bar": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
@@ -1094,55 +1094,6 @@ func TestRoundtrip(t *testing.T) {
 
 	if !reflect.DeepEqual(bundle2.Signatures, bundle.Signatures) {
 		t.Fatal("Expected signatures to be same")
-	}
-}
-
-func TestRoundtripWithBundleEtagOverride(t *testing.T) {
-
-	bundle := Bundle{
-		Etag: "foo",
-		Data: map[string]interface{}{
-			"foo": "bar",
-		},
-	}
-
-	var buf bytes.Buffer
-
-	if err := NewWriter(&buf).Write(bundle); err != nil {
-		t.Fatal("Unexpected error:", err)
-	}
-
-	bundle2, err := NewReader(&buf).WithBundleEtag("bar").Read()
-	if err != nil {
-		t.Fatal("Unexpected error:", err)
-	}
-
-	if bundle2.Etag != "bar" {
-		t.Fatal("Expected Etag to be set to 'bar'")
-	}
-}
-
-func TestRoundtripNoETag(t *testing.T) {
-
-	bundle := Bundle{
-		Data: map[string]interface{}{
-			"foo": "bar",
-		},
-	}
-
-	var buf bytes.Buffer
-
-	if err := NewWriter(&buf).Write(bundle); err != nil {
-		t.Fatal("Unexpected error:", err)
-	}
-
-	bundle2, err := NewReader(&buf).Read()
-	if err != nil {
-		t.Fatal("Unexpected error:", err)
-	}
-
-	if bundle2.Etag != "" {
-		t.Fatal("Expected Etag to be empty")
 	}
 }
 

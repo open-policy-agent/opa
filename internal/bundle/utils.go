@@ -5,9 +5,13 @@
 package bundle
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -17,13 +21,26 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
-// bundleFileName is the name of the file used to store bundle archive
-const bundleFileName = "bundle.tar.gz"
+// BundlePackageFileName is the name of the file used to store bundle and associated metadata
+const BundlePackageFileName = "bundlePackage.tar.gz"
+
+// SaveOptions is a list of options which can be set when writing bundle data
+// to disk. Currently, only setting of the bundle's ETag is supported.
+type SaveOptions struct {
+	Etag string
+}
 
 // LoadOptions is a list of options which can be set when loading a bundle from disk.
 // Currently, only setting VerificationConfig is supported.
 type LoadOptions struct {
 	VerificationConfig *bundle.VerificationConfig
+}
+
+// bundlePackage represents a bundle and associated metadata which is ready to be
+// serialized to disk.
+type bundlePackage struct {
+	Etag   string `json:"etag"`
+	Bundle []byte `json:"bundle"`
 }
 
 // LoadWasmResolversFromStore will lookup all Wasm modules from the store along with the
@@ -98,7 +115,44 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) {
-	bundlePath := filepath.Join(path, bundleFileName)
+	// if a bundlePackage exists, use that
+	bundlePackagePath := filepath.Join(path, BundlePackageFileName)
+	if _, err := os.Stat(bundlePackagePath); err == nil {
+		f, err := os.Open(filepath.Join(bundlePackagePath))
+		if err != nil {
+			return nil, err
+		}
+
+		zr, err := gzip.NewReader(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var bundlePackage bundlePackage
+		err = json.NewDecoder(zr).Decode(&bundlePackage)
+		if err != nil {
+			return nil, err
+		}
+
+		r := bundle.NewReader(bytes.NewReader(bundlePackage.Bundle))
+		if opts.VerificationConfig != nil {
+			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
+		}
+		if bundlePackage.Etag != "" {
+			r = r.WithBundleEtag(bundlePackage.Etag)
+		}
+
+		b, err := r.Read()
+		if err != nil {
+			return nil, err
+		}
+
+		return &b, nil
+	}
+
+	// otherwise, load a legacy bundle file from disk. This does now support
+	// setting of the bundle etag.
+	bundlePath := filepath.Join(path, "bundle.tar.gz")
 	if _, err := os.Stat(bundlePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePath))
 		if err != nil {
@@ -125,8 +179,9 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 	}
 }
 
-// SaveBundleToDisk persists a bundle to disk writing to a temporary file first and then renaming.
-func SaveBundleToDisk(path string, rawBundle io.Reader) error {
+// SaveBundleToDisk persists a bundle to disk. Bundles are wrapped in a 'bundlePackage' in order
+// to support additional metadata (e.g. etag) that is not part of the original bundle.
+func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {
@@ -139,20 +194,44 @@ func SaveBundleToDisk(path string, rawBundle io.Reader) error {
 		return fmt.Errorf("no raw bundle bytes to persist to disk")
 	}
 
-	// create a temporary file to write the bundle to
-	destBundleFile, err := os.CreateTemp(path, ".bundle.tar.gz.*.tmp")
+	// create a temporary file to write the bundlepackage to
+	destBundlePackage, err := os.CreateTemp(path, ".bundlePackage.tar.gz.*.tmp")
 	if err != nil {
-		return fmt.Errorf("failed to create temporary bundle file: %w", err)
+		return fmt.Errorf("failed to create temporary bundle package file: %w", err)
 	}
-	defer destBundleFile.Close()
+	defer destBundlePackage.Close()
 
-	_, err = io.Copy(destBundleFile, rawBundle)
+	rawBundleBytes, err := io.ReadAll(rawBundle)
 	if err != nil {
-		return fmt.Errorf("failed to copy bundle data to gzip writer: %w", err)
+		return fmt.Errorf("failed to read raw bundle bytes: %w", err)
+	}
+
+	bp := bundlePackage{
+		Bundle: rawBundleBytes,
+		Etag:   opts.Etag,
+	}
+
+	jsonPackageData, err := json.Marshal(bp)
+	if err != nil {
+		return fmt.Errorf("failed to marshal bundle package data: %w", err)
+	}
+
+	zw := gzip.NewWriter(destBundlePackage)
+	// this should be the eventual target name of the bundle package file
+	zw.Name = BundlePackageFileName
+
+	_, err = zw.Write(jsonPackageData)
+	if err != nil {
+		return fmt.Errorf("failed to write bundle package data to gzip writer: %w", err)
+	}
+
+	err = zw.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
 	return os.Rename(
-		destBundleFile.Name(),
-		filepath.Join(path, bundleFileName),
+		destBundlePackage.Name(),
+		filepath.Join(path, BundlePackageFileName),
 	)
 }

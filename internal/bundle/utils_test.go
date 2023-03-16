@@ -2,19 +2,20 @@ package bundle
 
 import (
 	"bytes"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
 	opaBundle "github.com/open-policy-agent/opa/bundle"
 )
 
-func TestLoadBundleFromDisk(t *testing.T) {
+func TestLoadBundleFromDisk_Legacy(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
 
 	bundle := opaBundle.Bundle{
-		Etag: "123",
 		Manifest: opaBundle.Manifest{
 			Revision: "rev1",
 		},
@@ -29,7 +30,48 @@ func TestLoadBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = SaveBundleToDisk(tempDir, &buf)
+	bundlePath := filepath.Join(tempDir, "bundle.tar.gz")
+	f, err := os.Create(bundlePath)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	_, err = io.Copy(f, &buf)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !loadedBundle.Equal(bundle) {
+		t.Fatalf("unexpected bundle: %#v", loadedBundle)
+	}
+}
+
+func TestLoadBundleFromDisk_BundlePackage(t *testing.T) {
+	var err error
+
+	tempDir := t.TempDir()
+
+	bundle := opaBundle.Bundle{
+		Manifest: opaBundle.Manifest{
+			Revision: "rev1",
+		},
+		Data: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+
+	var buf bytes.Buffer
+	err = opaBundle.NewWriter(&buf).Write(bundle)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -54,7 +96,6 @@ func TestSaveBundleToDisk(t *testing.T) {
 	tempDir := t.TempDir()
 
 	bundle := opaBundle.Bundle{
-		Etag: "123",
 		Manifest: opaBundle.Manifest{
 			Revision: "rev1",
 		},
@@ -69,7 +110,7 @@ func TestSaveBundleToDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = SaveBundleToDisk(tempDir, &buf)
+	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -93,11 +134,7 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	bundle1Etag := "123"
-	bundle2Etag := "456"
-
 	bundle1 := opaBundle.Bundle{
-		Etag: bundle1Etag,
 		Manifest: opaBundle.Manifest{
 			Revision: "rev1",
 		},
@@ -106,7 +143,6 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 		},
 	}
 	bundle2 := opaBundle.Bundle{
-		Etag: bundle2Etag,
 		Manifest: opaBundle.Manifest{
 			Revision: "rev2",
 		},
@@ -127,8 +163,11 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
+	bundle1Etag := "123"
+	bundle2Etag := "456"
+
 	// write the first version of the bundle to disk
-	err = SaveBundleToDisk(tempDir, &buf1)
+	err = SaveBundleToDisk(tempDir, &buf1, &SaveOptions{Etag: bundle1Etag})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -148,7 +187,7 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 	}
 
 	// overwrite the bundle
-	err = SaveBundleToDisk(tempDir, &buf2)
+	err = SaveBundleToDisk(tempDir, &buf2, &SaveOptions{Etag: bundle2Etag})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -174,7 +213,6 @@ func TestSaveBundleToDisk_NewPath(t *testing.T) {
 	tempDir := t.TempDir()
 
 	bundle := opaBundle.Bundle{
-		Etag: "123",
 		Manifest: opaBundle.Manifest{
 			Revision: "rev1",
 		},
@@ -191,7 +229,7 @@ func TestSaveBundleToDisk_NewPath(t *testing.T) {
 
 	bundlePath := filepath.Join(tempDir, "foo", "bar", "example1")
 
-	err = SaveBundleToDisk(bundlePath, &buf)
+	err = SaveBundleToDisk(bundlePath, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -214,7 +252,7 @@ func TestSaveBundleToDisk_Nil(t *testing.T) {
 	var err error
 	srcDir := t.TempDir()
 
-	err = SaveBundleToDisk(srcDir, nil)
+	err = SaveBundleToDisk(srcDir, nil, &SaveOptions{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}

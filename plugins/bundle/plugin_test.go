@@ -432,7 +432,7 @@ func TestPluginBundleETagPersistenceDir(t *testing.T) {
 		t.Fatalf("Bad data content. Exp:\n%#v\n\nGot:\n\n%#v", expData, data)
 	}
 
-	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, "bundle.tar.gz")); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, bundleUtils.BundlePackageFileName)); errors.Is(err, os.ErrNotExist) {
 		t.Fatal("bundlePackage.tar.gz was not persisted")
 	}
 }
@@ -858,7 +858,11 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, bundleName), &buf)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, bundleName),
+		&buf,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -970,7 +974,11 @@ is_one(x) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, bundleName), &buf1)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, bundleName),
+		&buf1,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -980,7 +988,11 @@ is_one(x) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, bundleNameOther), &buf2)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, bundleNameOther),
+		&buf2,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -1049,7 +1061,11 @@ allow {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, bundleName), &buf)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, bundleName),
+		&buf,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2676,7 +2692,6 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 	// setup fake http server with mock bundle
 	mockBundle := bundle.Bundle{
-		Etag:    "foo",
 		Data:    map[string]interface{}{"p": "x1"},
 		Modules: []bundle.ModuleFile{},
 	}
@@ -2886,7 +2901,6 @@ func TestPluginReadBundleEtagFromPersistenceDir(t *testing.T) {
 		persistenceDirName := persistenceDir
 
 		b := bundle.Bundle{
-			Etag: "foo",
 			Data: map[string]interface{}{
 				"key": "value",
 			},
@@ -2897,7 +2911,11 @@ func TestPluginReadBundleEtagFromPersistenceDir(t *testing.T) {
 			t.Fatal("unexpected error:", err)
 		}
 
-		err = bundleUtils.SaveBundleToDisk(path.Join(persistenceDir, "bundles", "test"), &buf)
+		err = bundleUtils.SaveBundleToDisk(
+			path.Join(persistenceDir, "bundles", "test"),
+			&buf,
+			&bundleUtils.SaveOptions{Etag: "foo"},
+		)
 		if err != nil {
 			t.Fatal("unexpected error:", err)
 		}
