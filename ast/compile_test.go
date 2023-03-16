@@ -5302,6 +5302,73 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 	}
 }
 
+func TestCompileUnusedAssignedVarsErrorLocations(t *testing.T) {
+	tests := []strictnessTestCase{
+		{
+			note: "one of the two function args is not used - issue 5662 regression test",
+			module: `package test
+			func(x, y) {
+				x = 1
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
+				},
+			},
+		},
+		{
+			note: "multiple unused assigned var in scope - issue 5662 regression test",
+			module: `package test
+			allow {
+				input.message == "world"
+				input.test == "foo"
+				input.x == "foo"
+				input.y == "baz"
+				a := 1
+				b := 2
+				x := {
+					"a": a,
+					"b": "bar",
+				}
+				input.z == "baz"
+				c := 3
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("b := 2"), "", 8, 5),
+					Message:  "assigned var b unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("x := {\n\t\t\t\t\t\"a\": a,\n\t\t\t\t\t\"b\": \"bar\",\n\t\t\t\t}"), "", 9, 5),
+					Message:  "assigned var x unused",
+				},
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("c := 3"), "", 14, 5),
+					Message:  "assigned var c unused",
+				},
+			},
+		},
+	}
+
+	t.Helper()
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler().WithStrict(true)
+			compiler.Modules = map[string]*Module{
+				"test": MustParseModule(tc.module),
+			}
+			compileStages(compiler, nil)
+			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+		})
+	}
+
+}
+
 func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
 	tests := []strictnessTestCase{
 		{
