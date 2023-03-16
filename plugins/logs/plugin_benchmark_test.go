@@ -154,25 +154,22 @@ func BenchmarkMaskingNop(b *testing.B) {
 	}
 	plugin := New(cfg, manager)
 
+	var event EventV1
+	if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+		b.Fatal(err)
+	}
+	input, err := event.AST()
+	if err != nil {
+		b.Fatal(err)
+	}
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-
-		b.StopTimer()
-
-		var event EventV1
-
-		if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
-			b.Fatal(err)
-		}
-
-		b.StartTimer()
-
-		if err := plugin.maskEvent(ctx, nil, &event); err != nil {
+		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}
 	}
-
 }
 
 func BenchmarkMaskingRuleCountsNop(b *testing.B) {
@@ -195,20 +192,20 @@ func BenchmarkMaskingRuleCountsNop(b *testing.B) {
 	}
 	plugin := New(cfg, manager)
 
-	for _, ruleCount := range numRules {
+	var event EventV1
+	if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+		b.Fatal(err)
+	}
+	input, err := event.AST()
+	if err != nil {
+		b.Fatal(err)
+	}
 
+	for _, ruleCount := range numRules {
 		b.Run(fmt.Sprintf("%dRules", ruleCount), func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				b.StopTimer()
-				var event EventV1
-				if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
-					b.Fatal(err)
-				}
-
-				b.StartTimer()
-
-				if err := plugin.maskEvent(ctx, nil, &event); err != nil {
+				if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -247,22 +244,19 @@ func BenchmarkMaskingErase(b *testing.B) {
 		b.Fatal(err)
 	}
 	plugin := New(cfg, manager)
+	var event EventV1
+	if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
+		b.Fatal(err)
+	}
+	input, err := event.AST()
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-
-		b.StopTimer()
-
-		var event EventV1
-
-		if err := util.UnmarshalJSON([]byte(largeEvent), &event); err != nil {
-			b.Fatal(err)
-		}
-
-		b.StartTimer()
-
-		if err := plugin.maskEvent(ctx, nil, &event); err != nil {
+		if err := plugin.maskEvent(ctx, nil, input, &event); err != nil {
 			b.Fatal(err)
 		}
 
@@ -270,5 +264,4 @@ func BenchmarkMaskingErase(b *testing.B) {
 			b.Fatal("Expected input to be erased")
 		}
 	}
-
 }
