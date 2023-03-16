@@ -293,7 +293,11 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		if c.config != nil && c.config.Persist {
 			c.logger.Debug("Persisting discovery bundle to disk in progress.")
-			err := bundleUtils.SaveBundleToDisk(filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()), u.Raw)
+			err := bundleUtils.SaveBundleToDisk(
+				filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
+				u.Raw,
+				&bundleUtils.SaveOptions{Etag: u.ETag},
+			)
 			if err != nil {
 				c.logger.Error("Persisting discovery bundle to disk failed: %v", err)
 				c.status.SetError(err)

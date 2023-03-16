@@ -615,7 +615,11 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, "config"), &buf)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, "config"),
+		&buf,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -710,7 +714,11 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, "config"), &buf)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, "config"),
+		&buf,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -801,7 +809,11 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(filepath.Join(bundlePersistPath, Name), &buf)
+	err = bundleUtils.SaveBundleToDisk(
+		filepath.Join(bundlePersistPath, Name),
+		&buf,
+		&bundleUtils.SaveOptions{},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
