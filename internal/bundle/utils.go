@@ -6,12 +6,10 @@ package bundle
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -21,8 +19,9 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
-// BundlePackageFileName is the name of the file used to store bundle and associated metadata
-const BundlePackageFileName = "bundlePackage.tar.gz"
+// PackageFileName is the name of files used to store gzip-compressed bundle data and associated metadata. It is
+// serialized as a JSON object so has a .json extension.
+const PackageFileName = "bundlePackage.json"
 
 // SaveOptions is a list of options which can be set when writing bundle data
 // to disk. Currently, only setting of the bundle's ETag is supported.
@@ -115,23 +114,20 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) {
-	// if a bundlePackage exists, use that
-	bundlePackagePath := filepath.Join(path, BundlePackageFileName)
+	// if a bundle package exists, use that as it might contain the bundle etag which
+	// is not stored in the legacy bundle file. This can help avoid unnecessary bundle
+	// downloads.
+	bundlePackagePath := filepath.Join(path, PackageFileName)
 	if _, err := os.Stat(bundlePackagePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePackagePath))
 		if err != nil {
-			return nil, err
-		}
-
-		zr, err := gzip.NewReader(f)
-		if err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("failed to open bundle package file: %w", err)
 		}
 
 		var bundlePackage bundlePackage
-		err = json.NewDecoder(zr).Decode(&bundlePackage)
+		err = json.NewDecoder(f).Decode(&bundlePackage)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode bundle package file: %w", err)
 		}
 
 		r := bundle.NewReader(bytes.NewReader(bundlePackage.Bundle))
@@ -144,19 +140,20 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 
 		b, err := r.Read()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read bundle data: %w", err)
 		}
 
 		return &b, nil
 	}
 
-	// otherwise, load a legacy bundle file from disk. This does now support
-	// setting of the bundle etag.
+	// otherwise, load a legacy bundle file from disk. This does not support
+	// setting of the bundle etag and the bundle will be re-downloaded if the
+	// bundle service is up.
 	bundlePath := filepath.Join(path, "bundle.tar.gz")
 	if _, err := os.Stat(bundlePath); err == nil {
 		f, err := os.Open(filepath.Join(bundlePath))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to open bundle file: %w", err)
 		}
 		defer f.Close()
 
@@ -168,7 +165,7 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 
 		b, err := r.Read()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read bundle data: %w", err)
 		}
 
 		return &b, nil
@@ -185,7 +182,7 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create bundle directory: %w", err)
 		}
 	}
 
@@ -194,44 +191,29 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 		return fmt.Errorf("no raw bundle bytes to persist to disk")
 	}
 
-	// create a temporary file to write the bundlepackage to
-	destBundlePackage, err := os.CreateTemp(path, ".bundlePackage.tar.gz.*.tmp")
+	// create a temporary, intermediary file to write the bundle package to
+	tempBundlePackageDestination, err := os.CreateTemp(path, ".bundlePackage.json.*.tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary bundle package file: %w", err)
 	}
-	defer destBundlePackage.Close()
+	defer tempBundlePackageDestination.Close()
 
 	rawBundleBytes, err := io.ReadAll(rawBundle)
 	if err != nil {
 		return fmt.Errorf("failed to read raw bundle bytes: %w", err)
 	}
 
-	bp := bundlePackage{
+	err = json.NewEncoder(tempBundlePackageDestination).Encode(bundlePackage{
 		Bundle: rawBundleBytes,
 		Etag:   opts.Etag,
-	}
-
-	jsonPackageData, err := json.Marshal(bp)
+	})
 	if err != nil {
-		return fmt.Errorf("failed to marshal bundle package data: %w", err)
+		return fmt.Errorf("failed to encode bundle package: %w", err)
 	}
 
-	zw := gzip.NewWriter(destBundlePackage)
-	// this should be the eventual target name of the bundle package file
-	zw.Name = BundlePackageFileName
-
-	_, err = zw.Write(jsonPackageData)
-	if err != nil {
-		return fmt.Errorf("failed to write bundle package data to gzip writer: %w", err)
-	}
-
-	err = zw.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
-	}
-
+	// move the temporary file to the expected bundle package destination
 	return os.Rename(
-		destBundlePackage.Name(),
-		filepath.Join(path, BundlePackageFileName),
+		tempBundlePackageDestination.Name(),
+		filepath.Join(path, PackageFileName),
 	)
 }

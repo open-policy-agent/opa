@@ -1,0 +1,12 @@
+services:
+  - name: local
+    url: http://localhost:8080
+
+bundles:
+  authz:
+    service: local
+    resource: bundle.tar.gz
+    persist: true
+    polling:
+      min_delay_seconds: 3
+      max_delay_seconds: 3
