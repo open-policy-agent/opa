@@ -162,10 +162,20 @@ policy:
 <!-- TODO(sr): check if "jsonc" looks alright on netlify -->
 ```jsonc
 {
-    # Identity established by authentication scheme.
+    # Identity value established by authentication scheme.
     # When Bearer tokens are used, the identity is
     # set to the Bearer token value.
+    # When TLS client certificates are used, the identity
+    # is set to the certificate subject RDNSequence.
+    # E.g. "OU=opa-client-01,O=Example"
+    # Note: client certificate data is available in the
+    # 'client_certificates' key.
     "identity": "",
+    
+    # Client certificates provided by the client when calling OPA
+    # over an mTLS connection. Represented in input as a list of
+    # Go x509.Certificate objects marshalled as JSON.
+    "client_certificates": [],
 
     # One of {"GET", "POST", "PUT", "PATCH", "DELETE"}.
     "method": "",
@@ -385,32 +395,60 @@ identity_rights[right] {             # Right is in the identity_rights set if...
 
 ### TLS-based Authentication Example
 
-To set up authentication based on TLS, we will need three certificates:
+To set up authentication based on mutual TLS, we will need three certificates:
 
 1. the CA cert (self-signed),
 2. the server cert (signed by the CA), and
 3. the client cert (signed by the CA).
 
-These are example invocations using `openssl`.
-Don't use these in production, the key sizes are only good for demonstration purposes.
+We use `openssl` to create the example certificates and keys used in this demo. In production, creation of certificates
+and keys should be handled by an automated process out of scope for this tutorial.
 
-Note that we're creating an extra client, which has a certificate signed by the proper
-CA, but will later be used to illustrate the authorization policy.
+Note that we also create an extra client cert (client-2). While this certificate is signed by the same CA, it's identity
+is different. We'll use this to show our authorization policy in action.
 
 ```bash
 # CA
-openssl ecparam -out ca-key.pem -name secp256r1 -genkey 
+openssl ecparam -out ca-key.pem -name prime256v1 -genkey 
 openssl req -x509 -new -nodes -key ca-key.pem -days 30 -out ca.pem -subj "/CN=my-ca"
 
 # client 1
-openssl ecparam -out client-key-1.pem -name secp256r1 -genkey 
-openssl req -new -key client-key-1.pem -out csr.pem -subj "/CN=my-client-1" 
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-1.pem -days 10 -sha256
+cat <<EOF >req.cnf
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]
+
+[v3_req]
+basicConstraints = CA:FALSE
+subjectAltName = @alt_names
+
+[alt_names]
+URI.1 = spiffe://example.com/client-1
+EOF
+openssl ecparam -out client-key-1.pem -name prime256v1 -genkey 
+openssl req -new -key client-key-1.pem -out csr.pem -subj "/CN=client-1" -config req.cnf 
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-1.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 
 # client 2
-openssl ecparam -out client-key-2.pem -name secp256r1 -genkey 
-openssl req -new -key client-key-2.pem -out csr.pem -subj "/CN=my-client-2"
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 10 -sha256
+cat <<EOF >req.cnf
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]
+
+[v3_req]
+basicConstraints = CA:FALSE
+subjectAltName = @alt_names
+
+[alt_names]
+URI.1 = spiffe://example.com/client-2
+EOF
+openssl ecparam -out client-key-2.pem -name prime256v1 -genkey 
+openssl req -new -key client-key-2.pem -out csr.pem -subj "/CN=client-2" -config req.cnf
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client-cert-2.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 
 # create server cert with IP and DNS SANs
 cat <<EOF >req.cnf
@@ -428,29 +466,46 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = opa.example.com
 IP.1 = 127.0.0.1
+URI.1 = spiffe://example.com/server
 EOF
-openssl genrsa -out server-key.pem 2048
-openssl req -new -key server-key.pem -out csr.pem -subj "/CN=my-server" -config req.cnf
-openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 10 -extensions v3_req -extfile req.cnf
+openssl ecparam -out server-key.pem -name prime256v1 -genkey 
+openssl req -new -key server-key.pem -out csr.pem -subj "/CN=server" -config req.cnf
+openssl x509 -req -in csr.pem -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 10 -extensions v3_req -extfile req.cnf -sha256
 ```
 
-We also create a simple authorization policy file, called `check.rego`:
+We also create an example authorization policy file, called `check.rego`. This example `system.authz` policy will check
+the certificate ID against a list of allowed paths as defined in a simple Access Control List.
+
+{{< danger >}}
+When choosing messages to return to unauthorized clients in `system.authz` policies, be careful not to expose sensitive
+information such as which paths are allowed.
+{{< /danger >}}
 
 ```live:system_authz_x509:module:read_only
 package system.authz
 
 import future.keywords.if
+import future.keywords.in
 
-# client_cns may defined in policy or pushed into OPA as data.
-client_cns := {
-	"my-client-1": true
+id_uri := input.client_certificates[0].URIs[0]
+id_string := sprintf("%s://%s%s", [id_uri.Scheme, id_uri.Host, id_uri.Path])
+
+# client_acl represents an access control list and may defined in policy or pushed into OPA as data changes.
+client_acl := {
+  "spiffe://example.com/client-1": [["v1", "data"]],
+  "spiffe://example.com/client-2": [],
 }
 
-default allow := false
+default allow := {"allowed": false, "reason": "Access denied: unknown caller"}
 
-allow if {
-	split(input.identity, "=", ["CN", cn]) # the cert subject is a CN, and
-	client_cns[cn]                         # the name is a known client.
+allow := { "allowed": true } if {
+  input.path in client_acl[id_string]
+} else := {
+  "allowed": false,
+  "reason": sprintf("%s is not allowed to call /%s", [
+    id_string,
+    concat("/", input.path),
+  ])
 }
 ```
 
@@ -485,7 +540,7 @@ $ curl --key client-key-1.pem \
 Note that we're passing the CA cert to curl -- this is done to have curl accept
 the server's certificate, which has been signed by our CA cert.
 
-Since we've setup an IP SAN, we may also `curl https://127.0.0.1:8181/v1/data`
+Since we've set up an IP SAN, we may also `curl https://127.0.0.1:8181/v1/data`
 directly. (To keep our examples focused, we'll do that from here on.)
 
 Using a valid certificate whose subject will be declined by our authorization
@@ -498,7 +553,7 @@ $ curl --key client-key-2.pem \
   https://127.0.0.1:8181/v1/data
 {
   "code": "unauthorized",
-  "message": "request rejected by administrative policy"
+  "message": "spiffe://example.com/client-2 is not allowed to call /v1/data"
 }
 ```
 
@@ -508,7 +563,7 @@ $ curl --cacert ca.pem https://127.0.0.1:8181/v1/data
 curl: (56) LibreSSL SSL_read: error:1404C412:SSL routines:ST_OK:sslv3 alert bad certificate, errno 0
 ```
 
-As you can see, TLS-based authentication disallows these request completely.
+As you can see, TLS-based authentication disallows these request before even invoking the `system.authz` policy.
 
 ## Secure Health and Monitoring
 

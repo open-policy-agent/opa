@@ -16,10 +16,6 @@ package gojsonschema
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSchemaLoaderWithReferenceToAddedSchema(t *testing.T) {
@@ -28,12 +24,20 @@ func TestSchemaLoaderWithReferenceToAddedSchema(t *testing.T) {
 		"$id" : "http://localhost:1234/test1.json",
 		"type" : "integer"
 		}`))
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
 
-	assert.Nil(t, err)
 	schema, err := sl.Compile(NewReferenceLoader("http://localhost:1234/test1.json"))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error compiling schema: %v", err)
+	}
+
 	result, err := schema.Validate(NewStringLoader(`"hello"`))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error validating schema: %v", err)
+	}
+
 	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
 		t.Errorf("Expected invalid type erorr, instead got %v", result.Errors())
 	}
@@ -54,13 +58,25 @@ func TestCrossReference(t *testing.T) {
 
 	sl := NewSchemaLoader()
 	err := sl.AddSchema("http://localhost:1234/test2.json", schema1)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
+
 	err = sl.AddSchema("http://localhost:1234/test3.json", schema2)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
+
 	schema, err := sl.Compile(NewStringLoader(`{"$ref" : "http://localhost:1234/test2.json"}`))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error compiling schema: %v", err)
+	}
+
 	result, err := schema.Validate(NewStringLoader(`"hello"`))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error validating schema: %v", err)
+	}
+
 	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
 		t.Errorf("Expected invalid type erorr, instead got %v", result.Errors())
 	}
@@ -70,9 +86,14 @@ func TestCrossReference(t *testing.T) {
 func TestDoubleIDReference(t *testing.T) {
 	sl := NewSchemaLoader()
 	err := sl.AddSchema("http://localhost:1234/test4.json", NewStringLoader("{}"))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
+
 	err = sl.AddSchemas(NewStringLoader(`{ "$id" : "http://localhost:1234/test4.json"}`))
-	assert.NotNil(t, err)
+	if err == nil {
+		t.Errorf("Expected error adding schema, got none")
+	}
 }
 
 func TestCustomMetaSchema(t *testing.T) {
@@ -89,24 +110,34 @@ func TestCustomMetaSchema(t *testing.T) {
 	sl.Validate = true
 
 	err := sl.AddSchemas(loader)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
+
 	_, err = sl.Compile(NewStringLoader(`{
 		"$id" : "http://localhost:1234/test6.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"type" : "string"
 	}`))
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error compiling schema: %v", err)
+	}
 
 	sl = NewSchemaLoader()
 	sl.Validate = true
 	err = sl.AddSchemas(loader)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error adding schema: %v", err)
+	}
+
 	_, err = sl.Compile(NewStringLoader(`{
 		"$id" : "http://localhost:1234/test7.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"multipleOf" : 5
 	}`))
-	assert.NotNil(t, err)
+	if err == nil {
+		t.Errorf("Expected error compiling schema, got none")
+	}
 }
 
 func TestSchemaDetection(t *testing.T) {
@@ -117,14 +148,18 @@ func TestSchemaDetection(t *testing.T) {
 
 	// The schema should produce an error in draft-04 mode
 	_, err := NewSchema(loader)
-	assert.NotNil(t, err)
+	if err == nil {
+		t.Errorf("Expected error, got none")
+	}
 
 	// With schema detection disabled the schema should not produce an error in hybrid mode
 	sl := NewSchemaLoader()
 	sl.AutoDetect = false
 
 	_, err = sl.Compile(loader)
-	assert.Nil(t, err)
+	if err != nil {
+		t.Errorf("Error compiling schema: %v", err)
+	}
 }
 
 func TestDraftCrossReferencing(t *testing.T) {
@@ -152,14 +187,20 @@ func TestDraftCrossReferencing(t *testing.T) {
 			sl.AutoDetect = b
 
 			err := sl.AddSchemas(loader1)
-			assert.Nil(t, err)
+			if err != nil {
+				t.Errorf("Error adding schema: %v", err)
+			}
+
 			_, err = sl.Compile(loader2)
 
 			// It will always fail with autodetection on as "exclusiveMinimum" : 5
 			// is only valid since draft-06. With autodetection off it will pass if
 			// draft-06 or newer is used
 
-			assert.Equal(t, err == nil, !b && draft >= Draft6)
+			got := !b && draft >= Draft6
+			if (err == nil) != got {
+				t.Errorf("Expected error: %v, got: %v", !got, err)
+			}
 		}
 	}
 }
@@ -172,6 +213,11 @@ func TestParseSchemaURL_NotMap(t *testing.T) {
 	//WHEN
 	_, err := NewSchema(sl)
 	//THEN
-	require.Error(t, err)
-	assert.EqualError(t, err, "schema is invalid")
+	if err == nil {
+		t.Fatalf("Expected error, got none")
+	}
+
+	if err.Error() != "schema is invalid" {
+		t.Fatalf("Expected error: %s, got: %s", "schema is invalid", err.Error())
+	}
 }

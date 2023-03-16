@@ -491,7 +491,7 @@ func doDFS(obj map[string]json.RawMessage, path string, roots []string) error {
 
 		// Note: filepath.Join can return paths with '\' separators, always use
 		// filepath.ToSlash to keep them normalized.
-		newPath = strings.TrimLeft(filepath.ToSlash(newPath), "/.")
+		newPath = strings.TrimLeft(normalizePath(newPath), "/.")
 
 		contains := false
 		prefix := false

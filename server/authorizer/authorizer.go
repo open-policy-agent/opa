@@ -198,6 +198,11 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 		input["identity"] = identity
 	}
 
+	clientCertificates, ok := identifier.ClientCertificates(r)
+	if ok {
+		input["client_certificates"] = clientCertificates
+	}
+
 	return r, input, nil
 }
 

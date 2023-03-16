@@ -35,7 +35,10 @@ type Config struct {
 	NDBuiltinCache               bool                       `json:"nd_builtin_cache,omitempty"`
 	PersistenceDirectory         *string                    `json:"persistence_directory,omitempty"`
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
-	Storage                      *struct {
+	Server                       *struct {
+		Encoding json.RawMessage `json:"encoding,omitempty"`
+	} `json:"server,omitempty"`
+	Storage *struct {
 		Disk json.RawMessage `json:"disk,omitempty"`
 	} `json:"storage,omitempty"`
 }

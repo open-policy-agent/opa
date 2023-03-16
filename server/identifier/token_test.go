@@ -11,15 +11,6 @@ import (
 	"github.com/open-policy-agent/opa/server/identifier"
 )
 
-type mockHandler struct {
-	identity string
-	defined  bool
-}
-
-func (h *mockHandler) ServeHTTP(_ http.ResponseWriter, r *http.Request) {
-	h.identity, h.defined = identifier.Identity(r)
-}
-
 func TestTokenBased(t *testing.T) {
 
 	mock := &mockHandler{}
@@ -31,13 +22,25 @@ func TestTokenBased(t *testing.T) {
 	}
 
 	tests := []struct {
-		value    string
-		expected string
-		defined  bool
+		value           string
+		expected        string
+		identityDefined bool
 	}{
-		{"", "", false},
-		{"Bearer this-is-the-token", "this-is-the-token", true},
-		{"Bearer    this-is-the-token-with-spaces", "this-is-the-token-with-spaces", true},
+		{
+			"",
+			"",
+			false,
+		},
+		{
+			"Bearer this-is-the-token",
+			"this-is-the-token",
+			true,
+		},
+		{
+			"Bearer    this-is-the-token-with-spaces",
+			"this-is-the-token-with-spaces",
+			true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -48,8 +51,8 @@ func TestTokenBased(t *testing.T) {
 
 		handler.ServeHTTP(nil, req)
 
-		if mock.defined != tc.defined {
-			t.Fatalf("Expected defined to be %v but got: %v", tc.defined, mock.defined)
+		if mock.identityDefined != tc.identityDefined {
+			t.Fatalf("Expected identityDefined to be %v but got: %v", tc.identityDefined, mock.identityDefined)
 		}
 
 		if mock.identity != tc.expected {

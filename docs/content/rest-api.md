@@ -732,6 +732,10 @@ The path separator is used to access values inside object and array documents. I
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **strict-builtin-errors** - Treat built-in function call errors as fatal and return an error immediately.
 
+#### Request Headers
+
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
+
 #### Status Codes
 
 - **200** - no error
@@ -820,6 +824,8 @@ The request body contains an object that specifies a value for [The input Docume
 #### Request Headers
 
 - **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
@@ -939,6 +945,8 @@ array documents.
 #### Request Headers
 
 - **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
@@ -1289,6 +1297,11 @@ Compile API requests contain the following fields:
 | `input` | `any` | No | The input document to use during partial evaluation (default: undefined). |
 | `options`  | `object[string, any]`           | No | Additional options to use during partial evaluation. Only `disableInlining` option is supported. (default: undefined). |
 | `unknowns` | `array[string]` | No | The terms to treat as unknown during partial evaluation (default: `["input"]`]). |
+
+### Request Headers
+
+- **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
+- **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value
 
 #### Query Parameters
 

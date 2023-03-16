@@ -45,7 +45,7 @@ to use releases with major version `2` for new features.
 
 ## Docs
 
-- [oras.land/client_libraries/go](https://oras.land/client_libraries/go/): Documentation for the ORAS Go library
+- [oras.land/client_libraries/go](https://oras.land/client_libraries/0_go/): Documentation for the ORAS Go library
 - [Reviewing guide](https://github.com/oras-project/community/blob/main/REVIEWING.md): All reviewers must read the reviewing guide and agree to follow the project review guidelines.
 
 ## Code of Conduct
