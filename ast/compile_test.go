@@ -5069,6 +5069,20 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 			},
 		},
 		{
+			note: "one of the two ref-head function args is not used",
+			module: `package test
+			a.b.c.func(x, y) {
+				x = 1
+			}`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("a.b.c.func(x, y)"), "", 2, 4),
+					Message:  "unused argument y",
+				},
+			},
+		},
+		{
 			note: "multiple unused argvar in scope - issue 5602 regression test",
 			module: `package test
 			func(x, y) {
@@ -5169,9 +5183,29 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 			expectedErrors: Errors{},
 		},
 		{
+			note: "argvar used in primary body but not in else body (with wildcard)",
+			module: `package test
+			func(x, _) {
+				input.test == x
+			} else := false {
+				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
 			note: "argvar not used in primary body but in else body",
 			module: `package test
 			func(x) {
+				input.test == "foo"
+			} else := false {
+				input.test == x
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in primary body but in else body (with wildcard)",
+			module: `package test
+			func(x, _) {
 				input.test == "foo"
 			} else := false {
 				input.test == x
