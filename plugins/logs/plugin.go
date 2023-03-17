@@ -609,7 +609,12 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		inputAST:       decision.InputAST,
 	}
 
-	drop, err := p.dropEvent(ctx, decision.Txn, &event)
+	input, err := event.AST()
+	if err != nil {
+		return err
+	}
+
+	drop, err := p.dropEvent(ctx, decision.Txn, input)
 	if err != nil {
 		p.logger.Error("Log drop decision failed: %v.", err)
 		return nil
@@ -628,16 +633,14 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		event.Error = decision.Error
 	}
 
-	err = p.maskEvent(ctx, decision.Txn, &event)
-	if err != nil {
+	if err := p.maskEvent(ctx, decision.Txn, input, &event); err != nil {
 		// TODO(tsandall): see note below about error handling.
 		p.logger.Error("Log event masking failed: %v.", err)
 		return nil
 	}
 
 	if p.config.ConsoleLogs {
-		err := p.logEvent(event)
-		if err != nil {
+		if err := p.logEvent(event); err != nil {
 			p.logger.Error("Failed to log to console: %v.", err)
 		}
 	}
@@ -917,7 +920,7 @@ func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	}
 }
 
-func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *EventV1) error {
+func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {
 
 	mask, err := func() (rego.PreparedEvalQuery, error) {
 
@@ -953,11 +956,6 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 		return err
 	}
 
-	input, err := event.AST()
-	if err != nil {
-		return err
-	}
-
 	rs, err := mask.Eval(
 		ctx,
 		rego.EvalParsedInput(input),
@@ -985,7 +983,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, event *
 	return nil
 }
 
-func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, event *EventV1) (bool, error) {
+func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input ast.Value) (bool, error) {
 
 	drop, err := func() (rego.PreparedEvalQuery, error) {
 
@@ -1015,11 +1013,6 @@ func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, event *
 		return *p.drop, nil
 	}()
 
-	if err != nil {
-		return false, err
-	}
-
-	input, err := event.AST()
 	if err != nil {
 		return false, err
 	}
