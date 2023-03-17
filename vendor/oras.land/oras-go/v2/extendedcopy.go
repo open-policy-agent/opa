@@ -25,6 +25,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/internal/cas"
+	"oras.land/oras-go/v2/internal/container/set"
 	"oras.land/oras-go/v2/internal/copyutil"
 	"oras.land/oras-go/v2/internal/descriptor"
 	"oras.land/oras-go/v2/internal/docker"
@@ -131,7 +132,7 @@ func ExtendedCopyGraph(ctx context.Context, src content.ReadOnlyGraphStorage, ds
 // findRoots finds the root nodes reachable from the given node through a
 // depth-first search.
 func findRoots(ctx context.Context, storage content.ReadOnlyGraphStorage, node ocispec.Descriptor, opts ExtendedCopyGraphOptions) ([]ocispec.Descriptor, error) {
-	visited := make(map[descriptor.Descriptor]bool)
+	visited := set.New[descriptor.Descriptor]()
 	rootMap := make(map[descriptor.Descriptor]ocispec.Descriptor)
 	addRoot := func(key descriptor.Descriptor, val ocispec.Descriptor) {
 		if _, exists := rootMap[key]; !exists {
@@ -158,11 +159,11 @@ func findRoots(ctx context.Context, storage content.ReadOnlyGraphStorage, node o
 		currentNode := current.Node
 		currentKey := descriptor.FromOCI(currentNode)
 
-		if visited[currentKey] {
+		if visited.Contains(currentKey) {
 			// skip the current node if it has been visited
 			continue
 		}
-		visited[currentKey] = true
+		visited.Add(currentKey)
 
 		// stop finding predecessors if the target depth is reached
 		if opts.Depth > 0 && current.Depth == opts.Depth {
@@ -186,7 +187,7 @@ func findRoots(ctx context.Context, storage content.ReadOnlyGraphStorage, node o
 		// Push the predecessor nodes to the stack and keep finding from there.
 		for _, predecessor := range predecessors {
 			predecessorKey := descriptor.FromOCI(predecessor)
-			if !visited[predecessorKey] {
+			if !visited.Contains(predecessorKey) {
 				// push the predecessor node with increased depth
 				stack.Push(copyutil.NodeInfo{Node: predecessor, Depth: current.Depth + 1})
 			}
