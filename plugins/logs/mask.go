@@ -5,14 +5,12 @@
 package logs
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/internal/deepcopy"
-	"github.com/open-policy-agent/opa/util"
 )
 
 type maskOP string
@@ -104,15 +102,11 @@ func newMaskRule(path string, opts ...maskRuleOption) (*maskRule, error) {
 
 func withOP(op maskOP) maskRuleOption {
 	return func(r *maskRule) error {
-
-		var supportedMaskOPS = [...]maskOP{maskOPRemove, maskOPUpsert}
-		for _, sOP := range supportedMaskOPS {
-			if op == sOP {
-				r.OP = op
-				return nil
-			}
+		switch op {
+		case maskOPRemove, maskOPUpsert:
+			r.OP = op
+			return nil
 		}
-
 		return fmt.Errorf("mask op is not supported: %s", op)
 	}
 }
@@ -276,17 +270,12 @@ func (r maskRule) mkdirp(node map[string]interface{}, path []string, value inter
 }
 
 func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRuleSet, error) {
-	bs, err := json.Marshal(rv)
-	if err != nil {
-		return nil, err
-	}
 	var mRuleSet = &maskRuleSet{
 		OnRuleError: onRuleError,
 	}
-	var rawRules []interface{}
-
-	if err := util.Unmarshal(bs, &rawRules); err != nil {
-		return nil, err
+	rawRules, ok := rv.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected rule format %v (%[1]T)", rv)
 	}
 
 	for _, iface := range rawRules {
@@ -304,20 +293,23 @@ func newMaskRuleSet(rv interface{}, onRuleError func(*maskRule, error)) (*maskRu
 			mRuleSet.Rules = append(mRuleSet.Rules, rule)
 
 		case map[string]interface{}:
-
-			bs, err := json.Marshal(v)
-			if err != nil {
-				return nil, err
-			}
-
 			rule := &maskRule{}
-
-			if err := util.Unmarshal(bs, rule); err != nil {
-				return nil, err
+			op, set := getString(v, "op")
+			if set && op == "" {
+				return nil, fmt.Errorf("invalid \"op\" value: %v %[1]T", v["op"])
 			}
+			rule.OP = maskOP(op)
+
+			path, set := getString(v, "path")
+			if set && path == "" {
+				return nil, fmt.Errorf("invalid \"path\" value: %v %[1]T", v["path"])
+			}
+			rule.Path = path
+
+			rule.Value = v["value"]
 
 			// use unmarshalled values to create new Mask Rule
-			rule, err = newMaskRule(rule.Path, withOP(rule.OP), withValue(rule.Value))
+			rule, err := newMaskRule(rule.Path, withOP(rule.OP), withValue(rule.Value))
 
 			// TODO add withFailUndefinedPath() option based on
 			//   A) new syntax in user defined mask rule
@@ -353,4 +345,18 @@ func (rs maskRuleSet) Mask(event *EventV1) {
 			rs.OnRuleError(mRule, err)
 		}
 	}
+}
+
+// bool return means the field was set, if the string is still "", the
+// value was invalid
+func getString(x map[string]any, key string) (string, bool) {
+	y, ok := x[key]
+	if !ok {
+		return "", false
+	}
+	s, ok := y.(string)
+	if !ok {
+		return "", true
+	}
+	return s, true
 }
