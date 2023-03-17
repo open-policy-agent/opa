@@ -27,10 +27,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/internal/container/set"
 	"oras.land/oras-go/v2/internal/descriptor"
 	"oras.land/oras-go/v2/internal/graph"
 	"oras.land/oras-go/v2/internal/resolver"
@@ -142,10 +144,6 @@ func (s *Store) Tag(ctx context.Context, desc ocispec.Descriptor, reference stri
 		return fmt.Errorf("%s: %s: %w", desc.Digest, desc.MediaType, errdef.ErrNotFound)
 	}
 
-	if desc.Annotations == nil {
-		desc.Annotations = map[string]string{}
-	}
-	desc.Annotations[ocispec.AnnotationRefName] = reference
 	return s.tag(ctx, desc, reference)
 }
 
@@ -153,7 +151,7 @@ func (s *Store) Tag(ctx context.Context, desc ocispec.Descriptor, reference stri
 func (s *Store) tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
 	dgst := desc.Digest.String()
 	if reference != dgst {
-		// mark desc for deduplication in SaveIndex()
+		// also tag desc by its digest
 		if err := s.tagResolver.Tag(ctx, desc, dgst); err != nil {
 			return err
 		}
@@ -269,14 +267,32 @@ func (s *Store) SaveIndex() error {
 	defer s.indexLock.Unlock()
 
 	var manifests []ocispec.Descriptor
+	tagged := set.New[digest.Digest]()
 	refMap := s.tagResolver.Map()
+
+	// 1. Add descriptors that are associated with tags
+	// Note: One descriptor can be associated with multiple tags.
 	for ref, desc := range refMap {
-		if ref == desc.Digest.String() && desc.Annotations[ocispec.AnnotationRefName] != "" {
-			// skip saving desc if ref is a digest and desc is tagged
-			continue
+		if ref != desc.Digest.String() {
+			annotations := make(map[string]string, len(desc.Annotations)+1)
+			for k, v := range desc.Annotations {
+				annotations[k] = v
+			}
+			annotations[ocispec.AnnotationRefName] = ref
+			desc.Annotations = annotations
+			manifests = append(manifests, desc)
+			// mark the digest as tagged for deduplication in step 2
+			tagged.Add(desc.Digest)
 		}
-		manifests = append(manifests, desc)
 	}
+	// 2. Add descriptors that are not associated with any tag
+	for ref, desc := range refMap {
+		if ref == desc.Digest.String() && !tagged.Contains(desc.Digest) {
+			// skip tagged ones since they have been added in step 1
+			manifests = append(manifests, deleteAnnotationRefName(desc))
+		}
+	}
+
 	s.index.Manifests = manifests
 	return s.writeIndexFile()
 }
