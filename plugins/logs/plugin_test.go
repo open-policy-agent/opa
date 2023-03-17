@@ -1877,8 +1877,12 @@ func TestPluginMasking(t *testing.T) {
 				Input:          &tc.input,
 				NDBuiltinCache: &tc.ndbcache,
 			}
+			input, err := event.AST()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			if err := plugin.maskEvent(ctx, nil, event); err != nil {
+			if err := plugin.maskEvent(ctx, nil, input, event); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1920,8 +1924,12 @@ func TestPluginMasking(t *testing.T) {
 				event = &EventV1{
 					Input: &tc.input,
 				}
+				input, err := event.AST()
+				if err != nil {
+					t.Fatal(err)
+				}
 
-				if err := plugin.maskEvent(ctx, nil, event); err != nil {
+				if err := plugin.maskEvent(ctx, nil, input, event); err != nil {
 					t.Fatal(err)
 				}
 
@@ -2011,8 +2019,12 @@ func TestPluginDrop(t *testing.T) {
 			if err := plugin.Start(ctx); err != nil {
 				t.Fatal(err)
 			}
+			input, err := tc.event.AST()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			drop, err := plugin.dropEvent(ctx, nil, tc.event)
+			drop, err := plugin.dropEvent(ctx, nil, input)
 			if err != nil {
 				t.Fatal(err)
 			}
