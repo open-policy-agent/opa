@@ -26,6 +26,10 @@ void opa_builtin_cache_set(size_t i, void *p);
 void opa_heap_compact(void);
 size_t opa_heap_free_blocks(void);
 
+void opa_heap_blocks_stash(void);
+void opa_heap_blocks_restore(void);
+void opa_heap_stash_clear(void);
+
 #ifdef __cplusplus
 }
 #endif

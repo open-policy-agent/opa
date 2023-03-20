@@ -37,6 +37,14 @@ static struct heap_blocks heap_free[5] = {
     {false, 128},
 };
 
+static struct heap_blocks heap_stash[5] = {
+    {true, 4},
+    {true, 8},
+    {true, 16},
+    {true, 64},
+    {false, 128},
+};
+
 #ifdef DEBUG
 #define HEAP_CHECK(blocks) heap_check(__FUNCTION__, blocks)
 #else
@@ -53,6 +61,16 @@ static void init_free()
     for (int i = 0; i < ARRAY_SIZE(builtin_cache); i++)
     {
         builtin_cache[i] = NULL;
+    }
+}
+
+static void init_stash()
+{
+    for (int i = 0; i < ARRAY_SIZE(heap_stash); i++) {
+        heap_stash[i].start =
+            (struct heap_block) { 0, NULL, &heap_stash[i].end };
+        heap_stash[i].end =
+            (struct heap_block) { 0, &heap_stash[i].start, NULL };
     }
 }
 
@@ -116,6 +134,7 @@ void opa_malloc_init(unsigned int heap_base)
     heap_ptr = heap_base;
     heap_top = __builtin_wasm_memory_grow(0, 0) * WASM_PAGE_SIZE;
     init_free();
+    init_stash();
 }
 
 void opa_malloc_init_test(void)
@@ -142,6 +161,75 @@ void opa_heap_ptr_set(unsigned int ptr)
 {
     heap_ptr = ptr;
     init_free();
+}
+
+OPA_INTERNAL
+void move_freelists(struct heap_blocks *dst_block_list,
+                    struct heap_blocks *src_block_list,
+                    const char *caller_fail_msg)
+{
+    /*
+     * First verify that dst freelists are empty and
+     * all blocks in the src are below the current heap pointer.
+     */
+    for (int i = 0; i < ARRAY_SIZE(heap_free); i++)
+    {
+        struct heap_blocks *dst = &dst_block_list[i];
+        struct heap_blocks *src = &src_block_list[i];
+
+        if (dst->start.next != &dst->end || dst->end.prev != &dst->start)
+            opa_abort(caller_fail_msg);
+
+        if (src->end.prev != &src->start) {
+            struct heap_block *b = src->end.prev;
+            if ((unsigned int)b + b->size + sizeof(struct heap_block) > heap_ptr)
+                opa_abort(caller_fail_msg);
+        }
+    }
+
+    /* Now move the blocks en masse from one freelist to the other. */
+    for (int i = 0; i < ARRAY_SIZE(heap_free); i++)
+    {
+        struct heap_blocks *dst = &dst_block_list[i];
+        struct heap_blocks *src = &src_block_list[i];
+
+        dst->start.prev = NULL; /* unnecessary, but safe */
+        dst->start.next = src->start.next;
+        dst->start.next->prev = &dst->start;
+
+        dst->end.prev = src->end.prev;
+        dst->end.next = NULL; /* unnecessary, but safe */
+        dst->end.prev->next = &dst->end;
+    }
+
+    /*
+     * Note that this leaves src w/ dangling pointers.  Caller
+     * must be sure to re-initialize those blocks.
+     */
+}
+
+WASM_EXPORT(opa_heap_blocks_stash)
+void opa_heap_blocks_stash(void)
+{
+    move_freelists(heap_stash, heap_free,
+                   "opa_heap_blocks_stash() consistency check failed");
+    /* clean up dangling references */
+    init_free();
+}
+
+WASM_EXPORT(opa_heap_stash_clear)
+void opa_heap_stash_clear(void)
+{
+    init_stash();
+}
+
+WASM_EXPORT(opa_heap_blocks_restore)
+void opa_heap_blocks_restore(void)
+{
+    move_freelists(heap_free, heap_stash,
+                   "opa_heap_blocks_restore() consistency check failed");
+    /* clean up dangling references */
+    init_stash();
 }
 
 void opa_heap_top_set(unsigned int top)
@@ -313,6 +401,13 @@ void opa_free(void *ptr)
         if (prev_end == block)
         {
             prev->size += sizeof(struct heap_block) + block->size;
+            prev_end = (void *)(&prev->data[0]) + prev->size;
+            if (prev_end == prev->next) {
+                struct heap_block *next = prev->next;
+                prev->size += sizeof(struct heap_block) + next->size;
+                prev->next = next->next;
+                prev->next->prev = prev;
+            }
             compact_free(blocks);
             return;
         }

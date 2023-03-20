@@ -223,6 +223,37 @@ void test_opa_free(void)
     test("heap ptr", base == opa_heap_ptr_get());
 }
 
+WASM_EXPORT(test_opa_heap_blocks_stash)
+void test_opa_heap_blocks_stash(void)
+{
+    reset_heap();
+
+    unsigned int base = opa_heap_ptr_get();
+    void *p1;
+    void *p2;
+
+    // check basic save / restore
+    p1 = opa_malloc(128);
+    p2 = opa_malloc(128);
+    opa_free(p1);
+    opa_heap_blocks_stash();
+    test("free blocks", opa_heap_free_blocks() == 0);
+    opa_heap_blocks_restore();
+    test("free blocks", opa_heap_free_blocks() == 1);
+    opa_free(p2);
+    test("heap ptr", base == opa_heap_ptr_get());
+
+    // check opa_heap_stash_clear()
+    p1 = opa_malloc(128);
+    p2 = opa_malloc(128);
+    opa_free(p1);
+    opa_heap_blocks_stash();
+    opa_heap_stash_clear();
+    opa_heap_blocks_restore();
+    test("free blocks", opa_heap_free_blocks() == 0);
+    opa_heap_ptr_set(base); // p2 is dangling, but we'll discard it
+}
+
 WASM_EXPORT(test_opa_memoize)
 void test_opa_memoize(void)
 {
@@ -895,6 +926,149 @@ void test_opa_value_parse(void)
     test("empty", value_parse_crunch("set()", empty_set));
     test("empty whitespace", value_parse_crunch("set(   )", empty_set));
 }
+
+WASM_EXPORT(test_opa_value_free)
+void test_opa_value_free(void)
+{
+	char *s;
+	opa_value *ret;
+	int i;
+
+	reset_heap();
+	unsigned int base;
+
+	// This is tricky because some of these dynamic allocations
+	// leave memory in the heap because the blocks they allocate
+	// come from different lists.  If they don't get freed in
+	// reverse order of allocation, the heap pointer won't go
+	// down.  Some of these objects don't free the sub-objects
+	// in reverse order of allocation.
+	//
+	// However, what we can do is
+	//  * do a small number of parse/free combinations to prime the heap
+	//  * grab the new heap pointer
+	//  * do a few more parse/free cycles checking each time that the
+	//    pointer doesn't increase.
+	//
+	// This isn't perfect because for larger, variable-sized blocks
+	// order of allocation matters and can lead to the heap bumping
+	// up a bit although this would stabalize in the long run.  But
+	// to a void this, keep the value elements (strings, numbers, ...)
+	// small to keep the allocations in the fixed-sized block regions.
+
+	// Null test
+	s = "null";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Boolean test
+	s = "true";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Integer test
+	s = "0";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// String test
+	s = "\"hello\"";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Array test
+	s = "[\"a\", \"b\", \"c\"]";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Object test
+	s = "{\"a\": 1, \"b\": 2}";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Set test
+	//
+	// The bucket sizes seem to be just enough to mix elements,
+	// buckets and set objects.  This makes one parse/free
+	// cycle insufficient to stabalize the heap.  So do two
+	// instead before validating that the heap will no longer
+	// increase.
+	s = "{\"a\", \"b\", \"c\"}";
+	for (i = 0; i < 2; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+	}
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+
+	// Compound object / array test
+	s = "{[1,2],[3,4]}";
+	ret = opa_value_parse(s, opa_strlen(s));
+	test("parse", ret != NULL);
+	opa_value_free(ret);
+	base = opa_heap_ptr_get();
+	for (i = 0; i < 5; i++) {
+		ret = opa_value_parse(s, opa_strlen(s));
+		test("parse", ret != NULL);
+		opa_value_free(ret);
+		test("heap ptr", base == opa_heap_ptr_get());
+	}
+}
+
 
 WASM_EXPORT(test_opa_json_parse_memory_ownership)
 void test_opa_json_parse_memory_ownership(void)

@@ -98,7 +98,7 @@ opa_value *opa_sets_intersection(opa_value *v)
                 r = opa_set_union(opa_set(), elem->v);
             } else {
                 opa_value *x = opa_set_intersection(r, elem->v);
-                opa_value_free(r);
+                opa_value_free_shallow(r);
                 if (x == NULL)
                 {
                     return NULL;
@@ -174,7 +174,7 @@ opa_value *opa_sets_union(opa_value *v)
             }
 
             opa_value *x = opa_set_union(r, elem->v);
-            opa_value_free(r);
+            opa_value_free_shallow(r);
             if (x == NULL)
             {
                 return NULL;

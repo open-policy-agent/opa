@@ -59,6 +59,10 @@ type VM struct {
 	free                 func(context.Context, int32) error
 	valueAddPath         func(context.Context, int32, int32, int32) (int32, error)
 	valueRemovePath      func(context.Context, int32, int32) (int32, error)
+	valueFree            func(context.Context, int32) error
+	heapBlocksStash      func(context.Context) error
+	heapBlocksRestore    func(context.Context) error
+	heapStashClear       func(context.Context) error
 }
 
 type vmOpts struct {
@@ -107,7 +111,7 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid module: %w", err)
 	}
-	if v.abiMajorVersion != int32(1) || (v.abiMinorVersion != int32(1) && v.abiMinorVersion != int32(2)) {
+	if v.abiMajorVersion != int32(1) || (v.abiMinorVersion != int32(1) && v.abiMinorVersion != int32(3)) {
 		return nil, fmt.Errorf("invalid module: unsupported ABI version: %d.%d", v.abiMajorVersion, v.abiMinorVersion)
 	}
 
@@ -154,6 +158,18 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	}
 	v.valueRemovePath = func(ctx context.Context, a int32, b int32) (int32, error) {
 		return call(ctx, v, "opa_value_remove_path", a, b)
+	}
+	v.valueFree = func(ctx context.Context, a int32) error {
+		return callVoid(ctx, v, "opa_value_free", a)
+	}
+	v.heapBlocksStash = func(ctx context.Context) error {
+		return callVoid(ctx, v, "opa_heap_blocks_stash")
+	}
+	v.heapBlocksRestore = func(ctx context.Context) error {
+		return callVoid(ctx, v, "opa_heap_blocks_restore")
+	}
+	v.heapStashClear = func(ctx context.Context) error {
+		return callVoid(ctx, v, "opa_heap_stash_clear")
 	}
 
 	// Initialize the heap.
@@ -452,11 +468,16 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 
 	i.dataAddr = 0
 
-	var err error
-	if err = i.setHeapState(ctx, i.baseHeapPtr); err != nil {
+	// Release any stashed heap blocks since they will be above the base heap pointer
+	if err := i.heapStashClear(ctx); err != nil {
 		return err
 	}
 
+	if err := i.setHeapState(ctx, i.baseHeapPtr); err != nil {
+		return err
+	}
+
+	var err error
 	if opts.parsedData != nil {
 		if uint32(i.memory.DataSize(i.store))-uint32(i.baseHeapPtr) < uint32(len(opts.parsedData)) {
 			delta := uint32(len(opts.parsedData)) - (uint32(i.memory.DataSize(i.store)) - uint32(i.baseHeapPtr))
@@ -481,7 +502,13 @@ func (i *VM) SetPolicyData(ctx context.Context, opts vmOpts) error {
 		}
 	}
 
-	if i.evalHeapPtr, err = i.getHeapState(ctx); err != nil {
+	// Stash any free blocks so that eval()/setHeapState() won't leak them
+	if err := i.heapBlocksStash(ctx); err != nil {
+		return err
+	}
+
+	i.evalHeapPtr, err = i.getHeapState(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -522,8 +549,12 @@ func (i *VM) Entrypoints() map[string]int32 {
 func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) error {
 	// Reset the heap ptr before patching the vm to try and keep any
 	// new allocations safe from subsequent heap resets on eval.
-	err := i.setHeapState(ctx, i.evalHeapPtr)
-	if err != nil {
+	if err := i.setHeapState(ctx, i.evalHeapPtr); err != nil {
+		return err
+	}
+
+	// Restore saved blocks protected from leaking in eval()/setHeapState()
+	if err := i.heapBlocksRestore(ctx); err != nil {
 		return err
 	}
 
@@ -545,8 +576,12 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 	// We don't need to free the value, assume it is "owned" as part of the
 	// overall data object now.
 	// We do need to free the path
+	if err := i.valueFree(ctx, pathAddr); err != nil {
+		return err
+	}
 
-	if err := i.free(ctx, pathAddr); err != nil {
+	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
+	if err := i.heapBlocksStash(ctx); err != nil {
 		return err
 	}
 
@@ -569,6 +604,18 @@ func (i *VM) SetDataPath(ctx context.Context, path []string, value interface{}) 
 // specified path. If an error occurs the instance is still in a valid state, however
 // the data will not have been modified.
 func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
+	// Reset the heap ptr before patching the vm to try and keep any
+	// new allocations safe from subsequent heap resets on eval.
+	err := i.setHeapState(ctx, i.evalHeapPtr)
+	if err != nil {
+		return err
+	}
+
+	// Restore saved blocks protected from leaking in eval()/setHeapState()
+	if err := i.heapBlocksRestore(ctx); err != nil {
+		return err
+	}
+
 	pathAddr, err := i.toRegoJSON(ctx, path, true)
 	if err != nil {
 		return err
@@ -579,7 +626,17 @@ func (i *VM) RemoveDataPath(ctx context.Context, path []string) error {
 		return err
 	}
 
-	if err := i.free(ctx, pathAddr); err != nil {
+	if err := i.valueFree(ctx, pathAddr); err != nil {
+		return err
+	}
+
+	// Stash free blocks so eval() calls don't leak them when calling setHeapState()
+	if err = i.heapBlocksStash(ctx); err != nil {
+		return err
+	}
+
+	// Update the eval heap pointer to accommodate for any newly available memory
+	if i.evalHeapPtr, err = i.getHeapState(ctx); err != nil {
 		return err
 	}
 
