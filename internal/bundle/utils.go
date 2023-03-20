@@ -131,7 +131,7 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 		}
 
 		r := bundle.NewReader(bytes.NewReader(bundlePackage.Bundle))
-		if opts.VerificationConfig != nil {
+		if opts != nil && opts.VerificationConfig != nil {
 			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
 		}
 		if bundlePackage.Etag != "" {
@@ -203,9 +203,14 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 		return fmt.Errorf("failed to read raw bundle bytes: %w", err)
 	}
 
+	var etag string
+	if opts != nil && opts.Etag != "" {
+		etag = opts.Etag
+	}
+
 	err = json.NewEncoder(tempBundlePackageDestination).Encode(bundlePackage{
 		Bundle: rawBundleBytes,
-		Etag:   opts.Etag,
+		Etag:   etag,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode bundle package: %w", err)
