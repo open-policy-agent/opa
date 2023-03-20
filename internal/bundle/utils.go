@@ -7,6 +7,7 @@ package bundle
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -196,24 +197,37 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 	if err != nil {
 		return fmt.Errorf("failed to create temporary bundle package file: %w", err)
 	}
-	defer tempBundlePackageDestination.Close()
-
-	rawBundleBytes, err := io.ReadAll(rawBundle)
-	if err != nil {
-		return fmt.Errorf("failed to read raw bundle bytes: %w", err)
-	}
 
 	var etag string
 	if opts != nil && opts.Etag != "" {
 		etag = opts.Etag
 	}
 
-	err = json.NewEncoder(tempBundlePackageDestination).Encode(bundlePackage{
-		Bundle: rawBundleBytes,
-		Etag:   etag,
-	})
+	// write the bundle package to the intermediary file in parts, first the metadata, followed by the bundle data.
+	// this is done to avoid loading the bundle data into memory only to write it to disk.
+	_, err = tempBundlePackageDestination.WriteString(fmt.Sprintf(`{"etag":"%s","bundle":"`, etag))
 	if err != nil {
-		return fmt.Errorf("failed to encode bundle package: %w", err)
+		return fmt.Errorf("failed to write metadata to bundle package file: %w", err)
+	}
+	// write the bundle data to the intermediary file, base64 encoded so that it can be unmarshalled as []byte
+	enc := base64.NewEncoder(base64.StdEncoding, tempBundlePackageDestination)
+	_, err = io.Copy(enc, rawBundle)
+	if err != nil {
+		return fmt.Errorf("failed to write bundle data to bundle package file: %w", err)
+	}
+	err = enc.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close bundle data base64 encoder: %w", err)
+	}
+	// complete the json file having written the bundle data
+	_, err = tempBundlePackageDestination.WriteString(`"}`)
+	if err != nil {
+		return fmt.Errorf("failed to complete writing of JSON data to bundle package file: %w", err)
+	}
+
+	err = tempBundlePackageDestination.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close bundle package file: %w", err)
 	}
 
 	// move the temporary file to the expected bundle package destination
