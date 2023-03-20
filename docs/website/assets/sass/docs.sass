@@ -1,5 +1,13 @@
 $panel-header-logo-width: 85%
 
+// this will add space before the target element so that the floating navbar
+// doesn't cover it when following an anchor link
+\:target::before
+  +desktop
+    content: ""
+    display: block
+    height: 4.25rem // height of the navbar + 1rem
+
 =flex
   display: flex
 
