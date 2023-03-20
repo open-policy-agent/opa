@@ -109,10 +109,6 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	params := r.URL.Query()
 
-	if _, ok := params["watch"]; ok {
-		h.logger.Warn("Deprecated 'watch' parameter specified in request. See https://github.com/open-policy-agent/opa/releases/tag/v0.23.0 for details.")
-	}
-
 	if _, ok := params["partial"]; ok {
 		h.logger.Warn("Deprecated 'partial' parameter specified in request. See https://github.com/open-policy-agent/opa/releases/tag/v0.23.0 for details.")
 	}
