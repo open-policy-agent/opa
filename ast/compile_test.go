@@ -3379,6 +3379,50 @@ q = [true | true] { true }
 			exp: MustParseRule(`q = __local0__ { true; __local0__ = [true | true] }`),
 		},
 		{
+			note: "array comprehension value in else head",
+			mod: MustParseModule(`package head
+q { 
+	false 
+} else = [true | true] { 
+	true 
+}
+`),
+			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = [true | true] }`),
+		},
+		{
+			note: "array comprehension value in head (comprehension-local var)",
+			mod: MustParseModule(`package head
+q = [a | a := true] {
+	false
+} else = [a | a := true] {
+	true
+}
+`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = [__local0__ | __local0__ = true] } else = __local3__ { true; __local3__ = [__local1__ | __local1__ = true] }`),
+		},
+		{
+			note: "array comprehension value in function head (comprehension-local var)",
+			mod: MustParseModule(`package head
+f(x) = [a | a := true] {
+	false
+} else = [a | a := true] {
+	true
+}
+`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = [__local1__ | __local1__ = true] } else = __local4__ { true; __local4__ = [__local2__ | __local2__ = true] }`),
+		},
+		{
+			note: "array comprehension value in else-func head (reused arg rewrite)",
+			mod: MustParseModule(`package head
+f(x, y) = [x | y] { 
+	false 
+} else = [x | y] {
+	true 
+}
+`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = [__local0__ | __local1__] } else = __local3__ { true; __local3__ = [__local0__ | __local1__] }`),
+		},
+		{
 			note: "object comprehension value",
 			mod: MustParseModule(`package head
 r = {"true": true | true} { true }
@@ -3386,11 +3430,99 @@ r = {"true": true | true} { true }
 			exp: MustParseRule(`r = __local0__ { true; __local0__ = {"true": true | true} }`),
 		},
 		{
+			note: "object comprehension value in else head",
+			mod: MustParseModule(`package head
+q { 
+	false 
+} else = {"true": true | true} { 
+	true 
+}
+`),
+			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = {"true": true | true} }`),
+		},
+		{
+			note: "object comprehension value in head (comprehension-local var)",
+			mod: MustParseModule(`package head
+q = {"a": a | a := true} {
+	false
+} else = {"a": a | a := true} {
+	true
+}
+`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = {"a": __local0__ | __local0__ = true} } else = __local3__ { true; __local3__ = {"a": __local1__ | __local1__ = true} }`),
+		},
+		{
+			note: "object comprehension value in function head (comprehension-local var)",
+			mod: MustParseModule(`package head
+f(x) = {"a": a | a := true} {
+	false
+} else = {"a": a | a := true} {
+	true
+}
+`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {"a": __local1__ | __local1__ = true} } else = __local4__ { true; __local4__ = {"a": __local2__ | __local2__ = true} }`),
+		},
+		{
+			note: "object comprehension value in else-func head (reused arg rewrite)",
+			mod: MustParseModule(`package head
+f(x, y) = {x: y | true} { 
+	false 
+} else = {x: y | true} {
+	true 
+}
+`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__: __local1__ | true} } else = __local3__ { true; __local3__ = {__local0__: __local1__ | true} }`),
+		},
+		{
 			note: "set comprehension value",
 			mod: MustParseModule(`package head
 s = {true | true} { true }
 `),
 			exp: MustParseRule(`s = __local0__ { true; __local0__ = {true | true} }`),
+		},
+		{
+			note: "set comprehension value in else head",
+			mod: MustParseModule(`package head
+q = {false | false} { 
+	false 
+} else = {true | true} { 
+	true 
+}
+`),
+			exp: MustParseRule(`q = __local0__ { false; __local0__ = {false | false} } else = __local1__ { true; __local1__ = {true | true} }`),
+		},
+		{
+			note: "set comprehension value in head (comprehension-local var)",
+			mod: MustParseModule(`package head
+q = {a | a := true} {
+	false
+} else = {a | a := true} {
+	true
+}
+`),
+			exp: MustParseRule(`q = __local2__ { false; __local2__ = {__local0__ | __local0__ = true} } else = __local3__ { true; __local3__ = {__local1__ | __local1__ = true} }`),
+		},
+		{
+			note: "set comprehension value in function head (comprehension-local var)",
+			mod: MustParseModule(`package head
+f(x) = {a | a := true} {
+	false
+} else = {a | a := true} {
+	true
+}
+`),
+			exp: MustParseRule(`f(__local0__) = __local3__ { false; __local3__ = {__local1__ | __local1__ = true} } else = __local4__ { true; __local4__ = {__local2__ | __local2__ = true} }`),
+		},
+		{
+			note: "set comprehension value in else-func head (reused arg rewrite)",
+			mod: MustParseModule(`package head
+f(x, y) = {x | y} { 
+	false 
+} else = {x | y} {
+	true 
+}
+`),
+			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__ | __local1__} } else = __local3__ { true; __local3__ = {__local0__ | __local1__} }`),
 		},
 		{
 			note: "import in else value",
@@ -5154,6 +5286,17 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 			a := {"foo": 1}
 			func(x) := { x: v | v := a[x] } {
 				input.test == "foo"
+			}`,
+			expectedErrors: Errors{},
+		},
+		{
+			note: "argvar not used in body but in else-head value comprehension",
+			module: `package test
+			a := {"foo": 1}
+			func(x) {
+				input.test == "foo"
+			} else := { x: v | v := a[x] } {
+				input.test == "bar"
 			}`,
 			expectedErrors: Errors{},
 		},
