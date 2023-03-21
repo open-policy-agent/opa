@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -798,6 +799,76 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDoWithResponseInClientLog(t *testing.T) {
+	ctx := context.Background()
+
+	body := "Some Bad Request was received"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, body)
+	}))
+	defer ts.Close()
+
+	buf := bytes.Buffer{}
+	logger := logging.New()
+	logger.SetOutput(&buf)
+	logger.SetLevel(logging.Debug)
+
+	config := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+			}`, ts.URL)
+	ks := map[string]*keys.Config{}
+	client, err := New([]byte(config), ks, Logger(logger))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	_, err = client.Do(ctx, "GET", ts.URL)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(buf.String(), body) {
+		t.Errorf("expected string %q not found in client logs", body)
+	}
+}
+
+func TestDoWithTruncatedResponseInClientLog(t *testing.T) {
+	ctx := context.Background()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, strings.Repeat("Some Bad Request was received", 50))
+	}))
+	defer ts.Close()
+
+	buf := bytes.Buffer{}
+	logger := logging.New()
+	logger.SetOutput(&buf)
+	logger.SetLevel(logging.Debug)
+
+	config := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+			}`, ts.URL)
+	ks := map[string]*keys.Config{}
+	client, err := New([]byte(config), ks, Logger(logger))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	_, err = client.Do(ctx, "GET", ts.URL)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	exp := "Some Bad Request was recei..."
+	if !strings.Contains(buf.String(), exp) {
+		t.Errorf("expected string %q not found in client logs", exp)
 	}
 }
 
