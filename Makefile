@@ -261,6 +261,7 @@ ci-release-test: generate
 
 .PHONY: ci-check-working-copy
 ci-check-working-copy: generate
+	go mod tidy
 	./build/check-working-copy.sh
 
 .PHONY: ci-wasm
