@@ -98,6 +98,6 @@ replace github.com/golang/glog => ./build/replacements/github.com/golang/glog
 // retract directive comment below will be displayed as a warning on pkg.go.dev for the old package name. Please retain
 // this for future releases.
 
-// Use the path github.com/open-policy-agent/opa (lower-case), not ...open-policy-agent/OPA.
+// Use the path github.com/open-policy-agent/opa (lower-case), not github.com/open-policy-agent/OPA.
 // Before 0.15.0 OPA was not using go modules and the correct import path was not enforced.
 retract [v0.1.0-rc1, v0.14.2]
