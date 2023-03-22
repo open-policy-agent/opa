@@ -1351,7 +1351,15 @@ func (c *interQueryCache) CheckCache() (ast.Value, error) {
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	return c.checkHTTPSendInterQueryCache()
+	resp, err = c.checkHTTPSendInterQueryCache()
+	// Always insert the result of the inter-query cache into the intra-query cache, to maintain consistency within the same query.
+	if err != nil {
+		insertErrorIntoHTTPSendCache(c.bctx, c.key, err)
+	}
+	if resp != nil {
+		insertIntoHTTPSendCache(c.bctx, c.key, resp)
+	}
+	return resp, err
 }
 
 // InsertIntoCache inserts the key set on this object into the cache with the given value
@@ -1361,11 +1369,12 @@ func (c *interQueryCache) InsertIntoCache(value *http.Response) (ast.Value, erro
 		return nil, handleHTTPSendErr(c.bctx, err)
 	}
 
-	// fallback to the http send cache if error encountered while inserting response in inter-query cache
-	err = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, value, respBody, c.forceCacheParams)
-	if err != nil {
-		insertIntoHTTPSendCache(c.bctx, c.key, result)
-	}
+	// Always insert into the intra-query cache, to maintain consistency within the same query.
+	insertIntoHTTPSendCache(c.bctx, c.key, result)
+
+	// We ignore errors when populating the inter-query cache, because we've already populated the intra-cache,
+	// and query consistency is our primary concern.
+	_ = insertIntoHTTPSendInterQueryCache(c.bctx, c.key, value, respBody, c.forceCacheParams)
 	return result, nil
 }
 

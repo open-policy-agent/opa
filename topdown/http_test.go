@@ -28,9 +28,11 @@ import (
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/tracing"
 
+	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -1058,7 +1060,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Expires": {"0"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 3,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET no-store cache",
@@ -1072,7 +1074,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"no-store"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 3,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET (response_stale_revalidate_with_etag)",
@@ -1086,7 +1088,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 3,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET (response_stale_revalidate_with_last_modified)",
@@ -1100,7 +1102,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 3,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET (response_age_negative_duration)",
@@ -1114,7 +1116,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}, "Date": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 3,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET cache hit deserialized mode (max_age_response_fresh)",
@@ -1374,7 +1376,7 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 2,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET cache deserialized mode (response_stale_revalidate_with_etag)",
@@ -1387,7 +1389,7 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 2,
+			expectedReqCount: 1,
 		},
 		{
 			note: "http.send GET (response_stale_revalidate_with_no_etag)",
@@ -1399,7 +1401,7 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 2,
+			expectedReqCount: 1,
 		},
 	}
 
@@ -1468,7 +1470,7 @@ func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 								}`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 2,
+			expectedReqCount: 1,
 		},
 	}
 
@@ -1529,8 +1531,8 @@ func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
 		{
 			note: "http.send GET (bad_date_header_value)",
 			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # fallback to normal cache
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from normal cache
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # response is always added into intra-query cache
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from intra-query cache
 									r1 == r2
 									x = r1.body
 								}`,
@@ -1541,8 +1543,8 @@ func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
 		{
 			note: "http.send GET (bad_cache_control_header_value)",
 			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # fallback to normal cache
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from normal cache
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # response is always added into intra-query cache
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from intra-query cache
 									r1 == r2
 									x = r1.body
 								}`,
@@ -2706,6 +2708,75 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 			t.Fatalf("expected %d cache hits, got %d", exp, act)
 		}
 	})
+}
+
+type onlyOnceInterQueryCache struct {
+	value   *interQueryCacheData
+	counter int
+}
+
+func (c *onlyOnceInterQueryCache) Get(_ ast.Value) (value iCache.InterQueryCacheValue, found bool) {
+	c.counter++
+	if c.counter == 1 {
+		return c.value, true
+	}
+	return nil, false
+}
+
+func (c *onlyOnceInterQueryCache) Insert(_ ast.Value, _ iCache.InterQueryCacheValue) int {
+	return 0
+}
+
+func (c *onlyOnceInterQueryCache) Delete(_ ast.Value) {}
+
+func (c *onlyOnceInterQueryCache) UpdateConfig(_ *iCache.Config) {}
+
+func TestInterQueryCacheConcurrentModification(t *testing.T) {
+
+	// create an inter-query cache that'll return a value on first access, but none at subsequent accesses.
+	clock := time.Now()
+	req := ast.NewObject(
+		[2]*ast.Term{ast.StringTerm("method"), ast.StringTerm("get")},
+		[2]*ast.Term{ast.StringTerm("url"), ast.StringTerm("foobar")},
+		[2]*ast.Term{ast.StringTerm("cache"), ast.BooleanTerm(true)},
+	)
+	resp := interQueryCacheData{
+		Headers: map[string][]string{
+			"Date": {"Thu, 01 Jan 1970 00:00:00 GMT"},
+		},
+		ExpiresAt: clock.Add(time.Hour),
+	}
+	interQueryCache := onlyOnceInterQueryCache{value: &resp}
+
+	reqStr := req.String()
+	rule := fmt.Sprintf(`package test
+	p := http.send(%s)
+	q := http.send(%s)
+`, reqStr, reqStr)
+	c, err := compileRules([]string{}, []string{}, []string{rule})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	qStr := "x = data.test.p; y = data.test.q"
+	ctx := context.Background()
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	q := NewQuery(ast.MustParseBody(qStr)).
+		WithCompiler(c).
+		WithStore(store).
+		WithTransaction(txn).
+		WithInterQueryBuiltinCache(&interQueryCache).
+		WithTime(clock)
+
+	res, err := q.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res[0]["x"].Value.Compare(res[0]["y"].Value) != 0 {
+		t.Fatalf("Expected x and y to be equal, got %v and %v", res[0]["x"].Value, res[0]["y"].Value)
+	}
 }
 
 func TestIntraQueryCache_ClientError(t *testing.T) {
