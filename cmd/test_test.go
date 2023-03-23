@@ -3,8 +3,14 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -271,4 +277,137 @@ test_p {
 	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
 		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, err)
 	}
+}
+
+func TestWatchMode(t *testing.T) {
+
+	var buff bytes.Buffer
+	testParams.output = &buff
+
+	policyPath := "test/policy.rego"
+	dataPath := "test/data.json"
+
+	fs := map[string]string{
+		policyPath: `package test
+
+		x := 1
+		`,
+		"test/tests.rego": `package test
+
+		import data.y
+		
+		test_x {
+			x == 1
+		}
+
+		test_y {
+			y == 2
+		}
+		`,
+		dataPath: `{"y": 2}`,
+	}
+
+	updatedPolicy1 := `package test
+
+		x := 3
+		`
+
+	newPolicyPath := "test/tests2.rego"
+	newPolicy := `package added_test
+	
+		foo := "bar"
+		
+		test_foo {
+			foo == "baz"
+		}
+		`
+
+	updatedData := `{"y": 3}`
+
+	expectedOutput := `PASS: 2/2
+********************************************************************************
+Watching for changes ...
+%ROOT%/test/tests.rego:
+data.test.test_x: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+PASS: 1/2
+FAIL: 1/2
+********************************************************************************
+Watching for changes ...
+%ROOT%/test/tests.rego:
+data.test.test_x: FAIL (%TIME%)
+data.test.test_y: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 2/2
+********************************************************************************
+Watching for changes ...
+%ROOT%/test/tests.rego:
+data.test.test_x: FAIL (%TIME%)
+data.test.test_y: FAIL (%TIME%)
+
+%ROOT%/test/tests2.rego:
+data.added_test.test_foo: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 3/3
+********************************************************************************
+Watching for changes ...
+%ROOT%/test/tests.rego:
+data.test.test_x: FAIL (%TIME%)
+data.test.test_y: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 2/2
+********************************************************************************
+Watching for changes ...
+`
+
+	test.WithTempFS(fs, func(p string) {
+		testParams.watch = true
+
+		rootDir := filepath.Join(p, "test")
+
+		go opaTest([]string{rootDir})
+
+		time.Sleep(1 * time.Second)
+
+		// Update policy file
+		if err := os.WriteFile(path.Join(p, policyPath), []byte(updatedPolicy1), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// Update data file
+		if err := os.WriteFile(path.Join(p, dataPath), []byte(updatedData), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// add new policy file
+		if err := os.WriteFile(path.Join(p, newPolicyPath), []byte(newPolicy), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// remove added policy file
+		if err := os.Remove(path.Join(p, newPolicyPath)); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// TODO: Test adding and removing data files (currently not supported)
+
+		testParams.killChan <- syscall.SIGINT
+
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		actualOutput := r.ReplaceAllString(buff.String(), "FAIL (%TIME%)")
+
+		expectedOutput = strings.ReplaceAll(expectedOutput, "%ROOT%", p)
+
+		if expectedOutput != actualOutput {
+			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expectedOutput, actualOutput)
+		}
+	})
 }

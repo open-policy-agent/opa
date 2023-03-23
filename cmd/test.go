@@ -7,7 +7,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -16,7 +20,11 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
+	"github.com/open-policy-agent/opa/filewatcher"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/loader"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/tester"
@@ -47,6 +55,9 @@ type testCommandParams struct {
 	target       *util.EnumFlag
 	skipExitZero bool
 	capabilities *capabilitiesFlag
+	watch        bool
+	output       io.Writer
+	killChan     chan os.Signal
 }
 
 func newTestCommandParams() *testCommandParams {
@@ -55,6 +66,8 @@ func newTestCommandParams() *testCommandParams {
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		capabilities: newcapabilitiesFlag(),
+		output:       os.Stdout,
+		killChan:     make(chan os.Signal, 1),
 	}
 }
 
@@ -148,10 +161,66 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	},
 }
 
-func opaTest(args []string) int {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func newOnReload(c chan int) filewatcher.OnReload {
 
+	onReload := func(ctx context.Context, txn storage.Transaction, d time.Duration, s storage.Store, l *initload.LoadPathsResult, err error) {
+		notify := func() {
+			c <- 1
+		}
+		defer notify()
+
+		if err != nil {
+			fmt.Printf("error reloading files: %v\n", err)
+			return
+		}
+
+		// FIXME: We don't detect when data files are removed.
+		if len(l.Files.Documents) > 0 {
+			if err := s.Write(ctx, txn, storage.AddOp, storage.Path{}, l.Files.Documents); err != nil {
+				fmt.Printf("storage error: %v\n", err)
+				return
+			}
+		}
+
+		modules := map[string]*ast.Module{}
+		for id, module := range l.Files.Modules {
+			modules[id] = module.Parsed
+		}
+
+		compileAndRunTests(ctx, txn, s, modules, l.Bundles)
+	}
+
+	return onReload
+}
+
+func watchTests(ctx context.Context, paths []string, filter loader.Filter, bundleMode bool, store storage.Store) int {
+	reloadChan := make(chan int)
+	onReload := newOnReload(reloadChan)
+
+	signal.Notify(testParams.killChan, syscall.SIGINT, syscall.SIGTERM)
+
+	logger := logging.New()
+
+	w := filewatcher.NewFileWatcher(paths, filter, bundleMode, store, onReload, logger)
+	err := w.Start(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error", err)
+		return 1
+	}
+
+	for {
+		fmt.Fprintln(testParams.output, strings.Repeat("*", 80))
+		fmt.Fprintln(testParams.output, "Watching for changes ...")
+		select {
+		case <-testParams.killChan:
+			return 0
+		case <-reloadChan:
+			break
+		}
+	}
+}
+
+func opaTest(args []string) int {
 	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
 		fmt.Fprintf(os.Stderr, "cannot use output format %s without running benchmarks (--bench)\n", benchmarkGoBenchOutput)
 		return 0
@@ -166,22 +235,26 @@ func opaTest(args []string) int {
 		Ignore: testParams.ignore,
 	}
 
-	var modules map[string]*ast.Module
-	var bundles map[string]*bundle.Bundle
 	var store storage.Store
 	var err error
 
-	if testParams.bundleMode {
-		bundles, err = tester.LoadBundles(args, filter.Apply)
-		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
-	} else {
-		modules, store, err = tester.Load(args, filter.Apply)
-	}
-
+	result, err := initload.LoadPaths(args, filter.Apply, testParams.bundleMode, nil, true, false, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+
+	store = inmem.NewFromObjectWithOpts(result.Files.Documents, inmem.OptRoundTripOnWrite(false))
+
+	modules := map[string]*ast.Module{}
+	for _, m := range result.Files.Modules {
+		modules[m.Name] = m.Parsed
+	}
+
+	bundles := result.Bundles
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -189,7 +262,17 @@ func opaTest(args []string) int {
 		return 1
 	}
 
-	defer store.Abort(ctx, txn)
+	if testParams.watch {
+		compileAndRunTests(ctx, txn, store, modules, bundles)
+		store.Commit(ctx, txn)
+		return watchTests(ctx, args, filter.Apply, testParams.bundleMode, store)
+	} else {
+		defer store.Abort(ctx, txn)
+		return compileAndRunTests(ctx, txn, store, modules, bundles)
+	}
+}
+
+func compileAndRunTests(ctx context.Context, txn storage.Transaction, store storage.Store, modules map[string]*ast.Module, bundles map[string]*bundle.Bundle) int {
 
 	var capabilities *ast.Capabilities
 	// if capabilities are not provided as a cmd flag,
@@ -266,7 +349,7 @@ func opaTest(args []string) int {
 		default:
 			reporter = tester.PrettyReporter{
 				Verbose:                  testParams.verbose,
-				Output:                   os.Stdout,
+				Output:                   testParams.output,
 				BenchmarkResults:         testParams.benchmark,
 				BenchMarkShowAllocations: testParams.benchMem,
 				BenchMarkGoBenchFormat:   goBench,
@@ -276,7 +359,7 @@ func opaTest(args []string) int {
 		reporter = tester.JSONCoverageReporter{
 			Cover:     cov,
 			Modules:   modules,
-			Output:    os.Stdout,
+			Output:    testParams.output,
 			Threshold: testParams.threshold,
 		}
 	}
@@ -386,5 +469,6 @@ func init() {
 	setExplainFlag(testCommand.Flags(), testParams.explain)
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
+	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch for file changes and re-run tests")
 	RootCommand.AddCommand(testCommand)
 }

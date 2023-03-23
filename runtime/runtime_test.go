@@ -18,41 +18,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/report"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/server"
-
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
-func TestWatchPaths(t *testing.T) {
-
-	fs := map[string]string{
-		"/foo/bar/baz.json": "true",
-	}
-
-	expected := []string{
-		".", "/foo", "/foo/bar",
-	}
-
-	test.WithTempFS(fs, func(rootDir string) {
-		paths, err := getWatchPaths([]string{"prefix:" + rootDir + "/foo"})
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		result := []string{}
-		for _, p := range paths {
-			result = append(result, filepath.Clean(strings.TrimPrefix(p, rootDir)))
-		}
-		if !reflect.DeepEqual(expected, result) {
-			t.Fatalf("Expected %q but got: %q", expected, result)
-		}
-	})
-}
-
+// TODO: Refactor watch tests to be reusable.
 func TestRuntimeProcessWatchEvents(t *testing.T) {
 	testRuntimeProcessWatchEvents(t, false)
 }
@@ -181,7 +157,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 
 		ch := make(chan error)
 
-		testFunc := func(d time.Duration, err error) {
+		testFunc := func(ctx context.Context, txn storage.Transaction, d time.Duration, s storage.Store, l *initload.LoadPathsResult, err error) {
 			ch <- err
 		}
 
