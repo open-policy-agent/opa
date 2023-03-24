@@ -142,6 +142,7 @@ var builtinsFunctions = map[string]string{
 	ast.ObjectKeys.Name:                 "builtin_object_keys",
 	ast.ObjectRemove.Name:               "builtin_object_remove",
 	ast.ObjectUnion.Name:                "builtin_object_union",
+	ast.ObjectUnionN.Name:               "builtin_object_union_n",
 	ast.Concat.Name:                     "opa_strings_concat",
 	ast.FormatInt.Name:                  "opa_strings_format_int",
 	ast.IndexOf.Name:                    "opa_strings_indexof",
