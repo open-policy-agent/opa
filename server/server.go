@@ -95,6 +95,7 @@ const (
 	PromHandlerIndex      = "index"
 	PromHandlerCatch      = "catchall"
 	PromHandlerHealth     = "health"
+	PromHandlerAPIAuthz   = "authz"
 )
 
 const pqMaxCacheSize = 100
@@ -183,18 +184,16 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
 	s.defaultDecisionPath = s.generateDefaultDecisionPath()
-	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
-	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 	s.manager.RegisterNDCacheTrigger(s.updateNDCache)
 
-	// authorizer, if configured, needs the iCache to be set up already
-	s.Handler = s.initHandlerAuth(s.Handler)
+	s.Handler = s.initHandlerAuthn(s.Handler)
+
 	// compression handler
 	s.Handler, err = s.initHandlerCompression(s.Handler)
 	if err != nil {
 		return nil, err
 	}
-	s.DiagnosticHandler = s.initHandlerAuth(s.DiagnosticHandler)
+	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -641,9 +640,18 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 	return domainSocketLoop, l, nil
 }
 
-func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
-	// Add authorization handler. This must come BEFORE authentication handler
-	// so that the latter can run first.
+func (s *Server) initHandlerAuthn(handler http.Handler) http.Handler {
+	switch s.authentication {
+	case AuthenticationToken:
+		handler = identifier.NewTokenBased(handler)
+	case AuthenticationTLS:
+		handler = identifier.NewTLSBased(handler)
+	}
+
+	return handler
+}
+
+func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 	switch s.authorization {
 	case AuthorizationBasic:
 		handler = authorizer.NewBasic(
@@ -655,13 +663,10 @@ func (s *Server) initHandlerAuth(handler http.Handler) http.Handler {
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
 			authorizer.InterQueryCache(s.interQueryBuiltinCache))
-	}
 
-	switch s.authentication {
-	case AuthenticationToken:
-		handler = identifier.NewTokenBased(handler)
-	case AuthenticationTLS:
-		handler = identifier.NewTLSBased(handler)
+		if s.metrics != nil {
+			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
+		}
 	}
 
 	return handler
@@ -689,6 +694,16 @@ func (s *Server) initRouters() {
 	}
 
 	diagRouter := mux.NewRouter()
+
+	// authorizer, if configured, needs the iCache to be set up already
+	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
+	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
+
+	// Add authorization handler. This must come BEFORE authentication handler
+	// so that the latter can run first.
+	handlerAuthz := s.initHandlerAuthz(mainRouter)
+
+	handlerAuthzDiag := s.initHandlerAuthz(diagRouter)
 
 	// All routers get the same base configuration *and* diagnostic API's
 	for _, router := range []*mux.Router{mainRouter, diagRouter} {
@@ -771,6 +786,10 @@ func (s *Server) initRouters() {
 
 	s.Handler = mainRouter
 	s.DiagnosticHandler = diagRouter
+
+	// Add authorization handler in the end so that it can run first
+	s.Handler = handlerAuthz
+	s.DiagnosticHandler = handlerAuthzDiag
 }
 
 func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Request), label string) http.Handler {
