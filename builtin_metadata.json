@@ -11335,7 +11335,7 @@
       "name": "output",
       "type": "any"
     },
-    "wasm": false
+    "wasm": true
   },
   "opa.runtime": {
     "args": [],
