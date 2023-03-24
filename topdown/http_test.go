@@ -1004,158 +1004,81 @@ func TestHTTPSendCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendIntraQueryCaching(t *testing.T) {
+func TestHTTPSendInterQueryCaching(t *testing.T) {
 	tests := []struct {
 		note             string
-		ruleTemplate     string
+		query            string // each query is run three times
 		headers          map[string][]string
 		body             string
 		response         string
 		expectedReqCount int
 	}{
 		{
-			note:             "http.send GET single",
-			ruleTemplate:     `p = x { http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, r); x = r.body }`,
+			note:             "http.send GET cache hit (max_age_response_fresh)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit (max_age_response_fresh)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
-			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
-			response:         `{"x": 1}`,
-			expectedReqCount: 1,
-		},
-		{
-			note: "http.send GET cache hit (expires_header_response_fresh)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # cached and fresh
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET cache hit (expires_header_response_fresh)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Expires": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET (expires_header_invalid_value)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET (expires_header_invalid_value)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Expires": {"0"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET no-store cache",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})  # not cached
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET no-store cache",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"no-store"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET (response_stale_revalidate_with_etag)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_stale_revalidate_with_etag)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET (response_stale_revalidate_with_last_modified)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_stale_revalidate_with_last_modified)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET (response_age_negative_duration)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_age_negative_duration)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Last-Modified": {"Wed, 31 Dec 2115 07:28:00 GMT"}, "Date": {"Wed, 31 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET cache hit deserialized mode (max_age_response_fresh)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})  # cached and fresh
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})  # cached and fresh
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET cache hit deserialized mode (max_age_response_fresh)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit serialized mode explicit (max_age_response_fresh)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})  # cached and fresh
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"})  # cached and fresh
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET cache hit serialized mode explicit (max_age_response_fresh)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "serialized"}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:         `{"x": 1}`,
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit serialized mode explicit (max_age_response_fresh), when parsing a yaml response",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})
-									r2 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})  # cached and fresh
-									r3 = http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"})  # cached and fresh
-									r1 == r2
-									r2 == r3
-									x = r1.body
-								}`,
+			note:  "http.send GET cache hit serialized mode explicit (max_age_response_fresh), when parsing a yaml response",
+			query: `http.send({"method": "get", "url": "%URL%", "cache": true, "caching_mode": "serialized"}, x)`,
 			headers: map[string][]string{
 				"Cache-Control": {"max-age=290304000, public"},
 				"Content-Type":  {"application/yaml"},
@@ -1166,10 +1089,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 		},
 	}
 
-	data := loadSmallTestData()
-
 	t0 := time.Now()
-	opts := setTime(t0)
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -1202,11 +1122,22 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
+			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
+			q := newQuery(qStr, t0)
 
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			for i := 0; i < 3; i++ {
+				res, err := q.Run(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response on query %d to be %v, got %v", i, tc.response, resResponse.String())
+				}
+			}
+
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
@@ -1214,9 +1145,10 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
+func TestHTTPSendInterQueryForceCaching(t *testing.T) {
 	tests := []struct {
 		note             string
+		query            string
 		ruleTemplate     string
 		headers          map[string][]string
 		body             string
@@ -1224,7 +1156,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 		expectedReqCount int
 	}{
 		{
-			note: "http.send GET cache hit (force_cache_only)",
+			note:  "http.send GET cache hit (force_cache_only)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1238,7 +1171,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit, empty headers (force_cache_only)",
+			note:  "http.send GET cache hit, empty headers (force_cache_only)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1252,7 +1186,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit (cache_param_override)",
+			note:  "http.send GET cache hit (cache_param_override)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1266,7 +1201,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit (force_cache_only_no_store_override)",
+			note:  "http.send GET cache hit (force_cache_only_no_store_override)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1283,7 +1219,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit (cache_param_override_no_store_override)",
+			note:  "http.send GET cache hit (cache_param_override_no_store_override)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1300,7 +1237,8 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			expectedReqCount: 1,
 		},
 		{
-			note: "http.send GET cache hit (cache_param_override_no_store_override_invalid_expires_header_value)",
+			note:  "http.send GET cache hit (cache_param_override_no_store_override_invalid_expires_header_value)",
+			query: `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300}, x)`,
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})
 									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "force_cache": true, "force_cache_duration_seconds": 300})  # cached and fresh
@@ -1318,12 +1256,9 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 		},
 	}
 
-	data := map[string]interface{}{}
-
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			t0 := time.Now().UTC()
-			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1344,11 +1279,24 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
+			//runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
 
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
+			q := newQuery(qStr, t0)
+
+			for i := 0; i < 3; i++ {
+				res, err := q.Run(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response on query %d to be %v, got %v", i, tc.response, resResponse.String())
+				}
+			}
+
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Errorf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
@@ -1356,61 +1304,41 @@ func TestHTTPSendIntraQueryForceCaching(t *testing.T) {
 	}
 }
 
-func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
+func TestHTTPSendInterQueryCachingModifiedResp(t *testing.T) {
 	tests := []struct {
 		note             string
-		ruleTemplate     string
+		query            string
 		headers          map[string][]string
 		body             string
 		response         string
 		expectedReqCount int
 	}{
 		{
-			note: "http.send GET (response_stale_revalidate_with_etag)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # cached and fresh
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_stale_revalidate_with_etag)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 2,
 		},
 		{
-			note: "http.send GET cache deserialized mode (response_stale_revalidate_with_etag)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}) # cached and fresh
-									r2 == r3
-									x = r1.body
-								}`,
+			note:             "http.send GET cache deserialized mode (response_stale_revalidate_with_etag)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true, "caching_mode": "deserialized"}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 2,
 		},
 		{
-			note: "http.send GET (response_stale_revalidate_with_no_etag)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r1 == r2
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_stale_revalidate_with_no_etag)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 	}
-
-	data := loadSmallTestData()
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			t0 := time.Now().UTC()
-			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1439,11 +1367,24 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
+			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
+			q := newQuery(qStr, t0)
+
+			for i := 0; i < 3; i++ {
+				res, err := q.Run(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response on query %d to be %v, got %v", i, tc.response, resResponse.String())
+				}
+			}
 
 			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
 			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
@@ -1451,35 +1392,27 @@ func TestHTTPSendIntraQueryCachingModifiedResp(t *testing.T) {
 	}
 }
 
-func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
+func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 	tests := []struct {
 		note             string
-		ruleTemplate     string
+		query            string // each query will be run three times
 		headers          map[string][]string
 		body             string
 		response         string
 		expectedReqCount int
 	}{
 		{
-			note: "http.send GET (response_stale_revalidate_with_etag)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true})
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # stale
-									r3 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # cached and fresh
-									x = r1.body
-								}`,
+			note:             "http.send GET (response_stale_revalidate_with_etag)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Etag": {"1234"}, "location": {"/test"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 2,
 		},
 	}
-
-	data := loadSmallTestData()
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			t0 := time.Now().UTC()
-			opts := setTime(t0)
 
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1507,11 +1440,22 @@ func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response, opts)
+			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
+			q := newQuery(qStr, t0)
 
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			for i := 0; i < 3; i++ {
+				res, err := q.Run(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response on query %d to be %v, got %v", i, tc.response, resResponse.String())
+				}
+			}
+
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
@@ -1519,44 +1463,49 @@ func TestHTTPSendIntraQueryCachingNewResp(t *testing.T) {
 	}
 }
 
-func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
+func newQuery(qStr string, t0 time.Time) *Query {
+	config, _ := iCache.ParseCachingConfig(nil)
+	interQueryCache := iCache.NewInterQueryCache(config)
+	ctx := context.Background()
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	q := NewQuery(ast.MustParseBody(qStr)).
+		WithCompiler(ast.NewCompiler()).
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTime(t0)
+	return q
+}
+
+func TestInsertIntoHTTPSendInterQueryCacheError(t *testing.T) {
 	tests := []struct {
 		note             string
-		ruleTemplate     string
+		query            string
 		headers          map[string][]string
 		body             string
 		response         string
 		expectedReqCount int
 	}{
 		{
-			note: "http.send GET (bad_date_header_value)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # response is always added into intra-query cache
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from intra-query cache
-									r1 == r2
-									x = r1.body
-								}`,
+			note:             "http.send GET (bad_date_header_value)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=0, public"}, "Date": {"Wed, 32 Dec 2115 07:28:00 GMT"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 		{
-			note: "http.send GET (bad_cache_control_header_value)",
-			ruleTemplate: `p = x {
-									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # response is always added into intra-query cache
-									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}) # retrieved from intra-query cache
-									r1 == r2
-									x = r1.body
-								}`,
+			note:             "http.send GET (bad_cache_control_header_value)",
+			query:            `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}, x)`,
 			headers:          map[string][]string{"Cache-Control": {"max-age=\"foo\", public"}},
 			response:         `{"x": 1}`,
-			expectedReqCount: 1,
+			expectedReqCount: 3,
 		},
 	}
 
-	data := loadSmallTestData()
-
 	for _, tc := range tests {
+		t0 := time.Now().UTC()
+
 		t.Run(tc.note, func(t *testing.T) {
 			var requests []*http.Request
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1575,11 +1524,22 @@ func TestInsertIntoHTTPSendIntraQueryCacheError(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			runTopDownTestCase(t, data, tc.note, []string{strings.ReplaceAll(tc.ruleTemplate, "%URL%", ts.URL)}, tc.response)
+			qStr := strings.ReplaceAll(tc.query, "%URL%", ts.URL)
+			q := newQuery(qStr, t0)
 
-			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
-			// eval first), so expect 2x the total request count the test case specified.
-			actualCount := len(requests) / 2
+			for i := 0; i < 3; i++ {
+				res, err := q.Run(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response on query %d to be %v, got %v", i, tc.response, resResponse.String())
+				}
+			}
+
+			actualCount := len(requests)
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
 			}
