@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/open-policy-agent/opa/internal/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
 
@@ -3345,6 +3346,166 @@ func TestStatusV1(t *testing.T) {
 	}
 	if resp2.Result.Bundles.Test.HTTPCode != "403" {
 		t.Fatal("expected HTTPCode to equal 403 but got:", resp2)
+	}
+}
+
+func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
+
+	ctx := context.Background()
+
+	// Add the authz policy
+	store := inmem.New()
+	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+	authzPolicy := `package system.authz
+	default allow = false
+	allow {
+		input.path = ["v1", "status"]
+	}`
+
+	if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.Commit(ctx, txn); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add Prometheus Registerer to be used by plugins
+	inner := metrics.New()
+
+	logger := func(logger logging.Logger) func(attrs map[string]interface{}, f string, a ...interface{}) {
+		return func(attrs map[string]interface{}, f string, a ...interface{}) {
+			logger.WithFields(attrs).Error(f, a...)
+		}
+	}(logging.NewNoOpLogger())
+
+	prom := prometheus.New(inner, logger)
+	serverOpts := []func(s *Server){func(s *Server) { s.WithAuthorization(AuthorizationBasic) }, func(s *Server) { s.WithMetrics(prom) }}
+
+	f := newFixtureWithStore(t, store, serverOpts...)
+
+	// Expect HTTP 500 before status plugin is registered
+	req := newReqV1(http.MethodGet, "/status", "")
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusInternalServerError {
+		t.Fatal("expected internal error")
+	}
+
+	// Register Status plugin
+	manual := plugins.TriggerManual
+	bs := pluginStatus.New(&pluginStatus.Config{Trigger: &manual, Prometheus: true}, f.server.manager).WithMetrics(prom)
+	err := bs.Start(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.server.manager.Register(pluginStatus.Name, bs)
+
+	// Fetch the status info
+	req = newReqV1(http.MethodGet, "/status", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+	if f.recorder.Result().StatusCode != http.StatusOK {
+		t.Fatal("expected ok")
+	}
+
+	var resp1 struct {
+		Result struct {
+			Plugins struct {
+				Status struct {
+					State string
+				}
+			}
+		}
+	}
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
+		t.Fatal(err)
+	} else if resp1.Result.Plugins.Status.State != "OK" {
+		t.Fatal("expected plugin state for status to be 'OK' but got:", resp1)
+	}
+
+	// Make requests that should get denied
+	req = newReqV1(http.MethodGet, "/policies", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	req = newReqV1(http.MethodGet, "/data", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Expected success but got %v", f.recorder)
+	}
+
+	// Check Prometheus status metrics in the Status API
+
+	req = newReqV1(http.MethodGet, "/status", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	if f.recorder.Result().StatusCode != http.StatusOK {
+		t.Fatal("expected ok")
+	}
+
+	var resp struct {
+		Result struct {
+			Plugins struct {
+				Status struct {
+					State string
+				}
+			}
+			Metrics map[string]interface{}
+		}
+	}
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	} else if resp.Result.Plugins.Status.State != "OK" {
+		t.Fatal("expected plugin state for status to be 'OK' but got:", resp)
+	}
+
+	met, ok := resp.Result.Metrics["prometheus"]
+	if !ok {
+		t.Fatal("expected prometheus metrics to be present in status")
+	}
+
+	promMet, ok := met.(map[string]interface{})
+	if !ok {
+		t.Fatal("expected prometheus metrics to be a map")
+	}
+
+	httpMet, ok := promMet["http_request_duration_seconds"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected http_request_duration_seconds metric to be a map")
+	}
+
+	innerMet, ok := httpMet["metric"].([]interface{})
+	if !ok {
+		t.Fatal("expected http_request_duration_seconds histogram metric to be a list")
+	}
+
+	expected := []interface{}{map[string]interface{}{"name": "code", "value": "401"},
+		map[string]interface{}{"name": "handler", "value": "authz"},
+		map[string]interface{}{"name": "method", "value": "get"}}
+
+	found := false
+	for _, m := range innerMet {
+		item, ok := m.(map[string]interface{})
+		if ok {
+			if reflect.DeepEqual(item["label"].([]interface{}), expected) {
+				found = true
+				break
+			}
+		} else {
+			t.Fatal("expected each http_request_duration_seconds histogram metric element to be a map")
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected to find metrics %v but found no match", expected)
 	}
 }
 
