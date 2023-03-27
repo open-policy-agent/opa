@@ -1014,7 +1014,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 		body                       string
 		response                   string
 		expectedReqCount           int
-		expectedIntraQueryCacheHit bool
+		expectedInterQueryCacheHit bool
 	}{
 		{
 			note:                       "http.send GET single",
@@ -1023,7 +1023,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
 			expectedReqCount:           1,
-			expectedIntraQueryCacheHit: false,
+			expectedInterQueryCacheHit: false,
 		},
 		{
 			note:    "http.send GET multiple",
@@ -1039,7 +1039,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
 			expectedReqCount:           1,
-			expectedIntraQueryCacheHit: false,
+			expectedInterQueryCacheHit: false,
 		},
 		{
 			note:    "http.send GET multiple (inter-query cache enabled)",
@@ -1055,7 +1055,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
 			response:                   `{"x": 1}`,
 			expectedReqCount:           1,
-			expectedIntraQueryCacheHit: true,
+			expectedInterQueryCacheHit: true,
 		},
 		{
 			note:    "http.send GET multiple (inter-query cache enabled, )",
@@ -1071,7 +1071,7 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			headers:                    map[string][]string{"Cache-Control": {"no-store"}},
 			response:                   `{"x": 1}`,
 			expectedReqCount:           1,
-			expectedIntraQueryCacheHit: false,
+			expectedInterQueryCacheHit: false,
 		},
 	}
 
@@ -1138,8 +1138,8 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 				t.Fatalf("failed create request object: %v", err)
 			}
 
-			if _, found := interQueryCache.Get(cacheKey); found != tc.expectedIntraQueryCacheHit {
-				t.Fatalf("Expected intra-query cache hit: %v, got: %v", tc.expectedIntraQueryCacheHit, found)
+			if _, found := interQueryCache.Get(cacheKey); found != tc.expectedInterQueryCacheHit {
+				t.Fatalf("Expected inter-query cache hit: %v, got: %v", tc.expectedInterQueryCacheHit, found)
 			}
 		})
 	}
