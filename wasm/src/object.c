@@ -567,6 +567,34 @@ opa_value *builtin_object_union(opa_value *a, opa_value *b)
 }
 
 OPA_BUILTIN
+opa_value *builtin_object_union_n(opa_value *a)
+{
+    opa_value *r = NULL;
+
+    for (opa_value *key = opa_value_iter(a, NULL); key != NULL;
+         key = opa_value_iter(a, key)){
+        opa_value *next_obj = opa_value_get(a, key);
+        if (opa_value_type(next_obj) != OPA_OBJECT) {
+            return NULL;
+        }
+
+        if (r == NULL) {
+            r = next_obj;
+        } else {
+            opa_value *merged = builtin_object_union(r, next_obj);
+
+            if (merged == NULL) {
+                return NULL;
+            }
+
+            r = merged;
+        }
+    }
+
+    return r;
+}
+
+OPA_BUILTIN
 opa_value *builtin_json_remove(opa_value *obj, opa_value *paths)
 {
     if (opa_value_type(obj) != OPA_OBJECT)

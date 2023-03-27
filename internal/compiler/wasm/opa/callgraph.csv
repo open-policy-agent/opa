@@ -545,6 +545,10 @@ __merge,opa_value_type
 __merge,__merge
 __merge,opa_object_insert
 __merge,opa_value_get
+builtin_object_union_n,opa_value_iter
+builtin_object_union_n,opa_value_get
+builtin_object_union_n,opa_value_type
+builtin_object_union_n,__merge
 builtin_json_remove,opa_value_type
 builtin_json_remove,__get_json_paths
 builtin_json_remove,__paths_to_object

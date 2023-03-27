@@ -335,24 +335,23 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
-	# TODO: update busybox shell debug images to image without openssl
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
-		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 endif
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static \
-		--build-arg BASE=cgr.dev/chainguard/static \
+		--build-arg BASE=cgr.dev/chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -360,7 +359,7 @@ endif
 
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-static-debug \
-		--build-arg BASE=gcr.io/distroless/static:debug \
+		--build-arg BASE=cgr.dev/chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform linux/$* \
@@ -371,7 +370,7 @@ endif
 push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$* \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
@@ -379,7 +378,7 @@ push-manifest-list-%: ensure-executable-bin
 	# TODO: update busybox shell debug images to image without openssl
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
-		--build-arg BASE=gcr.io/distroless/cc:debug \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
@@ -387,7 +386,7 @@ push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-rootless \
 		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--push \
@@ -395,7 +394,7 @@ push-manifest-list-%: ensure-executable-bin
 
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static \
-		--build-arg BASE=cgr.dev/chainguard/static \
+		--build-arg BASE=cgr.dev/chainguard/static:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
@@ -404,7 +403,7 @@ push-manifest-list-%: ensure-executable-bin
 
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-static-debug \
-		--build-arg BASE=gcr.io/distroless/static:debug \
+		--build-arg BASE=cgr.dev/chainguard/busybox:latest-glibc \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \

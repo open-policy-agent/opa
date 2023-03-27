@@ -36,13 +36,13 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.14.0
 	go.opentelemetry.io/otel/sdk v1.14.0
 	go.opentelemetry.io/otel/trace v1.14.0
-	go.uber.org/automaxprocs v1.5.1
+	go.uber.org/automaxprocs v1.5.2
 	golang.org/x/net v0.8.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.53.0
+	google.golang.org/grpc v1.54.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
-	oras.land/oras-go/v2 v2.0.1
+	oras.land/oras-go/v2 v2.0.2
 )
 
 require (
@@ -95,6 +95,9 @@ require (
 // work.
 replace github.com/golang/glog => ./build/replacements/github.com/golang/glog
 
-// Before 0.15.0 OPA was not using go modules. We must retract these releases in order to have pkg.go.dev
-// show the latest versions. See: https://github.com/golang/go/issues/58925
+// retract directive comment below will be displayed as a warning on pkg.go.dev for the old package name. Please retain
+// this for future releases.
+
+// Use the path github.com/open-policy-agent/opa (lower-case), not github.com/open-policy-agent/OPA.
+// Before 0.15.0 OPA was not using go modules and the correct import path was not enforced.
 retract [v0.1.0-rc1, v0.14.2]

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"reflect"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 
 const (
 	defaultResponseHeaderTimeoutSeconds = int64(10)
+	defaultResponseSizeLimitBytes       = 1024
 
 	grantTypeClientCredentials = "client_credentials"
 	grantTypeJwtBearer         = "jwt_bearer"
@@ -311,6 +313,19 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		// that. In the non-error case, the caller may not do anything.
 		c.loggerFields["status"] = resp.Status
 		c.loggerFields["headers"] = resp.Header
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			dump, err := httputil.DumpResponse(resp, true)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(string(dump)) < defaultResponseSizeLimitBytes {
+				c.loggerFields["response"] = string(dump)
+			} else {
+				c.loggerFields["response"] = fmt.Sprintf("%v...", string(dump[:defaultResponseSizeLimitBytes]))
+			}
+		}
 		c.logger.WithFields(c.loggerFields).Debug("Received response.")
 	}
 

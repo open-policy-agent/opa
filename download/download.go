@@ -315,7 +315,16 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			defer m.Timer(metrics.RegoLoadBundles).Stop()
 			baseURL := path.Join(d.client.Config().URL, d.path)
 
-			loader := bundle.NewTarballLoaderWithBaseURL(io.TeeReader(resp.Body, &buf), baseURL)
+			cnt := &count{}
+			r := io.TeeReader(resp.Body, cnt)
+
+			var loader bundle.DirectoryLoader
+			if d.persist {
+				tee := io.TeeReader(r, &buf)
+				loader = bundle.NewTarballLoaderWithBaseURL(tee, baseURL)
+			} else {
+				loader = bundle.NewTarballLoaderWithBaseURL(r, baseURL)
+			}
 
 			etag := resp.Header.Get("ETag")
 
@@ -356,7 +365,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				raw:      &buf,
 				etag:     etag,
 				longPoll: isLongPollSupported(resp.Header),
-				size:     buf.Len(),
+				size:     cnt.Bytes(),
 			}, nil
 		}
 
@@ -381,6 +390,20 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 	default:
 		return nil, HTTPError{StatusCode: resp.StatusCode}
 	}
+}
+
+type count struct {
+	total int
+}
+
+func (c *count) Write(p []byte) (n int, err error) {
+	n = len(p)
+	c.total += n
+	return
+}
+
+func (c *count) Bytes() int {
+	return c.total
 }
 
 func isLongPollSupported(header http.Header) bool {
