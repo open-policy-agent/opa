@@ -665,6 +665,7 @@ type httpSendCacheEntry struct {
 	error    error
 }
 
+// The httpSendCache is used for intra-query caching of http.send results.
 type httpSendCache struct {
 	entries *util.HashMap
 }
