@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/open-policy-agent/opa/util"
 	"io"
 	"math"
 	"net"
@@ -999,6 +1000,146 @@ func TestHTTPSendCaching(t *testing.T) {
 			actualCount := len(requests) / 2
 			if actualCount != tc.expectedReqCount {
 				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+		})
+	}
+}
+
+func TestHTTPSendIntraQueryCaching(t *testing.T) {
+	tests := []struct {
+		note                       string
+		request                    string
+		ruleTemplate               string
+		headers                    map[string][]string
+		body                       string
+		response                   string
+		expectedReqCount           int
+		expectedIntraQueryCacheHit bool
+	}{
+		{
+			note:                       "http.send GET single",
+			request:                    `{"method": "get", "url": "%URL%", "force_json_decode": true}`,
+			ruleTemplate:               `p = x { http.send(%REQ%, r); x = r.body }`,
+			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:                   `{"x": 1}`,
+			expectedReqCount:           1,
+			expectedIntraQueryCacheHit: false,
+		},
+		{
+			note:    "http.send GET multiple",
+			request: `{"method": "get", "url": "%URL%", "force_json_decode": true}`,
+			ruleTemplate: `p = x {
+									r1 = http.send(%REQ%)
+									r2 = http.send(%REQ%)  # cached
+									r3 = http.send(%REQ%)  # cached
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:                   `{"x": 1}`,
+			expectedReqCount:           1,
+			expectedIntraQueryCacheHit: false,
+		},
+		{
+			note:    "http.send GET multiple (inter-query cache enabled)",
+			request: `{"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}`,
+			ruleTemplate: `p = x {
+									r1 = http.send(%REQ%)
+									r2 = http.send(%REQ%) # cached; intra-query populated but ignored
+									r3 = http.send(%REQ%) # cached; intra-query populated but ignored
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:                    map[string][]string{"Cache-Control": {"max-age=290304000, public"}},
+			response:                   `{"x": 1}`,
+			expectedReqCount:           1,
+			expectedIntraQueryCacheHit: true,
+		},
+		{
+			note:    "http.send GET multiple (inter-query cache enabled, )",
+			request: `{"method": "get", "url": "%URL%", "force_json_decode": true, "cache": true}`,
+			ruleTemplate: `p = x {
+									r1 = http.send(%REQ%)
+									r2 = http.send(%REQ%) # cached; intra-query not populated
+									r3 = http.send(%REQ%) # cached; intra-query not populated
+									r1 == r2
+									r2 == r3
+									x = r1.body
+								}`,
+			headers:                    map[string][]string{"Cache-Control": {"no-store"}},
+			response:                   `{"x": 1}`,
+			expectedReqCount:           1,
+			expectedIntraQueryCacheHit: false,
+		},
+	}
+
+	data := loadSmallTestData()
+
+	t0 := time.Now()
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var requests []*http.Request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r)
+				headers := w.Header()
+
+				for k, v := range tc.headers {
+					headers[k] = v
+				}
+
+				headers.Set("Date", t0.Format(time.RFC850))
+
+				etag := w.Header().Get("etag")
+				lm := w.Header().Get("last-modified")
+
+				if etag != "" {
+					if r.Header.Get("if-none-match") == etag {
+						w.WriteHeader(http.StatusNotModified)
+					}
+				} else if lm != "" {
+					if r.Header.Get("if-modified-since") == lm {
+						w.WriteHeader(http.StatusNotModified)
+					}
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
+				_, _ = w.Write([]byte(tc.response)) // ignore error
+			}))
+			defer ts.Close()
+
+			config, _ := iCache.ParseCachingConfig(nil)
+			interQueryCache := iCache.NewInterQueryCache(config)
+
+			opts := []func(*Query) *Query{
+				setTime(t0),
+				setInterQueryCache(interQueryCache),
+			}
+
+			request := strings.ReplaceAll(tc.request, "%URL%", ts.URL)
+			rule := strings.ReplaceAll(tc.ruleTemplate, "%REQ%", request)
+			runTopDownTestCase(t, data, tc.note, []string{rule}, tc.response, opts...)
+
+			// Note: The runTopDownTestCase ends up evaluating twice (once with and once without partial
+			// eval first), so expect 2x the total request count the test case specified.
+			actualCount := len(requests) / 2
+			if actualCount != tc.expectedReqCount {
+				t.Fatalf("Expected to get %d requests, got %d", tc.expectedReqCount, actualCount)
+			}
+
+			var x interface{}
+			if err := util.UnmarshalJSON([]byte(request), &x); err != nil {
+				t.Fatalf("failed to unmarshal request: %v", err)
+			}
+			cacheKey, err := ast.InterfaceToValue(x)
+			if err != nil {
+				t.Fatalf("failed create request object: %v", err)
+			}
+
+			if _, found := interQueryCache.Get(cacheKey); found != tc.expectedIntraQueryCacheHit {
+				t.Fatalf("Expected intra-query cache hit: %v, got: %v", tc.expectedIntraQueryCacheHit, found)
 			}
 		})
 	}

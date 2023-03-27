@@ -1061,6 +1061,12 @@ func setTime(t time.Time) func(*Query) *Query {
 	}
 }
 
+func setInterQueryCache(c iCache.InterQueryCache) func(*Query) *Query {
+	return func(q *Query) *Query {
+		return q.WithInterQueryBuiltinCache(c)
+	}
+}
+
 func setAllowNet(a []string) func(*Query) *Query {
 	return func(q *Query) *Query {
 		c := q.compiler.Capabilities()
