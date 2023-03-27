@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/open-policy-agent/opa/util"
 	"io"
 	"math"
 	"net"
@@ -32,6 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/tracing"
+	"github.com/open-policy-agent/opa/util"
 
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
