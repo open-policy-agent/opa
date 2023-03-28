@@ -2,7 +2,7 @@
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
 
-  Torque:
+  torque:
      title: Torque
      description: Torque by Quali is a cloud-based platform that provides infrastructure automation and orchestration solutions for digital transformation and DevOps initiatives. Troque utilizes Open Policy Agent (OPA) to enforce policy-as-code, enabling users to define and automate their own security, compliance, and governance policies across their infrastructure.
      labels:
@@ -19,14 +19,13 @@ integrations:
        - gcp
        - azure
      tutorials:
-       - https://docs.qtorque.io/admin-guide/governance/policies
+       - https://docs.qtorque.io/governance/policies
      code:
        - https://github.com/QualiTorque/opa
      inventors:
-       - Quali
+       - quali
      blogs:
        - https://www.quali.com/blog/enforcing-open-policy-agent-guardrails-across-your-cloud-configurations/
-       - https://www.quali.com/blog/requiring-approvals-for-cloud-infrastructure-based-on-cost-thresholds/
 
   easegress:
     title: Easegress
