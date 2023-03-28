@@ -1650,6 +1650,9 @@ integrations:
         link: https://www.youtube.com/watch?v=Is1iBPr1YVs
 
 organizations:
+  quali:
+    name: Quali
+    link: https://www.quali.com/
   styra:
     name: Styra
     link: https://styra.com
