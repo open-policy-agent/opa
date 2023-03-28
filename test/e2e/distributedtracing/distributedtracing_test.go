@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/test/e2e"
 	"github.com/open-policy-agent/opa/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -326,6 +327,80 @@ func TestClientSpan(t *testing.T) {
 			attribute.Int("http.status_code", 200),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
+	})
+}
+
+func TestServerSpanWithSystemAuthzPolicy(t *testing.T) {
+
+	// setup
+	spanExp := tracetest.NewInMemoryExporter()
+	options := tracing.NewOptions(
+		otelhttp.WithTracerProvider(trace.NewTracerProvider(trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(spanExp)))),
+	)
+
+	authzPolicy := []byte(`package system.authz
+default allow = false
+allow {
+	input.path = ["health"]
+}`)
+
+	tmpfile, err := os.CreateTemp("", "authz.*.rego")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write(authzPolicy); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	testServerParams := e2e.NewAPIServerTestParams()
+	testServerParams.DistributedTracingOpts = options
+	testServerParams.Authorization = server.AuthorizationBasic
+	testServerParams.Paths = []string{"system.authz:" + tmpfile.Name()}
+
+	e2e.WithRuntime(t, e2e.TestRuntimeOpts{}, testServerParams, func(rt *e2e.TestRuntime) {
+
+		spanExp.Reset()
+
+		mr, err := http.Post(rt.URL()+"/v1/data", "application/json", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mr.Body.Close()
+
+		if mr.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected status %v but got %v", http.StatusUnauthorized, mr.StatusCode)
+		}
+
+		spans := spanExp.GetSpans()
+		if got, expected := len(spans), 1; got != expected {
+			t.Fatalf("got %d span(s), expected %d", got, expected)
+		}
+		if !spans[0].SpanContext.IsValid() {
+			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
+		}
+
+		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
+			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
+		}
+
+		expected := []attribute.KeyValue{
+			attribute.String("http.host", strings.Replace(rt.URL(), "http://", "", 1)),
+			attribute.String("http.method", "POST"),
+			attribute.String("http.scheme", "http"),
+			attribute.String("http.server_name", server.PromHandlerAPIAuthz),
+			attribute.Int("http.status_code", 401),
+			attribute.String("http.target", "/v1/data"),
+			attribute.String("http.user_agent", "Go-http-client/1.1"),
+			attribute.Int("http.wrote_bytes", 87),
+			attribute.String("net.transport", "ip_tcp"),
+		}
+		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
+
 	})
 }
 

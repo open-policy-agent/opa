@@ -154,7 +154,8 @@ packages however it is recommended that administrators keep the policy under the
 
 If the document produced by the ``allow`` rule is ``true``, the request is
 processed normally. If the document is undefined or **not** ``true``, the
-request is rejected immediately.
+request is rejected immediately. The count of requests rejected by an OPA instance
+are surfaced via the performance metrics in the [Status](../management-status) information.
 
 OPA provides the following `input` document when executing the authorization
 policy:
