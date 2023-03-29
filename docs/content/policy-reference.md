@@ -837,6 +837,12 @@ p {
 
 {{< builtin-table cat=http title=HTTP >}}
 
+
+{{< info >}}
+Similar to other built-in functions, multiple calls to the `http.send` built-in function for a given request object
+within a single policy evaluation query will always return the same value.
+{{< /info >}}
+
 {{< danger >}}
 This built-in function **must not** be used for effecting changes in
 external systems as OPA does not guarantee that the statement will be executed due

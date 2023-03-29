@@ -1,12 +1,17 @@
 $panel-header-logo-width: 85%
 
-// this will add space before the target element so that the floating navbar
-// doesn't cover it when following an anchor link
-\:target::before
-  +desktop
-    content: ""
-    display: block
-    height: 4.25rem // height of the navbar + 1rem
+.dashboard-main
+  .article
+    +desktop
+      // this is the height of the navbar and warning banner
+      max-height: calc(100vh - 10.5rem)
+      overflow: scroll
+.dashboard-wrapper.banner-version-warning-dismissed
+  .dashboard-main
+    .article
+      +desktop
+        // this is the height of the warning banner only
+        max-height: calc(100vh - 3.5rem)
 
 =flex
   display: flex
@@ -172,7 +177,7 @@ $panel-header-logo-width: 85%
 
   // this is used to make the banner appear in the same position as the page
   // scrolls
-  position: fixed
+  position: sticky
   width: 100%
   z-index: 100
 
@@ -185,9 +190,5 @@ $panel-header-logo-width: 85%
   &.is-info
     border-image: 50 repeating-linear-gradient(75deg, #296fa8 0, #296fa8 1rem, transparent 0, transparent 2rem)
 
-  // the hidden clone of the message is used to 'push down' the dashboard
-  // when a message is being displayed by the correct amount
-  &.hidden
-    flex: 0 1 auto
-    visibility: hidden
-    position: relative
+.dashboard-wrapper.banner-version-warning-dismissed .banner-version-warning
+    display: none
