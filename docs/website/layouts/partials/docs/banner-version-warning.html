@@ -27,12 +27,6 @@
       <button class="delete" aria-label="delete"></button>
     </div>
   </div>
-  <!-- this is here to add make sure the space in the dom is retained and pushes down the dashboard the correct amount-->
-  <div class="message is-danger banner-version-warning hidden">
-    <div class="message-body">
-      This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
-    </div>
-  </div>
 {{- else if (and (ne $version $latest) (ne $version $latestVersionString)) }}
   <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
     <div class="message-body">
@@ -40,12 +34,6 @@
       {{ if not $ancient }}
         <button class="delete" aria-label="delete"></button>
       {{ end }}
-    </div>
-  </div>
-  <!-- this is here to add make sure the space in the dom is retained and pushes down the dashboard the correct amount-->
-  <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning hidden ">
-    <div class="message-body">
-      These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
     </div>
   </div>
 {{- end }}
