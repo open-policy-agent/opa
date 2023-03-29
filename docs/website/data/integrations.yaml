@@ -27,19 +27,6 @@ integrations:
      blogs:
        - https://www.quali.com/blog/enforcing-open-policy-agent-guardrails-across-your-cloud-configurations/
 
-  easegress:
-    title: Easegress
-    description: |
-      Easegress is a Cloud Native API orchestration system.
-      OPA can be configured as a filter(plugin) to implement authorization policies for the APIs.
-    labels:
-      category: gateway
-      layer: network
-    code:
-      - https://github.com/megaease/easegress
-    inventors:
-      - megaease
-
   styra-das:
     title: Styra Declarative Authorization Service
     description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
