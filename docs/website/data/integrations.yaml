@@ -1,6 +1,32 @@
 # This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
 # For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
 integrations:
+
+  torque:
+    title: Torque
+    description: Torque by Quali is a cloud-based platform that provides infrastructure automation and orchestration solutions for digital transformation and DevOps initiatives. Troque utilizes Open Policy Agent (OPA) to enforce policy-as-code, enabling users to define and automate their own security, compliance, and governance policies across their infrastructure.
+    labels:
+      category: Environments as a Service
+      layer: Infrastructure
+      type: poweredbyopa
+    software:
+      - terraform
+      - helm
+      - cloudformation
+      - kubernetes
+      - ansible
+      - aws
+      - gcp
+      - azure
+    tutorials:
+      - https://docs.qtorque.io/governance/policies
+    code:
+      - https://github.com/QualiTorque/opa
+    inventors:
+      - quali
+    blogs:
+      - https://www.quali.com/blog/enforcing-open-policy-agent-guardrails-across-your-cloud-configurations/
+
   styra-das:
     title: Styra Declarative Authorization Service
     description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
@@ -1610,6 +1636,9 @@ integrations:
         link: https://www.youtube.com/watch?v=Is1iBPr1YVs
 
 organizations:
+  quali:
+    name: Quali
+    link: https://www.quali.com/
   styra:
     name: Styra
     link: https://styra.com
