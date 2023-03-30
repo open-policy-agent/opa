@@ -1,6 +1,6 @@
 function initBannerVersionWarningCloseButton() {
   $(".banner-version-warning").find(".delete").click(function() {
-    $(".dashboard-wrapper").addClass("banner-version-warning-dismissed");
+    $(".dashboard-wrapper").removeClass("showing-banner-version-warning");
   });
 }
 
