@@ -14,7 +14,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.67.0
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.5.3
 	github.com/gorilla/mux v1.8.0
