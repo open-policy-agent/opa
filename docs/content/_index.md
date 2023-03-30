@@ -800,7 +800,9 @@ curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa
 
 {{< info >}}
 Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
-The steps below are the same for Windows users except the executable name will be different.
+The steps below are the same for Windows users except the executable name will be different.  
+Windows executable file name is opa_windows_amd64.exe, which inclues file extension name 'exe'. The checksums file name is opa_windows_amd64.exe.sha256.  
+Windows users can obtain the checksums from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe.sha256).
 {{< /info >}}
 
 Set permissions on the OPA executable:
