@@ -1710,7 +1710,7 @@ func TestStatusMetricsForLogDrops(t *testing.T) {
 	}
 
 	builtInMet := e.Fields["metrics"].(map[string]interface{})["<built-in>"]
-	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped"]
+	dropCount := builtInMet.(map[string]interface{})["counter_decision_logs_dropped_rate_limit_exceeded"]
 
 	actual, err := dropCount.(json.Number).Int64()
 	if err != nil {

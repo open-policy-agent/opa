@@ -236,16 +236,18 @@ func roundtripJSONToAST(x interface{}) (ast.Value, error) {
 
 const (
 	// min amount of time to wait following a failure
-	minRetryDelay               = time.Millisecond * 100
-	defaultMinDelaySeconds      = int64(300)
-	defaultMaxDelaySeconds      = int64(600)
-	defaultUploadSizeLimitBytes = int64(32768) // 32KB limit
-	defaultBufferSizeLimitBytes = int64(0)     // unlimited
-	defaultMaskDecisionPath     = "/system/log/mask"
-	defaultDropDecisionPath     = "/system/log/drop"
-	logDropCounterName          = "decision_logs_dropped"
-	logNDBDropCounterName       = "decision_logs_nd_builtin_cache_dropped"
-	defaultResourcePath         = "/logs"
+	minRetryDelay                       = time.Millisecond * 100
+	defaultMinDelaySeconds              = int64(300)
+	defaultMaxDelaySeconds              = int64(600)
+	defaultUploadSizeLimitBytes         = int64(32768) // 32KB limit
+	defaultBufferSizeLimitBytes         = int64(0)     // unlimited
+	defaultMaskDecisionPath             = "/system/log/mask"
+	defaultDropDecisionPath             = "/system/log/drop"
+	logRateLimitExDropCounterName       = "decision_logs_dropped_rate_limit_exceeded"
+	logNDBDropCounterName               = "decision_logs_nd_builtin_cache_dropped"
+	logBufferSizeLimitExDropCounterName = "decision_logs_dropped_buffer_size_limit_bytes_exceeded"
+	logEncodingFailureCounterName       = "decision_logs_encoding_failure"
+	defaultResourcePath                 = "/logs"
 )
 
 // ReportingConfig represents configuration for the plugin's reporting behaviour.
@@ -778,10 +780,6 @@ func (p *Plugin) doOneShot(ctx context.Context) error {
 
 	p.status.SetError(err)
 
-	if p.metrics != nil {
-		p.status.Metrics = p.metrics
-	}
-
 	if s := status.Lookup(p.manager); s != nil {
 		s.UpdateDecisionLogsStatus(*p.status)
 	}
@@ -873,7 +871,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 	if p.limiter != nil {
 		if !p.limiter.Allow() {
 			if p.metrics != nil {
-				p.metrics.Counter(logDropCounterName).Incr()
+				p.metrics.Counter(logRateLimitExDropCounterName).Incr()
 			}
 
 			p.logger.Error("Decision log dropped as rate limit exceeded. Reduce reporting interval or increase rate limit.")
@@ -889,6 +887,10 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 			// TODO(tsandall): revisit this now that we have an API that
 			// can return an error. Should the default behaviour be to
 			// fail-closed as we do for plugins?
+
+			if p.metrics != nil {
+				p.metrics.Counter(logEncodingFailureCounterName).Incr()
+			}
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
@@ -899,6 +901,9 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 
 		result, err = p.enc.Write(newEvent)
 		if err != nil {
+			if p.metrics != nil {
+				p.metrics.Counter(logEncodingFailureCounterName).Incr()
+			}
 			p.logger.Error("Log encoding failed: %v.", err)
 			return
 		}
@@ -916,6 +921,9 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 	dropped := buffer.Push(bs)
 	if dropped > 0 {
+		if p.metrics != nil {
+			p.metrics.Counter(logBufferSizeLimitExDropCounterName).Incr()
+		}
 		p.logger.Error("Dropped %v chunks from buffer. Reduce reporting interval or increase buffer size.", dropped)
 	}
 }
