@@ -796,7 +796,209 @@ func TestPluginStatusUpdateHTTPError(t *testing.T) {
 	}
 }
 
-func TestPluginStatusUpdate(t *testing.T) {
+func TestPluginStatusUpdateEncodingFailure(t *testing.T) {
+	ctx := context.Background()
+	testLogger := test.New()
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger:                 testLogger,
+		ReportingUploadSizeLimitBytes: 1,
+	})
+	defer fixture.server.stop()
+
+	m := metrics.New()
+	fixture.plugin.metrics = m
+	fixture.plugin.enc.metrics = m
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	event := &server.Info{
+		DecisionID: "abc",
+		Path:       "foo/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-1",
+		Timestamp:  ts,
+	}
+
+	err = fixture.plugin.Log(ctx, event)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fixture.plugin.mtx.Lock()
+	if fixture.plugin.enc.bytesWritten != 0 {
+		t.Fatal("Expected no event to be written into the encoder")
+	}
+	fixture.plugin.mtx.Unlock()
+
+	// Create a status plugin that logs to console
+	pluginConfig := []byte(`{
+			"console": true,
+		}`)
+
+	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
+
+	fixture.manager.Register(status.Name, p)
+	if err := fixture.manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trigger a status update
+	fixture.server.expCode = 200
+	err = fixture.plugin.doOneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected error")
+	}
+
+	// Give the logger / console some time to process and print the events
+	time.Sleep(10 * time.Millisecond)
+	p.Stop(ctx)
+
+	entries := testLogger.Entries()
+	if len(entries) == 0 {
+		t.Fatal("Expected log entries but got none")
+	}
+
+	// Pick the last entry as it should have the decision log metrics
+	e := entries[len(entries)-1]
+
+	if _, ok := e.Fields["metrics"]; !ok {
+		t.Fatal("Expected metrics field in status update")
+	}
+
+	fmt.Println(e.Fields["metrics"])
+
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_encoding_failure": json.Number("1"),
+		"counter_enc_log_exceeded_upload_size_limit_bytes": json.Number("1")}}
+
+	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
+	}
+}
+
+func TestPluginStatusUpdateBufferSizeExceeded(t *testing.T) {
+	ctx := context.Background()
+	testLogger := test.New()
+
+	ts, err := time.Parse(time.RFC3339Nano, "2018-01-01T12:00:00.123456Z")
+	if err != nil {
+		panic(err)
+	}
+
+	fixture := newTestFixture(t, testFixtureOptions{
+		ConsoleLogger:                 testLogger,
+		ReportingBufferSizeLimitBytes: 200,
+		ReportingUploadSizeLimitBytes: 300,
+	})
+	defer fixture.server.stop()
+
+	fixture.server.ch = make(chan []EventV1, 1)
+
+	fixture.plugin.metrics = metrics.New()
+
+	var input interface{} = map[string]interface{}{"method": "GET"}
+	var result interface{} = false
+
+	event1 := &server.Info{
+		DecisionID: "abc",
+		Path:       "foo/bar",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-1",
+		Timestamp:  ts,
+	}
+
+	event2 := &server.Info{
+		DecisionID: "def",
+		Path:       "foo/baz",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-2",
+		Timestamp:  ts,
+	}
+
+	event3 := &server.Info{
+		DecisionID: "ghi",
+		Path:       "foo/aux",
+		Input:      &input,
+		Results:    &result,
+		RemoteAddr: "test-3",
+		Timestamp:  ts,
+	}
+
+	// write event 1 and 2 into the encoder and check the chunk is inserted into the buffer
+	_ = fixture.plugin.Log(ctx, event1)
+	_ = fixture.plugin.Log(ctx, event2)
+
+	fixture.plugin.mtx.Lock()
+	if fixture.plugin.enc.bytesWritten == 0 {
+		t.Fatal("Expected event to be written into the encoder")
+	}
+
+	if fixture.plugin.buffer.Len() == 0 {
+		t.Fatal("Expected one chunk to be written into the buffer")
+	}
+	fixture.plugin.mtx.Unlock()
+
+	// write event 3 into the encoder and then flush the encoder which will result in the event being
+	// written to the buffer. But given the buffer size it won't be able to hold this event and will
+	// drop the existing chunk
+	_ = fixture.plugin.Log(ctx, event3)
+
+	// Create a status plugin that logs to console
+	pluginConfig := []byte(`{
+			"console": true,
+		}`)
+
+	config, _ := status.ParseConfig(pluginConfig, fixture.manager.Services(), nil)
+	p := status.New(config, fixture.manager).WithMetrics(fixture.plugin.metrics)
+
+	fixture.manager.Register(status.Name, p)
+	if err := fixture.manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Trigger a status update
+	fixture.server.expCode = 200
+	err = fixture.plugin.doOneShot(ctx)
+	if err != nil {
+		t.Fatal("Unexpected error")
+	}
+
+	<-fixture.server.ch
+
+	// Give the logger / console some time to process and print the events
+	time.Sleep(10 * time.Millisecond)
+	p.Stop(ctx)
+
+	entries := testLogger.Entries()
+	if len(entries) == 0 {
+		t.Fatal("Expected log entries but got none")
+	}
+
+	// Pick the last entry as it should have the decision log metrics
+	e := entries[len(entries)-1]
+
+	if _, ok := e.Fields["metrics"]; !ok {
+		t.Fatal("Expected metrics field in status update")
+	}
+
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_buffer_size_limit_bytes_exceeded": json.Number("1")}}
+
+	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
+	}
+}
+
+func TestPluginStatusUpdateRateLimitExceeded(t *testing.T) {
 	ctx := context.Background()
 	testLogger := test.New()
 
@@ -889,17 +1091,17 @@ func TestPluginStatusUpdate(t *testing.T) {
 		t.Fatal("Expected log entries but got none")
 	}
 
-	// Pick the last entry as it should have the decision log update
+	// Pick the last entry as it should have the decision log metrics
 	e := entries[len(entries)-1]
 
-	if _, ok := e.Fields["decision_logs"]; !ok {
-		t.Fatal("Expected decision_log status update")
+	if _, ok := e.Fields["metrics"]; !ok {
+		t.Fatal("Expected metrics field in status update")
 	}
 
-	exp := map[string]interface{}{"metrics": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
 
-	if !reflect.DeepEqual(e.Fields["decision_logs"], exp) {
-		t.Fatalf("Expected %v but got %v", exp, e.Fields["decision_logs"])
+	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
+		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
 	}
 }
 
@@ -1059,7 +1261,7 @@ func TestPluginRateLimitDropCountStatus(t *testing.T) {
 		t.Fatal("Expected metrics")
 	}
 
-	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped": json.Number("2")}}
+	exp := map[string]interface{}{"<built-in>": map[string]interface{}{"counter_decision_logs_dropped_rate_limit_exceeded": json.Number("2")}}
 
 	if !reflect.DeepEqual(e.Fields["metrics"], exp) {
 		t.Fatalf("Expected %v but got %v", exp, e.Fields["metrics"])
@@ -2040,6 +2242,7 @@ type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
 	ReportingUploadSizeLimitBytes  int64
 	ReportingMaxDecisionsPerSecond float64
+	ReportingBufferSizeLimitBytes  int64
 	Resource                       *string
 	TestServerPath                 *string
 	PartitionName                  *string
@@ -2148,6 +2351,10 @@ func newTestFixture(t *testing.T, opts ...testFixtureOptions) testFixture {
 
 	if options.ReportingUploadSizeLimitBytes != 0 {
 		config.Reporting.UploadSizeLimitBytes = &options.ReportingUploadSizeLimitBytes
+	}
+
+	if options.ReportingBufferSizeLimitBytes != 0 {
+		config.Reporting.BufferSizeLimitBytes = &options.ReportingBufferSizeLimitBytes
 	}
 
 	if s, ok := manager.PluginStatus()[Name]; ok {

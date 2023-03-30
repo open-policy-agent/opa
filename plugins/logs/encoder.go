@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	encHardLimitThreshold            = 0.9
-	softLimitBaseFactor              = 2
-	softLimitExponentScaleFactor     = 0.2
-	encSoftLimitScaleUpCounterName   = "enc_soft_limit_scale_up"
-	encSoftLimitScaleDownCounterName = "enc_soft_limit_scale_down"
-	encSoftLimitStableCounterName    = "enc_soft_limit_stable"
+	encHardLimitThreshold              = 0.9
+	softLimitBaseFactor                = 2
+	softLimitExponentScaleFactor       = 0.2
+	encLogExUploadSizeLimitCounterName = "enc_log_exceeded_upload_size_limit_bytes"
+	encSoftLimitScaleUpCounterName     = "enc_soft_limit_scale_up"
+	encSoftLimitScaleDownCounterName   = "enc_soft_limit_scale_down"
+	encSoftLimitStableCounterName      = "enc_soft_limit_stable"
 )
 
 // chunkEncoder implements log buffer chunking and compression. Log events are
@@ -65,6 +66,9 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 	if len(bs) == 0 {
 		return nil, nil
 	} else if int64(len(bs)+2) > enc.limit {
+		if enc.metrics != nil {
+			enc.metrics.Counter(encLogExUploadSizeLimitCounterName).Incr()
+		}
 		return nil, fmt.Errorf("upload chunk size (%d) exceeds upload_size_limit_bytes (%d)",
 			int64(len(bs)+2), enc.limit)
 	}
