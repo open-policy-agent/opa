@@ -3,7 +3,64 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.51.0
+
+This release contains improvements to monitoring and an assortment of fixes and improvements.
+
+### Monitoring
+
+- Surface unauthorized response count from OPA API authz handler ([#3378](https://github.com/open-policy-agent/opa/issues/3378)) authored by @ashutosh-narkar
+- plugins: Surface more decision log errors via status API ([#5637](https://github.com/open-policy-agent/opa/issues/5637)) authored by @ashutosh-narkar
+- plugins/rest: Include truncated HTTP response in logs ([#2961](https://github.com/open-policy-agent/opa/issues/2961)) authored by @ashutosh-narkar reported by @gshively11
+
+### Topdown and Rego
+
+- wasm: Add native support for `object.union_n` built-in function (authored by @Azanul)
+
+### Fixes
+
+- ast/compile: Guard recursive module equality check. ([#5756](https://github.com/open-policy-agent/opa/issues/5756)) authored by @philipaconrad
+- ast: Relaxing strict-mode check for unused args in else-branching functions. ([#5758](https://github.com/open-policy-agent/opa/issues/5758)) authored by @johanfylling reported by @ethanjli
+- ast: Properly set the reported location of unused variables in strict-mode errors. ([#5662](https://github.com/open-policy-agent/opa/issues/5662)) authored by @boranx
+- fmt: report wrong arity for built-in functions. ([#5646](https://github.com/open-policy-agent/opa/issues/5646)) authored by @Trolloldem
+- topdown: http.send(): Ensuring intra-query caching consistency. ([#5736](https://github.com/open-policy-agent/opa/issues/5736)) authored by @johanfylling
+- Use Normalized policy paths as compiler module keys and store ids. (authored by @ashutosh-narkar)
+
+### Docs, Website, and Ecosystem
+
+- Fix typo in documentation (authored by @eternaltyro)
+- Update TLS authentication docs (authored by @charlieegan3)
+- Update _index.md (authored by @Ronnie-personal)
+- docs: Small fix to context placement in integration (authored by @craigpastro)
+- docs/website: Fix floating navbar anchor issue ([5774](https://github.com/open-policy-agent/opa/issues/5774)) authored by @charlieegan3 reported by @kristiansvalland
+- Ecosystem:
+  - Add Quali Torque (authored by @shirabendor-quali)
+  
+### Miscellaneous
+
+- Update -debug images to use Chainguard images ([5544](https://github.com/open-policy-agent/opa/issues/5544)) (authored by @charlieegan3)
+- Dependency updates:
+  - build: bump actions/setup-go from 3 to 4 
+  - build: bump github.com/go-logr/logr from 1.2.3 to 1.2.4
+  - build: bump go.uber.org/automaxprocs from 1.5.1 to 1.5.2
+  - build: bump google.golang.org/grpc from 1.53.0 to 1.54.0
+  - build: bump oras.land/oras-go/v2 from 2.0.0 to 2.0.1
+  - build: bump oras.land/oras-go/v2 from 2.0.1 to 2.0.2
+  - tests: Remove testify dependency (authored by @charlieegan3)
+  
+### Don't promote?
+
+- ast: Fixing bug where comprehensions in rule else-heads weren't rewritten correctly ([#5771](https://github.com/open-policy-agent/opa/issues/5771)) authored by @johanfylling reported by @davidmdm
+  - fixes a bug present in `0.50.1`
+- runtime: Remove deprecation warning for watch flag (authored by @tsandall)
+- Fixes to #5774
+  - [docs] Address anchor linking issue (#5795) (authored by @charlieegan3)
+  - [docs] Fix dashboard height issue (#5799) (authored by @charlieegan3)
+- Update retract directive comment (#5780) (authored by @charlieegan3)
+- download: copy bundle into buffer only if needed (#5767) (authored by @srenatus)
+- fix: preserve `jsonOptions` in NewAnnotationsRef (#5753) (authored by @zregvart)
+- mask: don't rely on JSON roundtrip to convert structs (#5770) (authored by @srenatus)
+- plugins/logs: don't convert EventV1 to ast.Value twice (#5761) (authored by @srenatus)
 
 ## 0.50.2
 
