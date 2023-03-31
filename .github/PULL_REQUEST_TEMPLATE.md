@@ -27,3 +27,27 @@ For more information on contributing to OPA see:
   for high-level contributing guidelines and development setup.
 
 -->
+
+### Why the changes in this PR are needed?
+
+<!--
+Include a short description of WHY the changes were made.
+-->
+
+### What are the changes in this PR?
+
+<!--
+Include a short description of WHAT changes were made.
+-->
+
+### Notes to assist PR review:
+
+<!--
+Here you can add information you think will help the reviewer(s).
+-->
+
+### Further comments:
+
+<!--
+Here you can include links to additional resources related to the changes, discuss your solution, other approaches you considered etc.
+-->
