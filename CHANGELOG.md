@@ -49,7 +49,8 @@ more information to debug error scenarios.
 - ast: Properly set the reported location of unused variables in strict-mode errors. ([#5662](https://github.com/open-policy-agent/opa/issues/5662)) authored by @boranx
 - fmt: report wrong arity for built-in functions. ([#5646](https://github.com/open-policy-agent/opa/issues/5646)) authored by @Trolloldem
 - topdown: http.send(): Ensuring intra-query caching consistency. ([#5736](https://github.com/open-policy-agent/opa/issues/5736)) authored by @johanfylling
-- Performance improvements to decision logging
+- Performance improvements to decision logging.
+  Specifically, by removing superfluous json encoding roundtrip and double work in AST conversion of to-be-logged events. (authored by @srenatus)
 
 ### Docs, Website, and Ecosystem
 
