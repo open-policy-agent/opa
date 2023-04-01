@@ -10,7 +10,7 @@ The following table lists OPA project maintainers and areas of expertise in alph
 | Nilekh Chaudhari | @nilekhc | nilekhc@gmail.com | Microsoft | gatekeeper-library | 2023-03-31 |
 | Oren Shomron | @shomron | shomron@gmail.com | VMware | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2020-11-13 |
 | Rita Zhang | @ritazh | rita.z.zhang@gmail.com | Microsoft | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2023-03-31 |
-| Sertaç Özercan | @sozercan | sozercan@gmail.com | Microsoft | gatekeeper, gatekeeper-library, cert-controller | 2023-03-31 |
+| Sertaç Özercan | @sozercan | sozercan@gmail.com | Microsoft | gatekeeper, gatekeeper-library, cert-controller, gatekeeper-external-data-provider | 2023-03-31 |
 | Stephan Renatus | @srenatus | stephan@styra.com | Styra | opa | 2023-03-31 |
 | Tim Hinrichs | @timothyhinrichs | timothy.l.hinrichs@gmail.com | Styra | all repositories | 2023-03-31 |
 | Torin Sandall | @tsandall | torinsandall@gmail.com | Styra | all repositories | 2023-03-31 |
