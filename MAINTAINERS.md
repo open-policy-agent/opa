@@ -4,8 +4,7 @@ The following table lists OPA project maintainers and areas of expertise in alph
 
 | Name | GitHub | Email | Organization | Repositories/Area of Expertise | Added/Renewed On |
 | --- | --- | --- | --- | --- | --- |
-| Andrew Peabody | @apeabody | andrewpeabody@google.com | Google |
-gatekeeper-library | 2023-03-31 |
+| Andrew Peabody | @apeabody | andrewpeabody@google.com | Google | gatekeeper-library | 2023-03-31 |
 | Ash Narkar | @ashutosh-narkar | anarkar4387@gmail.com | Styra | opa, opa-envoy-plugin | 2023-03-31 |
 | Max Smythe | @maxsmythe | smythe@google.com | Google | frameworks/constraints, gatekeeper, gatekeeper-library, cert-controller | 2023-03-31 |
 | Nilekh Chaudhari | @nilekhc | nilekhc@gmail.com | Microsoft | gatekeeper-library | 2023-03-31 |
