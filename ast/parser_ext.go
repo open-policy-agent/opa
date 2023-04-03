@@ -258,14 +258,17 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	}
 	head.Value = rhs
 	head.Location = lhs.Location
+	head.setJSONOptions(lhs.jsonOptions)
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	setJSONOptions(body, &rhs.jsonOptions)
 
 	return &Rule{
-		Location: lhs.Location,
-		Head:     head,
-		Body: NewBody(
-			NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location),
-		),
-		Module: module,
+		Location:    lhs.Location,
+		Head:        head,
+		Body:        body,
+		Module:      module,
+		jsonOptions: lhs.jsonOptions,
 	}, nil
 }
 
@@ -280,14 +283,18 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(term.Location))
 	head.Location = term.Location
+	head.jsonOptions = term.jsonOptions
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
+	setJSONOptions(body, &term.jsonOptions)
 
 	return &Rule{
 		Location: term.Location,
 		Head:     head,
-		Body: NewBody(
-			NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location),
-		),
-		Module: module,
+		Body:     body,
+		Module:   module,
+
+		jsonOptions: term.jsonOptions,
 	}, nil
 }
 
@@ -309,14 +316,17 @@ func ParsePartialObjectDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule,
 		head.Key = ref[1]
 	}
 	head.Location = rhs.Location
+	head.jsonOptions = rhs.jsonOptions
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	setJSONOptions(body, &rhs.jsonOptions)
 
 	rule := &Rule{
-		Location: rhs.Location,
-		Head:     head,
-		Body: NewBody(
-			NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location),
-		),
-		Module: module,
+		Location:    rhs.Location,
+		Head:        head,
+		Body:        body,
+		Module:      module,
+		jsonOptions: rhs.jsonOptions,
 	}
 
 	return rule, nil
@@ -344,14 +354,17 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 		head.Key = ref[1]
 	}
 	head.Location = term.Location
+	head.jsonOptions = term.jsonOptions
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location))
+	setJSONOptions(body, &term.jsonOptions)
 
 	rule := &Rule{
-		Location: term.Location,
-		Head:     head,
-		Body: NewBody(
-			NewExpr(BooleanTerm(true).SetLocation(term.Location)).SetLocation(term.Location),
-		),
-		Module: module,
+		Location:    term.Location,
+		Head:        head,
+		Body:        body,
+		Module:      module,
+		jsonOptions: term.jsonOptions,
 	}
 
 	return rule, nil
@@ -377,12 +390,17 @@ func ParseRuleFromCallEqExpr(module *Module, lhs, rhs *Term) (*Rule, error) {
 	head := RefHead(ref, rhs)
 	head.Location = lhs.Location
 	head.Args = Args(call[1:])
+	head.jsonOptions = lhs.jsonOptions
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location))
+	setJSONOptions(body, &rhs.jsonOptions)
 
 	rule := &Rule{
-		Location: lhs.Location,
-		Head:     head,
-		Body:     NewBody(NewExpr(BooleanTerm(true).SetLocation(rhs.Location)).SetLocation(rhs.Location)),
-		Module:   module,
+		Location:    lhs.Location,
+		Head:        head,
+		Body:        body,
+		Module:      module,
+		jsonOptions: lhs.jsonOptions,
 	}
 
 	return rule, nil
@@ -404,12 +422,17 @@ func ParseRuleFromCallExpr(module *Module, terms []*Term) (*Rule, error) {
 	head := RefHead(ref, BooleanTerm(true).SetLocation(loc))
 	head.Location = loc
 	head.Args = terms[1:]
+	head.jsonOptions = terms[0].jsonOptions
+
+	body := NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc))
+	setJSONOptions(body, &terms[0].jsonOptions)
 
 	rule := &Rule{
-		Location: loc,
-		Head:     head,
-		Module:   module,
-		Body:     NewBody(NewExpr(BooleanTerm(true).SetLocation(loc)).SetLocation(loc)),
+		Location:    loc,
+		Head:        head,
+		Module:      module,
+		Body:        body,
+		jsonOptions: terms[0].jsonOptions,
 	}
 	return rule, nil
 }
@@ -684,6 +707,16 @@ func setRuleModule(rule *Rule, module *Module) {
 	if rule.Else != nil {
 		setRuleModule(rule.Else, module)
 	}
+}
+
+func setJSONOptions(x interface{}, jsonOptions *JSONOptions) {
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		if x, ok := x.(customJSON); ok {
+			x.setJSONOptions(*jsonOptions)
+		}
+		return false
+	})
+	vis.Walk(x)
 }
 
 // ParserErrorDetail holds additional details for parser errors.
