@@ -1,6 +1,6 @@
 ---
-title: Annotations
-kind: misc
+title: Metadata
+kind: remove
 weight: 18
 ---
 
@@ -18,7 +18,7 @@ allow {
 }
 ```
 
-Annotations are grouped within a *metadata block*, and must be specified as YAML within a comment block that **must** start with `# METADATA`. 
+Annotations are grouped within a *metadata block*, and must be specified as YAML within a comment block that **must** start with `# METADATA`.
 Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
 
 {{< danger >}}
@@ -57,11 +57,11 @@ supported are:
 * `package` - applies to all of the rules in the package (across multiple files). Default, when metadata block precedes package.
 * `subpackages` - applies to all of the rules in the package and all subpackages (recursively, across multiple files)
 
-Since the `document` scope annotation applies to all rules with the same name in the same package 
-and the `package` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with 
-these scopes are applied over all files with applicable package- and rule paths. 
-As there is no ordering across files in the same package, the `document`, `package`, and `subpackages` scope annotations 
-can only be specified **once** per path. 
+Since the `document` scope annotation applies to all rules with the same name in the same package
+and the `package` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with
+these scopes are applied over all files with applicable package- and rule paths.
+As there is no ordering across files in the same package, the `document`, `package`, and `subpackages` scope annotations
+can only be specified **once** per path.
 The `document` scope annotation can be applied to any rule in the set (i.e., ordering does not matter.)
 
 #### Example
@@ -127,12 +127,14 @@ The `related_resources` annotation is a list of *related-resource* entries, wher
 A *related-resource* entry can either be an object or a short-form string holding a single URL.
 
 #### Object Related-resource Format
+
 When a *related-resource* entry is presented as an object, it has two fields:
 
 * `ref`: a URL pointing to the resource (required).
 * `description`: a text describing the resource.
 
 #### String Related-resource Format
+
 When a *related-resource* entry is presented as a string, it needs to be a valid URL.
 
 #### Examples
@@ -162,10 +164,11 @@ allow {
 
 ### Authors
 
-The `authors` annotation is a list of author entries, where each entry denotes an *author*. 
+The `authors` annotation is a list of author entries, where each entry denotes an *author*.
 An *author* entry can either be an object or a short-form string.
 
 #### Object Author Format
+
 When an *author* entry is presented as an object, it has two fields:
 
 * `name`: the name of the author
@@ -174,8 +177,9 @@ When an *author* entry is presented as an object, it has two fields:
 At least one of the above fields are required for a valid `author` entry.
 
 #### String Author Format
-When an *author* entry is presented as a string, it has the format `{ name } [ "<" email ">"]`; 
-where the name of the author is a sequence of whitespace-separated words. 
+
+When an *author* entry is presented as a string, it has the format `{ name } [ "<" email ">"]`;
+where the name of the author is a sequence of whitespace-separated words.
 Optionally, the last word may represent an email, if enclosed with `<>`.
 
 #### Examples
@@ -227,7 +231,7 @@ In-depth information on this topic can be found [here](../schemas#schema-annotat
 
 #### Schema Reference Format
 
-Schema files can be referenced by path, where each path starts with the `schema` namespace, and trailing components specify 
+Schema files can be referenced by path, where each path starts with the `schema` namespace, and trailing components specify
 the path of the schema file (sans file-ending) relative to the root directory specified by the `--schema` flag on applicable commands.
 If the `--schema` flag is not present, referenced schemas are ignored during type checking.
 
@@ -245,7 +249,7 @@ allow {
 #### Inlined Schema Format
 
 Schema definitions can be inlined by specifying the schema structure as a YAML or JSON map.
-Inlined schemas are always used to inform type checking for the `eval`, `check`, and `test` commands; 
+Inlined schemas are always used to inform type checking for the `eval`, `check`, and `test` commands;
 in contrast to [by-reference schema annotations](#schema-reference-format), which require the `--schema` flag to be present in order to be evaluated.
 
 ```live:rego/metadata/schemas_inline:module:read_only
@@ -269,7 +273,6 @@ The `build` and `eval` CLI commands will automatically pick up annotated entrypo
 Unless the `--prune-unused` flag is used, any rule transitively referring to a
 package or rule declared as an entrypoint will also be enumerated as an entrypoint.
 {{< /info >}}
-
 
 ### Custom
 
@@ -323,13 +326,13 @@ package example
 # custom:
 #  severity: MEDIUM
 output := decision {
-	input.number > 5
+ input.number > 5
 
-	annotation := rego.metadata.rule()
-	decision := {
-		"severity": annotation.custom.severity,
-		"message": annotation.description,
-	}
+ annotation := rego.metadata.rule()
+ decision := {
+  "severity": annotation.custom.severity,
+  "message": annotation.description,
+ }
 }
 ```
 
@@ -339,6 +342,7 @@ will output
 ```
 
 If you'd like more examples and information on this, you can see more here under the [Rego](../policy-reference/#rego) policy reference.
+
 ### Inspect command
 
 Annotations can be listed through the `inspect` command by using the `-a` flag:
@@ -349,7 +353,7 @@ opa inspect -a
 
 ### Go API
 
-The ``ast.AnnotationSet`` is a collection of all ``ast.Annotations`` declared in a set of modules. 
+The ``ast.AnnotationSet`` is a collection of all ``ast.Annotations`` declared in a set of modules.
 An ``ast.AnnotationSet`` can be created from a slice of compiled modules:
 
 ```go
@@ -371,7 +375,7 @@ compiler.Compile(modules)
 as := compiler.GetAnnotationSet()
 ```
 
-The ``ast.AnnotationSet`` can be flattened into a slice of ``ast.AnnotationsRef``, which is a complete, sorted list of all 
+The ``ast.AnnotationSet`` can be flattened into a slice of ``ast.AnnotationsRef``, which is a complete, sorted list of all
 annotations, grouped by the path and location of their targeted package or -rule.
 
 ```go
@@ -405,7 +409,7 @@ for _, entry := range flattened {
 ```
 
 Given an ``ast.Rule``, the ``ast.AnnotationSet`` can return the chain of annotations declared for that rule, and its path ancestry.
-The returned slice is ordered starting with the annotations for the rule, going outward to the farthest node with declared annotations 
+The returned slice is ordered starting with the annotations for the rule, going outward to the farthest node with declared annotations
 in the rule's path ancestry.
 
 ```go

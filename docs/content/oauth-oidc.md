@@ -1,5 +1,5 @@
 ---
-title: OAuth2 and OpenID Connect
+title: OAuth2 and OIDC Samples
 kind: misc
 weight: 5
 ---

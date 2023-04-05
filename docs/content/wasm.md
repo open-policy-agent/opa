@@ -1,7 +1,7 @@
 ---
 title: WebAssembly
-kind: misc
-weight: 1
+kind: documentation
+weight: 110
 ---
 
 # What is WebAssembly (Wasm)?
@@ -41,6 +41,7 @@ opa build -t wasm -e example/allow example.rego
 
 The output of a Wasm module built this way contain the `result` of evaluating the
 entrypoint rule. For example:
+
 ```json
 [
   {

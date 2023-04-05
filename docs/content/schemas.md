@@ -1,6 +1,6 @@
 ---
-title: Type Checking
-kind: misc
+title: Schema
+kind: remove
 weight: 2
 ---
 
@@ -19,10 +19,10 @@ The `-s` flag can be used to upload schemas for input and data documents in JSON
 When a single file is passed, it is a schema file associated with the input document globally. This means that for all rules in all packages, the `input` has a type derived from that schema. There is no constraint on the name of the file, it could be anything.
 
 Example:
+
 ```
 opa eval data.envoy.authz.allow -i opa-schema-examples/envoy/input.json -d opa-schema-examples/envoy/policy.rego -s opa-schema-examples/envoy/schemas/my-schema.json
 ```
-
 
 ### Passing a directory with -s
 
@@ -30,8 +30,8 @@ When a directory path is passed, annotations will be used in the code to indicat
 Both input schema files and data schema files can be provided in the same directory, with different names. The directory of schemas may have any sub-directories. Notice that when a directory is passed the input document does not have a schema associated with it globally. This must also
 be indicated via an annotation.
 
-
 Example:
+
 ```
 opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas
 
@@ -39,16 +39,14 @@ opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json 
 
 Schemas can also be provided for policy and data files loaded via `opa eval --bundle`
 
-
 Example:
+
 ```
 opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -b opa-schema-examples/bundle.tar.gz -s opa-schema-examples/kubernetes/schemas
 
 ```
 
-Samples provided at: https://github.com/aavarghese/opa-schema-examples/
-
-
+Samples provided at: <https://github.com/aavarghese/opa-schema-examples/>
 
 ## Usage scenario with a single schema file
 
@@ -56,6 +54,7 @@ Consider the following Rego code, which assumes as input a Kubernetes admission 
 starts with a specific prefix.
 
 `pod.rego`
+
 ```
 package kubernetes.admission
 
@@ -71,8 +70,8 @@ Notice that this code has a typo in it: `input.request.kind.kinds` is undefined 
 
 Consider the following input document:
 
-
 `input.json`
+
 ```
 {
     "kind": "AdmissionReview",
@@ -103,6 +102,7 @@ Consider the following input document:
   ```
 
 Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
+
   ```
   % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
   []
@@ -111,6 +111,7 @@ Clearly there are 2 image names that are in violation of the policy. However, wh
 The empty value returned is indistinguishable from a situation where the input did not violate the policy. This error is therefore causing the policy not to catch violating inputs appropriately.
 
 If we fix the Rego code and change `input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
+
   ```
   [
   "image 'nginx' comes from untrusted registry",
@@ -119,20 +120,22 @@ If we fix the Rego code and change `input.request.kind.kinds` to `input.request.
   ```
 
 With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema. Consider the admission review schema provided at:
-https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json
+<https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json>
 
 We can pass this schema to the evaluator as follows:
+
   ```
   % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
   ```
 
 With the erroneous Rego code, we now obtain the following type error:
+
   ```
   1 error occurred: ../../aavarghese/opa-schema-examples/kubernetes/policy.rego:5: rego_type_error: undefined ref: input.request.kind.kinds
-	input.request.kind.kinds
-	                   ^
-	                   have: "kinds"
-	                   want (one of): ["kind" "version"]
+ input.request.kind.kinds
+                    ^
+                    have: "kinds"
+                    want (one of): ["kind" "version"]
   ```
 
 This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
@@ -192,7 +195,7 @@ mySchemasDir/
 └── acl-schema.json
 ```
 
-For actual code samples, see https://github.com/aavarghese/opa-schema-examples/tree/main/acl.
+For actual code samples, see <https://github.com/aavarghese/opa-schema-examples/tree/main/acl>.
 
 In the first `allow` rule above, the input document has the schema `input.json`, and `data.acl` has the schema `acl-schema.json`. Note that we use the relative path inside the `mySchemasDir` directory to identify a schema, omit the `.json` suffix, and use the global variable `schema` to stand for the top-level of the directory.
 Schemas in annotations are proper Rego references. So `schema.input` is also valid, but `schema.acl-schema` is not.
@@ -345,6 +348,7 @@ In general, consider the existing Rego type:
 ```
 object{a: object{b: object{c: C, d: D, e: E}}}
 ```
+
 If we override this type with the following type (derived from a schema annotation of the form `a.b.e: schema-for-E1`):
 
 ```
@@ -371,10 +375,7 @@ we obtain the following type:
 object{a: object{b: object{c: C, d: D, e: E, f: F}}}
 ```
 
-
-
 We use schemas to enhance the type checking capability of OPA, and not to validate the input and data documents against desired schemas. This burden is still on the user and care must be taken when using overriding to ensure that the input and data provided are sensible and validated against the transformed schemas.
-
 
 ### Multiple input schemas
 
@@ -409,6 +410,7 @@ whocan[user] {
 ```
 
 The directory that is passed to `opa eval` is the following:
+
 ```$ tree mySchemasDir/
 mySchemasDir/
 ├── input.json
@@ -436,6 +438,7 @@ JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex
 Specifically, `anyOf` acts as an Rego Or type where at least one (can be more than one) of the subschemas is true. Consider the following Rego and schema file containing `anyOf`:
 
 `policy-anyOf.rego`
+
 ```
 package kubernetes.admission
 
@@ -449,6 +452,7 @@ deny {
 ```
 
 `input-anyOf.json`
+
 ```
 {
     "$schema": "http://json-schema.org/draft-07/schema",
@@ -488,22 +492,26 @@ deny {
 ```
 
 We can see that `request` is an object with two options as indicated by the choices under `anyOf`:
+
 * contains property `kind`, which has properties `kind` and `version`
 * contains property `server`, which has properties `accessNum` and `version`
 
 The type checker finds the first error in the Rego code, suggesting that `servers` should be either `kind` or `server`.
+
 ```
-	input.request.servers.versions
-	              ^
-	              have: "servers"
-	              want (one of): ["kind" "server"]
+ input.request.servers.versions
+               ^
+               have: "servers"
+               want (one of): ["kind" "server"]
 ```
+
 Once this is fixed, the second typo is highlighted, prompting the user to choose between `accessNum` and `version`.
+
 ```
-	input.request.server.versions
-	                     ^
-	                     have: "versions"
-	                     want (one of): ["accessNum" "version"]
+ input.request.server.versions
+                      ^
+                      have: "versions"
+                      want (one of): ["accessNum" "version"]
 ```
 
 #### `allOf`
@@ -511,6 +519,7 @@ Once this is fixed, the second typo is highlighted, prompting the user to choose
 Specifically, `allOf` keyword implies that all conditions under `allOf` within a schema must be met by the given data. `allOf` is implemented through merging the types from all of the JSON subSchemas listed under `allOf` before parsing the result to convert it to a Rego type. Merging of the JSON subSchemas essentially combines the passed in subSchemas based on what types they contain. Consider the following Rego and schema file containing `allOf`:
 
 `policy-allOf.rego`
+
 ```
 package kubernetes.admission
 
@@ -524,6 +533,7 @@ deny {
 ```
 
 `input-allof.json`
+
 ```
 {
     "$schema": "http://json-schema.org/draft-07/schema",
@@ -563,28 +573,34 @@ deny {
 ```
 
 We can see that `request` is an object with properties as indicated by the elements listed under `allOf`:
+
 * contains property `kind`, which has properties `kind` and `version`
 * contains property `server`, which has properties `accessNum` and `version`
 
 The type checker finds the first error in the Rego code, suggesting that `servers` should be `server`.
+
 ```
-	input.request.servers.versions
-	              ^
-	              have: "servers"
-	              want (one of): ["kind" "server"]
+ input.request.servers.versions
+               ^
+               have: "servers"
+               want (one of): ["kind" "server"]
 ```
+
 Once this is fixed, the second typo is highlighted, informing the user that `versions` should be one of `accessNum` or `version`.
+
 ```
-	input.request.server.versions
-	                     ^
-	                     have: "versions"
-	                     want (one of): ["accessNum" "version"]
+ input.request.server.versions
+                      ^
+                      have: "versions"
+                      want (one of): ["accessNum" "version"]
 ```
+
 Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer).
 
 ### Remote references in JSON schemas
 
 It is valid for JSON schemas to reference other JSON schemas via URLs, like this:
+
 ```json
 {
   "description": "Pod is a collection of containers that can run on a host.",
@@ -616,17 +632,16 @@ supposed to connect to for retrieving remote schemas.
 
 #### Note
 
-- To forbid all network access in schema checking, set `allow_net` to `[]`
-- Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
-  and referencing a schema from `http://localhost/` will _fail_.
-- Metaschemas for different JSON Schema draft versions are not subject to this
+* To forbid all network access in schema checking, set `allow_net` to `[]`
+* Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
+  and referencing a schema from `http://localhost/` will *fail*.
+* Metaschemas for different JSON Schema draft versions are not subject to this
   constraint, as they are already provided by OPA's schema checker without requiring
   network access. These are:
 
-    - `http://json-schema.org/draft-04/schema`
-    - `http://json-schema.org/draft-06/schema`
-    - `http://json-schema.org/draft-07/schema`
-
+  * `http://json-schema.org/draft-04/schema`
+  * `http://json-schema.org/draft-06/schema`
+  * `http://json-schema.org/draft-07/schema`
 
 ## Limitations
 
@@ -654,10 +669,10 @@ In this case, we are overriding the root of all documents to have some schema. S
 
 ## References
 
-For more examples, please see https://github.com/aavarghese/opa-schema-examples
+For more examples, please see <https://github.com/aavarghese/opa-schema-examples>
 
 This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas.
 
-For a reference on JSON Schema please see: http://json-schema.org/understanding-json-schema/reference/index.html
+For a reference on JSON Schema please see: <http://json-schema.org/understanding-json-schema/reference/index.html>
 
-For a tool that generates JSON Schema from JSON samples, please see: https://jsonschema.net/home
+For a tool that generates JSON Schema from JSON samples, please see: <https://jsonschema.net/home>

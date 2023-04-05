@@ -1,7 +1,7 @@
 ---
 title: Disk Storage
-kind: misc
-weight: 10
+kind: operations
+weight: 60
 ---
 
 This page outlines configuration options relevant to using the disk storage
@@ -59,7 +59,6 @@ its values) varies.
 |                    | (2) | 2 |
 |                    | (3) | 2 |
 
-
 For example, retrieving the full extent of `data.users` from the disk store
 will require a single key fetch with the partitions of (1).
 With (2), the storage engine will fetch two keys and their values.
@@ -105,6 +104,7 @@ The `timer_disk_*_ns` timers give an indication about how much time
 was spent with the different disk operations.
 
 Available timers are
+
 - `timer_disk_read_ns`
 - `timer_disk_write_ns`
 - `timer_disk_commit_ns`
@@ -162,7 +162,8 @@ too.
 The configurables correspond to Badger options that can be set on [the library's Options
 struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3#Options).
 
-The following configurables can *not* be overridden:
+The following configurables can _not_ be overridden:
+
 - `dir`
 - `valuedir`
 - `detectconflicts`
