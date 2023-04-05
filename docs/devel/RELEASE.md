@@ -15,6 +15,25 @@ should be tagged with the semantic version identifying the release.
 Publishing involves creating a new *Release* on GitHub with the relevant
 CHANGELOG.md snippet and uploading the binaries from the build phase.
 
+> Note: This release process is subject to change without notice.
+
+## Release Cadence
+
+There are two version tracks for the OPA project:
+
+1. Release Candidate (vX.Y.Z-rc.A)
+2. Stable (vX.Y.Z)
+
+A new version of OPA is scheduled to release on the last Friday of every month. At the beginning of that week,
+we will create a release candidate branch (`release-<major>.<minor>-rc.0`) from the main branch and create a release
+candidate tag (`v<major>.<minor>.0-rc.0`) based on the release candidate branch for pre-release. Once the pre-release
+is published, users are encouraged to try out the features, bug fixes in the release candidate. If regressions or bugs
+are detected, they need to get fixed before cutting the stable release. We do not recommend using OPA release
+candidates in a production environment. The stable release that comes out after the release candidate may be identical
+to the release candidate if no other features or bug fixes are introduced to the main branch in between.
+
+See the next section for details on cutting an individual release.
+
 ## Versioning
 
 The steps below assume an OPA development environment has configured for the
