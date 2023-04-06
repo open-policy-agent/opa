@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/big"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -96,13 +97,14 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities       *Capabilities
-	ProcessAnnotation  bool
-	AllFutureKeywords  bool
-	FutureKeywords     []string
-	SkipRules          bool
-	JSONOptions        *JSONOptions
-	unreleasedKeywords bool // TODO(sr): cleanup
+	Capabilities           *Capabilities
+	ProcessAnnotation      bool
+	AllFutureKeywords      bool
+	FutureKeywords         []string
+	SkipRules              bool
+	JSONOptions            *JSONOptions
+	unreleasedKeywords     bool // TODO(sr): cleanup
+	generalRuleRefsEnabled bool
 }
 
 // JSONOptions defines the options for JSON operations,
@@ -140,6 +142,7 @@ func NewParser() *Parser {
 		s:  &state{},
 		po: ParserOptions{},
 	}
+	_, p.po.generalRuleRefsEnabled = os.LookupEnv("OPA_ENABLE_GENERAL_RULE_REFS")
 	return p
 }
 
@@ -618,7 +621,7 @@ func (p *Parser) parseRules() []*Rule {
 		return []*Rule{&rule}
 	}
 
-	if usesContains && !rule.Head.Reference.IsGround() {
+	if !p.po.generalRuleRefsEnabled && usesContains && !rule.Head.Reference.IsGround() {
 		p.error(p.s.Loc(), "multi-value rules need ground refs")
 		return nil
 	}

@@ -6,6 +6,8 @@ package topdown
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -441,5 +443,605 @@ func TestTopdownVirtualCache(t *testing.T) {
 				t.Errorf("expected %d cache misses, got %d", exp, act)
 			}
 		})
+	}
+}
+
+func TestPartialRule(t *testing.T) {
+	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+
+	ctx := context.Background()
+	store := inmem.New()
+
+	tests := []struct {
+		note   string
+		module string
+		query  string
+		exp    string
+		expErr string
+	}{
+		{
+			note: "partial set",
+			module: `package test
+				p[v] {
+					v := [1, 2, 3][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": [1, 2, 3]}}}]`,
+		},
+		{
+			note: "partial object",
+			module: `package test
+				p[i] := v {
+					v := [1, 2, 3][i]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"0": 1, "1": 2, "2": 3}}}}]`,
+		},
+		{
+			note: "partial object (const key)",
+			module: `package test
+				p["foo"] := v {
+					v := 42
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": 42}}}}]`,
+		},
+		{
+			note: "partial object (dots in head)",
+			module: `package test
+				p.foo := v {
+					v := 42
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": 42}}}}]`,
+		},
+		{
+			note: "partial object (dots and var in head)",
+			module: `package test
+				p.q.r[i] := v {
+					v := ["a", "b", "c"][i]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": {"r": {"0": "a", "1": "b", "2": "c"}}}}}}]`,
+		},
+		{
+			note: "partial object (dots in head and implicit 'true' value)",
+			module: `package test
+				p.q.r[v] {
+					v := [1, 2, 3][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": {"r": {"1": true, "2": true, "3": true}}}}}}]`,
+		},
+		{
+			note: "partial set (dots in head)",
+			module: `package test
+				import future.keywords
+				p.q contains v if {
+					v := [1, 2, 3][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": [1, 2, 3]}}}}]`,
+		},
+		{
+			note: "partial set (var in head)",
+			module: `package test
+				import future.keywords
+				p[q] contains v if {
+					q := "foo"
+					v := [1, 2, 3][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": [1, 2, 3]}}}}]`,
+		},
+		{
+			note: "partial set (dots and vars in head)",
+			module: `package test
+				import future.keywords
+				p[q].r contains v if {
+					q := "foo"
+					v := [1, 2, 3][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": {"r": [1, 2, 3]}}}}}]`,
+		},
+		{
+			note: "partial object (multiple vars in head ref)",
+			module: `package test
+				p.q[x].r[i] := v {
+					some i
+					v := [1, 2, 3][i]
+					x := ["a", "b", "c"][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": {"a": {"r": {"0": 1, "1": 2, "2": 3}}, "b": {"r": {"0": 1, "1": 2, "2": 3}}, "c": {"r": {"0": 1, "1": 2, "2": 3}}}}}}}]`,
+		},
+		{
+			note: "partial object (multiple vars in head ref) #2",
+			module: `package test
+				p[j].foo[i] := v {
+					v := [1, 2, 3][i]
+					j := ["a", "b", "c"][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"a": {"foo": {"0": 1, "1": 2, "2": 3}}, "b": {"foo": {"0": 1, "1": 2, "2": 3}}, "c": {"foo": {"0": 1, "1": 2, "2": 3}}}}}}]`,
+		},
+		{
+			note: "partial object (var in head ref, set leaf)",
+			module: `package test
+				import future.keywords
+				p[j] contains v if {
+					v := [1, 2, 3][_]
+					j := ["a", "b", "c"][_]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"a": [1, 2, 3], "b": [1, 2, 3], "c": [1, 2, 3]}}}}]`,
+		},
+		{
+			note: "partial object (multiple vars in head ref, partial set)",
+			module: `package test
+				import future.keywords
+				p[j][i] contains v if {
+					v := [1, 2, 3][_]
+					j := ["a", "b", "c"][_]
+					i := "foo"
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"a": {"foo": [1, 2, 3]}, "b": {"foo": [1, 2, 3]}, "c": {"foo": [1, 2, 3]}}}}}]`,
+		},
+		{
+			note: "partial object generating conflicting keys",
+			module: `package test
+				p[k] := x {
+					k := "foo"
+					x := [1, 2][_]
+				}`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object generating conflicting keys (dots in head)",
+			module: `package test
+				p.q[k] := x {
+					k := "foo"
+					x := [1, 2][_]
+				}`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object generating conflicting nested keys",
+			module: `package test
+				p.q[k].s := x {
+					k := "foo"
+					x := [1, 2][_]
+				}`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		// TODO: Add test case with else block
+		// Overlapping rules
+		{
+			note: "partial object with overlapping rule (defining key/value in object)",
+			module: `package test
+				foo.bar[i] := v {
+					v := ["a", "b", "c"][i]
+				}
+				foo.bar.baz := 42
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"foo": {"bar": {"0": "a", "1": "b", "2": "c", "baz": 42}}}}}]`,
+		},
+		{
+			note: "partial object with overlapping rule (dee ref on overlap)",
+			module: `package test
+				p[k] := 1 {
+					k := "foo"
+				}
+				p.q.r.s.t := 42
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": 1, "q": {"r": {"s": {"t": 42}}}}}}}]`,
+		},
+		{
+			note: "partial object with overlapping rule (dee ref on overlap; conflict)",
+			module: `package test
+				p[k] := 1 {
+					k := "q"
+				}
+				p.q.r.s.t := 42
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object with overlapping rule (key conflict)",
+			module: `package test
+				foo.bar[k] := v {
+					k := "a"
+					v := 43
+				}
+				foo.bar["a"] := 42
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object generating conflicting nested keys (different nested object depth)",
+			module: `package test
+				p.q.r {
+					true
+				}
+				p.q[r].s.t {
+					r := "foo"
+				}`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": {"foo": {"s": {"t": true}}, "r": true}}}}}]`,
+		},
+		{
+			note: "partial object generating conflicting nested keys (different nested object depth; key conflict)",
+			module: `package test
+				p.q[k].s := 1 {
+					k := "r"
+				}
+				p.q[k].s.t := 1 {
+					k := "r"
+				}`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object (overlapping rules producing same values)",
+			module: `package test
+				p.foo.bar[i] := v {
+					v := ["a", "b", "c"][i]
+				}
+				p.foo[i][j] := v {
+					i := "bar"
+					v := ["a", "b", "c"][j]
+				}
+				p[q][i][j] := v {
+					q := "foo"
+					i := "bar"
+					v := ["a", "b", "c"][j]
+				}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": {"bar": {"0": "a", "1": "b", "2": "c"}}}}}}]`,
+		},
+		{
+			note: "partial object (overlapping rules, same depth, producing non-conflicting keys)",
+			module: `package test
+				p.foo[i].bar := v {
+					v := ["a", "b", "c"][i]
+				}
+				p.foo.bar[i] := v {
+					v := ["a", "b", "c"][i]
+				}
+			`,
+			query: `data = x`,
+			exp: `[{"x": {"test": {"p": {"foo": {
+						"0": {"bar": "a"}, 
+						"1": {"bar": "b"}, 
+						"2": {"bar": "c"}, 
+						"bar": {"0": "a", "1": "b", "2": "c"}}}}}}]`,
+		},
+		// Intersections with object values
+		{
+			note: "partial object NOT intersecting with object value of other rule",
+			module: `package test
+				p.foo := {"bar": {"baz": 1}}
+				p[k] := 2 {k := "other"}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": {"bar": {"baz": 1}}, "other": 2}}}}]`,
+		},
+		{
+			note: "partial object NOT intersecting with object value of other rule (nested object merge along rule refs)",
+			module: `package test
+				p.foo.bar := {"baz": 1}                        # p.foo.bar == {"baz": 1}
+				p[k].bar2 := v {k := "foo"; v := {"other": 2}} # p.foo.bar2 == {"other": 2}
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": {"bar": {"baz": 1}, "bar2": {"other": 2}}}}}}]`,
+		},
+		{
+			note: "partial object intersecting with object value of other rule (not merging otherwise conflict-free obj values)",
+			module: `package test
+				p.foo := {"bar": {"baz": 1}}                       # p == {"foo": {"bar": {"baz": 1}}}
+				p[k] := v {k := "foo"; v := {"bar": {"other": 2}}} # p == {"foo": {"bar": {"other": 2}}}
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique", // conflict on key "bar" which is inside rule values, which may not be modified by other rule
+		},
+		{
+			note: "partial object rules with overlapping known ref vars (no eval-time conflict)",
+			module: `package test
+				p[k].r1 := 1 { k := "q" }
+				p[k].r2 := 2 { k := "q" }
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"q": {"r1": 1, "r2": 2}}}}}]`,
+		},
+		{
+			note: "partial object rules with overlapping known ref vars (eval-time conflict)",
+			module: `package test
+				p[k].r := 1 { k := "q" }
+				p[k].r := 2 { k := "q" }
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rules with overlapping known ref vars, non-overlapping object type values (eval-time conflict)",
+			module: `package test
+				p[k].r := {"s1": 1} { k := "q" }
+				p[k].r := {"s2": 2} { k := "q" }
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		// Deep queries
+		{
+			note: "deep query into partial object",
+			module: `package test
+				p.q[r] := 1 { r := "foo" }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": 1}]`,
+		},
+		{
+			note: "deep query to, but not into partial set",
+			module: `package test
+				import future.keywords
+				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+			`,
+			query: `data.test.p = x`,
+			exp:   `[{"x": {"q": {"r": ["bar", "bax", "foo"]}}}]`,
+		},
+		{
+			note: "deep query to, but not into partial set",
+			module: `package test
+				import future.keywords
+				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+			`,
+			query: `data.test.p.q = x`,
+			exp:   `[{"x": {"r": ["bar", "bax", "foo"]}}]`,
+		},
+		{
+			note: "deep query to, but not into partial set",
+			module: `package test
+				import future.keywords
+				p.q.r contains s { {"foo", "bar", "bax"}[s] }
+			`,
+			query: `data.test.p.q.r = x`,
+			exp:   `[{"x": ["bar", "bax", "foo"]}]`,
+		},
+		{
+			note: "deep query into partial set",
+			module: `package test
+				import future.keywords
+				p.q contains r { {"foo", "bar", "bax"}[r] }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": "foo"}]`,
+		},
+		{
+			note: "deep query into partial object and object value",
+			module: `package test
+				p.q[r] := x { 
+					r := "foo" 
+					x := {"bar": {"baz": 1}}
+				}
+			`,
+			query: `data.test.p.q.foo.bar = x`,
+			exp:   `[{"x": {"baz": 1}}]`,
+		},
+		{
+			note: "deep query into partial object and set value",
+			module: `package test
+				import future.keywords
+				p.q[r].s contains x { 
+					r := "foo" 
+					{"foo", "bar", "bax"}[x]
+				}
+			`,
+			query: `data.test.p.q.foo.s.bar = x`,
+			exp:   `[{"x": "bar"}]`,
+		},
+		{
+			note: "deep query into partial object and object value, non-tail var",
+			module: `package test
+				p.q[r].s := x { 
+					r := "foo" 
+					x := {"bar": {"baz": 1}}
+				}
+			`,
+			query: `data.test.p.q.foo.s.bar = x`,
+			exp:   `[{"x": {"baz": 1}}]`,
+		},
+		{
+			note: "deep query into partial object, on first var in ref",
+			module: `package test
+				p.q[r].s := 1 { r := "foo" }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": {"s": 1}}]`,
+		},
+		{
+			note: "deep query into partial object, beyond first var in ref",
+			module: `package test
+				p.q[r].s := 1 { r := "foo" }
+			`,
+			query: `data.test.p.q.foo.s = x`,
+			exp:   `[{"x": 1}]`,
+		},
+		{
+			note: "deep query into partial object, on first var in ref, multiple vars",
+			module: `package test
+				p.q[r][s] := 1 { r := "foo"; s := "bar" }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": {"bar": 1}}]`,
+		},
+		{
+			note: "deep query into partial object, beyond first var in ref, multiple vars",
+			module: `package test
+				p.q[r][s] := 1 { r := "foo"; s := "bar" }
+			`,
+			query: `data.test.p.q.foo.bar = x`,
+			exp:   `[{"x": 1}]`,
+		},
+		{
+			note: "deep query into partial object, beyond first var in ref, multiple vars",
+			module: `package test
+				p.q[r][s].t := 1 { r := "foo"; s := "bar" }
+			`,
+			query: `data.test.p.q.foo.bar = x`,
+			exp:   `[{"x": {"t": 1}}]`,
+		},
+		{
+			note: "deep query to partial object, overlapping rules (key override), no dynamic ref",
+			module: `package test
+				p.q[r] := 1 { r := "foo" }
+				p.q.r := 2
+			`,
+			query: `data.test.p.q = x`,
+			exp:   `[{"x": {"foo": 1, "r": 2}}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules (key override), no dynamic ref",
+			module: `package test
+				p.q[r] := 1 { r := "foo" }
+				p.q.r := 2
+			`,
+			query: `data.test.p.q.r = x`,
+			exp:   `[{"x": 2}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules, no dynamic ref",
+			module: `package test
+				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 2 { r := "bar" }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": 1}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules with same key/value, no dynamic ref",
+			module: `package test
+				p.q[r] := 1 { r := "foo" }
+				p.q[r] := 1 { r := "foo" }
+			`,
+			query: `data.test.p.q.foo = x`,
+			exp:   `[{"x": 1}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules, dynamic ref",
+			module: `package test
+				p.q[r].s := 1 { r := "r" }
+				p.q.r[s] := 2 { s := "foo" }
+			`,
+			query: `data.test.p.q.r = x`,
+			exp:   `[{"x": {"s": 1, "foo": 2}}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules with same key/value, dynamic ref",
+			module: `package test
+				p.q[r].s := 1 { r := "r" }
+				p.q.r[s] := 1 { s := "s" }
+			`,
+			query: `data.test.p.q.r = x`,
+			exp:   `[{"x": {"s": 1}}]`,
+		},
+		// Multiple results
+		//{
+		//	note: "deep query to partial object, overlapping rules with same key/value, dynamic ref",
+		//	module: `package test
+		//		p.q[r] := 1 { r := "foo" }
+		//		p.q[r] := 2 { r := "bar" }
+		//	`,
+		//	query: `i := ["foo", "bar"][_]; data.test.p.q[i] = x`,
+		//	exp:   `[{"x": {"s": 1}}]`,
+		//},
+		//{
+		//	note: "deep query into partial object, overlapping rules with same key/value, dynamic ref",
+		//	module: `package test
+		//		p.q[r].s := 1 { r := "foo" }
+		//		p.q[r].s := 2 { r := "bar" }
+		//	`,
+		//	query: `i := ["foo", "bar"][_]; data.test.p.q[i].s = x`,
+		//	exp:   `[{"x": 1}, {"x": 2}]`,
+		//},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := compileModules([]string{tc.module})
+			txn := storage.NewTransactionOrDie(ctx, store)
+			defer store.Abort(ctx, txn)
+
+			query := NewQuery(ast.MustParseBody(tc.query)).
+				WithCompiler(compiler).
+				WithStore(store).
+				WithTransaction(txn)
+
+			qrs, err := query.Run(ctx)
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("Expected error %v but got result: %v", tc.expErr, qrs)
+				}
+				if exp, act := tc.expErr, err.Error(); !strings.Contains(act, exp) {
+					t.Fatalf("Expected error %v but got: %v", exp, act)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				if exp, act := 1, len(qrs); exp != act {
+					t.Fatalf("expected %d query result, got %d query results: %+v", exp, act, qrs)
+				}
+				var exp []map[string]interface{}
+				_ = json.Unmarshal([]byte(tc.exp), &exp)
+				testAssertResultSet(t, exp, qrs, false)
+			}
+		})
+	}
+}
+
+// TODO: Remove when general rule refs are enabled by default.
+func TestGeneralRuleRefsFeatureFlag(t *testing.T) {
+	module := ast.MustParseModule(`package test
+		p[q].r { q := "q" }`)
+	mods := map[string]*ast.Module{
+		"": module,
+	}
+	c := ast.NewCompiler()
+	c.Compile(mods)
+
+	if !strings.Contains(c.Errors.Error(), "rego_type_error: rule head must only contain string terms (except for last)") {
+		t.Fatal("Expected error but got:", c.Errors)
+	}
+
+	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+
+	c = ast.NewCompiler()
+	c.Compile(mods)
+
+	if c.Errors != nil {
+		t.Fatal("Unexpected error:", c.Errors)
 	}
 }

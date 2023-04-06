@@ -44,6 +44,7 @@ type TestCase struct {
 	WantError     *string                   `json:"want_error,omitempty"`      // expect query error message (overrides error code)
 	SortBindings  bool                      `json:"sort_bindings,omitempty"`   // indicates that binding values should be treated as sets
 	StrictError   bool                      `json:"strict_error,omitempty"`    // indicates that the error depends on strict builtin error mode
+	Env           map[string]string         `json:"env,omitempty"`             // environment variables to be set during the test
 }
 
 // Load returns a set of built-in test cases.

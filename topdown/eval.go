@@ -2269,6 +2269,14 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 
 	switch ir.Kind {
 	case ast.MultiValue:
+		var empty *ast.Term
+		if ir.OnlyGroundRefs { //e.pos == len(e.ref)-1 {
+			// rule ref contains no vars, so we're building a set
+			empty = ast.SetTerm()
+		} else {
+			// rule ref contains vars, so we're building an object
+			empty = ast.ObjectTerm()
+		}
 		eval := evalVirtualPartial{
 			e:         e.e,
 			ref:       e.ref,
@@ -2278,7 +2286,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 			bindings:  e.bindings,
 			rterm:     e.rterm,
 			rbindings: e.rbindings,
-			empty:     ast.SetTerm(),
+			empty:     empty,
 		}
 		return eval.eval(iter)
 	case ast.SingleValue:
@@ -2378,6 +2386,17 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	result := e.empty
+	if e.ir.DynamicRef {
+		for _, rule := range e.ir.Rules {
+			result, err = e.evalOneDynamicRefRulePreUnify(rule, result, unknown)
+			if err != nil {
+				return err
+			}
+		}
+		e.e.virtualCache.Put(hint.key, result)
+		return e.evalTerm(iter, e.pos+1, result, e.bindings)
+	}
+
 	for _, rule := range e.ir.Rules {
 		if err := e.evalOneRulePreUnify(iter, rule, hint, result, unknown); err != nil {
 			return err
@@ -2419,7 +2438,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 		err := child.eval(func(*eval) error {
 			child.traceExit(rule)
 			var err error
-			result, _, err = e.reduce(rule.Head, child.bindings, result)
+			result, _, err = e.reduce(rule, child.bindings, result)
 			if err != nil {
 				return err
 			}
@@ -2469,7 +2488,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 			if !unknown {
 				var dup bool
 				var err error
-				result, dup, err = e.reduce(rule.Head, child.bindings, result)
+				result, dup, err = e.reduce(rule, child.bindings, result)
 				if err != nil {
 					return err
 				} else if dup {
@@ -2500,6 +2519,55 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	}
 
 	return nil
+}
+
+func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(rule *ast.Rule, result *ast.Term, unknown bool) (*ast.Term, error) {
+
+	child := e.e.child(rule.Body)
+
+	child.traceEnter(rule)
+	var defined bool
+
+	// Walk the dynamic portion of rule ref to unify vars
+	err := child.biunifyDynamicRef(e.pos+1, rule.Ref(), e.ref, child.bindings, e.bindings, func() error {
+		defined = true
+		return child.eval(func(child *eval) error {
+			child.traceExit(rule)
+			var dup bool
+			var err error
+			result, dup, err = e.reduce(rule, child.bindings, result)
+			if err != nil {
+				return err
+			} else if !unknown && dup {
+				child.traceDuplicate(rule)
+				return nil
+			}
+
+			child.traceRedo(rule)
+			return nil
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// We're tracing here to exhibit similar behaviour to evalOneRulePreUnify
+	if !defined {
+		child.traceFail(rule)
+	}
+
+	return result, nil
+}
+
+func (e *eval) biunifyDynamicRef(pos int, a, b ast.Ref, b1, b2 *bindings, iter unifyIterator) error {
+	if pos >= len(a) || pos >= len(b) {
+		return iter()
+	}
+
+	return e.biunify(a[pos], b[pos], b1, b2, func() error {
+		return e.biunifyDynamicRef(pos+1, a, b, b1, b2, iter)
+	})
 }
 
 func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.Rule) error {
@@ -2678,26 +2746,81 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 	return hint, nil
 }
 
-func (e evalVirtualPartial) reduce(head *ast.Head, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
+func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Location) (*ast.Object, error) {
+	current := rootObj
+	for _, term := range ref {
+		key := b.Plug(term)
+		if child := (*current).Get(key); child != nil {
+			if val, ok := child.Value.(ast.Object); ok {
+				current = &val
+			} else {
+				return nil, objectDocKeyConflictErr(l)
+			}
+		} else {
+			child := ast.NewObject()
+			(*current).Insert(key, ast.NewTerm(child))
+			current = &child
+		}
+	}
+
+	return current, nil
+}
+
+func (e evalVirtualPartial) reduce(rule *ast.Rule, b *bindings, result *ast.Term) (*ast.Term, bool, error) {
 
 	var exists bool
+	head := rule.Head
 
 	switch v := result.Value.(type) {
-	case ast.Set: // MultiValue
+	case ast.Set:
 		key := b.Plug(head.Key)
 		exists = v.Contains(key)
 		v.Add(key)
-	case ast.Object: // SingleValue
-		key := head.Reference[len(head.Reference)-1] // NOTE(sr): multiple vars in ref heads need to deal with this better
-		key = b.Plug(key)
-		value := b.Plug(head.Value)
-		if curr := v.Get(key); curr != nil {
-			if !curr.Equal(value) {
-				return nil, false, objectDocKeyConflictErr(head.Location)
+	case ast.Object:
+		// data.p.q[r].s.t := 42 {...}
+		//         |----|-|
+		//          ^    ^
+		//          |    leafKey
+		//          objPath
+		fullPath := rule.Ref()
+		objPath := fullPath[e.pos+1 : len(fullPath)-1] // the portion of the ref that generates nested objects
+		leafKey := b.Plug(fullPath[len(fullPath)-1])   // the portion of the ref that is the deepest nested key for the value
+
+		leafObj, err := getNestedObject(objPath, &v, b, head.Location)
+		if err != nil {
+			return nil, false, err
+		}
+
+		if kind := head.RuleKind(); kind == ast.SingleValue {
+			// We're inserting into an object
+			val := b.Plug(head.Value)
+
+			if curr := (*leafObj).Get(leafKey); curr != nil {
+				if !curr.Equal(val) {
+					return nil, false, objectDocKeyConflictErr(head.Location)
+				}
+				exists = true
+			} else {
+				(*leafObj).Insert(leafKey, val)
 			}
-			exists = true
 		} else {
-			v.Insert(key, value)
+			// We're inserting into a set
+			var set *ast.Set
+			if leaf := (*leafObj).Get(leafKey); leaf != nil {
+				if s, ok := leaf.Value.(ast.Set); ok {
+					set = &s
+				} else {
+					return nil, false, objectDocKeyConflictErr(head.Location)
+				}
+			} else {
+				s := ast.NewSet()
+				(*leafObj).Insert(leafKey, ast.NewTerm(s))
+				set = &s
+			}
+
+			key := b.Plug(head.Key)
+			exists = (*set).Contains(key)
+			(*set).Add(key)
 		}
 	}
 

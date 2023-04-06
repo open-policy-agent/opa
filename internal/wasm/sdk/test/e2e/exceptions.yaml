@@ -4,3 +4,7 @@
 "data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
 "withkeyword/function: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"
 "withkeyword/builtin: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"
+"refheads/arbitrary-var, single": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
+"refheads/arbitrary-var, multiple": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
+"refheads/arbitrary-var, overlapping rule, no conflict": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
+"refheads/arbitrary-var, overlapping rule, conflict": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
