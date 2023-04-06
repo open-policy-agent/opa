@@ -47,6 +47,8 @@ type Logger interface {
 type EventV1 struct {
 	Labels         map[string]string       `json:"labels"`
 	DecisionID     string                  `json:"decision_id"`
+	TraceID        string                  `json:"trace_id,omitempty"`
+	SpanID         string                  `json:"span_id,omitempty"`
 	Revision       string                  `json:"revision,omitempty"` // Deprecated: Use Bundles instead
 	Bundles        map[string]BundleInfoV1 `json:"bundles,omitempty"`
 	Path           string                  `json:"path,omitempty"`
@@ -597,6 +599,8 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	event := EventV1{
 		Labels:         p.manager.Labels(),
 		DecisionID:     decision.DecisionID,
+		TraceID:        decision.TraceID,
+		SpanID:         decision.SpanID,
 		Revision:       decision.Revision,
 		Bundles:        bundles,
 		Path:           decision.Path,

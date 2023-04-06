@@ -19,6 +19,8 @@ type Info struct {
 	Revision       string // Deprecated: Use `Bundles` instead
 	Bundles        map[string]BundleInfo
 	DecisionID     string
+	TraceID        string
+	SpanID         string
 	RemoteAddr     string
 	Query          string
 	Path           string
