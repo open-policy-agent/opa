@@ -1519,6 +1519,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
 		err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m)
 		if err != nil {
 			writer.ErrorAuto(w, err)
@@ -3009,6 +3010,12 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 			return err
 		}
 		info.NDBuiltinCache = &x
+	}
+
+	sctx := trace.SpanFromContext(ctx).SpanContext()
+	if sctx.IsValid() {
+		info.TraceID = sctx.TraceID().String()
+		info.SpanID = sctx.SpanID().String()
 	}
 
 	if l.logger != nil {
