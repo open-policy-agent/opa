@@ -14,20 +14,16 @@ import (
 // checkUserPrivileges on Linux could be running in Docker, so we check if
 // we're running in the official container image.
 func checkUserPrivileges(logger logging.Logger) {
-	var message string
-
 	usr, err := user.Current()
 	if err != nil {
 		logger.Debug("Failed to determine uid/gid of process owner")
 	} else if usr.Uid == "0" || usr.Gid == "0" {
-		message = "OPA running with uid or gid 0. Running OPA with root privileges is not recommended."
+		message := "OPA running with uid or gid 0. Running OPA with root privileges is not recommended."
+		logger.Warn(message)
 	}
 
 	if os.Getenv("OPA_DOCKER_IMAGE_TAG") == "rootless" {
-		message += " The -rootless image tag will not be published after OPA v0.50.0."
-	}
-
-	if message != "" {
-		logger.Warn(message)
+		message := "The -rootless image tag will not be published after OPA v0.52.0."
+		logger.Error(message)
 	}
 }
