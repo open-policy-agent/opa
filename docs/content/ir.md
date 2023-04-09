@@ -1,7 +1,7 @@
 ---
 title: Intermediate Representation (IR)
-kind: misc
-weight: 1
+kind: documentation
+weight: 100
 ---
 
 # Overview

@@ -8,6 +8,7 @@
 {{ $management := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib    := where $allDocs ".Params.kind" "eq" "contrib" }}
 {{ $misc       := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $support    := where $allDocs ".Params.kind" "eq" "support" }}
 {{ $pageUrl    := .Permalink }}
 {{ $isDocsHome := eq .Permalink $docsHome.Permalink }}
 {{ $version    := index (split .File.Path "/") 1 }}
@@ -49,16 +50,8 @@
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Miscellaneous" "section" $misc "pageUrl" $pageUrl "version" $version ) }}
 
-<a class="docs-nav-item" href="https://play.openpolicyagent.org/">
-  Rego Playground
-</a>
-
-<hr class="docs-nav-hr" />
-
-<span class="docs-nav-title">
-  Community
-</span>
+{{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Support" "section" $support "pageUrl" $pageUrl "version" $version ) }}
 
 <a class="docs-nav-item" href="/support">
-  Enterprise and Commercial
+  Enterprise
 </a>

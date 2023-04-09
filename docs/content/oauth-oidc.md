@@ -1,7 +1,7 @@
 ---
-title: OAuth2 and OpenID Connect
+title: OAuth2 and OIDC Samples
 kind: misc
-weight: 5
+weight: 1
 ---
 
 OAuth2 and OpenID Connect are both pervasive technologies in modern identity systems. While verification of JSON web tokens issued by these systems is documented in the [policy reference](https://www.openpolicyagent.org/docs/latest/policy-reference/#token-verification), the policy examples below aim to cover some other common use cases.
