@@ -1,8 +1,8 @@
 # The OPA Website and Documentation
+
 The content and tooling is separated into a few places:
 
 [devel/](./devel/) - Developer documentation for OPA (not part of the website)
-
 
 [website/](./website/) - This directory contains all of the Markdown, HTML, Sass/CSS,
 and other assets needed to build the [openpolicyagent.org](https://openpolicyagent.org)
@@ -10,7 +10,7 @@ website. See the section below for steps to build the site and test documentatio
 locally. This content is not versioned for each release, it is common scaffolding for
 the website.
 
-[content/](./content/) - The raw OPA documentation can be found under the 
+[content/](./content/) - The raw OPA documentation can be found under the
 directory. This content is versioned for each release and should have all images
 and code snippets alongside the markdown content files.
 
@@ -44,12 +44,13 @@ changes in this directory are pushed to `master`, the site will be re-built and
 re-deployed.
 
 ## How to Edit and Test
+
 ### Preview Markdown `content` (*.md)
 
 The majority of this can be done with any markdown renderer (typically built into or
 via a plug-in for IDEs and editors). The rendered output will be very similar to what Hugo will
 generate.
- 
+
 > This excludes the Hugo shortcodes (places with `{{< SHORT_CODE >}}` in the markdown.
   To see the output of these you'll need to involve Hugo. Additionally, to validate
   and view live code blocks, a full site preview is required.
@@ -80,8 +81,8 @@ using the non-extended version:
 error: failed to transform resource: TOCSS: failed to transform "sass/style.sass" (text/x-sass): this feature is not available in your current Hugo version
 ```
 
-Please also note that the current version of Hugo (e.g. installed with `brew install hugo`) is 
-not compatible with the docs. If you get errors like this, it means that you're using the 
+Please also note that the current version of Hugo (e.g. installed with `brew install hugo`) is
+not compatible with the docs. If you get errors like this, it means that you're using the
 wrong version:
 
 ```
@@ -102,10 +103,9 @@ This option provides the best preview of the site content, using the exact same 
 1) Deploy the site on Netlify using local content via the `make docs-serve-remote`. Follow any prompts the `netlify`
    tool asks. If you have not already linked the site select `Create & configure a new site` and specify your personal
    user account (which should have been configured in the previous step).
-   
+
 1) Netlify will then upload the built content and serve it via their CDN. A URL to the preview will be given in the
    CLI console output. Be sure to select the `edge` version within the Documentation pages to see your reflected changes in the remote site.
-
 
 #### Local Preview via `netlify dev`
 
@@ -120,7 +120,6 @@ than deploying remotely as the content does not need to be uploaded to the Netli
 > the version of the CLI tool and how in-sync that is with the actual Netlify infrastructure. A common issue is
 > with the redirects not working as expected locally, but working correctly on the "live" site in production.
 > When in doubt use the "remote" Netlify preview to verify behavior.
-
 
 ## Checking links
 
@@ -290,49 +289,49 @@ another group's module when evaluating (e.g. so that they can be imported).
 
 # Integration Index
 
-The integration index makes it easy to find either a specific integration with OPA 
-or to browse the integrations with OPA within a particular category.  And it pulls 
-information about that integration (e.g. blogs, videos, tutorials, code) into a 
+The integration index makes it easy to find either a specific integration with OPA
+or to browse the integrations with OPA within a particular category.  And it pulls
+information about that integration (e.g. blogs, videos, tutorials, code) into a
 single place while allowing integration authors to maintain the code wherever they like.  
 
 ## Schema
 
 The schema of integrations.yaml has the following highlevel entries, each of which is self-explanatory.
-* integrations
-* organizations
-* software
+- integrations
+- organizations
+- software
 
 Each entry is an object where keys are unique identifiers for each subentry.  
 Organizations and Software are self-explanatory by inspection.  The schema for integrations is as follows.
 
-* title: string
-* description: string
-* software: array of strings
-* labels: collection of key/value pairs.
-* tutorials: array of links
-* code: array of links
-* inventors: array of either
-  * string (organization name)
-  * object with fields
-    * name: string
-    * organization: string
-* videos: array of either
-  * link
-  * object with fields
-    * title: string
-    * speakers: array of name/organization objects
-    * venue: string
-    * link: string
-* blogs: array of links
+- title: string
+- description: string
+- software: array of strings
+- labels: collection of key/value pairs.
+- tutorials: array of links
+- code: array of links
+- inventors: array of either
+  - string (organization name)
+  - object with fields
+    - name: string
+    - organization: string
+- videos: array of either
+  - link
+  - object with fields
+    - title: string
+    - speakers: array of name/organization objects
+    - venue: string
+    - link: string
+- blogs: array of links
 
 The UI for this is currently hosted at [https://openpolicyagent.org/docs/latest/ecosystem/](https://openpolicyagent.org/docs/latest/ecosystem/)
 
 The future plan is to use the following labels to generate categories of integrations.
 
-* layer: which layer of the stack does this belong to
-* category: which kind of component within that layer is this
-* type: what kind of integration this is.  Either `enforcement` or `poweredbyopa`.  `enforcement` is the default 
-  if `type` is missing.  `poweredbyopa` is intended to be integrations built using OPA that are not tied to a 
+- layer: which layer of the stack does this belong to
+- category: which kind of component within that layer is this
+- type: what kind of integration this is.  Either `enforcement` or `poweredbyopa`.  `enforcement` is the default
+  if `type` is missing.  `poweredbyopa` is intended to be integrations built using OPA that are not tied to a
   particular layer of the stack.  This distinction is the most ambiguous and may change.
 
 As of now the labels are only displayed for each entry.
@@ -357,10 +356,11 @@ Would need a file called `my-cool-integration.png` at `./website/static/img/logo
 If it doesn't exist the OPA logo will be shown by default.
 
 ## Google Analytics
+
 With the addition of the feedback button, we are now able to see how many users found a particular page of the docs useful.
 
 To view the metrics you will need access to [Google Analytics](https://analytics.google.com/analytics/web/).
 
 Feedback responses can be found in the right hand tree under Behavior -> Events -> Top Events.
 
-From here you can set the desired time frame you wish to monitor. Then drill down into the helpful category to see the specific pages and how many clicks they received. 
+From here you can set the desired time frame you wish to monitor. Then drill down into the helpful category to see the specific pages and how many clicks they received.

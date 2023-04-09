@@ -1,7 +1,7 @@
 ---
 title: Comparison to Other Systems
 kind: misc
-weight: 16
+weight: 3
 ---
 
 Often the easiest way to understand a new language is by comparing
@@ -121,7 +121,6 @@ but it does let you express SOD constraints and ask for all SOD violations,
 as shown below.  (Here we assume the statements below are added to the RBAC
 statements above.)
 
-
 ```live:rbac/sod:module:openable
 # Pairs of roles that no user can be assigned to simultaneously
 sod_roles := [
@@ -146,7 +145,6 @@ happen whenever a user is assigned two conflicting roles.  The dynamic version o
 a single user to be assigned two conflicting roles but requires that the same user not
 utilize those roles on the same transaction, which is out of scope for this document.)
 
-
 ## Attribute-based access control (ABAC)
 
 With attribute-based access control, you make policy decisions using the
@@ -156,7 +154,6 @@ It has three main components:
 * Attributes for users
 * Attributes for objects
 * Logic dictating which attribute combinations are authorized
-
 
 For example, we might know the following attributes for our users
 
@@ -249,7 +246,6 @@ In OPA, there's nothing special about users and objects.  You can attach
 attributes to anything.  And the attributes can themselves be structured JSON objects
 and have attributes on attributes on attributes, etc.  Because OPA was designed to work
 with arbitrarily nested JSON data, it supports incredibly rich ABAC policies.
-
 
 ## Amazon Web Services IAM
 

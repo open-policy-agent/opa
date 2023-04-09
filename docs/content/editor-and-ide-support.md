@@ -1,7 +1,7 @@
 ---
 title: Editor and IDE Support
 kind: misc
-weight: 11
+weight: 2
 ---
 
 OPA can be integrated into editors and IDEs to provide features like syntax highlighting, query

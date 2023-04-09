@@ -60,6 +60,7 @@ Rules define the content of documents. We can query for the content of the `pi` 
 ```live:eg/pi:query:read_only,merge_down
 pi
 ```
+
 ```live:eg/pi:output
 ```
 
@@ -74,6 +75,7 @@ The result:
 ```live:eg/rect:query:read_only,merge_down
 rect
 ```
+
 ```live:eg/rect:output
 ```
 
@@ -82,6 +84,7 @@ You can compare two scalar or composite values, and when you do so you are check
 ```live:eg/rect/compare:query:merge_down
 rect == {"height": 4, "width": 2}
 ```
+
 ```live:eg/rect/compare:output
 ```
 
@@ -98,6 +101,7 @@ defined.
 ```live:eg/undefined:query:hidden
 v
 ```
+
 ```live:eg/undefined:output:expect_undefined
 ```
 
@@ -106,11 +110,14 @@ Expressions that refer to undefined values are also undefined. This includes com
 ```live:eg/undefined/expression:query:merge_down
 v == true
 ```
+
 ```live:eg/undefined/expression:output:expect_undefined,merge_down
 ```
+
 ```live:eg/undefined/other_expression:query:merge_down
 v != true
 ```
+
 ```live:eg/undefined/other_expression:output:expect_undefined
 ```
 
@@ -164,6 +171,7 @@ When we query for the value of `t2` we see the obvious result:
 ```live:eg/rules:query:hidden
 t
 ```
+
 ```live:eg/rules:output
 ```
 
@@ -172,7 +180,9 @@ Rego [References](#references) help you refer to nested documents. For example, 
 ```live:eg/references:module
 sites := [{"name": "prod"}, {"name": "smoke1"}, {"name": "dev"}]
 ```
+
 And
+
 ```live:eg/references/basic:module
 r if {
     some site in sites
@@ -187,6 +197,7 @@ The result:
 ```live:eg/references/basic:query:hidden
 r
 ```
+
 ```live:eg/references/basic:output
 ```
 
@@ -204,6 +215,7 @@ The value of `q` is a set of names
 ```live:eg/references/helper:query:hidden
 q
 ```
+
 ```live:eg/references/helper:output
 ```
 
@@ -218,6 +230,7 @@ Querying `p` will have the same result:
 ```live:eg/references/helper/composed:query:hidden
 p
 ```
+
 ```live:eg/references/helper/composed:output
 ```
 
@@ -226,6 +239,7 @@ As you can see, rules which have arguments can be queried with input values:
 ```live:eg/references/helper/argument:query:merge_down
 q["smoke2"]
 ```
+
 ```live:eg/references/helper/argument:output:expect_undefined
 ```
 
@@ -236,7 +250,6 @@ walks through each part of the language in more detail.
 
 For a concise reference, see the [Policy
 Reference](../policy-reference) document.
-
 
 ## Scalar Values
 
@@ -257,6 +270,7 @@ These documents can be queried like any other:
 ```live:eg/scalars:query:merge_down
 [greeting, max_height, pi, allowed, location]
 ```
+
 ```live:eg/scalars/str:output
 ```
 
@@ -287,6 +301,7 @@ The result:
 ```live:eg/cube:query:merge_down
 cube.width
 ```
+
 ```live:eg/cube:output
 ```
 
@@ -298,6 +313,7 @@ b := false
 c := null
 d := {"a": a, "x": [b, c]}
 ```
+
 ```live:eg/composite_variables:output
 ```
 
@@ -315,14 +331,18 @@ ips_by_port := {
     443: ["2.2.2.1"],
 }
 ```
+
 ```live:eg/objects/lookup:query:merge_down
 ips_by_port[80]
 ```
+
 ```live:eg/objects/lookup:output:merge_down
 ```
+
 ```live:eg/objects/iteration:query:merge_down
 some port; ips_by_port[port][_] == "2.2.2.1"
 ```
+
 ```live:eg/objects/iteration:output
 ```
 
@@ -332,6 +352,7 @@ as strings (because JSON does not support non-string object keys).
 ```live:eg/objects/marshal:query:merge_down
 ips_by_port
 ```
+
 ```live:eg/objects/marshal:output
 ```
 
@@ -345,6 +366,7 @@ For example:
 ```live:eg/cube/sets:query:merge_down
 s := {cube.width, cube.height, cube.depth}
 ```
+
 ```live:eg/cube/sets:output
 ```
 
@@ -359,6 +381,7 @@ When comparing sets, the order of elements does not matter:
 ```live:eg/set_equality:query:merge_down
 {1,2,3} == {3,1,2}
 ```
+
 ```live:eg/set_equality:output
 ```
 
@@ -369,6 +392,7 @@ outside the set, OPA will complain:
 ```live:eg/set_unification:query:merge_down
 {1,2,3} == {3,x,2}
 ```
+
 ```live:eg/set_unification:output:expect_unsafe_var
 ```
 
@@ -378,6 +402,7 @@ defined with `{}`, an empty set has to be constructed with a different syntax:
 ```live:eg/set_construction:query:merge_down
 count(set())
 ```
+
 ```live:eg/set_construction:output
 ```
 
@@ -407,6 +432,7 @@ In this case, we evaluate `q` with a variable `x` (which is not bound to a value
 ```live:eg/variables:query:merge_down
 q[x]
 ```
+
 ```live:eg/variables:output
 ```
 
@@ -415,6 +441,7 @@ On the other hand, if we evaluate `q` with an input value for `name` we can dete
 ```live:eg/variables/value:query:merge_down
 q["dev"]
 ```
+
 ```live:eg/variables/value:output
 ```
 
@@ -431,6 +458,7 @@ The simplest reference contains no variables. For example, the following referen
 ```live:eg/data/ref1:query:merge_down
 sites[0].servers[1].hostname
 ```
+
 ```live:eg/data/ref1:output
 ```
 
@@ -439,6 +467,7 @@ References are typically written using the “dot-access” style. The canonical
 ```live:eg/data/ref2:query:merge_down
 sites[0]["servers"][1]["hostname"]
 ```
+
 ```live:eg/data/ref2:output
 ```
 
@@ -452,13 +481,13 @@ Both forms are valid, however, the dot-access style is typically more readable. 
 The prefix of a reference identifies the root document for that reference. In
 the example above this is `sites`. The root document may be:
 
-  * a local variable inside a rule.
-  * a rule inside the same package.
-  * a document stored in OPA.
-  * a documented temporarily provided to OPA as part of a transaction.
-  * an array, object or set, e.g. `[1, 2, 3][0]`.
-  * a function call, e.g. `split("a.b.c", ".")[1]`.
-  * a [comprehension](#comprehensions).
+* a local variable inside a rule.
+* a rule inside the same package.
+* a document stored in OPA.
+* a documented temporarily provided to OPA as part of a transaction.
+* an array, object or set, e.g. `[1, 2, 3][0]`.
+* a function call, e.g. `split("a.b.c", ".")[1]`.
+* a [comprehension](#comprehensions).
 
 ### Variable Keys
 
@@ -470,6 +499,7 @@ example data:
 ```live:eg/data/var_key:query:merge_down
 sites[i].servers[j].hostname
 ```
+
 ```live:eg/data/var_key:output
 ```
 
@@ -489,6 +519,7 @@ In the reference above, we effectively used variables named `i` and `j` to itera
 ```live:eg/data/meh_key:query:merge_down
 sites[_].servers[_].hostname
 ```
+
 ```live:eg/data/meh_key:output
 ```
 
@@ -511,12 +542,14 @@ s := {[1, 2], [1, 4], [2, 6]}
 ```live:eg/composite_key/1:query:merge_down
 s[[1, 2]]
 ```
+
 ```live:eg/composite_key/1:output
 ```
 
 ```live:eg/composite_key/2:query:merge_down
 s[[1, x]]
 ```
+
 ```live:eg/composite_key/2:output
 ```
 
@@ -539,6 +572,7 @@ The result:
 ```live:eg/data/multi:query:merge_down
 apps_and_hostnames[x]
 ```
+
 ```live:eg/data/multi:output
 ```
 
@@ -568,9 +602,9 @@ The result:
 ```live:eg/data/self_join:query:merge_down
 same_site[x]
 ```
+
 ```live:eg/data/self_join:output
 ```
-
 
 ## Comprehensions
 
@@ -584,6 +618,7 @@ The body of a comprehension is able to refer to variables defined in the outer b
 region := "west"
 names := [name | sites[i].region == region; name := sites[i].name]
 ```
+
 ```live:eg/data/comprehension_intro:output
 ```
 
@@ -626,6 +661,7 @@ The result:
 ```live:eg/data/array_comprehension:query:read_only,merge_down
 app_to_hostnames[app]
 ```
+
 ```live:eg/data/array_comprehension:output
 ```
 
@@ -655,6 +691,7 @@ The result is the same:
 ```live:eg/data/object_comprehension:query:read_only,merge_down
 app_to_hostnames[app]
 ```
+
 ```live:eg/data/object_comprehension:output
 ```
 
@@ -663,6 +700,7 @@ Object comprehensions are not allowed to have conflicting entries, similar to ru
 ```live:eg/data/object_comprehension_conflicting:query:merge_down
 {"foo": y | z := [1, 2, 3]; y := z[_] }
 ```
+
 ```live:eg/data/object_comprehension_conflicting:output:expect_conflict
 ```
 
@@ -675,22 +713,24 @@ Set Comprehensions build set values out of sub-queries. Set Comprehensions have 
 ```
 
 For example, to construct a set from an array:
+
 ```live:eg/data/set_comprehension:module:merge_down
 a := [1, 2, 3, 4, 3, 4, 3, 4, 5]
 b := {x | x = a[_]}
 ```
+
 ```live:eg/data/set_comprehension:query:hidden
 a
 b
 ```
+
 ```live:eg/data/set_comprehension:output
 ```
-
 
 ## Rules
 
 Rules define the content of [Virtual Documents](../philosophy#how-does-opa-work) in
-OPA. When OPA evaluates a rule, we say OPA *generates* the content of the
+OPA. When OPA evaluates a rule, we say OPA _generates_ the content of the
 document that is defined by the rule.
 
 The sample code in this section make use of the data defined in [Examples](#example-data).
@@ -700,6 +740,7 @@ Rule definitions can be more expressive when using the _future keywords_ `contai
 `if`. They are optional, and you will find examples below of defining rules without them.
 
 To follow along as-is, please import the keywords:
+
 ```live:eg/data/info:module:read_only
 import future.keywords.if
 import future.keywords.contains
@@ -732,6 +773,7 @@ When we query for the content of `hostnames` we see the same data as we would if
 ```live:eg/data/rules:query:read_only,merge_down
 hostnames[name]
 ```
+
 ```live:eg/data/rules:output
 ```
 
@@ -770,6 +812,7 @@ The result:
 ```live:eg/data/rule_objects:query:merge_down
 apps_by_hostname["helium"]
 ```
+
 ```live:eg/data/rule_objects:output
 ```
 
@@ -789,7 +832,7 @@ apps_by_hostname[hostname] := app {
 ### Incremental Definitions
 
 A rule may be defined multiple times with the same name. When a rule is defined
-this way, we refer to the rule definition as *incremental* because each
+this way, we refer to the rule definition as _incremental_ because each
 definition is additive. The document produced by incrementally defined rules is
 the union of the documents produced by each individual rule.
 
@@ -828,6 +871,7 @@ The result:
 ```live:eg/data/incremental_rule:query:read_only,merge_down
 instances[x]
 ```
+
 ```live:eg/data/incremental_rule:output
 ```
 
@@ -848,8 +892,8 @@ instances[instance] {
 
 ### Complete Definitions
 
-In addition to rules that *partially* define sets and objects, Rego also
-supports so-called *complete* definitions of any type of document. Rules provide
+In addition to rules that _partially_ define sets and objects, Rego also
+supports so-called _complete_ definitions of any type of document. Rules provide
 a complete definition by omitting the key in the head. Complete definitions are
 commonly used for constants:
 
@@ -888,7 +932,7 @@ Error:
 ```live:eg/conflicting_rules:output:expect_conflict
 ```
 
-OPA returns an error in this case because the rule definitions are in *conflict*.
+OPA returns an error in this case because the rule definitions are in _conflict_.
 The value produced by max_memory cannot be 32 and 4 **at the same time**.
 
 The documents produced by rules with complete definitions may still be undefined:
@@ -896,6 +940,7 @@ The documents produced by rules with complete definitions may still be undefined
 ```live:eg/conflicting_rules/undefined:query:merge_down
 max_memory with user as "johnson"
 ```
+
 ```live:eg/conflicting_rules/undefined:output:expect_undefined
 ```
 
@@ -924,6 +969,7 @@ This module defines _two complete rules_, `data.example.fruit.apple.seeds` and `
 ```live:eg/ref_heads:query:merge_down
 data.example
 ```
+
 ```live:eg/ref_heads:output
 ```
 
@@ -939,9 +985,11 @@ trim_and_split(s) := x if {
      x := split(t, ".")
 }
 ```
+
 ```live:eg/basic_function:query:merge_down
 trim_and_split("   foo.bar ")
 ```
+
 ```live:eg/basic_function:output
 ```
 
@@ -967,10 +1015,9 @@ The following calls would produce the logical mappings given:
 
 | Call                                                    | ``x``      | ``y``                         |
 | ------------------------------------------------------- | ---------- | ----------------------------- |
-| ``z := foo(a) ``                                        | ``a[0]``   | ``a[1].bar``                  |
+| ``z := foo(a)``                                        | ``a[0]``   | ``a[1].bar``                  |
 | ``z := foo(["5", {"bar": "hello"}])``                   | ``"5"``    | ``"hello"``                   |
 | ``z := foo(["5", {"bar": [1, 2, 3, ["foo", "bar"]]}])`` | ``"5"``    | ``[1, 2, 3, ["foo", "bar"]]`` |
-
 
 If you need multiple outputs, write your functions so that the output is an array, object or set
 containing your results. If the output term is omitted, it is equivalent to having the output term
@@ -994,9 +1041,11 @@ p(x) := y if {
     y := x[_]
 }
 ```
+
 ```live:eg/function_single_output:query:merge_down
 p([1, 2, 3])
 ```
+
 ```live:eg/function_single_output:output:expect_conflict
 ```
 
@@ -1016,12 +1065,14 @@ q(2, x) := y if {
 ```live:eg/double_function_define/1:query:merge_down
 q(1, 2)
 ```
+
 ```live:eg/double_function_define/1:output
 ```
 
 ```live:eg/double_function_define/2:query:merge_down
 q(2, 2)
 ```
+
 ```live:eg/double_function_define/2:output
 ```
 
@@ -1040,10 +1091,12 @@ r(x, 2) := y if {
 ```live:eg/double_function_define_diff_out:query:merge_down
 r(1, 2)
 ```
+
 ```live:eg/double_function_define_diff_out:output:expect_conflict
 ```
 
 On the other hand, if a call matches no functions, then the result is undefined.
+
 ```live:eg/double_function_define_undefined:module
 s(x, 2) := y if {
     y := x * 4
@@ -1053,16 +1106,19 @@ s(x, 2) := y if {
 ```live:eg/double_function_define_undefined/1:query:merge_down
 s(5, 2)
 ```
+
 ```live:eg/double_function_define_undefined/1:output
 ```
 
 ```live:eg/double_function_define_undefined/2:query:merge_down
 s(5, 3)
 ```
+
 ```live:eg/double_function_define_undefined/2:output:expect_undefined
 ```
 
 #### Function overloading
+
 Rego does not currently support the overloading of functions by the number of parameters. If two function definitions are given with the same function name but different numbers of parameters, a compile-time type error is generated.
 
 ```live:eg/function_overloading_error:module
@@ -1079,6 +1135,7 @@ r(x, y) := result if {
 ```
 
 The error can be avoided by using different function names.
+
 ```live:eg/function_overloading_naming:module
 r_1(x) := result if {
     result := 2*x
@@ -1095,6 +1152,7 @@ r_2(x, y) := result if {
   r_2(10, 1)
 ]
 ```
+
 ```live:eg/function_overloading_naming:output
 ```
 
@@ -1118,6 +1176,7 @@ r(params) := result if {
   r([10, 1])
 ]
 ```
+
 ```live:eg/function_overloading_array:output
 ```
 
@@ -1125,7 +1184,7 @@ r(params) := result if {
 
 To generate the content of a [Virtual Document](../philosophy#how-does-opa-work), OPA attempts to bind variables in the body of the rule such that all expressions in the rule evaluate to True.
 
-This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states *should not* exist in the data stored in OPA. In these cases, negation must be used.
+This generates the correct result when the expressions represent assertions about what states should exist in the data stored in OPA. In some cases, you want to express that certain states _should not_ exist in the data stored in OPA. In these cases, negation must be used.
 
 For safety, a variable appearing in a negated expression must also appear in another non-negated equality expression in the rule.
 
@@ -1145,10 +1204,11 @@ The result:
 ```live:eg/simple_negation:query:read_only,merge_down
 t
 ```
+
 ```live:eg/simple_negation:output
 ```
 
-Negation is required to check whether some value *does not* exist in a collection. That is, complementing the operator in an expression such as `p[_] == "foo"` yields `p[_] != "foo"`. However, this is not equivalent to `not p["foo"]`.
+Negation is required to check whether some value _does not_ exist in a collection. That is, complementing the operator in an expression such as `p[_] == "foo"` yields `p[_] != "foo"`. However, this is not equivalent to `not p["foo"]`.
 
 For example, we can write a rule that defines a document containing names of apps not deployed on the `"prod"` site:
 
@@ -1180,6 +1240,7 @@ The result:
 ```live:eg/data/negation:query:read_only,merge_down
 apps_not_in_prod[name]
 ```
+
 ```live:eg/data/negation:output
 ```
 
@@ -1213,6 +1274,7 @@ array := ["one", "two", "three"]; array[i] == "three"
 
 The query will be satisfied **if there is an `i`** such that the query's
 expressions are simultaneously satisfied.
+
 ```live:eg/data/every_alternative/1:output
 ```
 
@@ -1238,12 +1300,14 @@ any_bitcoin_miners if {
 ```live:eg/data/correct_negation/1:query:merge_down
 no_bitcoin_miners_using_negation with apps as [{"name": "web"}]
 ```
+
 ```live:eg/data/correct_negation/1:output
 ```
 
 ```live:eg/data/correct_negation/2:query:merge_down
 no_bitcoin_miners_using_negation with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
 ```
+
 ```live:eg/data/correct_negation/2:output:expect_undefined
 ```
 
@@ -1279,6 +1343,7 @@ You can confirm this by querying the rule:
 ```live:eg/data/incorrect_no_bitcoin_some:query:merge_down
 no_bitcoin_miners with apps as [{"name": "bitcoin-miner"}, {"name": "web"}]
 ```
+
 ```live:eg/data/incorrect_no_bitcoin_some:output
 ```
 
@@ -1310,11 +1375,11 @@ and allows for more complex ORs.
 
 ## Modules
 
-In Rego, policies are defined inside *modules*. Modules consist of:
+In Rego, policies are defined inside _modules_. Modules consist of:
 
-  * Exactly one [Package](#packages) declaration.
-  * Zero or more [Import](#imports) statements.
-  * Zero or more [Rule](#rules) definitions.
+* Exactly one [Package](#packages) declaration.
+* Zero or more [Import](#imports) statements.
+* Zero or more [Rule](#rules) definitions.
 
 Modules are typically represented in Unicode text and encoded in UTF-8.
 
@@ -1431,8 +1496,8 @@ http_servers contains server if {
 To ensure backwards-compatibility, new keywords (like `every`) are introduced slowly.
 In the first stage, users can opt-in to using the new keywords via a special import:
 
-- `import future.keywords` introduces _all_ future keywords, and
-- `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
+* `import future.keywords` introduces _all_ future keywords, and
+* `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
 
 {{< danger >}}
 Using `import future.keywords` to import all future keywords means an **opt-out of a
@@ -1541,6 +1606,7 @@ If we query for the tuples we get two results:
 ```live:eg/data/some/i:query:hidden
 tuples
 ```
+
 ```live:eg/data/some/i:output
 ```
 
@@ -1585,16 +1651,18 @@ names_with_dev if {
     }
 }
 ```
+
 ```live:eg/data/every0:query:merge_down
 names_with_dev
 ```
+
 ```live:eg/data/every0:output
 ```
 
 The `every` keyword takes an (optional) key argument, a value argument, a domain, and a
 block of further queries, its "body".
 
-The keyword is used to explicitly assert that its body is true for *any element in the domain*.
+The keyword is used to explicitly assert that its body is true for _any element in the domain_.
 It will iterate over the domain, bind its variables, and check that the body holds
 for those bindings.
 If one of the bindings does not yield a successful evaluation of the body, the overall
@@ -1625,6 +1693,7 @@ set_domain if {
     every x in {1, 2, 3} { x != 4 } # set domain
 }
 ```
+
 ```live:eg/every1:output
 ```
 
@@ -1648,6 +1717,7 @@ lte_one if {
     not larger_than_one(x)
 }
 ```
+
 ```live:eg/every2:output
 ```
 
@@ -1667,30 +1737,35 @@ allowed:
 ```live:import_input/1:query:merge_down
 allow with input as {"user": "alice", "method": "POST"}
 ```
+
 ```live:import_input/1:output
 ```
 
 ```live:import_input/2:query:merge_down
 allow with input as {"user": "bob", "method": "GET"}
 ```
+
 ```live:import_input/2:output
 ```
 
 ```live:import_input/3:query:merge_down
 not allow with input as {"user": "bob", "method": "DELETE"}
 ```
+
 ```live:import_input/3:output
 ```
 
 ```live:import_input/4:query:merge_down
 allow with input as {"user": "charlie", "method": "GET"} with data.roles as {"dev": ["charlie"]}
 ```
+
 ```live:import_input/4:output
 ```
 
 ```live:import_input/5:query:merge_down
 not allow with input as {"user": "charlie", "method": "GET"} with data.roles as {"dev": ["bob"]}
 ```
+
 ```live:import_input/5:output
 ```
 
@@ -1699,6 +1774,7 @@ allow with input as {"user": "catherine", "method": "GET"}
       with data.roles as {"dev": ["bob"]}
       with time.weekday as "Sunday"
 ```
+
 ```live:import_input/6:output
 ```
 
@@ -1742,6 +1818,7 @@ outer := result if {
 
 When `<target>` is a reference to a function, like `http.send`, then
 its `<value>` can be any of the following:
+
 1. a value: `with http.send as {"body": {"success": true }}`
 2. a reference to another function: `with http.send as mock_http_send`
 3. a reference to another (possibly custom) built-in function: `with custom_builtin as less_strict_custom_builtin`
@@ -1764,12 +1841,14 @@ mock_count(x) := count(x) if not "x" in x
 ```live:eg/with_builtins/1:query:merge_down
 f([1, 2, 3]) with count as mock_count
 ```
+
 ```live:eg/with_builtins/1:output
 ```
 
 ```live:eg/with_builtins/2:query:merge_down
 f(["x", "y", "z"]) with count as mock_count
 ```
+
 ```live:eg/with_builtins/2:output
 ```
 
@@ -1788,9 +1867,11 @@ rule_using_concat if {
     concat(",", input.x) == "foo,bar"
 }
 ```
+
 ```live:eg/with_builtins_nested/1:query:merge_down
 f(["x", "y", "z"]) with count as mock_count with input.x as ["baz"]
 ```
+
 ```live:eg/with_builtins_nested/1:output
 ```
 
@@ -1801,12 +1882,14 @@ does not change the result of the evaluation:
 ```live:eg/with_builtins_nested/2:query:merge_down
 count(input.x) with count as 3 with input.x as ["x"]
 ```
+
 ```live:eg/with_builtins_nested/2:output
 ```
 
 ```live:eg/with_builtins_nested/3:query:merge_down
 count(input.x) with count as 3 with input as {}
 ```
+
 ```live:eg/with_builtins_nested/3:output:expect_undefined
 ```
 
@@ -1834,12 +1917,14 @@ When the `allow` document is queried, the return value will be either `true` or 
 ```live:eg/default:query:hidden
 allow
 ```
+
 ```live:eg/default:input:merge_down
 {
     "user": "bob",
     "method": "POST"
 }
 ```
+
 ```live:eg/default:output
 ```
 
@@ -1876,6 +1961,7 @@ authorize := "allow" if {
     input.source_network == "external"  # from external networks.
 } # ... more rules
 ```
+
 ```live:eg/else:query:hidden
 authorize
 ```
@@ -1893,6 +1979,7 @@ though the input matches the second rule as well.
   "user": "superuser"
 }
 ```
+
 ```live:eg/else/1:output
 ```
 
@@ -1909,6 +1996,7 @@ evaluation continues to the second rule before stopping.
   "user": "alice"
 }
 ```
+
 ```live:eg/else/2:output
 ```
 
@@ -1938,6 +2026,7 @@ p := [x, y, z] if {
     z := 3 in {"foo": 1, "bar": 3} # object
 }
 ```
+
 ```live:eg/member1:output
 ```
 
@@ -1953,6 +2042,7 @@ p := [x, y] if {
     y := 2, "baz" in ["foo", "bar", "baz"] # key, val with array
 }
 ```
+
 ```live:eg/member1c:output
 ```
 
@@ -1979,6 +2069,7 @@ z := x if {
 f(x, y) := sprintf("two function arguments: %v, %v", [x, y])
 g(x) := sprintf("one function argument: %v", [x])
 ```
+
 ```live:eg/member1d:output
 ```
 
@@ -1994,6 +2085,7 @@ test_deny {
     deny with input.user.roles as ["operator", "user"]
 }
 ```
+
 ```live:eg/member1a:output
 ```
 
@@ -2007,6 +2099,7 @@ q := x if {
     x := 3 in "three"
 }
 ```
+
 ```live:eg/member1b:output
 ```
 
@@ -2027,10 +2120,12 @@ r[x] {
     some x in {"foo": "bar", "baz": "quz"}
 }
 ```
+
 ```live:eg/member2:output
 ```
 
 Furthermore, passing a second argument allows you to work with _object keys_ and _array indices_:
+
 ```live:eg/member3:module:merge_down
 import future.keywords.in
 
@@ -2046,6 +2141,7 @@ r[y] = x if {
     some x, y in {"foo": "bar", "baz": "quz"}
 }
 ```
+
 ```live:eg/member3:output
 ```
 
@@ -2061,6 +2157,7 @@ p[x] = y if {
     some {"bar": x}, {"foo": y} in {{"bar": "b"}: {"foo": "f"}}
 }
 ```
+
 ```live:eg/member4:output
 ```
 
@@ -2095,6 +2192,7 @@ q if {
     x := 2     # error because x is assigned twice.
 }
 ```
+
 ```live:eg/assignment2:output:expect_assigned_above,expect_referenced_above
 ```
 
@@ -2109,9 +2207,9 @@ in_london if {
     country == "England"
 }
 ```
+
 ```live:eg/assignment3:output
 ```
-
 
 #### Comparison `==`
 
@@ -2123,6 +2221,7 @@ p if {
     x == 100   # true because x refers to the local variable
 }
 ```
+
 ```live:eg/comparison1:output
 ```
 
@@ -2132,6 +2231,7 @@ q if {
     y == 100   # true because y refers to the global variable
 }
 ```
+
 ```live:eg/comparison2:output
 ```
 
@@ -2140,6 +2240,7 @@ r if {
     z == 100   # compiler error because z has not been assigned a value
 }
 ```
+
 ```live:eg/comparison3:output:expect_unsafe_var
 ```
 
@@ -2151,12 +2252,14 @@ Unification (`=`) combines assignment and comparison. Rego will assign variables
 # Find values for x and y that make the equality true
 [x, "world"] = ["hello", y]
 ```
+
 ```live:eg/unification1:output
 ```
 
 ```live:eg/data/unification2:query:merge_down
 sites[i].servers[j].name = apps[k].servers[m]
 ```
+
 ```live:eg/data/unification2:output
 ```
 
@@ -2186,7 +2289,6 @@ Best practice is to use assignment `:=` and comparison `==` wherever possible. T
 
 Under the hood `:=` and `==` are syntactic sugar for `=`, local variable creation, and additional compiler checks.
 
-
 ### Comparison Operators
 
 The following comparison operators are supported:
@@ -2205,7 +2307,6 @@ in the expression. As a result, if either operand is a variable, the variable
 must appear in another expression in the same rule that would cause the
 variable to be bound, i.e., an equality expression or the target position of
 a built-in function.
-
 
 ## Built-in Functions
 
@@ -2256,11 +2357,13 @@ reason contains "invalid JWT supplied as input" if {
     not io.jwt.decode(input.token)
 }
 ```
+
 ```live:eg/errors:input:merge_down
 {
     "token": "a poorly formatted token"
 }
 ```
+
 ```live:eg/errors:output
 ```
 
@@ -2363,3 +2466,1141 @@ containers := [
     }
 ]
 ```
+
+## Metadata
+
+The package and individual rules in a module can be annotated with a rich set of metadata.
+
+```live:rego/metadata:module:read_only
+# METADATA
+# title: My rule
+# description: A rule that determines if x is allowed.
+# authors:
+# - John Doe <john@example.com>
+# entrypoint: true
+allow {
+  ...
+}
+```
+
+Annotations are grouped within a _metadata block_, and must be specified as YAML within a comment block that **must** start with `# METADATA`.
+Also, every line in the comment block containing the annotation **must** start at Column 1 in the module/file, or otherwise, they will be ignored.
+
+{{< danger >}}
+OPA will attempt to parse the YAML document in comments following the
+initial `# METADATA` comment. If the YAML document cannot be parsed, OPA will
+return an error. If you need to include additional comments between the
+comment block and the next statement, include a blank line immediately after
+the comment block containing the YAML document. This tells OPA that the
+comment block containing the YAML document is finished
+{{< /danger >}}
+
+### Annotations
+
+Name | Type | Description
+--- | --- | ---
+scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope on which the `schemas` annotation is applied. Read more [here](./#scope).
+title | string | A human-readable name for the annotation target. Read more [here](#title).
+description | string | A description of the annotation target. Read more [here](#description).
+related_resources | list of URLs | A list of URLs pointing to related resources/documentation. Read more [here](#related-resources).
+authors | list of strings | A list of authors for the annotation target. Read more [here](#authors).
+organizations | list of strings | A list of organizations related to the annotation target. Read more [here](#organizations).
+schemas | list of object | A list of associations between value paths and schema definitions. Read more [here](#schemas).
+entrypoint | boolean | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#entrypoint).
+custom | mapping of arbitrary data | A custom mapping of named parameters holding arbitrary data. Read more [here](#custom).
+
+### Scope
+
+Annotations can be defined at the rule or package level. The `scope` annotation in
+a metadata block determines how that metadata block will be applied. If the
+`scope` field is omitted, it defaults to the scope for the statement that
+immediately follows the annotation. The `scope` values that are currently
+supported are:
+
+* `rule` - applies to the individual rule statement (within the same file). Default, when metadata block precedes rule.
+* `document` - applies to all of the rules with the same name in the same package (across multiple files)
+* `package` - applies to all of the rules in the package (across multiple files). Default, when metadata block precedes package.
+* `subpackages` - applies to all of the rules in the package and all subpackages (recursively, across multiple files)
+
+Since the `document` scope annotation applies to all rules with the same name in the same package
+and the `package` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with
+these scopes are applied over all files with applicable package- and rule paths.
+As there is no ordering across files in the same package, the `document`, `package`, and `subpackages` scope annotations
+can only be specified **once** per path.
+The `document` scope annotation can be applied to any rule in the set (i.e., ordering does not matter.)
+
+#### Example
+
+```live:rego/metadata/scope:module:read_only
+# METADATA
+# scope: document
+# description: A set of rules that determines if x is allowed.
+
+# METADATA
+# title: Allow Ones
+allow {
+    x == 1
+}
+
+# METADATA
+# title: Allow Twos
+allow {
+    x == 2
+}
+```
+
+### Title
+
+The `title` annotation is a string value giving a human-readable name to the annotation target.
+
+#### Example
+
+```live:rego/metadata/title:module:read_only
+# METADATA
+# title: Allow Ones
+allow {
+  x == 1
+}
+
+# METADATA
+# title: Allow Twos
+allow {
+  x == 2
+}
+```
+
+### Description
+
+The `description` annotation is a string value describing the annotation target, such as its purpose.
+
+#### Example
+
+```live:rego/metadata/description:module:read_only
+# METADATA
+# description: |
+#  The 'allow' rule...
+#  Is about allowing things.
+#  Not denying them.
+allow {
+  ...
+}
+```
+
+### Related Resources
+
+The `related_resources` annotation is a list of _related-resource_ entries, where each links to some related external resource; such as RFCs and other reading material.
+A _related-resource_ entry can either be an object or a short-form string holding a single URL.
+
+#### Object Related-resource Format
+
+When a _related-resource_ entry is presented as an object, it has two fields:
+
+* `ref`: a URL pointing to the resource (required).
+* `description`: a text describing the resource.
+
+#### String Related-resource Format
+
+When a _related-resource_ entry is presented as a string, it needs to be a valid URL.
+
+#### Examples
+
+```live:rego/metadata/related_resources1:module:read_only
+# METADATA
+# related_resources:
+# - ref: https://example.com
+# ...
+# - ref: https://example.com/foo
+#   description: A text describing this resource
+allow {
+  ...
+}
+```
+
+```live:rego/metadata/related_resources2:module:read_only
+# METADATA
+# related_resources:
+# - https://example.com/foo
+# ...
+# - https://example.com/bar
+allow {
+  ...
+}
+```
+
+### Authors
+
+The `authors` annotation is a list of author entries, where each entry denotes an _author_.
+An _author_ entry can either be an object or a short-form string.
+
+#### Object Author Format
+
+When an _author_ entry is presented as an object, it has two fields:
+
+* `name`: the name of the author
+* `email`: the email of the author
+
+At least one of the above fields are required for a valid `author` entry.
+
+#### String Author Format
+
+When an _author_ entry is presented as a string, it has the format `{ name } [ "<" email ">"]`;
+where the name of the author is a sequence of whitespace-separated words.
+Optionally, the last word may represent an email, if enclosed with `<>`.
+
+#### Examples
+
+```live:rego/metadata/authors1:module:read_only
+# METADATA
+# authors:
+# - name: John Doe
+# ...
+# - name: Jane Doe
+#   email: jane@example.com
+allow {
+  ...
+}
+```
+
+```live:rego/metadata/authors2:module:read_only
+# METADATA
+# authors:
+# - John Doe
+# ...
+# - Jane Doe <jane@example.com>
+allow {
+  ...
+}
+```
+
+### Organizations
+
+The `organizations` annotation is a list of string values representing the organizations associated with the annotation target.
+
+#### Example
+
+```live:rego/metadata/organizations:module:read_only
+# METADATA
+# organizations:
+# - Acme Corp.
+# ...
+# - Tyrell Corp.
+allow {
+  ...
+}
+```
+
+### Schemas
+
+The `schemas` annotation is a list of key value pairs, associating schemas to data values.
+In-depth information on this topic can be found [here](../schemas#schema-annotations).
+
+#### Schema Reference Format
+
+Schema files can be referenced by path, where each path starts with the `schema` namespace, and trailing components specify
+the path of the schema file (sans file-ending) relative to the root directory specified by the `--schema` flag on applicable commands.
+If the `--schema` flag is not present, referenced schemas are ignored during type checking.
+
+```live:rego/metadata/schemas_ref:module:read_only
+# METADATA
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+```
+
+#### Inlined Schema Format
+
+Schema definitions can be inlined by specifying the schema structure as a YAML or JSON map.
+Inlined schemas are always used to inform type checking for the `eval`, `check`, and `test` commands;
+in contrast to [by-reference schema annotations](#schema-reference-format), which require the `--schema` flag to be present in order to be evaluated.
+
+```live:rego/metadata/schemas_inline:module:read_only
+# METADATA
+# schemas:
+#   - input.x: {type: number}
+allow {
+    input.x == 42
+}
+```
+
+### Entrypoint
+
+The `entrypoint` annotation is a boolean used to mark rules and packages that should be used as entrypoints for a policy.
+This value is false by default, and can only be used at `rule` or `package` scope.
+
+The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
+[`--entrypoint`](../cli/#options-1).
+
+{{< info >}}
+Unless the `--prune-unused` flag is used, any rule transitively referring to a
+package or rule declared as an entrypoint will also be enumerated as an entrypoint.
+{{< /info >}}
+
+### Custom
+
+The `custom` annotation is a mapping of user-defined data, mapping string keys to arbitrarily typed values.
+
+#### Example
+
+```live:rego/metadata/custom:module:read_only
+# METADATA
+# custom:
+#  my_int: 42
+#  my_string: Some text
+#  my_bool: true
+#  my_list:
+#   - a
+#   - b
+#  my_map:
+#   a: 1
+#   b: 2
+allow {
+  ...
+}
+```
+
+### Accessing annotations
+
+#### Rego
+
+In the example below, you can see how to access an annotation from within a policy.
+
+Given the input:
+
+```live:example/metadata/1:input
+{
+    "number": 11,
+    "subject": {
+        "name": "John doe",
+        "role": "customer"
+    }
+}
+```
+
+The following policy
+
+```live:example/metadata/1:module
+package example
+
+# METADATA
+# title: Deny invalid numbers
+# description: Numbers may not be higher than 5
+# custom:
+#  severity: MEDIUM
+output := decision {
+ input.number > 5
+
+ annotation := rego.metadata.rule()
+ decision := {
+  "severity": annotation.custom.severity,
+  "message": annotation.description,
+ }
+}
+```
+
+will output
+
+```live:example/metadata/1:output
+```
+
+If you'd like more examples and information on this, you can see more here under the [Rego](../policy-reference/#rego) policy reference.
+
+#### Inspect command
+
+Annotations can be listed through the `inspect` command by using the `-a` flag:
+
+```shell
+opa inspect -a
+```
+
+#### Go API
+
+The ``ast.AnnotationSet`` is a collection of all ``ast.Annotations`` declared in a set of modules.
+An ``ast.AnnotationSet`` can be created from a slice of compiled modules:
+
+```go
+var modules []*ast.Module
+...
+as, err := ast.BuildAnnotationSet(modules)
+if err != nil {
+    // Handle error.
+}
+```
+
+or can be retrieved from an ``ast.Compiler`` instance:
+
+```go
+var modules []*ast.Module
+...
+compiler := ast.NewCompiler()
+compiler.Compile(modules)
+as := compiler.GetAnnotationSet()
+```
+
+The ``ast.AnnotationSet`` can be flattened into a slice of ``ast.AnnotationsRef``, which is a complete, sorted list of all
+annotations, grouped by the path and location of their targeted package or -rule.
+
+```go
+flattened := as.Flatten()
+for _, entry := range flattened {
+    fmt.Printf("%v at %v has annotations %v\n",
+        entry.Path,
+        entry.Location,
+        entry.Annotations)
+}
+
+// Output:
+// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
+// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+//
+// For modules:
+// # METADATA
+// # scope: subpackages
+// # organizations:
+// # - Acme Corp.
+// package foo
+// ---
+// # METADATA
+// # description: A couple of useful rules
+// package foo.bar
+// 
+// # METADATA
+// # title: My Rule P
+// p := 7
+```
+
+Given an ``ast.Rule``, the ``ast.AnnotationSet`` can return the chain of annotations declared for that rule, and its path ancestry.
+The returned slice is ordered starting with the annotations for the rule, going outward to the farthest node with declared annotations
+in the rule's path ancestry.
+
+```go
+var rule *ast.Rule
+...
+chain := ast.Chain(rule)
+for _, link := range chain {
+    fmt.Printf("link at %v has annotations %v\n",
+        link.Path,
+        link.Annotations)
+}
+
+// Output:
+// data.foo.bar.p at mod:7 has annotations {"scope":"rule","title":"My Rule P"}
+// data.foo.bar at mod:3 has annotations {"scope":"package","description":"A couple of useful rules"}
+// data.foo at foo.rego:5 has annotations {"scope":"subpackages","organizations":["Acme Corp."]}
+//
+// For modules:
+// # METADATA
+// # scope: subpackages
+// # organizations:
+// # - Acme Corp.
+// package foo
+// ---
+// # METADATA
+// # description: A couple of useful rules
+// package foo.bar
+// 
+// # METADATA
+// # title: My Rule P
+// p := 7
+```
+
+## Schema
+
+### Using schemas to enhance the Rego type checker
+
+You can provide one or more input schema files and/or data schema files to `opa eval` to improve static type checking and get more precise error reports as you develop Rego code.
+
+The `-s` flag can be used to upload schemas for input and data documents in JSON Schema format. You can either load a single JSON schema file for the input document or directory of schema files.
+
+```
+-s, --schema string set schema file path or directory path
+```
+
+#### Passing a single file with -s
+
+When a single file is passed, it is a schema file associated with the input document globally. This means that for all rules in all packages, the `input` has a type derived from that schema. There is no constraint on the name of the file, it could be anything.
+
+Example:
+
+```
+opa eval data.envoy.authz.allow -i opa-schema-examples/envoy/input.json -d opa-schema-examples/envoy/policy.rego -s opa-schema-examples/envoy/schemas/my-schema.json
+```
+
+#### Passing a directory with -s
+
+When a directory path is passed, annotations will be used in the code to indicate what expressions map to what schemas (see below).
+Both input schema files and data schema files can be provided in the same directory, with different names. The directory of schemas may have any sub-directories. Notice that when a directory is passed the input document does not have a schema associated with it globally. This must also
+be indicated via an annotation.
+
+Example:
+
+```
+opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas
+
+```
+
+Schemas can also be provided for policy and data files loaded via `opa eval --bundle`
+
+Example:
+
+```
+opa eval data.kubernetes.admission -i opa-schema-examples/kubernetes/input.json -b opa-schema-examples/bundle.tar.gz -s opa-schema-examples/kubernetes/schemas
+
+```
+
+Samples provided at: <https://github.com/aavarghese/opa-schema-examples/>
+
+### Usage scenario with a single schema file
+
+Consider the following Rego code, which assumes as input a Kubernetes admission review. For resources that are Pods, it checks that the image name
+starts with a specific prefix.
+
+`pod.rego`
+
+```
+package kubernetes.admission
+
+deny[msg] {
+    input.request.kind.kinds == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
+}
+```
+
+Notice that this code has a typo in it: `input.request.kind.kinds` is undefined and should have been `input.request.kind.kind`.
+
+Consider the following input document:
+
+`input.json`
+
+```
+{
+    "kind": "AdmissionReview",
+    "request": {
+      "kind": {
+        "kind": "Pod",
+        "version": "v1"
+      },
+      "object": {
+        "metadata": {
+          "name": "myapp"
+        },
+        "spec": {
+          "containers": [
+            {
+              "image": "nginx",
+              "name": "nginx-frontend"
+            },
+            {
+              "image": "mysql",
+              "name": "mysql-backend"
+            }
+          ]
+        }
+      }
+    }
+  }
+  ```
+
+Clearly there are 2 image names that are in violation of the policy. However, when we evaluate the erroneous Rego code against this input we obtain:
+
+  ```
+  % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego
+  []
+  ```
+
+The empty value returned is indistinguishable from a situation where the input did not violate the policy. This error is therefore causing the policy not to catch violating inputs appropriately.
+
+If we fix the Rego code and change `input.request.kind.kinds` to `input.request.kind.kind`, then we obtain the expected result:
+
+  ```
+  [
+  "image 'nginx' comes from untrusted registry",
+  "image 'mysql' comes from untrusted registry"
+  ]
+  ```
+
+With this feature, it is possible to pass a schema to `opa eval`, written in JSON Schema. Consider the admission review schema provided at:
+<https://github.com/aavarghese/opa-schema-examples/blob/main/kubernetes/schemas/input.json>
+
+We can pass this schema to the evaluator as follows:
+
+  ```
+  % opa eval data.kubernetes.admission --format pretty -i opa-schema-examples/kubernetes/input.json -d opa-schema-examples/kubernetes/policy.rego -s opa-schema-examples/kubernetes/schemas/input.json
+  ```
+
+With the erroneous Rego code, we now obtain the following type error:
+
+  ```
+  1 error occurred: ../../aavarghese/opa-schema-examples/kubernetes/policy.rego:5: rego_type_error: undefined ref: input.request.kind.kinds
+ input.request.kind.kinds
+                    ^
+                    have: "kinds"
+                    want (one of): ["kind" "version"]
+  ```
+
+This indicates the error to the Rego developer right away, without having the need to observe the results of runs on actual data, thereby improving productivity.
+
+### Schema annotations
+
+When passing a directory of schemas to `opa eval`, schema annotations become handy to associate a Rego expression with a corresponding schema within a given scope:
+
+```
+# METADATA
+# schemas:
+#   - <path-to-value>:<path-to-schema>
+#   ...
+#   - <path-to-value>:<path-to-schema>
+allow {
+  ...
+}
+```
+
+See the [annotations documentation](../annotations) for general information relating to annotations.
+
+The `schemas` field specifies an array associating schemas to data values. Paths must start with `input` or `data` (i.e., they must be fully-qualified.)
+
+The type checker derives a Rego Object type for the schema and an appropriate entry is added to the type environment before type checking the rule. This entry is removed upon exit from the rule.
+
+Example:
+
+Consider the following Rego code which checks if an operation is allowed by a user, given an ACL data document:
+
+```
+package policy
+
+import data.acl
+
+default allow := false
+
+# METADATA
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+Consider a directory named `mySchemasDir` with the following structure, provided via `opa eval --schema opa-schema-examples/mySchemasDir`
+
+```$ tree mySchemasDir/
+mySchemasDir/
+├── input.json
+└── acl-schema.json
+```
+
+For actual code samples, see <https://github.com/aavarghese/opa-schema-examples/tree/main/acl>.
+
+In the first `allow` rule above, the input document has the schema `input.json`, and `data.acl` has the schema `acl-schema.json`. Note that we use the relative path inside the `mySchemasDir` directory to identify a schema, omit the `.json` suffix, and use the global variable `schema` to stand for the top-level of the directory.
+Schemas in annotations are proper Rego references. So `schema.input` is also valid, but `schema.acl-schema` is not.
+
+If we had the expression `data.acl.foo` in this rule, it would result in a type error because the schema contained in `acl-schema.json` only defines object properties `"alice"` and `"bob"` in the ACL data document.
+
+On the other hand, this annotation does not constrain other paths under `data`. What it says is that we know the type of `data.acl` statically, but not that of other paths. So for example, `data.foo` is not a type error and gets assigned the type `Any`.
+
+Note that the second `allow` rule doesn't have a METADATA comment block attached to it, and hence will not be type checked with any schemas.
+
+On a different note, schema annotations can also be added to policy files part of a bundle package loaded via `opa eval --bundle` along with the `--schema` parameter for type checking a set of `*.rego` policy files.
+
+The _scope_ of the `schema` annotation can be controlled through the [scope](../annotations#scope) annotation
+
+In case of overlap, schema annotations override each other as follows:
+
+```
+rule overrides document
+document overrides package
+package overrides subpackages
+```
+
+The following sections explain how the different scopes affect `schema` annotation
+overriding for type checking.
+
+#### Rule and Document Scopes
+
+In the example above, the second rule does not include an annotation so type
+checking of the second rule would not take schemas into account. To enable type
+checking on the second (or other rules in the same file) we could specify the
+annotation multiple times:
+
+```
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+This is obviously redundant and error-prone. To avoid this problem, we can
+define the annotation once on a rule with scope `document`:
+
+```
+# METADATA
+# scope: document
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+In this example, the annotation with `document` scope has the same affect as the
+two `rule` scoped annotations in the previous example.
+
+#### Package and Subpackage Scopes
+
+Annotations can be defined at the `package` level and then applied to all rules
+within the package:
+
+```
+# METADATA
+# scope: package
+# schemas:
+#   - input: schema.input
+#   - data.acl: schema["acl-schema"]
+package example
+
+allow {
+    access := data.acl["alice"]
+    access[_] == input.operation
+}
+
+allow {
+    access := data.acl["bob"]
+    access[_] == input.operation
+}
+```
+
+`package` scoped schema annotations are useful when all rules in the same
+package operate on the same input structure. In some cases, when policies are
+organized into many sub-packages, it is useful to declare schemas recursively
+for them using the `subpackages` scope. For example:
+
+```
+# METADTA
+# scope: subpackages
+# schemas:
+# - input: schema.input
+package kubernetes.admission
+```
+
+This snippet would declare the top-level schema for `input` for the
+`kubernetes.admission` package as well as all subpackages. If admission control
+rules were defined inside packages like `kubernetes.admission.workloads.pods`,
+they would be able to pick up that one schema declaration.
+
+### Overriding
+
+JSON Schemas are often incomplete specifications of the format of data. For example, a Kubernetes Admission Review resource has a field `object` which can contain any other Kubernetes resource. A schema for Admission Review has a generic type `object` for that field that has no further specification. To allow more precise type checking in such cases, we support overriding existing schemas.
+
+Consider the following example:
+
+```
+package kubernetes.admission
+
+# METADATA
+# scope: rule
+# schemas:
+# - input: schema.input
+# - input.request.object: schema.kubernetes.pod
+deny[msg] {
+    input.request.kind.kind == "Pod"
+    image := input.request.object.spec.containers[_].image
+    not startswith(image, "hooli.com/")
+    msg := sprintf("image '%v' comes from untrusted registry", [image])
+}
+```
+
+In this example, the `input` is associated with an Admission Review schema, and furthermore `input.request.object` is set to have the schema of a Kubernetes Pod. In effect, the second schema annotation overrides the first one. Overriding is a schema transformation feature and combines existing schemas. In this case, we are combining the Admission Review schema with that of a Pod.
+
+Notice that the order of schema annotations matter for overriding to work correctly.
+
+Given a schema annotation, if a prefix of the path already has a type in the environment, then the annotation has the effect of merging and overriding the existing type with the type derived from the schema. In the example above, the prefix `input` already has a type in the type environment, so the second annotation overrides this existing type. Overriding affects the type of the longest prefix that already has a type. If no such prefix exists, the new path and type are added to the type environment for the scope of the rule.
+
+In general, consider the existing Rego type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E}}}
+```
+
+If we override this type with the following type (derived from a schema annotation of the form `a.b.e: schema-for-E1`):
+
+```
+object{a: object{b: object{e: E1}}}
+```
+
+It results in the following type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E1}}}
+```
+
+Notice that `b` still has its fields `c` and `d`, so overriding has a merging effect as well. Moreover, the type of expression `a.b.e` is now `E1` instead of `E`.
+
+We can also use overriding to add new paths to an existing type, so if we override the initial type with the following:
+
+```
+object{a: object{b: object{f: F}}}
+```
+
+we obtain the following type:
+
+```
+object{a: object{b: object{c: C, d: D, e: E, f: F}}}
+```
+
+We use schemas to enhance the type checking capability of OPA, and not to validate the input and data documents against desired schemas. This burden is still on the user and care must be taken when using overriding to ensure that the input and data provided are sensible and validated against the transformed schemas.
+
+### Multiple input schemas
+
+It is sometimes useful to have different input schemas for different rules in the same package. This can be achieved as illustrated by the following example:
+
+```
+package policy
+
+import data.acl
+
+default allow := false
+
+# METADATA
+# scope: rule
+# schemas:
+#  - input: schema["input"]
+#  - data.acl: schema["acl-schema"]
+allow {
+    access := data.acl[input.user]
+    access[_] == input.operation
+}
+
+# METADATA for whocan rule
+# scope: rule
+# schemas:
+#   - input: schema["whocan-input-schema"]
+#   - data.acl: schema["acl-schema"]
+whocan[user] {
+    access := acl[user]
+    access[_] == input.operation
+}
+```
+
+The directory that is passed to `opa eval` is the following:
+
+```$ tree mySchemasDir/
+mySchemasDir/
+├── input.json
+└── acl-schema.json
+└── whocan-input-schema.json
+```
+
+In this example, we associate the schema `input.json` with the input document in the rule `allow`, and the schema `whocan-input-schema.json`
+with the input document for the rule `whocan`.
+
+### Translating schemas to Rego types and dynamicity
+
+Rego has a gradual type system meaning that types can be partially known statically. For example, an object could have certain fields whose types are known and others that are unknown statically. OPA type checks what it knows statically and leaves the unknown parts to be type checked at runtime. An OPA object type has two parts: the static part with the type information known statically, and a dynamic part, which can be nil (meaning everything is known statically) or non-nil and indicating what is unknown.
+
+When we derive a type from a schema, we try to match what is known and unknown in the schema. For example, an `object` that has no specified fields becomes the Rego type `Object{Any: Any}`. However, currently `additionalProperties` and `additionalItems` are ignored. When a schema is fully specified, we derive a type with its dynamic part set to nil, meaning that we take a strict interpretation in order to get the most out of static type checking. This is the case even if `additionalProperties` is set to `true` in the schema. In the future, we will take this feature into account when deriving Rego types.
+
+When overriding existing types, the dynamicity of the overridden prefix is preserved.
+
+### Supporting JSON Schema composition keywords
+
+JSON Schema provides keywords such as `anyOf` and `allOf` to structure a complex schema. For `anyOf`, at least one of the subschemas must be true, and for `allOf`, all subschemas must be true. The type checker is able to identify such keywords and derive a more robust Rego type through more complex schemas.
+
+#### `anyOf`
+
+Specifically, `anyOf` acts as an Rego Or type where at least one (can be more than one) of the subschemas is true. Consider the following Rego and schema file containing `anyOf`:
+
+`policy-anyOf.rego`
+
+```
+package kubernetes.admission
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input-anyOf"]
+deny {
+    input.request.servers.versions == "Pod"
+}
+```
+
+`input-anyOf.json`
+
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "anyOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with two options as indicated by the choices under `anyOf`:
+
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be either `kind` or `server`.
+
+```
+ input.request.servers.versions
+               ^
+               have: "servers"
+               want (one of): ["kind" "server"]
+```
+
+Once this is fixed, the second typo is highlighted, prompting the user to choose between `accessNum` and `version`.
+
+```
+ input.request.server.versions
+                      ^
+                      have: "versions"
+                      want (one of): ["accessNum" "version"]
+```
+
+#### `allOf`
+
+Specifically, `allOf` keyword implies that all conditions under `allOf` within a schema must be met by the given data. `allOf` is implemented through merging the types from all of the JSON subSchemas listed under `allOf` before parsing the result to convert it to a Rego type. Merging of the JSON subSchemas essentially combines the passed in subSchemas based on what types they contain. Consider the following Rego and schema file containing `allOf`:
+
+`policy-allOf.rego`
+
+```
+package kubernetes.admission
+
+# METADATA
+# scope: rule
+# schemas:
+#   - input: schema["input-allof"]
+deny {
+    input.request.servers.versions == "Pod"
+}
+```
+
+`input-allof.json`
+
+```
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "type": "object",
+    "properties": {
+        "kind": {"type": "string"},
+        "request": {
+            "type": "object",
+            "allOf": [
+                {
+                   "properties": {
+                       "kind": {
+                           "type": "object",
+                           "properties": {
+                               "kind": {"type": "string"},
+                               "version": {"type": "string" }
+                           }
+                       }
+                   }
+                },
+                {
+                   "properties": {
+                       "server": {
+                           "type": "object",
+                           "properties": {
+                               "accessNum": {"type": "integer"},
+                               "version": {"type": "string"}
+                           }
+                       }
+                   }
+                }
+            ]
+        }
+    }
+}
+
+```
+
+We can see that `request` is an object with properties as indicated by the elements listed under `allOf`:
+
+* contains property `kind`, which has properties `kind` and `version`
+* contains property `server`, which has properties `accessNum` and `version`
+
+The type checker finds the first error in the Rego code, suggesting that `servers` should be `server`.
+
+```
+ input.request.servers.versions
+               ^
+               have: "servers"
+               want (one of): ["kind" "server"]
+```
+
+Once this is fixed, the second typo is highlighted, informing the user that `versions` should be one of `accessNum` or `version`.
+
+```
+ input.request.server.versions
+                      ^
+                      have: "versions"
+                      want (one of): ["accessNum" "version"]
+```
+
+Because the properties `kind`, `version`, and `accessNum` are all under the `allOf` keyword, the resulting schema that the given data must be validated against will contain the types contained in these properties children (string and integer).
+
+### Remote references in JSON schemas
+
+It is valid for JSON schemas to reference other JSON schemas via URLs, like this:
+
+```json
+{
+  "description": "Pod is a collection of containers that can run on a host.",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "$ref": "https://kubernetesjsonschema.dev/v1.14.0/_definitions.json#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta",
+      "description": "Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+    }
+  }
+}
+```
+
+OPA's type checker will fetch these remote references by default.
+To control the remote hosts schemas will be fetched from, pass a capabilities
+file to your `opa eval` or `opa check` call.
+
+Starting from the capabilities.json of your OPA version (which can be found [in the
+repository](https://github.com/open-policy-agent/opa/tree/main/capabilities)), add
+an `allow_net` key to it: its values are the IP addresses or host names that OPA is
+supposed to connect to for retrieving remote schemas.
+
+```json
+{
+  "builtins": [ ... ],
+  "allow_net": [ "kubernetesjsonschema.dev" ]
+}
+```
+
+#### Note
+
+* To forbid all network access in schema checking, set `allow_net` to `[]`
+* Host names are checked against the list as-is, so adding `127.0.0.1` to `allow_net`,
+  and referencing a schema from `http://localhost/` will _fail_.
+* Metaschemas for different JSON Schema draft versions are not subject to this
+  constraint, as they are already provided by OPA's schema checker without requiring
+  network access. These are:
+
+  * `http://json-schema.org/draft-04/schema`
+  * `http://json-schema.org/draft-06/schema`
+  * `http://json-schema.org/draft-07/schema`
+
+### Limitations
+
+Currently this feature admits schemas written in JSON Schema but does not support every feature available in this format.
+In particular the following features are not yet supported:
+
+* additional properties for objects
+* pattern properties for objects
+* additional items for arrays
+* contains for arrays
+* oneOf, not
+* enum
+* if/then/else
+
+A note of caution: overriding is a powerful capability that must be used carefully. For example, the user is allowed to write:
+
+```
+# METADATA
+# scope: rule
+# schema:
+#  - data: schema["some-schema"]
+```
+
+In this case, we are overriding the root of all documents to have some schema. Since all Rego code lives under `data` as virtual documents, this in practice renders all of them inaccessible (resulting in type errors). Similarly, assigning a schema to a package name is not a good idea and can cause problems. Care must also be taken when defining overrides so that the transformation of schemas is sensible and data can be validated against the transformed schema.
+
+### References
+
+For more examples, please see <https://github.com/aavarghese/opa-schema-examples>
+
+This contains samples for Envoy, Kubernetes, and Terraform including corresponding JSON Schemas.
+
+For a reference on JSON Schema please see: <http://json-schema.org/understanding-json-schema/reference/index.html>
+
+For a tool that generates JSON Schema from JSON samples, please see: <https://jsonschema.net/home>
+
+## Strict Mode
+
+The Rego compiler supports `strict mode`, where additional constraints and safety checks are enforced during compilation.
+Compiler rules that will be enforced by future versions of OPA, but will be a breaking change once introduced, are incubated in strict mode.
+This creates an opportunity for users to verify that their policies are compatible with the next version of OPA before upgrading.
+
+Compiler Strict mode is supported by the `check` command, and can be enabled through the `-S` flag.
+
+```
+-S, --strict enable compiler strict mode
+```
+
+### Strict Mode Constraints and Checks
+
+Name | Description                                                                                                                                                                                                                                                    | Enforced by default in OPA version
+--- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ---
+Duplicate imports | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited.                                                                                                                                                            | 1.0
+Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited                                                                                                                                   | 1.0
+Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  | 1.0
+`input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
+Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
