@@ -98,6 +98,7 @@ type FileLoader interface {
 	WithSkipBundleVerification(bool) FileLoader
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
+	WithJSONOptions(*ast.JSONOptions) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -162,6 +163,12 @@ func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
 	return fl
 }
 
+// WithJSONOptions sets the JSONOptions for use when parsing files
+func (fl *fileLoader) WithJSONOptions(opts *ast.JSONOptions) FileLoader {
+	fl.opts.JSONOptions = opts
+	return fl
+}
+
 // All returns a Result object loaded (recursively) from the specified paths.
 func (fl fileLoader) All(paths []string) (*Result, error) {
 	return fl.Filtered(paths, nil)
@@ -222,7 +229,8 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithBundleVerificationConfig(fl.bvc).
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
-		WithCapabilities(fl.opts.Capabilities)
+		WithCapabilities(fl.opts.Capabilities).
+		WithJSONOptions(fl.opts.JSONOptions)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
