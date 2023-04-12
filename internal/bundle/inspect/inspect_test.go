@@ -5,11 +5,13 @@
 package inspect
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -56,6 +58,39 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 
 		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
 			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
+		}
+	})
+}
+
+func TestBundleInfoHasAnnotationLocationDataSet(t *testing.T) {
+
+	files := map[string]string{
+		"/fuz/fuz.rego": `# METADATA
+# title: My package
+package fuz
+
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		info, err := File(rootDir, true)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if got, exp := len(info.Annotations), 1; got != exp {
+			t.Fatalf("expected %d annotation, but got: %d", exp, got)
+		}
+
+		bs, err := json.Marshal(info.Annotations[0])
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		exp := fmt.Sprintf(`"location":{"file":"%s/fuz/fuz.rego","row":3,"col":1}`, rootDir)
+
+		if got := string(bs); !strings.Contains(got, exp) {
+			t.Fatalf("expected to find %q in %q", exp, got)
 		}
 	})
 }

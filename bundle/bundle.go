@@ -391,6 +391,7 @@ type Reader struct {
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
 	processAnnotations    bool
+	jsonOptions           *ast.JSONOptions
 	capabilities          *ast.Capabilities
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
@@ -460,6 +461,12 @@ func (r *Reader) WithCapabilities(caps *ast.Capabilities) *Reader {
 	return r
 }
 
+// WithJSONOptions sets the JSONOptions to use when parsing policy files
+func (r *Reader) WithJSONOptions(opts *ast.JSONOptions) *Reader {
+	r.jsonOptions = opts
+	return r
+}
+
 // WithSizeLimitBytes sets the size limit to apply to files in the bundle. If files are larger
 // than this, an error will be returned by the reader.
 func (r *Reader) WithSizeLimitBytes(n int64) *Reader {
@@ -492,6 +499,7 @@ func (r *Reader) ParserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
 		ProcessAnnotation: r.processAnnotations,
 		Capabilities:      r.capabilities,
+		JSONOptions:       r.jsonOptions,
 	}
 }
 

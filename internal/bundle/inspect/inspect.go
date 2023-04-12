@@ -32,6 +32,14 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 	b, err := loader.NewFileLoader().
 		WithSkipBundleVerification(true).
 		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
+		WithJSONOptions(&ast.JSONOptions{
+			MarshalOptions: ast.JSONMarshalOptions{
+				IncludeLocation: ast.NodeToggle{
+					// Annotation location data is only included if includeAnnotations is set
+					AnnotationsRef: includeAnnotations,
+				},
+			},
+		}).
 		AsBundle(path)
 	if err != nil {
 		return nil, err
