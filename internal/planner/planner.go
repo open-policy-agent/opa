@@ -1565,16 +1565,14 @@ func (p *Planner) planComprehension(body ast.Body, closureIter planiter, target 
 	// below.
 	p.vars.Push(map[ast.Var]ir.Local{})
 	prev := p.curr
-	p.curr = &ir.Block{}
+	block := &ir.Block{}
+	p.curr = block
 	ploc := p.loc
 
-	if err := p.planQuery(body, 0, func() error {
-		return closureIter()
-	}); err != nil {
+	if err := p.planQuery(body, 0, closureIter); err != nil {
 		return err
 	}
 
-	block := p.curr
 	p.curr = prev
 	p.loc = ploc
 	p.vars.Pop()
@@ -1737,11 +1735,12 @@ func (p *Planner) planRefData(virtual *ruletrie, base *baseptr, ref ast.Ref, ind
 					}},
 				}}
 				p.curr = outerBlock
-				return p.planRefRec(ref, index+1, func() error { // rest of the ref
-					p.curr = prev
-					p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
-					return iter()
-				})
+				if err := p.planRefRec(ref, index+1, iter); err != nil { // rest of the ref
+					return err
+				}
+				p.curr = prev
+				p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
+				return nil
 			})
 		}
 	}

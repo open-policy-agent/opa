@@ -1,0 +1,22 @@
+cases:
+- note: ir/call_dynamic in comprehension
+  modules:
+  - |
+    package test
+    p := x {
+      b := input
+      x := { y | y := data.a[b][_] }
+    }
+  - |
+    package a
+    b := {"foo", "bar"}
+  - |
+    package a
+    c := {"x", "y" }
+  query: data.test.p = x
+  sort_bindings: true
+  input: "b"
+  want_result:
+  - x:
+    - bar
+    - foo
