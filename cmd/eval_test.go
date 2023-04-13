@@ -131,13 +131,19 @@ func TestEvalWithProfiler(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
 
-p = 1`,
+p {
+	a := 1
+	b := 2
+	c := 3
+	x = a + b * c
+}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
 
 		params := newEvalCommandParams()
 		params.profile = true
+		params.profileCriteria = newrepeatedStringFlag([]string{"line"})
 		params.dataPaths = newrepeatedStringFlag([]string{path})
 
 		var buf bytes.Buffer
@@ -155,6 +161,29 @@ p = 1`,
 
 		if len(output.Profile) == 0 {
 			t.Fatal("Expected profile output to be non-empty")
+		}
+
+		expectedNumEval := []int{3, 1, 1, 1, 1}
+		expectedNumRedo := []int{3, 1, 1, 1, 1}
+		expectedRow := []int{7, 6, 5, 4, 1}
+		expectedNumGenExpr := []int{3, 1, 1, 1, 1}
+
+		for idx, actualExprStat := range output.Profile {
+			if actualExprStat.NumEval != expectedNumEval[idx] {
+				t.Fatalf("Index %v: Expected number of evals %v but got %v", idx, expectedNumEval[idx], actualExprStat.NumEval)
+			}
+
+			if actualExprStat.NumRedo != expectedNumRedo[idx] {
+				t.Fatalf("Index %v: Expected number of redos %v but got %v", idx, expectedNumRedo[idx], actualExprStat.NumRedo)
+			}
+
+			if actualExprStat.Location.Row != expectedRow[idx] {
+				t.Fatalf("Index %v: Expected row %v but got %v", idx, expectedRow[idx], actualExprStat.Location.Row)
+			}
+
+			if actualExprStat.NumGenExpr != expectedNumGenExpr[idx] {
+				t.Fatalf("Index %v: Expected number of generated expressions %v but got %v", idx, expectedNumGenExpr[idx], actualExprStat.NumGenExpr)
+			}
 		}
 	})
 }

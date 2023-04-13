@@ -387,23 +387,64 @@ why policy evaluation is slow.
 
 The `opa eval` command provides the following profiler options:
 
-| Option | Detail | Default |
-| --- | --- | --- |
-| <span class="opa-keep-it-together">`--profile`</span> | Enables expression profiling and outputs profiler results. | off |
-| <span class="opa-keep-it-together">`--profile-sort`</span> | Criteria to sort the expression profiling results. This options implies `--profile`. | total_time_ns => num_eval => num_redo => file => line |
-| <span class="opa-keep-it-together">`--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`. | 10 |
-| <span class="opa-keep-it-together">`--count`</span> | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1 |
+| Option | Detail | Default                                                               |
+| --- | --- |-----------------------------------------------------------------------|
+| <span class="opa-keep-it-together">`--profile`</span> | Enables expression profiling and outputs profiler results. | off                                                                   |
+| <span class="opa-keep-it-together">`--profile-sort`</span> | Criteria to sort the expression profiling results. This options implies `--profile`. | total_time_ns => num_eval => num_redo => num_gen_expr => file => line |
+| <span class="opa-keep-it-together">`--profile-limit`</span> | Desired number of profiling results sorted on the given criteria. This options implies `--profile`. | 10                                                                    |
+| <span class="opa-keep-it-together">`--count`</span> | Desired number of evaluations that profiling metrics are to be captured for. With `--format=pretty`, the output will contain min, max, mean and the 90th and 99th percentile. All collected percentiles can be found in the JSON output. | 1                                                                     |
 
 #### Sort criteria for the profile results
 
 * `total_time_ns` - Results are displayed is decreasing order of *expression evaluation time*
 * `num_eval`  - Results are displayed is decreasing order of *number of times an expression is evaluated*
 * `num_redo`  - Results are displayed is decreasing order of *number of times an expression is re-evaluated(redo)*
+* `num_gen_expr`  - Results are displayed is decreasing order of *number of generated expressions*
 * `file`  - Results are sorted in reverse alphabetical order based on the *rego source filename*
 * `line`  - Results are displayed is decreasing order of *expression line number* in the source file
 
 When the sort criteria is not provided `total_time_ns` has the **highest** priority
 while `line` has the **lowest**.
+
+The `num_gen_expr` represents the number of expressions generated for a given statement on a particular line. For example,
+let's take the following policy:
+
+```rego
+package test
+
+p {
+	a := 1
+	b := 2
+	c := 3
+	x = a + b * c
+}
+```
+
+If we profile the above policy we would get something like the following output:
+
+```ruby
++----------+----------+----------+--------------+-------------+
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |  LOCATION   |
++----------+----------+----------+--------------+-------------+
+| 20.291µs | 3        | 3        | 3            | test.rego:7 |
+| 1µs      | 1        | 1        | 1            | test.rego:6 |
+| 2.333µs  | 1        | 1        | 1            | test.rego:5 |
+| 6.333µs  | 1        | 1        | 1            | test.rego:4 |
+| 84.75µs  | 1        | 1        | 1            | data        |
++----------+----------+----------+--------------+-------------+
+```
+
+The first entry indicates that line `test.rego:7` has a `EVAL/REDO` count of `3`. If we look at the expression on line `test.rego:7`
+ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` count of `3`. But we also notice that there
+are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:7`. This is because the compiler rewrites the above policy to
+something like below:
+
+`p = true { __local0__ = 1; __local1__ = 2; __local2__ = 3; mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__ }`
+
+And that line `test.rego:7` is rewritten to `mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__` which
+results in a `NUM GEN EXPR` count of `3`. Hence the `NUM GEN EXPR` count can help to better understand the `EVAL/REDO` counts
+for a given expression and also provide more clarity into the profile results and how policy evaluation works.
+
 
 #### Example Policy
 
@@ -483,20 +524,20 @@ opa eval --data rbac.rego --profile --format=pretty 'data.rbac.allow'
 ```ruby
 false
 
-+----------+----------+----------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
-+----------+----------+----------+-----------------+
-| 47.148µs | 1        | 1        | data.rbac.allow |
-| 28.965µs | 1        | 1        | rbac.rego:11    |
-| 24.384µs | 1        | 1        | rbac.rego:41    |
-| 23.064µs | 2        | 1        | rbac.rego:47    |
-| 15.525µs | 1        | 1        | rbac.rego:38    |
-| 14.137µs | 1        | 2        | rbac.rego:46    |
-| 13.927µs | 1        | 0        | rbac.rego:42    |
-| 13.568µs | 1        | 1        | rbac.rego:55    |
-| 12.982µs | 1        | 0        | rbac.rego:56    |
-| 12.763µs | 1        | 2        | rbac.rego:52    |
-+----------+----------+----------+-----------------+
++----------+----------+----------+--------------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++----------+----------+----------+--------------+-----------------+
+| 47.148µs | 1        | 1        | 1            | data.rbac.allow |
+| 28.965µs | 1        | 1        | 1            | rbac.rego:11    |
+| 24.384µs | 1        | 1        | 1            | rbac.rego:41    |
+| 23.064µs | 2        | 1        | 1            | rbac.rego:47    |
+| 15.525µs | 1        | 1        | 1            | rbac.rego:38    |
+| 14.137µs | 1        | 2        | 1            | rbac.rego:46    |
+| 13.927µs | 1        | 0        | 1            | rbac.rego:42    |
+| 13.568µs | 1        | 1        | 1            | rbac.rego:55    |
+| 12.982µs | 1        | 0        | 1            | rbac.rego:56    |
+| 12.763µs | 1        | 2        | 1            | rbac.rego:52    |
++----------+----------+----------+--------------+-----------------+
 
 +------------------------------+----------+
 |            METRIC            |  VALUE   |
@@ -532,20 +573,20 @@ false
 | timer_rego_query_eval_ns     | 161812  | 1198092  | 637754        | 1.1846622e+06  | 1.198092e+06  |
 | timer_rego_query_parse_ns    | 6078    | 6078     | 6078          | 6078           | 6078          |
 +------------------------------+---------+----------+---------------+----------------+---------------+
-+----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
-|   MIN    |     MAX     |    MEAN     |     90%     |     99%     | NUM EVAL | NUM REDO |    LOCATION     |
-+----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
-| 43.875µs | 26.135469ms | 11.494512ms | 25.746215ms | 26.135469ms | 1        | 1        | data.rbac.allow |
-| 21.478µs | 211.461µs   | 98.102µs    | 205.72µs    | 211.461µs   | 1        | 1        | rbac.rego:13    |
-| 19.652µs | 123.537µs   | 73.161µs    | 122.75µs    | 123.537µs   | 1        | 1        | rbac.rego:40    |
-| 12.303µs | 117.277µs   | 61.59µs     | 116.733µs   | 117.277µs   | 2        | 1        | rbac.rego:50    |
-| 12.224µs | 93.214µs    | 51.289µs    | 92.217µs    | 93.214µs    | 1        | 1        | rbac.rego:44    |
-| 5.561µs  | 84.121µs    | 43.002µs    | 83.469µs    | 84.121µs    | 1        | 1        | rbac.rego:51    |
-| 5.56µs   | 71.712µs    | 36.545µs    | 71.158µs    | 71.712µs    | 1        | 0        | rbac.rego:45    |
-| 4.958µs  | 66.04µs     | 33.161µs    | 65.636µs    | 66.04µs     | 1        | 2        | rbac.rego:49    |
-| 4.326µs  | 65.836µs    | 30.461µs    | 65.083µs    | 65.836µs    | 1        | 1        | rbac.rego:6     |
-| 3.948µs  | 43.399µs    | 24.167µs    | 43.055µs    | 43.399µs    | 1        | 2        | rbac.rego:55    |
-+----------+-------------+-------------+-------------+-------------+----------+----------+-----------------+
++----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
+|   MIN    |     MAX     |    MEAN     |     90%     |     99%     | NUM EVAL | NUM REDO | NUM GEN EXPR |     LOCATION     |
++----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
+| 43.875µs | 26.135469ms | 11.494512ms | 25.746215ms | 26.135469ms | 1        | 1        | 1            | data.rbac.allow  |
+| 21.478µs | 211.461µs   | 98.102µs    | 205.72µs    | 211.461µs   | 1        | 1        | 1            | rbac.rego:13     |
+| 19.652µs | 123.537µs   | 73.161µs    | 122.75µs    | 123.537µs   | 1        | 1        | 1            | rbac.rego:40     |
+| 12.303µs | 117.277µs   | 61.59µs     | 116.733µs   | 117.277µs   | 2        | 1        | 1            | rbac.rego:50     |
+| 12.224µs | 93.214µs    | 51.289µs    | 92.217µs    | 93.214µs    | 1        | 1        | 1            | rbac.rego:44     |
+| 5.561µs  | 84.121µs    | 43.002µs    | 83.469µs    | 84.121µs    | 1        | 1        | 1            | rbac.rego:51     |
+| 5.56µs   | 71.712µs    | 36.545µs    | 71.158µs    | 71.712µs    | 1        | 0        | 1            | rbac.rego:45     |
+| 4.958µs  | 66.04µs     | 33.161µs    | 65.636µs    | 66.04µs     | 1        | 2        | 1            | rbac.rego:49     |
+| 4.326µs  | 65.836µs    | 30.461µs    | 65.083µs    | 65.836µs    | 1        | 1        | 1            | rbac.rego:6      |
+| 3.948µs  | 43.399µs    | 24.167µs    | 43.055µs    | 43.399µs    | 1        | 2        | 1            | rbac.rego:55     |
++----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
 ```
 
 ##### Example: Display top `5` profile results
@@ -557,15 +598,15 @@ opa eval --data rbac.rego --profile-limit 5 --format=pretty 'data.rbac.allow'
 **Sample Output**
 
 ```ruby
-+----------+----------+----------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
-+----------+----------+----------+-----------------+
-| 46.329µs | 1        | 1        | data.rbac.allow |
-| 26.656µs | 1        | 1        | rbac.rego:11    |
-| 24.206µs | 2        | 1        | rbac.rego:47    |
-| 23.235µs | 1        | 1        | rbac.rego:41    |
-| 18.242µs | 1        | 1        | rbac.rego:38    |
-+----------+----------+----------+-----------------+
++----------+----------+----------+--------------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |     LOCATION    |
++----------+----------+----------+--------------+-----------------+
+| 46.329µs | 1        | 1        | 1            | data.rbac.allow |
+| 26.656µs | 1        | 1        | 1            | rbac.rego:11    |
+| 24.206µs | 2        | 1        | 1            | rbac.rego:47    |
+| 23.235µs | 1        | 1        | 1            | rbac.rego:41    |
+| 18.242µs | 1        | 1        | 1            | rbac.rego:38    |
++----------+----------+----------+--------------+-----------------+
 ```
 
 The profile results are sorted on the default sort criteria.
@@ -580,15 +621,15 @@ opa  eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --format=pr
 **Sample Profile Output**
 
 ```ruby
-+----------+----------+----------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
-+----------+----------+----------+-----------------+
-| 26.675µs | 2        | 1        | rbac.rego:47    |
-| 9.274µs  | 2        | 1        | rbac.rego:53    |
-| 43.356µs | 1        | 1        | data.rbac.allow |
-| 22.467µs | 1        | 1        | rbac.rego:41    |
-| 22.425µs | 1        | 1        | rbac.rego:11    |
-+----------+----------+----------+-----------------+
++----------+----------+----------+--------------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++----------+----------+----------+--------------+-----------------+
+| 26.675µs | 2        | 1        | 1            | rbac.rego:47    |
+| 9.274µs  | 2        | 1        | 1            | rbac.rego:53    |
+| 43.356µs | 1        | 1        | 1            | data.rbac.allow |
+| 22.467µs | 1        | 1        | 1            | rbac.rego:41    |
+| 22.425µs | 1        | 1        | 1            | rbac.rego:11    |
++----------+----------+----------+--------------+-----------------+
 ```
 
 As seen from the above table, the results are arranged first in decreasing
@@ -606,15 +647,15 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --f
 **Sample Profile Output**
 
 ```ruby
-+----------+----------+----------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO |    LOCATION     |
-+----------+----------+----------+-----------------+
-| 22.892µs | 2        | 1        | rbac.rego:47    |
-| 8.831µs  | 2        | 1        | rbac.rego:53    |
-| 13.767µs | 1        | 2        | rbac.rego:46    |
-| 10.78µs  | 1        | 2        | rbac.rego:52    |
-| 42.338µs | 1        | 1        | data.rbac.allow |
-+----------+----------+----------+-----------------+
++----------+----------+----------+--------------+-----------------+
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++----------+----------+----------+--------------+-----------------+
+| 22.892µs | 2        | 1        | 1            | rbac.rego:47    |
+| 8.831µs  | 2        | 1        | 1            | rbac.rego:53    |
+| 13.767µs | 1        | 2        | 1            | rbac.rego:46    |
+| 10.78µs  | 1        | 2        | 1            | rbac.rego:52    |
+| 42.338µs | 1        | 1        | 1            | data.rbac.allow |
++----------+----------+----------+--------------+-----------------+
 ```
 
 As seen from the above table, result are first arranged based on *number of evaluations*,

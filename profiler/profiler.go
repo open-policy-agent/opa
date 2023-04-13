@@ -16,13 +16,15 @@ import (
 
 // Profiler computes and reports on the time spent on expressions.
 type Profiler struct {
-	hits        map[string]map[int]ExprStats
-	activeTimer time.Time
-	prevExpr    exprInfo
+	hits            map[string]map[int]ExprStats
+	hitsByExprIndex map[string]map[int]map[int]ExprStats
+	activeTimer     time.Time
+	prevExpr        exprInfo
 }
 
 // exprInfo stores information about an expression.
 type exprInfo struct {
+	index    int
 	location *ast.Location
 	op       topdown.Op
 }
@@ -30,7 +32,8 @@ type exprInfo struct {
 // New returns a new Profiler object.
 func New() *Profiler {
 	return &Profiler{
-		hits: map[string]map[int]ExprStats{},
+		hits:            map[string]map[int]ExprStats{},
+		hitsByExprIndex: map[string]map[int]map[int]ExprStats{},
 	}
 }
 
@@ -52,9 +55,13 @@ func (p *Profiler) ReportByFile() Report {
 	p.processLastExpr()
 
 	report := Report{Files: map[string]*FileReport{}}
+
 	for file, hits := range p.hits {
 		stats := []ExprStats{}
-		for _, stat := range hits {
+		for row, stat := range hits {
+			if entry, ok := p.hitsByExprIndex[file][row]; ok {
+				stat.NumGenExpr = len(entry)
+			}
 			stats = append(stats, stat)
 		}
 
@@ -66,6 +73,7 @@ func (p *Profiler) ReportByFile() Report {
 		}
 		fr.Result = stats
 	}
+
 	return report
 }
 
@@ -73,10 +81,14 @@ func (p *Profiler) ReportByFile() Report {
 // criteria. If N <= 0, all the results based on the criteria are returned.
 func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprStats {
 	p.processLastExpr()
+
 	stats := []ExprStats{}
 
-	for _, hits := range p.hits {
-		for _, stat := range hits {
+	for file, hits := range p.hits {
+		for row, stat := range hits {
+			if entry, ok := p.hitsByExprIndex[file][row]; ok {
+				stat.NumGenExpr = len(entry)
+			}
 			stats = append(stats, stat)
 		}
 	}
@@ -91,6 +103,9 @@ func (p *Profiler) ReportTopNResults(numResults int, criteria []string) []ExprSt
 	}
 	allowedCriteria["num_redo"] = func(stat1, stat2 *ExprStats) bool {
 		return stat1.NumRedo > stat2.NumRedo
+	}
+	allowedCriteria["num_gen_expr"] = func(stat1, stat2 *ExprStats) bool {
+		return stat1.NumGenExpr > stat2.NumGenExpr
 	}
 	allowedCriteria["file"] = func(stat1, stat2 *ExprStats) bool {
 		return stat1.Location.File > stat2.Location.File
@@ -156,11 +171,14 @@ func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
 		p.prevExpr = exprInfo{
 			op:       eventType,
 			location: expr.Location,
+			index:    expr.Index,
 		}
 		return
 	}
 
 	// record the profiler results for the previous expression
+	p.calculateHitsByExprIndex()
+
 	file := p.prevExpr.location.File
 	hits, ok := p.hits[file]
 	if !ok {
@@ -190,14 +208,51 @@ func (p *Profiler) processExpr(expr *ast.Expr, eventType topdown.Op) {
 	p.prevExpr = exprInfo{
 		op:       eventType,
 		location: expr.Location,
+		index:    expr.Index,
 	}
 }
 
 func (p *Profiler) processLastExpr() {
 	expr := ast.Expr{
 		Location: p.prevExpr.location,
+		Index:    p.prevExpr.index,
 	}
 	p.processExpr(&expr, p.prevExpr.op)
+}
+
+func (p *Profiler) calculateHitsByExprIndex() {
+	file := p.prevExpr.location.File
+	hitsUnique, ok := p.hitsByExprIndex[file]
+
+	if !ok {
+		hitsUnique = map[int]map[int]ExprStats{}
+		hitsUnique[p.prevExpr.location.Row] = map[int]ExprStats{p.prevExpr.index: getProfilerStats(p.prevExpr, p.activeTimer)}
+		p.hitsByExprIndex[file] = hitsUnique
+	} else {
+		row := p.prevExpr.location.Row
+		idx := p.prevExpr.index
+
+		pStats, ok := hitsUnique[row]
+		if !ok {
+			hitsUnique[row] = map[int]ExprStats{idx: getProfilerStats(p.prevExpr, p.activeTimer)}
+		} else {
+			pStatsIdx, ok := pStats[idx]
+			if !ok {
+				hitsUnique[row][idx] = getProfilerStats(p.prevExpr, p.activeTimer)
+			} else {
+				pStatsIdx.ExprTimeNs += time.Since(p.activeTimer).Nanoseconds()
+
+				switch p.prevExpr.op {
+				case topdown.EvalOp:
+					pStatsIdx.NumEval++
+				case topdown.RedoOp:
+					pStatsIdx.NumRedo++
+				}
+
+				hitsUnique[row][idx] = pStatsIdx
+			}
+		}
+	}
 }
 
 func getProfilerStats(expr exprInfo, timer time.Time) ExprStats {
@@ -219,6 +274,7 @@ type ExprStats struct {
 	ExprTimeNs int64         `json:"total_time_ns"`
 	NumEval    int           `json:"num_eval"`
 	NumRedo    int           `json:"num_redo"`
+	NumGenExpr int           `json:"num_gen_expr"`
 	Location   *ast.Location `json:"location"`
 }
 
@@ -228,6 +284,7 @@ type ExprStatsAggregated struct {
 	ExprTimeNsStats interface{}   `json:"total_time_ns_stats"`
 	NumEval         int           `json:"num_eval"`
 	NumRedo         int           `json:"num_redo"`
+	NumGenExpr      int           `json:"num_gen_expr"`
 	Location        *ast.Location `json:"location"`
 }
 
@@ -236,9 +293,10 @@ func aggregate(stats ...ExprStats) ExprStatsAggregated {
 		return ExprStatsAggregated{}
 	}
 	res := ExprStatsAggregated{
-		NumEval:  stats[0].NumEval,
-		NumRedo:  stats[0].NumRedo,
-		Location: stats[0].Location,
+		NumEval:    stats[0].NumEval,
+		NumRedo:    stats[0].NumRedo,
+		NumGenExpr: stats[0].NumGenExpr,
+		Location:   stats[0].Location,
 	}
 	timeNs := make([]int64, 0, len(stats))
 	for _, s := range stats {

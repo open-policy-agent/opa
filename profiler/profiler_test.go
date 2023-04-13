@@ -23,6 +23,7 @@ func TestProfilerLargeArray(t *testing.T) {
 	module := `package test
 
 foo {
+	p
 	bar
 	not baz
 	bee
@@ -44,7 +45,15 @@ baz {
 	true
 	false
 	true
-}`
+}
+
+p {
+	a := 1
+	b := 2
+	c := 3
+	x = a + b * c
+}
+`
 
 	_, err := ast.ParseModule("test.rego", module)
 	if err != nil {
@@ -71,13 +80,14 @@ baz {
 		t.Fatal("Expected file report for test.rego")
 	}
 
-	if len(fr.Result) != 11 {
-		t.Fatalf("Expected file report length to be 11 instead got %v", len(fr.Result))
+	if len(fr.Result) != 16 {
+		t.Fatalf("Expected file report length to be 16 instead got %v", len(fr.Result))
 	}
 
-	expectedNumEval := []int{1, 2, 1, 1, 1, 1633, 1, 1, 1, 1, 1}
-	expectedNumRedo := []int{1, 0, 0, 1, 1633, 0, 1, 1, 1, 1, 0}
-	expectedRow := []int{4, 5, 6, 10, 11, 12, 16, 17, 18, 22, 23}
+	expectedNumEval := []int{1, 1, 2, 1, 1, 1, 1633, 1, 1, 1, 1, 1, 1, 1, 1, 3}
+	expectedNumRedo := []int{1, 1, 0, 0, 1, 1633, 0, 1, 1, 1, 1, 0, 1, 1, 1, 3}
+	expectedRow := []int{4, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23, 24, 29, 30, 31, 32}
+	expectedNumGenExpr := []int{1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3}
 
 	for idx, actualExprStat := range fr.Result {
 		if actualExprStat.NumEval != expectedNumEval[idx] {
@@ -92,6 +102,9 @@ baz {
 			t.Fatalf("Index %v: Expected row %v but got %v", idx, expectedRow[idx], actualExprStat.Location.Row)
 		}
 
+		if actualExprStat.NumGenExpr != expectedNumGenExpr[idx] {
+			t.Fatalf("Index %v: Expected number of generated expressions %v but got %v", idx, expectedNumGenExpr[idx], actualExprStat.NumGenExpr)
+		}
 	}
 }
 
@@ -464,6 +477,7 @@ allowed_operations = [
 
 	expectedNumEval := []int{2, 1}
 	expectedNumRedo := []int{2, 1}
+	expectedNumGenExpr := []int{1, 1}
 	expectedLocation := []string{"???", "data.partial.__result__"}
 
 	for idx, actualExprStat := range fr.Result {
@@ -475,10 +489,13 @@ allowed_operations = [
 			t.Fatalf("Index %v: Expected number of redos %v but got %v", idx, expectedNumRedo[idx], actualExprStat.NumRedo)
 		}
 
+		if actualExprStat.NumGenExpr != expectedNumGenExpr[idx] {
+			t.Fatalf("Index %v: Expected number of generated expressions %v but got %v", idx, expectedNumGenExpr[idx], actualExprStat.NumGenExpr)
+		}
+
 		if string(actualExprStat.Location.Text) != expectedLocation[idx] {
 			t.Fatalf("Index %v: Expected location %v but got %v", idx, expectedLocation[idx], string(actualExprStat.Location.Text))
 		}
-
 	}
 }
 
