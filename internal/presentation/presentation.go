@@ -496,14 +496,16 @@ func prettyAggregatedMetrics(w io.Writer, ms map[string]interface{}, limit int) 
 
 func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 	tableProfile := generateTableProfile(w)
+
 	for _, rs := range profile {
 		line := []string{}
 		timeNs := time.Duration(rs.ExprTimeNs) * time.Nanosecond
 		timeNsStr := timeNs.String()
 		numEval := strconv.FormatInt(int64(rs.NumEval), 10)
 		numRedo := strconv.FormatInt(int64(rs.NumRedo), 10)
+		numGenExpr := strconv.FormatInt(int64(rs.NumGenExpr), 10)
 		loc := rs.Location.String()
-		line = append(line, timeNsStr, numEval, numRedo, loc)
+		line = append(line, timeNsStr, numEval, numRedo, numGenExpr, loc)
 		tableProfile.Append(line)
 	}
 	if tableProfile.NumLines() > 0 {
@@ -513,7 +515,7 @@ func prettyProfile(w io.Writer, profile []profiler.ExprStats) error {
 }
 
 func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated) error {
-	tableProfile := generateTableWithKeys(w, append(statKeys, "num eval", "num redo", "location")...)
+	tableProfile := generateTableWithKeys(w, append(statKeys, "num eval", "num redo", "num gen expr", "location")...)
 	for _, rs := range profile {
 		line := []string{}
 		for _, k := range statKeys {
@@ -526,8 +528,9 @@ func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated
 		}
 		numEval := strconv.FormatInt(int64(rs.NumEval), 10)
 		numRedo := strconv.FormatInt(int64(rs.NumRedo), 10)
+		numGenExpr := strconv.FormatInt(int64(rs.NumGenExpr), 10)
 		loc := rs.Location.String()
-		line = append(line, numEval, numRedo, loc)
+		line = append(line, numEval, numRedo, numGenExpr, loc)
 		tableProfile.Append(line)
 	}
 	if tableProfile.NumLines() > 0 {
@@ -611,7 +614,7 @@ func generateTableWithKeys(writer io.Writer, keys ...string) *tablewriter.Table 
 }
 
 func generateTableProfile(writer io.Writer) *tablewriter.Table {
-	return generateTableWithKeys(writer, "Time", "Num Eval", "Num Redo", "Location")
+	return generateTableWithKeys(writer, "Time", "Num Eval", "Num Redo", "Num Gen Expr", "Location")
 }
 
 func populateTableMetrics(m metrics.Metrics, table *tablewriter.Table, prettyLimit int) {
