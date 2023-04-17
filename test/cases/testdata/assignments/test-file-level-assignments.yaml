@@ -1,0 +1,48 @@
+cases:
+  - note: assignments/file-level/default_value
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        default a := 1
+    want_result: [ { "x": { "a": 1 } } ]
+  - note: assignments/file-level/rule
+    query: data.test = x
+    modules:
+      - |
+        package test
+        
+        b := 2
+    want_result: [ { "x": { "b": 2 } } ]
+  - note: assignments/file-level/else_keyword
+    query: data.test = x
+    modules:
+      - |
+        package test
+        
+        c := 3 {
+           false
+        } else := 4 {
+           true
+        }
+    want_result: [ { "x": { "c": 4, } } ]
+  - note: assignments/file-level/partial_rule
+    query: data.test = x
+    modules:
+      - |
+        package test
+        
+        d[msg] := 5 {
+           msg = [1, 2, 3][_]
+        }
+    want_result: [ { "x": { "d": { "1": 5, "2": 5, "3": 5 } } } ]
+  - note: assignments/file-level/function_return_value
+    query: data.test = x
+    modules:
+      - |
+        package test
+        
+        e := f(6)
+        f(x) := x
+    want_result: [ { "x": { "e": 6 } } ]

@@ -1,0 +1,19 @@
+- name: Known root type
+  rule: KnownRootType
+  schema: 0
+  query: |
+    query { dog { name } }
+- name: Valid root type but not in schema
+  rule: KnownRootType
+  schema: 0
+  query: |
+    mutation { dog { name } }
+  errors:
+    - message: Schema does not support operation type "mutation"
+- name: Valid root type but schema is entirely empty
+  rule: KnownRootType
+  schema: 20
+  query: |
+    { dog { name } }
+  errors:
+    - message: Schema does not support operation type "query"

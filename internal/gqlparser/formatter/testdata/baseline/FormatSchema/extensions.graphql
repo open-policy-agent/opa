@@ -1,0 +1,16 @@
+directive @extends on OBJECT
+directive @key(fields: String!) on OBJECT | INTERFACE
+directive @permission(permission: String!) on FIELD_DEFINITION
+type Dog {
+	name: String!
+	owner: Person! @permission(permission: "admin")
+}
+type Person @key(fields: "name") {
+	name: String!
+}
+type Query @extends {
+	dogs: [Dog!]!
+}
+type Subscription {
+	dogEvents: [Dog!]!
+}

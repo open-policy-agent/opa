@@ -1,0 +1,28 @@
+run:
+  timeout: 5m
+
+linter-settings:
+  lll:
+    line-length: 200
+
+  misspell:
+    locale: US
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - revive # replacement for golint
+    - gofmt
+    - goimports
+    - unused
+    - misspell
+    - tenv
+    - typecheck
+    - staticcheck
+    - gosimple
+    - prealloc
+    - unconvert
+    # - gosec # too many false positives

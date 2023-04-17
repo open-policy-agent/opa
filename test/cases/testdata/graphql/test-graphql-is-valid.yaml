@@ -1,0 +1,175 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/validator/validator_test.yml
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type User {
+              id: ID!
+          }
+          extend type Product {
+              upc: String!
+          }
+          union _Entity = Product | User
+          extend type Query {
+            entity: _Entity
+          }
+        `
+        query := `
+          {
+            entity {
+              ... on User {
+              id
+              }
+            }
+          }
+        `
+        p {
+            graphql.is_valid(query, schema)
+        }
+    note: graphql_is_valid/success extending non-existent types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          query SomeOperation {
+            # Note: Not providing mandatory parameter: (myEnum: Locale!)
+            myAction {
+              id
+            }
+          }
+        `
+        # We use the unification style from semver's is_valid tests here:
+        p = x {
+            x = graphql.is_valid(query, schema)
+        }
+    note: graphql_is_valid/success validation rules are independent case 1
+    query: data.test.p = x
+    want_result:
+      - x: false
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          # Note: there is default enum value in variables
+          query SomeOperation ($locale: Locale! = DE) {
+            myAction(myEnum: $locale) {
+              id
+            }
+          }
+        `
+        p {
+            graphql.is_valid(query, schema)
+        }
+    note: graphql_is_valid/success validation rules are independent case 2
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type DeprecatedType {
+            deprecatedField: String @deprecated
+            newField(deprecatedArg: Int): Boolean
+          }
+          enum DeprecatedEnum {
+            ALPHA @deprecated
+          }
+        `
+        query := ``
+        p {
+            graphql.is_valid(query, schema)
+        }
+    note: graphql_is_valid/success deprecating types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Query {
+            bar: String!
+          }
+        `
+        query := `
+          query Foo($flag: Boolean!) {
+            ...Bar
+          }
+          fragment Bar on Query {
+            bar @include(if: $flag)
+          }
+        `
+        p {
+            graphql.is_valid(query, schema)
+        }
+    note: graphql_is_valid/success no unused variables
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema_ast := graphql.parse_schema(`
+          type Employee {
+            id: String!
+            salary: Int!
+          }
+
+          schema {
+            query: Query
+          }
+
+          type Query {
+            employeeByID(id: String): Employee
+          }
+        `)
+        query_ast := graphql.parse_query(`
+          query { employeeByID(id: "alice") { salary }}
+        `)
+        p {
+            graphql.is_valid(query_ast, schema_ast)
+        }
+    note: graphql_is_valid/success - AST objects - Employee example
+    query: data.test.p = x
+    want_result:
+      - x: true

@@ -1,0 +1,111 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("8k") > units.parse("7k")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("8g") > units.parse("8m")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("1234k") < units.parse("1g")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("1024") == units.parse("1Ki")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("2Mi") == units.parse("2097152")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("3Mi") > units.parse("3M")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("2Mi") == units.parse("2Mi")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("4Mi") > units.parse("4M")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("4.1Mi") > units.parse("4Mi")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    p {
+        units.parse("128Gi") == units.parse("137438953472")
+    }
+  note: units_parse/comparison
+  query: data.test.p = x
+  want_result:
+  - x: true

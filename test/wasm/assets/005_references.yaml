@@ -1,0 +1,14 @@
+cases:
+  - note: defined
+    query: input.x
+    input: {"x": 1}
+    want_defined: true
+  - note: undefined
+    query: input.deadbeef
+    input: {}
+    want_defined: false
+  - note: "false"
+    query: input.x
+    input: {"x": false}
+    want_defined: false
+

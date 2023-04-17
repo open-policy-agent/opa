@@ -1,0 +1,28 @@
+cases:
+- data:
+    com:
+      system: deadbeef
+    system:
+      somedata:
+      - a
+      - b
+      - c
+  input_term: '{}'
+  modules:
+  - |
+    package topdown.system
+
+    bar = "goodbye"
+  - |
+    package system.somepolicy
+
+    foo = "hello"
+  note: systemdocument/root query
+  query: data = x
+  want_result:
+  - x:
+      com:
+        system: deadbeef
+      topdown:
+        system:
+          bar: goodbye

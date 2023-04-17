@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test\n\n\t\tsamepkg = y {\n\t\t\tfoo(\"how do you do?\", y)\n\t\t}")

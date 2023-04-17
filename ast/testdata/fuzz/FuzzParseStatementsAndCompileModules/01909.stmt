@@ -1,0 +1,2 @@
+go test fuzz v1
+string("data.topdown_test_partial.__result__ = x")

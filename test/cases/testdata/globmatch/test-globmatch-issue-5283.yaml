@@ -1,0 +1,24 @@
+# See https://github.com/open-policy-agent/opa/issues/528
+cases:
+- modules:
+  - |
+    package test
+    p = x {
+      x := glob.match("*.github.com", ["."], input)
+    }
+  input: api.example.com
+  note: globmatch/captured negative results, variable
+  query: data.test.p = x
+  want_result:
+  - x: false
+- modules:
+  - |
+    package test
+    p {
+      glob.match("*.github.com", ["."], input, false)
+    }
+  input: api.example.com
+  note: globmatch/captured negative result, constant
+  query: data.test.p = x
+  want_result:
+  - x: true

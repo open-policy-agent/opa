@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { concat(\"\", [\"f\", \"o\", \"o\"], c[0].x[2]) }")

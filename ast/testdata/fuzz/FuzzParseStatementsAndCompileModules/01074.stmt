@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { format_int(15.5, 16, x) }")

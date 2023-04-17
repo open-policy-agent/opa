@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tp = weekday { weekday := time.weekday(1582977600*1000*1000*1000*1000) }")

@@ -1,0 +1,64 @@
+- name: known type names are valid
+  rule: KnownTypeNames
+  schema: 0
+  query: |2-
+
+          query Foo(
+            $var: String
+            $required: [Int!]!
+            $introspectionType: __EnumValue
+          ) {
+            user(id: 4) {
+              pets { ... on Pet { name }, ...PetFields, ... { name } }
+            }
+          }
+          
+          fragment PetFields on Pet {
+            name
+          }
+
+  errors: []
+- name: unknown type names are invalid
+  rule: KnownTypeNames
+  schema: 0
+  query: |2-
+
+          query Foo($var: [JumbledUpLetters!]!) {
+            user(id: 4) {
+              name
+              pets { ... on Badger { name }, ...PetFields }
+            }
+          }
+          fragment PetFields on Peat {
+            name
+          }
+
+  errors:
+    - message: Unknown type "JumbledUpLetters".
+      locations:
+        - {line: 2, column: 24}
+    - message: Unknown type "Badger".
+      locations:
+        - {line: 5, column: 25}
+    - message: Unknown type "Peat". Did you mean "Pet" or "Cat"?
+      locations:
+        - {line: 8, column: 29}
+- name: references to standard scalars that are missing in schema
+  rule: KnownTypeNames
+  schema: 3
+  query: |2-
+
+          query ($id: ID, $float: Float, $int: Int) {
+            __typename
+          }
+
+  errors:
+    - message: Unknown type "ID".
+      locations:
+        - {line: 2, column: 19}
+    - message: Unknown type "Float".
+      locations:
+        - {line: 2, column: 31}
+    - message: Unknown type "Int".
+      locations:
+        - {line: 2, column: 44}

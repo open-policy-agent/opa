@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      object.filter({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectfilter/duplicate roots
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a:
+        b:
+          c: 7
+          d: 8

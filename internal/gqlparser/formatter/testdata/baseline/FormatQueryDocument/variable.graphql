@@ -1,0 +1,8 @@
+query ($first: Int = 30, $after: String!) {
+	searchCats(first: $first, after: $after) {
+		nodes {
+			id
+			name
+		}
+	}
+}

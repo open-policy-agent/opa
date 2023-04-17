@@ -1,0 +1,1115 @@
+- name: Valid values/Good int value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: 2)
+              }
+            }
+
+  errors: []
+- name: Valid values/Good negative int value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: -2)
+              }
+            }
+
+  errors: []
+- name: Valid values/Good boolean value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                booleanArgField(booleanArg: true)
+              }
+            }
+
+  errors: []
+- name: Valid values/Good string value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringArgField(stringArg: "foo")
+              }
+            }
+
+  errors: []
+- name: Valid values/Good float value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: 1.1)
+              }
+            }
+
+  errors: []
+- name: Valid values/Good negative float value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: -1.1)
+              }
+            }
+
+  errors: []
+- name: Valid values/Int into Float
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: 1)
+              }
+            }
+
+  errors: []
+- name: Valid values/Int into ID
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                idArgField(idArg: 1)
+              }
+            }
+
+  errors: []
+- name: Valid values/String into ID
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                idArgField(idArg: "someIdString")
+              }
+            }
+
+  errors: []
+- name: Valid values/Good enum value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: SIT)
+              }
+            }
+
+  errors: []
+- name: Valid values/Enum with undefined value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                enumArgField(enumArg: UNKNOWN)
+              }
+            }
+
+  errors: []
+- name: Valid values/Enum with null value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                enumArgField(enumArg: NO_FUR)
+              }
+            }
+
+  errors: []
+- name: Valid values/null into nullable type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: null)
+              }
+            }
+
+  errors: []
+- name: Valid values/null into nullable type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog(a: null, b: null, c:{ requiredField: true, intField: null }) {
+                name
+              }
+            }
+
+  errors: []
+- name: Invalid String values/Int into String
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringArgField(stringArg: 1)
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 1'
+      locations:
+        - {line: 4, column: 39}
+- name: Invalid String values/Float into String
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringArgField(stringArg: 1.0)
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 1.0'
+      locations:
+        - {line: 4, column: 39}
+- name: Invalid String values/Boolean into String
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringArgField(stringArg: true)
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: true'
+      locations:
+        - {line: 4, column: 39}
+- name: Invalid String values/Unquoted String into String
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringArgField(stringArg: BAR)
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: BAR'
+      locations:
+        - {line: 4, column: 39}
+- name: Invalid Int values/String into Int
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: "3")
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: "3"'
+      locations:
+        - {line: 4, column: 33}
+- name: Invalid Int values/Big Int into Int
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: 829384293849283498239482938)
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non 32-bit signed integer value: 829384293849283498239482938'
+      locations:
+        - {line: 4, column: 33}
+- name: Invalid Int values/Unquoted String into Int
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: FOO)
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: FOO'
+      locations:
+        - {line: 4, column: 33}
+- name: Invalid Int values/Simple Float into Int
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: 3.0)
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: 3.0'
+      locations:
+        - {line: 4, column: 33}
+- name: Invalid Int values/Float into Int
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                intArgField(intArg: 3.333)
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: 3.333'
+      locations:
+        - {line: 4, column: 33}
+- name: Invalid Float values/String into Float
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: "3.333")
+              }
+            }
+
+  errors:
+    - message: 'Float cannot represent non numeric value: "3.333"'
+      locations:
+        - {line: 4, column: 37}
+- name: Invalid Float values/Boolean into Float
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: true)
+              }
+            }
+
+  errors:
+    - message: 'Float cannot represent non numeric value: true'
+      locations:
+        - {line: 4, column: 37}
+- name: Invalid Float values/Unquoted into Float
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                floatArgField(floatArg: FOO)
+              }
+            }
+
+  errors:
+    - message: 'Float cannot represent non numeric value: FOO'
+      locations:
+        - {line: 4, column: 37}
+- name: Invalid Boolean value/Int into Boolean
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                booleanArgField(booleanArg: 2)
+              }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: 2'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Boolean value/Float into Boolean
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                booleanArgField(booleanArg: 1.0)
+              }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: 1.0'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Boolean value/String into Boolean
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                booleanArgField(booleanArg: "true")
+              }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: "true"'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Boolean value/Unquoted into Boolean
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                booleanArgField(booleanArg: TRUE)
+              }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: TRUE'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid ID value/Float into ID
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                idArgField(idArg: 1.0)
+              }
+            }
+
+  errors:
+    - message: 'ID cannot represent a non-string and non-integer value: 1.0'
+      locations:
+        - {line: 4, column: 31}
+- name: Invalid ID value/Boolean into ID
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                idArgField(idArg: true)
+              }
+            }
+
+  errors:
+    - message: 'ID cannot represent a non-string and non-integer value: true'
+      locations:
+        - {line: 4, column: 31}
+- name: Invalid ID value/Unquoted into ID
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                idArgField(idArg: SOMETHING)
+              }
+            }
+
+  errors:
+    - message: 'ID cannot represent a non-string and non-integer value: SOMETHING'
+      locations:
+        - {line: 4, column: 31}
+- name: Invalid Enum value/Int into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: 2)
+              }
+            }
+
+  errors:
+    - message: 'Enum "DogCommand" cannot represent non-enum value: 2.'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Enum value/Float into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: 1.0)
+              }
+            }
+
+  errors:
+    - message: 'Enum "DogCommand" cannot represent non-enum value: 1.0.'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Enum value/String into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: "SIT")
+              }
+            }
+
+  errors:
+    - message: 'Enum "DogCommand" cannot represent non-enum value: "SIT". Did you mean the enum value "SIT"?'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Enum value/Boolean into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: true)
+              }
+            }
+
+  errors:
+    - message: 'Enum "DogCommand" cannot represent non-enum value: true.'
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Enum value/Unknown Enum Value into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: JUGGLE)
+              }
+            }
+
+  errors:
+    - message: Value "JUGGLE" does not exist in "DogCommand" enum.
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid Enum value/Different case Enum Value into Enum
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                doesKnowCommand(dogCommand: sit)
+              }
+            }
+
+  errors:
+    - message: Value "sit" does not exist in "DogCommand" enum. Did you mean the enum value "SIT"?
+      locations:
+        - {line: 4, column: 41}
+- name: Valid List value/Good list value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: ["one", null, "two"])
+              }
+            }
+
+  errors: []
+- name: Valid List value/Empty list value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: [])
+              }
+            }
+
+  errors: []
+- name: Valid List value/Null value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: null)
+              }
+            }
+
+  errors: []
+- name: Valid List value/Single value into List
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: "one")
+              }
+            }
+
+  errors: []
+- name: Invalid List value/Incorrect item type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: ["one", 2])
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 2'
+      locations:
+        - {line: 4, column: 55}
+- name: Invalid List value/Single value of incorrect type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                stringListArgField(stringListArg: 1)
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 1'
+      locations:
+        - {line: 4, column: 47}
+- name: Valid non-nullable value/Arg on optional arg
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                isHouseTrained(atOtherHomes: true)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/No Arg on optional arg
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog {
+                isHouseTrained
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple args
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req1: 1, req2: 2)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple args reverse order
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req2: 2, req1: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/No args on multiple optional
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/One arg on multiple optional
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts(opt1: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Second arg on multiple optional
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOpts(opt2: 1)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple required args on mixedList
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/Multiple required and one optional arg on mixedList
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4, opt1: 5)
+              }
+            }
+
+  errors: []
+- name: Valid non-nullable value/All required and optional args on mixedList
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleOptAndReq(req1: 3, req2: 4, opt1: 5, opt2: 6)
+              }
+            }
+
+  errors: []
+- name: Invalid non-nullable value/Incorrect value type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req2: "two", req1: "one")
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: "two"'
+      locations:
+        - {line: 4, column: 32}
+    - message: 'Int cannot represent non-integer value: "one"'
+      locations:
+        - {line: 4, column: 45}
+- name: Invalid non-nullable value/Incorrect value and missing argument (ProvidedRequiredArgumentsRule)
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req1: "one")
+              }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: "one"'
+      locations:
+        - {line: 4, column: 32}
+- name: Invalid non-nullable value/Null value
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                multipleReqs(req1: null)
+              }
+            }
+
+  errors:
+    - message: Expected value of type "Int!", found null.
+      locations:
+        - {line: 4, column: 32}
+- name: Valid input object value/Optional arg, despite required field in type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField
+              }
+            }
+
+  errors: []
+- name: Valid input object value/Partial object, only required
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: { requiredField: true })
+              }
+            }
+
+  errors: []
+- name: Valid input object value/Partial object, required field can be falsy
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: { requiredField: false })
+              }
+            }
+
+  errors: []
+- name: Valid input object value/Partial object, including required
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: { requiredField: true, intField: 4 })
+              }
+            }
+
+  errors: []
+- name: Valid input object value/Full object
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: {
+                  requiredField: true,
+                  intField: 4,
+                  stringField: "foo",
+                  booleanField: false,
+                  stringListField: ["one", "two"]
+                })
+              }
+            }
+
+  errors: []
+- name: Valid input object value/Full object with fields in different order
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: {
+                  stringListField: ["one", "two"],
+                  booleanField: false,
+                  requiredField: true,
+                  stringField: "foo",
+                  intField: 4,
+                })
+              }
+            }
+
+  errors: []
+- name: Invalid input object value/Partial object, missing required
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: { intField: 4 })
+              }
+            }
+
+  errors:
+    - message: Field "ComplexInput.requiredField" of required type "Boolean!" was not provided.
+      locations:
+        - {line: 4, column: 41}
+- name: Invalid input object value/Partial object, invalid field type
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: {
+                  stringListField: ["one", 2],
+                  requiredField: true,
+                })
+              }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 2'
+      locations:
+        - {line: 5, column: 40}
+- name: Invalid input object value/Partial object, null to non-null field
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: {
+                  requiredField: true,
+                  nonNullField: null,
+                })
+              }
+            }
+
+  errors:
+    - message: Expected value of type "Boolean!", found null.
+      locations:
+        - {line: 6, column: 29}
+- name: Invalid input object value/Partial object, unknown field arg
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              complicatedArgs {
+                complexArgField(complexArg: {
+                  requiredField: true,
+                  invalidField: "value"
+                })
+              }
+            }
+
+  errors:
+    - message: Field "invalidField" is not defined by type "ComplexInput". Did you mean "intField"?
+      locations:
+        - {line: 6, column: 15}
+- name: Invalid input object value/reports error for custom scalar that returns undefined
+  rule: ValuesOfCorrectType
+  schema: 18
+  query: '{ invalidArg(arg: 123) }'
+  errors:
+    - message: Expected value of type "CustomScalar", found 123.
+      locations:
+        - {line: 1, column: 19}
+- name: Invalid input object value/allows custom scalar to accept complex literals
+  rule: ValuesOfCorrectType
+  schema: 19
+  query: |2-
+
+              {
+                test1: anyArg(arg: 123)
+                test2: anyArg(arg: "abc")
+                test3: anyArg(arg: [123, "abc"])
+                test4: anyArg(arg: {deep: [123, "abc"]})
+              }
+
+  errors: []
+- name: Directive arguments/with directives of valid types
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog @include(if: true) {
+                name
+              }
+              human @skip(if: false) {
+                name
+              }
+            }
+
+  errors: []
+- name: Directive arguments/with directive with incorrect types
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            {
+              dog @include(if: "yes") {
+                name @skip(if: ENUM)
+              }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: "yes"'
+      locations:
+        - {line: 3, column: 28}
+    - message: 'Boolean cannot represent a non boolean value: ENUM'
+      locations:
+        - {line: 4, column: 28}
+- name: Variable default values/variables with valid default values
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query WithDefaultValues(
+              $a: Int = 1,
+              $b: String = "ok",
+              $c: ComplexInput = { requiredField: true, intField: 3 }
+              $d: Int! = 123
+            ) {
+              dog { name }
+            }
+
+  errors: []
+- name: Variable default values/variables with valid default null values
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query WithDefaultValues(
+              $a: Int = null,
+              $b: String = null,
+              $c: ComplexInput = { requiredField: true, intField: null }
+            ) {
+              dog { name }
+            }
+
+  errors: []
+- name: Variable default values/variables with invalid default null values
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query WithDefaultValues(
+              $a: Int! = null,
+              $b: String! = null,
+              $c: ComplexInput = { requiredField: null, intField: null }
+            ) {
+              dog { name }
+            }
+
+  errors:
+    - message: Expected value of type "Int!", found null.
+      locations:
+        - {line: 3, column: 22}
+    - message: Expected value of type "String!", found null.
+      locations:
+        - {line: 4, column: 25}
+    - message: Expected value of type "Boolean!", found null.
+      locations:
+        - {line: 5, column: 47}
+- name: Variable default values/variables with invalid default values
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query InvalidDefaultValues(
+              $a: Int = "one",
+              $b: String = 4,
+              $c: ComplexInput = "NotVeryComplex"
+            ) {
+              dog { name }
+            }
+
+  errors:
+    - message: 'Int cannot represent non-integer value: "one"'
+      locations:
+        - {line: 3, column: 21}
+    - message: 'String cannot represent a non string value: 4'
+      locations:
+        - {line: 4, column: 24}
+    - message: Expected value of type "ComplexInput", found "NotVeryComplex".
+      locations:
+        - {line: 5, column: 30}
+- name: Variable default values/variables with complex invalid default values
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query WithDefaultValues(
+              $a: ComplexInput = { requiredField: 123, intField: "abc" }
+            ) {
+              dog { name }
+            }
+
+  errors:
+    - message: 'Boolean cannot represent a non boolean value: 123'
+      locations:
+        - {line: 3, column: 47}
+    - message: 'Int cannot represent non-integer value: "abc"'
+      locations:
+        - {line: 3, column: 62}
+- name: Variable default values/complex variables missing required field
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query MissingRequiredField($a: ComplexInput = {intField: 3}) {
+              dog { name }
+            }
+
+  errors:
+    - message: Field "ComplexInput.requiredField" of required type "Boolean!" was not provided.
+      locations:
+        - {line: 2, column: 55}
+- name: Variable default values/list variables with invalid item
+  rule: ValuesOfCorrectType
+  schema: 0
+  query: |2-
+
+            query InvalidItem($a: [String] = ["one", 2]) {
+              dog { name }
+            }
+
+  errors:
+    - message: 'String cannot represent a non string value: 2'
+      locations:
+        - {line: 2, column: 50}

@@ -1,0 +1,9 @@
+- title: Unified
+  description: Decouple policy decisions from your services to achieve unified control across the entire stack with any language or service.
+  tag: unified
+- title: Declarative
+  description: Express policies in a high-level declarative language that promotes safe, fine-grained logic and enables powerful features such as impact analysis, hot reloading, query optimization, and more.
+  tag: declarative
+- title: Context-Aware
+  description: Leverage arbitrary external document-oriented data (JSON) in policies to ensure that important requirements are enforced throughout the organization.
+  tag: context-aware

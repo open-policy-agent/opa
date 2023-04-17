@@ -1,0 +1,6 @@
+# Exception Format is <test name>: <reason>
+"functions/default": "not supported in topdown, https://github.com/open-policy-agent/opa/issues/2445"
+"data/toplevel integer": "https://github.com/open-policy-agent/opa/issues/3711"
+"data/nested integer": "https://github.com/open-policy-agent/opa/issues/3711"
+"withkeyword/function: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"
+"withkeyword/builtin: indirect call, arity 1, replacement is value that needs eval (array comprehension)": "https://github.com/open-policy-agent/opa/issues/5311"

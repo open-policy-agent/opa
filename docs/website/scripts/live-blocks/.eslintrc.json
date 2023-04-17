@@ -1,0 +1,180 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:import/errors"
+  ],
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": 2018,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "import",
+    "sort-imports-es6-autofix",
+    "sort-requires"
+  ],
+  "rules": {
+    "array-bracket-spacing": "error",
+    "arrow-parens": "error",
+    "arrow-spacing": [
+      "error",
+      {
+        "before": true,
+        "after": true
+      }
+    ],
+    "brace-style": "error",
+    "camelcase": [
+      "error",
+      {
+        "ignoreDestructuring": true,
+        "properties": "never"
+      }
+    ],
+    "comma-spacing": "error",
+    "comma-style": "error",
+    "computed-property-spacing": "error",
+    "curly": "error",
+    "dot-location": [
+      "error",
+      "property"
+    ],
+    "dot-notation": "error",
+    "func-call-spacing": "error",
+    "generator-star-spacing": [
+      "error",
+      {
+        "after": true,
+        "before": false,
+        "method": {
+          "after": true,
+          "before": true
+        }
+      }
+    ],
+    "import/namespace": [
+      "error",
+      {
+        "allowComputed": true
+      }
+    ],
+    "import/no-unresolved": [
+      "error",
+      {
+        "ignore": [
+          "src/spritesheet\\.svg"
+        ]
+      }
+    ],
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          "parent",
+          "sibling",
+          "index"
+        ],
+        "newlines-between": "always-and-inside-groups"
+      }
+    ],
+    "indent": [
+      "error",
+      2,
+      {
+        "MemberExpression": "off",
+        "SwitchCase": 1
+      }
+    ],
+    "jsx-quotes": [
+      "error",
+      "prefer-double"
+    ],
+    "key-spacing": "error",
+    "keyword-spacing": "error",
+    "linebreak-style": [
+      "error",
+      "unix"
+    ],
+    "new-parens": "error",
+    "no-duplicate-imports": "error",
+    "no-else-return": "error",
+    "no-multi-spaces": [
+      "error",
+      {
+        "ignoreEOLComments": true
+      }
+    ],
+    "no-multiple-empty-lines": [
+      "error",
+      {
+        "max": 1,
+        "maxBOF": 0
+      }
+    ],
+    "no-new-wrappers": "error",
+    "no-template-curly-in-string": "error",
+    "no-trailing-spaces": "error",
+    "no-unused-vars": [
+      "error",
+      {
+        "varsIgnorePattern": "^_+$"
+      }
+    ],
+    "no-whitespace-before-property": "error",
+    "object-curly-spacing": "error",
+    "prefer-arrow-callback": "error",
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true
+      }
+    ],
+    "rest-spread-spacing": "error",
+    "semi": [
+      "error",
+      "never"
+    ],
+    "sort-imports-es6-autofix/sort-imports-es6": [
+      "error",
+      {
+        "ignoreCase": true,
+        "ignoreMemberSort": false,
+        "memberSyntaxSortOrder": [
+          "none",
+          "single",
+          "all",
+          "multiple"
+        ]
+      }
+    ],
+    "sort-requires/sort-requires": "error",
+    "space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "always",
+        "asyncArrow": "always",
+        "named": "never"
+      }
+    ],
+    "space-in-parens": "error",
+    "space-infix-ops": "error",
+    "space-unary-ops": "error",
+    "spaced-comment": "error",
+    "switch-colon-spacing": "error",
+    "template-curly-spacing": "error",
+    "template-tag-spacing": "error",
+    "yield-star-spacing": "error"
+  }
+}

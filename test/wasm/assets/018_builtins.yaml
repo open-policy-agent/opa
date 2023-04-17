@@ -1,0 +1,454 @@
+cases:
+  - note: equal built-in (true)
+    query: equal(1,1,x)
+    want_result:
+    - x: true
+  - # NOTE: This is a property of the planner/compiler interaction, more so
+    # than it is a property of the builtin implementation. Therefore, we only
+    # assert it once for equal/true, equal/false; instead of duplicating all
+    # the other comparison test cases.
+    note: equal built-in (true, result not captured)
+    query: equal(1,1)
+    want_defined: true
+  - note: equal built-in (false)
+    query: equal(1,2,x)
+    want_result:
+    - x: false
+  - note: equal built-in (false, result not captured)
+    query: equal(1,2)
+    want_defined: false
+  - note: gt built-in (true)
+    query: gt(1,0,x)
+    want_result:
+    - x: true
+  - note: gt built-in (false)
+    query: gt(1,2,x)
+    want_result:
+    - x: false
+  - note: gte built-in (true)
+    query: gte(1,0,x)
+    want_result:
+    - x: true
+  - note: gte built-in (true, equal)
+    query: gte(1,1,x)
+    want_result:
+    - x: true
+  - note: gte built-in (false)
+    query: gte(1,2,x)
+    want_result:
+    - x: false
+  - note: lt built-in (true)
+    query: lt(0,1,x)
+    want_result:
+    - x: true
+  - note: lt built-in (false)
+    query: lt(2,1,x)
+    want_result:
+    - x: false
+  - note: lte built-in (true)
+    query: lte(0,1,x)
+    want_result:
+    - x: true
+  - note: lte built-in (true, equal)
+    query: lte(0,0,x)
+    want_result:
+    - x: true
+  - note: lte built-in (false)
+    query: lte(2,1,x)
+    want_result:
+    - x: false
+  - note: neq built-in (true)
+    query: neq(0,1,x)
+    want_result:
+    - x: true
+  - note: neq built-in (false)
+    query: neq(1,1,x)
+    want_result:
+    - x: false
+  - note: abs built-in
+    query: abs(-1,x)
+    want_result: [{'x': 1}]
+  - note: round built-in
+    query: round(1.4,x)
+    want_result: [{'x': 1}]
+  - note: round built-in ("halfs up")
+    query: round(1.5,x)
+    want_result: [{'x': 2}]
+  - note: round built-in ("halfs up not to even")
+    query: round(2.5,x)
+    want_result: [{'x': 3}]
+  - note: plus built-in
+    query: plus(1,1,x)
+    want_result: [{'x': 2}]
+  - note: minus built-in
+    query: minus(1,1,x)
+    want_result: [{'x': 0}]
+  - note: multiply built-in
+    query: mul(2,3,x)
+    want_result: [{'x': 6}]
+  - note: divide built-in
+    query: div(2,3,x)
+    want_result: [{'x': 0.6666666666666666}]
+  - note: remainder built-in
+    query: rem(4,3,x)
+    want_result: [{'x': 1}]
+  - note: array concat built-in
+    query: array.concat([0],[1],x)
+    want_result: [{'x': [0,1]}]
+  - note: array slice built-in
+    query: array.slice([0,1,2,4],1,3,x)
+    want_result: [{'x': [1,2]}]
+  - note: set diff built-in
+    query: set_diff({0,1},{0},x)
+    want_result: [{'x': [1]}]
+  - note: and built-in
+    query: and({0,1},{0},x)
+    want_result: [{'x': [0]}]
+  - note: or built-in
+    query: or({0,1},{0},x)
+    want_result: [{'x': [1,0]}]
+  - note: intersection built-in
+    query: intersection({{0,1},{0}},x)
+    want_result: [{'x': [0]}]
+  - note: union built-in
+    query: union({{0,1},{0}},x)
+    want_result: [{'x': [1,0]}]
+  - note: is_number built-in
+    query: is_number(1,x)
+    want_result: [{'x': true}]
+  - note: is_string built-in
+    query: is_string("a",x)
+    want_result: [{'x': true}]
+  - note: is_boolean built-in
+    query: is_boolean(true,x)
+    want_result: [{'x': true}]
+  - note: is_array built-in
+    query: is_array([],x)
+    want_result: [{'x': true}]
+  - note: is_set built-in
+    query: is_set({"a"},x)
+    want_result: [{'x': true}]
+  - note: is_object built-in
+    query: is_object({},x)
+    want_result: [{'x': true}]
+  - note: is_null built-in
+    query: is_null(null,x)
+    want_result: [{'x': true}]
+  - note: type_name built-in
+    query: type_name(1,x)
+    want_result: [{'x': "number"}]
+  - note: bits.or built-in
+    query: bits.or(1,2,x)
+    want_result: [{'x': 3}]
+  - note: bits.and built-in
+    query: bits.and(5,3,x)
+    want_result: [{'x': 1}]
+  - note: bits.negate built-in
+    query: bits.negate(1,x)
+    want_result: [{'x': -2}]
+  - note: bits.xor built-in
+    query: bits.xor(1,1,x)
+    want_result: [{'x': 0}]
+  - note: bits.lsh built-in
+    query: bits.lsh(1,1,x)
+    want_result: [{'x': 2}]
+  - note: bits.rsh built-in
+    query: bits.rsh(2,1,x)
+    want_result: [{'x': 1}]
+  - note: count built-in
+    query: count([1,2,3],x)
+    want_result: [{'x': 3}]
+  - note: count built-in string
+    query: count("abc", x)
+    want_result: [{'x': 3}]
+  - note: count built-in string unicode
+    query: count("åäö", x)
+    want_result: [{'x': 3}]
+  - note: sum built-in
+    query: sum([1,2,3],x)
+    want_result: [{'x': 6}]
+  - note: product built-in
+    query: product([1,2,3],x)
+    want_result: [{'x': 6}]
+  - note: max built-in
+    query: max([1,2,3],x)
+    want_result: [{'x': 3}]
+  - note: min built-in
+    query: min([3,2,1],x)
+    want_result: [{'x': 1}]
+  - note: sort built-in
+    query: sort(["1","3","2"],x)
+    want_result: [{'x': ["1","2","3"]}]
+  - note: all built-in
+    query: all([true,true],x)
+    want_result: [{'x': true}]
+  - note: any built-in
+    query: any([false,true],x)
+    want_result: [{'x': true}]
+  - note: base64.is_valid built-in
+    query: base64.is_valid("SGVsbG8=",x)
+    want_result: [{'x': true}]
+  - note: base64.decode built-in
+    query: base64.decode("SGVsbG8=",x)
+    want_result: [{'x': "Hello"}]
+  - note: base64.encode built-in
+    query: base64.encode("Hello",x)
+    want_result: [{'x': "SGVsbG8="}]
+  - note: base64url.decode built-in
+    query: base64url.decode("SGVsbG8=",x)
+    want_result: [{'x': "Hello"}]
+  - note: base64url.encode built-in
+    query: base64url.encode("Hello",x)
+    want_result: [{'x': "SGVsbG8="}]
+  - note: net.cidr_contains
+    query: net.cidr_contains("172.17.0.0/24", "172.17.0.0/16", x)
+    want_result: [{'x': false}]
+  - note: net.cidr_contains
+    query: net.cidr_overlap("172.17.0.0/16", "172.17.0.1", x)
+    want_result: [{'x': true}]
+  - note: net.cidr_intersects
+    query: net.cidr_intersects("192.168.1.0/25", "192.168.1.64/25", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in
+    query: glob.match("*:github:com", [":"], "api:github:com", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in, multiple delimiters
+    query: glob.match("*.github.com:foo", [".", ":"], "api.github.com:foo", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in delimiters default
+    query: glob.match("*.github.com", [], "api.github.com", x)
+    want_result: [{'x': true}]
+  - note: glob.match built-in delimiters default, negative
+    query: glob.match("*foo*", [], "5.0 foo/90", x)
+    want_result: [{'x': false}]
+  - note: json.marshal built-in
+    query: json.marshal("string",x)
+    want_result: [{'x': '"string"'}]
+  - note: json.unmarshal built-in
+    query: json.unmarshal("\"string\"",x)
+    want_result: [{'x': "string"}]
+  - note: object.get built-in
+    query: 'object.get({"a": "b"}, "a", "c", x)'
+    want_result: [{'x': "b"}]
+  - note: object.get built-in
+    query: 'object.get({"a": "b"}, "c", "c", x)'
+    want_result: [{'x': "c"}]
+  - note: object.remove built-in
+    query: 'object.remove({"x": 0, "y": 1}, ["y"], x)'
+    want_result: [{'x': {'x': 0}}]
+  - note: object.remove built-in
+    query: 'object.remove({"x": 0, "y": 1}, {"z"}, x)'
+    want_result: [{'x': {'x': 0, 'y': 1}}]
+  - note: object.filter built-in
+    query: 'object.filter({"x": 0, "y": 1}, ["x"], x)'
+    want_result: [{'x': {'x': 0}}]
+  - note: object.union built-in
+    query: 'object.union({"a": 1}, {"b": 2}, x)'
+    want_result: [{'x': {'a': 1, 'b': 2}}]
+  - note: object.union built-in
+    query: 'object.union({"a": 1}, {"a": {"b": {"c": 1}}, "d": 7}, x)'
+    want_result: [{'x': {"a": {"b": {"c": 1}}, "d": 7}}]
+  - note: json.remove built-in
+    query: 'json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c"}, x)'
+    want_result: [{'x': {"a": {"b": {"d": 8}}, "e": 9}}]
+  - note: json.remove built-in
+    query: 'json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c", "e"}, x)'
+    want_result: [{'x': {"a": {"b": {"d": 8}}}}]
+  - note: json.filter built-in
+    query: 'json.filter({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c"}, x)'
+    want_result: [{'x': {"a": {"b": {"c": 7}}}}]
+  - note: json.filter built-in
+    query: 'json.filter({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {["a", "b", "c"], ["e"]}, x)'
+    want_result: [{'x': {"a": {"b": {"c": 7}}, "e": 9}}]
+  - note: concat built-in
+    query: concat(",",["a","b"],x)
+    want_result: [{'x': "a,b"}]
+  - note: concat built-in unicode
+    query: concat("ä",["å","ö"],x)
+    want_result: [{'x': "åäö"}]
+  - note: contains built-in
+    query: contains("abc","b",x)
+    want_result: [{'x': true}]
+  - note: contains built-in unicode
+    query: contains("åäö","ä",x)
+    want_result: [{'x': true}]
+  - note: endswith built-in
+    query: endswith("abc","c",x)
+    want_result: [{'x': true}]
+  - note: endswith built-in unicode
+    query: endswith("åäö","ö",x)
+    want_result: [{'x': true}]
+  - note: format_int built-in
+    query: format_int(10,16,x)
+    want_result: [{'x': "a"}]
+  - note: indexof built-in
+    query: indexof("abc","b",x)
+    want_result: [{'x': 1}]
+  - note: indexof built-in unicode
+    query: indexof("åäö","ä",x)
+    want_result: [{'x': 1}]
+  - note: lower built-in
+    query: lower("A",x)
+    want_result: [{'x': "a"}]
+  - note: lower built-in unicode
+    query: lower("Å",x)
+    want_result: [{'x': "å"}]
+  - note: replace built-in
+    query: replace("abc","b","d",x)
+    want_result: [{'x': "adc"}]
+  - note: replace built-in unicode
+    query: replace("åäö","å","ö",x)
+    want_result: [{'x': "öäö"}]
+  - note: replace_n built-in
+    query: strings.replace_n({"b":"d"},"abc",x)
+    want_result: [{'x': "adc"}]
+  - note: replace_n built-in unicode
+    query: strings.replace_n({"b":"ö"},"abc",x)
+    want_result: [{'x': "aöc"}]
+  - note: split built-in
+    query: split("a,b",",",x)
+    want_result: [{'x': ["a","b"]}]
+  - note: split built-in unicode
+    query: split("aöb","ö",x)
+    want_result: [{'x': ["a","b"]}]
+  - note: startswith built-in
+    query: startswith("abc","a",x)
+    want_result: [{'x': true}]
+  - note: startswith built-in unicode
+    query: startswith("åäö","å",x)
+    want_result: [{'x': true}]
+  - note: substring built-in
+    query: substring("abcd",1,2,x)
+    want_result: [{'x': "bc"}]
+  - note: substring built-in unicode
+    query: substring("åäö",1,2,x)
+    want_result: [ { 'x': "äö" } ]
+  - note: trim built-in
+    query: trim("abc","ac",x)
+    want_result: [{'x': "b"}]
+  - note: trim built-in unicode
+    query: trim("åäö","åö",x)
+    want_result: [{'x': "ä"}]
+  - note: trim_left built-in
+    query: trim_left("abc","ba",x)
+    want_result: [{'x': "c"}]
+  - note: trim_left built-in unicode
+    query: trim_left("åäö","äå",x)
+    want_result: [{'x': "ö"}]
+  - note: trim_prefix built-in
+    query: trim_prefix("abc","ab",x)
+    want_result: [{'x': "c"}]
+  - note: trim_prefix built-in unicode
+    query: trim_prefix("åäö","åä",x)
+    want_result: [{'x': "ö"}]
+  - note: trim_right built-in
+    query: trim_right("abc","cb",x)
+    want_result: [{'x': "a"}]
+  - note: trim_right built-in unicode
+    query: trim_right("åäö","öä",x)
+    want_result: [{'x': "å"}]
+  - note: trim_suffix built-in
+    query: trim_suffix("abc","bc",x)
+    want_result: [{'x': "a"}]
+  - note: trim_suffix built-in unicode
+    query: trim_suffix("åäö","äö",x)
+    want_result: [{'x': "å"}]
+  - note: trim_space built-in
+    query: trim_space(" abc ",x)
+    want_result: [{'x': "abc"}]
+  - note: trim_space built-in unicode
+    query: trim_space(" åäö ",x)
+    want_result: [{'x': "åäö"}]
+  - note: upper built-in
+    query: upper("a",x)
+    want_result: [{'x': "A"}]
+  - note: upper built-in unicode
+    query: upper("å",x)
+    want_result: [{'x': "Å"}]
+  - note: numbers.range built-in
+    query: numbers.range(10, 12, x)
+    want_result: [{'x': [10, 11, 12]}]
+  - note: to_number
+    query: to_number("100", x)
+    want_result: [{'x': 100}]
+  - note: custom built-in
+    query: x = custom_builtin_test(100)
+    want_result: [{'x': 101}]
+  - note: impure built-in
+    query: x = custom_builtin_test_impure()
+    want_result: [{'x': "foo"}]
+  - note: nested
+    query: arr = ["foo","bar","baz","qux"]; x = arr[1+1+1]
+    want_result: [{'arr': ['foo', 'bar', 'baz', 'qux'], 'x': "qux"}]
+  - note: walk non-empty
+    query: 'data.test.p = x'
+    modules:
+    - |
+      package test
+      p { foo = {"a": {"b": [1]}}; walk(foo) }
+    want_result: [{x: true}]
+  - note: walk results
+    query: 'data.test.p[x]'
+    modules:
+    - |
+      package test
+
+      p[x] { foo = {"a": {"b": [1]}}; walk(foo, x) }
+    want_result: [
+      {
+        x: [[], {"a": {"b": [1]}}],
+      },
+      {
+        x: [["a"], {"b": [1]}],
+      },
+      {
+        x: [["a", "b"], [1]],
+      },
+      {
+        x: [["a", "b", 0], 1]
+      },
+    ]
+  - note: walk results pattern matching
+    query: 'walk(data.test.obj, [["a", x, 1], y])'
+    modules:
+    - |
+      package test
+
+      obj := {"a": {"b": [1, 3], "c": [2, 4]}, "d": {}}
+    want_result: [
+      {
+        "x": "b",
+        "y": 3
+      },
+      {
+        "x": "c",
+        "y": 4,
+      }
+    ]
+  - note: graph.reachable empty
+    query: 'graph.reachable({}, {"a"}, x)'
+    want_result: [{'x': []}]
+  - note: graph.reachable cycle
+    query: 'x := sort(graph.reachable({"a": {"b"}, "b": {"c"}, "c": {"a"}}, {"a"}))'
+    want_result: [{'x': ["a", "b", "c"]}]
+  - note: graph.reachable components
+    query: 'x := sort(graph.reachable({"a": {"b", "c"}, "b": {"d"}, "c": {"d"}, "d": set(), "e": {"f"}, "f": {"e"}, "x": {"x"}}, {"b", "e"}))'
+    want_result: [{'x': ["b", "d", "e", "f"]}]
+  - note: regex.is_valid built-in
+    query: 'regex.is_valid(".*", x)'
+    want_result: [{'x': true}]
+  - note: regex.is_valid built-in
+    query: 'regex.match("foo.*bar", "fooxbar", x)'
+    want_result: [{'x': true}]
+  - note: regex.find_all_string_submatch_n built-in, all matches
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", -1, x)'
+    want_result: [{'x': [["food","d"],["fool","l"],["foo", ""]]}]
+  - note: regex.find_all_string_submatch_n built-in, one match only
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 1, x)'
+    want_result: [{'x': [["food","d"]]}]
+  - note: regex.find_all_string_submatch_n built-in, two matches only
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 2, x)'
+    want_result: [{'x': [["food","d"],["fool","l"]]}]
+  - note: regex.find_all_string_submatch_n built-in, more matches than there are
+    query: 'regex.find_all_string_submatch_n("foo(.?)", "seefood fool foo", 10, x)'
+    want_result: [{'x': [["food","d"],["fool","l"],["foo", ""]]}]

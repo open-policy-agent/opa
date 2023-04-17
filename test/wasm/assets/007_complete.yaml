@@ -1,0 +1,190 @@
+cases:
+  - note: constants
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+    want_defined: true
+  - note: constants (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 2
+    want_defined: false
+  - note: variable
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = y { x = 1; y = x }
+    want_defined: true
+  - note: variable (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = y { x = 2; y = x }
+    want_defined: false
+  - note: composites
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        p = [x] { x = 1 }
+    want_defined: true
+  - note: composites (negative)
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        p = [x] { x = 2 }
+    want_defined: false
+  - note: conjunction
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { q; r }
+        q { true }
+        r { true }
+    want_defined: true
+  - note: conjunction (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { q; r }
+        q { true }
+        r { false }
+    want_defined: false
+  - note: disjunction
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        p = 1 { false }
+        p = 2 { true }
+        p = 3 { false }
+    want_defined: true
+  - note: disjunction (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { false }
+        p = 2 { false }
+        p = 3 { true }
+    want_defined: false
+  - note: negation
+    query: not data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { false }  # undefined
+    want_defined: true
+  - note: negation (negative)
+    query: not data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+    want_defined: false
+  - note: chain
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r = 1
+    want_defined: true
+  - note: chain (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r = 2
+    want_defined: false
+  - note: chain input
+    query: data.x.p = true
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r { input.x = 1 }
+    input: {"x": 1}
+    want_defined: true
+  - note: chain input (negative)
+    query: data.x.p = true
+    modules:
+      - |
+        package x
+        p = q
+        q = r
+        r { input.x = 2 }
+    input: {"x": 1}
+    want_defined: false
+  - note: iteration
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { input[x] = 1 }
+    input: [3,2,1]
+    want_defined: true
+  - note: iteration (negative)
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1 { input[x] = 4 }
+    input: [3,2,1]
+    want_defined: false
+  - note: conflict error
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        p = 1
+        p = 2
+    want_error: "module0.rego:3:1: var assignment conflict"
+  - note: packages
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        import data.y.p
+        p = p
+      - |
+        package y
+        p = 1
+    want_defined: true
+  - note: dereference
+    query: data.x.p[0].a = 1
+    modules:
+      - |
+        package x
+        p = [{
+          "a": 1,
+          "b": 2
+        }]
+    want_defined: true
+  - note: iteration embedded
+    query: data.x.p[i].a[j] = 1
+    modules:
+      - |
+        package x
+        p = [{"a": [2, 3]}, {"a": [3, 1]}, {"a": []}]
+    want_defined: true
+  - note: iteration embedded (negative)
+    query: data.x.p[i].a[j] = 1
+    modules:
+      - |
+        package x
+        p = [{"a": [2, 3]}, {"a": [3, 2]}, {"a": []}]
+    want_defined: false

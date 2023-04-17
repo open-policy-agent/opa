@@ -1,0 +1,21 @@
+cases:
+  - note: negate/eq
+    query: not input.x = 1
+    input: {"x": 2}
+    want_defined: true
+  - note: negate/eq (negative)
+    query: not input.x = 1
+    input: {"x": 1}
+    want_defined: false
+  - note: negate/undefined
+    query: not input.deadbeef
+    input: {}
+    want_defined: true
+  - note: negate/undefined (negative)
+    query: not input.x
+    input: {"x": 1}
+    want_defined: false
+  - note: negate/false
+    query: not input.x
+    input: {"x": false}
+    want_defined: true

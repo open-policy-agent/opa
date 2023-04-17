@@ -1,0 +1,21 @@
+cases:
+- data:
+  modules:
+  - |
+    package p.m
+
+    default hello = false
+
+    hello() = m {
+      m = input.message
+      1 == 2
+      m = "world"
+    }
+    h = m {
+      m = hello()
+    }
+  note: functions/default # not supported but shouldn't panic
+  query: data.p.m = x
+  want_result:
+  - x:
+      hello: false

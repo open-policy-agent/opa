@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q[k] = v { d.e[_] = k; v = {\"x\": [r | r = l[_]]} }")

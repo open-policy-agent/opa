@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[__local0__] {
+      trim_suffix("¡¡¡foo, bar!!!", ", foo!!!", __local1__)
+      __local0__ = __local1__
+    }
+  note: trimsuffix/trims nothing from string
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - ¡¡¡foo, bar!!!

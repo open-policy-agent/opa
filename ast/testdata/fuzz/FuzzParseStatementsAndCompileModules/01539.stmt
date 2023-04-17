@@ -1,0 +1,2 @@
+go test fuzz v1
+string("[[0, \"foo\", 1], [0, \"bar\", 2], [1, \"baz\", 3], [1, \"qux\", 4]]")

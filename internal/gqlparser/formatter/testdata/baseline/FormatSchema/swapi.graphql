@@ -1,0 +1,87 @@
+interface Character {
+	id: ID!
+	name: String!
+	friends: [Character]
+	friendsConnection(first: Int, after: ID): FriendsConnection!
+	appearsIn: [Episode]!
+}
+input ColorInput {
+	red: Int!
+	green: Int!
+	blue: Int!
+}
+type Droid implements Character {
+	id: ID!
+	name: String!
+	friends: [Character]
+	friendsConnection(first: Int, after: ID): FriendsConnection!
+	appearsIn: [Episode]!
+	primaryFunction: String
+}
+enum Episode {
+	NEWHOPE
+	EMPIRE
+	JEDI
+}
+type FriendsConnection {
+	totalCount: Int
+	edges: [FriendsEdge]
+	friends: [Character]
+	pageInfo: PageInfo!
+}
+type FriendsEdge {
+	cursor: ID!
+	node: Character
+}
+type Human implements Character {
+	id: ID!
+	name: String!
+	homePlanet: String
+	height(unit: LengthUnit = METER): Float
+	mass: Float
+	friends: [Character]
+	friendsConnection(first: Int, after: ID): FriendsConnection!
+	appearsIn: [Episode]!
+	starships: [Starship]
+}
+enum LengthUnit {
+	METER
+	FOOT
+}
+type Mutation {
+	createReview(episode: Episode, review: ReviewInput!): Review
+}
+type PageInfo {
+	startCursor: ID
+	endCursor: ID
+	hasNextPage: Boolean!
+}
+type Query {
+	hero(episode: Episode): Character
+	reviews(episode: Episode!): [Review]
+	search(text: String): [SearchResult]
+	character(id: ID!): Character
+	droid(id: ID!): Droid
+	human(id: ID!): Human
+	starship(id: ID!): Starship
+}
+type Review {
+	episode: Episode
+	stars: Int!
+	commentary: String
+}
+input ReviewInput {
+	stars: Int!
+	commentary: String
+	favorite_color: ColorInput
+}
+union SearchResult = Human | Droid | Starship
+type Starship {
+	id: ID!
+	name: String!
+	length(unit: LengthUnit = METER): Float
+	coordinates: [[Float!]!]
+}
+type Subscription {
+	reviewAdded(episode: Episode): Review
+}

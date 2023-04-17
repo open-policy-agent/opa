@@ -1,0 +1,279 @@
+fileTypes: [
+  "Rego"
+]
+name: "Rego"
+patterns: [
+  {
+    include: "#comment"
+  }
+  {
+    include: "#keyword"
+  }
+  {
+    include: "#operator"
+  }
+  {
+    include: "#head"
+  }
+  {
+    include: "#query"
+  }
+  {
+    include: "#expr"
+  }
+  {
+    include: "#term"
+  }
+]
+repository:
+  array:
+    begin: "\\["
+    beginCaptures:
+      "0":
+        name: "punctuation.definition.array.begin.rego"
+    end: "\\]"
+    endCaptures:
+      "0":
+        name: "punctuation.definition.array.end.rego"
+    name: "meta.structure.array.rego"
+    patterns: [
+      {
+        include: "#term"
+      }
+      {
+        match: ","
+        name: "punctuation.separator.array.rego"
+      }
+      {
+        match: "[^\\s\\]]"
+        name: "invalid.illegal.expected-array-separator.rego"
+      }
+    ]
+  builtin_call:
+    captures:
+      "1":
+        name: "punctuation.whitespace.function-call.leading.rego"
+      "2":
+        name: "support.function.any-method.rego"
+      "3":
+        name: "punctuation.definition.parameters.rego"
+    match: '''
+      (?x) (?:(?<!\\w)(\\s+))?
+      		            (\\b
+      		                (?:[A-Za-z_][A-Za-z0-9_]*+\\b)                  # actual name
+      		            )\\s*(\\()
+    '''
+    name: "meta.function-call.rego"
+  comment:
+    captures:
+      "1":
+        name: "punctuation.definition.comment.rego"
+    match: "(#).*$\\n?"
+    name: "comment.line.number-sign.rego"
+  constant:
+    match: "\\b(?:true|false|null)\\b"
+    name: "constant.language.rego"
+  emptyobject:
+    captures:
+      "1":
+        name: "punctuation.definition.dictionary.begin.rego"
+      "2":
+        name: "meta.empty-dictionary.rego"
+      "3":
+        name: "punctuation.definition.dictionary.end.rego"
+    match: "(\\{)(\\s*(\\}))"
+    name: "meta.structure.dictionary.rego"
+  expr:
+    patterns: [
+      {
+        include: "#term"
+      }
+      {
+        include: "#builtin_call"
+      }
+      {
+        include: "#operator"
+      }
+    ]
+  head:
+    begin: "^(default\s+)?([[:alpha:]_][[:alnum:]_]*)"
+    beginCaptures:
+      "1":
+        name: "keyword.control.import.$1.rego"
+      "2":
+        name: "storage.type.function.rego"
+    end: "(=|:-)"
+    name: "meta.function.rego"
+    patterns: [
+      {
+        include: "#term"
+      }
+    ]
+  keyword:
+    match: "\\b(?:(package|import|with|as))\\b"
+    name: "keyword.control.import.$1.rego"
+  number:
+    match: '''
+      (?x:         # turn on extended mode
+                                   -?         # an optional minus
+                                   (?:
+                                     0        # a zero
+                                     |        # ...or...
+                                     [1-9]    # a 1-9 character
+                                     \\d*      # followed by zero or more digits
+                                   )
+                                   (?:
+                                     (?:
+                                       \\.     # a period
+                                       \\d+    # followed by one or more digits
+                                     )?
+                                     (?:
+                                       [eE]   # an e character
+                                       [+-]?  # followed by an option +/-
+                                       \\d+    # followed by one or more digits
+                                     )?       # make exponent optional
+                                   )?         # make decimal portion optional
+                                 )
+    '''
+    name: "constant.numeric.rego"
+  object:
+    begin: "(\\{)"
+    beginCaptures:
+      "1":
+        name: "punctuation.definition.dictionary.begin.rego"
+    end: "(\\})"
+    endCaptures:
+      "1":
+        name: "punctuation.definition.dictionary.end.rego"
+    name: "meta.structure.dictionary.rego"
+    patterns: [
+      {
+        begin: "(?<=\\{|\\,|^)\\s*(?![\\},])"
+        contentName: "meta.structure.dictionary.key.rego"
+        end: "\\s*(?:(?=\\})|(\\:))"
+        endCaptures:
+          "1":
+            name: "punctuation.separator.valuepair.dictionary.rego"
+        patterns: [
+          {
+            include: "$self"
+          }
+        ]
+      }
+      {
+        begin: "(?<=\\:|^)\\s*"
+        contentName: "meta.structure.dictionary.value.rego"
+        end: "\\s*(?:(?=\\})|(,))"
+        endCaptures:
+          "1":
+            name: "punctuation.separator.dictionary.rego"
+        patterns: [
+          {
+            include: "$self"
+          }
+        ]
+      }
+    ]
+  operator:
+    patterns: [
+      {
+        match: "\\b(?:not)\\b"
+        name: "keyword.control.logical.$1.rego"
+      }
+      {
+        match: "\\=|\\!\\=|>|<|<\\=|>\\="
+        name: "keyword.control.logical.$1.rego"
+      }
+    ]
+  query:
+    name: "meta.structure.query.rego"
+    patterns: [
+      {
+        include: "#expr"
+      }
+      {
+        match: ","
+        name: "punctuation.separator.query.rego"
+      }
+    ]
+  set:
+    begin: "\\{"
+    beginCaptures:
+      "0":
+        name: "punctuation.definition.array.begin.rego"
+    end: "\\}"
+    endCaptures:
+      "0":
+        name: "punctuation.definition.array.end.rego"
+    name: "meta.structure.array.rego"
+    patterns: [
+      {
+        include: "#term"
+      }
+      {
+        match: ","
+        name: "punctuation.separator.array.rego"
+      }
+      {
+        match: "[^\\s\\]]"
+        name: "invalid.illegal.expected-array-separator.rego"
+      }
+    ]
+  string:
+    begin: "\""
+    beginCaptures:
+      "0":
+        name: "punctuation.definition.string.begin.rego"
+    end: "\""
+    endCaptures:
+      "0":
+        name: "punctuation.definition.string.end.rego"
+    name: "string.quoted.double.rego"
+    patterns: [
+      {
+        match: '''
+          (?x:                # turn on extended mode
+          	           \\\\                # a literal backslash
+          	           (?:               # ...followed by...
+          	             ["\\\\/bfnrt]     # one of these characters
+          	             |               # ...or...
+          	             u               # a u
+          	             [0-9a-fA-F]{4}  # and four hex digits
+          	           )
+          	         )
+        '''
+        name: "constant.character.escape.rego"
+      }
+      {
+        match: "\\\\."
+        name: "invalid.illegal.unrecognized-string-escape.rego"
+      }
+    ]
+  term:
+    patterns: [
+      {
+        include: "#constant"
+      }
+      {
+        include: "#string"
+      }
+      {
+        include: "#number"
+      }
+      {
+        include: "#array"
+      }
+      {
+        include: "#emptyobject"
+      }
+      {
+        include: "#object"
+      }
+      {
+        include: "#variable"
+      }
+    ]
+  variable:
+    match: "\\b[[:alpha:]_][[:alnum:]_]*\\b"
+    name: "meta.identifier.rego"
+scopeName: "source.rego"

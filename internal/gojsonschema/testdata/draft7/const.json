@@ -1,0 +1,86 @@
+[
+    {
+        "description": "const validation",
+        "schema": {"const": 2},
+        "tests": [
+            {
+                "description": "same value is valid",
+                "data": 2,
+                "valid": true
+            },
+            {
+                "description": "another value is invalid",
+                "data": 5,
+                "valid": false
+            },
+            {
+                "description": "another type is invalid",
+                "data": "a",
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "const with object",
+        "schema": {"const": {"foo": "bar", "baz": "bax"}},
+        "tests": [
+            {
+                "description": "same object is valid",
+                "data": {"foo": "bar", "baz": "bax"},
+                "valid": true
+            },
+            {
+                "description": "same object with different property order is valid",
+                "data": {"baz": "bax", "foo": "bar"},
+                "valid": true
+            },
+            {
+                "description": "another object is invalid",
+                "data": {"foo": "bar"},
+                "valid": false
+            },
+            {
+                "description": "another type is invalid",
+                "data": [1, 2],
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "const with array",
+        "schema": {"const": [{ "foo": "bar" }]},
+        "tests": [
+            {
+                "description": "same array is valid",
+                "data": [{"foo": "bar"}],
+                "valid": true
+            },
+            {
+                "description": "another array item is invalid",
+                "data": [2],
+                "valid": false
+            },
+            {
+                "description": "array with additional items is invalid",
+                "data": [1, 2, 3],
+                "valid": false
+            }
+        ]
+    },
+    {
+        "description": "const with null",
+        "schema": {"const": null},
+        "tests": [
+            {
+                "description": "null is valid",
+                "data": null,
+                "valid": true
+            },
+            {
+                "description": "not null is invalid",
+                "data": 0,
+                "valid": false
+            }
+        ]
+    }
+]

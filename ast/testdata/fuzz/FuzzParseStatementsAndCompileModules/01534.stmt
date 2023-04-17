@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q = [\n\t\t\t\t\t{\n\t\t\t\t\t\t\"foo\": 1,\n\t\t\t\t\t\t\"bar\": 2,\n\t\t\t\t\t\t\"bazoo\": 3,\n\t\t\t\t\t}\n\t\t\t\t] { true }")

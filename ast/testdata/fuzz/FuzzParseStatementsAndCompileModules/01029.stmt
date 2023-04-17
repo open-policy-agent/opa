@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p[x] { re_match(\"^b.*$\", d.e[x]) }")

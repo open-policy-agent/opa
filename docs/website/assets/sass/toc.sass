@@ -1,0 +1,27 @@
+.toc-link::before
+  background-color: #EEE
+  content: '  '
+  display: inline-block
+  height: inherit
+  left: 0
+  margin-top: .1rem
+  position: absolute
+  width: 2px
+
+.is-active-link::before
+  background-color: $primary
+  
+.toc
+  a
+    color: #737373
+
+    &:hover
+      color: $dark
+
+  +desktop
+    margin: .5rem 0 1rem 1rem
+    font-size: .9rem
+
+  +touch
+    margin: .4rem 0 .75rem .8rem
+    font-size: .75rem

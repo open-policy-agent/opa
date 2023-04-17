@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = [x,y] { split(\"foo.bar.baz\", \".\", [x,\"bar\",y]) }")

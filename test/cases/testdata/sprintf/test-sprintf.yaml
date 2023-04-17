@@ -1,0 +1,25 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = sprintf("%s", [123456789123456789123])
+    }
+  note: sprintf/big_int
+  query: data.test.p = x
+  want_result:
+  - x: "123456789123456789123"
+- data:
+  modules:
+  - |
+    package test
+
+    p = x {
+      x = sprintf("%s", [1208925819614629174706175])
+    }
+  note: sprintf/big_int/max_cert_serial_number
+  query: data.test.p = x
+  want_result:
+  - x: "1208925819614629174706175"

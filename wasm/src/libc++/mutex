@@ -1,0 +1,18 @@
+#ifndef OPA_MUTEX_H_
+#define OPA_MUTEX_H_
+
+namespace std {
+
+ // this is a minimal, no-op implementation of std::mutex.
+class mutex {
+public:
+    inline mutex() { }
+    inline void lock() { }
+    inline void unlock() { }
+};
+
+}
+
+#include_next <mutex>
+
+#endif // OPA_MUTEX_H_

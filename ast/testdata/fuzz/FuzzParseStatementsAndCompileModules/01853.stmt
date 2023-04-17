@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage system.somepolicy\n\n\t\tfoo = \"hello\"\n\t")

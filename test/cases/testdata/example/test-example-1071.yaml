@@ -1,0 +1,84 @@
+cases:
+- data:
+    networks:
+    - id: n1
+      public: false
+    - id: n2
+      public: false
+    - id: n3
+      public: true
+    ports:
+    - id: p1
+      networks:
+      - n1
+    - id: p2
+      networks:
+      - n3
+    - id: p3
+      networks:
+      - n2
+    servers:
+    - id: s1
+      name: app
+      ports:
+      - p1
+      - p2
+      - p3
+      protocols:
+      - https
+      - ssh
+    - id: s2
+      name: db
+      ports:
+      - p3
+      protocols:
+      - mysql
+    - id: s3
+      name: cache
+      ports:
+      - p3
+      protocols:
+      - memcache
+      - http
+    - id: s4
+      name: dev
+      ports:
+      - p1
+      - p2
+      protocols:
+      - http
+  input_term: '{}'
+  modules:
+  - |
+    package opa.example
+
+    public_servers[server] {
+      server = data.servers[_]
+      server.ports[_] = data.ports[i].id
+      data.ports[i].networks[_] = data.networks[j].id
+      data.networks[j].public = true
+    }
+
+    violations[server] {
+      server = data.servers[_]
+      server.protocols[_] = "http"
+      data.opa.example.public_servers[server]
+    }
+  - |
+    package topdown_test_partial
+
+    __result__ = _result {
+      _result = {{"id": "s1", "name": "app", "ports": ["p1", "p2", "p3"], "protocols": ["https", "ssh"]}, {"id": "s4", "name": "dev", "ports": ["p1", "p2"], "protocols": ["http"]}}
+    }
+  note: example/violations
+  query: data.opa.example.violations = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - id: s4
+      name: dev
+      ports:
+      - p1
+      - p2
+      protocols:
+      - http

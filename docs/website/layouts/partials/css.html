@@ -1,0 +1,26 @@
+{{ $inServerMode := site.IsServer }}
+{{ $sass         := "sass/style.sass" }}
+{{ $cssOutput    := "css/style.css" }}
+{{ $includePaths := (slice "node_modules") }}
+{{ $cssDevOpts   := (dict "targetPath" $cssOutput "includePaths" $includePaths "enableSourceMap" true) }}
+{{ $cssProdOpts  := (dict "targetPath" $cssOutput "includePaths" $includePaths "outputStyle" "compressed") }}
+{{ $cssOpts      := cond $inServerMode $cssDevOpts $cssProdOpts }}
+{{ $css          := resources.Get $sass | toCSS $cssOpts }}
+{{ $isDoc        := eq .Section "docs" }}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.7.0/tocbot.css">
+
+{{ if $inServerMode }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}">
+{{ else }}
+{{ $prodCss := $css | fingerprint }}
+<link rel="stylesheet" href="{{ $prodCss.RelPermalink }}" integrity="{{ $prodCss.Data.Integrity }}">
+{{ end }}
+
+{{ if $isDoc }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3" />
+{{ end }}
+
+{{ if (eq .Kind "404") }}
+  <link media="screen" charset="utf-8" rel="stylesheet" href="/css/viking-boats.css">
+{{ end }}

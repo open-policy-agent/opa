@@ -1,0 +1,124 @@
+/* NOTE: Update constants.js with any changes to class names. */
+.live--block-container {
+  margin-bottom: 1.5rem;
+  /* Ensure shadows appear over below elements correctly */
+  position: relative;
+  z-index: 0;
+}
+
+.live--block-container--merged-down {
+  margin-bottom: 0 !important;
+  border-bottom: solid #cecece 1px;
+}
+
+.live--block-container--editable.live--block-container--merged-down {
+  /* Ensure shadows appear over below elements correctly */
+  z-index: 1;
+}
+
+.live--block-container--error span {
+  color: #ff1b00 !important;
+}
+
+.live--icon-bar--outer {
+  height: 0;
+  position: relative;
+}
+
+.live--icon-bar--inner {
+  height: 1.25em;
+  padding: 0.0625em 0;
+  flex-direction: row-reverse;
+  display: flex;
+  justify-content: flex-start;
+  font-size: 1.275em; /*TODO set for both this and codemirror, try setting it on container*/
+  align-items: center;
+}
+
+.live--icon--container {
+  width: 1.0625em;
+  height: 1.0625em;
+  margin-right: 0.1875em;
+  display: flex;
+  z-index: 1;
+}
+
+.live--icon--container--indicator {
+  opacity: 0.25;
+}
+
+.live--icon--container--button {
+  border-radius: 0.25em;
+  cursor: pointer;
+  background-color: #363636;
+}
+
+.live--icon--img {
+  padding: 0.0625em;
+}
+
+.live--icon--img--spinning {
+  animation: spin 5000ms linear infinite;
+}
+
+@keyframes spin {
+  from {transform:rotate(360deg);}
+  to {transform:rotate(0deg);}
+}
+
+/* --- SHADOWS --- */
+
+.live--block-container .CodeMirror {
+  transition: box-shadow 0.2s ease-out;
+}
+
+.live--block-container--editable .CodeMirror {
+  box-shadow: 0 0 3px #aaa;
+}
+
+/* apply to CodeMirror instead of container using :focus-within because Edge doesn't support it */
+.live--block-container--editable .CodeMirror-focused {
+  box-shadow: 0 0 6px #aaa !important;
+}
+
+/* --- CODEMIRROR OVERRIDES --- */
+
+.live--block-container .CodeMirror {
+  height: auto;
+  background-color: #f8f8f8;
+  font-weight: 400;
+  line-height: 1.5;
+  font-size: 0.875em;
+}
+
+.live--block-container .CodeMirror-scroll {
+  overflow-y: hidden !important;
+  overflow-x: auto !important;
+}
+
+.live--block-container .CodeMirror-hscrollbar {
+  pointer-events: auto !important; /* Fixes weird bug where with no vertical scroll it was getting set to none... */
+  outline: none;
+}
+
+.live--block-container .CodeMirror-sizer {
+  padding: 1.25em 1.5em 1.25em 1.5em !important;
+  min-height: 0 !important;
+}
+
+.live--block-container .CodeMirror-lines {
+  margin-left: -4px !important; /* Removing the 4px of left padding on .CodeMirror-line breaks highlighting and cursor, this corrects for it without removing it. Otherwise, the code jumps to the right when hydrated. */
+  padding: 0 !important;
+}
+
+.live--block-container .CodeMirror-line {
+  margin: 0 !important;
+}
+
+.live--block-container .CodeMirror-gutter-wrapper {
+  transform: translateX(-1.5em); /* Undo positioning from sizer padding */
+}
+
+.live--block-container .cm-variable {
+  color: #003c66; /* Just overriding the default theme for variables (otherwise black), we may want a custom theme later. */
+}

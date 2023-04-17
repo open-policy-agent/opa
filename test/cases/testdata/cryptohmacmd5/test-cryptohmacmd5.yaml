@@ -1,0 +1,28 @@
+cases:
+  - note: cryptohmacmd5/crypto.hmac.md5
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p[mac] {
+          mac := crypto.hmac.md5(input.message, input.key)
+        }
+    input: {"message": "foo", "key": "bar"}
+    want_result:
+      - x:
+          - 31b6db9e5eb4addb42f1a6ca07367adc
+  - note: cryptohmacmd5/crypto.hmac.md5_unicode
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        
+        p[mac] {
+          mac := crypto.hmac.md5(input.message, input.key)
+        }
+    input: {"message": "åäöçß🥲♙Ω", "key": "秘密の"}
+    want_result:
+      - x:
+          - 20a8743c2157ac60b7e8b79c83651b8d
+    strict_error: true

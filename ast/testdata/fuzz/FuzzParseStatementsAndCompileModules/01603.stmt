@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tpackage test.l1.l2\n\n\t\tp = true\n\t\tf(x) = x")

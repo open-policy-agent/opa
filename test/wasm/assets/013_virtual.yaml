@@ -1,0 +1,237 @@
+cases:
+  - note: base data extent
+    query: |
+      data == {"x": {"y": 1, "z": 2}}
+    data: {"x": {"y": 1, "z": 2}}
+    want_defined: true
+  - note: base data extent (negative)
+    query: |
+      data == {"x": {"y": 1, "z": 2}}
+    data: {"x": {"y": 1, "z": "deadbeef"}}
+    want_defined: false
+  - note: base data extent path
+    query: |
+      data.x == {"y": 1, "z": 2}
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: true
+  - note: base data extent path (negative)
+    query: |
+      data.deadbeef
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: false
+  - note: base data extent path-2
+    query: |
+      data.x.y == 1
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: true
+  - note: base data extent path-2 (negative)
+    query: |
+      data.x.deadbeef
+    data: {'x': {'y': 1, 'z': 2}}
+    want_defined: false
+  - note: base data iteration
+    query: data.foo[x] = y; x == "b"; y == 2
+    data: {"foo": {"a": 1, "b": 2, "c": 3}}
+    want_defined: true
+  - note: base data iteration (negative)
+    query: data.foo[x] = y; x == "b"; y == 2
+    data: {"foo": {"a": 1, "b": "deadbeef", "c": 3}}
+    want_defined: false
+  - note: virtual data extent
+    query: |
+      data == {
+        "x": {
+          "y": {
+            "p": 1,
+            "r": {
+              "a": 3
+            },
+            "s": {"elem1"}
+          }
+        }
+      }
+    modules:
+      - |
+        package x.y
+        p = 1
+        q = 2 { false }
+        r["a"] = 3
+        r["b"] = 4 { false }
+        s["elem1"]
+        s["elem2"] { false }
+    want_defined: true
+  - note: package extent
+    query: |
+      data.x == {"y": {"p": 1}}
+    modules:
+      - |
+        package x.y
+        p = 1
+        q = 2 { false }
+    want_defined: true
+  - note: all undefined
+    query: |
+      data.x == {"y": {}}
+    modules:
+      - |
+        package x.y
+        p = 1 { false }
+    want_defined: true
+  - note: skip functions
+    query: |
+      data.x == {"y": {"p": 1}}
+    modules:
+      - |
+        package x.y
+        p = 1
+        f(x) = x
+    want_defined: true
+  - note: empty package
+    query: |
+      data.x == {"y": {}}
+    modules:
+      - |
+        package x.y
+    want_defined: true
+  - note: enumerate packages
+    query: data.test.p == {"a", "b"}
+    modules:
+      - |
+        package test
+
+        p[x] {
+          data.pkg[x] = _
+        }
+      - |
+        package pkg.a
+      - |
+        package pkg.b
+    want_defined: true
+  - note: enumerate packages (negative)
+    query: data.test.p == {"a", "b"}
+    modules:
+      - |
+        package test
+
+        p[x] {
+          data.pkg[x] = _
+        }
+      - |
+        package pkg.a
+      - |
+        package pkg.deadbeef
+    want_defined: false
+  - note: enumerate packages (complex)
+    query: |
+      data.test.p == {
+        ["a", "b", {"p": 1}],
+        ["b", "c", {"r": 3}],
+      }
+    modules:
+      - |
+        package test
+
+        p[[x, y, v]] { data.pkg[x].sub[y] = v }
+      - |
+        package pkg.a.sub.b
+        p = 1
+        q = 2 { false }
+      - |
+        package pkg.b.sub.c
+        r = 3
+        s = 4 { false }
+    want_defined: true
+  - note: merge
+    query: |
+      data.test == {"x": 1, "y": 2}
+    data:
+      {
+        "test": {
+          "x": 1
+        }
+      }
+    modules:
+    - |
+      package test
+      y = 2
+    want_defined: true
+  - note: merge (negative)
+    query: |
+      data.test == {"x": 1, "y": 2}
+    data:
+      {
+        "test": {
+          "x": "deadbeef"
+        }
+      }
+    modules:
+    - |
+      package test
+      y = 2
+    want_defined: false
+  - note: merge conflict
+    query: |
+      data.test == {"x": {"y": 1}}
+    data:
+      {
+        "test": {
+          "x": {
+            "y": 1
+          }
+        }
+      }
+    modules:
+    - |
+      package test
+
+      x = []
+    want_defined: true
+  - note: merge iteration
+    query: |
+      data.test[x].foo == {"q": 1, "p": 3}; x == "a"
+    data:
+      {
+        "test": {
+          "a": {
+            "foo": {
+              "q": 1
+            }
+          },
+          "b": {
+            "foo": {
+              "q": 1
+            }
+          }
+        }
+      }
+    modules:
+    - |
+      package test.a.foo
+
+      p = 3
+    want_defined: true
+  - note: merge iteration (negative)
+    query: |
+      data.test[x].foo == {"q": 1, "p": 3}; x == "a"
+    data:
+      {
+        "test": {
+          "a": {
+            "foo": {
+              "q": 1
+            }
+          },
+          "b": {
+            "foo": {
+              "q": 1
+            }
+          }
+        }
+      }
+    modules:
+    - |
+      package test.a.foo
+
+      p = 3
+      r = "deadbeef"
+    want_defined: false

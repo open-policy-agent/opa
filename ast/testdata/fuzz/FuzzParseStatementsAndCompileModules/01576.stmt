@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\n\t\t\"req4\": {\n\t\t\t\"a\": {\n\t\t\t\t\"b\": {\n\t\t\t\t\t\"x\": [1,2,3,4]\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}")

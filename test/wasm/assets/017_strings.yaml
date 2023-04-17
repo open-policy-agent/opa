@@ -1,0 +1,30 @@
+cases:
+  - note: literal quote escaping
+    modules:
+      - |
+        package test
+
+        p = "\"xxx\""
+    query: |
+      data.test.p = x
+    want_result: [
+      {
+        'x': "\"xxx\""
+      }
+    ]
+  - note: input quote escaping
+    modules:
+      - |
+        package test
+
+        p = input.string
+    input: {
+      "string": "\"xxx\""
+    }
+    query: |
+      data.test.p = x
+    want_result: [
+      {
+        'x': "\"xxx\""
+      }
+    ]

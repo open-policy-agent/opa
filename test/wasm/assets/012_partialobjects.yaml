@@ -1,0 +1,75 @@
+cases:
+  - note: additive
+    query: 'data.x.p = {"a": 1, "b": 2}'
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+    want_defined: true
+  - note: additive (negative)
+    query: 'data.x.p = input'
+    input: {"a": 1, "b": 2}
+    modules:
+      - |
+        package x
+        p["a"] = 1
+        p["b"] = 2
+        p["c"] = 3
+    want_defined: false
+  - note: input
+    query: 'data.x.p = {"b": 2, "a": 1}'
+    input: {"x": 1, "y": 2}
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+    want_defined: true
+  - note: input (negative)
+    query: 'data.x.p = data.z'
+    data:
+      z:
+        a: 1
+        b: 2
+    modules:
+      - |
+        package x
+        p["a"] = 1 { input.x = 1 }
+        p["b"] = 2 { input.y = 2 }
+        p["c"] = 3 { input.z = 3 }
+    want_defined: true
+    input: {"x": 1, "y": 2}
+  - note: composites
+    query: 'data.x.p = {"a": [1], "b": [2]}'
+    modules:
+      - |
+        package x
+        p[x] = [y] { x = "a"; y = 1 }
+        p[x] = [y] { x = "b"; y = 2 }
+    want_defined: true
+  - note: conflict error
+    data:
+      z:
+        a: 1
+    query: 'data.x.p = data.z'
+    modules:
+      - |
+        package x
+        p["x"] = 1
+        p["x"] = 2
+    want_error: "module0.rego:3:1: var assignment conflict"
+  - note: object dereference
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 1}
+    want_defined: true
+  - note: object dereference (negative)
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+        p["a"] = {"b": 2}
+    want_defined: false

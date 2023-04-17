@@ -1,0 +1,15 @@
+cases:
+- modules:
+  - |
+    package test
+
+    p[x] {
+      glob.match("*.github.com", ["."], "api.github.com", x)
+      glob.match("*.github.com", ["."], "api.github.com", x)
+    }
+  # See: https://github.com/open-policy-agent/opa/issues/5273
+  note: globmatch/no deadlocks for glob match
+  query: data.test.p = x
+  want_result:
+  - x:
+    - true

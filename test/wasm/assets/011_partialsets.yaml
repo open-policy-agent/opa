@@ -1,0 +1,134 @@
+cases:
+  - note: additive
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: true
+  - note: additive (negative)
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+        p[3]
+    want_defined: false
+  - note: input
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        p[1] { input.x = 1 }
+        p[2] { input.y = 2 }
+    want_defined: true
+    input: {"x": 1, "y": 2}
+  - note: input (negative)
+    query: data.x.p = {2,1}
+    modules:
+      - |
+        package x
+        p[1] { input.x = 1 }
+        p[2] { input.y = 2 }
+        p[3] { input.z = 3 }
+    want_defined: true
+    input: {"x": 1, "y": 2}
+  - note: composites
+    query: data.x.p = {[2],[1]}
+    modules:
+      - |
+        package x
+        p[[x]] { x = 1 }
+        p[[y]] { y = 2 }
+    want_defined: true
+  - note: set membership
+    query: data.x.p[1]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: true
+  - note: set membership (negative)
+    query: data.x.p[3]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: false
+  - note: set membership (negation)
+    query: not data.x.p[3]
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: true
+  - note: set iteration
+    query: data.x.p[x]; x > 1
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: true
+  - note: set iteration (negative)
+    query: data.x.p[x]; x > 2
+    modules:
+      - |
+        package x
+        p[1]
+        p[2]
+    want_defined: false
+  - note: set composites
+    query: a := [1,x]; data.x.p[a]; x == "y"
+    modules:
+      - |
+        package x
+        p[[1, "x"]]
+        p[[1, "y"]]
+        p[[2, "x"]]
+    want_defined: true
+  - note: set dereference
+    query: data.x.p[x].a == 1; x.b == "y"
+    modules:
+      - |
+        package x
+        p[{"a": 1, "b": "x"}]
+        p[{"a": 1, "b": "y"}]
+        p[{"a": 1, "b": "y"}]
+    want_defined: true
+  - note: set dereference (negative)
+    query: data.x.p[x].a == 100
+    modules:
+      - |
+        package x
+        p[{"a": 1}]
+        p[{"a": 2}]
+        p[{"a": 3}]
+    want_defined: false
+  - note: set chain
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        p[x] { q[x]; r[x] }
+        q[1]
+        q[2]
+        q[3]
+        r[2]
+    want_defined: true
+  - note: set chain (negative)
+    query: data.x.p[x]; x = 2
+    modules:
+      - |
+        package x
+        p[x] { q[x]; r[x] }
+        q[1]
+        q[2]
+        q[3]
+        r[3]
+    want_defined: false

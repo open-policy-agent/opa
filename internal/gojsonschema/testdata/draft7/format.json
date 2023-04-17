@@ -1,0 +1,614 @@
+[
+    {
+        "description": "validation of e-mail addresses",
+        "schema": {"format": "email"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IDN e-mail addresses",
+        "schema": {"format": "idn-email"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of regexes",
+        "schema": {"format": "regex"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IP addresses",
+        "schema": {"format": "ipv4"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IPv6 addresses",
+        "schema": {"format": "ipv6"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IDN hostnames",
+        "schema": {"format": "idn-hostname"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of hostnames",
+        "schema": {"format": "hostname"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of date strings",
+        "schema": {"format": "date"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of date-time strings",
+        "schema": {"format": "date-time"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of time strings",
+        "schema": {"format": "time"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of JSON pointers",
+        "schema": {"format": "json-pointer"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of relative JSON pointers",
+        "schema": {"format": "relative-json-pointer"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IRIs",
+        "schema": {"format": "iri"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of IRI references",
+        "schema": {"format": "iri-reference"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of URIs",
+        "schema": {"format": "uri"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of URI references",
+        "schema": {"format": "uri-reference"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    },
+    {
+        "description": "validation of URI templates",
+        "schema": {"format": "uri-template"},
+        "tests": [
+            {
+                "description": "ignores integers",
+                "data": 12,
+                "valid": true
+            },
+            {
+                "description": "ignores floats",
+                "data": 13.7,
+                "valid": true
+            },
+            {
+                "description": "ignores objects",
+                "data": {},
+                "valid": true
+            },
+            {
+                "description": "ignores arrays",
+                "data": [],
+                "valid": true
+            },
+            {
+                "description": "ignores booleans",
+                "data": false,
+                "valid": true
+            },
+            {
+                "description": "ignores null",
+                "data": null,
+                "valid": true
+            }
+        ]
+    }
+]

@@ -1,0 +1,23 @@
+cases:
+- note: base64urlbuiltins/encode-1 without padding
+  query: data.generated.p = x
+  modules:
+  - |
+    package generated
+    p = x {
+      base64url.encode_no_pad("hello", x)
+    }
+  data:
+  want_result:
+  - x: aGVsbG8
+- note: base64urlbuiltins/encode-2 without padding
+  query: data.generated.p = x
+  modules:
+  - |
+    package generated
+    p = x {
+      base64url.encode_no_pad("there", x)
+    }
+  data:
+  want_result:
+  - x: dGhlcmU

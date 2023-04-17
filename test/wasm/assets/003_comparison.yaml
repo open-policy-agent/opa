@@ -1,0 +1,89 @@
+cases:
+  - note: lt/number
+    query: "input.x < 2"
+    input: {"x": 1}
+    want_defined: true
+  - note: lt/number (negative)
+    query: "input.x < 0"
+    input: {"x": 1}
+    want_defined: false
+  - note: lt/number (negative)
+    query: "input.x < 1"
+    input: {"x": 1}
+    want_defined: false
+  - note: lte/number
+    query: "input.x <= 2"
+    input: {"x": 1}
+    want_defined: true
+  - note: lte/number
+    query: "input.x <= 1"
+    input: {"x": 1}
+    want_defined: true
+  - note: lte/number (negative)
+    query: "input.x <= 0"
+    input: {"x": 1}
+    want_defined: false
+  - note: gt/number
+    query: "input.x > 0"
+    input: {"x": 1}
+    want_defined: true
+  - note: gt/number (negative)
+    query: "input.x > 1"
+    input: {"x": 1}
+    want_defined: false
+  - note: gt/number (negative)
+    query: "input.x > 2"
+    input: {"x": 1}
+    want_defined: false
+  - note: gte/number
+    query: "input.x >= 0"
+    input: {"x": 1}
+    want_defined: true
+  - note: gte/number
+    query: "input.x >= 1"
+    input: {"x": 1}
+    want_defined: true
+  - note: gte/number (negative)
+    query: "input.x >= 2"
+    input: {"x": 1}
+    want_defined: false
+  - note: neq/number
+    query: "input.x != 1"
+    input: {"x": 0}
+    want_defined: true
+  - note: neq/number (negative)
+    query: "input.x != 1"
+    input: {"x": 1}
+    want_defined: false
+  - note: deq/number
+    query: "input.x == 1"
+    input: {"x": 1}
+    want_defined: true
+  - note: deq/number
+    query: "input.x == 1"
+    input: {"x": 0}
+    want_defined: false
+  - note: deq/array
+    query: "[input.x] == [1]"
+    input: {"x": 1}
+    want_defined: true
+  - note: deq/array (negative)
+    query: "[input.x] == [1]"
+    input: {"x": 2}
+    want_defined: false
+  - note: deq/array (undefined)
+    query: "[input.x] = [1]"
+    input: {}
+    want_defined: false
+  - note: deq/object
+    query: '{"a": input.x} == {"a": 1}'
+    input: {"x": 1}
+    want_defined: true
+  - note: deq/object (negative)
+    query: '{"a": input.x} == {"a": 1}'
+    input: {"x": 2}
+    want_defined: false
+  - note: deq/object (undefined)
+    query: '{"a": input.x} == {"a": 1}'
+    input: {}
+    want_defined: false

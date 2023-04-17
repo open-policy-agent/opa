@@ -1,0 +1,329 @@
+cases:
+  - note: assignment
+    query: |
+      input = {"a": 1} with input as {"a": 1}
+    want_defined: true
+  - note: assignment (negative)
+    query: |
+      input = {"a": 1} with input as {"a": "deadbeef"}
+    want_defined: false
+  - note: assignment override
+    query: |
+      input = {"a": 2} with input as {"a": 2}
+    input: {"a": 1}
+    want_defined: true
+  - note: assignment override (negative)
+    query: |
+      input = {"a": 2} with input as {"a": "deadbeef"}
+    input: {"a": 2}
+    want_defined: false
+  - note: assignment undo
+    query: |
+      input = {"a": 1} with input as {"a": 1}
+      input = {"a": 2}
+    input: {"a": 2}
+    want_defined: true
+  - note: assignment iteration
+    query: |
+      input[i] = 1 with input as [1,2,1]
+    want_result: [{'i': 0}, {'i': 2}]
+  - note: assignment transitive
+    query: |
+      data.test.p = x with input as "p"
+    modules:
+      - |
+        package test
+
+        p = x {
+          q = x with input as ["q", input]
+        }
+
+        q = x {
+          r = x  # intentionally unmodified, with keyword applies transitively
+        }
+
+        r = input
+    want_result: [{'x': ["q", "p"]}]
+  - note: assignment undo across queries
+    query: |
+      data.test.p[x]
+    modules:
+      - |
+        package test
+
+        p[x] {
+          x = input.a with input as {"a": 1}
+        }
+
+        p[y] {
+          y = input.b with input as {"b": 2}
+        }
+
+        p[t] {
+          t = input.b # expected to be undefined
+        }
+
+        p[u] {
+          u = input.a # expected to be undefined
+        }
+    want_result: [{'x': 1}, {'x': 2}]
+  - note: upsert
+    query: |
+      input = x with input.foo as 1
+    want_result: [{'x': {'foo': 1}}]
+  - note: upsert make intermediate nodes
+    query: |
+      input = x with input.foo.bar.baz as [1,2,3]
+    want_result: [{'x': {'foo': {'bar': {'baz': [1,2,3]}}}}]
+  - note: upsert merge top-level
+    query: |
+      input = x with input.foo as 1
+    input: {'bar': 2}
+    want_result: [{'x': {'foo': 1, 'bar': 2}}]
+  - note: upsert merge top-level make intermediate nodes
+    query: |
+      input = x with input.foo.bar as 1
+    input: {'baz': 2}
+    want_result: [{'x': {'foo': {'bar': 1}, 'baz': 2}}]
+  - note: upsert merge intermediate nodes
+    query: |
+      input = x with input.foo.bar as 1
+    input: {'foo': {'baz': 2}}
+    want_result: [{'x': {'foo': {'bar': 1, 'baz': 2}}}]
+  - note: upsert merge intermediate nodes with new node
+    query: |
+      input = x with input.foo.bar.qux as 1
+    input: { 'foo': {'baz': 2}}
+    want_result: [{'x': {'foo': {'bar': {'qux': 1}, 'baz': 2}}}]
+  - note: upsert merge top-level multiple
+    query: |
+      input = x with input.foo as 1 with input.bar as 2
+    want_result: [{'x': {'foo': 1, 'bar': 2}}]
+  - note: upsert merge intermediate multiple
+    query: |
+      input = x with input.foo.bar as 1 with input.foo.baz as 2
+    want_result: [{'x': {'foo': {'bar': 1, 'baz': 2}}}]
+  - note: upsert iteration
+    query: |
+      input.foo[x] = y with input.foo.bar as 1 with input.foo.baz as 2
+    want_result: [
+      {
+        'x': 'baz',
+        'y': 2,
+      },
+      {
+        'x': 'bar',
+        'y': 1,
+      },
+    ]
+  - note: shadow rules
+    query: |
+      data = x with data.foo as 1
+    want_result: [
+      {
+        'x': {
+          'foo': 1
+        }
+      }
+    ]
+    modules:
+      - |
+        package foo
+
+        p = 1
+  - note: shadow rules and merge
+    query: |
+      data = x with data.foo as 1 with data.bar.r as 3
+    want_result: [
+      {
+        'x': {
+          'foo': 1,
+          'bar': {
+            'q': 2,
+            'r': 3,
+          }
+        }
+      }
+    ]
+    modules:
+      - |
+        package foo
+
+        p = 1
+      - |
+        package bar
+        q = 2
+  - note: shadow cached data
+    query: |
+      data = x with data.foo as 1
+    data: {'foo': 2}
+    want_result: [
+      {
+        'x': {
+          'foo': 1
+        }
+      }
+    ]
+  - note: shadow cached data and merge
+    query: |
+      data = x with data.foo as 1 with data.bar.qux as 4
+    data: {'foo': 2, 'bar': {'baz': 3}}
+    want_result: [
+      {
+        'x': {
+          'foo': 1,
+          'bar': {
+            'baz': 3,
+            'qux': 4,
+          }
+        }
+      }
+    ]
+  - note: undo rule shadow
+    query: |
+      data.test.p = x; data.test.q = y with data.test.r as 2; data.test.r = z; data.test.q = t
+    modules:
+      - |
+        package test
+
+        p = r
+        q = [r]
+        r = 1
+    want_result: [
+      {
+        'x': 1,
+        'y': [2],
+        'z': 1,
+        't': [1],
+      }
+    ]
+  - note: undo data shadow
+    query: |
+      data.test.p = x; data.test.q = y with data.test.r as 2; data.test.r = z; data.test.q = t
+    modules:
+      - |
+        package test
+        p = data.test.r
+        q = [data.test.r]
+    data: {
+      'test': {
+        'r': 1,
+      }
+    }
+    want_result: [
+      {
+        'x': 1,
+        'y': [2],
+        'z': 1,
+        't': [1],
+      }
+    ]
+  - note: with negation
+    query: |
+      not input with input as false
+    want_result: [{}]
+  - note: with negation (negative)
+    query: |
+      not input with input as true
+    want_result: []
+  - note: with conflict
+    query: |
+      input = x with input.foo as 1 with input.foo.bar as 2
+    want_result:
+    - x:
+        foo:
+          bar: 2
+  - note: with virtual doc iteration
+    query: |
+      x := data[i][j] with data.bar.p as 3 with data.bar.q as 4; y = data.bar.p; z = data.bar.q
+    modules:
+      - |
+        package foo
+        p = 0
+        q = 1
+        r = 2
+      - |
+        package bar
+        p = -1
+    data: {
+      'bar': {
+        'q': -2,
+      }
+    }
+    want_result: [
+      {
+        "i": "foo",
+        "j": "p",
+        "x": 0,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "foo",
+        "j": "q",
+        "x": 1,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "foo",
+        "j": "r",
+        "x": 2,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "bar",
+        "j": "p",
+        "x": 3,
+        "y": -1,
+        "z": -2,
+      },
+      {
+        "i": "bar",
+        "j": "q",
+        "x": 4,
+        "y": -1,
+        "z": -2,
+      },
+    ]
+  - note: with invalidates memoization
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p = [x, y, z] {
+          x = q
+          y = q with input as 7
+          z = r with input as 8
+        }
+
+        default q = 6
+
+        q = input
+
+        r = [t, s]
+
+        s = q
+
+        t = x { x = q with input as 9 }
+    want_result: [
+      {"x": [6, 7, [9,8]]}
+    ]
+  - note: with and call_indirect gens
+    query: x := "b"; z := data.test[x]
+    modules:
+      - |
+        package test
+
+        a {
+          true with data.one as 1
+        }
+
+        b {
+          true
+        }
+    want_result:
+    - x: b
+      z: true

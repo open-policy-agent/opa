@@ -1,0 +1,86 @@
+{{ $home       := site.BaseURL }}
+{{ $logo       := site.Params.logos.sidebar | relURL }}
+{{ $releases   := site.Data.releases }}
+{{ $latest     := index $releases 1 }}
+{{ $version    := index (split .File.Path "/") 1 }}
+{{ $page       := trim .RelPermalink "/" }}
+{{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
+
+{{ $rank := 1 }}
+{{- range $index, $ver := $releases -}}
+  {{- if eq $ver $version -}}
+    {{ $rank = $index }}
+  {{- end -}}
+{{- end -}}
+{{ $ancient := gt $rank 5 }}
+<div class="dashboard-panel left has-background-white-bis is-hidden-touch">
+  <div class="dashboard-panel-header has-text-centered">
+    <div class="dashboard-panel-header-logo">
+      <a href="{{ $home }}">
+        <img src="{{ $logo }}">
+      </a>
+    </div>
+
+    <div class="dropdown is-left">
+      <div class="dropdown-trigger">
+        <button class="button is-dark" aria-haspopup="true" aria-controls="dropdown-menu">
+          <span>
+            <strong>
+              {{ if eq $version "latest" }}
+                  {{ $latest }}
+              {{ else }}
+                  {{ $version }}
+              {{ end }}
+            </strong>
+          </span>
+            {{ if $isLatest }}
+              <span class="tag latest-tag is-success is-small has-text-weight-bold">
+                latest
+              </span>
+            {{ else if (eq $version "edge") }}
+              <span class="tag latest-tag is-danger is-small has-text-weight-bold">
+                pre-release
+              </span>
+            {{ else }}
+              <span class="tag latest-tag {{ cond $ancient "is-danger" "is-warning"}} is-small has-text-weight-bold">
+                older
+              </span>
+            {{ end }}
+          <span class="icon is-small">
+            <i class="fas fa-angle-down" aria-hidden="true"></i>
+          </span>
+        </button>
+      </div>
+
+      <div class="dropdown-menu">
+        <div class="dropdown-content has-text-left">
+            {{ range $releases }}
+                {{ if ne . "latest" }}
+                    {{ $isLatest := eq . (index site.Data.releases 1) }}
+                    {{ $verRef := . }}
+                    {{ if $isLatest }}
+                        {{ $verRef = "latest" }}
+                    {{ end }}
+                    {{ $versionedLink := strings.Replace $page $version $verRef }}
+                    {{ if (eq (site.GetPage $versionedLink).Content "") }}
+                        {{ $versionedLink = printf "docs/%s" $verRef }}
+                    {{ end }}
+                    <a href="{{ printf "/%s" $versionedLink }}" class="dropdown-item">
+                        {{ . }}
+                        {{ if $isLatest }}
+                          <span class="tag latest-tag is-success is-small has-text-weight-bold">
+                    latest
+                  </span>
+                        {{ end }}
+                    </a>
+                {{ end }}
+            {{ end }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-panel-content is-scrollable">
+      {{ partial "docs/sidenav.html" . }}
+  </div>
+</div>

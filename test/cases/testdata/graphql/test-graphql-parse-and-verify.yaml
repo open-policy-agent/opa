@@ -1,0 +1,183 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/validator/validator_test.yml
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type User {
+              id: ID!
+          }
+          extend type Product {
+              upc: String!
+          }
+          union _Entity = Product | User
+          extend type Query {
+            entity: _Entity
+          }
+        `
+        query := `
+          {
+            entity {
+              ... on User {
+              id
+              }
+            }
+          }
+        `
+        q_ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "entity", "Name": "entity", "SelectionSet": [{"SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": "User"}]}]}]}
+        p {
+            [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
+            valid
+        }
+    note: graphql_parse_and_verify/success extending non-existent types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          query SomeOperation {
+            # Note: Not providing mandatory parameter: (myEnum: Locale!)
+            myAction {
+              id
+            }
+          }
+        `
+        p {
+            [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
+            not valid
+        }
+    note: graphql_parse_and_verify/success validation rules are independent case 1
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          extend type Query {
+              myAction(myEnum: Locale!): SomeResult!
+          }
+          type SomeResult {
+              id: String
+          }
+          enum Locale {
+              EN
+              LT
+              DE
+          }
+        `
+        query := `
+          # Note: there is default enum value in variables
+          query SomeOperation ($locale: Locale! = DE) {
+            myAction(myEnum: $locale) {
+              id
+            }
+          }
+        `
+        q_ast := {"Operations": [{"Name": "SomeOperation", "Operation": "query", "SelectionSet": [{"Alias": "myAction", "Arguments": [{"Name": "myEnum", "Value": {"Kind": 0, "Raw": "locale"}}], "Name": "myAction", "SelectionSet": [{"Alias": "id", "Name": "id"}]}], "VariableDefinitions": [{"DefaultValue": {"Kind": 7, "Raw": "DE"}, "Type": {"NamedType": "Locale", "NonNull": true}, "Used": false, "Variable": "locale"}]}]}
+        p {
+            [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
+            valid
+        }
+    note: graphql_parse_and_verify/success validation rules are independent case 2
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type DeprecatedType {
+            deprecatedField: String @deprecated
+            newField(deprecatedArg: Int): Boolean
+          }
+          enum DeprecatedEnum {
+            ALPHA @deprecated
+          }
+        `
+        query := ``
+        p {
+            [valid, {}, _] = graphql.parse_and_verify(query, schema)
+            valid
+        }
+    note: graphql_parse_and_verify/success deprecating types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema := `
+          type Query {
+            bar: String!
+          }
+        `
+        query := `
+          query Foo($flag: Boolean!) {
+            ...Bar
+          }
+          fragment Bar on Query {
+            bar @include(if: $flag)
+          }
+        `
+        q_ast := {"Fragments": [{"Name": "Bar", "SelectionSet": [{"Alias": "bar", "Directives": [{"Arguments": [{"Name": "if", "Value": {"Kind": 0, "Raw": "flag"}}], "Location": "", "Name": "include"}], "Name": "bar"}], "TypeCondition": "Query"}], "Operations": [{"Name": "Foo", "Operation": "query", "SelectionSet": [{"Name": "Bar"}], "VariableDefinitions": [{"Type": {"NamedType": "Boolean", "NonNull": true}, "Used": false, "Variable": "flag"}]}]}
+        p {
+            [valid, q_ast, _] = graphql.parse_and_verify(query, schema)
+            valid
+        }
+    note: graphql_parse_and_verify/success no unused variables
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        schema_ast := graphql.parse_schema(`
+          type Employee {
+            id: String!
+            salary: Int!
+          }
+
+          schema {
+            query: Query
+          }
+
+          type Query {
+            employeeByID(id: String): Employee
+          }
+        `)
+        query_ast := graphql.parse_query(`
+          query { employeeByID(id: "alice") { salary }}
+        `)
+        p {
+            [valid, query_ast, schema_ast] = graphql.parse_and_verify(query_ast, schema_ast)
+            valid
+        }
+    note: graphql_parse_and_verify/success - AST objects - Employee example
+    query: data.test.p = x
+    want_result:
+      - x: true

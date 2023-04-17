@@ -1,0 +1,15 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p {
+      object.filter({"a": 1, [[7]]: 2}, {[[7]]}, __local1__)
+      __local0__ = __local1__
+      __local0__ = {[[7]]: 2}
+    }
+  note: objectfilternonstringkey/non string root
+  query: data.generated.p = x
+  want_result:
+  - x: true

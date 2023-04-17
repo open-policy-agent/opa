@@ -1,0 +1,28 @@
+{{- $version := .version -}}
+{{- $pageUrl := .pageUrl -}}
+
+{{- $scratch := newScratch -}}
+
+{{ range .section }}
+
+{{ if eq (index (split .File.Path "/") 1 ) $version }}
+{{ $scratch.Add "sectionsForVersion" (slice .)}}
+{{ end }}
+
+{{ end }}
+
+{{ if ne ($scratch.Get "sectionsForVersion") nil }}
+{{ if gt (len ($scratch.Get "sectionsForVersion")) 0 }}
+
+<br />
+
+<span class="navbar-item is-size-5 has-text-weight-light is-uppercase">
+    {{ .sectionTitle }}
+</span>
+
+{{ range ($scratch.Get "sectionsForVersion") }}
+{{ partial "docs/navbar-link.html" (dict "ctx" . "pageUrl" $pageUrl "version" $version) }}
+{{ end }}
+
+{{ end }}
+{{ end }}

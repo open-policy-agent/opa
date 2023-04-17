@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{\"l2\": {\"p\": true}, \"l3\": {}}")

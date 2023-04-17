@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p {
+      __local0__ = {"a": {"b": 2, "c": 3}}
+      json.filter(__local0__, {"a/b"}, __local1__)
+      __local1__ = {"a": {"b": 2}}
+      json.filter(__local0__, {"a/c"}, __local2__)
+      __local2__ = {"a": {"c": 3}}
+      __local0__ = {"a": {"b": 2, "c": 3}}
+    }
+  note: jsonfilteridempotent/TestBuiltinJSONFilterIdempotent
+  query: data.generated.p = x
+  want_result:
+  - x: true

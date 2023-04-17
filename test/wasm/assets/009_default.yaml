@@ -1,0 +1,48 @@
+cases:
+  - note: default
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        default p = 1
+    want_defined: true
+  - note: default fallback
+    query: data.x.p = 1
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2 { false }
+    want_defined: true
+  - note: default fallback (negative)
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2 { false }
+    want_defined: false
+  - note: default skipped
+    query: data.x.p = 2
+    modules:
+      - |
+        package x
+        default p = 1
+        p = 2
+    want_defined: true
+  - note: default requires eval
+    query: data.x.p = []
+    modules:
+      - |
+        package x
+        default p = [1 | false]
+        p = "deadbeef" { false }
+    want_defined: True
+  - note: default requires eval
+    query: data.x.p = [1]
+    modules:
+      - |
+        package x
+        default p = [1 | true]
+        p = "deadbeef" { false }
+    want_defined: true

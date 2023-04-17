@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.set\n\nv[data.topdown.set.u[_]] { true }")

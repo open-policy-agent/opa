@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -xe
+
+# To be called from live-blocks/
+
+# Install dependencies if needed
+npm run install-deps
+
+# Bundle web js and css if needed
+npm run --silent bundle-web
+
+# Copy everything over
+# NOTE: Update package.json, src/constants.js, and static/opening-in-playground.html with any changes.
+cp dist/live-blocks.js ../../public/js/ # Bundles
+cp dist/live-blocks.css ../../public/css/
+mkdir -p ../../public/live-blocks # Other assets
+cp -r static/* ../../public/live-blocks/
+
+# Preprocess the docs
+find ../../public/ -name '*.html' -exec node -r esm src/preprocess/index.js {} +

@@ -1,0 +1,41 @@
+cases:
+  - note: json_verify_schema/valid schema string
+    modules:
+      - |
+        package test
+        
+        schema := `{"type": "boolean"}`
+        p := json.verify_schema(schema)
+    query: data.test.p = x
+    want_result:
+      - x: [ true, null ]
+  - note: json_verify_schema/valid schema object
+    modules:
+      - |
+        package test
+        
+        schema := {"type": "boolean"}
+        p := json.verify_schema(schema)
+    query: data.test.p = x
+    want_result:
+      - x: [ true, null ]
+  - note: json_verify_schema/invalid schema string
+    modules:
+      - |
+        package test
+
+        schema := `{"type": "unknown_type"}`
+        p := json.verify_schema(schema)
+    query: data.test.p = x
+    want_result:
+      - x: [ false, "jsonschema: has a primitive type that is NOT VALID -- given: /unknown_type/ Expected valid values are:[array boolean integer number null object string]" ]
+  - note: json_verify_schema/invalid schema object
+    modules:
+      - |
+        package test
+
+        schema := {"type": "unknown_type"}
+        p := json.verify_schema(schema)
+    query: data.test.p = x
+    want_result:
+      - x: [ false, "jsonschema: has a primitive type that is NOT VALID -- given: /unknown_type/ Expected valid values are:[array boolean integer number null object string]" ]

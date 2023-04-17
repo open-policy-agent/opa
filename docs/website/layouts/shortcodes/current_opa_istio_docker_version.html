@@ -1,0 +1,7 @@
+{{- $version := index (split $.Page.File.Path "/") 1 -}}
+{{- if or (eq $version "edge") (eq $version "latest") -}}
+latest-istio
+{{- else -}}
+{{- strings.TrimPrefix "v" $version -}}
+-istio
+{{- end -}}

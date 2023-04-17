@@ -1,0 +1,14 @@
+{
+  "name": "language-rego",
+  "version": "1.0.0",
+  "description": "Syntax highlighting for Rego, the open-policy-agent (OPA) policy language",
+  "keywords": [
+  ],
+  "repository": "https://github.com/open-policy-agent/opa",
+  "license": "Apache 2",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "dependencies": {
+  }
+}

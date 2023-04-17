@@ -1,0 +1,127 @@
+cases:
+- modules:
+  - |
+    package test
+    f(_) = 2
+    p = y {
+      y = f(true) with f as 1
+    }
+  note: 'withkeyword/function: direct call, value replacement, arity 1' # NOTE(sr): arity-0 functions fail typechecking
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- modules:
+  - |
+    package test
+    f(_) = 2
+    g(_) = 1
+    p = y {
+      y = f(true) with f as g
+    }
+  note: 'withkeyword/function: direct call, function replacement, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- modules:
+  - |
+    package test
+    f(_) = 2
+    g(_) = 1
+    p {
+      f(true, 1) with f as g
+    }
+  note: 'withkeyword/function: direct call, function replacement, arity 1, result captured'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+    f(_) = 2
+    p = y {
+      y = f([1]) with f as count
+    }
+  note: 'withkeyword/function: direct call, built-in replacement, arity 1'
+  query: data.test.p = x
+  want_result:
+  - x: 1
+- modules:
+  - |
+    package test
+    f(_) = 2
+    p {
+      f([1], 1) with f as count
+    }
+  note: 'withkeyword/function: direct call, built-in replacement, arity 1, result captured'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+
+    f1(x) = object.union_n(x)
+    f2(x) = count(x)
+    f3(x) = array.reverse(x)
+    f(x) = f1(x)
+    g(x) = 123 {
+      f2(x)
+      s with f3 as h
+    }
+    h(_) = ["replaced"]
+    p { q with f1 as f }
+    q { r with f2 as g }
+    r { x := [{"foo": 4}, {"baz": 5}]; f2(x) == 123; f1(x) == {"foo": 4, "baz": 5} }
+    s { x := [{}]; f3(x) == ["replaced"] }
+  note: 'withkeyword/function: nested scope handling'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+
+    f(x) = 2
+    g(x) = f(x)
+    p = y { y := f(1) with f as g }
+  note: 'withkeyword/function: simple scope handling (no recursion here)'
+  query: data.test.p = x
+  want_result:
+  - x: 2
+- modules:
+  - |
+    package test
+
+    f(_) = 1 {
+      input.x = "x"
+    }
+    p = y { y := f(1) with f as 2 }
+  note: 'withkeyword/function: rule indexing irrelevant'
+  query: data.test.p = x
+  want_result:
+  - x: 2
+- modules:
+  - |
+    package test
+    f(_) = 1
+    p {
+      f([1,2,3]) == 1 with f as [1|true][0]
+    }
+  note: 'withkeyword/function: direct call, arity 1, replacement is value that needs eval (array comprehension)'
+  query: data.test.p = x
+  want_result:
+  - x: true
+- modules:
+  - |
+    package test
+    f(_) = 1
+    p {
+      q with f as [1|true][0]
+    }
+    q {
+      f([1,2,3]) == 1
+    }
+  note: 'withkeyword/function: indirect call, arity 1, replacement is value that needs eval (array comprehension)'
+  query: data.test.p = x
+  want_result:
+  - x: true

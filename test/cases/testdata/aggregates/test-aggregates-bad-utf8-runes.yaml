@@ -1,0 +1,15 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p[x] {
+      x := count(base64.decode("2E84ZuPUd7zfvCZSNEchVpDEIj6PL7JfLpIqyxVG16k="))
+    }
+  note: aggregates/count with invalid utf-8 chars (0xFFFD)
+  query: data.test.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - 30

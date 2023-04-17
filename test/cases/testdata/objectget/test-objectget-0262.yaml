@@ -1,0 +1,14 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      object.get({"a": "b"}, "a", "c", __local1__)
+      __local0__ = __local1__
+    }
+  note: objectget/basic case . found
+  query: data.generated.p = x
+  want_result:
+  - x: b

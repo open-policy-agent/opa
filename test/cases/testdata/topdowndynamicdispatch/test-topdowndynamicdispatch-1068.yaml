@@ -1,0 +1,32 @@
+cases:
+- data: {}
+  input_term: '{}'
+  modules:
+  - |
+    package animals
+
+    dog = "woof"
+
+    cat = "meow"
+  - |
+    package dynamic
+
+    sound = __local0__ {
+      true
+      __local1__ = data.dynamic.animal
+      __local0__ = data.animals[__local1__]
+    }
+
+    animal = "dog" {
+      2 > 1
+    }
+  note: topdowndynamicdispatch/dynamic dispatch
+  query: data = x
+  want_result:
+  - x:
+      animals:
+        cat: meow
+        dog: woof
+      dynamic:
+        animal: dog
+        sound: woof

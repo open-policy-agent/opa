@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      json.remove({"a": {"b": {"c": 7, "d": 8}}, "e": 9}, {"a/b/c"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: jsonremove/base
+  query: data.generated.p = x
+  want_result:
+  - x:
+      a:
+        b:
+          d: 8
+      e: 9

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\"a=b%2B1&a=c%2B2\"")

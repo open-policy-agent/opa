@@ -1,0 +1,20 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      numbers.range(2, -3, __local1__)
+      __local0__ = __local1__
+    }
+  note: numbersrange/descending
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - 2
+    - 1
+    - 0
+    - -1
+    - -2
+    - -3

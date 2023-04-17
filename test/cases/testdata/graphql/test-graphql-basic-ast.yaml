@@ -1,0 +1,307 @@
+# These unit tests check that we get JSON AST structures with
+# expected structure and content. If these ever break, policies
+# depending on the GraphQL ASTs will too!
+cases:
+  - data:
+    modules:
+      - |
+        package test
+        ast := {
+          "Operations": [
+            {
+              "Name": "",
+              "Operation": "query",
+              "SelectionSet": [
+                {
+                  "Alias": "hero",
+                  "Name": "hero",
+                  "SelectionSet": [
+                    {
+                      "Alias": "name",
+                      "Name": "name"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        p {
+          graphql.parse_query("{hero {name}}") == ast
+        }
+    note: graphql_parse_query/success-basic-ast simple query
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `query hero ($episode: Episode!) {
+            hero (episode: $episode) {
+                id
+                name
+                friends {
+                    id
+                    name
+                    friends {
+                        id
+                        name
+                        appearsIn
+                    }
+                    appearsIn
+                }
+                appearsIn
+            }
+        }`
+        ast := {
+          "Operations": [
+            {
+              "Name": "hero",
+              "Operation": "query",
+              "SelectionSet": [
+                {
+                  "Alias": "hero",
+                  "Arguments": [
+                    {
+                      "Name": "episode",
+                      "Value": {
+                        "Kind": 0,
+                        "Raw": "episode"
+                      }
+                    }
+                  ],
+                  "Name": "hero",
+                  "SelectionSet": [
+                    {
+                      "Alias": "id",
+                      "Name": "id"
+                    },
+                    {
+                      "Alias": "name",
+                      "Name": "name"
+                    },
+                    {
+                      "Alias": "friends",
+                      "Name": "friends",
+                      "SelectionSet": [
+                        {
+                          "Alias": "id",
+                          "Name": "id"
+                        },
+                        {
+                          "Alias": "name",
+                          "Name": "name"
+                        },
+                        {
+                          "Alias": "friends",
+                          "Name": "friends",
+                          "SelectionSet": [
+                            {
+                              "Alias": "id",
+                              "Name": "id"
+                            },
+                            {
+                              "Alias": "name",
+                              "Name": "name"
+                            },
+                            {
+                              "Alias": "appearsIn",
+                              "Name": "appearsIn"
+                            }
+                          ]
+                        },
+                        {
+                          "Alias": "appearsIn",
+                          "Name": "appearsIn"
+                        }
+                      ]
+                    },
+                    {
+                      "Alias": "appearsIn",
+                      "Name": "appearsIn"
+                    }
+                  ]
+                }
+              ],
+              "VariableDefinitions": [
+                {
+                  "Type": {
+                    "NamedType": "Episode",
+                    "NonNull": true
+                  },
+                  "Used": false,
+                  "Variable": "episode"
+                }
+              ]
+            }
+          ]
+        }
+        p {
+          graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-basic-ast with arguments
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `query HeroForEpisode($ep: Episode!) {
+          hero(episode: $ep) {
+            name
+            ... on Droid {
+              primaryFunction
+            }
+            ... on Human {
+              height
+            }
+          }
+        }`
+        ast := {
+          "Operations": [
+            {
+              "Name": "HeroForEpisode",
+              "Operation": "query",
+              "SelectionSet": [
+                {
+                  "Alias": "hero",
+                  "Arguments": [
+                    {
+                      "Name": "episode",
+                      "Value": {
+                        "Kind": 0,
+                        "Raw": "ep"
+                      }
+                    }
+                  ],
+                  "Name": "hero",
+                  "SelectionSet": [
+                    {
+                      "Alias": "name",
+                      "Name": "name"
+                    },
+                    {
+                      "SelectionSet": [
+                        {
+                          "Alias": "primaryFunction",
+                          "Name": "primaryFunction"
+                        }
+                      ],
+                      "TypeCondition": "Droid"
+                    },
+                    {
+                      "SelectionSet": [
+                        {
+                          "Alias": "height",
+                          "Name": "height"
+                        }
+                      ],
+                      "TypeCondition": "Human"
+                    }
+                  ]
+                }
+              ],
+              "VariableDefinitions": [
+                {
+                  "Type": {
+                    "NamedType": "Episode",
+                    "NonNull": true
+                  },
+                  "Used": false,
+                  "Variable": "ep"
+                }
+              ]
+            }
+          ]
+        }
+        p {
+          graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-basic-ast inline fragments and type conditions
+    query: data.test.p = x
+    want_result:
+      - x: true
+  # Inline fragments
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{
+          search(text: "an") {
+            __typename
+            ... on Human {
+              name
+            }
+            ... on Droid {
+              name
+            }
+            ... on Starship {
+              name
+            }
+          }
+        }`
+        ast := {
+          "Operations": [
+            {
+              "Name": "",
+              "Operation": "query",
+              "SelectionSet": [
+                {
+                  "Alias": "search",
+                  "Arguments": [
+                    {
+                      "Name": "text",
+                      "Value": {
+                        "Kind": 3,
+                        "Raw": "an"
+                      }
+                    }
+                  ],
+                  "Name": "search",
+                  "SelectionSet": [
+                    {
+                      "Alias": "__typename",
+                      "Name": "__typename"
+                    },
+                    {
+                      "SelectionSet": [
+                        {
+                          "Alias": "name",
+                          "Name": "name"
+                        }
+                      ],
+                      "TypeCondition": "Human"
+                    },
+                    {
+                      "SelectionSet": [
+                        {
+                          "Alias": "name",
+                          "Name": "name"
+                        }
+                      ],
+                      "TypeCondition": "Droid"
+                    },
+                    {
+                      "SelectionSet": [
+                        {
+                          "Alias": "name",
+                          "Name": "name"
+                        }
+                      ],
+                      "TypeCondition": "Starship"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        p {
+          graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-basic-ast meta fields and introspection
+    query: data.test.p = x
+    want_result:
+      - x: true

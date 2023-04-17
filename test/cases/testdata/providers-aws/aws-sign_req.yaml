@@ -1,0 +1,132 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+    req := {"method": "get", "url": "http://example.com"}
+    aws_config := {
+      "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+      "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+      "aws_service": "s3",
+      "aws_region": "us-east-1",
+    }
+    expected := {
+      "headers": {
+        "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=0047a7016c81e5c7f29cd522f97e911e04fc472fced0aee7916cbc287ad6c8e3",
+        "host": "example.com",
+        "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "x-amz-date": "20151228T140825Z"
+      },
+      "method": "get",
+      "url": "http://example.com"
+    }
+    p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+    }
+  note: providers-aws-sign_req/success-simple-no body
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    req := {"method": "get", "url": "http://example.com"}
+    aws_config := {
+      "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+      "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+      "aws_session_token": "MYAWSSECURITYTOKENGOESHERE",
+      "aws_service": "s3",
+      "aws_region": "us-east-1",
+    }
+    expected := {
+      "headers": {
+        "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token,Signature=23c31bda8a74630c0a94f6b82a3511e7e74728df98e6f54ed0840488dbbdc8d1",
+        "host": "example.com",
+        "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "x-amz-date": "20151228T140825Z",
+        "x-amz-security-token": "MYAWSSECURITYTOKENGOESHERE"
+      },
+      "method": "get",
+      "url": "http://example.com"
+    }
+    p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+    }
+  note: providers-aws-sign_req/success-simple-no body-with session token
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    req := {"method": "get", "url": "http://example.com", "body": {"example": {1, 2, 3, 4}}}
+    aws_config := {"aws_access_key": "MYAWSACCESSKEYGOESHERE", "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE", "aws_service": "s3", "aws_region": "us-east-1"}
+    expected := {
+      "body": {"example": {1, 2, 3, 4}},
+      "headers": {
+        "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=5fb06ab1cfd74c8fcb3af95b8cce696708cf6155d971dac10f254d79799c6e88",
+        "host": "example.com",
+        "x-amz-content-sha256": "bacff6243c850423883052ac3c336fd645994442933408dfd3f9e858e69bda07",
+        "x-amz-date": "20151228T140825Z"
+      },
+      "method": "get",
+      "url": "http://example.com"
+    }
+    p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+    }
+  note: providers-aws-sign_req/success-simple-body
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    req := {"method": "get", "url": "http://example.com", "raw_body": "{\"example\": {1, 2, 3, 4}}"}
+    aws_config := {"aws_access_key": "MYAWSACCESSKEYGOESHERE", "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE", "aws_service": "s3", "aws_region": "us-east-1"}
+    expected := {
+      "headers": {
+        "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=5bf26e169cb8b02330dba39d53932532438fc856c2f10537689a09ed807c7195",
+        "host": "example.com",
+        "x-amz-content-sha256": "22906461e2a98a3e780d0fd260e341bed5e544661e97c5936fc7f3af11aaad8b",
+        "x-amz-date": "20151228T140825Z"
+      },
+      "method": "get",
+      "raw_body": "{\"example\": {1, 2, 3, 4}}",
+      "url": "http://example.com"
+    }
+    p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+    }
+  note: providers-aws-sign_req/success-simple-raw_body
+  query: data.test.p = x
+  want_result:
+  - x: true
+- data:
+  modules:
+  - |
+    package test
+    req := {"method": "get", "url": "http://example.com", "body": {"example": {1, 2, 3, 4}}, "raw_body": "{\"example\": {1, 2, 3, 4}}"}
+    aws_config := {"aws_access_key": "MYAWSACCESSKEYGOESHERE", "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE", "aws_service": "s3", "aws_region": "us-east-1"}
+    expected := {
+      "body": {"example": {1, 2, 3, 4}},
+      "headers": {
+        "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature=5bf26e169cb8b02330dba39d53932532438fc856c2f10537689a09ed807c7195",
+        "host": "example.com",
+        "x-amz-content-sha256": "22906461e2a98a3e780d0fd260e341bed5e544661e97c5936fc7f3af11aaad8b",
+        "x-amz-date": "20151228T140825Z"
+      },
+      "method": "get",
+      "raw_body": "{\"example\": {1, 2, 3, 4}}",
+      "url": "http://example.com"
+    }
+    p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+    }
+  note: providers-aws-sign_req/success-simple-body-and-raw_body
+  query: data.test.p = x
+  want_result:
+  - x: true

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("base_doc_any_index")

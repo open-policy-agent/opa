@@ -1,0 +1,13 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      28857836529306024611913 != 28857836529306024611912
+    }
+  note: arithmetic/big_int
+  query: data.test.p = x
+  want_result:
+  - x: true

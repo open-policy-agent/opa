@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = true { re_match(\"^[a-z]+\\\\[[0-9]+\\\\]$\", \"foo[\\\"bar\\\"]\") }")

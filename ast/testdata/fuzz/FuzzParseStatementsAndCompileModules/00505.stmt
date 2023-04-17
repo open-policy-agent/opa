@@ -1,0 +1,2 @@
+go test fuzz v1
+string("q[x1] = y1 { d.e[y1] = x1 }")

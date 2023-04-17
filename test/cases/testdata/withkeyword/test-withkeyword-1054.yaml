@@ -1,0 +1,76 @@
+cases:
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        a := {"x": 0}
+      
+        input.x == 0 with input as a
+      }
+  note: withkeyword/rewrite declared variables in with value
+  query: data.test.allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        a := {"x": 0}
+      
+        input.x == 1 with input as object.union(a, {"x": 1})
+        input.x == -1 with input as object.union(a, {"x": -1})
+      
+        input.x == 2 with input as object.union(a, object.union(a, {"x": 2}))
+        input.x == -2 with input as object.union(a, object.union(a, {"x": -2}))
+      }
+  note: withkeyword/rewrite declared variables nested in function call in with value
+  query: data.test.allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        a := 1
+        input[0] == 1 with input as [a]
+        input[0][0] == 1 with input as [[a]]
+      }
+  note: withkeyword/rewrite declared variables nested in array in with value
+  query: data.test.allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        a := 1
+        input.a == 1 with input as {"a": a}
+        input.nested.a == 1 with input as {"nested": {"a": a}}
+      }
+  note: withkeyword/rewrite declared variables nested in object in with value
+  query: data.test.allow = x
+  want_result:
+    - x: true
+- data:
+  modules:
+    - |
+      package test
+      
+      allow {
+        a := 1
+        b := 2
+      
+        input.min == 1 with input as object.union({"min": 0}, {"min": min([a, b])}) 
+      }
+  note: withkeyword/rewrite declared variables nested in function/array/object in with value
+  query: data.test.allow = x
+  want_result:
+    - x: true

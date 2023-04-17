@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[__local0__] {
+      bits.xor(42, 42, __local1__)
+      __local0__ = __local1__
+    }
+  note: bitsxor/xor same is 0
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - 0

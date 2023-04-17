@@ -1,0 +1,39 @@
+- name: unknown types are ignored
+  rule: VariablesAreInputTypes
+  schema: 0
+  query: |2-
+
+          query Foo($a: Unknown, $b: [[Unknown!]]!) {
+            field(a: $a, b: $b)
+          }
+
+  errors: []
+- name: input types are valid
+  rule: VariablesAreInputTypes
+  schema: 0
+  query: |2-
+
+          query Foo($a: String, $b: [Boolean!]!, $c: ComplexInput) {
+            field(a: $a, b: $b, c: $c)
+          }
+
+  errors: []
+- name: output types are invalid
+  rule: VariablesAreInputTypes
+  schema: 0
+  query: |2-
+
+          query Foo($a: Dog, $b: [[CatOrDog!]]!, $c: Pet) {
+            field(a: $a, b: $b, c: $c)
+          }
+
+  errors:
+    - locations:
+        - {line: 2, column: 21}
+      message: Variable "$a" cannot be non-input type "Dog".
+    - locations:
+        - {line: 2, column: 30}
+      message: Variable "$b" cannot be non-input type "[[CatOrDog!]]!".
+    - locations:
+        - {line: 2, column: 50}
+      message: Variable "$c" cannot be non-input type "Pet".

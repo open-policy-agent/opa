@@ -1,0 +1,478 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/parser/query_test.yml
+cases:
+# parser provides useful errors:
+  - data:
+    modules:
+      - |
+        package test
+        p {
+            graphql.parse_query(`{`)
+        }
+    note: graphql_parse_query/failure-unclosed paren
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Expected Name, found <EOF> in GraphQL string at location 1:2'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          { ...MissingOn }
+          fragment MissingOn Type
+        `
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-missing on in fragment
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Expected "on", found Name "Type" in GraphQL string at location 3:22'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ field: {} }`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-missing name after alias
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Expected Name, found { in GraphQL string at location 1:10'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `notanoperation Foo { field }`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-not an operation
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Unexpected Name "notanoperation" in GraphQL string at location 1:1'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `...`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-a wild splat appears
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Unexpected ... in GraphQL string at location 1:1'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# variables:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ field(complex: { a: { b: [ $var ] } }) }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "complex", "Value": {"Children": [{"Name": "a", "Value": {"Children": [{"Name": "b", "Value": {"Children": [{"Name": "", "Value": {"Kind": 0, "Raw": "var"}}], "Kind": 8, "Raw": ""}}], "Kind": 9, "Raw": ""}}], "Kind": 9, "Raw": ""}}], "Name": "field"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-variables are allowed in args
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `query Foo($x: Complex = { a: { b: [ $var ] } }) { field }`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-variables are not allowed in default args
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Unexpected $ in GraphQL string at location 1:37'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `query ($withDirective: String @first @second, $withoutDirective: String) { f }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Directives": [{"Location": "", "Name": "first"}, {"Location": "", "Name": "second"}], "Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withDirective"}, {"Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "withoutDirective"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-variables can have directives
+    query: data.test.p = x
+    want_result:
+      - x: true
+# fragments:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `fragment on on on { on }`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-fragment can not be named 'on'
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Unexpected Name "on" in GraphQL string at location 1:10'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ ...on }`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-fragment can not spread fragments called 'on'
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Expected Name, found } in GraphQL string at location 1:9'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# encoding:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          # This comment has a ਊ multi-byte character.
+          { field(arg: "Has a ਊ multi-byte character.") }
+        `
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "field", "Arguments": [{"Name": "arg", "Value": {"Kind": 3, "Raw": "Has a ਊ multi-byte character."}}], "Name": "field"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-encoding multibyte characters are supported
+    query: data.test.p = x
+    want_result:
+      - x: true
+# keywords are allowed anywhere a name is:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          query on {
+            ... a
+            ... on on { field }
+          }
+          fragment a on Type {
+            on(on: $on)
+              @on(on: on)
+          }
+        `
+        ast := {"Fragments": [{"Name": "a", "SelectionSet": [{"Alias": "on", "Arguments": [{"Name": "on", "Value": {"Kind": 0, "Raw": "on"}}], "Directives": [{"Arguments": [{"Name": "on", "Value": {"Kind": 7, "Raw": "on"}}], "Location": "", "Name": "on"}], "Name": "on"}], "TypeCondition": "Type"}], "Operations": [{"Name": "on", "Operation": "query", "SelectionSet": [{"Name": "a"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "on"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-keywords-allowed-where-names-are on
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          query subscription {
+            ... subscription
+            ... on subscription { field }
+          }
+          fragment subscription on Type {
+            subscription(subscription: $subscription)
+              @subscription(subscription: subscription)
+          }
+        `
+        ast := {"Fragments": [{"Name": "subscription", "SelectionSet": [{"Alias": "subscription", "Arguments": [{"Name": "subscription", "Value": {"Kind": 0, "Raw": "subscription"}}], "Directives": [{"Arguments": [{"Name": "subscription", "Value": {"Kind": 7, "Raw": "subscription"}}], "Location": "", "Name": "subscription"}], "Name": "subscription"}], "TypeCondition": "Type"}], "Operations": [{"Name": "subscription", "Operation": "query", "SelectionSet": [{"Name": "subscription"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "subscription"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-keywords-allowed-where-names-are subscription
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          query true {
+            ... true
+            ... on true { field }
+          }
+          fragment true on Type {
+            true(true: $true)
+              @true(true: true)
+          }
+        `
+        ast := {"Fragments": [{"Name": "true", "SelectionSet": [{"Alias": "true", "Arguments": [{"Name": "true", "Value": {"Kind": 0, "Raw": "true"}}], "Directives": [{"Arguments": [{"Name": "true", "Value": {"Kind": 5, "Raw": "true"}}], "Location": "", "Name": "true"}], "Name": "true"}], "TypeCondition": "Type"}], "Operations": [{"Name": "true", "Operation": "query", "SelectionSet": [{"Name": "true"}, {"SelectionSet": [{"Alias": "field", "Name": "field"}], "TypeCondition": "true"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-keywords-allowed-where-names-are true
+    query: data.test.p = x
+    want_result:
+      - x: true
+# operations:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `mutation { mutationField }`
+        ast := {"Operations": [{"Name": "", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-operations anonymous mutation
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `mutation Foo { mutationField }`
+        ast := {"Operations": [{"Name": "Foo", "Operation": "mutation", "SelectionSet": [{"Alias": "mutationField", "Name": "mutationField"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-operations named mutation
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `subscription { subscriptionField }`
+        ast := {"Operations": [{"Name": "", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-operations anonymous subscription
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `subscription Foo { subscriptionField }`
+        ast := {"Operations": [{"Name": "Foo", "Operation": "subscription", "SelectionSet": [{"Alias": "subscriptionField", "Name": "subscriptionField"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-operations named subscription
+    query: data.test.p = x
+    want_result:
+      - x: true
+# ast:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          {
+            node(id: 4) {
+              id,
+              name
+            }
+          }
+        `
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Arguments": [{"Name": "id", "Value": {"Kind": 1, "Raw": "4"}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "name", "Name": "name"}]}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-ast simple query
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          query {
+            node {
+              id
+            }
+          }
+        `
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "node", "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-ast nameless query with no variables
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `fragment a($v: Boolean = false) on t { f(v: $v) }`
+        ast := {"Fragments": [{"Name": "a", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "v", "Value": {"Kind": 0, "Raw": "v"}}], "Name": "f"}], "TypeCondition": "t", "VariableDefinition": [{"DefaultValue": {"Kind": 5, "Raw": "false"}, "Type": {"NamedType": "Boolean", "NonNull": false}, "Used": false, "Variable": "v"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-ast fragment defined variables
+    query: data.test.p = x
+    want_result:
+      - x: true
+# values:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ f(id: null) }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"Kind": 6, "Raw": "null"}}], "Name": "f"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-values null
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ f(long: """long""", short: "short") }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "long", "Value": {"Kind": 4, "Raw": "long"}}, {"Name": "short", "Value": {"Kind": 3, "Raw": "short"}}], "Name": "f"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-values strings
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{ f(id: [1,2]) }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"Kind": 1, "Raw": "1"}}, {"Name": "", "Value": {"Kind": 1, "Raw": "2"}}], "Kind": 8, "Raw": ""}}], "Name": "f"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-values list
+    query: data.test.p = x
+    want_result:
+      - x: true
+# types:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `query ($string: String, $int: Int, $arr: [Arr], $notnull: [Arr!]!) { f }`
+        ast := {"Operations": [{"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "f", "Name": "f"}], "VariableDefinitions": [{"Type": {"NamedType": "String", "NonNull": false}, "Used": false, "Variable": "string"}, {"Type": {"NamedType": "Int", "NonNull": false}, "Used": false, "Variable": "int"}, {"Type": {"Elem": {"NamedType": "Arr", "NonNull": false}, "NamedType": "", "NonNull": false}, "Used": false, "Variable": "arr"}, {"Type": {"Elem": {"NamedType": "Arr", "NonNull": true}, "NamedType": "", "NonNull": true}, "Used": false, "Variable": "notnull"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-types common types
+    query: data.test.p = x
+    want_result:
+      - x: true
+# large queries:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          # Copyright (c) 2015-present, Facebook, Inc.
+          #
+          # This source code is licensed under the MIT license found in the
+          # LICENSE file in the root directory of this source tree.
+          query queryName($foo: ComplexType, $site: Site = MOBILE) {
+            whoever123is: node(id: [123, 456]) {
+              id ,
+              ... on User @defer {
+                field2 {
+                  id ,
+                  alias: field1(first:10, after:$foo,) @include(if: $foo) {
+                    id,
+                    ...frag
+                  }
+                }
+              }
+              ... @skip(unless: $foo) {
+                id
+              }
+              ... {
+                id
+              }
+            }
+          }
+          mutation likeStory {
+            like(story: 123) @defer {
+              story {
+                id
+              }
+            }
+          }
+          subscription StoryLikeSubscription($input: StoryLikeSubscribeInput) {
+            storyLikeSubscribe(input: $input) {
+              story {
+                likers {
+                  count
+                }
+                likeSentence {
+                  text
+                }
+              }
+            }
+          }
+          fragment frag on Friend {
+            foo(size: $size, bar: $b, obj: {key: "value", block: """
+                block string uses \"""
+            """})
+          }
+          {
+            unnamed(truthy: true, falsey: false, nullish: null),
+            query
+          }
+        `
+        ast := {"Fragments": [{"Name": "frag", "SelectionSet": [{"Alias": "foo", "Arguments": [{"Name": "size", "Value": {"Kind": 0, "Raw": "size"}}, {"Name": "bar", "Value": {"Kind": 0, "Raw": "b"}}, {"Name": "obj", "Value": {"Children": [{"Name": "key", "Value": {"Kind": 3, "Raw": "value"}}, {"Name": "block", "Value": {"Kind": 4, "Raw": "block string uses \"\"\""}}], "Kind": 9, "Raw": ""}}], "Name": "foo"}], "TypeCondition": "Friend"}], "Operations": [{"Name": "queryName", "Operation": "query", "SelectionSet": [{"Alias": "whoever123is", "Arguments": [{"Name": "id", "Value": {"Children": [{"Name": "", "Value": {"Kind": 1, "Raw": "123"}}, {"Name": "", "Value": {"Kind": 1, "Raw": "456"}}], "Kind": 8, "Raw": ""}}], "Name": "node", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Directives": [{"Location": "", "Name": "defer"}], "SelectionSet": [{"Alias": "field2", "Name": "field2", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Alias": "alias", "Arguments": [{"Name": "first", "Value": {"Kind": 1, "Raw": "10"}}, {"Name": "after", "Value": {"Kind": 0, "Raw": "foo"}}], "Directives": [{"Arguments": [{"Name": "if", "Value": {"Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "include"}], "Name": "field1", "SelectionSet": [{"Alias": "id", "Name": "id"}, {"Name": "frag"}]}]}], "TypeCondition": "User"}, {"Directives": [{"Arguments": [{"Name": "unless", "Value": {"Kind": 0, "Raw": "foo"}}], "Location": "", "Name": "skip"}], "SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}, {"SelectionSet": [{"Alias": "id", "Name": "id"}], "TypeCondition": ""}]}], "VariableDefinitions": [{"Type": {"NamedType": "ComplexType", "NonNull": false}, "Used": false, "Variable": "foo"}, {"DefaultValue": {"Kind": 7, "Raw": "MOBILE"}, "Type": {"NamedType": "Site", "NonNull": false}, "Used": false, "Variable": "site"}]}, {"Name": "likeStory", "Operation": "mutation", "SelectionSet": [{"Alias": "like", "Arguments": [{"Name": "story", "Value": {"Kind": 1, "Raw": "123"}}], "Directives": [{"Location": "", "Name": "defer"}], "Name": "like", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "id", "Name": "id"}]}]}]}, {"Name": "StoryLikeSubscription", "Operation": "subscription", "SelectionSet": [{"Alias": "storyLikeSubscribe", "Arguments": [{"Name": "input", "Value": {"Kind": 0, "Raw": "input"}}], "Name": "storyLikeSubscribe", "SelectionSet": [{"Alias": "story", "Name": "story", "SelectionSet": [{"Alias": "likers", "Name": "likers", "SelectionSet": [{"Alias": "count", "Name": "count"}]}, {"Alias": "likeSentence", "Name": "likeSentence", "SelectionSet": [{"Alias": "text", "Name": "text"}]}]}]}], "VariableDefinitions": [{"Type": {"NamedType": "StoryLikeSubscribeInput", "NonNull": false}, "Used": false, "Variable": "input"}]}, {"Name": "", "Operation": "query", "SelectionSet": [{"Alias": "unnamed", "Arguments": [{"Name": "truthy", "Value": {"Kind": 5, "Raw": "true"}}, {"Name": "falsey", "Value": {"Kind": 5, "Raw": "false"}}, {"Name": "nullish", "Value": {"Kind": 6, "Raw": "null"}}], "Name": "unnamed"}, {"Alias": "query", "Name": "query"}]}]}
+        p {
+            graphql.parse_query(gql) == ast
+        }
+    note: graphql_parse_query/success-large-queries kitchen sink
+    query: data.test.p = x
+    want_result:
+      - x: true
+# fuzzer:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{__typename{...}}`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-fuzzer 01
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: Expected {, found } in GraphQL string at location 1:16'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `{...{__typename{...{}}}}`
+        p {
+            graphql.parse_query(gql)
+        }
+    note: graphql_parse_query/failure-fuzzer 02
+    query: data.test.p = x
+    want_error: 'graphql.parse_query: expected at least one definition, found } in GraphQL string at location 1:21'
+    want_error_code: eval_builtin_error
+    strict_error: true

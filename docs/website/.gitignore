@@ -1,0 +1,8 @@
+# Hugo-generated assets
+public/
+resources/
+
+# Documentation versions
+generated/*
+data/releases.yaml
+data/builtin_metadata.json

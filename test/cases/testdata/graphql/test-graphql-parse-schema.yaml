@@ -1,0 +1,685 @@
+# This suite of tests is adapted from the underlying GraphQL parser library's
+# own test suite, as it provides a fairly comprehensive set of good/degenerate
+# test cases, which we want to make sure to react correctly to.
+# See: https://github.com/vektah/gqlparser/blob/master/parser/schema_test.yml
+cases:
+# object types:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          type Hello {
+            world: String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          "Description"
+          type Hello {
+            world: String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "Description", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with description
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          """
+          Description
+          """
+          # Even with comments between them
+          type Hello {
+            world: String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "Description", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with block description
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          type Hello {
+            world(flag: Boolean): String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "flag", "Type": {"NamedType": "Boolean", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with field arg
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          type Hello {
+            world(flag: Boolean = true): String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"DefaultValue": {"Kind": 5, "Raw": "true"}, "Description": "", "Name": "flag", "Type": {"NamedType": "Boolean", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with field arg and default value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          type Hello {
+            world(things: [String]): String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "things", "Type": {"Elem": {"NamedType": "String", "NonNull": false}, "NamedType": "", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with field list arg
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          type Hello {
+            world(argOne: Boolean, argTwo: Int): String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Arguments": [{"Description": "", "Name": "argOne", "Type": {"NamedType": "Boolean", "NonNull": false}}, {"Description": "", "Name": "argTwo", "Type": {"NamedType": "Int", "NonNull": false}}], "Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-object-types with two args
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `type Hello {}`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-object-types must define one or more fields
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13'
+    want_error_code: eval_builtin_error
+    strict_error: true
+
+# type extensions:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          extend type Hello {
+            world: String
+          }
+        `
+        ast := {"Extensions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-type-extensions Object extension
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `extend type Hello implements Greeting`
+        ast := {"Extensions": [{"BuiltIn": false, "Description": "", "Interfaces": ["Greeting"], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-type-extensions without any fields
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          extend type Hello implements Greeting
+          extend type Hello implements SecondGreeting
+        `
+        ast := {"Extensions": [{"BuiltIn": false, "Description": "", "Interfaces": ["Greeting"], "Kind": "OBJECT", "Name": "Hello"}, {"BuiltIn": false, "Description": "", "Interfaces": ["SecondGreeting"], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-type-extensions without fields twice
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `extend type Hello`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-type-extensions without anything errors
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:18'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          "Description"
+          extend type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-type-extensions can have descriptions # hmm, this might not be spec compliant...
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected String "Description" in GraphQL string at location 2:4'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          extend "Description" type Hello {
+            world: String
+          }
+        `
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-type-extensions can not have descriptions on types
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected String "Description" in GraphQL string at location 2:11'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          extend scalar Foo @deprecated
+          extend type Foo @deprecated
+          extend interface Foo @deprecated
+          extend union Foo @deprecated
+          extend enum Foo @deprecated
+          extend input Foo @deprecated
+        `
+        ast := {"Extensions": [{"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "SCALAR", "Name": "Foo"}, {"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "OBJECT", "Name": "Foo"}, {"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "INTERFACE", "Name": "Foo"}, {"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "UNION", "Name": "Foo"}, {"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "ENUM", "Name": "Foo"}, {"BuiltIn": false, "Description": "", "Directives": [{"Location": "", "Name": "deprecated"}], "Kind": "INPUT_OBJECT", "Name": "Foo"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-type-extensions all can have directives
+    query: data.test.p = x
+    want_result:
+      - x: true
+# schema definition:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          schema {
+            query: Query
+          }
+        `
+        ast := {"Schema": [{"Description": "", "OperationTypes": [{"Operation": "query", "Type": "Query"}]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-schema-definition simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+# schema extensions:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          extend schema {
+            mutation: Mutation
+          }
+        `
+        ast := {"SchemaExtension": [{"Description": "", "OperationTypes": [{"Operation": "mutation", "Type": "Mutation"}]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-schema-extensions simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `extend schema @directive`
+        ast := {"SchemaExtension": [{"Description": "", "Directives": [{"Location": "", "Name": "directive"}]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-schema-extensions directive only
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `extend schema`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-schema-extensions without anything errors
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:14'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# inheritance:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `type Hello implements World { field: String }`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "field", "Type": {"NamedType": "String", "NonNull": false}}], "Interfaces": ["World"], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-inheritance single
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `type Hello implements Wo & rld { field: String }`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "field", "Type": {"NamedType": "String", "NonNull": false}}], "Interfaces": ["Wo", "rld"], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-inheritance multi
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `type Hello implements & Wo & rld { field: String }`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "field", "Type": {"NamedType": "String", "NonNull": false}}], "Interfaces": ["Wo", "rld"], "Kind": "OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-inheritance multi with leading amp
+    query: data.test.p = x
+    want_result:
+      - x: true
+# enums:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `enum Hello { WORLD }`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "WORLD"}], "Kind": "ENUM", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-enums single value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `enum Hello { WO, RLD }`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "EnumValues": [{"Description": "", "Name": "WO"}, {"Description": "", "Name": "RLD"}], "Kind": "ENUM", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/success-enums double value
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `enum Hello {}`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-enums must define one or more unique enum values
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# interface:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          interface Hello {
+            world: String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "INTERFACE", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-interface simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `interface Hello {}`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-interface must define one or more fields
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:18'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          interface IA {
+              id: ID!
+          }
+          interface IIA implements IA {
+              id: ID!
+          }
+          type A implements IIA {
+              id: ID!
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "ID", "NonNull": true}}], "Kind": "INTERFACE", "Name": "IA"}, {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "ID", "NonNull": true}}], "Interfaces": ["IA"], "Kind": "INTERFACE", "Name": "IIA"}, {"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "id", "Type": {"NamedType": "ID", "NonNull": true}}], "Interfaces": ["IIA"], "Kind": "OBJECT", "Name": "A"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-interface may define intermediate interfaces
+    query: data.test.p = x
+    want_result:
+      - x: true
+# unions:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = World`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Kind": "UNION", "Name": "Hello", "Types": ["World"]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-unions simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = Wo | Rld`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Kind": "UNION", "Name": "Hello", "Types": ["Wo", "Rld"]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-unions with two types
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = | Wo | Rld`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Kind": "UNION", "Name": "Hello", "Types": ["Wo", "Rld"]}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-unions with leading pipe
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = || Wo | Rld`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-unions cant be empty
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:16'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = Wo || Rld`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-unions cant double pipe
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:19'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `union Hello = | Wo | Rld |`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-unions cant have trailing pipe
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:27'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# scalar:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `scalar Hello`
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Kind": "SCALAR", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-scalar simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+# input object:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          input Hello {
+            world: String
+          }
+        `
+        ast := {"Definitions": [{"BuiltIn": false, "Description": "", "Fields": [{"Description": "", "Name": "world", "Type": {"NamedType": "String", "NonNull": false}}], "Kind": "INPUT_OBJECT", "Name": "Hello"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-input-object simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          input Hello {
+            world(foo: Int): String
+          }
+        `
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-input-object can not have args
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Expected :, found ( in GraphQL string at location 3:10'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `input Hello {}`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-input-object must define one or more input fields
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:14'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# directives:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `directive @foo on FIELD`
+        ast := {"Directives": [{"Description": "", "IsRepeatable": false, "Locations": ["FIELD"], "Name": "foo"}]}
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/success-directives simple
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `
+          directive @onQuery on QUERY
+          directive @onMutation on MUTATION
+          directive @onSubscription on SUBSCRIPTION
+          directive @onField on FIELD
+          directive @onFragmentDefinition on FRAGMENT_DEFINITION
+          directive @onFragmentSpread on FRAGMENT_SPREAD
+          directive @onInlineFragment on INLINE_FRAGMENT
+          directive @onVariableDefinition on VARIABLE_DEFINITION
+        `
+        ast := {"Directives": [{"Description": "", "IsRepeatable": false, "Locations": ["QUERY"], "Name": "onQuery"}, {"Description": "", "IsRepeatable": false, "Locations": ["MUTATION"], "Name": "onMutation"}, {"Description": "", "IsRepeatable": false, "Locations": ["SUBSCRIPTION"], "Name": "onSubscription"}, {"Description": "", "IsRepeatable": false, "Locations": ["FIELD"], "Name": "onField"}, {"Description": "", "IsRepeatable": false, "Locations": ["FRAGMENT_DEFINITION"], "Name": "onFragmentDefinition"}, {"Description": "", "IsRepeatable": false, "Locations": ["FRAGMENT_SPREAD"], "Name": "onFragmentSpread"}, {"Description": "", "IsRepeatable": false, "Locations": ["INLINE_FRAGMENT"], "Name": "onInlineFragment"}, {"Description": "", "IsRepeatable": false, "Locations": ["VARIABLE_DEFINITION"], "Name": "onVariableDefinition"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-directives executable
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `directive @foo repeatable on FIELD`
+        ast := {"Directives": [{"Description": "", "IsRepeatable": true, "Locations": ["FIELD"], "Name": "foo"}]}
+        p {
+            graphql.parse_schema(gql) == ast
+        }
+    note: graphql_parse_schema/success-directives repeatable
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := `directive @foo on FIELD | INCORRECT_LOCATION`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-directives invalid location
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected Name "INCORRECT_LOCATION" in GraphQL string at location 1:27'
+    want_error_code: eval_builtin_error
+    strict_error: true
+# fuzzer:
+  - data:
+    modules:
+      - |
+        package test
+        gql := `type o{d(g:[`
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-fuzzer 1
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:13'
+    want_error_code: eval_builtin_error
+    strict_error: true
+  - data:
+    modules:
+      - |
+        package test
+        gql := "\"\"\"\r"
+        p {
+            graphql.parse_schema(gql)
+        }
+    note: graphql_parse_schema/failure-fuzzer 2
+    query: data.test.p = x
+    want_error: 'graphql.parse_schema: Unexpected <Invalid> in GraphQL string at location 2:1'
+    want_error_code: eval_builtin_error
+    strict_error: true

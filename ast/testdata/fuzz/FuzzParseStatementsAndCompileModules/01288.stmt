@@ -1,0 +1,2 @@
+go test fuzz v1
+string("{ \"sub\": \"0\", \"iss\": \"opa\", \"ext\": { \"abc\": \"123\", \"cba\": [10, \"10\"] } }")

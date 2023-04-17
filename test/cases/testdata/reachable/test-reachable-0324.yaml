@@ -1,0 +1,28 @@
+cases:
+- data: {}
+  input_term: '{}'
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      graph.reachable({
+        "a": {"b", "c"},
+        "b": {"d"},
+        "c": {"d"},
+        "d": set(),
+        "e": {"f"},
+        "f": {"e"},
+        "x": {"x"},
+      }, {"b", "e"}, __local1__)
+      sort(__local1__, __local2__)
+      __local0__ = __local2__
+    }
+  note: reachable/components
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - b
+    - d
+    - e
+    - f

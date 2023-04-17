@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      object.remove({"a": 1, "b": {"c": 3}}, {"a"}, __local1__)
+      __local0__ = __local1__
+    }
+  note: objectremove/base
+  query: data.generated.p = x
+  want_result:
+  - x:
+      b:
+        c: 3

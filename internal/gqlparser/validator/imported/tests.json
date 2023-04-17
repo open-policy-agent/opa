@@ -1,0 +1,5250 @@
+  {
+  "schemas": [
+    "schema {\n  query: QueryRoot\n}\n\ndirective @onQuery on QUERY\n\ndirective @onMutation on MUTATION\n\ndirective @onSubscription on SUBSCRIPTION\n\ndirective @onField on FIELD\n\ndirective @onFragmentDefinition on FRAGMENT_DEFINITION\n\ndirective @onFragmentSpread on FRAGMENT_SPREAD\n\ndirective @onInlineFragment on INLINE_FRAGMENT\n\ndirective @onSchema on SCHEMA\n\ndirective @onScalar on SCALAR\n\ndirective @onObject on OBJECT\n\ndirective @onFieldDefinition on FIELD_DEFINITION\n\ndirective @onArgumentDefinition on ARGUMENT_DEFINITION\n\ndirective @onInterface on INTERFACE\n\ndirective @onUnion on UNION\n\ndirective @onEnum on ENUM\n\ndirective @onEnumValue on ENUM_VALUE\n\ndirective @onInputObject on INPUT_OBJECT\n\ndirective @onInputFieldDefinition on INPUT_FIELD_DEFINITION\n\ntype Alien implements Being & Intelligent {\n  iq: Int\n  name(surname: Boolean): String\n  numEyes: Int\n}\n\nscalar Any\n\ninterface Being {\n  name(surname: Boolean): String\n}\n\ninterface Canine {\n  name(surname: Boolean): String\n}\n\ntype Cat implements Being & Pet {\n  name(surname: Boolean): String\n  nickname: String\n  meows: Boolean\n  meowVolume: Int\n  furColor: FurColor\n}\n\nunion CatOrDog = Dog | Cat\n\ninput ComplexInput {\n  requiredField: Boolean!\n  nonNullField: Boolean! = false\n  intField: Int\n  stringField: String\n  booleanField: Boolean\n  stringListField: [String]\n}\n\ntype ComplicatedArgs {\n  intArgField(intArg: Int): String\n  nonNullIntArgField(nonNullIntArg: Int!): String\n  stringArgField(stringArg: String): String\n  booleanArgField(booleanArg: Boolean): String\n  enumArgField(enumArg: FurColor): String\n  floatArgField(floatArg: Float): String\n  idArgField(idArg: ID): String\n  stringListArgField(stringListArg: [String]): String\n  stringListNonNullArgField(stringListNonNullArg: [String!]): String\n  complexArgField(complexArg: ComplexInput): String\n  multipleReqs(req1: Int!, req2: Int!): String\n  nonNullFieldWithDefault(arg: Int! = 0): String\n  multipleOpts(opt1: Int = 0, opt2: Int = 0): String\n  multipleOptAndReq(req1: Int!, req2: Int!, opt1: Int = 0, opt2: Int = 0): String\n}\n\ntype Dog implements Being & Pet & Canine {\n  name(surname: Boolean): String\n  nickname: String\n  barkVolume: Int\n  barks: Boolean\n  doesKnowCommand(dogCommand: DogCommand): Boolean\n  isHousetrained(atOtherHomes: Boolean = true): Boolean\n  isAtLocation(x: Int, y: Int): Boolean\n}\n\nenum DogCommand {\n  SIT\n  HEEL\n  DOWN\n}\n\nunion DogOrHuman = Dog | Human\n\nenum FurColor {\n  BROWN\n  BLACK\n  TAN\n  SPOTTED\n  NO_FUR\n  UNKNOWN\n}\n\ntype Human implements Being & Intelligent {\n  name(surname: Boolean): String\n  pets: [Pet]\n  relatives: [Human]\n  iq: Int\n}\n\nunion HumanOrAlien = Human | Alien\n\ninterface Intelligent {\n  iq: Int\n}\n\nscalar Invalid\n\ninterface Pet {\n  name(surname: Boolean): String\n}\n\ntype QueryRoot {\n  human(id: ID): Human\n  alien: Alien\n  dog: Dog\n  cat: Cat\n  pet: Pet\n  catOrDog: CatOrDog\n  dogOrHuman: DogOrHuman\n  humanOrAlien: HumanOrAlien\n  complicatedArgs: ComplicatedArgs\n  invalidArg(arg: Invalid): String\n  anyArg(arg: Any): String\n}\n",
+    "schema {\n  query: QueryRoot\n}\n\ntype Connection {\n  edges: [Edge]\n}\n\ntype Edge {\n  node: Node\n}\n\ntype IntBox implements SomeBox {\n  scalar: Int\n  deepBox: IntBox\n  unrelatedField: String\n  listStringBox: [StringBox]\n  stringBox: StringBox\n  intBox: IntBox\n}\n\ntype Node {\n  id: ID\n  name: String\n}\n\ninterface NonNullStringBox1 {\n  scalar: String!\n}\n\ntype NonNullStringBox1Impl implements SomeBox & NonNullStringBox1 {\n  scalar: String!\n  unrelatedField: String\n  deepBox: SomeBox\n}\n\ninterface NonNullStringBox2 {\n  scalar: String!\n}\n\ntype NonNullStringBox2Impl implements SomeBox & NonNullStringBox2 {\n  scalar: String!\n  unrelatedField: String\n  deepBox: SomeBox\n}\n\ntype QueryRoot {\n  someBox: SomeBox\n  connection: Connection\n}\n\ninterface SomeBox {\n  deepBox: SomeBox\n  unrelatedField: String\n}\n\ntype StringBox implements SomeBox {\n  scalar: String\n  deepBox: StringBox\n  unrelatedField: String\n  listStringBox: [StringBox]\n  stringBox: StringBox\n  intBox: IntBox\n}\n",
+    "type Foo {\n  constructor: String\n}\n\ntype Query {\n  foo: Foo\n}\n"
+  ],
+  "tests": [
+    {
+      "name": "Validate: Executable definitions/with only operation",
+      "rule": "ExecutableDefinitions",
+      "schema": 0,
+      "query": "\n      query Foo {\n        dog {\n          name\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Executable definitions/with operation and fragment",
+      "rule": "ExecutableDefinitions",
+      "schema": 0,
+      "query": "\n      query Foo {\n        dog {\n          name\n          ...Frag\n        }\n      }\n\n      fragment Frag on Dog {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Executable definitions/with type definition",
+      "rule": "ExecutableDefinitions",
+      "schema": 0,
+      "query": "\n      query Foo {\n        dog {\n          name\n        }\n      }\n\n      type Cow {\n        name: String\n      }\n\n      extend type Dog {\n        color: String\n      }\n    ",
+      "errors": [
+        {
+          "message": "The Cow definition is not executable.",
+          "locations": [
+            {
+              "line": 8,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "The Dog definition is not executable.",
+          "locations": [
+            {
+              "line": 12,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Executable definitions/with schema definition",
+      "rule": "ExecutableDefinitions",
+      "schema": 0,
+      "query": "\n      schema {\n        query: Query\n      }\n\n      type Query {\n        test: String\n      }\n\n      extend schema @directive\n    ",
+      "errors": [
+        {
+          "message": "The schema definition is not executable.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "The Query definition is not executable.",
+          "locations": [
+            {
+              "line": 6,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "The schema definition is not executable.",
+          "locations": [
+            {
+              "line": 10,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Object field selection",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment objectFieldSelection on Dog {\n        __typename\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Aliased object field selection",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment aliasedObjectFieldSelection on Dog {\n        tn : __typename\n        otherName : name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Interface field selection",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment interfaceFieldSelection on Pet {\n        __typename\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Aliased interface field selection",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment interfaceFieldSelection on Pet {\n        otherName : name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Lying alias selection",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment lyingAliasSelection on Dog {\n        name : nickname\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Ignores fields on unknown type",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment unknownSelection on UnknownType {\n        unknownField\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/reports errors when type is known again",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment typeKnownAgain on Pet {\n        unknown_pet_field {\n          ... on Cat {\n            unknown_cat_field\n          }\n        }\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"unknown_pet_field\" on type \"Pet\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "message": "Cannot query field \"unknown_cat_field\" on type \"Cat\".",
+          "locations": [
+            {
+              "line": 5,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Field not defined on fragment",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment fieldNotDefined on Dog {\n        meowVolume\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"meowVolume\" on type \"Dog\". Did you mean \"barkVolume\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Ignores deeply unknown field",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment deepFieldNotDefined on Dog {\n        unknown_field {\n          deeper_unknown_field\n        }\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"unknown_field\" on type \"Dog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Sub-field not defined",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment subFieldNotDefined on Human {\n        pets {\n          unknown_field\n        }\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"unknown_field\" on type \"Pet\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Field not defined on inline fragment",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment fieldNotDefined on Pet {\n        ... on Dog {\n          meowVolume\n        }\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"meowVolume\" on type \"Dog\". Did you mean \"barkVolume\"?",
+          "locations": [
+            {
+              "line": 4,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Aliased field target not defined",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment aliasedFieldTargetNotDefined on Dog {\n        volume : mooVolume\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"mooVolume\" on type \"Dog\". Did you mean \"barkVolume\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Aliased lying field target not defined",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment aliasedLyingFieldTargetNotDefined on Dog {\n        barkVolume : kawVolume\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"kawVolume\" on type \"Dog\". Did you mean \"barkVolume\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Not defined on interface",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment notDefinedOnInterface on Pet {\n        tailLength\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"tailLength\" on type \"Pet\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Defined on implementors but not on interface",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment definedOnImplementorsButNotInterface on Pet {\n        nickname\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"nickname\" on type \"Pet\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Meta field selection on union",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment directFieldSelectionOnUnion on CatOrDog {\n        __typename\n      }",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fields on correct type/Direct field selection on union",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment directFieldSelectionOnUnion on CatOrDog {\n        directField\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"directField\" on type \"CatOrDog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/Defined on implementors queried on union",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment definedOnImplementorsQueriedOnUnion on CatOrDog {\n        name\n      }",
+      "errors": [
+        {
+          "message": "Cannot query field \"name\" on type \"CatOrDog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fields on correct type/valid field in inline fragment",
+      "rule": "FieldsOnCorrectType",
+      "schema": 0,
+      "query": "\n      fragment objectFieldSelection on Pet {\n        ... on Dog {\n          name\n        }\n        ... {\n          name\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/object is valid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment validFragment on Dog {\n        barks\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/interface is valid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment validFragment on Pet {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/object is valid inline fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment validFragment on Pet {\n        ... on Dog {\n          barks\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/inline fragment without type is valid",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment validFragment on Pet {\n        ... {\n          name\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/union is valid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment validFragment on CatOrDog {\n        __typename\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Fragments on composite types/scalar is invalid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment scalarFragment on Boolean {\n        bad\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"scalarFragment\" cannot condition on non composite type \"Boolean\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 34
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fragments on composite types/enum is invalid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment scalarFragment on FurColor {\n        bad\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"scalarFragment\" cannot condition on non composite type \"FurColor\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 34
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fragments on composite types/input object is invalid fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment inputFragment on ComplexInput {\n        stringField\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"inputFragment\" cannot condition on non composite type \"ComplexInput\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Fragments on composite types/scalar is invalid inline fragment type",
+      "rule": "FragmentsOnCompositeTypes",
+      "schema": 0,
+      "query": "\n      fragment invalidFragment on Pet {\n        ... on String {\n          barks\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment cannot condition on non composite type \"String\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/single arg is known",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment argOnRequiredArg on Dog {\n        doesKnowCommand(dogCommand: SIT)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/multiple args are known",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment multipleArgs on ComplicatedArgs {\n        multipleReqs(req1: 1, req2: 2)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/ignores args of unknown fields",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment argOnUnknownField on Dog {\n        unknownField(unknownArg: SIT)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/multiple args in reverse order are known",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment multipleArgsReverseOrder on ComplicatedArgs {\n        multipleReqs(req2: 2, req1: 1)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/no args on optional arg",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment noArgOnOptionalArg on Dog {\n        isHousetrained\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/args are known deeply",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        dog {\n          doesKnowCommand(dogCommand: SIT)\n        }\n        human {\n          pet {\n            ... on Dog {\n              doesKnowCommand(dogCommand: SIT)\n            }\n          }\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/directive args are known",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        dog @skip(if: true)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known argument names/undirective args are invalid",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        dog @skip(unless: true)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"unless\" on directive \"@skip\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 19
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/misspelled directive args are reported",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        dog @skip(iff: true)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"iff\" on directive \"@skip\". Did you mean \"if\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 19
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/invalid arg name",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment invalidArgName on Dog {\n        doesKnowCommand(unknown: true)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"unknown\" on field \"doesKnowCommand\" of type \"Dog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/misspelled arg name is reported",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment invalidArgName on Dog {\n        doesKnowCommand(dogcommand: true)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"dogcommand\" on field \"doesKnowCommand\" of type \"Dog\". Did you mean \"dogCommand\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/unknown args amongst known args",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      fragment oneGoodArgOneInvalidArg on Dog {\n        doesKnowCommand(whoknows: 1, dogCommand: SIT, unknown: true)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"whoknows\" on field \"doesKnowCommand\" of type \"Dog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 25
+            }
+          ]
+        },
+        {
+          "message": "Unknown argument \"unknown\" on field \"doesKnowCommand\" of type \"Dog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known argument names/unknown args deeply",
+      "rule": "KnownArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        dog {\n          doesKnowCommand(unknown: true)\n        }\n        human {\n          pet {\n            ... on Dog {\n              doesKnowCommand(unknown: true)\n            }\n          }\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown argument \"unknown\" on field \"doesKnowCommand\" of type \"Dog\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 27
+            }
+          ]
+        },
+        {
+          "message": "Unknown argument \"unknown\" on field \"doesKnowCommand\" of type \"Dog\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known directives/with no directives",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      query Foo {\n        name\n        ...Frag\n      }\n\n      fragment Frag on Dog {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known directives/with known directives",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      {\n        dog @include(if: true) {\n          name\n        }\n        human @skip(if: false) {\n          name\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known directives/with unknown directive",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      {\n        dog @unknown(directive: \"value\") {\n          name\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown directive \"unknown\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known directives/with many unknown directives",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      {\n        dog @unknown(directive: \"value\") {\n          name\n        }\n        human @unknown(directive: \"value\") {\n          name\n          pets @unknown(directive: \"value\") {\n            name\n          }\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown directive \"unknown\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "message": "Unknown directive \"unknown\".",
+          "locations": [
+            {
+              "line": 6,
+              "column": 15
+            }
+          ]
+        },
+        {
+          "message": "Unknown directive \"unknown\".",
+          "locations": [
+            {
+              "line": 8,
+              "column": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known directives/with well placed directives",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      query Foo @onQuery {\n        name @include(if: true)\n        ...Frag @include(if: true)\n        skippedField @skip(if: true)\n        ...SkippedFrag @skip(if: true)\n      }\n\n      mutation Bar @onMutation {\n        someField\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known directives/with misplaced directives",
+      "rule": "KnownDirectives",
+      "schema": 0,
+      "query": "\n      query Foo @include(if: true) {\n        name @onQuery\n        ...Frag @onQuery\n      }\n\n      mutation Bar @onQuery {\n        someField\n      }\n    ",
+      "errors": [
+        {
+          "message": "Directive \"include\" may not be used on QUERY.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "message": "Directive \"onQuery\" may not be used on FIELD.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 14
+            }
+          ]
+        },
+        {
+          "message": "Directive \"onQuery\" may not be used on FRAGMENT_SPREAD.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "message": "Directive \"onQuery\" may not be used on MUTATION.",
+          "locations": [
+            {
+              "line": 7,
+              "column": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known fragment names/known fragment names are valid",
+      "rule": "KnownFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        human(id: 4) {\n          ...HumanFields1\n          ... on Human {\n            ...HumanFields2\n          }\n          ... {\n            name\n          }\n        }\n      }\n      fragment HumanFields1 on Human {\n        name\n        ...HumanFields3\n      }\n      fragment HumanFields2 on Human {\n        name\n      }\n      fragment HumanFields3 on Human {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known fragment names/unknown fragment names are invalid",
+      "rule": "KnownFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        human(id: 4) {\n          ...UnknownFragment1\n          ... on Human {\n            ...UnknownFragment2\n          }\n        }\n      }\n      fragment HumanFields on Human {\n        name\n        ...UnknownFragment3\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown fragment \"UnknownFragment1\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 14
+            }
+          ]
+        },
+        {
+          "message": "Unknown fragment \"UnknownFragment2\".",
+          "locations": [
+            {
+              "line": 6,
+              "column": 16
+            }
+          ]
+        },
+        {
+          "message": "Unknown fragment \"UnknownFragment3\".",
+          "locations": [
+            {
+              "line": 12,
+              "column": 12
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Known type names/known type names are valid",
+      "rule": "KnownTypeNames",
+      "schema": 0,
+      "query": "\n      query Foo($var: String, $required: [String!]!) {\n        user(id: 4) {\n          pets { ... on Pet { name }, ...PetFields, ... { name } }\n        }\n      }\n      fragment PetFields on Pet {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Known type names/unknown type names are invalid",
+      "rule": "KnownTypeNames",
+      "schema": 0,
+      "query": "\n      query Foo($var: JumbledUpLetters) {\n        user(id: 4) {\n          name\n          pets { ... on Badger { name }, ...PetFields }\n        }\n      }\n      fragment PetFields on Peettt {\n        name\n      }\n    ",
+      "errors": [
+        {
+          "message": "Unknown type \"JumbledUpLetters\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 23
+            }
+          ]
+        },
+        {
+          "message": "Unknown type \"Badger\".",
+          "locations": [
+            {
+              "line": 5,
+              "column": 25
+            }
+          ]
+        },
+        {
+          "message": "Unknown type \"Peettt\".",
+          "locations": [
+            {
+              "line": 8,
+              "column": 29
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/no operations",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      fragment fragA on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/one anon operation",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/multiple named operations",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      query Foo {\n        field\n      }\n\n      query Bar {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/anon operation with fragment",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      {\n        ...Foo\n      }\n      fragment Foo on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/multiple anon operations",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      {\n        fieldA\n      }\n      {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "This anonymous operation must be the only defined operation.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "This anonymous operation must be the only defined operation.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/anon operation with a mutation",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      {\n        fieldA\n      }\n      mutation Foo {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "This anonymous operation must be the only defined operation.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Anonymous operation must be alone/anon operation with a subscription",
+      "rule": "LoneAnonymousOperation",
+      "schema": 0,
+      "query": "\n      {\n        fieldA\n      }\n      subscription Foo {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "This anonymous operation must be the only defined operation.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/single reference is valid",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB }\n      fragment fragB on Dog { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No circular fragment spreads/spreading twice is not circular",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB, ...fragB }\n      fragment fragB on Dog { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No circular fragment spreads/spreading twice indirectly is not circular",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB, ...fragC }\n      fragment fragB on Dog { ...fragC }\n      fragment fragC on Dog { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No circular fragment spreads/double spread within abstract types",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment nameFragment on Pet {\n        ... on Dog { name }\n        ... on Cat { name }\n      }\n\n      fragment spreadsInAnon on Pet {\n        ... on Dog { ...nameFragment }\n        ... on Cat { ...nameFragment }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No circular fragment spreads/does not false positive on unknown fragment",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment nameFragment on Pet {\n        ...UnknownFragment\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No circular fragment spreads/spreading recursively within field fails",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Human { relatives { ...fragA } },\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 45
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself directly",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragA }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself directly within inline fragment",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Pet {\n        ... on Dog {\n          ...fragA\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself indirectly",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB }\n      fragment fragB on Dog { ...fragA }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragB.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 3,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself indirectly reports opposite order",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragB on Dog { ...fragA }\n      fragment fragA on Dog { ...fragB }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragB\" within itself via fragA.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 3,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself indirectly within inline fragment",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Pet {\n        ... on Dog {\n          ...fragB\n        }\n      }\n      fragment fragB on Pet {\n        ... on Dog {\n          ...fragA\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragB.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 11
+            },
+            {
+              "line": 9,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself deeply",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB }\n      fragment fragB on Dog { ...fragC }\n      fragment fragC on Dog { ...fragO }\n      fragment fragX on Dog { ...fragY }\n      fragment fragY on Dog { ...fragZ }\n      fragment fragZ on Dog { ...fragO }\n      fragment fragO on Dog { ...fragP }\n      fragment fragP on Dog { ...fragA, ...fragX }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragB, fragC, fragO, fragP.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 3,
+              "column": 31
+            },
+            {
+              "line": 4,
+              "column": 31
+            },
+            {
+              "line": 8,
+              "column": 31
+            },
+            {
+              "line": 9,
+              "column": 31
+            }
+          ]
+        },
+        {
+          "message": "Cannot spread fragment \"fragO\" within itself via fragP, fragX, fragY, fragZ.",
+          "locations": [
+            {
+              "line": 8,
+              "column": 31
+            },
+            {
+              "line": 9,
+              "column": 41
+            },
+            {
+              "line": 5,
+              "column": 31
+            },
+            {
+              "line": 6,
+              "column": 31
+            },
+            {
+              "line": 7,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself deeply two paths",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB, ...fragC }\n      fragment fragB on Dog { ...fragA }\n      fragment fragC on Dog { ...fragA }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragB.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 3,
+              "column": 31
+            }
+          ]
+        },
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragC.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 41
+            },
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself deeply two paths -- alt traverse order",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragC }\n      fragment fragB on Dog { ...fragC }\n      fragment fragC on Dog { ...fragA, ...fragB }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragC.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        },
+        {
+          "message": "Cannot spread fragment \"fragC\" within itself via fragB.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            },
+            {
+              "line": 3,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No circular fragment spreads/no spreading itself deeply and immediately",
+      "rule": "NoFragmentCycles",
+      "schema": 0,
+      "query": "\n      fragment fragA on Dog { ...fragB }\n      fragment fragB on Dog { ...fragB, ...fragC }\n      fragment fragC on Dog { ...fragA, ...fragB }\n    ",
+      "errors": [
+        {
+          "message": "Cannot spread fragment \"fragB\" within itself.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 31
+            }
+          ]
+        },
+        {
+          "message": "Cannot spread fragment \"fragA\" within itself via fragB, fragC.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 31
+            },
+            {
+              "line": 3,
+              "column": 41
+            },
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        },
+        {
+          "message": "Cannot spread fragment \"fragB\" within itself via fragC.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 41
+            },
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/all variables defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        field(a: $a, b: $b, c: $c)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/all variables deeply defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        field(a: $a) {\n          field(b: $b) {\n            field(c: $c)\n          }\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/all variables deeply in inline fragments defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ... on Type {\n          field(a: $a) {\n            field(b: $b) {\n              ... on Type {\n                field(c: $c)\n              }\n            }\n          }\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/all variables in fragments deeply defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field(c: $c)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/variable within single fragment defined in multiple operations",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragA\n      }\n      query Bar($a: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/variable within fragments defined in operations",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragA\n      }\n      query Bar($b: String) {\n        ...FragB\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n      fragment FragB on Type {\n        field(b: $b)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/variable within recursive fragment defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragA\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No undefined variables/variable not defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        field(a: $a, b: $b, c: $c, d: $d)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$d\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 39
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/variable not defined by un-named query",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      {\n        field(a: $a)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/multiple variables not defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        field(a: $a, b: $b, c: $c)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 32
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/variable in fragment not defined by un-named query",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined.",
+          "locations": [
+            {
+              "line": 6,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/variable in fragment not defined by operation",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field(c: $c)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$c\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 16,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/multiple variables in fragments not defined",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field(c: $c)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 6,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 16,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/single variable in fragment not defined by multiple operations",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragAB\n      }\n      query Bar($a: String) {\n        ...FragAB\n      }\n      fragment FragAB on Type {\n        field(a: $a, b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 25
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 25
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/variables in fragment not defined by multiple operations",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragAB\n      }\n      query Bar($a: String) {\n        ...FragAB\n      }\n      fragment FragAB on Type {\n        field(a: $a, b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 25
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/variable in fragment used by other operation",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragA\n      }\n      query Bar($a: String) {\n        ...FragB\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n      fragment FragB on Type {\n        field(b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 18
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 12,
+              "column": 18
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No undefined variables/multiple undefined variables produce multiple errors",
+      "rule": "NoUndefinedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragAB\n      }\n      query Bar($a: String) {\n        ...FragAB\n      }\n      fragment FragAB on Type {\n        field1(a: $a, b: $b)\n        ...FragC\n        field3(a: $a, b: $b)\n      }\n      fragment FragC on Type {\n        field2(c: $c)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 19
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$a\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 11,
+              "column": 19
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is not defined by operation \"Foo\".",
+          "locations": [
+            {
+              "line": 14,
+              "column": 19
+            },
+            {
+              "line": 2,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 9,
+              "column": 26
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$b\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 11,
+              "column": 26
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is not defined by operation \"Bar\".",
+          "locations": [
+            {
+              "line": 14,
+              "column": 19
+            },
+            {
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused fragments/all fragment names are used",
+      "rule": "NoUnusedFragments",
+      "schema": 0,
+      "query": "\n      {\n        human(id: 4) {\n          ...HumanFields1\n          ... on Human {\n            ...HumanFields2\n          }\n        }\n      }\n      fragment HumanFields1 on Human {\n        name\n        ...HumanFields3\n      }\n      fragment HumanFields2 on Human {\n        name\n      }\n      fragment HumanFields3 on Human {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused fragments/all fragment names are used by multiple operations",
+      "rule": "NoUnusedFragments",
+      "schema": 0,
+      "query": "\n      query Foo {\n        human(id: 4) {\n          ...HumanFields1\n        }\n      }\n      query Bar {\n        human(id: 4) {\n          ...HumanFields2\n        }\n      }\n      fragment HumanFields1 on Human {\n        name\n        ...HumanFields3\n      }\n      fragment HumanFields2 on Human {\n        name\n      }\n      fragment HumanFields3 on Human {\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused fragments/contains unknown fragments",
+      "rule": "NoUnusedFragments",
+      "schema": 0,
+      "query": "\n      query Foo {\n        human(id: 4) {\n          ...HumanFields1\n        }\n      }\n      query Bar {\n        human(id: 4) {\n          ...HumanFields2\n        }\n      }\n      fragment HumanFields1 on Human {\n        name\n        ...HumanFields3\n      }\n      fragment HumanFields2 on Human {\n        name\n      }\n      fragment HumanFields3 on Human {\n        name\n      }\n      fragment Unused1 on Human {\n        name\n      }\n      fragment Unused2 on Human {\n        name\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"Unused1\" is never used.",
+          "locations": [
+            {
+              "line": 22,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Fragment \"Unused2\" is never used.",
+          "locations": [
+            {
+              "line": 25,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused fragments/contains unknown fragments with ref cycle",
+      "rule": "NoUnusedFragments",
+      "schema": 0,
+      "query": "\n      query Foo {\n        human(id: 4) {\n          ...HumanFields1\n        }\n      }\n      query Bar {\n        human(id: 4) {\n          ...HumanFields2\n        }\n      }\n      fragment HumanFields1 on Human {\n        name\n        ...HumanFields3\n      }\n      fragment HumanFields2 on Human {\n        name\n      }\n      fragment HumanFields3 on Human {\n        name\n      }\n      fragment Unused1 on Human {\n        name\n        ...Unused2\n      }\n      fragment Unused2 on Human {\n        name\n        ...Unused1\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"Unused1\" is never used.",
+          "locations": [
+            {
+              "line": 22,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "message": "Fragment \"Unused2\" is never used.",
+          "locations": [
+            {
+              "line": 26,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused fragments/contains unknown and undef fragments",
+      "rule": "NoUnusedFragments",
+      "schema": 0,
+      "query": "\n      query Foo {\n        human(id: 4) {\n          ...bar\n        }\n      }\n      fragment foo on Human {\n        name\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"foo\" is never used.",
+          "locations": [
+            {
+              "line": 7,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/uses all variables",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query ($a: String, $b: String, $c: String) {\n        field(a: $a, b: $b, c: $c)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/uses all variables deeply",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        field(a: $a) {\n          field(b: $b) {\n            field(c: $c)\n          }\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/uses all variables deeply in inline fragments",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ... on Type {\n          field(a: $a) {\n            field(b: $b) {\n              ... on Type {\n                field(c: $c)\n              }\n            }\n          }\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/uses all variables in fragments",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field(c: $c)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/variable used by fragment in multiple operations",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragA\n      }\n      query Bar($b: String) {\n        ...FragB\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n      fragment FragB on Type {\n        field(b: $b)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/variable used by recursive fragment",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragA\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: No unused variables/variable not used",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query ($a: String, $b: String, $c: String) {\n        field(a: $a, b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$c\" is never used.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 38
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/multiple variables not used",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        field(b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/variable not used in fragments",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a) {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$c\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/multiple variables not used in fragments",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: String, $c: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field {\n          ...FragB\n        }\n      }\n      fragment FragB on Type {\n        field(b: $b) {\n          ...FragC\n        }\n      }\n      fragment FragC on Type {\n        field\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$a\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$c\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/variable not used by unreferenced fragment",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragA\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n      fragment FragB on Type {\n        field(b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$b\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: No unused variables/variable not used by fragment used by other operation",
+      "rule": "NoUnusedVariables",
+      "schema": 0,
+      "query": "\n      query Foo($b: String) {\n        ...FragA\n      }\n      query Bar($a: String) {\n        ...FragB\n      }\n      fragment FragA on Type {\n        field(a: $a)\n      }\n      fragment FragB on Type {\n        field(b: $b)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$b\" is never used in operation \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "message": "Variable \"$a\" is never used in operation \"Bar\".",
+          "locations": [
+            {
+              "line": 5,
+              "column": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/unique fields",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment uniqueFields on Dog {\n        name\n        nickname\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/identical fields",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment mergeIdenticalFields on Dog {\n        name\n        name\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/identical fields with identical args",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment mergeIdenticalFieldsWithIdenticalArgs on Dog {\n        doesKnowCommand(dogCommand: SIT)\n        doesKnowCommand(dogCommand: SIT)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/identical fields with identical directives",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment mergeSameFieldsWithSameDirectives on Dog {\n        name @include(if: true)\n        name @include(if: true)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/different args with different aliases",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment differentArgsWithDifferentAliases on Dog {\n        knowsSit: doesKnowCommand(dogCommand: SIT)\n        knowsDown: doesKnowCommand(dogCommand: DOWN)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/different directives with different aliases",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment differentDirectivesWithDifferentAliases on Dog {\n        nameIfTrue: name @include(if: true)\n        nameIfFalse: name @include(if: false)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/different skip/include directives accepted",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment differentDirectivesWithDifferentAliases on Dog {\n        name @include(if: true)\n        name @include(if: false)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/Same aliases with different field targets",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment sameAliasesWithDifferentFieldTargets on Dog {\n        fido: name\n        fido: nickname\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"fido\" conflict because name and nickname are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/Same aliases allowed on non-overlapping fields",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment sameAliasesWithDifferentFieldTargets on Pet {\n        ... on Dog {\n          name\n        }\n        ... on Cat {\n          name: nickname\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/Alias masking direct field access",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment aliasMaskingDirectFieldAccess on Dog {\n        name: nickname\n        name\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"name\" conflict because nickname and name are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/different args, second adds an argument",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment conflictingArgs on Dog {\n        doesKnowCommand\n        doesKnowCommand(dogCommand: HEEL)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"doesKnowCommand\" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/different args, second missing an argument",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment conflictingArgs on Dog {\n        doesKnowCommand(dogCommand: SIT)\n        doesKnowCommand\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"doesKnowCommand\" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/conflicting args",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment conflictingArgs on Dog {\n        doesKnowCommand(dogCommand: SIT)\n        doesKnowCommand(dogCommand: HEEL)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"doesKnowCommand\" conflict because they have differing arguments. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/allows different args where no conflict is possible",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment conflictingArgs on Pet {\n        ... on Dog {\n          name(surname: true)\n        }\n        ... on Cat {\n          name\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/encounters conflict in fragments",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        ...A\n        ...B\n      }\n      fragment A on Type {\n        x: a\n      }\n      fragment B on Type {\n        x: b\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 7,
+              "column": 9
+            },
+            {
+              "line": 10,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/reports each conflict once",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        f1 {\n          ...A\n          ...B\n        }\n        f2 {\n          ...B\n          ...A\n        }\n        f3 {\n          ...A\n          ...B\n          x: c\n        }\n      }\n      fragment A on Type {\n        x: a\n      }\n      fragment B on Type {\n        x: b\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 18,
+              "column": 9
+            },
+            {
+              "line": 21,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "message": "Fields \"x\" conflict because c and a are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 14,
+              "column": 11
+            },
+            {
+              "line": 18,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "message": "Fields \"x\" conflict because c and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 14,
+              "column": 11
+            },
+            {
+              "line": 21,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/deep conflict",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          x: a\n        },\n        field {\n          x: b\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"field\" conflict because subfields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 11
+            },
+            {
+              "line": 6,
+              "column": 9
+            },
+            {
+              "line": 7,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/deep conflict with multiple issues",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          x: a\n          y: c\n        },\n        field {\n          x: b\n          y: d\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"field\" conflict because subfields \"x\" conflict because a and b are different fields and subfields \"y\" conflict because c and d are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 11
+            },
+            {
+              "line": 5,
+              "column": 11
+            },
+            {
+              "line": 7,
+              "column": 9
+            },
+            {
+              "line": 8,
+              "column": 11
+            },
+            {
+              "line": 9,
+              "column": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/very deep conflict",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          deepField {\n            x: a\n          }\n        },\n        field {\n          deepField {\n            x: b\n          }\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"field\" conflict because subfields \"deepField\" conflict because subfields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 4,
+              "column": 11
+            },
+            {
+              "line": 5,
+              "column": 13
+            },
+            {
+              "line": 8,
+              "column": 9
+            },
+            {
+              "line": 9,
+              "column": 11
+            },
+            {
+              "line": 10,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/reports deep conflict to nearest common ancestor",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          deepField {\n            x: a\n          }\n          deepField {\n            x: b\n          }\n        },\n        field {\n          deepField {\n            y\n          }\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"deepField\" conflict because subfields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 11
+            },
+            {
+              "line": 5,
+              "column": 13
+            },
+            {
+              "line": 7,
+              "column": 11
+            },
+            {
+              "line": 8,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/reports deep conflict to nearest common ancestor in fragments",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          ...F\n        }\n        field {\n          ...F\n        }\n      }\n      fragment F on T {\n        deepField {\n          deeperField {\n            x: a\n          }\n          deeperField {\n            x: b\n          }\n        },\n        deepField {\n          deeperField {\n            y\n          }\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"deeperField\" conflict because subfields \"x\" conflict because a and b are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 12,
+              "column": 11
+            },
+            {
+              "line": 13,
+              "column": 13
+            },
+            {
+              "line": 15,
+              "column": 11
+            },
+            {
+              "line": 16,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/reports deep conflict in nested fragments",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      {\n        field {\n          ...F\n        }\n        field {\n          ...I\n        }\n      }\n      fragment F on T {\n        x: a\n        ...G\n      }\n      fragment G on T {\n        y: c\n      }\n      fragment I on T {\n        y: d\n        ...J\n      }\n      fragment J on T {\n        x: b\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"field\" conflict because subfields \"x\" conflict because a and b are different fields and subfields \"y\" conflict because c and d are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            },
+            {
+              "line": 11,
+              "column": 9
+            },
+            {
+              "line": 15,
+              "column": 9
+            },
+            {
+              "line": 6,
+              "column": 9
+            },
+            {
+              "line": 22,
+              "column": 9
+            },
+            {
+              "line": 18,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/ignores unknown fragments",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n    {\n      field\n      ...Unknown\n      ...Known\n    }\n\n    fragment Known on T {\n      field\n      ...OtherUnknown\n    }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/conflicting return types which potentially overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ...on IntBox {\n              scalar\n            }\n            ...on NonNullStringBox1 {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"scalar\" conflict because they return conflicting types Int and String!. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 8,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/compatible return shapes on different return types",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n      {\n        someBox {\n          ... on SomeBox {\n            deepBox {\n              unrelatedField\n            }\n          }\n          ... on StringBox {\n            deepBox {\n              unrelatedField\n            }\n          }\n        }\n      }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/disallows differing return types despite no overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on IntBox {\n              scalar\n            }\n            ... on StringBox {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"scalar\" conflict because they return conflicting types Int and String. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 8,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/disallows differing return type nullability despite no overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on NonNullStringBox1 {\n              scalar\n            }\n            ... on StringBox {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"scalar\" conflict because they return conflicting types String! and String. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 8,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/disallows differing return type list despite no overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on IntBox {\n              box: listStringBox {\n                scalar\n              }\n            }\n            ... on StringBox {\n              box: stringBox {\n                scalar\n              }\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"box\" conflict because they return conflicting types [StringBox] and StringBox. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 10,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/disallows differing return type list despite no overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on IntBox {\n              box: stringBox {\n                scalar\n              }\n            }\n            ... on StringBox {\n              box: listStringBox {\n                scalar\n              }\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"box\" conflict because they return conflicting types StringBox and [StringBox]. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 10,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/disallows differing deep return types despite no overlap",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on IntBox {\n              box: stringBox {\n                scalar\n              }\n            }\n            ... on StringBox {\n              box: intBox {\n                scalar\n              }\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"box\" conflict because subfields \"scalar\" conflict because they return conflicting types String and Int. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 15
+            },
+            {
+              "line": 6,
+              "column": 17
+            },
+            {
+              "line": 10,
+              "column": 15
+            },
+            {
+              "line": 11,
+              "column": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/allows non-conflicting overlaping types",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ... on IntBox {\n              scalar: unrelatedField\n            }\n            ... on StringBox {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/same wrapped scalar return types",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ...on NonNullStringBox1 {\n              scalar\n            }\n            ...on NonNullStringBox2 {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/allows inline typeless fragments",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          a\n          ... {\n            a\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/compares deep types including list",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          connection {\n            ...edgeID\n            edges {\n              node {\n                id: name\n              }\n            }\n          }\n        }\n\n        fragment edgeID on Connection {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Fields \"edges\" conflict because subfields \"node\" conflict because subfields \"id\" conflict because name and id are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 13
+            },
+            {
+              "line": 6,
+              "column": 15
+            },
+            {
+              "line": 7,
+              "column": 17
+            },
+            {
+              "line": 14,
+              "column": 11
+            },
+            {
+              "line": 15,
+              "column": 13
+            },
+            {
+              "line": 16,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/ignores unknown types",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 1,
+      "query": "\n        {\n          someBox {\n            ...on UnknownType {\n              scalar\n            }\n            ...on NonNullStringBox2 {\n              scalar\n            }\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/return types must be unambiguous/works for field names that are JS keywords",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 2,
+      "query": "{\n          foo {\n            constructor\n          }\n        }",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/does not infinite loop on recursive fragment",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment fragA on Human { name, relatives { name, ...fragA } }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/does not infinite loop on immediately recursive fragment",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment fragA on Human { name, ...fragA }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/does not infinite loop on transitively recursive fragment",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment fragA on Human { name, ...fragB }\n      fragment fragB on Human { name, ...fragC }\n      fragment fragC on Human { name, ...fragA }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Overlapping fields can be merged/finds invalid case even with immediately recursive fragment",
+      "rule": "OverlappingFieldsCanBeMerged",
+      "schema": 0,
+      "query": "\n      fragment sameAliasesWithDifferentFieldTargets on Dog {\n        ...sameAliasesWithDifferentFieldTargets\n        fido: name\n        fido: nickname\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fields \"fido\" conflict because name and nickname are different fields. Use different aliases on the fields to fetch both if this was intentional.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 9
+            },
+            {
+              "line": 5,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/of the same object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment objectWithinObject on Dog { ...dogFragment }\n      fragment dogFragment on Dog { barkVolume }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/of the same object with inline fragment",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment objectWithinObjectAnon on Dog { ... on Dog { barkVolume } }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/object into an implemented interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment objectWithinInterface on Pet { ...dogFragment }\n      fragment dogFragment on Dog { barkVolume }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/object into containing union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment objectWithinUnion on CatOrDog { ...dogFragment }\n      fragment dogFragment on Dog { barkVolume }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into contained object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment unionWithinObject on Dog { ...catOrDogFragment }\n      fragment catOrDogFragment on CatOrDog { __typename }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into overlapping interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment unionWithinInterface on Pet { ...catOrDogFragment }\n      fragment catOrDogFragment on CatOrDog { __typename }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into overlapping union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment unionWithinUnion on DogOrHuman { ...catOrDogFragment }\n      fragment catOrDogFragment on CatOrDog { __typename }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into implemented object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment interfaceWithinObject on Dog { ...petFragment }\n      fragment petFragment on Pet { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into overlapping interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment interfaceWithinInterface on Pet { ...beingFragment }\n      fragment beingFragment on Being { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into overlapping interface in inline fragment",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment interfaceWithinInterface on Pet { ... on Being { name } }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into overlapping union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment interfaceWithinUnion on CatOrDog { ...petFragment }\n      fragment petFragment on Pet { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/ignores incorrect type (caught by FragmentsOnCompositeTypes)",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment petFragment on Pet { ...badInADifferentWay }\n      fragment badInADifferentWay on String { name }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Possible fragment spreads/different object into object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidObjectWithinObject on Cat { ...dogFragment }\n      fragment dogFragment on Dog { barkVolume }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"dogFragment\" cannot be spread here as objects of type \"Cat\" can never be of type \"Dog\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 51
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/different object into object in inline fragment",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidObjectWithinObjectAnon on Cat {\n        ... on Dog { barkVolume }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment cannot be spread here as objects of type \"Cat\" can never be of type \"Dog\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/object into not implementing interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidObjectWithinInterface on Pet { ...humanFragment }\n      fragment humanFragment on Human { pets { name } }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"humanFragment\" cannot be spread here as objects of type \"Pet\" can never be of type \"Human\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 54
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/object into not containing union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidObjectWithinUnion on CatOrDog { ...humanFragment }\n      fragment humanFragment on Human { pets { name } }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"humanFragment\" cannot be spread here as objects of type \"CatOrDog\" can never be of type \"Human\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into not contained object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidUnionWithinObject on Human { ...catOrDogFragment }\n      fragment catOrDogFragment on CatOrDog { __typename }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"catOrDogFragment\" cannot be spread here as objects of type \"Human\" can never be of type \"CatOrDog\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 52
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into non overlapping interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidUnionWithinInterface on Pet { ...humanOrAlienFragment }\n      fragment humanOrAlienFragment on HumanOrAlien { __typename }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"humanOrAlienFragment\" cannot be spread here as objects of type \"Pet\" can never be of type \"HumanOrAlien\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 53
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/union into non overlapping union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidUnionWithinUnion on CatOrDog { ...humanOrAlienFragment }\n      fragment humanOrAlienFragment on HumanOrAlien { __typename }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"humanOrAlienFragment\" cannot be spread here as objects of type \"CatOrDog\" can never be of type \"HumanOrAlien\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 54
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into non implementing object",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidInterfaceWithinObject on Cat { ...intelligentFragment }\n      fragment intelligentFragment on Intelligent { iq }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"intelligentFragment\" cannot be spread here as objects of type \"Cat\" can never be of type \"Intelligent\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 54
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into non overlapping interface",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidInterfaceWithinInterface on Pet {\n        ...intelligentFragment\n      }\n      fragment intelligentFragment on Intelligent { iq }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"intelligentFragment\" cannot be spread here as objects of type \"Pet\" can never be of type \"Intelligent\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into non overlapping interface in inline fragment",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidInterfaceWithinInterfaceAnon on Pet {\n        ...on Intelligent { iq }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Fragment cannot be spread here as objects of type \"Pet\" can never be of type \"Intelligent\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Possible fragment spreads/interface into non overlapping union",
+      "rule": "PossibleFragmentSpreads",
+      "schema": 0,
+      "query": "\n      fragment invalidInterfaceWithinUnion on HumanOrAlien { ...petFragment }\n      fragment petFragment on Pet { name }\n    ",
+      "errors": [
+        {
+          "message": "Fragment \"petFragment\" cannot be spread here as objects of type \"HumanOrAlien\" can never be of type \"Pet\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 62
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Provided required arguments/ignores unknown arguments",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n      {\n        dog {\n          isHousetrained(unknownArgument: true)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Arg on optional arg",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            isHousetrained(atOtherHomes: true)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/No Arg on optional arg",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            isHousetrained\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/No arg on non-null field with default",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            nonNullFieldWithDefault\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Multiple args",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req1: 1, req2: 2)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Multiple args reverse order",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req2: 2, req1: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/No args on multiple optional",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/One arg on multiple optional",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts(opt1: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Second arg on multiple optional",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts(opt2: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Multiple reqs on mixedList",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/Multiple reqs and one opt on mixedList",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4, opt1: 5)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Valid non-nullable value/All reqs and opts on mixedList",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4, opt1: 5, opt2: 6)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Invalid non-nullable value/Missing one non-nullable argument",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req2: 2)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field \"multipleReqs\" argument \"req1\" of type \"Int!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Provided required arguments/Invalid non-nullable value/Missing multiple non-nullable arguments",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field \"multipleReqs\" argument \"req1\" of type \"Int!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "message": "Field \"multipleReqs\" argument \"req2\" of type \"Int!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Provided required arguments/Invalid non-nullable value/Incorrect value and missing argument",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req1: \"one\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field \"multipleReqs\" argument \"req2\" of type \"Int!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Provided required arguments/Directive arguments/ignores unknown directives",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          dog @unknown\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Directive arguments/with directives of valid types",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          dog @include(if: true) {\n            name\n          }\n          human @skip(if: false) {\n            name\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Provided required arguments/Directive arguments/with directive with missing types",
+      "rule": "ProvidedRequiredArguments",
+      "schema": 0,
+      "query": "\n        {\n          dog @include {\n            name @skip\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Directive \"@include\" argument \"if\" of type \"Boolean!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            }
+          ]
+        },
+        {
+          "message": "Directive \"@skip\" argument \"if\" of type \"Boolean!\" is required but not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 18
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/valid scalar selection",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelection on Dog {\n        barks\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Scalar leafs/object type missing selection",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      query directQueryOnObjectWithoutSubFields {\n        human\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"human\" of type \"Human\" must have a selection of subfields. Did you mean \"human { ... }\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/interface type missing selection",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      {\n        human { pets }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"pets\" of type \"[Pet]\" must have a selection of subfields. Did you mean \"pets { ... }\"?",
+          "locations": [
+            {
+              "line": 3,
+              "column": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/valid scalar selection with args",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionWithArgs on Dog {\n        doesKnowCommand(dogCommand: SIT)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Scalar leafs/scalar selection not allowed on Boolean",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionsNotAllowedOnBoolean on Dog {\n        barks { sinceWhen }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"barks\" must not have a selection since type \"Boolean\" has no subfields.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/scalar selection not allowed on Enum",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionsNotAllowedOnEnum on Cat {\n        furColor { inHexdec }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"furColor\" must not have a selection since type \"FurColor\" has no subfields.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 18
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/scalar selection not allowed with args",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionsNotAllowedWithArgs on Dog {\n        doesKnowCommand(dogCommand: SIT) { sinceWhen }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"doesKnowCommand\" must not have a selection since type \"Boolean\" has no subfields.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 42
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/Scalar selection not allowed with directives",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionsNotAllowedWithDirectives on Dog {\n        name @include(if: true) { isAlsoHumanName }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"name\" must not have a selection since type \"String\" has no subfields.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Scalar leafs/Scalar selection not allowed with directives and args",
+      "rule": "ScalarLeafs",
+      "schema": 0,
+      "query": "\n      fragment scalarSelectionsNotAllowedWithDirectivesAndArgs on Dog {\n        doesKnowCommand(dogCommand: SIT) @include(if: true) { sinceWhen }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Field \"doesKnowCommand\" must not have a selection since type \"Boolean\" has no subfields.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 61
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Subscriptions with single field/valid subscription",
+      "rule": "SingleFieldSubscriptions",
+      "schema": 0,
+      "query": "\n      subscription ImportantEmails {\n        importantEmails\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Subscriptions with single field/fails with more than one root field",
+      "rule": "SingleFieldSubscriptions",
+      "schema": 0,
+      "query": "\n      subscription ImportantEmails {\n        importantEmails\n        notImportantEmails\n      }\n    ",
+      "errors": [
+        {
+          "message": "Subscription \"ImportantEmails\" must select only one top level field.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Subscriptions with single field/fails with more than one root field including introspection",
+      "rule": "SingleFieldSubscriptions",
+      "schema": 0,
+      "query": "\n      subscription ImportantEmails {\n        importantEmails\n        __typename\n      }\n    ",
+      "errors": [
+        {
+          "message": "Subscription \"ImportantEmails\" must select only one top level field.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Subscriptions with single field/fails with many more than one root field",
+      "rule": "SingleFieldSubscriptions",
+      "schema": 0,
+      "query": "\n      subscription ImportantEmails {\n        importantEmails\n        notImportantEmails\n        spamEmails\n      }\n    ",
+      "errors": [
+        {
+          "message": "Subscription \"ImportantEmails\" must select only one top level field.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 9
+            },
+            {
+              "line": 5,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Subscriptions with single field/fails with more than one root field in anonymous subscriptions",
+      "rule": "SingleFieldSubscriptions",
+      "schema": 0,
+      "query": "\n      subscription {\n        importantEmails\n        notImportantEmails\n      }\n    ",
+      "errors": [
+        {
+          "message": "Anonymous Subscription must select only one top level field.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique argument names/no arguments on field",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/no arguments on directive",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/argument on field",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/argument on directive",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive(arg: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/same argument on two fields",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        one: field(arg: \"value\")\n        two: field(arg: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/same argument on field and directive",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: \"value\") @directive(arg: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/same argument on two directives",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive1(arg: \"value\") @directive2(arg: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/multiple field arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg1: \"value\", arg2: \"value\", arg3: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/multiple directive arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive(arg1: \"value\", arg2: \"value\", arg3: \"value\")\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique argument names/duplicate field arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg1: \"value\", arg1: \"value\")\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique argument names/many duplicate field arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg1: \"value\", arg1: \"value\", arg1: \"value\")\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 30
+            }
+          ]
+        },
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 45
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique argument names/duplicate directive arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive(arg1: \"value\", arg1: \"value\")\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 26
+            },
+            {
+              "line": 3,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique argument names/many duplicate directive arguments",
+      "rule": "UniqueArgumentNames",
+      "schema": 0,
+      "query": "\n      {\n        field @directive(arg1: \"value\", arg1: \"value\", arg1: \"value\")\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 26
+            },
+            {
+              "line": 3,
+              "column": 41
+            }
+          ]
+        },
+        {
+          "message": "There can be only one argument named \"arg1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 26
+            },
+            {
+              "line": 3,
+              "column": 56
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/no directives",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/unique directives in different locations",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type @directiveA {\n        field @directiveB\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/unique directives in same locations",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type @directiveA @directiveB {\n        field @directiveA @directiveB\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/same directives in different locations",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type @directiveA {\n        field @directiveA\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/same directives in similar locations",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type {\n        field @directive\n        field @directive\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/duplicate directives in one location",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type {\n        field @directive @directive\n      }\n    ",
+      "errors": [
+        {
+          "message": "The directive \"directive\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/many duplicate directives in one location",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type {\n        field @directive @directive @directive\n      }\n    ",
+      "errors": [
+        {
+          "message": "The directive \"directive\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 26
+            }
+          ]
+        },
+        {
+          "message": "The directive \"directive\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/different duplicate directives in one location",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type {\n        field @directiveA @directiveB @directiveA @directiveB\n      }\n    ",
+      "errors": [
+        {
+          "message": "The directive \"directiveA\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 39
+            }
+          ]
+        },
+        {
+          "message": "The directive \"directiveB\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 27
+            },
+            {
+              "line": 3,
+              "column": 51
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Directives Are Unique Per Location/duplicate directives in many locations",
+      "rule": "UniqueDirectivesPerLocation",
+      "schema": 0,
+      "query": "\n      fragment Test on Type @directive @directive {\n        field @directive @directive\n      }\n    ",
+      "errors": [
+        {
+          "message": "The directive \"directive\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 29
+            },
+            {
+              "line": 2,
+              "column": 40
+            }
+          ]
+        },
+        {
+          "message": "The directive \"directive\" can only be used once at this location.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 15
+            },
+            {
+              "line": 3,
+              "column": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique fragment names/no fragments",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique fragment names/one fragment",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        ...fragA\n      }\n\n      fragment fragA on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique fragment names/many fragments",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        ...fragA\n        ...fragB\n        ...fragC\n      }\n      fragment fragA on Type {\n        fieldA\n      }\n      fragment fragB on Type {\n        fieldB\n      }\n      fragment fragC on Type {\n        fieldC\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique fragment names/inline fragments are always unique",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        ...on Type {\n          fieldA\n        }\n        ...on Type {\n          fieldB\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique fragment names/fragment and operation named the same",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        ...Foo\n      }\n      fragment Foo on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique fragment names/fragments named the same",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      {\n        ...fragA\n      }\n      fragment fragA on Type {\n        fieldA\n      }\n      fragment fragA on Type {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one fragment named \"fragA\".",
+          "locations": [
+            {
+              "line": 5,
+              "column": 16
+            },
+            {
+              "line": 8,
+              "column": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique fragment names/fragments named the same without being referenced",
+      "rule": "UniqueFragmentNames",
+      "schema": 0,
+      "query": "\n      fragment fragA on Type {\n        fieldA\n      }\n      fragment fragA on Type {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one fragment named \"fragA\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 16
+            },
+            {
+              "line": 5,
+              "column": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique input field names/input object with fields",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: { f: true })\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique input field names/same input object within two args",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg1: { f: true }, arg2: { f: true })\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique input field names/multiple input object fields",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: { f1: \"value\", f2: \"value\", f3: \"value\" })\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique input field names/allows for nested input objects with similar fields",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: {\n          deep: {\n            deep: {\n              id: 1\n            }\n            id: 1\n          }\n          id: 1\n        })\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique input field names/duplicate input object fields",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: { f1: \"value\", f1: \"value\" })\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one input field named \"f1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 22
+            },
+            {
+              "line": 3,
+              "column": 35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique input field names/many duplicate input object fields",
+      "rule": "UniqueInputFieldNames",
+      "schema": 0,
+      "query": "\n      {\n        field(arg: { f1: \"value\", f1: \"value\", f1: \"value\" })\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one input field named \"f1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 22
+            },
+            {
+              "line": 3,
+              "column": 35
+            }
+          ]
+        },
+        {
+          "message": "There can be only one input field named \"f1\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 22
+            },
+            {
+              "line": 3,
+              "column": 48
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique operation names/no operations",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      fragment fragA on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/one anon operation",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/one named operation",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/multiple operations",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        field\n      }\n\n      query Bar {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/multiple operations of different types",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        field\n      }\n\n      mutation Bar {\n        field\n      }\n\n      subscription Baz {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/fragment and operation named the same",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        ...Foo\n      }\n      fragment Foo on Type {\n        field\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique operation names/multiple operations of same name",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        fieldA\n      }\n      query Foo {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one operation named \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 13
+            },
+            {
+              "line": 5,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique operation names/multiple ops of same name of different types (mutation)",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        fieldA\n      }\n      mutation Foo {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one operation named \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 13
+            },
+            {
+              "line": 5,
+              "column": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique operation names/multiple ops of same name of different types (subscription)",
+      "rule": "UniqueOperationNames",
+      "schema": 0,
+      "query": "\n      query Foo {\n        fieldA\n      }\n      subscription Foo {\n        fieldB\n      }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one operation named \"Foo\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 13
+            },
+            {
+              "line": 5,
+              "column": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Unique variable names/unique variable names",
+      "rule": "UniqueVariableNames",
+      "schema": 0,
+      "query": "\n      query A($x: Int, $y: String) { __typename }\n      query B($x: String, $y: Int) { __typename }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Unique variable names/duplicate variable names",
+      "rule": "UniqueVariableNames",
+      "schema": 0,
+      "query": "\n      query A($x: Int, $x: Int, $x: String) { __typename }\n      query B($x: String, $x: Int) { __typename }\n      query C($x: Int, $x: Int) { __typename }\n    ",
+      "errors": [
+        {
+          "message": "There can be only one variable named \"x\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 16
+            },
+            {
+              "line": 2,
+              "column": 25
+            }
+          ]
+        },
+        {
+          "message": "There can be only one variable named \"x\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 16
+            },
+            {
+              "line": 2,
+              "column": 34
+            }
+          ]
+        },
+        {
+          "message": "There can be only one variable named \"x\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 16
+            },
+            {
+              "line": 3,
+              "column": 28
+            }
+          ]
+        },
+        {
+          "message": "There can be only one variable named \"x\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 16
+            },
+            {
+              "line": 4,
+              "column": 25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good int value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: 2)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good negative int value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: -2)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good boolean value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            booleanArgField(booleanArg: true)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good string value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringArgField(stringArg: \"foo\")\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good float value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: 1.1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good negative float value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: -1.1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Int into Float",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Int into ID",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            idArgField(idArg: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/String into ID",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            idArgField(idArg: \"someIdString\")\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Good enum value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: SIT)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Enum with undefined value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            enumArgField(enumArg: UNKNOWN)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/Enum with null value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            enumArgField(enumArg: NO_FUR)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/null into nullable type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: null)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid values/null into nullable type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog(a: null, b: null, c:{ requiredField: true, intField: null }) {\n            name\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid String values/Int into String",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringArgField(stringArg: 1)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found 1.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid String values/Float into String",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringArgField(stringArg: 1.0)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found 1.0.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid String values/Boolean into String",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringArgField(stringArg: true)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found true.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid String values/Unquoted String into String",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringArgField(stringArg: BAR)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found BAR.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Int values/String into Int",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: \"3\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found \"3\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Int values/Big Int into Int",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: 829384293849283498239482938)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found 829384293849283498239482938.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Int values/Unquoted String into Int",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: FOO)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found FOO.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Int values/Simple Float into Int",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: 3.0)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found 3.0.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Int values/Float into Int",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            intArgField(intArg: 3.333)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found 3.333.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Float values/String into Float",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: \"3.333\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Float, found \"3.333\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Float values/Boolean into Float",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: true)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Float, found true.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Float values/Unquoted into Float",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            floatArgField(floatArg: FOO)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Float, found FOO.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Boolean value/Int into Boolean",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            booleanArgField(booleanArg: 2)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean, found 2.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Boolean value/Float into Boolean",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            booleanArgField(booleanArg: 1.0)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean, found 1.0.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Boolean value/String into Boolean",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            booleanArgField(booleanArg: \"true\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean, found \"true\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Boolean value/Unquoted into Boolean",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            booleanArgField(booleanArg: TRUE)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean, found TRUE.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid ID value/Float into ID",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            idArgField(idArg: 1.0)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type ID, found 1.0.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid ID value/Boolean into ID",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            idArgField(idArg: true)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type ID, found true.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid ID value/Unquoted into ID",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            idArgField(idArg: SOMETHING)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type ID, found SOMETHING.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/Int into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: 2)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found 2.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/Float into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: 1.0)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found 1.0.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/String into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: \"SIT\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found \"SIT\"; Did you mean the enum value SIT?",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/Boolean into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: true)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found true.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/Unknown Enum Value into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: JUGGLE)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found JUGGLE.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid Enum value/Different case Enum Value into Enum",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            doesKnowCommand(dogCommand: sit)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type DogCommand, found sit; Did you mean the enum value SIT?",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Valid List value/Good list value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: [\"one\", null, \"two\"])\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid List value/Empty list value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: [])\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid List value/Null value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: null)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid List value/Single value into List",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: \"one\")\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid List value/Incorrect item type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: [\"one\", 2])\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found 2.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid List value/Single value of incorrect type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            stringListArgField(stringListArg: 1)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type [String], found 1.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 47
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Arg on optional arg",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            isHousetrained(atOtherHomes: true)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/No Arg on optional arg",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog {\n            isHousetrained\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Multiple args",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req1: 1, req2: 2)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Multiple args reverse order",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req2: 2, req1: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/No args on multiple optional",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/One arg on multiple optional",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts(opt1: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Second arg on multiple optional",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOpts(opt2: 1)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Multiple reqs on mixedList",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/Multiple reqs and one opt on mixedList",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4, opt1: 5)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid non-nullable value/All reqs and opts on mixedList",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleOptAndReq(req1: 3, req2: 4, opt1: 5, opt2: 6)\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid non-nullable value/Incorrect value type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req2: \"two\", req1: \"one\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int!, found \"two\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 32
+            }
+          ]
+        },
+        {
+          "message": "Expected type Int!, found \"one\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 45
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid non-nullable value/Incorrect value and missing argument (ProvidedRequiredArguments)",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req1: \"one\")\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int!, found \"one\".",
+          "locations": [
+            {
+              "line": 4,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid non-nullable value/Null value",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            multipleReqs(req1: null)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int!, found null.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Optional arg, despite required field in type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Partial object, only required",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: { requiredField: true })\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Partial object, required field can be falsey",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: { requiredField: false })\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Partial object, including required",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: { requiredField: true, intField: 4 })\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Full object",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: {\n              requiredField: true,\n              intField: 4,\n              stringField: \"foo\",\n              booleanField: false,\n              stringListField: [\"one\", \"two\"]\n            })\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Valid input object value/Full object with fields in different order",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: {\n              stringListField: [\"one\", \"two\"],\n              booleanField: false,\n              requiredField: true,\n              stringField: \"foo\",\n              intField: 4,\n            })\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/Partial object, missing required",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: { intField: 4 })\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field ComplexInput.requiredField of required type Boolean! was not provided.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 41
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/Partial object, invalid field type",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: {\n              stringListField: [\"one\", 2],\n              requiredField: true,\n            })\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found 2.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/Partial object, null to non-null field",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: {\n              requiredField: true,\n              nonNullField: null,\n            })\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean!, found null.",
+          "locations": [
+            {
+              "line": 6,
+              "column": 29
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/Partial object, unknown field arg",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          complicatedArgs {\n            complexArgField(complexArg: {\n              requiredField: true,\n              unknownField: \"value\"\n            })\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field \"unknownField\" is not defined by type ComplexInput; Did you mean nonNullField, intField, or booleanField?",
+          "locations": [
+            {
+              "line": 6,
+              "column": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/reports original error for custom scalar which throws",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          invalidArg(arg: 123)\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Invalid, found 123; Invalid scalar is always invalid: 123",
+          "locations": [
+            {
+              "line": 3,
+              "column": 27
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Invalid input object value/allows custom scalar to accept complex literals",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          test1: anyArg(arg: 123)\n          test2: anyArg(arg: \"abc\")\n          test3: anyArg(arg: [123, \"abc\"])\n          test4: anyArg(arg: {deep: [123, \"abc\"]})\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Directive arguments/with directives of valid types",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog @include(if: true) {\n            name\n          }\n          human @skip(if: false) {\n            name\n          }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Directive arguments/with directive with incorrect types",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        {\n          dog @include(if: \"yes\") {\n            name @skip(if: ENUM)\n          }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean!, found \"yes\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 28
+            }
+          ]
+        },
+        {
+          "message": "Expected type Boolean!, found ENUM.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 28
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/variables with valid default values",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query WithDefaultValues(\n          $a: Int = 1,\n          $b: String = \"ok\",\n          $c: ComplexInput = { requiredField: true, intField: 3 }\n          $d: Int! = 123\n        ) {\n          dog { name }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/variables with valid default null values",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query WithDefaultValues(\n          $a: Int = null,\n          $b: String = null,\n          $c: ComplexInput = { requiredField: true, intField: null }\n        ) {\n          dog { name }\n        }\n      ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/variables with invalid default null values",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query WithDefaultValues(\n          $a: Int! = null,\n          $b: String! = null,\n          $c: ComplexInput = { requiredField: null, intField: null }\n        ) {\n          dog { name }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int!, found null.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 22
+            }
+          ]
+        },
+        {
+          "message": "Expected type String!, found null.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 25
+            }
+          ]
+        },
+        {
+          "message": "Expected type Boolean!, found null.",
+          "locations": [
+            {
+              "line": 5,
+              "column": 47
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/variables with invalid default values",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query InvalidDefaultValues(\n          $a: Int = \"one\",\n          $b: String = 4,\n          $c: ComplexInput = \"notverycomplex\"\n        ) {\n          dog { name }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Int, found \"one\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 21
+            }
+          ]
+        },
+        {
+          "message": "Expected type String, found 4.",
+          "locations": [
+            {
+              "line": 4,
+              "column": 24
+            }
+          ]
+        },
+        {
+          "message": "Expected type ComplexInput, found \"notverycomplex\".",
+          "locations": [
+            {
+              "line": 5,
+              "column": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/variables with complex invalid default values",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query WithDefaultValues(\n          $a: ComplexInput = { requiredField: 123, intField: \"abc\" }\n        ) {\n          dog { name }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type Boolean!, found 123.",
+          "locations": [
+            {
+              "line": 3,
+              "column": 47
+            }
+          ]
+        },
+        {
+          "message": "Expected type Int, found \"abc\".",
+          "locations": [
+            {
+              "line": 3,
+              "column": 62
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/complex variables missing required field",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query MissingRequiredField($a: ComplexInput = {intField: 3}) {\n          dog { name }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Field ComplexInput.requiredField of required type Boolean! was not provided.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 55
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Values of correct type/Variable default values/list variables with invalid item",
+      "rule": "ValuesOfCorrectType",
+      "schema": 0,
+      "query": "\n        query InvalidItem($a: [String] = [\"one\", 2]) {\n          dog { name }\n        }\n      ",
+      "errors": [
+        {
+          "message": "Expected type String, found 2.",
+          "locations": [
+            {
+              "line": 2,
+              "column": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are input types/input types are valid",
+      "rule": "VariablesAreInputTypes",
+      "schema": 0,
+      "query": "\n      query Foo($a: String, $b: [Boolean!]!, $c: ComplexInput) {\n        field(a: $a, b: $b, c: $c)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are input types/output types are invalid",
+      "rule": "VariablesAreInputTypes",
+      "schema": 0,
+      "query": "\n      query Foo($a: Dog, $b: [[CatOrDog!]]!, $c: Pet) {\n        field(a: $a, b: $b, c: $c)\n      }\n    ",
+      "errors": [
+        {
+          "locations": [
+            {
+              "line": 2,
+              "column": 21
+            }
+          ],
+          "message": "Variable \"$a\" cannot be non-input type \"Dog\"."
+        },
+        {
+          "locations": [
+            {
+              "line": 2,
+              "column": 30
+            }
+          ],
+          "message": "Variable \"$b\" cannot be non-input type \"[[CatOrDog!]]!\"."
+        },
+        {
+          "locations": [
+            {
+              "line": 2,
+              "column": 50
+            }
+          ],
+          "message": "Variable \"$c\" cannot be non-input type \"Pet\"."
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean => Boolean",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($booleanArg: Boolean)\n      {\n        complicatedArgs {\n          booleanArgField(booleanArg: $booleanArg)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean => Boolean within fragment",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      fragment booleanArgFrag on ComplicatedArgs {\n        booleanArgField(booleanArg: $booleanArg)\n      }\n      query Query($booleanArg: Boolean)\n      {\n        complicatedArgs {\n          ...booleanArgFrag\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean => Boolean within fragment",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($booleanArg: Boolean)\n      {\n        complicatedArgs {\n          ...booleanArgFrag\n        }\n      }\n      fragment booleanArgFrag on ComplicatedArgs {\n        booleanArgField(booleanArg: $booleanArg)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean! => Boolean",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($nonNullBooleanArg: Boolean!)\n      {\n        complicatedArgs {\n          booleanArgField(booleanArg: $nonNullBooleanArg)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean! => Boolean within fragment",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      fragment booleanArgFrag on ComplicatedArgs {\n        booleanArgField(booleanArg: $nonNullBooleanArg)\n      }\n\n      query Query($nonNullBooleanArg: Boolean!)\n      {\n        complicatedArgs {\n          ...booleanArgFrag\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/[String] => [String]",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringListVar: [String])\n      {\n        complicatedArgs {\n          stringListArgField(stringListArg: $stringListVar)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/[String!] => [String]",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringListVar: [String!])\n      {\n        complicatedArgs {\n          stringListArgField(stringListArg: $stringListVar)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/String => [String] in item position",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringVar: String)\n      {\n        complicatedArgs {\n          stringListArgField(stringListArg: [$stringVar])\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/String! => [String] in item position",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringVar: String!)\n      {\n        complicatedArgs {\n          stringListArgField(stringListArg: [$stringVar])\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/ComplexInput => ComplexInput",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($complexVar: ComplexInput)\n      {\n        complicatedArgs {\n          complexArgField(complexArg: $complexVar)\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/ComplexInput => ComplexInput in field position",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($boolVar: Boolean = false)\n      {\n        complicatedArgs {\n          complexArgField(complexArg: {requiredArg: $boolVar})\n        }\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean! => Boolean! in directive",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($boolVar: Boolean!)\n      {\n        dog @include(if: $boolVar)\n      }\n    ",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Int => Int!",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($intArg: Int) {\n        complicatedArgs {\n          nonNullIntArgField(nonNullIntArg: $intArg)\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$intArg\" of type \"Int\" used in position expecting type \"Int!\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 4,
+              "column": 45
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Int => Int! within fragment",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      fragment nonNullIntArgFieldFrag on ComplicatedArgs {\n        nonNullIntArgField(nonNullIntArg: $intArg)\n      }\n\n      query Query($intArg: Int) {\n        complicatedArgs {\n          ...nonNullIntArgFieldFrag\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$intArg\" of type \"Int\" used in position expecting type \"Int!\".",
+          "locations": [
+            {
+              "line": 6,
+              "column": 19
+            },
+            {
+              "line": 3,
+              "column": 43
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Int => Int! within nested fragment",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      fragment outerFrag on ComplicatedArgs {\n        ...nonNullIntArgFieldFrag\n      }\n\n      fragment nonNullIntArgFieldFrag on ComplicatedArgs {\n        nonNullIntArgField(nonNullIntArg: $intArg)\n      }\n\n      query Query($intArg: Int) {\n        complicatedArgs {\n          ...outerFrag\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$intArg\" of type \"Int\" used in position expecting type \"Int!\".",
+          "locations": [
+            {
+              "line": 10,
+              "column": 19
+            },
+            {
+              "line": 7,
+              "column": 43
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/String over Boolean",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringVar: String) {\n        complicatedArgs {\n          booleanArgField(booleanArg: $stringVar)\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$stringVar\" of type \"String\" used in position expecting type \"Boolean\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 4,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/String => [String]",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringVar: String) {\n        complicatedArgs {\n          stringListArgField(stringListArg: $stringVar)\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$stringVar\" of type \"String\" used in position expecting type \"[String]\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 4,
+              "column": 45
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Boolean => Boolean! in directive",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($boolVar: Boolean) {\n        dog @include(if: $boolVar)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$boolVar\" of type \"Boolean\" used in position expecting type \"Boolean!\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 3,
+              "column": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/String => Boolean! in directive",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringVar: String) {\n        dog @include(if: $stringVar)\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$stringVar\" of type \"String\" used in position expecting type \"Boolean!\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 3,
+              "column": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/[String] => [String!]",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n      query Query($stringListVar: [String])\n      {\n        complicatedArgs {\n          stringListNonNullArgField(stringListNonNullArg: $stringListVar)\n        }\n      }\n    ",
+      "errors": [
+        {
+          "message": "Variable \"$stringListVar\" of type \"[String]\" used in position expecting type \"[String!]\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 19
+            },
+            {
+              "line": 5,
+              "column": 59
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Allows optional (nullable) variables with default values/Int => Int! fails when variable provides null default value",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n        query Query($intVar: Int = null) {\n          complicatedArgs {\n            nonNullIntArgField(nonNullIntArg: $intVar)\n          }\n        }",
+      "errors": [
+        {
+          "message": "Variable \"$intVar\" of type \"Int\" used in position expecting type \"Int!\".",
+          "locations": [
+            {
+              "line": 2,
+              "column": 21
+            },
+            {
+              "line": 4,
+              "column": 47
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Allows optional (nullable) variables with default values/Int => Int! when variable provides non-null default value",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n        query Query($intVar: Int = 1) {\n          complicatedArgs {\n            nonNullIntArgField(nonNullIntArg: $intVar)\n          }\n        }",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Allows optional (nullable) variables with default values/Int => Int! when optional argument provides default value",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n        query Query($intVar: Int) {\n          complicatedArgs {\n            nonNullFieldWithDefault(nonNullIntArg: $intVar)\n          }\n        }",
+      "errors": []
+    },
+    {
+      "name": "Validate: Variables are in allowed positions/Allows optional (nullable) variables with default values/Boolean => Boolean! in directive with default value with option",
+      "rule": "VariablesInAllowedPosition",
+      "schema": 0,
+      "query": "\n        query Query($boolVar: Boolean = false) {\n          dog @include(if: $boolVar)\n        }",
+      "errors": []
+    }
+  ]
+}

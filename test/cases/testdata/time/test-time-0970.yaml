@@ -1,0 +1,41 @@
+cases:
+- data:
+  modules:
+  - |
+    package test
+
+    layout := "2006-01-02"
+
+    a = minute_second {
+       minute_second := time.diff(time.now_ns()+61*1000*1000*1000, time.now_ns())
+    }
+
+    b = different_tz {
+      different_tz := time.diff([time.now_ns()+60*1000*1000*1000, "UTC"], [time.now_ns(), "Asia/Shanghai"])
+    }
+
+    c = leap_year {
+      leap_year := time.diff(time.parse_ns(layout, "2020-02-02"), time.parse_ns(layout, "2020-03-01"))
+    }
+
+    d = not_leap_year {
+      not_leap_year := time.diff(time.parse_ns(layout, "2021-02-02"), time.parse_ns(layout, "2021-03-01"))
+    }
+
+    e = leap_year_one_day {
+      leap_year_one_day := time.diff(time.parse_ns(layout, "2004-02-29"), time.parse_ns(layout, "2005-03-01"))
+    }
+
+  note: time/diff
+  query: >
+    data.test.a = minute_second;
+    data.test.b = different_tz;
+    data.test.c = leap_year;
+    data.test.d = not_leap_year;
+    data.test.e = leap_year_one_day
+  want_result:
+  - minute_second: [0,0,0,0,1,1]
+    different_tz: [0,0,0,0,1,0]
+    leap_year: [0,0,28,0,0,0]
+    not_leap_year: [0,0,27,0,0,0]
+    leap_year_one_day: [1,0,1,0,0,0]

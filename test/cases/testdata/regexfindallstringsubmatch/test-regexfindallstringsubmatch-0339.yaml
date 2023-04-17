@@ -1,0 +1,17 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      regex.find_all_string_submatch_n("a(x*)b", "-axxb-", -1, __local0__)
+      x = __local0__
+    }
+  note: regexfindallstringsubmatch/single match with a capture
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - - - axxb
+        - xx

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\n\t\tp = ns { time.parse_duration_ns(\"100ms\", ns) }\n\t")

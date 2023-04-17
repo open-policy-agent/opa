@@ -1,0 +1,34 @@
+cases:
+- note: one
+  query: x = 1
+  want_result: [{'x': 1}]
+- note: undefined
+  query: x = 1; not true
+  want_result: []
+- note: multiple vars
+  query: x = 1; y = 2
+  want_result: [{'x': 1, 'y': 2}]
+- note: multiple bindings
+  query: input[i] = 1
+  input: [0,1,1]
+  want_result: [{'i': 1}, {'i': 2}]
+- note: generated vars excluded
+  query: input[i] > 0
+  input: [0,1,1]
+  want_result: [{'i': 1}, {'i': 2}]
+- note: wildcard vars excluded
+  query: a = input[_]; a > 1
+  input: [1,2,3]
+  want_result: [{'a': 2}, {'a': 3}]
+- note: locally scoped vars rewritten (assignment operator)
+  query: a := input[_]; a > 1
+  input: [1,2,3]
+  want_result: [{'a': 2}, {'a': 3}]
+- note: locally scoped vars rewritten (some keyword)
+  query: some a; a = input[_]; a > 1
+  input: [1,2,3]
+  want_result: [{'a': 2}, {'a': 3}]
+- note: closure vars excluded
+  query: a = [x | x = input[i]; x > 1]
+  input: [1,2,3]
+  want_result: [{'a': [2,3]}]

@@ -1,0 +1,29 @@
+cases:
+- modules:
+  - |
+    package generated
+
+    p = x {
+      count(input.foo, x)
+    }
+  note: aggregates/count error null
+  query: data.generated.p = x
+  input:
+    foo: null
+  strict_error: true
+  want_error_code: eval_type_error
+  want_error: 'operand 1 must be one of {array, object, set, string} but got null'
+- modules:
+  - |
+    package generated
+
+    p = x {
+      count(input.foo, x)
+    }
+  note: aggregates/count error number
+  query: data.generated.p = x
+  input:
+    foo: 5
+  strict_error: true
+  want_error_code: eval_type_error
+  want_error: 'operand 1 must be one of {array, object, set, string} but got number'

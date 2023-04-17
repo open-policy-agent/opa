@@ -1,0 +1,15 @@
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+        
+        token := io.jwt.encode_sign({"alg": "HS256"}, {"nbf": "string is not valid here"}, {"kty": "oct", "k": base64url.encode_no_pad("42")})
+        
+        decoded := io.jwt.decode_verify(token, {"secret": "42"})
+
+    note: jwtdecodeverify/invalid-nbf
+    query: data.generated.decoded = x
+    strict_error: true
+    want_error: nbf value must be a number
+    want_error_code: eval_builtin_error

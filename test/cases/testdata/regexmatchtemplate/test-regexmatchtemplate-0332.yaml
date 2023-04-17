@@ -1,0 +1,15 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p[x] {
+      regex.template_match("urn:foo:{.*}", "urn:foo:bar:baz", "{", "}", x)
+    }
+  note: regexmatchtemplate/matches wildcard with {}
+  query: data.generated.p = x
+  sort_bindings: true
+  want_result:
+  - x:
+    - true

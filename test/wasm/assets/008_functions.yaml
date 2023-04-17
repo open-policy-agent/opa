@@ -1,0 +1,122 @@
+cases:
+  - note: identity
+    query: data.x.f(1, 1)
+    modules:
+      - |
+        package x
+        f(x) = x
+    want_defined: true
+  - note: identity (negative)
+    query: data.x.f(1, 2)
+    modules:
+      - |
+        package x
+        f(x) = x
+    want_defined: false
+  - note: identity implicit
+    query: data.x.f(1) = 1
+    modules:
+      - |
+        package x
+        f(x) = x
+    want_defined: true
+  - note: identity implicit (negative)
+    query: data.x.f(1) = 2
+    modules:
+      - |
+        package x
+        f(x) = x
+    want_defined: false
+  - note: composite arg
+    query: data.x.f([1]) = 1
+    modules:
+      - |
+        package x
+        f(x) = x[0]
+    want_defined: true
+  - note: composite param
+    query: data.x.f([1]) = 1
+    modules:
+      - |
+        package x
+        f([x]) = x
+    want_defined: true
+  - note: multiple params
+    query: data.x.f(1, 2) = [2, 1]
+    modules:
+      - |
+        package x
+        f(x, y) = [y, x]
+    want_defined: true
+  - note: multiple params (negative)
+    query: data.x.f(1, 2) = [2, 1]
+    modules:
+      - |
+        package x
+        f(x, y) = [x, x]
+    want_defined: false
+  - note: disjunction
+    query: data.x.f(1) = 0
+    modules:
+      - |
+        package x
+        f(x) = 1 { x <= 0 }
+        f(x) = 0 { x > 0 }
+    want_defined: true
+  - note: disjunction (negative)
+    query: data.x.f(1) = 2
+    modules:
+      - |
+        package x
+        f(x) = 1 { x <= 0 }
+        f(x) = 0 { x > 0 }
+    want_defined: false
+  - note: negation
+    query: not data.x.f(-1)
+    modules:
+      - |
+        package x
+        f(x) = x { x >= 0 }
+    want_defined: true
+  - note: input
+    query: data.x.f(1) = 1
+    modules:
+      - |
+        package x
+        f(x) = g(x)
+        g(x) = x { input.x = x }
+    input: {"x": 1}
+    want_defined: true
+  - note: input (negative)
+    query: data.x.f(1) = 1
+    modules:
+      - |
+        package x
+        f(x) = g(x)
+        g(x) = x { input.x = x }
+    input: {"x": 2}
+    want_defined: false
+  - note: conflict error
+    query: data.x.f(1) = 1
+    modules:
+      - |
+        package x
+        f(x) = 1
+        f(x) = 2
+    want_error: "module0.rego:3:1: var assignment conflict"
+  - note: 'false result'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        f(x) = false
+        p = true { f(1) }
+    want_defined: false
+  - note: 'negated false result'
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+        f(x) = false
+        p = true { not f(1) }
+    want_defined: true

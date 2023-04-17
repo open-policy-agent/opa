@@ -1,0 +1,2 @@
+go test fuzz v1
+string("p = x { s1 = {a[2], a[1], a[0]}; s2 = {a[0], 2}; set_diff(s1, s2, x) }")

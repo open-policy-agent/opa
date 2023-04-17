@@ -1,0 +1,2 @@
+go test fuzz v1
+string("package topdown.a.b.c\n\np = [1, 2] { true }\nq = [3, 4] { true }\nr[\"a\"] = 1 { true }\nr[\"b\"] = 2 { true }")

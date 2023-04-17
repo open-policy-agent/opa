@@ -1,0 +1,100 @@
+cases:
+- data:
+  modules:
+  - |
+    package generated
+
+    p {
+      data.generated.q
+    }
+
+    q = true
+
+    q = false
+  note: 'disjunction/complete: reference error'
+  query: data.generated.p = x
+  want_error: complete rules must not produce multiple outputs
+  want_error_code: eval_conflict_error
+- data:
+  modules:
+  - |
+    package generated
+
+    p {
+      data.generated.q
+    }
+
+    q = true {
+      false
+    }
+    else = true {
+      true
+    }
+
+    q = true {
+      false
+    }
+    else = false {
+      true
+    }
+  note: 'disjunction/complete: nested conflict, else'
+  query: data.generated.p = x
+  want_error: complete rules must not produce multiple outputs
+  want_error_code: eval_conflict_error
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      x := data.test.q(1)
+      x == true
+    }
+
+    q(_) = true
+
+    q(_) = false
+  note: 'disjunction/nested function with conflict'
+  query: data.test.p = x
+  want_error: functions must not produce multiple outputs for same inputs
+  want_error_code: eval_conflict_error
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      x := data.test.q(1)
+    }
+
+    q(_) = true {
+      false
+    }
+    else = true {
+      true
+    }
+
+    q(_) = true {
+      false
+    }
+    else = false {
+      true
+    }
+  note: 'disjunction/nested function with conflict, else'
+  query: data.test.p = x
+  want_error: functions must not produce multiple outputs for same inputs
+  want_error_code: eval_conflict_error
+- data:
+  modules:
+  - |
+    package test
+
+    p {
+      q
+    }
+    xs = {1, 2}
+    q = xs[_]
+  note: 'disjunction/complete: conflict involving early-exit complete rule'
+  query: data.test.p = x
+  want_error: complete rules must not produce multiple outputs
+  want_error_code: eval_conflict_error
