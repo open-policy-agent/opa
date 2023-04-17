@@ -271,9 +271,10 @@ configuration labels or environment variables.
 
 In practice, discovery services do not change frequently. These configuration sections are treated as
 immutable to avoid accidental configuration errors rendering OPA unable to discover a new configuration.
-If the discovered configuration changes the `discovery` or `labels` sections,
+If the discovered configuration changes the `discovery` section,
 those changes are ignored. If the discovered configuration changes the discovery service,
 an error will be logged.
+If the discovered configuration changes the `labels` section, only labels that are additional compared to the bootstrap configuration are used, all other changes are ignored. If the discovery document changes its `labels` section over time, the effective set of labels is always the bootstrap configuration plus added labels from the latest discovery document. 
 
 ### Discovery Bundle Signature
 
