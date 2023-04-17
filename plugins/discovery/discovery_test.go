@@ -957,7 +957,7 @@ func TestReconfigure(t *testing.T) {
 	initialBundle := makeDataBundle(1, `
 		{
 			"config": {
-				"labels": {"x": "label value changed"},
+				"labels": {"x": "label value changed", "y": "new label"},
 				"default_decision": "bar/baz",
 				"default_authorization_decision": "baz/qux",
 				"plugins": {
@@ -977,8 +977,8 @@ func TestReconfigure(t *testing.T) {
 		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
 	}
 
-	// Verify labels are unchanged
-	exp := map[string]string{"x": "y", "id": "test-id", "version": version.Version}
+	// Verify labels are unchanged but allow additions
+	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
 	if !reflect.DeepEqual(manager.Labels(), exp) {
 		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
 	}
@@ -1002,7 +1002,7 @@ func TestReconfigure(t *testing.T) {
 	updatedBundle := makeDataBundle(2, `
 		{
 			"config": {
-				"labels": {"x": "label value changed"},
+				"labels": {"x": "label value changed", "z": "another added label" },
 				"default_decision": "bar/baz",
 				"default_authorization_decision": "baz/qux",
 				"plugins": {
@@ -1013,6 +1013,12 @@ func TestReconfigure(t *testing.T) {
 	`)
 
 	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	// Verify label additions are always on top of bootstrap config with multiple discovery documents
+	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
+	}
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")

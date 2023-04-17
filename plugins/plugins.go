@@ -193,6 +193,7 @@ type Manager struct {
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
 	registeredNDCacheTriggers    []func(bool)
+	bootstrapConfigLabels        map[string]string
 }
 
 type managerContextKey string
@@ -392,6 +393,7 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		maxErrors:                    -1,
 		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
 		serverInitialized:            make(chan struct{}),
+		bootstrapConfigLabels:        parsedConfig.Labels,
 	}
 
 	for _, f := range opts {
@@ -668,7 +670,16 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	config.Labels = m.Config.Labels // don't overwrite labels
+
+	// don't overwrite existing labels, only allow additions - always based on the boostrap config
+	if config.Labels == nil {
+		config.Labels = m.bootstrapConfigLabels
+	} else {
+		for label, value := range m.bootstrapConfigLabels {
+			config.Labels[label] = value
+		}
+	}
+
 	m.Config = config
 	m.interQueryBuiltinCacheConfig = interQueryBuiltinCacheConfig
 	for name, client := range services {
