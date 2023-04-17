@@ -1731,7 +1731,14 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 	for _, module := range r.modules {
 		p, err := module.Parse()
 		if err != nil {
-			errs = append(errs, err)
+			switch errorWithType := err.(type) {
+			case ast.Errors:
+				for _, e := range errorWithType {
+					errs = append(errs, e)
+				}
+			default:
+				errs = append(errs, errorWithType)
+			}
 		}
 		r.parsedModules[module.filename] = p
 	}

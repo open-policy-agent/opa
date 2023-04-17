@@ -937,6 +937,29 @@ func TestPrepareAndEvalOriginal(t *testing.T) {
 	assertEval(t, r, "[[2]]")
 }
 
+func TestPrepareAndEvalOnlyOneErrorOccurredPrintOnce(t *testing.T) {
+	module := `
+	package test
+    package test
+	x = input.y
+	`
+
+	r := New(
+		Query("data.test.x"),
+		Module("", module),
+		Package("foo"),
+		Input(map[string]int{"y": 2}),
+	)
+
+	_, err := r.PrepareForEval(context.Background())
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+	if strings.Count(err.Error(), "1 error occurred") > 1 {
+		t.Fatalf("Expected to print '1 error occurred' only once")
+	}
+}
+
 func TestPrepareAndEvalNewPrintHook(t *testing.T) {
 	module := `
 	package test
