@@ -29,6 +29,34 @@ cases:
   - x: true
 - data:
   modules:
+    - |
+      package test
+      req := {"method": "get", "url": "http://example.com", "headers": {"foo": "bar"}}
+      aws_config := {
+        "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+        "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+        "aws_service": "s3",
+        "aws_region": "us-east-1",
+      }
+      expected := {
+        "headers": {
+          "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=foo;host;x-amz-content-sha256;x-amz-date,Signature=8f1dc7c9b9978356a0d0989fd26a95307f4f8a4aa264d8220647b7097d839952",
+          "host": "example.com",
+          "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "x-amz-date": "20151228T140825Z"
+        },
+        "method": "get",
+        "url": "http://example.com"
+      }
+      p {
+        providers.aws.sign_req(req, aws_config, 1451311705000000000) == expected
+      }
+  note: providers-aws-sign_req/success-simple-with headers no body
+  query: data.test.p = x
+  want_result:
+    - x: true
+- data:
+  modules:
   - |
     package test
     req := {"method": "get", "url": "http://example.com"}
