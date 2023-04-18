@@ -164,6 +164,10 @@ func (t *ruletrie) LookupOrInsert(key ast.Ref) *ruletrie {
 	return t.Insert(key)
 }
 
+func (t *ruletrie) ChildrenCount() int {
+	return len(t.children)
+}
+
 func (t *ruletrie) Children() []ast.Value {
 	if t == nil {
 		return nil
