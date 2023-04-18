@@ -53,7 +53,7 @@ func getReqBodyBytes(body, rawBody *ast.Term) ([]byte, error) {
 }
 
 func objectToMap(o ast.Object) map[string][]string {
-	var out map[string][]string
+	out := make(map[string][]string, o.Len())
 	o.Foreach(func(k, v *ast.Term) {
 		ks := stringFromTerm(k)
 		vs := stringFromTerm(v)
