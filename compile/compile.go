@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -79,6 +80,7 @@ type Compiler struct {
 	bsc                          *bundle.SigningConfig      // represents the key configuration used to generate a signed bundle
 	keyID                        string                     // represents the name of the default key used to verify a signed bundle
 	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
+	fsys                         fs.FS                      // file system to use when loading paths
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -217,6 +219,12 @@ func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
 // WithMetadata sets the additional data to be included in .manifest
 func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
 	c.metadata = metadata
+	return c
+}
+
+// WithFS sets the file system to use when loading paths
+func (c *Compiler) WithFS(fsys fs.FS) *Compiler {
+	c.fsys = fsys
 	return c
 }
 
@@ -410,7 +418,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities)
+	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}

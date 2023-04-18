@@ -1090,10 +1090,14 @@ func (b Bundle) Equal(other Bundle) bool {
 		return false
 	}
 	for i := range b.Modules {
-		if b.Modules[i].URL != other.Modules[i].URL {
+		// To support bundles built from rootless filesystems we ignore a "/" prefix
+		// for URLs and Paths, such that "/file" and "file" are equivalent
+		if strings.TrimPrefix(b.Modules[i].URL, string(filepath.Separator)) !=
+			strings.TrimPrefix(other.Modules[i].URL, string(filepath.Separator)) {
 			return false
 		}
-		if b.Modules[i].Path != other.Modules[i].Path {
+		if strings.TrimPrefix(b.Modules[i].Path, string(filepath.Separator)) !=
+			strings.TrimPrefix(other.Modules[i].Path, string(filepath.Separator)) {
 			return false
 		}
 		if !b.Modules[i].Parsed.Equal(other.Modules[i].Parsed) {

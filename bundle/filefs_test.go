@@ -19,10 +19,7 @@ func TestFSLoader(t *testing.T) {
 		}
 	}
 
-	loader, err := NewFSLoader(archiveFS)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
+	loader := NewFSLoader(archiveFS)
 
 	testLoader(t, loader, "", archiveFiles)
 }
@@ -51,10 +48,7 @@ func TestFSLoaderWithFilter(t *testing.T) {
 		}
 	}
 
-	loader, err := NewFSLoader(archiveFS)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
+	loader := NewFSLoader(archiveFS)
 
 	loader.WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
 		return getFilter("*_test.rego", 1)(abspath, info, depth)
