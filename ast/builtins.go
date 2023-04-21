@@ -214,6 +214,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoHmacSha1,
 	CryptoHmacSha256,
 	CryptoHmacSha512,
+	CryptoHmacEqual,
 
 	// Graphs
 	WalkBuiltin,
@@ -2377,6 +2378,18 @@ var CryptoHmacSha512 = &Builtin{
 			types.Named("key", types.S).Description("key to use"),
 		),
 		types.Named("y", types.S).Description("SHA512-HMAC of `x`"),
+	),
+}
+
+var CryptoHmacEqual = &Builtin{
+	Name:        "crypto.hmac.equal",
+	Description: "Returns a boolean representing the result of comparing two MACs for equality without leaking timing information.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("mac1", types.S).Description("mac1 to compare"),
+			types.Named("mac2", types.S).Description("mac2 to compare"),
+		),
+		types.Named("result", types.B).Description("`true` if the MACs are equals, `false` otherwise"),
 	),
 }
 

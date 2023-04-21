@@ -33,6 +33,7 @@
       "to_number"
     ],
     "crypto": [
+      "crypto.hmac.equal",
       "crypto.hmac.md5",
       "crypto.hmac.sha1",
       "crypto.hmac.sha256",
@@ -3201,6 +3202,31 @@
       "type": "number"
     },
     "wasm": true
+  },
+  "crypto.hmac.equal": {
+    "args": [
+      {
+        "description": "mac1 to compare",
+        "name": "mac1",
+        "type": "string"
+      },
+      {
+        "description": "mac2 to compare",
+        "name": "mac2",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns a boolean representing the result of comparing two MACs for equality without leaking timing information.",
+    "introduced": "edge",
+    "result": {
+      "description": "`true` if the MACs are equals, `false` otherwise",
+      "name": "result",
+      "type": "boolean"
+    },
+    "wasm": false
   },
   "crypto.hmac.md5": {
     "args": [

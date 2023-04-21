@@ -573,6 +573,23 @@
       }
     },
     {
+      "name": "crypto.hmac.equal",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "boolean"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "crypto.hmac.md5",
       "decl": {
         "args": [

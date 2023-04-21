@@ -249,6 +249,24 @@ func builtinCryptoHmacSha512(_ BuiltinContext, operands []*ast.Term, iter func(*
 	return hmacHelper(operands, iter, sha512.New)
 }
 
+func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	a1 := operands[0].Value
+	mac1, err := builtins.StringOperand(a1, 1)
+	if err != nil {
+		return err
+	}
+
+	a2 := operands[1].Value
+	mac2, err := builtins.StringOperand(a2, 2)
+	if err != nil {
+		return err
+	}
+
+	res := hmac.Equal([]byte(mac1), []byte(mac2))
+
+	return iter(ast.BooleanTerm(res))
+}
+
 func init() {
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
 	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificates.Name, builtinCryptoX509ParseAndVerifyCertificates)
@@ -261,6 +279,7 @@ func init() {
 	RegisterBuiltinFunc(ast.CryptoHmacSha1.Name, builtinCryptoHmacSha1)
 	RegisterBuiltinFunc(ast.CryptoHmacSha256.Name, builtinCryptoHmacSha256)
 	RegisterBuiltinFunc(ast.CryptoHmacSha512.Name, builtinCryptoHmacSha512)
+	RegisterBuiltinFunc(ast.CryptoHmacEqual.Name, builtinCryptoHmacEqual)
 }
 
 func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
