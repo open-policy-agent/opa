@@ -1,0 +1,66 @@
+cases:
+  - note: cryptohmacequal/crypto.hmac.equal_md5
+    query: data.test.p = x
+    modules:
+    - |
+      package test
+      
+      p[res] {
+        res := crypto.hmac.equal(input.mac1, input.mac2)
+      }
+    input: {"mac1": "31b6db9e5eb4addb42f1a6ca07367adc", "mac2": "31b6db9e5eb4addb42f1a6ca07367adc"}
+    want_result:
+    - x:
+      - true
+  - note: cryptohmacequal/crypto.hmac.equal_sha1
+    query: data.test.p = x
+    modules:
+    - |
+      package test
+      
+      p[res] {
+        res := crypto.hmac.equal(input.mac1, input.mac2)
+      }
+    input: {"mac1": "85d155c55ed286a300bd1cf124de08d87e914f3a", "mac2": "85d155c55ed286a300bd1cf124de08d87e914f3a"}
+    want_result:
+    - x:
+      - true
+  - note: cryptohmacequal/crypto.hmac.equal_sha256
+    query: data.test.p = x
+    modules:
+    - |
+      package test
+      
+      p[res] {
+        res := crypto.hmac.equal(input.mac1, input.mac2)
+      }
+    input: {"mac1": "147933218aaabc0b8b10a2b3a5c34684c8d94341bcf10a4736dc7270f7741851", "mac2": "147933218aaabc0b8b10a2b3a5c34684c8d94341bcf10a4736dc7270f7741851"}
+    want_result:
+    - x:
+      - true
+  - note: cryptohmacequal/crypto.hmac.equal_sha512
+    query: data.test.p = x
+    modules:
+    - |
+      package test
+      
+      p[res] {
+        res := crypto.hmac.equal(input.mac1, input.mac2)
+      }
+    input: {"mac1": "24257d7210582a65c731ec55159c8184cc24c02489453e58587f71f44c23a2d61b4b72154a89d17b2d49448a8452ea066f4fc56a2bcead45c088572ffccdb3d8", "mac2": "24257d7210582a65c731ec55159c8184cc24c02489453e58587f71f44c23a2d61b4b72154a89d17b2d49448a8452ea066f4fc56a2bcead45c088572ffccdb3d8"}
+    want_result:
+    - x:
+      - true  
+  - note: cryptohmacequal/crypto.hmac.equal_false
+    query: data.test.p = x
+    modules:
+    - |
+      package test
+      
+      p[res] {
+        res := crypto.hmac.equal(input.mac1, input.mac2)
+      }
+    input: {"mac1": "31b6db9e5eb4addb42f1a6ca07367adc", "mac2": "31b6db9e5eb4addb"}
+    want_result:
+    - x:
+      - false
