@@ -1635,6 +1635,21 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=Is1iBPr1YVs
 
+  reposaur:
+    title: Reposaur
+    description: Audit, verify and report on development platforms (GitHub and others) easily with pre-defined and/or custom policies.
+    software:
+      - github
+    labels:
+      category: security
+      type: poweredbyopa
+    tutorials:
+      - https://docs.reposaur.com/guides/writing-your-first-policy
+    code:
+      - https://github.com/reposaur/reposaur
+    inventors:
+      - reposaur
+
 organizations:
   quali:
     name: Quali
@@ -1810,6 +1825,9 @@ organizations:
   megaease:
     name: MegaEase
     link: https://www.megaease.com/
+  reposaur:
+    name: Reposaur
+    link: https://reposaur.com/
 
 software:
   oauth:
@@ -2067,3 +2085,6 @@ software:
   terraform-cloud:
     name: Terraform Cloud
     link: https://cloud.hashicorp.com/products/terraform
+  github:
+    name: GitHub
+    link: https://github.com
