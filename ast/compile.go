@@ -873,6 +873,7 @@ func (c *Compiler) checkRuleConflicts() {
 		arities := make(map[int]struct{}, len(node.Values))
 		name := ""
 		var singleValueConflicts []Ref
+		var multiValueConflicts []Ref
 
 		for _, rule := range node.Values {
 			r := rule.(*Rule)
@@ -908,11 +909,23 @@ func (c *Compiler) checkRuleConflicts() {
 					singleValueConflicts = node.flattenChildren()
 				}
 			}
+
+			// Multi-value rules may not have any other rules in their extent; e.g.:
+			//
+			// data.p[v] { v := ... }
+			// data.p.q := 42 # In direct conflict with data.p[v], which is constructing a set and cannot have values assigned to a sub-path.
+
+			if r.Head.RuleKind() == MultiValue && len(node.Children) > 0 {
+				multiValueConflicts = node.flattenChildren()
+			}
 		}
 
 		switch {
 		case singleValueConflicts != nil:
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "single-value rule %v conflicts with %v", name, singleValueConflicts))
+
+		case multiValueConflicts != nil:
+			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multi-value rule %v conflicts with %v", name, multiValueConflicts))
 
 		case len(kinds) > 1 || len(arities) > 1:
 			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))

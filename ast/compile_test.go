@@ -1959,6 +1959,24 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.s = "x" { true }
 				`),
 		},
+		{
+			note: "multi-value rule with other rule overlap",
+			modules: modules(
+				`package pkg
+				p[v] { v := ["a", "b"][_] }
+				p.q := 42
+				`),
+			err: "rego_type_error: multi-value rule data.pkg.p conflicts with [data.pkg.p.q]",
+		},
+		{
+			note: "multi-value rule with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				p[v] { v := ["a", "b"][_] }
+				p.q.r { true }
+				`),
+			err: "rego_type_error: multi-value rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
