@@ -173,6 +173,7 @@ func (i *baseDocEqIndex) AllRules(resolver ValueResolver) (*IndexResult, error) 
 
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
+	result.OnlyGroundRefs = i.onlyGroundRefs
 	result.Rules = make([]*Rule, 0, len(tr.ordering))
 
 	for _, pos := range tr.ordering {
