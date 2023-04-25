@@ -219,7 +219,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	bundleLoader, isDir, err := GetBundleDirectoryLoaderWithFilter(path, fl.filter)
+	bundleLoader, isDir, err := GetBundleDirectoryLoaderFS(fl.fsys, path, fl.filter)
 	if err != nil {
 		return nil, err
 	}
@@ -247,55 +247,57 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 }
 
 // GetBundleDirectoryLoader returns a bundle directory loader which can be used to load
-// files in the directory.
+// files in the directory
 func GetBundleDirectoryLoader(path string) (bundle.DirectoryLoader, bool, error) {
-	path, err := fileurl.Clean(path)
-	if err != nil {
-		return nil, false, err
-	}
-
-	fi, err := os.Stat(path)
-	if err != nil {
-		return nil, false, fmt.Errorf("error reading %q: %s", path, err)
-	}
-
-	var bundleLoader bundle.DirectoryLoader
-
-	if fi.IsDir() {
-		bundleLoader = bundle.NewDirectoryLoader(path)
-	} else {
-		fh, err := os.Open(path)
-		if err != nil {
-			return nil, false, err
-		}
-		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path)
-	}
-	return bundleLoader, fi.IsDir(), nil
+	return GetBundleDirectoryLoaderFS(nil, path, nil)
 }
 
 // GetBundleDirectoryLoaderWithFilter returns a bundle directory loader which can be used to load
 // files in the directory after applying the given filter.
 func GetBundleDirectoryLoaderWithFilter(path string, filter Filter) (bundle.DirectoryLoader, bool, error) {
+	return GetBundleDirectoryLoaderFS(nil, path, filter)
+}
+
+// GetBundleDirectoryLoaderFS returns a bundle directory loader which can be used to load
+// files in the directory.
+func GetBundleDirectoryLoaderFS(fsys fs.FS, path string, filter Filter) (bundle.DirectoryLoader, bool, error) {
 	path, err := fileurl.Clean(path)
 	if err != nil {
 		return nil, false, err
 	}
 
-	fi, err := os.Stat(path)
+	var fi fs.FileInfo
+	if fsys != nil {
+		fi, err = fs.Stat(fsys, path)
+	} else {
+		fi, err = os.Stat(path)
+	}
 	if err != nil {
 		return nil, false, fmt.Errorf("error reading %q: %s", path, err)
 	}
 
 	var bundleLoader bundle.DirectoryLoader
-
 	if fi.IsDir() {
-		bundleLoader = bundle.NewDirectoryLoader(path).WithFilter(filter)
+		if fsys != nil {
+			bundleLoader = bundle.NewFSLoaderWithRoot(fsys, path)
+		} else {
+			bundleLoader = bundle.NewDirectoryLoader(path)
+		}
 	} else {
-		fh, err := os.Open(path)
+		var fh fs.File
+		if fsys != nil {
+			fh, err = fsys.Open(path)
+		} else {
+			fh, err = os.Open(path)
+		}
 		if err != nil {
 			return nil, false, err
 		}
-		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path).WithFilter(filter)
+		bundleLoader = bundle.NewTarballLoaderWithBaseURL(fh, path)
+	}
+
+	if filter != nil {
+		bundleLoader = bundleLoader.WithFilter(filter)
 	}
 	return bundleLoader, fi.IsDir(), nil
 }
