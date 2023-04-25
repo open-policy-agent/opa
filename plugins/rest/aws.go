@@ -5,12 +5,11 @@
 package rest
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -57,7 +56,7 @@ const (
 
 // awsCredentialService represents the interface for AWS credential providers
 type awsCredentialService interface {
-	credentials() (aws.Credentials, error)
+	credentials(context.Context) (aws.Credentials, error)
 }
 
 // awsEnvironmentCredentialService represents an static environment-variable credential provider for AWS
@@ -65,7 +64,7 @@ type awsEnvironmentCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsEnvironmentCredentialService) credentials() (aws.Credentials, error) {
+func (cs *awsEnvironmentCredentialService) credentials(context.Context) (aws.Credentials, error) {
 	var creds aws.Credentials
 	creds.AccessKey = os.Getenv(accessKeyEnvVar)
 	if creds.AccessKey == "" {
@@ -113,7 +112,7 @@ type awsProfileCredentialService struct {
 	logger logging.Logger
 }
 
-func (cs *awsProfileCredentialService) credentials() (aws.Credentials, error) {
+func (cs *awsProfileCredentialService) credentials(context.Context) (aws.Credentials, error) {
 	var creds aws.Credentials
 
 	filename, err := cs.path()
@@ -217,13 +216,13 @@ func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) 
 	return "", errors.New("metadata endpoint cannot be determined from settings and environment")
 }
 
-func (cs *awsMetadataCredentialService) tokenRequest() (*http.Request, error) {
+func (cs *awsMetadataCredentialService) tokenRequest(ctx context.Context) (*http.Request, error) {
 	tokenURL := ec2DefaultTokenPath
 	if cs.tokenPath != "" {
 		// override for testing
 		tokenURL = cs.tokenPath
 	}
-	req, err := http.NewRequest(http.MethodPut, tokenURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, tokenURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +232,7 @@ func (cs *awsMetadataCredentialService) tokenRequest() (*http.Request, error) {
 	return req, nil
 }
 
-func (cs *awsMetadataCredentialService) refreshFromService() error {
+func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) error {
 	// define the expected JSON payload from the EC2 credential service
 	// ref. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
 	type metadataPayload struct {
@@ -244,8 +243,10 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 		Expiration      time.Time
 	}
 
-	// short circuit if a reasonable amount of time until credential expiration remains
-	if time.Now().Add(time.Minute * 5).Before(cs.expiration) {
+	// Short circuit if a reasonable amount of time until credential expiration remains
+	const tokenExpirationMargin = 5 * time.Minute
+
+	if time.Now().Add(tokenExpirationMargin).Before(cs.expiration) {
 		cs.logger.Debug("Credentials previously obtained from metadata service still valid.")
 		return nil
 	}
@@ -259,7 +260,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 
 	// construct an HTTP client with a reasonably short timeout
 	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodGet, metaDataURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metaDataURL, nil)
 	if err != nil {
 		return errors.New("unable to construct metadata HTTP request: " + err.Error())
 	}
@@ -268,11 +269,11 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 	// PUT request on the token endpoint before it will give the credentials, this provides
 	// protection from SSRF attacks
 	if !isECS() {
-		tokenReq, err := cs.tokenRequest()
+		tokenReq, err := cs.tokenRequest(ctx)
 		if err != nil {
 			return errors.New("unable to construct metadata token HTTP request: " + err.Error())
 		}
-		body, err := doMetaDataRequestWithClient(tokenReq, client, "metadata token", cs.logger)
+		body, err := aws.DoRequestWithClient(tokenReq, client, "metadata token", cs.logger)
 		if err != nil {
 			return err
 		}
@@ -280,7 +281,7 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 		req.Header.Set("X-aws-ec2-metadata-token", string(body))
 	}
 
-	body, err := doMetaDataRequestWithClient(req, client, "metadata", cs.logger)
+	body, err := aws.DoRequestWithClient(req, client, "metadata", cs.logger)
 	if err != nil {
 		return err
 	}
@@ -307,8 +308,8 @@ func (cs *awsMetadataCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsMetadataCredentialService) credentials() (aws.Credentials, error) {
-	err := cs.refreshFromService()
+func (cs *awsMetadataCredentialService) credentials(ctx context.Context) (aws.Credentials, error) {
+	err := cs.refreshFromService(ctx)
 	if err != nil {
 		return cs.creds, err
 	}
@@ -358,7 +359,7 @@ func (cs *awsWebIdentityCredentialService) stsPath() string {
 	return stsPath
 }
 
-func (cs *awsWebIdentityCredentialService) refreshFromService() error {
+func (cs *awsWebIdentityCredentialService) refreshFromService(ctx context.Context) error {
 	// define the expected JSON payload from the EC2 credential service
 	// ref. https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
 	type responsePayload struct {
@@ -405,14 +406,14 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 
 	// construct an HTTP client with a reasonably short timeout
 	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodPost, stsRequestURL.String(), strings.NewReader(queryVals.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, stsRequestURL.String(), strings.NewReader(queryVals.Encode()))
 	if err != nil {
 		return errors.New("unable to construct STS HTTP request: " + err.Error())
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	body, err := doMetaDataRequestWithClient(req, client, "STS", cs.logger)
+	body, err := aws.DoRequestWithClient(req, client, "STS", cs.logger)
 	if err != nil {
 		return err
 	}
@@ -432,8 +433,8 @@ func (cs *awsWebIdentityCredentialService) refreshFromService() error {
 	return nil
 }
 
-func (cs *awsWebIdentityCredentialService) credentials() (aws.Credentials, error) {
-	err := cs.refreshFromService()
+func (cs *awsWebIdentityCredentialService) credentials(ctx context.Context) (aws.Credentials, error) {
+	err := cs.refreshFromService(ctx)
 	if err != nil {
 		return cs.creds, err
 	}
@@ -446,76 +447,59 @@ func isECS() bool {
 	return isECS
 }
 
-func doMetaDataRequestWithClient(req *http.Request, client *http.Client, desc string, logger logging.Logger) ([]byte, error) {
-	// convenience function to get the body of an AWS EC2 metadata service request with
-	// appropriate error-handling boilerplate and logging for this special case
-	resp, err := client.Do(req)
-	if err != nil {
-		// some kind of catastrophe talking to the EC2 service
-		return nil, errors.New(desc + " HTTP request failed: " + err.Error())
-	}
-	defer resp.Body.Close()
+// ecrAuthPlugin authorizes requests to AWS ECR.
+type ecrAuthPlugin struct {
+	token aws.ECRAuthorizationToken
 
-	logger.WithFields(map[string]interface{}{
-		"url":     req.URL.String(),
-		"status":  resp.Status,
-		"headers": resp.Header,
-	}).Debug("Received response from " + desc + " service.")
+	// awsAuthPlugin is used to sign ecr authorization token requests.
+	awsAuthPlugin *awsSigningAuthPlugin
 
-	if resp.StatusCode != 200 {
-		if logger.GetLevel() == logging.Debug {
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				logger.Debug("Error response with response body: %v", body)
-			}
-		}
-		// could be 404 for role that's not available, but cover all the bases
-		return nil, errors.New(desc + " HTTP request returned unexpected status: " + resp.Status)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		// deal with problems reading the body, whatever those might be
-		return nil, errors.New(desc + " HTTP response body could not be read: " + err.Error())
-	}
-	return body, nil
+	// ecr represents the service we request tokens from.
+	ecr ecr
+
+	logger logging.Logger
 }
 
-// signV4 modifies an http.Request to include an AWS V4 signature based on a credential provider
-func signV4(req *http.Request, service string, credService awsCredentialService, theTime time.Time, sigVersion string) error {
-	// General ref. https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
-	// S3 ref. https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
-	// APIGateway ref. https://docs.aws.amazon.com/apigateway/api-reference/signing-requests/
+type ecr interface {
+	GetAuthorizationToken(context.Context, aws.Credentials, string) (aws.ECRAuthorizationToken, error)
+}
 
-	var body []byte
-	if req.Body == nil {
-		body = []byte("")
-	} else {
-		var err error
-		body, err = io.ReadAll(req.Body)
-		if err != nil {
-			return errors.New("error getting request body: " + err.Error())
-		}
-		// Since ReadAll consumed the body ReadCloser, we must create a new ReadCloser for the request so that the
-		// subsequent read starts from the beginning
-		req.Body = io.NopCloser(bytes.NewReader(body))
+func newECRAuthPlugin(ap *awsSigningAuthPlugin) *ecrAuthPlugin {
+	return &ecrAuthPlugin{
+		awsAuthPlugin: ap,
+		ecr:           aws.NewECR(ap.logger),
+		logger:        ap.logger,
 	}
-	creds, err := credService.credentials()
+}
+
+// Prepare should be called with any request to AWS ECR.
+// It takes care of retrieving an ECR authorization token to sign
+// the request with.
+func (ap *ecrAuthPlugin) Prepare(r *http.Request) error {
+	if !ap.token.IsValid() {
+		ap.logger.Debug("Refreshing ECR auth token")
+		if err := ap.refreshAuthorizationToken(r.Context()); err != nil {
+			return err
+		}
+	}
+
+	ap.logger.Debug("Signing request with ECR authorization token")
+
+	r.Header.Set("Authorization", fmt.Sprintf("Basic %s", ap.token.AuthorizationToken))
+	return nil
+}
+
+func (ap *ecrAuthPlugin) refreshAuthorizationToken(ctx context.Context) error {
+	creds, err := ap.awsAuthPlugin.awsCredentialService().credentials(ctx)
 	if err != nil {
-		return errors.New("error getting AWS credentials: " + err.Error())
+		return fmt.Errorf("failed to get aws credentials: %w", err)
 	}
 
-	now := theTime.UTC()
-
-	if sigVersion == "4a" {
-		signedHeaders := aws.SignV4a(req.Header, req.Method, req.URL, body, service, creds, now)
-		req.Header = signedHeaders
-	} else {
-		authHeader, awsHeaders := aws.SignV4(req.Header, req.Method, req.URL, body, service, creds, now)
-		req.Header.Set("Authorization", authHeader)
-		for k, v := range awsHeaders {
-			req.Header.Add(k, v)
-		}
+	token, err := ap.ecr.GetAuthorizationToken(ctx, creds, ap.awsAuthPlugin.AWSSignatureVersion)
+	if err != nil {
+		return fmt.Errorf("ecr: failed to get authorization token: %w", err)
 	}
 
+	ap.token = token
 	return nil
 }

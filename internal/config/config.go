@@ -24,7 +24,7 @@ import (
 // ServiceOptions stores the options passed to ParseServicesConfig
 type ServiceOptions struct {
 	Raw        json.RawMessage
-	AuthPlugin func(string) rest.HTTPAuthPlugin
+	AuthPlugin rest.AuthPluginLookupFunc
 	Keys       map[string]*keys.Config
 	Logger     logging.Logger
 }

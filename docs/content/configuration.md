@@ -739,24 +739,38 @@ func init() {
 
 ### Using private image from OCI repositories
 
-When using a private image from an OCI registry the credentials are mandatory as the OCI downloader needs the credentials for the pull operation.
+When using a private image from an OCI registry you need to specify an authentication method. Supported authentication methods are listed in the [Services](#services) section. The Azure managed identity plugin
+is not supported at this point in time.
 
-Examples of setting credetials for pulling private images:
-*AWS ECR* private image usually requires at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+Examples of setting credentials for pulling private images:
+*AWS ECR* private images usually require at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+```yaml
+credentials:
+  bearer:
+    scheme: "Basic"
+    token: "<username>:<password>"
 ```
- credentials:
-      bearer:
-        scheme: "Basic"
-        token: "<username>:<password>"
+
+Other AWS authentication methods also work:
+```yaml
+credentials:
+  s3_signing:
+    service: "ecr"
+    metadata_credentials:
+      aws_region: us-east-1
 ```
-The OCI downloader includes a base64 encoder for these credentials so they can be supplied as shown above.
+
+Note, that the authentication method `s3_signing` does work for
+signing requests to other AWS services.
+
+A special case is that bearer authentication works differently to normal service authentication. The OCI downloader base64-encodes the credentials for you so that they need to be supplied in plain text.
 
 For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
-```
- credentials:
-      bearer:
-        scheme: "Bearer"
-        token: "<PAT>"
+```yaml
+credentials:
+  bearer:
+    scheme: "Bearer"
+    token: "<PAT>"
 ```
 
 ### Miscellaneous
