@@ -1036,7 +1036,7 @@ func (c *Compiler) rewriteExprTerms() {
 	}
 }
 
-// rewriteTermsInHead will rewrite rules so that the head does not contain any
+// rewriteRefsInHead will rewrite rules so that the head does not contain any
 // terms that require evaluation (e.g., refs or comprehensions). If the key or
 // value contains or more of these terms, the key or value will be moved into
 // the body and assigned to a new variable. The new variable will replace the
