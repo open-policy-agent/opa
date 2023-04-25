@@ -2,8 +2,6 @@ package download
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -294,19 +292,26 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 }
 
 func (d *OCIDownloader) pull(ctx context.Context, ref string) (*ocispec.Descriptor, error) {
-	authHeader := make(http.Header)
-	client, err := d.getHTTPClient(&authHeader)
+	lookup := d.client.AuthPluginLookup()
+
+	plugin, err := d.client.Config().AuthPlugin(lookup)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to look up auth plugin: %w", err)
 	}
-	urlInfo, err := url.Parse(d.client.Config().URL)
+
+	d.logger.Debug("OCIDownloader: using auth plugin: %T", plugin)
+
+	resolver, err := dockerResolver(plugin, d.client.Config(), d.logger)
 	if err != nil {
 		return nil, fmt.Errorf("invalid host url %s: %w", d.client.Config().URL, err)
 	}
 
-	target := newRemoteManager(d.getResolverHost(client, urlInfo), authHeader, ref)
+	target := remoteManager{
+		resolver: resolver,
+		srcRef:   ref,
+	}
 
-	manifestDescriptor, err := oraslib.Copy(ctx, target, ref, d.store, "", oraslib.DefaultCopyOptions)
+	manifestDescriptor, err := oraslib.Copy(ctx, &target, ref, d.store, "", oraslib.DefaultCopyOptions)
 	if err != nil {
 		return nil, fmt.Errorf("download for '%s' failed: %w", ref, err)
 	}
@@ -314,24 +319,20 @@ func (d *OCIDownloader) pull(ctx context.Context, ref string) (*ocispec.Descript
 	return &manifestDescriptor, nil
 }
 
-func (d *OCIDownloader) getResolverHost(client *http.Client, urlInfo *url.URL) docker.RegistryHosts {
-	creds := d.client.Config().Credentials
-	var auth docker.Authorizer
-	if creds.Bearer == nil {
-		auth = docker.NewDockerAuthorizer(
-			docker.WithAuthClient(client),
-		)
-	} else {
-		auth = docker.NewDockerAuthorizer(
-			docker.WithAuthClient(client),
-			docker.WithAuthCreds(func(string) (string, string, error) {
-				creds := d.client.Config().Credentials
-				if creds.Bearer == nil {
-					return " ", " ", nil
-				}
+func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logging.Logger) (remotes.Resolver, error) {
+	client, err := plugin.NewClient(*config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth client: %w", err)
+	}
 
-				return creds.Bearer.Scheme, creds.Bearer.Token, nil
-			}))
+	urlInfo, err := url.Parse(config.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse url: %w", err)
+	}
+
+	authorizer := pluginAuthorizer{
+		plugin: plugin,
+		logger: logger,
 	}
 
 	registryHost := docker.RegistryHost{
@@ -340,40 +341,42 @@ func (d *OCIDownloader) getResolverHost(client *http.Client, urlInfo *url.URL) d
 		Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityPush,
 		Client:       client,
 		Path:         "/v2",
-		Authorizer:   auth,
+		Authorizer:   &authorizer,
 	}
 
-	return func(string) ([]docker.RegistryHost, error) {
-		return []docker.RegistryHost{registryHost}, nil
+	opts := docker.ResolverOptions{
+		Hosts: func(string) ([]docker.RegistryHost, error) {
+			return []docker.RegistryHost{registryHost}, nil
+		},
 	}
+
+	return docker.NewResolver(opts), nil
 }
 
-func (d *OCIDownloader) getHTTPClient(authHeader *http.Header) (*http.Client, error) {
-	var client *http.Client
-	var err error
-	clientConfig := d.client.Config()
-	if clientConfig != nil && clientConfig.Credentials.ClientTLS != nil {
-		client, err = clientConfig.Credentials.ClientTLS.NewClient(*clientConfig)
-		if err != nil {
-			return nil, fmt.Errorf("can not create a new client: %w", err)
-		}
-	} else {
-		if clientConfig != nil && clientConfig.Credentials.Bearer != nil {
-			client, err = clientConfig.Credentials.Bearer.NewClient(*clientConfig)
-			if err != nil {
-				return nil, fmt.Errorf("can not create a new bearer client: %w", err)
-			}
+type pluginAuthorizer struct {
+	plugin rest.HTTPAuthPlugin
 
-			authHeader.Add("Authorization",
-				fmt.Sprintf("%s %s",
-					clientConfig.Credentials.Bearer.Scheme,
-					base64.StdEncoding.EncodeToString([]byte(clientConfig.Credentials.Bearer.Token))),
-			)
-		} else {
-			client = &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: clientConfig.AllowInsecureTLS}}}
-		}
+	logger logging.Logger
+}
+
+var _ docker.Authorizer = &pluginAuthorizer{}
+
+func (a *pluginAuthorizer) AddResponses(context.Context, []*http.Response) error {
+	return fmt.Errorf("using custom authorizer: %w", errdefs.ErrNotImplemented)
+}
+
+// Authorize uses a rest.HTTPAuthPlugin to Prepare a request.
+func (a *pluginAuthorizer) Authorize(_ context.Context, req *http.Request) error {
+	if err := a.plugin.Prepare(req); err != nil {
+		err = fmt.Errorf("failed to prepare docker request: %w", err)
+
+		// Make sure to log this before passing the error back to docker
+		a.logger.Error(err.Error())
+
+		return err
 	}
-	return client, nil
+
+	return nil
 }
 
 func manifestFromDesc(ctx context.Context, target oras.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
@@ -404,15 +407,6 @@ func manifestFromDesc(ctx context.Context, target oras.Target, desc *ocispec.Des
 type remoteManager struct {
 	resolver remotes.Resolver
 	srcRef   string
-}
-
-func newRemoteManager(hosts docker.RegistryHosts, headers http.Header, srcRef string) *remoteManager {
-	resolver := docker.NewResolver(docker.ResolverOptions{
-		Hosts:   hosts,
-		Headers: headers,
-	})
-
-	return &remoteManager{resolver: resolver, srcRef: srcRef}
 }
 
 func (r *remoteManager) Resolve(ctx context.Context, ref string) (ocispec.Descriptor, error) {

@@ -60,7 +60,7 @@ func TestAuthPluginWithNoAuthPluginLookup(t *testing.T) {
 			Plugin: &authPlugin,
 		},
 	}
-	_, err := cfg.authPlugin(nil)
+	_, err := cfg.AuthPlugin(nil)
 	if err == nil {
 		t.Error("Expected error but got nil")
 	}
@@ -709,7 +709,7 @@ func TestNew(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
-			plugin, err := client.config.authPlugin(mockAuthPluginLookup)
+			plugin, err := client.config.AuthPlugin(mockAuthPluginLookup)
 			if err != nil {
 				if tc.wantErr {
 					return
@@ -1085,6 +1085,41 @@ func TestBearerTokenInvalidConfig(t *testing.T) {
 
 	if !strings.HasPrefix(err.Error(), "invalid config") {
 		t.Fatalf("Unexpected error message %v\n", err)
+	}
+}
+
+func TestBearerTokenIsEncodedForOCI(t *testing.T) {
+	config := `{
+		"name": "foo",
+		"type": "oci",
+		"credentials": {
+			"bearer": {
+				"token": "secret",
+				"scheme": "Bearer"
+			}
+		}
+	}`
+
+	client, err := New([]byte(config), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %q", err)
+	}
+
+	if _, err := client.config.Credentials.Bearer.NewClient(client.config); err != nil {
+		t.Errorf("Bearer.NewClient() = %q", err)
+	}
+
+	req := httptest.NewRequest("", "http://somewhere.com", nil)
+	if err := client.config.Credentials.Bearer.Prepare(req); err != nil {
+		t.Errorf("Bearer.Prepare() = %q", err)
+	}
+
+	token := base64.StdEncoding.EncodeToString([]byte("secret"))
+
+	want := fmt.Sprintf("Bearer %s", token)
+	got := req.Header.Get("Authorization")
+	if got != want {
+		t.Errorf("req.Header.Get(\"Authorization\") = %q, want = %q", got, want)
 	}
 }
 

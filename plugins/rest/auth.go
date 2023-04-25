@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -19,7 +20,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -115,6 +115,10 @@ type bearerAuthPlugin struct {
 	Token     string `json:"token"`
 	TokenPath string `json:"token_path"`
 	Scheme    string `json:"scheme,omitempty"`
+
+	// encode is set to true for the OCIDownloader because
+	// it expects tokens in plain text but needs them in base64.
+	encode bool
 }
 
 func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
@@ -131,6 +135,12 @@ func (ap *bearerAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		ap.Scheme = "Bearer"
 	}
 
+	if c.Type == "oci" {
+		// Standard rest clients use the bearer token as it is defined in the Config
+		// but the OCIDownloader needs it encoded to base64 before using to sign a request.
+		ap.encode = true
+	}
+
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
@@ -143,6 +153,10 @@ func (ap *bearerAuthPlugin) Prepare(req *http.Request) error {
 			return err
 		}
 		token = strings.TrimSpace(string(bytes))
+	}
+
+	if ap.encode {
+		token = base64.StdEncoding.EncodeToString([]byte(token))
 	}
 
 	req.Header.Add("Authorization", fmt.Sprintf("%v %v", ap.Scheme, token))
@@ -303,7 +317,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 // https://tools.ietf.org/html/rfc6749#section-4.4
 // or the JWT authorization grant
 // https://tools.ietf.org/html/rfc7523
-func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
 	body := url.Values{}
 	if ap.GrantType == grantTypeJwtBearer {
 		authJwt, err := ap.createAuthJWT(ap.Claims, ap.signingKeyParsed)
@@ -337,7 +351,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken() (*oauth2Token, error
 		body.Set(k, v)
 	}
 
-	r, err := http.NewRequest("POST", ap.TokenURL, strings.NewReader(body.Encode()))
+	r, err := http.NewRequestWithContext(ctx, "POST", ap.TokenURL, strings.NewReader(body.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +400,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) Prepare(req *http.Request) error {
 	minTokenLifetime := float64(10)
 	if ap.tokenCache == nil || time.Until(ap.tokenCache.ExpiresAt).Seconds() < minTokenLifetime {
 		ap.logger.Debug("Requesting token from token_url %v", ap.TokenURL)
-		token, err := ap.requestToken()
+		token, err := ap.requestToken(req.Context())
 		if err != nil {
 			return err
 		}
@@ -517,8 +531,11 @@ type awsSigningAuthPlugin struct {
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
-	AWSService                string                           `json:"service,omitempty"`
-	AWSSignatureVersion       string                           `json:"signature_version,omitempty"`
+
+	AWSService          string `json:"service,omitempty"`
+	AWSSignatureVersion string `json:"signature_version,omitempty"`
+
+	ecrAuthPlugin *ecrAuthPlugin
 
 	logger logging.Logger
 }
@@ -532,17 +549,21 @@ func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
 	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
 }
 
-func (acs *awsCredentialServiceChain) credentials() (aws.Credentials, error) {
+func (acs *awsCredentialServiceChain) credentials(ctx context.Context) (aws.Credentials, error) {
 	for _, service := range acs.awsCredentialServices {
-		credential, err := service.credentials()
-		if err == nil {
-			acs.logger.Debug("awsSigningAuthPlugin:%s successful",
-				reflect.TypeOf(service).String())
-			return credential, nil
+		credential, err := service.credentials(ctx)
+		if err != nil {
+			acs.logger.Debug("awsSigningAuthPlugin:%T failed: %v", service, err)
+
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return aws.Credentials{}, err
+			}
+
+			continue
 		}
 
-		acs.logger.Debug("awsSigningAuthPlugin:%s failed: %v",
-			reflect.TypeOf(service).String(), err)
+		acs.logger.Debug("awsSigningAuthPlugin:%T successful", service)
+		return credential, nil
 	}
 
 	return aws.Credentials{}, errors.New("all AWS credential providers failed")
@@ -590,23 +611,34 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
-	if err := ap.validateConfig(); err != nil {
-		return nil, err
-	}
-
 	if ap.logger == nil {
 		ap.logger = c.logger
+	}
+
+	if err := ap.validateAndSetDefaults(c.Type); err != nil {
+		return nil, err
 	}
 
 	return DefaultRoundTripperClient(t, *c.ResponseHeaderTimeoutSeconds), nil
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
-	ap.logger.Debug("Signing request with AWS credentials.")
-	return signV4(req, ap.AWSService, ap.awsCredentialService(), time.Now(), ap.AWSSignatureVersion)
+	switch ap.AWSService {
+	case "ecr":
+		return ap.ecrAuthPlugin.Prepare(req)
+	default:
+		creds, err := ap.awsCredentialService().credentials(req.Context())
+		if err != nil {
+			return fmt.Errorf("failed to get aws credentials: %w", err)
+		}
+
+		ap.logger.Debug("Signing request with AWS credentials.")
+
+		return aws.SignRequest(req, ap.AWSService, creds, time.Now(), ap.AWSSignatureVersion)
+	}
 }
 
-func (ap *awsSigningAuthPlugin) validateConfig() error {
+func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error {
 	cfgs := map[bool]int{}
 	cfgs[ap.AWSEnvironmentCredentials != nil]++
 	cfgs[ap.AWSMetadataCredentials != nil]++
@@ -629,8 +661,28 @@ func (ap *awsSigningAuthPlugin) validateConfig() error {
 		}
 	}
 
-	if ap.AWSService == "" {
-		ap.AWSService = awsSigv4SigningDefaultService
+	ap.AWSService = strings.ToLower(ap.AWSService)
+
+	// Only allow ECR for OCI service types
+	if serviceType == "oci" {
+		if ap.AWSService == "" {
+			ap.AWSService = "ecr"
+		}
+
+		if ap.AWSService != "ecr" {
+			return fmt.Errorf(`cannot use aws service %q with service type "oci"`, ap.AWSService)
+		}
+
+		// We need to setup a special auth plugin for ECR.
+		ap.ecrAuthPlugin = newECRAuthPlugin(ap)
+	} else {
+		// Disallow ECR for non-OCI service types
+		if ap.AWSService == "ecr" {
+			return errors.New(`aws service "ecr" must be used with service type "oci"`)
+		}
+		if ap.AWSService == "" {
+			ap.AWSService = awsSigv4SigningDefaultService
+		}
 	}
 
 	if ap.AWSSignatureVersion == "" {

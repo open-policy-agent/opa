@@ -31,64 +31,29 @@ type testFixture struct {
 }
 
 func newTestFixture(t *testing.T) testFixture {
+	t.Helper()
 
-	patch := bundle.PatchOperation{
-		Op:    "upsert",
-		Path:  "/a/c/d",
-		Value: []string{"foo", "bar"},
-	}
-
-	ts := testServer{
-		t:       t,
-		expAuth: "Bearer secret",
-		bundles: map[string]bundle.Bundle{
-			"test/bundle1": {
-				Manifest: bundle.Manifest{
-					Revision: "quickbrownfaux",
-				},
-				Data: map[string]interface{}{
-					"foo": map[string]interface{}{
-						"bar": json.Number("1"),
-						"baz": "qux",
-					},
-				},
-				Modules: []bundle.ModuleFile{
-					{
-						Path: `/example.rego`,
-						Raw:  []byte("package foo\n\ncorge=1"),
-					},
-				},
-			},
-			"test/bundle2": {
-				Manifest: bundle.Manifest{
-					Revision: deltaBundleMode,
-				},
-				Patch: bundle.Patch{Data: []bundle.PatchOperation{patch}},
-			},
-		},
-	}
-
+	ts := newTestServer(t)
 	ts.start()
 
 	restConfig := []byte(fmt.Sprintf(`{
-		"url": %q,
-		"credentials": {
-			"bearer": {
-				"scheme": "Bearer",
-				"token": "secret"
+			"url": %q,
+			"credentials": {
+				"bearer": {
+					"scheme": "Bearer",
+					"token": "secret"
+				}
 			}
-		}
-	}`, ts.server.URL))
+		}`, ts.server.URL))
 
 	tc, err := rest.New(restConfig, map[string]*keys.Config{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return testFixture{
 		client:  tc,
-		server:  &ts,
+		server:  ts,
 		updates: []Update{},
 		etags:   make(map[string]string),
 	}
@@ -128,6 +93,44 @@ type testServer struct {
 	server         *httptest.Server
 	etagInResponse bool
 	longPoll       bool
+}
+
+func newTestServer(t *testing.T) *testServer {
+	return &testServer{
+		t:       t,
+		expAuth: "Bearer secret",
+		bundles: map[string]bundle.Bundle{
+			"test/bundle1": {
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+				},
+				Data: map[string]interface{}{
+					"foo": map[string]interface{}{
+						"bar": json.Number("1"),
+						"baz": "qux",
+					},
+				},
+				Modules: []bundle.ModuleFile{
+					{
+						Path: `/example.rego`,
+						Raw:  []byte("package foo\n\ncorge=1"),
+					},
+				},
+			},
+			"test/bundle2": {
+				Manifest: bundle.Manifest{
+					Revision: deltaBundleMode,
+				},
+				Patch: bundle.Patch{Data: []bundle.PatchOperation{
+					{
+						Op:    "upsert",
+						Path:  "/a/c/d",
+						Value: []string{"foo", "bar"},
+					},
+				}},
+			},
+		},
+	}
 }
 
 func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {

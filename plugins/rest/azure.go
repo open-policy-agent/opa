@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,6 +50,10 @@ type azureManagedIdentitiesAuthPlugin struct {
 }
 
 func (ap *azureManagedIdentitiesAuthPlugin) NewClient(c Config) (*http.Client, error) {
+	if c.Type == "oci" {
+		return nil, errors.New("azure managed identities auth: OCI service not supported")
+	}
+
 	if ap.Endpoint == "" {
 		ap.Endpoint = azureIMDSEndpoint
 	}
