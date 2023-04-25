@@ -413,6 +413,7 @@ func main() {
 				Name:    "github.repo",
 				Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
 				Memoize: true,
+				Nondeterministic: true,
 			},
 			func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 
@@ -486,6 +487,7 @@ func main() {
 			Name:    "github.repo",
 			Decl:    types.NewFunction(types.Args(types.S, types.S), types.A),
 			Memoize: true,
+			Nondeterministic: true,
 		},
 		func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 
