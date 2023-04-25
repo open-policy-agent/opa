@@ -892,6 +892,9 @@ func (c *Compiler) checkRuleConflicts() {
 			//
 			//   data.p.q[r] { r := input.r } # data.p.q could be { "r": true }
 			//   data.p.q.r.s { true }
+			//
+			// data.p[r] := x { r = input.key; x = input.bar }
+			// data.p.q[r] := x { r = input.key; x = input.bar }
 
 			// But this is allowed:
 			//   data.p.q[r] = 1 { r := "r" }
@@ -900,7 +903,25 @@ func (c *Compiler) checkRuleConflicts() {
 			if r.Head.RuleKind() == SingleValue && len(node.Children) > 0 {
 				if len(ref) > 1 && !ref[len(ref)-1].IsGround() { // p.q[x] and p.q.s.t => check grandchildren
 					for _, c := range node.Children {
+						grandchildrenFound := false
+
+						if len(c.Values) > 0 {
+							childRules := extractRules(c.Values)
+							for _, childRule := range childRules {
+								childRef := childRule.Ref()
+								if childRule.Head.RuleKind() == SingleValue && !childRef[len(childRef)-1].IsGround() {
+									// The child is a partial object rule, so it's effectively "generating" grandchildren.
+									grandchildrenFound = true
+									break
+								}
+							}
+						}
+
 						if len(c.Children) > 0 {
+							grandchildrenFound = true
+						}
+
+						if grandchildrenFound {
 							singleValueConflicts = node.flattenChildren()
 							break
 						}

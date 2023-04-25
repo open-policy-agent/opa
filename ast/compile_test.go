@@ -1952,6 +1952,42 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			err: "rego_type_error: single-value rule data.pkg.p.q[r] conflicts with [data.pkg.p.q.r.s]",
 		},
 		{
+			note: "single-value partial object with other partial object rule overlap, unknown keys (regression test for #5855)",
+			modules: modules(
+				`package pkg
+				p[r] := x { r = input.key; x = input.bar }
+				p.q[r] := x { r = input.key; x = input.bar }
+				`),
+			err: "rego_type_error: single-value rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
+		},
+		{
+			note: "single-value partial object with other partial object (implicit 'true' value) rule overlap, unknown keys",
+			modules: modules(
+				`package pkg
+				p[r] := x { r = input.key; x = input.bar }
+				p.q[r] { r = input.key }
+				`),
+			err: "rego_type_error: single-value rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
+		},
+		{
+			note: "single-value partial object with multi-value rule (ref head) overlap, unknown key",
+			modules: modules(
+				`package pkg
+				import future.keywords
+				p[r] := x { r = input.key; x = input.bar }
+				p.q contains r { r = input.key }
+				`),
+		},
+		{
+			note: "single-value partial object with multi-value rule overlap, unknown key",
+			modules: modules(
+				`package pkg
+				p[r] := x { r = input.key; x = input.bar }
+				p.q { true }
+				`),
+			err: "rego_type_error: conflicting rules data.pkg.p found",
+		},
+		{
 			note: "single-value rule with known and unknown key",
 			modules: modules(
 				`package pkg
