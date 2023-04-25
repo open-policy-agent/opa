@@ -1284,8 +1284,13 @@ Content-Type: application/json
 Partially evaluate a query.
 
 The [Compile API](#compile-api) allows you to partially evaluate Rego queries
-and obtain a simplified version of the policy. For more details on Partial
-Evaluation in OPA, see [this post on blog.openpolicyagent.org](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
+and obtain a simplified version of the policy. This is most useful when building
+integrations where policy logic is to be translated and evaluated in another
+environment. For example, 
+[this post](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
+on the OPA blog shows how SQL can be generated based on Compile API output. 
+For more details on Partial Evaluation in OPA, please refer to
+[this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
 
 #### Request Body
 

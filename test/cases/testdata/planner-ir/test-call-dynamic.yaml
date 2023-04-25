@@ -20,3 +20,50 @@ cases:
   - x:
     - bar
     - foo
+- note: ir/no call-dynamic with mixed partial rules
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := data.a.b[c] if c := "c"
+  - |
+    package a
+    import future.keywords.if
+    b[c] := "C" if c := "c"
+    b["d"] := "D"
+  query: data.test.p = x
+  want_result:
+  - x: C
+- note: ir/call-dynamic with mixed partial rules
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := a[b].c if b := "b"
+    a.b.c := "C" if b := "b"
+    a.x.d := "D"
+  query: data.test.p = x
+  want_result:
+  - x: C
+- note: ir/no call-dynamic with mixed partial rules, ref heads
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := a.b[c] if c := "c"
+    a.b[c] := "C" if c := "c"
+    a.b["d"] := "D"
+  query: data.test.p = x
+  want_result:
+  - x: C
+- note: ir/call-dynamic with mixed partial rules, ref heads
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := a[b][c] if { b := "b"; c := "c" }
+    a.b.c := "C"
+    a.x.d := "D"
+  query: data.test.p = x
+  want_result:
+  - x: C
