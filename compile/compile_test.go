@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"reflect"
@@ -77,12 +78,18 @@ func TestCompilerInitErrors(t *testing.T) {
 
 func TestCompilerLoadError(t *testing.T) {
 
-	test.WithTempFS(nil, func(root string) {
-		err := New().WithPaths(path.Join(root, "does-not-exist")).Build(context.Background())
-		if err == nil {
-			t.Fatal("expected failure")
-		}
-	})
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(nil, useMemoryFS, func(root string, fsys fs.FS) {
+
+			err := New().
+				WithFS(fsys).
+				WithPaths(path.Join(root, "does-not-exist")).
+				Build(context.Background())
+			if err == nil {
+				t.Fatal("expected failure")
+			}
+		})
+	}
 }
 
 func TestCompilerLoadAsBundleSuccess(t *testing.T) {
@@ -102,54 +109,57 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			{"b2": {"k2": "v2"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		root1 := path.Join(root, "b1")
-		root2 := path.Join(root, "b2")
+			root1 := path.Join(root, "b1")
+			root2 := path.Join(root, "b2")
 
-		compiler := New().
-			WithPaths(root1, root2).
-			WithAsBundle(true)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root1, root2).
+				WithAsBundle(true)
 
-		err := compiler.Build(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
+			err := compiler.Build(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		// Verify result is just merger of two bundles.
-		a, err := loader.NewFileLoader().AsBundle(root1)
-		if err != nil {
-			panic(err)
-		}
+			// Verify result is just merger of two bundles.
+			a, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root1)
+			if err != nil {
+				panic(err)
+			}
 
-		b, err := loader.NewFileLoader().AsBundle(root2)
-		if err != nil {
-			panic(err)
-		}
+			b, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root2)
+			if err != nil {
+				panic(err)
+			}
 
-		exp, err := bundle.Merge([]*bundle.Bundle{a, b})
-		if err != nil {
-			panic(err)
-		}
+			exp, err := bundle.Merge([]*bundle.Bundle{a, b})
+			if err != nil {
+				panic(err)
+			}
 
-		err = exp.FormatModules(false)
-		if err != nil {
-			t.Fatal(err)
-		}
+			err = exp.FormatModules(false)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if !compiler.bundle.Equal(*exp) {
-			t.Fatalf("expected %v but got %v", exp, compiler.bundle)
-		}
+			if !compiler.bundle.Equal(*exp) {
+				t.Fatalf("expected %v but got %v", exp, compiler.bundle)
+			}
 
-		expRoots := []string{"b1", "b2"}
-		expManifest := bundle.Manifest{
-			Roots: &expRoots,
-		}
+			expRoots := []string{"b1", "b2"}
+			expManifest := bundle.Manifest{
+				Roots: &expRoots,
+			}
 
-		if !compiler.bundle.Manifest.Equal(expManifest) {
-			t.Fatalf("expected %v but got %v", compiler.bundle.Manifest, expManifest)
-		}
-	})
+			if !compiler.bundle.Manifest.Equal(expManifest) {
+				t.Fatalf("expected %v but got %v", compiler.bundle.Manifest, expManifest)
+			}
+		})
+	}
 }
 
 func TestCompilerLoadAsBundleMergeError(t *testing.T) {
@@ -168,20 +178,23 @@ func TestCompilerLoadAsBundleMergeError(t *testing.T) {
 			{"b2": {"k2": "v2"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		root1 := path.Join(root, "b1")
-		root2 := path.Join(root, "b2")
+			root1 := path.Join(root, "b1")
+			root2 := path.Join(root, "b2")
 
-		compiler := New().
-			WithPaths(root1, root2).
-			WithAsBundle(true)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root1, root2).
+				WithAsBundle(true)
 
-		err := compiler.Build(ctx)
-		if err == nil || err.Error() != "bundle merge failed: manifest has overlapped roots: '' and ''" {
-			t.Fatal(err)
-		}
-	})
+			err := compiler.Build(ctx)
+			if err == nil || err.Error() != "bundle merge failed: manifest has overlapped roots: '' and ''" {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func TestCompilerLoadFilesystem(t *testing.T) {
@@ -195,31 +208,34 @@ func TestCompilerLoadFilesystem(t *testing.T) {
 			{"b1": {"k": "v"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root)
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		// Verify result is just bundle load.
-		exp, err := loader.NewFileLoader().AsBundle(root)
-		if err != nil {
-			panic(err)
-		}
+			// Verify result is just bundle load.
+			exp, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root)
+			if err != nil {
+				panic(err)
+			}
 
-		err = exp.FormatModules(false)
-		if err != nil {
-			t.Fatal(err)
-		}
+			err = exp.FormatModules(false)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if !compiler.bundle.Equal(*exp) {
-			t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, compiler.bundle)
-		}
-	})
+			if !compiler.bundle.Equal(*exp) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", compiler.bundle, exp)
+			}
+		})
+	}
 }
 
 func TestCompilerLoadFilesystemWithEnablePrintStatementsFalse(t *testing.T) {
@@ -233,22 +249,26 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsFalse(t *testing.T) {
 			{"b1": {"k": "v"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
-		compiler := New().
-			WithPaths(root).
-			WithTarget("plan").WithEntrypoints("test/allow").
-			WithEnablePrintStatements(false)
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		if err := compiler.Build(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").WithEntrypoints("test/allow").
+				WithEnablePrintStatements(false)
 
-		bundle := compiler.Bundle()
+			if err := compiler.Build(context.Background()); err != nil {
+				t.Fatal(err)
+			}
 
-		if strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
-			t.Fatalf("output different than expected:\n\ngot: %v\n\nfound: internal.print", string(bundle.PlanModules[0].Raw))
-		}
-	})
+			bundle := compiler.Bundle()
+
+			if strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
+				t.Fatalf("output different than expected:\n\ngot: %v\n\nfound: internal.print", string(bundle.PlanModules[0].Raw))
+			}
+		})
+	}
 }
 
 func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
@@ -262,22 +282,27 @@ func TestCompilerLoadFilesystemWithEnablePrintStatementsTrue(t *testing.T) {
 			{"b1": {"k": "v"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
-		compiler := New().
-			WithPaths(root).
-			WithTarget("plan").WithEntrypoints("test/allow").
-			WithEnablePrintStatements(true)
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		if err := compiler.Build(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("test/allow").
+				WithEnablePrintStatements(true)
 
-		bundle := compiler.Bundle()
+			if err := compiler.Build(context.Background()); err != nil {
+				t.Fatal(err)
+			}
 
-		if !strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
-			t.Fatalf("output different than expected:\n\ngot: %v\n\nmissing: internal.print", string(bundle.PlanModules[0].Raw))
-		}
-	})
+			bundle := compiler.Bundle()
+
+			if !strings.Contains(string(bundle.PlanModules[0].Raw), "internal.print") {
+				t.Fatalf("output different than expected:\n\ngot: %v\n\nmissing: internal.print", string(bundle.PlanModules[0].Raw))
+			}
+		})
+	}
 }
 
 func TestCompilerLoadHonorsFilter(t *testing.T) {
@@ -290,23 +315,26 @@ func TestCompilerLoadHonorsFilter(t *testing.T) {
 			{"b1": {"k": "v"}}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root).
-			WithFilter(func(abspath string, _ os.FileInfo, _ int) bool {
-				return strings.HasSuffix(abspath, ".json")
-			})
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithFilter(func(abspath string, _ os.FileInfo, _ int) bool {
+					return strings.HasSuffix(abspath, ".json")
+				})
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.Data) > 0 {
-			t.Fatal("expected no data to be loaded")
-		}
-	})
+			if len(compiler.bundle.Data) > 0 {
+				t.Fatal("expected no data to be loaded")
+			}
+		})
+	}
 }
 
 func TestCompilerInputBundle(t *testing.T) {
@@ -371,21 +399,24 @@ func TestCompilerError(t *testing.T) {
 			p { p }`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root)
 
-		err := compiler.Build(context.Background())
-		if err == nil {
-			t.Fatal("expected error")
-		}
+			err := compiler.Build(context.Background())
+			if err == nil {
+				t.Fatal("expected error")
+			}
 
-		astErr, ok := err.(ast.Errors)
-		if !ok || len(astErr) != 1 || astErr[0].Code != ast.RecursionErr {
-			t.Fatal("unexpected error:", err)
-		}
-	})
+			astErr, ok := err.(ast.Errors)
+			if !ok || len(astErr) != 1 || astErr[0].Code != ast.RecursionErr {
+				t.Fatal("unexpected error:", err)
+			}
+		})
+	}
 }
 
 func TestCompilerOptimizationL1(t *testing.T) {
@@ -400,19 +431,21 @@ func TestCompilerOptimizationL1(t *testing.T) {
 			{"foo": 1}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root).
-			WithOptimizationLevel(1).
-			WithEntrypoints("test/p")
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithOptimizationLevel(1).
+				WithEntrypoints("test/p")
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		optimizedExp := ast.MustParseModule(`
+			optimizedExp := ast.MustParseModule(`
 			package test
 
 			default p = false
@@ -420,29 +453,30 @@ func TestCompilerOptimizationL1(t *testing.T) {
 			q { input.x = 1 }
 		`)
 
-		// NOTE(tsandall): PE generates vars with wildcard prefix. Instead of
-		// constructing the AST manually, just rewrite to the expected value
-		// here. If this becomes a common pattern, we could refactor (e.g.,
-		// allow caller to control var prefix, split into a reusable function,
-		// etc.)
-		_, err = ast.TransformVars(optimizedExp, func(x ast.Var) (ast.Value, error) {
-			if x == ast.Var("X") {
-				return ast.Var("$_term_1_01"), nil
+			// NOTE(tsandall): PE generates vars with wildcard prefix. Instead of
+			// constructing the AST manually, just rewrite to the expected value
+			// here. If this becomes a common pattern, we could refactor (e.g.,
+			// allow caller to control var prefix, split into a reusable function,
+			// etc.)
+			_, err = ast.TransformVars(optimizedExp, func(x ast.Var) (ast.Value, error) {
+				if x == ast.Var("X") {
+					return ast.Var("$_term_1_01"), nil
+				}
+				return x, nil
+			})
+			if err != nil {
+				t.Fatal(err)
 			}
-			return x, nil
+
+			if len(compiler.bundle.Modules) != 1 {
+				t.Fatalf("expected 1 module but got: %v", compiler.bundle.Modules)
+			}
+
+			if !compiler.bundle.Modules[0].Parsed.Equal(optimizedExp) {
+				t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
+			}
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(compiler.bundle.Modules) != 1 {
-			t.Fatalf("expected 1 module but got: %v", compiler.bundle.Modules)
-		}
-
-		if !compiler.bundle.Modules[0].Parsed.Equal(optimizedExp) {
-			t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
-		}
-	})
+	}
 }
 
 func TestCompilerOptimizationL2(t *testing.T) {
@@ -457,42 +491,51 @@ func TestCompilerOptimizationL2(t *testing.T) {
 			{"foo": 1}`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root).
-			WithOptimizationLevel(2).
-			WithEntrypoints("test/p")
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithOptimizationLevel(2).
+				WithEntrypoints("test/p")
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		prunedExp := ast.MustParseModule(`
+			prunedExp := ast.MustParseModule(`
 			package test
 
 			q { input.x = data.foo }`)
 
-		optimizedExp := ast.MustParseModule(`
+			optimizedExp := ast.MustParseModule(`
 			package test
 
 			default p = false
 			p { input.x = 1 }
-		`)
+      `)
 
-		if len(compiler.bundle.Modules) != 2 {
-			t.Fatalf("expected two modules but got: %v", compiler.bundle.Modules)
-		}
+			if len(compiler.bundle.Modules) != 2 {
+				t.Fatalf("expected two modules but got: %v", compiler.bundle.Modules)
+			}
 
-		if !compiler.bundle.Modules[0].Parsed.Equal(prunedExp) {
-			t.Fatalf("expected pruned module to be:\n\n%v\n\ngot:\n\n%v", prunedExp, compiler.bundle.Modules[0])
-		}
-
-		if !compiler.bundle.Modules[1].Parsed.Equal(optimizedExp) {
-			t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[1])
-		}
-	})
+			// Note: L2 optimized ModuleFile ordering in a bundle is non-deterministic...
+			if !compiler.bundle.Modules[0].Parsed.Equal(prunedExp) {
+				if !compiler.bundle.Modules[0].Parsed.Equal(optimizedExp) {
+					t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
+				}
+				if !compiler.bundle.Modules[1].Parsed.Equal(prunedExp) {
+					t.Fatalf("expected pruned module to be:\n\n%v\n\ngot:\n\n%v", prunedExp, compiler.bundle.Modules[1])
+				}
+			} else {
+				if !compiler.bundle.Modules[1].Parsed.Equal(optimizedExp) {
+					t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[1])
+				}
+			}
+		})
+	}
 }
 
 // NOTE(sr): we override this to not depend on build tags in tests
@@ -510,25 +553,31 @@ func TestCompilerWasmTarget(t *testing.T) {
 		q = p+1`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
-			WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test/p", "test/q").
+				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.WasmModules) == 0 {
-			t.Fatal("expected to find compiled wasm module")
-		}
+			if len(compiler.bundle.WasmModules) == 0 {
+				t.Fatal("expected to find compiled wasm module")
+			}
 
-		if len(compiler.bundle.Wasm) != 0 {
-			t.Error("expected NOT to find deprecated bundle `Wasm` value")
-		}
+			if len(compiler.bundle.Wasm) != 0 {
+				t.Error("expected NOT to find deprecated bundle `Wasm` value")
+			}
 
-		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
-	})
+			ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+		})
+	}
 }
 
 // If we're building a wasm bundle, and the `opa` binary we use to do that
@@ -541,14 +590,20 @@ func TestCompilerWasmTargetWithCapabilitiesUnset(t *testing.T) {
 		q = p+1`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q")
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-	})
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test/p", "test/q")
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+		})
+	}
 }
 
 func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
@@ -559,24 +614,30 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 		q = p+1`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		for note, wabis := range map[string][]ast.WasmABIVersion{
-			"none":     {},
-			"mismatch": {{Version: 0}, {Version: 1, Minor: 2000}},
-		} {
-			t.Run(note, func(t *testing.T) {
-				caps := ast.CapabilitiesForThisVersion()
-				caps.WasmABIVersions = wabis
-				compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "test/q").
-					WithCapabilities(caps)
-				err := compiler.Build(context.Background())
-				if err == nil {
-					t.Fatal("expected err, got nil")
-				}
-			})
-		}
-	})
+			for note, wabis := range map[string][]ast.WasmABIVersion{
+				"none":     {},
+				"mismatch": {{Version: 0}, {Version: 1, Minor: 2000}},
+			} {
+				t.Run(note, func(t *testing.T) {
+					caps := ast.CapabilitiesForThisVersion()
+					caps.WasmABIVersions = wabis
+					compiler := New().
+						WithFS(fsys).
+						WithPaths(root).
+						WithTarget("wasm").
+						WithEntrypoints("test/p", "test/q").
+						WithCapabilities(caps)
+					err := compiler.Build(context.Background())
+					if err == nil {
+						t.Fatal("expected err, got nil")
+					}
+				})
+			}
+		})
+	}
 }
 
 func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
@@ -592,39 +653,45 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 		mask["/input/password"]`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p", "policy/authz").
-			WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test/p", "policy/authz").
+				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.WasmModules) != 1 {
-			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
-		}
+			if len(compiler.bundle.WasmModules) != 1 {
+				t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+			}
 
-		expManifest := bundle.Manifest{}
-		expManifest.Init()
-		expManifest.WasmResolvers = []bundle.WasmResolver{
-			{
-				Entrypoint: "test/p",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "policy/authz",
-				Module:     "/policy.wasm",
-			},
-		}
+			expManifest := bundle.Manifest{}
+			expManifest.Init()
+			expManifest.WasmResolvers = []bundle.WasmResolver{
+				{
+					Entrypoint: "test/p",
+					Module:     "/policy.wasm",
+				},
+				{
+					Entrypoint: "policy/authz",
+					Module:     "/policy.wasm",
+				},
+			}
 
-		if !compiler.bundle.Manifest.Equal(expManifest) {
-			t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
-		}
+			if !compiler.bundle.Manifest.Equal(expManifest) {
+				t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
+			}
 
-		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
-		ensureEntrypointRemoved(t, compiler.bundle, "policy/authz")
-	})
+			ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+			ensureEntrypointRemoved(t, compiler.bundle, "policy/authz")
+		})
+	}
 }
 
 func TestCompilerWasmTargetAnnotations(t *testing.T) {
@@ -650,64 +717,69 @@ package policy
 q = true`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").
-			WithEntrypoints("test", "policy/q").
-			WithRegoAnnotationEntrypoints(true)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test", "policy/q").
+				WithRegoAnnotationEntrypoints(true)
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(compiler.bundle.WasmModules) != 1 {
-			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
-		}
-
-		expWasmResolvers := []bundle.WasmResolver{
-			{
-				Entrypoint: "test",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "policy/q",
-				Module:     "/policy.wasm",
-				Annotations: []*ast.Annotations{
-					{
-						Title: "All my Q rules",
-						Scope: "document",
-					},
-					{
-						Title: "My Q rule",
-						Scope: "rule",
-					},
-				},
-			},
-			{
-				Entrypoint: "test/p",
-				Module:     "/policy.wasm",
-				Annotations: []*ast.Annotations{
-					{
-						Title:      "My P rule",
-						Scope:      "rule",
-						Entrypoint: true,
-					},
-				},
-			},
-		}
-
-		if len(expWasmResolvers) != len(compiler.bundle.Manifest.WasmResolvers) {
-			t.Fatalf("\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n", expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
-		}
-
-		for i, expWasmResolver := range expWasmResolvers {
-			if !expWasmResolver.Equal(&compiler.bundle.Manifest.WasmResolvers[i]) {
-				t.Fatalf("WasmResolver at index %v mismatch\n\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n",
-					i, expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-	})
+
+			if len(compiler.bundle.WasmModules) != 1 {
+				t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+			}
+
+			expWasmResolvers := []bundle.WasmResolver{
+				{
+					Entrypoint: "test",
+					Module:     "/policy.wasm",
+				},
+				{
+					Entrypoint: "policy/q",
+					Module:     "/policy.wasm",
+					Annotations: []*ast.Annotations{
+						{
+							Title: "All my Q rules",
+							Scope: "document",
+						},
+						{
+							Title: "My Q rule",
+							Scope: "rule",
+						},
+					},
+				},
+				{
+					Entrypoint: "test/p",
+					Module:     "/policy.wasm",
+					Annotations: []*ast.Annotations{
+						{
+							Title:      "My P rule",
+							Scope:      "rule",
+							Entrypoint: true,
+						},
+					},
+				},
+			}
+
+			if len(expWasmResolvers) != len(compiler.bundle.Manifest.WasmResolvers) {
+				t.Fatalf("\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n", expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+			}
+
+			for i, expWasmResolver := range expWasmResolvers {
+				if !expWasmResolver.Equal(&compiler.bundle.Manifest.WasmResolvers[i]) {
+					t.Fatalf("WasmResolver at index %v mismatch\n\nExpected WasmResolvers:\n  %+v\nGot:\n  %+v\n",
+						i, expWasmResolvers, compiler.bundle.Manifest.WasmResolvers)
+				}
+			}
+		})
+	}
 }
 
 func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
@@ -720,48 +792,54 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 		s = 2
 		z { r }`}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/r", "test/z").
-			WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test/r", "test/z").
+				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.WasmModules) != 1 {
-			t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
-		}
+			if len(compiler.bundle.WasmModules) != 1 {
+				t.Fatalf("expected 1 Wasm modules, got: %d", len(compiler.bundle.WasmModules))
+			}
 
-		expManifest := bundle.Manifest{}
-		expManifest.Init()
-		expManifest.WasmResolvers = []bundle.WasmResolver{
-			{
-				Entrypoint: "test/r",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "test/z",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "test/p",
-				Module:     "/policy.wasm",
-			},
-			{
-				Entrypoint: "test/q",
-				Module:     "/policy.wasm",
-			},
-		}
+			expManifest := bundle.Manifest{}
+			expManifest.Init()
+			expManifest.WasmResolvers = []bundle.WasmResolver{
+				{
+					Entrypoint: "test/r",
+					Module:     "/policy.wasm",
+				},
+				{
+					Entrypoint: "test/z",
+					Module:     "/policy.wasm",
+				},
+				{
+					Entrypoint: "test/p",
+					Module:     "/policy.wasm",
+				},
+				{
+					Entrypoint: "test/q",
+					Module:     "/policy.wasm",
+				},
+			}
 
-		if !compiler.bundle.Manifest.Equal(expManifest) {
-			t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
-		}
+			if !compiler.bundle.Manifest.Equal(expManifest) {
+				t.Fatalf("\nExpected manifest: %+v\nGot: %+v\n", expManifest, compiler.bundle.Manifest)
+			}
 
-		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
-		ensureEntrypointRemoved(t, compiler.bundle, "test/q")
-		ensureEntrypointRemoved(t, compiler.bundle, "test/r")
-	})
+			ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+			ensureEntrypointRemoved(t, compiler.bundle, "test/q")
+			ensureEntrypointRemoved(t, compiler.bundle, "test/r")
+		})
+	}
 }
 
 func TestCompilerWasmTargetLazyCompile(t *testing.T) {
@@ -772,25 +850,32 @@ func TestCompilerWasmTargetLazyCompile(t *testing.T) {
 		q = "foo"`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("wasm").WithEntrypoints("test/p").WithOptimizationLevel(1).
-			WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("wasm").
+				WithEntrypoints("test/p").
+				WithOptimizationLevel(1).
+				WithCapabilities(wasmABIVersions(ast.WasmABIVersion{Version: 1}))
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.WasmModules) == 0 {
-			t.Fatal("expected to find compiled wasm module")
-		}
+			if len(compiler.bundle.WasmModules) == 0 {
+				t.Fatal("expected to find compiled wasm module")
+			}
 
-		if _, exists := compiler.compiler.Modules["optimized/test.rego"]; !exists {
-			t.Fatal("expected to find optimized module on compiler")
-		}
+			if _, exists := compiler.compiler.Modules["optimized/test.rego"]; !exists {
+				t.Fatal("expected to find optimized module on compiler")
+			}
 
-		ensureEntrypointRemoved(t, compiler.bundle, "test/p")
-	})
+			ensureEntrypointRemoved(t, compiler.bundle, "test/p")
+		})
+	}
 }
 
 func ensureEntrypointRemoved(t *testing.T, b *bundle.Bundle, e string) {
@@ -816,18 +901,24 @@ func TestCompilerPlanTarget(t *testing.T) {
 		q = p+1`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("test/p", "test/q")
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("test/p", "test/q")
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.PlanModules) == 0 {
-			t.Fatal("expected to find compiled plan module")
-		}
-	})
+			if len(compiler.bundle.PlanModules) == 0 {
+				t.Fatal("expected to find compiled plan module")
+			}
+		})
+	}
 }
 
 func TestCompilerPlanTargetPruneUnused(t *testing.T) {
@@ -837,36 +928,39 @@ func TestCompilerPlanTargetPruneUnused(t *testing.T) {
 		f(x) { p[x] }`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().
-			WithPaths(root).
-			WithTarget("plan").
-			WithEntrypoints("test").
-			WithPruneUnused(true)
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("test").
+				WithPruneUnused(true)
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if len(compiler.bundle.PlanModules) == 0 {
-			t.Fatal("expected to find compiled plan module")
-		}
+			if len(compiler.bundle.PlanModules) == 0 {
+				t.Fatal("expected to find compiled plan module")
+			}
 
-		plan := compiler.bundle.PlanModules[0].Raw
-		var policy ir.Policy
+			plan := compiler.bundle.PlanModules[0].Raw
+			var policy ir.Policy
 
-		if err := json.Unmarshal(plan, &policy); err != nil {
-			t.Fatal(err)
-		}
-		if exp, act := 1, len(policy.Funcs.Funcs); act != exp {
-			t.Fatalf("expected %d funcs, got %d", exp, act)
-		}
-		f := policy.Funcs.Funcs[0]
-		if exp, act := "g0.data.test.p", f.Name; act != exp {
-			t.Fatalf("expected func named %v, got %v", exp, act)
-		}
-	})
+			if err := json.Unmarshal(plan, &policy); err != nil {
+				t.Fatal(err)
+			}
+			if exp, act := 1, len(policy.Funcs.Funcs); act != exp {
+				t.Fatalf("expected %d funcs, got %d", exp, act)
+			}
+			f := policy.Funcs.Funcs[0]
+			if exp, act := "g0.data.test.p", f.Name; act != exp {
+				t.Fatalf("expected func named %v, got %v", exp, act)
+			}
+		})
+	}
 }
 
 func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
@@ -877,31 +971,43 @@ func TestCompilerPlanTargetUnmatchedEntrypoints(t *testing.T) {
 		q := p + 1`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("test/p", "test/q", "test/no")
-		err := compiler.Build(context.Background())
-		if err == nil {
-			t.Error("expected error from unmatched entrypoint")
-		}
-		expectError := "entrypoint \"test/no\" does not refer to a rule or policy decision"
-		if err.Error() != expectError {
-			t.Errorf("expected error %s, got: %s", expectError, err.Error())
-		}
-	})
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("test/p", "test/q", "test/no")
+			err := compiler.Build(context.Background())
+			if err == nil {
+				t.Error("expected error from unmatched entrypoint")
+			}
+			expectError := "entrypoint \"test/no\" does not refer to a rule or policy decision"
+			if err.Error() != expectError {
+				t.Errorf("expected error %s, got: %s", expectError, err.Error())
+			}
+		})
+	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithTarget("plan").WithEntrypoints("foo", "foo.bar", "test/no")
-		err := compiler.Build(context.Background())
-		if err == nil {
-			t.Error("expected error from unmatched entrypoints")
-		}
-		expectError := "entrypoint \"foo\" does not refer to a rule or policy decision"
-		if err.Error() != expectError {
-			t.Errorf("expected error %s, got: %s", expectError, err.Error())
-		}
-	})
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithTarget("plan").
+				WithEntrypoints("foo", "foo.bar", "test/no")
+			err := compiler.Build(context.Background())
+			if err == nil {
+				t.Error("expected error from unmatched entrypoints")
+			}
+			expectError := "entrypoint \"foo\" does not refer to a rule or policy decision"
+			if err.Error() != expectError {
+				t.Errorf("expected error %s, got: %s", expectError, err.Error())
+			}
+		})
+	}
 }
 
 func TestCompilerRegoEntrypointAnnotations(t *testing.T) {
@@ -1161,31 +1267,33 @@ q[3]
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			test.WithTempFS(tc.modules, func(root string) {
-
-				compiler := New().
-					WithPaths(root).
-					WithTarget("plan").
-					WithEntrypoints(tc.entrypoints...).
-					WithRegoAnnotationEntrypoints(true).
-					WithPruneUnused(true)
-				err := compiler.Build(context.Background())
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				// Ensure we have the right number of entrypoints.
-				if len(compiler.entrypoints) != len(tc.wantEntrypoints) {
-					t.Fatalf("Wrong number of entrypoints. Expected %v, got %v.", tc.wantEntrypoints, compiler.entrypoints)
-				}
-
-				// Ensure those entrypoints match the ones we expect.
-				for _, entrypoint := range compiler.entrypoints {
-					if _, found := tc.wantEntrypoints[entrypoint]; !found {
-						t.Fatalf("Unexpected entrypoint '%s'", entrypoint)
+			for _, useMemoryFS := range []bool{false, true} {
+				test.WithTestFS(tc.modules, useMemoryFS, func(root string, fsys fs.FS) {
+					compiler := New().
+						WithFS(fsys).
+						WithPaths(root).
+						WithTarget("plan").
+						WithEntrypoints(tc.entrypoints...).
+						WithRegoAnnotationEntrypoints(true).
+						WithPruneUnused(true)
+					err := compiler.Build(context.Background())
+					if err != nil {
+						t.Fatal(err)
 					}
-				}
-			})
+
+					// Ensure we have the right number of entrypoints.
+					if len(compiler.entrypoints) != len(tc.wantEntrypoints) {
+						t.Fatalf("Wrong number of entrypoints. Expected %v, got %v.", tc.wantEntrypoints, compiler.entrypoints)
+					}
+
+					// Ensure those entrypoints match the ones we expect.
+					for _, entrypoint := range compiler.entrypoints {
+						if _, found := tc.wantEntrypoints[entrypoint]; !found {
+							t.Fatalf("Unexpected entrypoint '%s'", entrypoint)
+						}
+					}
+				})
+			}
 		})
 	}
 }
@@ -1197,18 +1305,23 @@ func TestCompilerSetRevision(t *testing.T) {
 		p = true`,
 	}
 
-	test.WithTempFS(files, func(root string) {
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		compiler := New().WithPaths(root).WithRevision("deadbeef")
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithRevision("deadbeef")
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if compiler.bundle.Manifest.Revision != "deadbeef" {
-			t.Fatal("expected revision to be set but got:", compiler.bundle.Manifest)
-		}
-	})
+			if compiler.bundle.Manifest.Revision != "deadbeef" {
+				t.Fatal("expected revision to be set but got:", compiler.bundle.Manifest)
+			}
+		})
+	}
 }
 
 func TestCompilerSetMetadata(t *testing.T) {
@@ -1218,19 +1331,25 @@ func TestCompilerSetMetadata(t *testing.T) {
 		p = true`,
 	}
 
-	test.WithTempFS(files, func(root string) {
-		metadata := map[string]interface{}{"OPA version": "0.36.1"}
-		compiler := New().WithPaths(root).WithMetadata(&metadata)
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			metadata := map[string]interface{}{"OPA version": "0.36.1"}
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithMetadata(&metadata)
 
-		if compiler.bundle.Manifest.Metadata["OPA version"] != "0.36.1" {
-			t.Fatal("expected metadata to be set but got:", compiler.bundle.Manifest)
-		}
-	})
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if compiler.bundle.Manifest.Metadata["OPA version"] != "0.36.1" {
+				t.Fatal("expected metadata to be set but got:", compiler.bundle.Manifest)
+			}
+		})
+	}
 }
 
 func TestCompilerOutput(t *testing.T) {
@@ -1241,45 +1360,51 @@ func TestCompilerOutput(t *testing.T) {
 		p { input.x = data.foo }`))),
 		"data.json": `{"foo": 1}`,
 	}
-	test.WithTempFS(files, func(root string) {
 
-		buf := bytes.NewBuffer(nil)
-		compiler := New().WithPaths(root).WithOutput(buf)
-		err := compiler.Build(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
-		// Check that the written bundle is expected.
-		result, err := bundle.NewReader(buf).Read()
-		if err != nil {
-			t.Fatal(err)
-		}
+			buf := bytes.NewBuffer(nil)
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithOutput(buf)
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		exp, err := loader.NewFileLoader().AsBundle(root)
-		if err != nil {
-			t.Fatal(err)
-		}
+			// Check that the written bundle is expected.
+			result, err := bundle.NewReader(buf).Read()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if !exp.Equal(result) {
-			t.Fatalf("expected:\n\n%+v\n\ngot:\n\n%+v", *exp, result)
-		}
+			exp, err := loader.NewFileLoader().WithFS(fsys).AsBundle(root)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if !exp.Manifest.Equal(result.Manifest) {
-			t.Fatalf("expected:\n\n%+v\n\ngot:\n\n%+v", exp.Manifest, result.Manifest)
-		}
+			if !exp.Equal(result) {
+				t.Fatalf("expected-1:\n\n%+v\n\ngot-1:\n\n%+v", *exp, result)
+			}
 
-		// Check that the returned bundle is the expected.
-		compiled := compiler.Bundle()
+			if !exp.Manifest.Equal(result.Manifest) {
+				t.Fatalf("expected-2:\n\n%+v\n\ngot-2:\n\n%+v", exp.Manifest, result.Manifest)
+			}
 
-		if !exp.Equal(*compiled) {
-			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", *exp, *compiled)
-		}
+			// Check that the returned bundle is the expected.
+			compiled := compiler.Bundle()
 
-		if !exp.Manifest.Equal(compiled.Manifest) {
-			t.Fatalf("expected:\n\n%v\n\ngot:\n\n%v", exp.Manifest, compiled.Manifest)
-		}
-	})
+			if !exp.Equal(*compiled) {
+				t.Fatalf("expected-3:\n\n%v\n\ngot-3:\n\n%v", *exp, *compiled)
+			}
+
+			if !exp.Manifest.Equal(compiled.Manifest) {
+				t.Fatalf("expected-4:\n\n%v\n\ngot-4:\n\n%v", exp.Manifest, compiled.Manifest)
+			}
+		})
+	}
 }
 
 func TestOptimizerNoops(t *testing.T) {

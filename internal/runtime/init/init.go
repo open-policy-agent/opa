@@ -8,6 +8,7 @@ package init
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -119,7 +120,8 @@ func LoadPaths(paths []string,
 	bvc *bundle.VerificationConfig,
 	skipVerify bool,
 	processAnnotations bool,
-	caps *ast.Capabilities) (*LoadPathsResult, error) {
+	caps *ast.Capabilities,
+	fsys fs.FS) (*LoadPathsResult, error) {
 
 	if caps == nil {
 		caps = ast.CapabilitiesForThisVersion()
@@ -132,6 +134,7 @@ func LoadPaths(paths []string,
 		result.Bundles = make(map[string]*bundle.Bundle, len(paths))
 		for _, path := range paths {
 			result.Bundles[path], err = loader.NewFileLoader().
+				WithFS(fsys).
 				WithBundleVerificationConfig(bvc).
 				WithSkipBundleVerification(skipVerify).
 				WithFilter(filter).
@@ -146,6 +149,7 @@ func LoadPaths(paths []string,
 	}
 
 	files, err := loader.NewFileLoader().
+		WithFS(fsys).
 		WithProcessAnnotation(processAnnotations).
 		WithCapabilities(caps).
 		Filtered(paths, filter)

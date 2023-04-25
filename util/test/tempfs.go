@@ -5,8 +5,10 @@
 package test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
+	"testing/fstest"
 )
 
 // WithTempFS creates a temporary directory structure and invokes f with the
@@ -65,4 +67,24 @@ func MakeTempFS(root, prefix string, files map[string]string) (rootDir string, c
 	skipCleanup = true
 
 	return rootDir, cleanup, nil
+}
+
+// WithTestFS creates a temporary file system of `files` in memory
+// if `inMemoryFS` is true and invokes `f“ with that filesystem
+func WithTestFS(files map[string]string, inMemoryFS bool, f func(string, fs.FS)) {
+	if inMemoryFS {
+		fsys := make(fstest.MapFS)
+		rootDir := "."
+		for k, v := range files {
+			fsys[filepath.Join(rootDir, k)] = &fstest.MapFile{Data: []byte(v)}
+		}
+		f(rootDir, fsys)
+	} else {
+		rootDir, cleanup, err := MakeTempFS("", "opa_test", files)
+		if err != nil {
+			panic(err)
+		}
+		defer cleanup()
+		f(rootDir, nil)
+	}
 }

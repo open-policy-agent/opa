@@ -13,11 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/file/archive"
@@ -83,11 +83,15 @@ func TestManifestEqual(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	testReadBundle(t, "")
+	for _, useMemoryFS := range []bool{false, true} {
+		testReadBundle(t, "", useMemoryFS)
+	}
 }
 
 func TestReadWithBaseDir(t *testing.T) {
-	testReadBundle(t, "/foo/bar")
+	for _, useMemoryFS := range []bool{false, true} {
+		testReadBundle(t, "/foo/bar", useMemoryFS)
+	}
 }
 
 func TestReadWithSizeLimit(t *testing.T) {
@@ -162,8 +166,11 @@ func TestReadWithBundleEtag(t *testing.T) {
 	}
 }
 
-func testReadBundle(t *testing.T, baseDir string) {
+func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 	module := `package example`
+	if useMemoryFS && baseDir == "" {
+		baseDir = "."
+	}
 
 	modulePath := "/example/example.rego"
 	if baseDir != "" {
@@ -194,7 +201,18 @@ func testReadBundle(t *testing.T, baseDir string) {
 	}
 
 	buf := archive.MustWriteTarGz(files)
-	loader := NewTarballLoaderWithBaseURL(buf, baseDir)
+	var loader DirectoryLoader
+	if useMemoryFS {
+		fsys := make(fstest.MapFS, 1)
+		fsys["test.tar"] = &fstest.MapFile{Data: buf.Bytes()}
+		fh, err := fsys.Open("test.tar")
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		loader = NewTarballLoaderWithBaseURL(fh, baseDir)
+	} else {
+		loader = NewTarballLoaderWithBaseURL(buf, baseDir)
+	}
 	br := NewCustomReader(loader).WithBaseDir(baseDir)
 
 	bundle, err := br.Read()
