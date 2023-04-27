@@ -425,7 +425,7 @@ func addCACertsFromBytes(pool *x509.CertPool, pemBytes []byte) (*x509.CertPool, 
 	return pool, nil
 }
 
-// addCACertsFromBytes adds CA certificates from the environment variable named
+// addCACertsFromEnv adds CA certificates from the environment variable named
 // by envName into the given pool. If pool is nil, it creates a new x509.CertPool.
 // pool is returned.
 func addCACertsFromEnv(pool *x509.CertPool, envName string) (*x509.CertPool, error) {
