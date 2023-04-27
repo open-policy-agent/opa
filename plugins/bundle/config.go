@@ -247,7 +247,7 @@ func (c *Config) getServiceFromList(service string, services []string) (string, 
 	return service, fmt.Errorf("service name %q not found", service)
 }
 
-// generateLegacyDownloadPath will return the Resource path
+// generateLegacyResourcePath will return the Resource path
 // from the older style prefix+name configuration.
 func (c *Config) generateLegacyResourcePath() string {
 	joined := path.Join(*c.Prefix, c.Name)
