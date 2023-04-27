@@ -236,6 +236,7 @@ func main() {
 
 	// create an instance of the OPA object
 	opa, err := sdk.New(ctx, sdk.Options{
+		ID:     "opa-test-1",
 		Config: bytes.NewReader(config),
 	})
 	if err != nil {
@@ -255,6 +256,10 @@ func main() {
 
 If you executed this code, the output (i.e. [Decision Log](https://www.openpolicyagent.org/docs/latest/management-decision-logs/) event)
 would be logged to the console by default.
+
+Setting an `ID` in `sdk.Options` is optional, but recommended. If you do not set an `ID`, a random one will be created
+for the system. While this is fine for testing, it makes it difficult to monitor the system over time, as a new ID will
+be created each time the SDK is initialized, such as when the process is restarted.
 
 ### Integrating with the Go API
 
