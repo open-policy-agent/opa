@@ -20,5 +20,4 @@ const (
 	MediaTypeConfig       = "application/vnd.docker.container.image.v1+json"
 	MediaTypeManifestList = "application/vnd.docker.distribution.manifest.list.v2+json"
 	MediaTypeManifest     = "application/vnd.docker.distribution.manifest.v2+json"
-	MediaTypeForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
 )

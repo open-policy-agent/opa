@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
+	"oras.land/oras-go/v2/internal/descriptor"
 	"oras.land/oras-go/v2/internal/docker"
 )
 
@@ -48,32 +50,18 @@ type ReadOnlyGraphStorage interface {
 // In other words, returns the "children" of the current descriptor.
 func Successors(ctx context.Context, fetcher Fetcher, node ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 	switch node.MediaType {
-	case docker.MediaTypeManifest:
+	case docker.MediaTypeManifest, ocispec.MediaTypeImageManifest:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {
 			return nil, err
 		}
-		// OCI manifest schema can be used to marshal docker manifest
+
+		// docker manifest and oci manifest are equivalent for successors.
 		var manifest ocispec.Manifest
 		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, err
 		}
 		return append([]ocispec.Descriptor{manifest.Config}, manifest.Layers...), nil
-	case ocispec.MediaTypeImageManifest:
-		content, err := FetchAll(ctx, fetcher, node)
-		if err != nil {
-			return nil, err
-		}
-		var manifest ocispec.Manifest
-		if err := json.Unmarshal(content, &manifest); err != nil {
-			return nil, err
-		}
-		var nodes []ocispec.Descriptor
-		if manifest.Subject != nil {
-			nodes = append(nodes, *manifest.Subject)
-		}
-		nodes = append(nodes, manifest.Config)
-		return append(nodes, manifest.Layers...), nil
 	case docker.MediaTypeManifestList, ocispec.MediaTypeImageIndex:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {
@@ -86,21 +74,24 @@ func Successors(ctx context.Context, fetcher Fetcher, node ocispec.Descriptor) (
 			return nil, err
 		}
 		return index.Manifests, nil
-	case ocispec.MediaTypeArtifactManifest:
+	case artifactspec.MediaTypeArtifactManifest:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {
 			return nil, err
 		}
 
-		var manifest ocispec.Artifact
+		var manifest artifactspec.Manifest
 		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, err
 		}
 		var nodes []ocispec.Descriptor
 		if manifest.Subject != nil {
-			nodes = append(nodes, *manifest.Subject)
+			nodes = append(nodes, descriptor.ArtifactToOCI(*manifest.Subject))
 		}
-		return append(nodes, manifest.Blobs...), nil
+		for _, blob := range manifest.Blobs {
+			nodes = append(nodes, descriptor.ArtifactToOCI(blob))
+		}
+		return nodes, nil
 	}
 	return nil, nil
 }

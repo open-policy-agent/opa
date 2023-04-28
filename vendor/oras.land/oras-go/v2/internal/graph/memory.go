@@ -17,21 +17,18 @@ package graph
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/internal/descriptor"
 	"oras.land/oras-go/v2/internal/status"
-	"oras.land/oras-go/v2/internal/syncutil"
 )
 
 // Memory is a memory based PredecessorFinder.
 type Memory struct {
 	predecessors sync.Map // map[descriptor.Descriptor]map[descriptor.Descriptor]ocispec.Descriptor
-	indexed      sync.Map // map[descriptor.Descriptor]any
+	indexed      sync.Map // map[descriptor.Descriptor]bool
 }
 
 // NewMemory creates a new memory PredecessorFinder.
@@ -48,8 +45,7 @@ func (m *Memory) Index(ctx context.Context, fetcher content.Fetcher, node ocispe
 		return err
 	}
 
-	m.index(ctx, node, successors)
-	return nil
+	return m.index(ctx, node, successors)
 }
 
 // Index indexes predecessors for all the successors of the given node.
@@ -59,39 +55,37 @@ func (m *Memory) IndexAll(ctx context.Context, fetcher content.Fetcher, node oci
 	// track content status
 	tracker := status.NewTracker()
 
-	var fn syncutil.GoFunc[ocispec.Descriptor]
-	fn = func(ctx context.Context, region *syncutil.LimitedRegion, desc ocispec.Descriptor) error {
+	// prepare pre-handler
+	preHandler := HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		// skip the node if other go routine is working on it
 		_, committed := tracker.TryCommit(desc)
 		if !committed {
-			return nil
+			return nil, ErrSkipDesc
 		}
 
 		// skip the node if it has been indexed
 		key := descriptor.FromOCI(desc)
 		_, exists := m.indexed.Load(key)
 		if exists {
-			return nil
+			return nil, ErrSkipDesc
 		}
 
 		successors, err := content.Successors(ctx, fetcher, desc)
 		if err != nil {
-			if errors.Is(err, errdef.ErrNotFound) {
-				// skip the node if it does not exist
-				return nil
-			}
-			return err
+			return nil, err
 		}
-		m.index(ctx, desc, successors)
-		m.indexed.Store(key, nil)
 
-		if len(successors) > 0 {
-			// traverse and index successors
-			return syncutil.Go(ctx, nil, fn, successors...)
+		if err := m.index(ctx, desc, successors); err != nil {
+			return nil, err
 		}
-		return nil
-	}
-	return syncutil.Go(ctx, nil, fn, node)
+
+		return successors, nil
+	})
+
+	postHandler := Handlers()
+
+	// traverse the graph
+	return Dispatch(ctx, preHandler, postHandler, nil, node)
 }
 
 // Predecessors returns the nodes directly pointing to the current node.
@@ -119,16 +113,16 @@ func (m *Memory) Predecessors(_ context.Context, node ocispec.Descriptor) ([]oci
 // index indexes predecessors for each direct successor of the given node.
 // There is no data consistency issue as long as deletion is not implemented
 // for the underlying storage.
-func (m *Memory) index(ctx context.Context, node ocispec.Descriptor, successors []ocispec.Descriptor) {
-	if len(successors) == 0 {
-		return
-	}
-
+func (m *Memory) index(ctx context.Context, node ocispec.Descriptor, successors []ocispec.Descriptor) error {
 	predecessorKey := descriptor.FromOCI(node)
+
 	for _, successor := range successors {
 		successorKey := descriptor.FromOCI(successor)
 		value, _ := m.predecessors.LoadOrStore(successorKey, &sync.Map{})
 		predecessors := value.(*sync.Map)
 		predecessors.Store(predecessorKey, node)
 	}
+
+	m.indexed.Store(predecessorKey, true)
+	return nil
 }

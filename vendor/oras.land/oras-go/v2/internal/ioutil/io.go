@@ -16,12 +16,12 @@ limitations under the License.
 package ioutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/content"
 )
 
 // CloserFunc is the basic Close method defined in io.Closer.
@@ -37,11 +37,31 @@ func (fn CloserFunc) Close() error {
 // The copied content is verified against the size and the digest.
 func CopyBuffer(dst io.Writer, src io.Reader, buf []byte, desc ocispec.Descriptor) error {
 	// verify while copying
-	vr := content.NewVerifyReader(src, desc)
-	if _, err := io.CopyBuffer(dst, vr, buf); err != nil {
+	verifier := desc.Digest.Verifier()
+	lr := io.LimitReader(src, desc.Size)
+	mw := io.MultiWriter(verifier, dst)
+
+	if _, err := io.CopyBuffer(mw, lr, buf); err != nil {
 		return fmt.Errorf("copy failed: %w", err)
 	}
-	return vr.Verify()
+
+	if !verifier.Verified() {
+		return errors.New("digest verification failed")
+	}
+
+	return EnsureEOF(lr)
+}
+
+// EnsureEOF ensures the read operation ends with an EOF and no
+// trailing data is present.
+func EnsureEOF(r io.Reader) error {
+	var peek [1]byte
+	_, err := io.ReadFull(r, peek[:])
+	if err != io.EOF {
+		return errors.New("trailing data")
+	}
+
+	return nil
 }
 
 // nopCloserType is the type of `io.NopCloser()`.

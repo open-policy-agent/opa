@@ -18,11 +18,8 @@ package descriptor
 import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/internal/docker"
+	artifactspec "github.com/oras-project/artifacts-spec/specs-go/v1"
 )
-
-// DefaultMediaType is the media type used when no media type is specified.
-const DefaultMediaType string = "application/octet-stream"
 
 // Descriptor contains the minimun information to describe the disposition of
 // targeted content.
@@ -50,39 +47,33 @@ func FromOCI(desc ocispec.Descriptor) Descriptor {
 	}
 }
 
-// IsForeignLayer checks if a descriptor describes a foreign layer.
-func IsForeignLayer(desc ocispec.Descriptor) bool {
-	switch desc.MediaType {
-	case ocispec.MediaTypeImageLayerNonDistributable,
-		ocispec.MediaTypeImageLayerNonDistributableGzip,
-		ocispec.MediaTypeImageLayerNonDistributableZstd,
-		docker.MediaTypeForeignLayer:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsManifest checks if a descriptor describes a manifest.
-func IsManifest(desc ocispec.Descriptor) bool {
-	switch desc.MediaType {
-	case docker.MediaTypeManifest,
-		docker.MediaTypeManifestList,
-		ocispec.MediaTypeImageManifest,
-		ocispec.MediaTypeImageIndex,
-		ocispec.MediaTypeArtifactManifest:
-		return true
-	default:
-		return false
-	}
-}
-
-// Plain returns a plain descriptor that contains only MediaType, Digest and
-// Size.
-func Plain(desc ocispec.Descriptor) ocispec.Descriptor {
-	return ocispec.Descriptor{
+// FromArtifact shrinks the artifact descriptor to the minimum.
+func FromArtifact(desc artifactspec.Descriptor) Descriptor {
+	return Descriptor{
 		MediaType: desc.MediaType,
 		Digest:    desc.Digest,
 		Size:      desc.Size,
+	}
+}
+
+// ArtifactToOCI converts artifact descriptor to OCI descriptor.
+func ArtifactToOCI(desc artifactspec.Descriptor) ocispec.Descriptor {
+	return ocispec.Descriptor{
+		MediaType:   desc.MediaType,
+		Digest:      desc.Digest,
+		Size:        desc.Size,
+		URLs:        desc.URLs,
+		Annotations: desc.Annotations,
+	}
+}
+
+// OCIToArtifact converts OCI descriptor to artifact descriptor.
+func OCIToArtifact(desc ocispec.Descriptor) artifactspec.Descriptor {
+	return artifactspec.Descriptor{
+		MediaType:   desc.MediaType,
+		Digest:      desc.Digest,
+		Size:        desc.Size,
+		URLs:        desc.URLs,
+		Annotations: desc.Annotations,
 	}
 }

@@ -20,7 +20,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc2
+	github.com/opencontainers/image-spec v1.1.0-rc.3
 	github.com/peterh/liner v1.2.2
 	github.com/prometheus/client_golang v1.15.0
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
@@ -42,7 +42,7 @@ require (
 	google.golang.org/grpc v1.54.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
-	oras.land/oras-go/v2 v2.0.2
+	oras.land/oras-go/v2 v2.0.0-rc.3
 )
 
 require (
@@ -71,6 +71,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/moby/locker v1.0.1 // indirect
+	github.com/oras-project/artifacts-spec v1.0.0-rc.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect

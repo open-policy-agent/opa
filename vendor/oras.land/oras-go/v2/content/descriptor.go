@@ -18,14 +18,16 @@ package content
 import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/internal/descriptor"
 )
+
+// defaultMediaType is the media type used when no media type is specified.
+const defaultMediaType string = "application/octet-stream"
 
 // NewDescriptorFromBytes returns a descriptor, given the content and media type.
 // If no media type is specified, "application/octet-stream" will be used.
 func NewDescriptorFromBytes(mediaType string, content []byte) ocispec.Descriptor {
 	if mediaType == "" {
-		mediaType = descriptor.DefaultMediaType
+		mediaType = defaultMediaType
 	}
 	return ocispec.Descriptor{
 		MediaType: mediaType,

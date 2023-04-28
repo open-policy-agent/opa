@@ -173,10 +173,13 @@ github.com/olekukonko/tablewriter
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.1.0-rc2
-## explicit; go 1.17
+# github.com/opencontainers/image-spec v1.1.0-rc.3
+## explicit; go 1.18
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
+# github.com/oras-project/artifacts-spec v1.0.0-rc.2
+## explicit; go 1.17
+github.com/oras-project/artifacts-spec/specs-go/v1
 # github.com/peterh/liner v1.2.2
 ## explicit
 github.com/peterh/liner
@@ -446,18 +449,16 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# oras.land/oras-go/v2 v2.0.2
-## explicit; go 1.19
+# oras.land/oras-go/v2 v2.0.0-rc.3
+## explicit; go 1.18
 oras.land/oras-go/v2
 oras.land/oras-go/v2/content
 oras.land/oras-go/v2/content/oci
 oras.land/oras-go/v2/errdef
 oras.land/oras-go/v2/internal/cas
-oras.land/oras-go/v2/internal/container/set
 oras.land/oras-go/v2/internal/copyutil
 oras.land/oras-go/v2/internal/descriptor
 oras.land/oras-go/v2/internal/docker
-oras.land/oras-go/v2/internal/fs/tarfs
 oras.land/oras-go/v2/internal/graph
 oras.land/oras-go/v2/internal/interfaces
 oras.land/oras-go/v2/internal/ioutil
@@ -468,7 +469,5 @@ oras.land/oras-go/v2/internal/status
 oras.land/oras-go/v2/internal/syncutil
 oras.land/oras-go/v2/registry
 oras.land/oras-go/v2/registry/remote/auth
-oras.land/oras-go/v2/registry/remote/errcode
 oras.land/oras-go/v2/registry/remote/internal/errutil
-oras.land/oras-go/v2/registry/remote/retry
 # github.com/golang/glog => ./build/replacements/github.com/golang/glog

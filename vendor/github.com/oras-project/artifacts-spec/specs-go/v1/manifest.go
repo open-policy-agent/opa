@@ -1,10 +1,10 @@
-// Copyright 2022 The Linux Foundation
+// Copyright 2021 ORAS Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//		http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,19 +14,20 @@
 
 package v1
 
-// Artifact describes an artifact manifest.
-// This structure provides `application/vnd.oci.artifact.manifest.v1+json` mediatype when marshalled to JSON.
-type Artifact struct {
+// Manifest describes an ORAS artifact.
+// This structure provides `application/vnd.oras.artifact.manifest.v1+json` mediatype when marshalled to JSON.
+type Manifest struct {
 	// MediaType is the media type of the object this schema refers to.
 	MediaType string `json:"mediaType"`
 
-	// ArtifactType is the IANA media type of the artifact this schema refers to.
+	// ArtifactType is the artifact type of the object this schema refers to.
 	ArtifactType string `json:"artifactType"`
 
 	// Blobs is a collection of blobs referenced by this manifest.
-	Blobs []Descriptor `json:"blobs,omitempty"`
+	Blobs []Descriptor `json:"blobs"`
 
-	// Subject (reference) is an optional link from the artifact to another manifest forming an association between the artifact and the other manifest.
+	// Subject is an optional reference to any existing manifest within the repository.
+	// When specified, the artifact is said to be dependent upon the referenced subject.
 	Subject *Descriptor `json:"subject,omitempty"`
 
 	// Annotations contains arbitrary metadata for the artifact manifest.

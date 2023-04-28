@@ -28,12 +28,10 @@ import (
 	"strings"
 
 	"oras.land/oras-go/v2/registry/remote/internal/errutil"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // DefaultClient is the default auth-decorated client.
 var DefaultClient = &Client{
-	Client: retry.DefaultClient,
 	Header: http.Header{
 		"User-Agent": {"oras-go"},
 	},
@@ -70,11 +68,6 @@ type Client struct {
 	// Client is the underlying HTTP client used to access the remote
 	// server.
 	// If nil, http.DefaultClient is used.
-	// It is possible to use the default retry client from the package
-	// `oras.land/oras-go/v2/registry/remote/retry`. That client is already available
-	// in the DefaultClient.
-	// It is also possible to use a custom client. For example, github.com/hashicorp/go-retryablehttp
-	// is a popular HTTP client that supports retries.
 	Client *http.Client
 
 	// Header contains the custom headers to be added to each request.
@@ -149,10 +142,9 @@ func (c *Client) SetUserAgent(userAgent string) {
 
 // Do sends the request to the remote server, attempting to resolve
 // authentication if 'Authorization' header is not set.
-//
 // On authentication failure due to bad credential,
-//   - Do returns error if it fails to fetch token for bearer auth.
-//   - Do returns the registry response without error for basic auth.
+// - Do returns error if it fails to fetch token for bearer auth.
+// - Do returns the registry response without error for basic auth.
 func (c *Client) Do(originalReq *http.Request) (*http.Response, error) {
 	if auth := originalReq.Header.Get("Authorization"); auth != "" {
 		return c.send(originalReq)
