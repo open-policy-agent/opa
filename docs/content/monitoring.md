@@ -81,6 +81,7 @@ When Prometheus is enabled in the status plugin (see [Configuration](../configur
 
 | Metric name | Metric type | Description                                              | Status |
 | --- | --- |----------------------------------------------------------|--------|
+| opa_info | gauge | Information about the OPA environment.                    | EXPERIMENTAL |
 | plugin_status_gauge | gauge | Number of plugins by name and status.                    | EXPERIMENTAL |
 | bundle_loaded_counter | counter | Number of bundles loaded with success.                   | EXPERIMENTAL |
 | bundle_failed_load_counter | counter | Number of bundles that failed to load.                   | EXPERIMENTAL |
