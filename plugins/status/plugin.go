@@ -238,7 +238,7 @@ func (p *Plugin) Start(ctx context.Context) error {
 	p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
 
 	if p.config.Prometheus && p.manager.PrometheusRegister() != nil {
-		p.register(p.manager.PrometheusRegister(), pluginStatus, loaded, failLoad,
+		p.register(p.manager.PrometheusRegister(), opaInfo, pluginStatus, loaded, failLoad,
 			lastRequest, lastSuccessfulActivation, lastSuccessfulDownload,
 			lastSuccessfulRequest, bundleLoadDuration)
 	}

@@ -1,10 +1,18 @@
 package status
 
 import (
+	"github.com/open-policy-agent/opa/version"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
+	opaInfo = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name:        "opa_info",
+			Help:        "Information about the OPA environment.",
+			ConstLabels: map[string]string{"version": version.Version},
+		},
+	)
 	pluginStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "plugin_status_gauge",
@@ -53,3 +61,7 @@ var (
 		Buckets: prometheus.ExponentialBuckets(1000, 2, 20),
 	}, []string{"name", "stage"})
 )
+
+func init() {
+	opaInfo.Set(1)
+}
