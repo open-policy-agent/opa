@@ -214,6 +214,9 @@ type Params struct {
 
 	// Check if default Addr is set or the user has changed it.
 	AddrSetByUser bool
+
+	// UnixSocketPerm specifies the permission for the Unix domain socket if used to listen for connections
+	UnixSocketPerm *string
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -508,6 +511,10 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	if rt.Params.DiagnosticAddrs != nil {
 		rt.server = rt.server.WithDiagnosticAddresses(*rt.Params.DiagnosticAddrs)
+	}
+
+	if rt.Params.UnixSocketPerm != nil {
+		rt.server = rt.server.WithUnixSocketPermission(rt.Params.UnixSocketPerm)
 	}
 
 	rt.server, err = rt.server.Init(ctx)
