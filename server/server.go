@@ -143,6 +143,7 @@ type Server struct {
 	allPluginsOkOnce       bool
 	distributedTracingOpts tracing.Options
 	ndbCacheEnabled        bool
+	unixSocketPerm         *string
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -363,6 +364,13 @@ func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
 // WithNDBCacheEnabled sets whether the ND builtins cache is to be used.
 func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	s.ndbCacheEnabled = ndbCacheEnabled
+	return s
+}
+
+// WithUnixSocketPermission sets the permission for the Unix domain socket if used to listen for
+// incoming connections. Applies to the sockets the server is listening on including diagnostic API's.
+func (s *Server) WithUnixSocketPermission(unixSocketPerm *string) *Server {
+	s.unixSocketPerm = unixSocketPerm
 	return s
 }
 
@@ -632,6 +640,17 @@ func (s *Server) getListenerForUNIXSocket(u *url.URL, h http.Handler, t httpList
 	unixListener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if s.unixSocketPerm != nil {
+		modeVal, err := strconv.ParseUint(*s.unixSocketPerm, 8, 32)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if err := os.Chmod(socketPath, os.FileMode(modeVal)); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	l := newHTTPUnixSocketListener(&domainSocketServer, unixListener, t)
