@@ -864,6 +864,7 @@ opa run [flags]
       --tls-cert-file string                 set path of TLS certificate file
       --tls-cert-refresh-period duration     set certificate refresh period
       --tls-private-key-file string          set path of TLS private key file
+      --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
       --verification-key string              set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string           name assigned to the verification key used for bundle verification (default "default")
   -w, --watch                                watch command line files for changes
