@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel // import "go.opentelemetry.io/otel"
+package otlptrace // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 
-// Version is the current release version of OpenTelemetry in use.
+// Version is the current release version of the OpenTelemetry OTLP trace exporter in use.
 func Version() string {
 	return "1.15.0"
 }
