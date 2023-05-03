@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otel // import "go.opentelemetry.io/otel"
+//go:build bsd || linux
 
-// Version is the current release version of OpenTelemetry in use.
-func Version() string {
-	return "1.15.1"
+package resource // import "go.opentelemetry.io/otel/sdk/resource"
+
+import "os"
+
+func readFile(filename string) (string, error) {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return "", nil
+	}
+
+	return string(b), nil
 }
