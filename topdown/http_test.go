@@ -589,6 +589,25 @@ func TestInvalidKeyError(t *testing.T) {
 	}
 }
 
+func TestInvalidRetryParam(t *testing.T) {
+	// run the test
+	tests := []struct {
+		note     string
+		rules    []string
+		expected interface{}
+	}{
+		{"invalid retry param", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": "bad_value"}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value "bad_value" for field "max_retry_attempts"`}},
+		{"invalid number", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": 1.2}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value 1.2 for field "max_retry_attempts"`}},
+		{"negative number", []string{`p = x { http.send({"method": "get", "url": "http://127.0.0.1:51113", "max_retry_attempts": -1000}, x) }`}, &Error{Code: BuiltinErr, Message: `http.send: invalid value -1000 for field "max_retry_attempts"`}},
+	}
+
+	data := loadSmallTestData()
+
+	for _, tc := range tests {
+		runTopDownTestCase(t, data, tc.note, tc.rules, tc.expected)
+	}
+}
+
 func TestParseTimeout(t *testing.T) {
 	tests := []struct {
 		note     string
