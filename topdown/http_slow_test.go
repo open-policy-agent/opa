@@ -2,18 +2,22 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//go:build slow
 // +build slow
 
 package topdown
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/ast"
 )
 
 func TestHTTPSendTimeout(t *testing.T) {
@@ -115,5 +119,98 @@ func TestHTTPSendTimeout(t *testing.T) {
 
 		// Put back the default (may not have changed)
 		defaultHTTPRequestTimeout = originalDefaultTimeout
+	}
+}
+
+func TestHTTPSendRetryRequest(t *testing.T) {
+
+	tests := []struct {
+		note        string
+		query       string
+		response    string
+		evalTimeout time.Duration
+		cancel      Cancel
+		wantErr     bool
+		err         error
+	}{
+		{
+			note:     "success",
+			query:    `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "max_retry_attempts": 100,  "timeout": "500ms"}, x)`,
+			response: `{"x": 1}`,
+		},
+		{
+			note:        "eval timeout",
+			query:       `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "max_retry_attempts": 100,  "timeout": "500ms"}, x)`,
+			evalTimeout: 2 * time.Second,
+			wantErr:     true,
+			err:         fmt.Errorf("eval_cancel_error: http.send: timed out (context deadline exceeded)"),
+		},
+		{
+			note:    "cancel query",
+			query:   `http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "max_retry_attempts": 100,  "timeout": "500ms"}, x)`,
+			cancel:  NewCancel(),
+			wantErr: true,
+			err:     fmt.Errorf("eval_cancel_error: caller cancelled query execution"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(tc.response))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}))
+
+			defer ts.Close()
+
+			// delay server start to exercise retry logic
+			go func() {
+				time.Sleep(time.Second * 5)
+				ts.Start()
+			}()
+
+			ctx := context.Background()
+			if tc.evalTimeout > 0 {
+				ctx, _ = context.WithTimeout(ctx, tc.evalTimeout)
+			}
+
+			q := newQuery(strings.ReplaceAll(tc.query, "%URL%", "http://"+ts.Listener.Addr().String()), time.Now())
+
+			if tc.cancel != nil {
+				q.WithCancel(tc.cancel)
+
+				go func() {
+					time.Sleep(2 * time.Second)
+					tc.cancel.Cancel()
+				}()
+			}
+
+			res, err := q.Run(ctx)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				if len(res) != 1 {
+					t.Fatalf("Expected one result but got %v", len(res))
+				}
+
+				resResponse := res[0]["x"].Value.(ast.Object).Get(ast.StringTerm("raw_body"))
+				if ast.String(tc.response).Compare(resResponse.Value) != 0 {
+					t.Fatalf("Expected response %v but got %v", tc.response, resResponse.String())
+				}
+			}
+		})
 	}
 }
