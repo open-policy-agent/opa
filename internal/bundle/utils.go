@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -36,11 +37,67 @@ type LoadOptions struct {
 	VerificationConfig *bundle.VerificationConfig
 }
 
-// bundlePackage represents a bundle and associated metadata which is ready to be
-// serialized to disk.
+// bundlePackage represents a bundle and associated metadata. It implments io.Reader
+// so that it can be serialized to disk easily.
 type bundlePackage struct {
 	Etag   string `json:"etag"`
 	Bundle []byte `json:"bundle"`
+
+	RawBundle io.Reader
+
+	multiReader io.Reader
+}
+
+func (bp *bundlePackage) Read(p []byte) (n int, err error) {
+	if bp.RawBundle == nil {
+		return 0, fmt.Errorf("RawBundle must be set")
+	}
+	if bp.multiReader == nil {
+		b64Reader := &streamingBase64Encoder{
+			input: bp.RawBundle,
+		}
+
+		bp.multiReader = io.MultiReader(
+			strings.NewReader(fmt.Sprintf(`{"etag":"%s","bundle":"`, bp.Etag)),
+			b64Reader,
+			strings.NewReader(`"}`),
+		)
+	}
+
+	return bp.multiReader.Read(p)
+}
+
+// streamingBase64Encoder implements io.Reader and incrementally encodes the
+// data in the input io.Reader as base64.
+type streamingBase64Encoder struct {
+	input io.Reader
+	buf   bytes.Buffer
+	enc   io.WriteCloser
+}
+
+func (s *streamingBase64Encoder) Read(p []byte) (n int, err error) {
+	if s.enc == nil {
+		s.enc = base64.NewEncoder(base64.StdEncoding, &s.buf)
+	}
+
+	chunk := make([]byte, len(p))
+	n, err = s.input.Read(chunk)
+	if err == io.EOF {
+		err = s.enc.Close()
+		if err != nil {
+			return n, fmt.Errorf("failed to close base64 encoder: %w", err)
+		}
+	}
+	if err != nil {
+		return n, fmt.Errorf("failed to read from input: %w", err)
+	}
+
+	_, err = s.enc.Write(chunk[:n])
+	if err != nil {
+		return n, fmt.Errorf("failed to write to base64 encoder: %w", err)
+	}
+
+	return s.buf.Read(p)
 }
 
 // LoadWasmResolversFromStore will lookup all Wasm modules from the store along with the
@@ -192,37 +249,23 @@ func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error
 		return fmt.Errorf("no raw bundle bytes to persist to disk")
 	}
 
+	bp := &bundlePackage{
+		RawBundle: rawBundle,
+	}
+	if opts != nil && opts.Etag != "" {
+		bp.Etag = opts.Etag
+	}
+
 	// create a temporary, intermediary file to write the bundle package to
 	tempBundlePackageDestination, err := os.CreateTemp(path, ".bundlePackage.json.*.tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary bundle package file: %w", err)
 	}
 
-	var etag string
-	if opts != nil && opts.Etag != "" {
-		etag = opts.Etag
-	}
-
-	// write the bundle package to the intermediary file in parts, first the metadata, followed by the bundle data.
-	// this is done to avoid loading the bundle data into memory only to write it to disk.
-	_, err = tempBundlePackageDestination.WriteString(fmt.Sprintf(`{"etag":"%s","bundle":"`, etag))
-	if err != nil {
-		return fmt.Errorf("failed to write metadata to bundle package file: %w", err)
-	}
-	// write the bundle data to the intermediary file, base64 encoded so that it can be unmarshalled as []byte
-	enc := base64.NewEncoder(base64.StdEncoding, tempBundlePackageDestination)
-	_, err = io.Copy(enc, rawBundle)
+	// write the bundle package to the temporary file
+	_, err = io.Copy(tempBundlePackageDestination, bp)
 	if err != nil {
 		return fmt.Errorf("failed to write bundle data to bundle package file: %w", err)
-	}
-	err = enc.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close bundle data base64 encoder: %w", err)
-	}
-	// complete the json file having written the bundle data
-	_, err = tempBundlePackageDestination.WriteString(`"}`)
-	if err != nil {
-		return fmt.Errorf("failed to complete writing of JSON data to bundle package file: %w", err)
 	}
 
 	err = tempBundlePackageDestination.Close()
