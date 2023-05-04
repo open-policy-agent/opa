@@ -119,11 +119,11 @@ func BenchmarkRESTAuthzAllow10Paths(b *testing.B) {
 	runAuthzBenchmark(b, testAuthz.Allow, 10)
 }
 
-func BenchmarkRESTAuthzAllow100Paths(b *testing.B) {
-	runAuthzBenchmark(b, testAuthz.Allow, 100)
-}
-
 // TODO: Re-enable when performance issues have been addressed.
+//func BenchmarkRESTAuthzAllow100Paths(b *testing.B) {
+//	runAuthzBenchmark(b, testAuthz.Allow, 100)
+//}
+
 // func BenchmarkRESTAuthzAllow1000Paths(b *testing.B) {
 // 	runAuthzBenchmark(b, testAuthz.Allow, 1000)
 // }
