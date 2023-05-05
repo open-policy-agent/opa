@@ -21,6 +21,7 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/internal/docker"
+	"oras.land/oras-go/v2/internal/spec"
 )
 
 // PredecessorFinder finds out the nodes directly pointing to a given node of a
@@ -86,13 +87,13 @@ func Successors(ctx context.Context, fetcher Fetcher, node ocispec.Descriptor) (
 			return nil, err
 		}
 		return index.Manifests, nil
-	case ocispec.MediaTypeArtifactManifest:
+	case spec.MediaTypeArtifactManifest:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {
 			return nil, err
 		}
 
-		var manifest ocispec.Artifact
+		var manifest spec.Artifact
 		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, err
 		}

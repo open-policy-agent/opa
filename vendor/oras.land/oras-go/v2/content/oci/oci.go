@@ -165,7 +165,11 @@ func (s *Store) tag(ctx context.Context, desc ocispec.Descriptor, reference stri
 	return nil
 }
 
-// Resolve resolves a reference to a descriptor.
+// Resolve resolves a reference to a descriptor. If the reference to be resolved
+// is a tag, the returned descriptor will be a full descriptor declared by
+// github.com/opencontainers/image-spec/specs-go/v1. If the reference is a
+// digest the returned descriptor will be a plain descriptor (containing only
+// the digest, media type and size).
 func (s *Store) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
 	if reference == "" {
 		return ocispec.Descriptor{}, errdef.ErrMissingReference
@@ -180,7 +184,12 @@ func (s *Store) Resolve(ctx context.Context, reference string) (ocispec.Descript
 		}
 		return ocispec.Descriptor{}, err
 	}
-	return descriptor.Plain(desc), nil
+
+	if reference == desc.Digest.String() {
+		return descriptor.Plain(desc), nil
+	}
+
+	return desc, nil
 }
 
 // Predecessors returns the nodes directly pointing to the current node.
