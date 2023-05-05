@@ -19,6 +19,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/internal/docker"
+	"oras.land/oras-go/v2/internal/spec"
 )
 
 // DefaultMediaType is the media type used when no media type is specified.
@@ -70,7 +71,7 @@ func IsManifest(desc ocispec.Descriptor) bool {
 		docker.MediaTypeManifestList,
 		ocispec.MediaTypeImageManifest,
 		ocispec.MediaTypeImageIndex,
-		ocispec.MediaTypeArtifactManifest:
+		spec.MediaTypeArtifactManifest:
 		return true
 	default:
 		return false

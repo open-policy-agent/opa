@@ -1,6 +1,8 @@
 # ORAS Go library
 
-![ORAS](https://github.com/oras-project/oras-www/raw/main/docs/assets/images/oras.png)
+<p align="left">
+<a href="https://oras.land/"><img src="https://oras.land/img/oras.svg" alt="banner" width="100px"></a>
+</p>
 
 ## Project status
 
@@ -45,7 +47,7 @@ to use releases with major version `2` for new features.
 
 ## Docs
 
-- [oras.land/client_libraries/go](https://oras.land/client_libraries/0_go/): Documentation for the ORAS Go library
+- [oras.land/client_libraries/go](https://oras.land/docs/Client_Libraries/go): Documentation for the ORAS Go library
 - [Reviewing guide](https://github.com/oras-project/community/blob/main/REVIEWING.md): All reviewers must read the reviewing guide and agree to follow the project review guidelines.
 
 ## Code of Conduct

@@ -29,6 +29,7 @@ import (
 	"oras.land/oras-go/v2/internal/copyutil"
 	"oras.land/oras-go/v2/internal/descriptor"
 	"oras.land/oras-go/v2/internal/docker"
+	"oras.land/oras-go/v2/internal/spec"
 	"oras.land/oras-go/v2/internal/status"
 	"oras.land/oras-go/v2/internal/syncutil"
 	"oras.land/oras-go/v2/registry"
@@ -255,7 +256,7 @@ func (opts *ExtendedCopyGraphOptions) FilterAnnotation(key string, regex *regexp
 				switch p.MediaType {
 				case docker.MediaTypeManifest, ocispec.MediaTypeImageManifest,
 					docker.MediaTypeManifestList, ocispec.MediaTypeImageIndex,
-					ocispec.MediaTypeArtifactManifest:
+					spec.MediaTypeArtifactManifest:
 					annotations, err := fetchAnnotations(ctx, src, p)
 					if err != nil {
 						return nil, err
@@ -345,7 +346,7 @@ func (opts *ExtendedCopyGraphOptions) FilterArtifactType(regex *regexp.Regexp) {
 				// if the artifact type is not present in the descriptors,
 				// fetch it from the manifest content.
 				switch p.MediaType {
-				case ocispec.MediaTypeArtifactManifest, ocispec.MediaTypeImageManifest:
+				case spec.MediaTypeArtifactManifest, ocispec.MediaTypeImageManifest:
 					artifactType, err := fetchArtifactType(ctx, src, p)
 					if err != nil {
 						return nil, err
@@ -370,8 +371,8 @@ func fetchArtifactType(ctx context.Context, src content.ReadOnlyGraphStorage, de
 	defer rc.Close()
 
 	switch desc.MediaType {
-	case ocispec.MediaTypeArtifactManifest:
-		var manifest ocispec.Artifact
+	case spec.MediaTypeArtifactManifest:
+		var manifest spec.Artifact
 		if err := json.NewDecoder(rc).Decode(&manifest); err != nil {
 			return "", err
 		}

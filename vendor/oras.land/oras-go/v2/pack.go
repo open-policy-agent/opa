@@ -27,6 +27,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/internal/spec"
 )
 
 const (
@@ -93,8 +94,8 @@ func packArtifact(ctx context.Context, pusher content.Pusher, artifactType strin
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
-	manifest := ocispec.Artifact{
-		MediaType:    ocispec.MediaTypeArtifactManifest,
+	manifest := spec.Artifact{
+		MediaType:    spec.MediaTypeArtifactManifest,
 		ArtifactType: artifactType,
 		Blobs:        blobs,
 		Subject:      opts.Subject,
@@ -104,7 +105,7 @@ func packArtifact(ctx context.Context, pusher content.Pusher, artifactType strin
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	manifestDesc := content.NewDescriptorFromBytes(ocispec.MediaTypeArtifactManifest, manifestJSON)
+	manifestDesc := content.NewDescriptorFromBytes(spec.MediaTypeArtifactManifest, manifestJSON)
 	// populate ArtifactType and Annotations of the manifest into manifestDesc
 	manifestDesc.ArtifactType = manifest.ArtifactType
 	manifestDesc.Annotations = manifest.Annotations

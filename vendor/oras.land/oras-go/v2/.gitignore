@@ -38,3 +38,4 @@ dist/
 *.tar.gz
 vendor/
 _dist/
+.cover
