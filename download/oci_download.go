@@ -332,6 +332,9 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 
 	authorizer := pluginAuthorizer{
 		plugin: plugin,
+		authorizer: docker.NewDockerAuthorizer(
+			docker.WithAuthClient(client),
+		),
 		logger: logger,
 	}
 
@@ -354,19 +357,21 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 }
 
 type pluginAuthorizer struct {
-	plugin rest.HTTPAuthPlugin
+	plugin     rest.HTTPAuthPlugin
+	authorizer docker.Authorizer
 
 	logger logging.Logger
 }
 
 var _ docker.Authorizer = &pluginAuthorizer{}
 
-func (a *pluginAuthorizer) AddResponses(context.Context, []*http.Response) error {
-	return fmt.Errorf("using custom authorizer: %w", errdefs.ErrNotImplemented)
+func (a *pluginAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
+	return a.authorizer.AddResponses(ctx, responses)
 }
 
-// Authorize uses a rest.HTTPAuthPlugin to Prepare a request.
-func (a *pluginAuthorizer) Authorize(_ context.Context, req *http.Request) error {
+// Authorize uses a rest.HTTPAuthPlugin to Prepare a request before passing it on
+// to the docker.Authorizer.
+func (a *pluginAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
 	if err := a.plugin.Prepare(req); err != nil {
 		err = fmt.Errorf("failed to prepare docker request: %w", err)
 
@@ -376,7 +381,7 @@ func (a *pluginAuthorizer) Authorize(_ context.Context, req *http.Request) error
 		return err
 	}
 
-	return nil
+	return a.authorizer.Authorize(ctx, req)
 }
 
 func manifestFromDesc(ctx context.Context, target oras.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
