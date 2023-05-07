@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,8 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
+var errUnauthorized = errors.New("401 Unauthorized")
+
 type testFixture struct {
 	d                         *Downloader
 	client                    rest.Client
@@ -30,32 +33,111 @@ type testFixture struct {
 	etags                     map[string]string
 }
 
-func newTestFixture(t *testing.T) testFixture {
+func newTestFixture(t *testing.T, opts ...fixtureOpt) testFixture {
 	t.Helper()
 
 	ts := newTestServer(t)
 	ts.start()
 
-	restConfig := []byte(fmt.Sprintf(`{
-			"url": %q,
-			"credentials": {
-				"bearer": {
-					"scheme": "Bearer",
-					"token": "secret"
-				}
-			}
-		}`, ts.server.URL))
+	restConfig := []byte(fmt.Sprintf(`{"url": %q}`, ts.server.URL))
 
-	tc, err := rest.New(restConfig, map[string]*keys.Config{})
+	client, err := rest.New(restConfig, map[string]*keys.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return testFixture{
-		client:  tc,
-		server:  ts,
-		updates: []Update{},
-		etags:   make(map[string]string),
+	fixture := testFixture{
+		server: ts,
+		client: client,
+		etags:  make(map[string]string),
+	}
+
+	for i, opt := range opts {
+		if err := opt(&fixture); err != nil {
+			t.Fatalf("Failed applying option #%d: %s", i, err)
+		}
+	}
+
+	return fixture
+}
+
+type fixtureOpt func(*testFixture) error
+
+// withPublicRegistryAuth sets up a token auth flow according to
+// the spec https://docs.docker.com/registry/spec/auth/token/.
+//
+// This authentication method is implemented by public
+// repositories of Github Container Registry, Docker Hub and
+// AWS ECR (and likely others) and corresponds with the auth
+// method `token` of the github.com/distribution/distribution
+// registry project.
+// See https://docs.docker.com/registry/configuration/#token.
+//
+// The token issuing and validation differs between providers
+// and we only use a minimal version for testing.
+func withPublicRegistryAuth() fixtureOpt {
+	const token = "some-test-token"
+	tokenServer := httptest.NewServer(tokenHandler(token))
+
+	const wwwAuthenticateFmt = "Bearer realm=%q service=%q scope=%q"
+	tokenServiceURL := tokenServer.URL + "/token"
+	wwwAuthenticate := fmt.Sprintf(wwwAuthenticateFmt,
+		tokenServiceURL,
+		"testRegistry.io",
+		"[pull]")
+
+	return func(tf *testFixture) error {
+		tf.server.customAuth = func(w http.ResponseWriter, r *http.Request) error {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("no authorization header: %w", errUnauthorized)
+			}
+
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("expects bearer scheme: %w", errUnauthorized)
+			}
+
+			bearerToken := strings.TrimPrefix(authHeader, "Bearer ")
+			if bearerToken != token {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("token %q doesn't match %q: %w", bearerToken, token, errUnauthorized)
+			}
+
+			return nil
+		}
+
+		return nil
+	}
+}
+
+// tokenHandler returns an http.Handler that responds with the
+// specified token to GET /token requests.
+func tokenHandler(token string) http.HandlerFunc {
+	tokenResponse := struct {
+		Token string `json:"token"`
+	}{
+		Token: token,
+	}
+
+	responseBody, err := json.Marshal(tokenResponse)
+	if err != nil {
+		panic("failed to marshal token response: " + err.Error())
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if r.URL.Path != "/token" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.Write(responseBody)
 	}
 }
 
@@ -86,6 +168,7 @@ func (t *testFixture) oneShot(ctx context.Context, u Update) {
 
 type testServer struct {
 	t              *testing.T
+	customAuth     func(http.ResponseWriter, *http.Request) error
 	expCode        int
 	expEtag        string
 	expAuth        string
@@ -97,8 +180,7 @@ type testServer struct {
 
 func newTestServer(t *testing.T) *testServer {
 	return &testServer{
-		t:       t,
-		expAuth: "Bearer secret",
+		t: t,
 		bundles: map[string]bundle.Bundle{
 			"test/bundle1": {
 				Manifest: bundle.Manifest{
@@ -157,7 +239,18 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t.expAuth != "" {
+	if t.customAuth != nil {
+		if err := t.customAuth(w, r); err != nil {
+			t.t.Logf("Failed authorization: %s", err)
+			if errors.Is(err, errUnauthorized) {
+				w.WriteHeader(401)
+				return
+			}
+
+			w.WriteHeader(500)
+			return
+		}
+	} else if t.expAuth != "" {
 		if r.Header.Get("Authorization") != t.expAuth {
 			w.WriteHeader(401)
 			return

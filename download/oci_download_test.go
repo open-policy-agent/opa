@@ -19,7 +19,6 @@ import (
 func TestOCIStartStop(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)
-	fixture.server.expAuth = "" // test on public registry
 	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
 
 	updates := make(chan *Update)
@@ -89,7 +88,6 @@ func TestOCIBearerAuthPlugin(t *testing.T) {
 }
 
 func TestOCIFailureAuthn(t *testing.T) {
-
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 	fixture.server.expAuth = "Bearer badsecret"
@@ -160,31 +158,31 @@ func TestOCIEtag(t *testing.T) {
 	}
 }
 
-func TestOCIPublicRegistry(t *testing.T) {
-	ctx := context.Background()
-	fixture := newTestFixture(t)
-	fixture.server.expAuth = "" // Do not expect authorization header to be set
+// TestOCIPublicRegistryAuth tests the registry `token` auth
+// that is implemented by public registries (more details are
+// in the doc comment of withPublicRegistryAuth).
+//
+// Other tests that don't explicitly set an authentication method
+// implicitly test no authentication - this is different from
+// the mechanism used by public registries.
+func TestOCIPublicRegistryAuth(t *testing.T) {
+	fixture := newTestFixture(t, withPublicRegistryAuth())
 
 	restConfig := []byte(fmt.Sprintf(`{
 		"url": %q,
+		"type": "oci"
 	}`, fixture.server.server.URL))
 
-	tc, err := rest.New(restConfig, map[string]*keys.Config{})
+	client, err := rest.New(restConfig, map[string]*keys.Config{})
 	if err != nil {
-		t.Fatal("failed to create rest client without credentials")
+		t.Fatalf("failed to create rest client: %s", err)
 	}
-	fixture.setClient(tc) // set a client without configured credentials
+	fixture.client = client
 
-	config := Config{}
-	if err := config.ValidateAndInjectDefaults(); err != nil {
-		t.Fatal(err)
-	}
+	d := NewOCI(Config{}, fixture.client, "ghcr.io/org/repo:latest", t.TempDir())
 
-	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", "/tmp/oci")
-
-	err = d.oneShot(ctx)
-	if err != nil {
-		t.Fatal("unexpected error")
+	if err := d.oneShot(context.Background()); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
 	}
 }
 
