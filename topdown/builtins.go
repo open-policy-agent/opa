@@ -186,12 +186,14 @@ func handleBuiltinErr(name string, loc *ast.Location, err error) error {
 			Code:     TypeErr,
 			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: loc,
+			Err:      err,
 		}
 	default:
 		return &Error{
 			Code:     BuiltinErr,
 			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: loc,
+			Err:      err,
 		}
 	}
 }

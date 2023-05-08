@@ -29,6 +29,7 @@ type Error struct {
 	Code     string        `json:"code"`
 	Message  string        `json:"message"`
 	Location *ast.Location `json:"location,omitempty"`
+	Err      error         `json:"-"`
 }
 
 const (
@@ -88,6 +89,10 @@ func (e *Error) Error() string {
 	}
 
 	return msg
+}
+
+func (e *Error) Unwrap() error {
+	return e.Err
 }
 
 func functionConflictErr(loc *ast.Location) error {

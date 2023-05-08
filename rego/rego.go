@@ -2647,12 +2647,14 @@ func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, 
 				Code:     topdown.BuiltinErr,
 				Message:  fmt.Sprintf("%v: %v", name, e.Error()),
 				Location: bctx.Location,
+				Err:      e,
 			}}
 		}
 		return &topdown.Error{
 			Code:     topdown.BuiltinErr,
 			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: bctx.Location,
+			Err:      err,
 		}
 	}
 	if result == nil {
