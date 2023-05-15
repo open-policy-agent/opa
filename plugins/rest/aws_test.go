@@ -1016,13 +1016,95 @@ func TestWebIdentityCredentialService(t *testing.T) {
 func TestStsPath(t *testing.T) {
 	cs := awsWebIdentityCredentialService{}
 
-	assertEq(cs.stsPath(), stsDefaultPath, t)
+	defaultPath := fmt.Sprintf(stsDefaultPath, stsDefaultDomain)
+	assertEq(defaultPath, cs.stsPath(), t)
 
 	cs.RegionName = "us-east-2"
-	assertEq(cs.stsPath(), "https://sts.us-east-2.amazonaws.com", t)
+	assertEq("https://sts.us-east-2.amazonaws.com", cs.stsPath(), t)
+
+	cs.Domain = "example.com"
+	assertEq("https://sts.us-east-2.example.com", cs.stsPath(), t)
 
 	cs.stsURL = "http://test.com"
-	assertEq(cs.stsPath(), "http://test.com", t)
+	assertEq("http://test.com", cs.stsPath(), t)
+}
+
+func TestStsPathFromEnv(t *testing.T) {
+	t.Setenv(awsRoleArnEnvVar, "role:arn")
+	t.Setenv(awsWebIdentityTokenFileEnvVar, "/nonsense")
+
+	tests := []struct {
+		note string
+		env  map[string]string
+		cs   awsWebIdentityCredentialService
+		want string
+	}{
+		{
+			note: "region set in config",
+			cs: awsWebIdentityCredentialService{
+				RegionName: "us-east-2",
+			},
+			want: "https://sts.us-east-2.amazonaws.com",
+		},
+		{
+			note: "region set in env",
+			env: map[string]string{
+				awsRegionEnvVar: "us-east-1",
+			},
+			want: "https://sts.us-east-1.amazonaws.com",
+		},
+		{
+			note: "region set in env and config (config wins)",
+			env: map[string]string{
+				awsRegionEnvVar: "us-east-1",
+			},
+			cs: awsWebIdentityCredentialService{
+				RegionName: "us-east-2",
+			},
+			want: "https://sts.us-east-2.amazonaws.com",
+		},
+		{
+			note: "domain set in config",
+			cs: awsWebIdentityCredentialService{
+				RegionName: "us-east-2",
+				Domain:     "foo.example.com",
+			},
+			want: "https://sts.us-east-2.foo.example.com",
+		},
+		{
+			note: "domain set in env",
+			env: map[string]string{
+				awsDomainEnvVar: "bar.example.com",
+			},
+			cs: awsWebIdentityCredentialService{
+				RegionName: "us-east-2", // Region must always be set
+			},
+			want: "https://sts.us-east-2.bar.example.com",
+		},
+		{
+			note: "domain set in env and config (config wins)",
+			env: map[string]string{
+				awsDomainEnvVar: "bar.example.com",
+			},
+			cs: awsWebIdentityCredentialService{
+				RegionName: "us-east-2", // Region must always be set
+				Domain:     "foo.example.com",
+			},
+			want: "https://sts.us-east-2.foo.example.com",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			if err := tc.cs.populateFromEnv(); err != nil {
+				t.Fatalf("Unexpected err: %s", err)
+			}
+			assertEq(tc.want, tc.cs.stsPath(), t)
+		})
+	}
 }
 
 // simulate EC2 metadata service
