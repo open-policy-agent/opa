@@ -1,0 +1,17 @@
+cases:
+  - data:
+    modules:
+      - |
+        package generated
+        
+        token := io.jwt.encode_sign({"alg": "HS256"}, {}, {"kty": "oct", "k": base64url.encode_no_pad("42")})
+        
+        decoded := io.jwt.decode_verify(token, {"secret": "42", "iss": "xxx"})
+
+    note: jwtdecodeverify/missing-iss-while-required
+    query: data.generated.decoded = x
+    want_result:
+      - x:
+          - false
+          - { }
+          - { }
