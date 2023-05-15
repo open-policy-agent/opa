@@ -324,7 +324,7 @@ type awsWebIdentityCredentialService struct {
 	WebIdentityTokenFile string
 	RegionName           string `json:"aws_region"`
 	SessionName          string `json:"session_name"`
-	Domain               string `json:"domain"`
+	Domain               string `json:"aws_domain"`
 	stsURL               string
 	creds                aws.Credentials
 	expiration           time.Time
