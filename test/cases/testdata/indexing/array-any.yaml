@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  input_term: '{}'
+  modules:
+  - |
+    package indexing
+
+    f(val) {
+      [_, _] = val
+    }
+
+    p {
+      f([1, ["foo", "bar"]])
+    }
+  note: indexing on any and arrays
+  query: data.indexing.p = x
+  want_result:
+  - x: true
