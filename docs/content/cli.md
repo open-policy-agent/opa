@@ -546,7 +546,7 @@ opa eval <query> [flags]
       --pretty-limit int                                  set limit after which pretty output gets truncated (default 80)
       --profile                                           perform expression profiling
       --profile-limit int                                 set number of profiling results to show (default 10)
-      --profile-sort string                               set sort order of expression profiler results
+      --profile-sort string                               set sort order of expression profiler results. Accepts: total_time_ns, num_eval, num_redo, num_gen_expr, file, line. This flag can be repeated.
   -s, --schema string                                     set schema file path or directory path
       --shallow-inlining                                  disable inlining of rules that depend on unknowns
       --show-builtin-errors                               collect and return all encountered built-in errors, built in errors are not fatal
