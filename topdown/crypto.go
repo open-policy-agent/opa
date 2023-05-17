@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -94,6 +95,29 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 	)
 
 	return iter(valid)
+}
+
+func builtinCryptoX509ParseKeyPair(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	certificate, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	key, err := builtins.StringOperand(operands[1].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	certs, err := getTLSx509KeyPairFromString([]byte(certificate), []byte(key))
+	if err != nil {
+		return err
+	}
+	v, err := ast.InterfaceToValue(certs)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.NewTerm(v))
 }
 
 func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -275,6 +299,7 @@ func init() {
 	RegisterBuiltinFunc(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
 	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoX509ParseRSAPrivateKey)
+	RegisterBuiltinFunc(ast.CryptoX509ParseKeyPair.Name, builtinCryptoX509ParseKeyPair)
 	RegisterBuiltinFunc(ast.CryptoHmacMd5.Name, builtinCryptoHmacMd5)
 	RegisterBuiltinFunc(ast.CryptoHmacSha1.Name, builtinCryptoHmacSha1)
 	RegisterBuiltinFunc(ast.CryptoHmacSha256.Name, builtinCryptoHmacSha256)
@@ -445,6 +470,60 @@ func readCertFromFile(localCertFile string) ([]byte, error) {
 		return nil, err
 	}
 	return certPEM, nil
+}
+
+func getTLSx509KeyPairFromString(certPemBlock []byte, keyPemBlock []byte) (*tls.Certificate, error) {
+
+	if !strings.HasPrefix(string(certPemBlock), "-----BEGIN") {
+		s, err := base64.StdEncoding.DecodeString(string(certPemBlock))
+		if err != nil {
+			return nil, err
+		}
+		certPemBlock = s
+	}
+
+	if !strings.HasPrefix(string(keyPemBlock), "-----BEGIN") {
+		s, err := base64.StdEncoding.DecodeString(string(keyPemBlock))
+		if err != nil {
+			return nil, err
+		}
+		keyPemBlock = s
+	}
+
+	// we assume it a DER certificate and try to convert it to a PEM.
+	if !bytes.HasPrefix(certPemBlock, []byte("-----BEGIN")) {
+
+		pemBlock := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: certPemBlock,
+		}
+
+		var buf bytes.Buffer
+		if err := pem.Encode(&buf, pemBlock); err != nil {
+			return nil, err
+		}
+		certPemBlock = buf.Bytes()
+
+	}
+	// we assume it a DER key and try to convert it to a PEM.
+	if !bytes.HasPrefix(keyPemBlock, []byte("-----BEGIN")) {
+		pemBlock := &pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: keyPemBlock,
+		}
+		var buf bytes.Buffer
+		if err := pem.Encode(&buf, pemBlock); err != nil {
+			return nil, err
+		}
+		keyPemBlock = buf.Bytes()
+	}
+
+	cert, err := tls.X509KeyPair(certPemBlock, keyPemBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cert, nil
 }
 
 // ReadKeyFromFile reads a key from file
