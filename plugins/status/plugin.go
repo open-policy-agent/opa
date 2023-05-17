@@ -57,7 +57,7 @@ type Plugin struct {
 	lastPluginStatuses     map[string]*plugins.Status
 	queryCh                chan chan *UpdateRequestV1
 	stop                   chan chan struct{}
-	reconfig               chan interface{}
+	reconfig               chan reconfigure
 	metrics                metrics.Metrics
 	logger                 logging.Logger
 	trigger                chan trigger
@@ -71,6 +71,11 @@ type Config struct {
 	ConsoleLogs   bool                 `json:"console"`
 	Prometheus    bool                 `json:"prometheus"`
 	Trigger       *plugins.TriggerMode `json:"trigger,omitempty"` // trigger mode
+}
+
+type reconfigure struct {
+	config interface{}
+	done   chan struct{}
 }
 
 type trigger struct {
@@ -198,7 +203,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		discoCh:        make(chan bundle.Status),
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
-		reconfig:       make(chan interface{}),
+		reconfig:       make(chan reconfigure),
 		pluginStatusCh: make(chan map[string]*plugins.Status),
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
@@ -312,7 +317,9 @@ func (p *Plugin) UpdatePluginStatus(status map[string]*plugins.Status) {
 
 // Reconfigure notifies the plugin with a new configuration.
 func (p *Plugin) Reconfigure(_ context.Context, config interface{}) {
-	p.reconfig <- config
+	done := make(chan struct{})
+	p.reconfig <- reconfigure{config: config, done: done}
+	<-done
 }
 
 // Snapshot returns the current status.
@@ -394,8 +401,9 @@ func (p *Plugin) loop() {
 					p.logger.Info("Status update sent successfully in response to discovery update.")
 				}
 			}
-		case newConfig := <-p.reconfig:
-			p.reconfigure(newConfig)
+		case update := <-p.reconfig:
+			p.reconfigure(update.config)
+			update.done <- struct{}{}
 		case respCh := <-p.queryCh:
 			respCh <- p.snapshot()
 		case update := <-p.trigger:
