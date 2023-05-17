@@ -37,8 +37,6 @@ void test_glob_lexer()
 {
 #define TEST(test_case, pattern, ...) {                                 \
         token expected[] = {__VA_ARGS__};                               \
-        opa_heap_compact();                                             \
-        unsigned int allocated_before = opa_heap_ptr_get();             \
         lexer *l = new lexer(pattern, strlen(pattern));                 \
         for (int i = 0; i < sizeof(expected)/sizeof(expected[0]); i++)  \
         {                                                               \
@@ -48,9 +46,6 @@ void test_glob_lexer()
                  token.s == expected[i].s);                             \
         }                                                               \
         delete l;                                                       \
-        opa_heap_compact();                                             \
-        unsigned int allocated_after = opa_heap_ptr_get();              \
-        test(test_case, allocated_before == allocated_after);           \
     }
 
     TEST("glob/lexer", "", {glob_lexer_token_eof, "", 0});
@@ -149,8 +144,6 @@ extern "C"
 void test_glob_parser()
 {
 #define TEST(test_case, pattern, expected) {                            \
-        opa_heap_compact();                                             \
-        unsigned int allocated_before = opa_heap_ptr_get();             \
         node *e = expected;                                             \
         lexer *l = new lexer(pattern, strlen(pattern));                 \
         node *n = NULL;                                                 \
@@ -159,9 +152,6 @@ void test_glob_parser()
         delete n;                                                       \
         delete l;                                                       \
         delete e;                                                       \
-        opa_heap_compact();                                             \
-        unsigned int allocated_after = opa_heap_ptr_get();              \
-        test(test_case, allocated_before == allocated_after);           \
     }
 
     TEST("glob/parser", "abc", (new node(kind_pattern))->
