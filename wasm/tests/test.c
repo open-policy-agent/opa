@@ -146,81 +146,71 @@ void test_opa_free(void)
     // check the heap shrinks with a single malloc and free.
 
     size_t blocks = opa_heap_free_blocks();
-    unsigned int base = opa_heap_ptr_get();
     opa_free(opa_malloc(0));
 
-    test("heap ptr", base == opa_heap_ptr_get());
-    test("free blocks", blocks == 0 && opa_heap_free_blocks() == 0);
+    test("free blocks", blocks == 0 && opa_heap_free_blocks() == 1);
 
     // check the double malloc, followed with frees in identical order
     // results in eventual heap shrinking.
 
     void *p1 = opa_malloc(0);
     void *p2 = opa_malloc(0);
-    unsigned int high = opa_heap_ptr_get();
     test("free blocks", opa_heap_free_blocks() == 0);
 
     opa_free(p1);
     test("free blocks", opa_heap_free_blocks() == 1);
-    test("heap ptr", high == opa_heap_ptr_get());
 
     opa_free(p2);
-    test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 2);
 
     // check the double malloc, followed with frees in reverse order
     // results in gradual heap shrinking.
 
     p1 = opa_malloc(0);
     p2 = opa_malloc(0);
-    high = opa_heap_ptr_get();
     test("free blocks", opa_heap_free_blocks() == 0);
 
     opa_free(p2);
-    test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", high > opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 1);
 
     opa_free(p1);
-    test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 2);
 
     // check the free re-use (without splitting).
 
     p1 = opa_malloc(1);
     p2 = opa_malloc(1);
-    high = opa_heap_ptr_get();
 
     opa_free(p1);
     test("free blocks", opa_heap_free_blocks() == 1);
 
     p1 = opa_malloc(1);
     test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", high == opa_heap_ptr_get());
 
     opa_free(p2);
     opa_free(p1);
-    test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 2);
 
     // check the free re-use (with splitting).
 
     p1 = opa_malloc(512);
     p2 = opa_malloc(512);
-    high = opa_heap_ptr_get();
 
     opa_free(p1);
-    test("free blocks", opa_heap_free_blocks() == 1);
+    test("free blocks", opa_heap_free_blocks() == 3);
+    // 2 small, 1 large
 
     p1 = opa_malloc(128);
-    test("free blocks", opa_heap_free_blocks() == 1);
-    test("heap ptr", high == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 3);
+    // 2 small, 1 large (split p1)
 
     opa_free(p2);
-    test("free blocks", opa_heap_free_blocks() == 0);
+    test("free blocks", opa_heap_free_blocks() == 3);
+    // 2 small, 1 large (merged end-p1, p2)
 
     opa_free(p1);
-    test("free blocks", opa_heap_free_blocks() == 0);
-    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 3);
+    // 2 small, 1 large (merged start-p1,end-p1+p2)
 }
 
 WASM_EXPORT(test_opa_heap_blocks_stash)
@@ -236,12 +226,14 @@ void test_opa_heap_blocks_stash(void)
     p1 = opa_malloc(128);
     p2 = opa_malloc(128);
     opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
     opa_heap_blocks_stash();
     test("free blocks", opa_heap_free_blocks() == 0);
     opa_heap_blocks_restore();
     test("free blocks", opa_heap_free_blocks() == 1);
     opa_free(p2);
-    test("heap ptr", base == opa_heap_ptr_get());
+    test("free blocks", opa_heap_free_blocks() == 1);
+    // 1 merged block remaining
 
     // check opa_heap_stash_clear()
     p1 = opa_malloc(128);
@@ -252,6 +244,112 @@ void test_opa_heap_blocks_stash(void)
     opa_heap_blocks_restore();
     test("free blocks", opa_heap_free_blocks() == 0);
     opa_heap_ptr_set(base); // p2 is dangling, but we'll discard it
+}
+
+#define MAX_TEST_BLOCKS 100
+static void *sort_blocks[MAX_TEST_BLOCKS];
+unsigned int prng_state = 1;
+#define AX 65537
+#define CX 123
+
+/* Use a pseudo-random number generator to ensure test repeatability */
+static void prng_seed(unsigned int n)
+{
+    prng_state = n;
+}
+
+static unsigned int prng(unsigned int max)
+{
+    unsigned int v = (prng_state * AX + CX) % max;
+    prng_state = v;
+    return v;
+}
+
+static void test_opa_block_sort(unsigned int nblocks)
+{
+    int i, j;
+    void *h;
+
+    test("valid nblocks", nblocks <= MAX_TEST_BLOCKS);
+
+    reset_heap();
+
+    /* Allocate N blocks */
+    for (i = 0; i < nblocks; i++) {
+        sort_blocks[i] = opa_malloc(128);
+        test("available blocks", sort_blocks[i] != NULL);
+    }
+
+    /* Randomize the blocks */
+    prng_seed(nblocks);
+    for (i = 0; i < nblocks; i++)
+    {
+        j = prng(nblocks - i) + i;
+        h = sort_blocks[i];
+        sort_blocks[i] = sort_blocks[j];
+        sort_blocks[j] = h;
+    }
+
+    /* Bulk free all the blocks */
+    for (i = 0; i < nblocks; i++)
+        opa_free_bulk(sort_blocks[i]);
+
+    /* This will abort when compiled with DEBUG if order is violated */
+    opa_free_bulk_commit();
+
+    test("total heap blocks", opa_heap_free_blocks() == 1);
+}
+
+WASM_EXPORT(test_opa_block_sorting)
+void test_opa_block_sorting(void)
+{
+    test_opa_block_sort(1);
+    test_opa_block_sort(2);
+    test_opa_block_sort(3);
+    test_opa_block_sort(4);
+    test_opa_block_sort(10);
+    test_opa_block_sort(30);
+    test_opa_block_sort(100);
+}
+
+WASM_EXPORT(test_opa_free_bulk)
+void test_opa_free_bulk(void)
+{
+    reset_heap();
+
+    void *p1;
+    void *p2;
+    void *p3;
+    void *p4;
+
+    p1 = opa_malloc(128);
+    p2 = opa_malloc(128);
+    p3 = opa_malloc(128);
+    p4 = opa_malloc(128);
+
+    opa_free_bulk(p1);
+    opa_free_bulk(p3);
+
+    // blocks are on the bulk freelist and won't be reclaimed
+    // until the next malloc().
+    test("free blocks", opa_heap_free_blocks() == 0);
+    p1 = opa_malloc(128);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    // now free them all and allocate 1.  Check others aggregated
+    opa_free_bulk(p1);
+    opa_free_bulk(p2);
+    opa_free_bulk(p4);
+
+    p1 = opa_malloc(128);
+    test("free blocks", opa_heap_free_blocks() == 1);
+    opa_free(p1);
+    test("free blocks", opa_heap_free_blocks() == 1);
+
+    // Check that small blocks are released to the heap immediately
+    p1 = opa_malloc(32);
+    opa_free_bulk(p1);
+    test("free blocks", opa_heap_free_blocks() == 2);
 }
 
 WASM_EXPORT(test_opa_memoize)
@@ -3337,17 +3435,17 @@ void test_opa_object_delete(void)
     opa_object_insert(opa_cast_object(data), opa_string_terminated("b"), opa_number_int(2));
     opa_object_insert(opa_cast_object(data), opa_string_terminated("c"), opa_number_int(3));
 
-    opa_object_remove(opa_cast_object(data), opa_string_terminated("a"));
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("a"), false);
     test_str_eq("remove_key", "{\"c\":3,\"b\":2}", opa_json_dump(data));
 
-    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"));
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"), false);
     test_str_eq("remove_unknown_key", "{\"c\":3,\"b\":2}", opa_json_dump(data));
 
-    opa_object_remove(opa_cast_object(data), opa_string_terminated("b"));
-    opa_object_remove(opa_cast_object(data), opa_string_terminated("c"));
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("b"), false);
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("c"), false);
     test_str_eq("remove_all_keys", "{}", opa_json_dump(data));
 
-    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"));
+    opa_object_remove(opa_cast_object(data), opa_string_terminated("bad key"), false);
     test_str_eq("remove_on_empty_obj", "{}", opa_json_dump(data));
 }
 
