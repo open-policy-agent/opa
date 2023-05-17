@@ -780,6 +780,31 @@
       }
     },
     {
+      "name": "crypto.x509.parse_keypair",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "crypto.x509.parse_rsa_private_key",
       "decl": {
         "args": [

@@ -210,6 +210,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoSha256,
 	CryptoX509ParseCertificateRequest,
 	CryptoX509ParseRSAPrivateKey,
+	CryptoX509ParseKeyPair,
 	CryptoHmacMd5,
 	CryptoHmacSha1,
 	CryptoHmacSha256,
@@ -2289,6 +2290,17 @@ var CryptoX509ParseCertificateRequest = &Builtin{
 	),
 }
 
+var CryptoX509ParseKeyPair = &Builtin{
+	Name:        "crypto.x509.parse_keypair",
+	Description: "Returns a valid key pair",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("cert", types.S).Description("string containing PEM or base64 encoded DER certificates"),
+			types.Named("pem", types.S).Description("string containing PEM or base64 encoded DER keys"),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("if key pair is valid, returns the tls.certificate(https://pkg.go.dev/crypto/tls#Certificate) as an object. If the key pair is invalid, nil and an error are returned."),
+	),
+}
 var CryptoX509ParseRSAPrivateKey = &Builtin{
 	Name:        "crypto.x509.parse_rsa_private_key",
 	Description: "Returns a JWK for signing a JWT from the given PEM-encoded RSA private key.",
