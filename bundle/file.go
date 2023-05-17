@@ -122,11 +122,7 @@ type DirectoryLoader interface {
 	// descriptor should *always* be closed when no longer needed.
 	NextFile() (*Descriptor, error)
 	WithFilter(filter filter.LoaderFilter) DirectoryLoader
-<<<<<<< HEAD
 	WithPathFormat(PathFormat) DirectoryLoader
-	SupplementaryMetadata() *SupplementaryMetadata
-=======
->>>>>>> b6ddb0a1d (Revert "Use gzip header comments to stash ETag value")
 }
 
 type dirLoader struct {
@@ -239,14 +235,14 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 }
 
 type tarballLoader struct {
-	baseURL               string
-	r                     io.Reader
-	tr                    *tar.Reader
-	files                 []file
-	idx                   int
-	filter                filter.LoaderFilter
-	skipDir               map[string]struct{}
-	pathFormat            PathFormat
+	baseURL    string
+	r          io.Reader
+	tr         *tar.Reader
+	files      []file
+	idx        int
+	filter     filter.LoaderFilter
+	skipDir    map[string]struct{}
+	pathFormat PathFormat
 }
 
 type file struct {
