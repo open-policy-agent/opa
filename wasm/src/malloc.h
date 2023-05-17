@@ -10,6 +10,8 @@ extern "C" {
 void *opa_malloc(size_t size);
 void opa_free(void *ptr);
 void *opa_realloc(void *ptr, size_t size);
+void opa_free_bulk(void *ptr);
+void opa_free_bulk_commit(void);
 
 unsigned int opa_heap_ptr_get(void);
 unsigned int opa_heap_top_get(void);
@@ -23,7 +25,6 @@ void opa_malloc_init_test(void);
 void *opa_builtin_cache_get(size_t i);
 void opa_builtin_cache_set(size_t i, void *p);
 
-void opa_heap_compact(void);
 size_t opa_heap_free_blocks(void);
 
 void opa_heap_blocks_stash(void);
