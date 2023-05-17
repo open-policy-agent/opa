@@ -60,6 +60,18 @@ var (
 		Help:    "Histogram for the bundle loading duration by stage.",
 		Buckets: prometheus.ExponentialBuckets(1000, 2, 20),
 	}, []string{"name", "stage"})
+
+	allCollectors = []prometheus.Collector{
+		opaInfo,
+		pluginStatus,
+		loaded,
+		failLoad,
+		lastRequest,
+		lastSuccessfulActivation,
+		lastSuccessfulDownload,
+		lastSuccessfulRequest,
+		bundleLoadDuration,
+	}
 )
 
 func init() {

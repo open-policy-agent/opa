@@ -237,10 +237,8 @@ func (p *Plugin) Start(ctx context.Context) error {
 	// to prevent blocking threads pushing the plugin updates.
 	p.manager.RegisterPluginStatusListener(Name, p.UpdatePluginStatus)
 
-	if p.config.Prometheus && p.manager.PrometheusRegister() != nil {
-		p.register(p.manager.PrometheusRegister(), opaInfo, pluginStatus, loaded, failLoad,
-			lastRequest, lastSuccessfulActivation, lastSuccessfulDownload,
-			lastSuccessfulRequest, bundleLoadDuration)
+	if p.config.Prometheus {
+		p.registerAll()
 	}
 
 	// Set the status plugin's status to OK now that everything is registered and
@@ -255,6 +253,24 @@ func (p *Plugin) register(r prom.Registerer, cs ...prom.Collector) {
 		if err := r.Register(c); err != nil {
 			p.logger.Error("Status metric failed to register on prometheus :%v.", err)
 		}
+	}
+}
+
+func (p *Plugin) registerAll() {
+	if p.manager.PrometheusRegister() != nil {
+		p.register(p.manager.PrometheusRegister(), allCollectors...)
+	}
+}
+
+func (p *Plugin) unregister(r prom.Registerer, cs ...prom.Collector) {
+	for _, c := range cs {
+		r.Unregister(c)
+	}
+}
+
+func (p *Plugin) unregisterAll() {
+	if p.manager.PrometheusRegister() != nil {
+		p.unregister(p.manager.PrometheusRegister(), allCollectors...)
 	}
 }
 
@@ -451,6 +467,13 @@ func (p *Plugin) reconfigure(config interface{}) {
 	}
 
 	p.logger.Info("Status reporter configuration changed.")
+
+	if newConfig.Prometheus && !p.config.Prometheus {
+		p.registerAll()
+	} else if !newConfig.Prometheus && p.config.Prometheus {
+		p.unregisterAll()
+	}
+
 	p.config = *newConfig
 }
 

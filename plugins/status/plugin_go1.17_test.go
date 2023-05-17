@@ -110,6 +110,38 @@ func TestPluginPrometheus(t *testing.T) {
 	if pluginsStatus != 1 {
 		t.Fatalf("Unexpected number of plugins (%v), got %v", 1, pluginsStatus)
 	}
+
+	// Assert that metrics are purged when prometheus is disabled
+	prometheusDisabledConfig := newConfig(fixture.manager, func(c *Config) {
+		c.Prometheus = false
+	})
+	fixture.plugin.Reconfigure(ctx, prometheusDisabledConfig)
+	eventually(t, func() bool { return fixture.plugin.config.Prometheus == false })
+
+	if len(registerMock.Collectors) != 0 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 0, len(registerMock.Collectors))
+	}
+
+	// Assert that metrics are re-registered when prometheus is re-enabled
+	prometheusReenabledConfig := newConfig(fixture.manager, func(c *Config) {
+		c.Prometheus = true
+	})
+	fixture.plugin.Reconfigure(ctx, prometheusReenabledConfig)
+	eventually(t, func() bool { return fixture.plugin.config.Prometheus == true })
+
+	if len(registerMock.Collectors) != 9 {
+		t.Fatalf("Number of collectors expected (%v), got %v", 9, len(registerMock.Collectors))
+	}
+}
+
+func eventually(t *testing.T, predicate func() bool) {
+	for i := 0; i < 100; i++ {
+		if predicate() {
+			return
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
+	t.Fatal("check took too long")
 }
 
 func assertOpInformationGauge(t *testing.T, registerMock *prometheusRegisterMock) {
