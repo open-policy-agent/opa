@@ -537,6 +537,7 @@ If specifying `web_identity_credentials`, OPA will expect to find environment va
 | --- | --- | --- | --- |
 | `services[_].credentials.s3_signing.web_identity_credentials.aws_region` | `string` | Yes | The AWS region to use for the sts regional endpoint. Uses the global endpoint by default |
 | `services[_].credentials.s3_signing.web_identity_credentials.session_name` | `string` | No | The session name used to identify the assumed role session. Default: `open-policy-agent` |
+| `services[_].credentials.s3_signing.web_identity_credentials.aws_domain` | `string` | No | The AWS domain name to use. Default: `amazonaws.com`. Can also be set via the `AWS_DOMAIN` environment variable (config takes precedence) |
 
 #### GCP Metadata Token
 
