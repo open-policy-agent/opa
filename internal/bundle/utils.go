@@ -71,33 +71,29 @@ func (bp *bundlePackage) Read(p []byte) (n int, err error) {
 // data in the input io.Reader as base64.
 type streamingBase64Encoder struct {
 	input io.Reader
-	buf   bytes.Buffer
-	enc   io.WriteCloser
 }
 
 func (s *streamingBase64Encoder) Read(p []byte) (n int, err error) {
-	if s.enc == nil {
-		s.enc = base64.NewEncoder(base64.StdEncoding, &s.buf)
-	}
+	// compute the inverse of base64.StdEncoding.EncodedLen to determine the
+	// number of bytes we need to read from the input.
+	chunkSize := len(p)*3/4 - 2
 
-	chunk := make([]byte, len(p))
+	// read raw data from the input
+	chunk := make([]byte, chunkSize)
 	n, err = s.input.Read(chunk)
-	if err == io.EOF {
-		err = s.enc.Close()
-		if err != nil {
-			return n, fmt.Errorf("failed to close base64 encoder: %w", err)
-		}
-	}
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return n, fmt.Errorf("failed to read from input: %w", err)
 	}
-
-	_, err = s.enc.Write(chunk[:n])
-	if err != nil {
-		return n, fmt.Errorf("failed to write to base64 encoder: %w", err)
+	// if no data was read, but no EOF was returned, then return response representing a no-op
+	if n == 0 {
+		return 0, err
 	}
 
-	return s.buf.Read(p)
+	// encode the read data to p
+	base64.StdEncoding.Encode(p, chunk)
+
+	// return the number of bytes written to and any EOF error
+	return base64.StdEncoding.EncodedLen(n), err
 }
 
 // LoadWasmResolversFromStore will lookup all Wasm modules from the store along with the
