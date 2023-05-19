@@ -32,8 +32,9 @@ staleLabel: inactive
 # Comment to post when marking as stale. Set to `false` to disable
 markComment: >
   This issue has been automatically marked as inactive because it has not had
-  any activity in the last 30 days.
-
+  any activity in the last 30 days. Although currently inactive, the issue could still be considered and actively worked on in the future.
+  More details about the use-case this issue attempts to address, the value provided by completing it or possible solutions to resolve
+  it would help to prioritize the issue.
 # Comment to post when removing the stale label.
 # unmarkComment: >
 #   Your comment here.
