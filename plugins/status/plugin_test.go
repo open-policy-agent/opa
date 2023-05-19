@@ -779,14 +779,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 		t.Fatal(err)
 	}
 
-	pluginConfig := []byte(`{
-			"service": "example",
-		}`)
-
-	config, _ := ParseConfig(pluginConfig, manager.Services(), nil)
-	for _, option := range options {
-		option(config)
-	}
+	config := newConfig(manager, options...)
 
 	p := New(config, manager).WithMetrics(m)
 
@@ -796,6 +789,19 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 		server:  &ts,
 	}
 
+}
+
+func newConfig(manager *plugins.Manager, options ...testPluginCustomizer) *Config {
+	pluginConfig := []byte(`{
+			"service": "example",
+		}`)
+
+	config, _ := ParseConfig(pluginConfig, manager.Services(), nil)
+	for _, option := range options {
+		option(config)
+	}
+
+	return config
 }
 
 type testServer struct {
