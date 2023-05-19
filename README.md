@@ -11,23 +11,11 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Join the [OPA Slack](https://slack.openpolicyagent.org) for day-to-day conversations with the OPA community.
 - Need Support? Check out the [Community Discussions](https://github.com/orgs/open-policy-agent/discussions) to ask questions.
 
-## Join the OPA Office Hours
-
-**Every Week at these times** 
-  * 10:00 PT / 19:00 CET
-  * 01:30 PT / 10:30 CET
-
-These sessions are open format for community members. Come and ask about new features or the road map for the next release. You can use this time to get unblocked with your OPA deployments, learn more about the project, or to get more involved in the community.
-
-  * [Book a slot](https://calendly.com/styra-devrel/opa-office-hours)
-
-*Watch a replay of a previous office hours on [YouTube](https://www.youtube.com/watch?v=TxFZPrbc9jk&list=PLW-2W4VHBA4RRhCHiiaKHZsDFx-FwH8VU)*
-
 ## Want to learn more about OPA?
 
 - Go to [openpolicyagent.org](https://www.openpolicyagent.org) to get started with documentation and tutorials.
 - Browse [blog.openpolicyagent.org](https://blog.openpolicyagent.org) for news about OPA, community, policy and authorization.
-- Watch OPA's [YouTube](https://www.youtube.com/channel/UClDMRN5HlqD3di5MMf-SV4A) channel for past office hours and other content.
+- Watch OPA's [YouTube](https://www.youtube.com/channel/UClDMRN5HlqD3di5MMf-SV4A) channel for videos about OPA.
 - Try OPA with the [Rego Playground](https://play.openpolicyagent.org) to experiment with policies and share your work.
 - View the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
 - Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your organization use OPA in production? Support the OPA project by submitting a PR to add your organization to the list with a short description of your OPA use cases!
