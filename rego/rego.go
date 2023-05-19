@@ -2643,19 +2643,19 @@ func finishFunction(name string, bctx topdown.BuiltinContext, result *ast.Term, 
 	if err != nil {
 		var e *HaltError
 		if errors.As(err, &e) {
-			return topdown.Halt{Err: &topdown.Error{
+			tdErr := &topdown.Error{
 				Code:     topdown.BuiltinErr,
 				Message:  fmt.Sprintf("%v: %v", name, e.Error()),
 				Location: bctx.Location,
-				Err:      e,
-			}}
+			}
+			return topdown.Halt{Err: tdErr.Wrap(e)}
 		}
-		return &topdown.Error{
+		tdErr := &topdown.Error{
 			Code:     topdown.BuiltinErr,
 			Message:  fmt.Sprintf("%v: %v", name, err.Error()),
 			Location: bctx.Location,
-			Err:      err,
 		}
+		return tdErr.Wrap(err)
 	}
 	if result == nil {
 		return nil
