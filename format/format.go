@@ -732,7 +732,12 @@ func (w *writer) writeTermParens(parens bool, term *ast.Term, comments []*ast.Co
 
 func (w *writer) writeRef(x ast.Ref) {
 	if len(x) > 0 {
-		w.writeTerm(x[0], nil)
+		parens := false
+		_, ok := x[0].Value.(ast.Call)
+		if ok {
+			parens = x[0].Location.Text[0] == 40 // Starts with "("
+		}
+		w.writeTermParens(parens, x[0], nil)
 		path := x[1:]
 		for _, t := range path {
 			switch p := t.Value.(type) {
@@ -914,7 +919,12 @@ func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.B
 		w.startLine()
 	}
 
-	comments = w.writeTerm(term, comments)
+	parens := false
+	_, ok := term.Value.(ast.Call)
+	if ok {
+		parens = term.Location.Text[0] == 40 // Starts with "("
+	}
+	comments = w.writeTermParens(parens, term, comments)
 	w.write(" |")
 
 	return w.writeComprehensionBody(open, close, body, term.Location, loc, comments)
