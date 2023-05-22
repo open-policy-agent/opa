@@ -8,15 +8,20 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -169,6 +174,97 @@ type tokenEndpointResponse struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
+type awsKmsKeyConfig struct {
+	Name      string `json:"name"`
+	Algorithm string `json:"algorithm"`
+}
+
+func convertSignatureToBase64(alg string, der []byte) (string, error) {
+	r, s, derErr := pointsFromDER(der)
+	if derErr != nil {
+		return "", fmt.Errorf("failed to read points from der %v", derErr)
+	}
+
+	signatureData, err := convertPointsToBase64(alg, r.Bytes(), s.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return signatureData, nil
+}
+
+func pointsFromDER(der []byte) (R, S *big.Int, err error) {
+	R, S = &big.Int{}, &big.Int{}
+	data := asn1.RawValue{}
+	if _, err := asn1.Unmarshal(der, &data); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshall the signature from DER format %v", err)
+
+	}
+	// https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#API_Sign_ResponseSyntax
+	// https://datatracker.ietf.org/doc/html/rfc3279#section-2.2.3
+	// The format of our DER string is 0x02 + rlen + r + 0x02 + slen + s
+	rLen := data.Bytes[1] // The entire length of R + offset of 2 for 0x02 and rlen
+	r := data.Bytes[2 : rLen+2]
+	// Ignore the next 0x02 and slen bytes and just take the start of S to the end of the byte array
+	s := data.Bytes[rLen+4:]
+	R.SetBytes(r)
+	S.SetBytes(s)
+	return
+}
+
+func convertPointsToBase64(alg string, r, s []byte) (string, error) {
+	curveBits, err := retrieveCurveBits(alg)
+	if err != nil {
+		return "", err
+	}
+	keyBytes := curveBits / 8
+	if curveBits%8 > 0 {
+		keyBytes++
+	}
+	// We serialize the outputs (r and s) into big-endian byte arrays and pad
+	// them with zeros on the left to make sure the sizes work out. Both arrays
+	// must be keyBytes long, and the output must be 2*keyBytes long.
+	rBytesPadded := make([]byte, keyBytes)
+	copy(rBytesPadded[keyBytes-len(r):], r)
+	sBytesPadded := make([]byte, keyBytes)
+	copy(sBytesPadded[keyBytes-len(s):], s)
+	signatureEnc := append(rBytesPadded, sBytesPadded...)
+
+	return base64.RawURLEncoding.EncodeToString(signatureEnc), nil
+}
+
+func retrieveCurveBits(alg string) (int, error) {
+	var curveBits int
+	switch alg {
+	case "ECDSA_SHA_256":
+		curveBits = 256
+	case "ECDSA_SHA_384":
+		curveBits = 384
+	case "ECDSA_SHA_512":
+		curveBits = 512
+	default:
+		return 0, fmt.Errorf("unsupported sign algorithm %s", alg)
+	}
+	return curveBits, nil
+}
+
+func messageDigest(message []byte, alg string) ([]byte, error) {
+	var digest hash.Hash
+
+	switch alg {
+	case "ECDSA_SHA_256":
+		digest = sha256.New()
+	case "ECDSA_SHA_384":
+		digest = sha512.New384()
+	case "ECDSA_SHA_512":
+		digest = sha512.New()
+	default:
+		return []byte{}, fmt.Errorf("unsupported sign algorithm %s", alg)
+	}
+
+	digest.Write(message)
+	return digest.Sum(nil), nil
+}
+
 // oauth2ClientCredentialsAuthPlugin represents authentication via a bearer token in the HTTP Authorization header
 // obtained through the OAuth2 client credentials flow
 type oauth2ClientCredentialsAuthPlugin struct {
@@ -183,6 +279,8 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	Scopes               []string               `json:"scopes,omitempty"`
 	AdditionalHeaders    map[string]string      `json:"additional_headers,omitempty"`
 	AdditionalParameters map[string]string      `json:"additional_parameters,omitempty"`
+	AWSKmsKey            *awsKmsKeyConfig       `json:"aws_kms,omitempty"`
+	AWSSigningPlugin     *awsSigningAuthPlugin  `json:"aws_signing,omitempty"`
 
 	signingKey       *keys.Config
 	signingKeyParsed interface{}
@@ -196,7 +294,7 @@ type oauth2Token struct {
 	ExpiresAt time.Time
 }
 
-func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]interface{}, signingKey interface{}) (*string, error) {
+func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(ctx context.Context, claims map[string]interface{}, signingKey interface{}) (*string, error) {
 	now := time.Now()
 	baseClaims := map[string]interface{}{
 		"iat": now.Unix(),
@@ -227,28 +325,90 @@ func (ap *oauth2ClientCredentialsAuthPlugin) createAuthJWT(claims map[string]int
 	}
 
 	var jwsHeaders []byte
+	var signatureAlg string
+	if ap.AWSKmsKey == nil {
+		signatureAlg = ap.signingKey.Algorithm
+	} else {
+		signatureAlg, err = ap.mapKMSAlgToSign(ap.AWSKmsKey.Algorithm)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if ap.Thumbprint != "" {
 		bytes, err := hex.DecodeString(ap.Thumbprint)
 		if err != nil {
 			return nil, err
 		}
 		x5t := base64.URLEncoding.EncodeToString(bytes)
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, ap.signingKey.Algorithm, x5t))
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s","x5t":"%s"}`, signatureAlg, x5t))
 	} else {
-		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, ap.signingKey.Algorithm))
+		jwsHeaders = []byte(fmt.Sprintf(`{"typ":"JWT","alg":"%s"}`, signatureAlg))
 	}
-
-	jwsCompact, err := jws.SignLiteral(payload,
-		jwa.SignatureAlgorithm(ap.signingKey.Algorithm),
-		signingKey,
-		jwsHeaders,
-		rand.Reader)
+	var jwsCompact []byte
+	if ap.AWSKmsKey == nil {
+		jwsCompact, err = jws.SignLiteral(payload,
+			jwa.SignatureAlgorithm(signatureAlg),
+			signingKey,
+			jwsHeaders,
+			rand.Reader)
+	} else {
+		jwsCompact, err = ap.SignWithKMS(ctx, payload, jwsHeaders)
+	}
 	if err != nil {
 		return nil, err
 	}
 	jwt := string(jwsCompact)
 
 	return &jwt, nil
+}
+
+func (ap *oauth2ClientCredentialsAuthPlugin) mapKMSAlgToSign(alg string) (string, error) {
+	switch alg {
+	case "ECDSA_SHA_256":
+		return "ES256", nil
+	case "ECDSA_SHA_384":
+		return "ES384", nil
+	case "ECDSA_SHA_512":
+		return "ES512", nil
+	default:
+		return "", fmt.Errorf("unsupported sign algorithm %s", alg)
+	}
+}
+
+// SignWithKMS will sign the JWT in AWS using the key stored in the supplied kmsArn
+func (ap *oauth2ClientCredentialsAuthPlugin) SignWithKMS(ctx context.Context, payload []byte, hdrBuf []byte) ([]byte, error) {
+
+	encodedHdr := base64.RawURLEncoding.EncodeToString(hdrBuf)
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+	input := strings.Join(
+		[]string{
+			encodedHdr,
+			encodedPayload,
+		}, ".",
+	)
+	digest, err := messageDigest([]byte(input), ap.AWSKmsKey.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	if ap.AWSSigningPlugin != nil {
+		signature, err := ap.AWSSigningPlugin.SignDigest(ctx, digest, ap.AWSKmsKey.Name, ap.AWSKmsKey.Algorithm)
+		if err != nil {
+			return nil, err
+		}
+		der, err := base64.StdEncoding.DecodeString(signature)
+		if err != nil {
+			return nil, err
+		}
+		signatureData, err := convertSignatureToBase64(ap.AWSKmsKey.Algorithm, der)
+		if err != nil {
+			return nil, err
+		}
+
+		signedAssertion := input + "." + signatureData
+
+		return []byte(signedAssertion), nil
+	}
+	return nil, errors.New("missing AWS credentials, failed to sign the assertion with kms")
 }
 
 func (ap *oauth2ClientCredentialsAuthPlugin) parseSigningKey(c Config) (err error) {
@@ -302,11 +462,22 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("token_url required to use https scheme")
 	}
 	if ap.GrantType == grantTypeClientCredentials {
-		if ap.ClientSecret != "" && ap.SigningKeyID != "" {
-			return nil, errors.New("can only use one of client_secret and signing_key for client_credentials")
+		if ap.AWSKmsKey != nil && (ap.ClientSecret != "" || ap.SigningKeyID != "") ||
+			(ap.ClientSecret != "" && ap.SigningKeyID != "") {
+			return nil, errors.New("can only use one of client_secret, signing_key or signing_kms_key for client_credentials")
 		}
-		if ap.SigningKeyID == "" && (ap.ClientID == "" || ap.ClientSecret == "") {
+		if ap.SigningKeyID == "" && ap.AWSKmsKey == nil && (ap.ClientID == "" || ap.ClientSecret == "") {
 			return nil, errors.New("client_id and client_secret required")
+		}
+		if ap.AWSKmsKey != nil {
+			if ap.AWSSigningPlugin == nil {
+				return nil, errors.New("aws_kms and aws_signing required")
+			}
+			// initialize the awsSigningAuthPlugin
+			_, err = ap.AWSSigningPlugin.NewClient(c)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -320,7 +491,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (*oauth2Token, error) {
 	body := url.Values{}
 	if ap.GrantType == grantTypeJwtBearer {
-		authJwt, err := ap.createAuthJWT(ap.Claims, ap.signingKeyParsed)
+		authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
 		if err != nil {
 			return nil, err
 		}
@@ -329,8 +500,8 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 	} else {
 		body.Add("grant_type", grantTypeClientCredentials)
 
-		if ap.SigningKeyID != "" {
-			authJwt, err := ap.createAuthJWT(ap.Claims, ap.signingKeyParsed)
+		if ap.SigningKeyID != "" || ap.AWSKmsKey != nil {
+			authJwt, err := ap.createAuthJWT(ctx, ap.Claims, ap.signingKeyParsed)
 			if err != nil {
 				return nil, err
 			}
@@ -536,6 +707,7 @@ type awsSigningAuthPlugin struct {
 	AWSSignatureVersion string `json:"signature_version,omitempty"`
 
 	ecrAuthPlugin *ecrAuthPlugin
+	kmsSignPlugin *awsKMSSignPlugin
 
 	logger logging.Logger
 }
@@ -680,6 +852,10 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 		if ap.AWSService == "ecr" {
 			return errors.New(`aws service "ecr" must be used with service type "oci"`)
 		}
+		if ap.AWSService == "kms" && ap.kmsSignPlugin == nil {
+			// We need a special plugin for KMS.
+			ap.kmsSignPlugin = newKMSSignPlugin(ap)
+		}
 		if ap.AWSService == "" {
 			ap.AWSService = awsSigv4SigningDefaultService
 		}
@@ -690,4 +866,13 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 	}
 
 	return nil
+}
+
+func (ap *awsSigningAuthPlugin) SignDigest(ctx context.Context, digest []byte, keyID string, signingAlgorithm string) (string, error) {
+	switch ap.AWSService {
+	case "kms":
+		return ap.kmsSignPlugin.SignDigest(ctx, digest, keyID, signingAlgorithm)
+	default:
+		return "", fmt.Errorf(`cannot use SignDigest with aws service %q`, ap.AWSService)
+	}
 }
