@@ -79,7 +79,7 @@ func main() {
 	// elements in markdown. This is undesirable, so let's remove them and prepend
 	// the line before that with ### to instead create a h3
 	for line, str := range lines {
-		if heading.Match([]byte(str)) {
+		if heading.MatchString(str) {
 			document[line-1-removed] = fmt.Sprintf("### %s\n", document[line-1-removed])
 			removed++
 			continue
