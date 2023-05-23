@@ -54,19 +54,19 @@ func TestSetTxnIsTooBigToFitIntoOneRequestWhenUseDiskStoreReturnsError(t *testin
 			}
 			return err
 		})
-		// if !errors.Is(err, badger.ErrTxnTooBig) {
-		// 	t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
-		// }
+		if !errors.Is(err, badger.ErrTxnTooBig) {
+			t.Errorf("expected %v, got %v", badger.ErrTxnTooBig, err)
+		}
 
-		// _, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
-		// var notFound *storage.Error
-		// ok := errors.As(err, &notFound)
-		// if !ok {
-		// 	t.Errorf("expected %T, got %v", notFound, err)
-		// }
-		// if exp, act := storage.NotFoundErr, notFound.Code; exp != act {
-		// 	t.Errorf("expected code %v, got %v", exp, act)
-		// }
+		_, err = storage.ReadOne(ctx, s, storage.MustParsePath("/foo"))
+		var notFound *storage.Error
+		ok := errors.As(err, &notFound)
+		if !ok {
+			t.Errorf("expected %T, got %v", notFound, err)
+		}
+		if exp, act := storage.NotFoundErr, notFound.Code; exp != act {
+			t.Errorf("expected code %v, got %v", exp, act)
+		}
 	})
 
 }
