@@ -4334,6 +4334,10 @@ func (queryBindingErrStore) Truncate(context.Context, storage.Transaction, stora
 	return nil
 }
 
+func (queryBindingErrStore) WriteTruncate(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+	return nil
+}
+
 func (queryBindingErrStore) Register(context.Context, storage.Transaction, storage.TriggerConfig) (storage.TriggerHandle, error) {
 	return nil, nil
 }

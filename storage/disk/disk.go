@@ -627,6 +627,72 @@ func (db *Store) Write(ctx context.Context, txn storage.Transaction, op storage.
 	return underlying.Write(ctx, op, path, *val)
 }
 
+func (db *Store) WriteTruncate(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+	var params = storage.WriteParams
+	// backup the existing store
+
+	currentDB, err := db.backupAndLoadDB()
+	if err != nil {
+		return wrapError(err)
+	}
+
+	db.backupDB = currentDB
+
+	// commit in-flight txn on the existing store
+	uTxn, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+	_, err = uTxn.Commit(ctx)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	// write new bundle policy and data into the existing DB
+	underlying := db.db.NewTransaction(true)
+	xid := atomic.AddUint64(&db.xid, uint64(1))
+	underlyingTxn := newTransaction(xid, true, underlying, params.Context, db.pm, db.partitions, db)
+	updates, err := underlyingTxn.partitionWrite(storage.AddOp, path, value)
+	if err != nil {
+		return err
+	}
+	for _, u := range updates {
+		err := underlyingTxn.WriteSinglePartition(ctx, path, u)
+		if err != nil {
+			fmt.Println("AAAAAAAAAA 45 disk.doTruncateData2 path ", path, " || err ", err)
+			if err != badger.ErrTxnTooBig {
+				return wrapError(err)
+			}
+
+			_, err = underlyingTxn.Commit(ctx)
+			if err != nil {
+				return wrapError(err)
+			}
+			txn := db.db.NewTransaction(true)
+			xid := atomic.AddUint64(&db.xid, uint64(1))
+			underlyingTxn = newTransaction(xid, true, txn, params.Context, db.pm, db.partitions, db)
+
+			// fmt.Println("AAAAAAAAAA 55 disk.doTruncateData2 path ", path, " || err ", err)
+			if err = underlyingTxn.WriteSinglePartition(ctx, path, u); err != nil {
+				// fmt.Println("AAAAAAAAAA 56 disk.doTruncateData2 path ", path, " || err ", err)
+				return wrapError(err)
+			}
+
+			// fmt.Println("AAAAAAAAAA 59 disk.doTruncateData2 path ", path, " || err ", err)
+		}
+	}
+	_, err = underlyingTxn.Commit(ctx)
+	if err != nil {
+		return wrapError(err)
+	}
+	// Open write txn on the existing store in-case there are more write operations.
+	// The caller will either commit or abort this transaction
+	uTxn.stale = false
+	uTxn.underlying = db.db.NewTransaction(true)
+
+	return nil
+}
+
 func (db *Store) underlying(txn storage.Transaction) (*transaction, error) {
 	underlying, ok := txn.(*transaction)
 	if !ok {

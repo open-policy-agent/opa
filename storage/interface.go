@@ -39,6 +39,8 @@ type Store interface {
 	// over to the new storage instance. This method must be called within a transaction on the original store.
 	Truncate(context.Context, Transaction, TransactionParams, Iterator) error
 
+	WriteTruncate(context.Context, Transaction, PatchOp, Path, interface{}) error
+
 	// Abort is called to cancel the transaction.
 	Abort(context.Context, Transaction)
 }

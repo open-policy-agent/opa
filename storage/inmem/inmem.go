@@ -298,6 +298,10 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 	return underlying.Read(path)
 }
 
+func (db *store) WriteTruncate(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+	return db.Write(ctx, txn, op, path, value)
+}
+
 func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {

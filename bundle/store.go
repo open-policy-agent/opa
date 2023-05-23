@@ -747,7 +747,8 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 					return err
 				}
 			}
-			if err := store.Write(ctx, txn, storage.AddOp, path, value); err != nil {
+			if err := store.WriteTruncate(ctx, txn, storage.AddOp, path, value); err != nil {
+				fmt.Println("AAAAAAAAAAAAAAAAAAAAAAaa bundle.store.writeData ", path, " || err ", err)
 				return err
 			}
 		}

@@ -223,7 +223,7 @@ type update struct {
 	delete bool
 }
 
-func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (txn *transaction) Write(ctx context.Context, op storage.PatchOp, path storage.Path, value interface{}) error {
 	txn.metrics.Timer(writeTimer).Start()
 	defer txn.metrics.Timer(writeTimer).Stop()
 
@@ -233,24 +233,29 @@ func (txn *transaction) Write(_ context.Context, op storage.PatchOp, path storag
 	}
 
 	for _, u := range updates {
-		if u.delete {
-			if err := txn.underlying.Delete(u.key); err != nil {
-				return err
-			}
-			txn.metrics.Counter(deletedKeysCounter).Add(1)
-		} else {
-			if err := txn.underlying.Set(u.key, u.value); err != nil {
-				return err
-			}
-			txn.metrics.Counter(writtenKeysCounter).Add(1)
-		}
-
-		txn.event.Data = append(txn.event.Data, storage.DataEvent{
-			Path:    path,   // ?
-			Data:    u.data, // nil if delete == true
-			Removed: u.delete,
-		})
+		txn.WriteSinglePartition(ctx, path, u)
 	}
+	return nil
+}
+
+func (txn *transaction) WriteSinglePartition(_ context.Context, path storage.Path, u update) error {
+	if u.delete {
+		if err := txn.underlying.Delete(u.key); err != nil {
+			return err
+		}
+		txn.metrics.Counter(deletedKeysCounter).Add(1)
+	} else {
+		if err := txn.underlying.Set(u.key, u.value); err != nil {
+			return err
+		}
+		txn.metrics.Counter(writtenKeysCounter).Add(1)
+	}
+
+	txn.event.Data = append(txn.event.Data, storage.DataEvent{
+		Path:    path,   // ?
+		Data:    u.data, // nil if delete == true
+		Removed: u.delete,
+	})
 	return nil
 }
 

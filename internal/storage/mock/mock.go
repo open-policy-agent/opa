@@ -225,6 +225,10 @@ func (s *Store) Write(ctx context.Context, txn storage.Transaction, op storage.P
 	return nil
 }
 
+func (s *Store) WriteTruncate(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+	return s.Write(ctx, txn, op, path, value)
+}
+
 // Commit will commit the underlying transaction while
 // also updating the mock Transaction
 func (s *Store) Commit(ctx context.Context, txn storage.Transaction) error {
