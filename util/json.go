@@ -12,6 +12,8 @@ import (
 	"reflect"
 
 	"github.com/ghodss/yaml"
+
+	"github.com/open-policy-agent/opa/loader/extension"
 )
 
 // UnmarshalJSON parses the JSON encoded data and stores the result in the value
@@ -103,14 +105,25 @@ func Reference(x interface{}) *interface{} {
 	return &x
 }
 
-// Unmarshal decodes a YAML or JSON value into the specified type.
+// Unmarshal decodes a YAML, JSON or JSON extension value into the specified type.
 func Unmarshal(bs []byte, v interface{}) error {
 	if json.Valid(bs) {
 		return UnmarshalJSON(bs, v)
 	}
-	bs, err := yaml.YAMLToJSON(bs)
-	if err != nil {
-		return err
+	nbs, err := yaml.YAMLToJSON(bs)
+	if err == nil {
+		return UnmarshalJSON(nbs, v)
 	}
-	return UnmarshalJSON(bs, v)
+	// not json or yaml: try extensions
+	if value, ok := v.(*any); ok {
+		if handler := extension.FindExtension(".json"); handler != nil {
+			retval, err := handler(bs)
+			if err != nil {
+				return err
+			}
+			*value = retval
+			return nil
+		}
+	}
+	return err
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/loader/extension"
 	"github.com/open-policy-agent/opa/loader/filter"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
@@ -731,11 +732,16 @@ func loadRego(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions)
 
 func loadJSON(path string, bs []byte, m metrics.Metrics) (interface{}, error) {
 	m.Timer(metrics.RegoDataParse).Start()
-	buf := bytes.NewBuffer(bs)
-	decoder := util.NewJSONDecoder(buf)
+	var err error
 	var x interface{}
-	err := decoder.Decode(&x)
+	if handler := extension.FindExtension(".json"); handler != nil {
+		x, err = handler(bs)
+	} else {
+		buf := bytes.NewBuffer(bs)
+		err = util.NewJSONDecoder(buf).Decode(&x)
+	}
 	m.Timer(metrics.RegoDataParse).Stop()
+
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
