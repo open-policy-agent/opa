@@ -283,6 +283,7 @@ testing include:
 * [Nefeli Networks](https://nefeli.io)
 * [SolarWinds](https://www.solarwinds.com/) via [Lee Calcote](https://github.com/leecalcote)
 * [State Street Corporation](http://www.statestreet.com/)
+* [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
 
 If you have adopted OPA and would like to be included in this list,
 feel free to submit a PR updating this file or
