@@ -310,7 +310,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		buf.WriteString(string(bs))
+		buf.Write(bs)
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -327,7 +327,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		buf.WriteString(string(bs))
+		buf.Write(bs)
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -344,7 +344,7 @@ func (s *Server) handleOCIBundles(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		buf.WriteString(string(bs))
+		buf.Write(bs)
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
