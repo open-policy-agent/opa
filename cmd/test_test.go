@@ -3,9 +3,14 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
@@ -372,4 +377,163 @@ p with input.foo as 42
 	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
 		t.Fatalf("didn't get expected %s error when schema is defining a different type than being used; got: %v", ast.TypeErr, err)
 	}
+}
+
+func TestWatchMode(t *testing.T) {
+
+	files := map[string]string{
+		"/policy.rego":      "package foo\n p := 1",
+		"/policy_test.rego": "package foo\n test_p { p == 1 }",
+	}
+
+	test.WithTempFS(files, func(root string) {
+		var buf bytes.Buffer
+
+		testParams := newTestCommandParams()
+		testParams.output = &buf
+		testParams.watch = true
+		testParams.count = 1
+
+		done := make(chan struct{})
+		go func() {
+			_, _ = opaTest([]string{root}, testParams)
+			<-done
+		}()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update the test
+		f, _ := os.OpenFile(path.Join(root, "policy_test.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err := f.WriteString("package foo\n test_p { p == 2 }")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update policy so test passes
+		f, _ = os.OpenFile(path.Join(root, "policy.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err = f.WriteString("package foo\n p := 2")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// add new policy and test
+		if err := os.WriteFile(path.Join(root, "policy2.rego"), []byte("package bar\n q := \"hello\""), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(path.Join(root, "policy2_test.rego"), []byte("package bar\n test_q { q == \"hello\" }"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(500 * time.Millisecond)
+
+		testParams.stopChan <- syscall.SIGINT
+		done <- struct{}{}
+
+		expected := `********************************************************************************
+Watching for changes ...
+%ROOT%/policy_test.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+		expected = strings.ReplaceAll(expected, "%ROOT%", root)
+
+		if !strings.Contains(actual, expected) {
+			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+		}
+
+		// verify output after policy update and new added policy
+		expected = "PASS: 2/2\n********************************************************************************\nWatching for changes ..."
+
+		if !strings.Contains(buf.String(), expected) {
+			t.Fatalf("Expected:%s in result but \n\nGot:\n\n%s\n\n", expected, buf.String())
+		}
+	})
+}
+
+func TestWatchModeWithDataFile(t *testing.T) {
+
+	files := map[string]string{
+		"/policy.rego": "package foo\n test_p { data.y == 1 }",
+		"/data.json":   `{"y": 1}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		var buf bytes.Buffer
+
+		testParams := newTestCommandParams()
+		testParams.output = &buf
+		testParams.watch = true
+		testParams.count = 1
+
+		done := make(chan struct{})
+		go func() {
+			_, _ = opaTest([]string{root}, testParams)
+			<-done
+		}()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update the data
+		f, _ := os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err := f.WriteString(`{"y": 2}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update policy so test passes
+		f, _ = os.OpenFile(path.Join(root, "policy.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err = f.WriteString("package foo\n test_p { data.y == 2 }")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		testParams.stopChan <- syscall.SIGINT
+		done <- struct{}{}
+
+		expected := `********************************************************************************
+Watching for changes ...
+%ROOT%/policy.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+		expected = strings.ReplaceAll(expected, "%ROOT%", root)
+
+		if !strings.Contains(actual, expected) {
+			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+		}
+
+		// verify output after policy update
+		expected = "PASS: 1/1\n********************************************************************************\nWatching for changes ..."
+
+		if !strings.Contains(buf.String(), expected) {
+			t.Fatalf("Expected:%s in result but \n\nGot:\n\n%s\n\n", expected, buf.String())
+		}
+	})
 }
