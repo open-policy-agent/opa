@@ -23,6 +23,7 @@ import (
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
+	"github.com/open-policy-agent/opa/loader/extension"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -600,10 +601,15 @@ func (r *Reader) Read() (Bundle, error) {
 				continue
 			}
 
+			var err error
 			var value interface{}
 
 			r.metrics.Timer(metrics.RegoDataParse).Start()
-			err := util.NewJSONDecoder(&buf).Decode(&value)
+			if handler := extension.FindExtension(".json"); handler != nil {
+				value, err = handler(buf.Bytes())
+			} else {
+				err = util.NewJSONDecoder(&buf).Decode(&value)
+			}
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
