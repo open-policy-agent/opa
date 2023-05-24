@@ -29,31 +29,6 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
-func TestWatchPaths(t *testing.T) {
-
-	fs := map[string]string{
-		"/foo/bar/baz.json": "true",
-	}
-
-	expected := []string{
-		".", "/foo", "/foo/bar",
-	}
-
-	test.WithTempFS(fs, func(rootDir string) {
-		paths, err := getWatchPaths([]string{"prefix:" + rootDir + "/foo"})
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		result := []string{}
-		for _, p := range paths {
-			result = append(result, filepath.Clean(strings.TrimPrefix(p, rootDir)))
-		}
-		if !reflect.DeepEqual(expected, result) {
-			t.Fatalf("Expected %q but got: %q", expected, result)
-		}
-	})
-}
-
 func TestRuntimeProcessWatchEvents(t *testing.T) {
 	testRuntimeProcessWatchEvents(t, false)
 }

@@ -7,9 +7,17 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
+	"github.com/open-policy-agent/opa/internal/pathwatcher"
+	initload "github.com/open-policy-agent/opa/internal/runtime/init"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -17,7 +25,6 @@ import (
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/internal/runtime"
-	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/tester"
@@ -49,6 +56,9 @@ type testCommandParams struct {
 	skipExitZero bool
 	capabilities *capabilitiesFlag
 	schema       *schemaFlags
+	watch        bool
+	stopChan     chan os.Signal
+	output       io.Writer
 }
 
 func newTestCommandParams() testCommandParams {
@@ -58,6 +68,8 @@ func newTestCommandParams() testCommandParams {
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		capabilities: newcapabilitiesFlag(),
 		schema:       &schemaFlags{},
+		output:       os.Stdout,
+		stopChan:     make(chan os.Signal, 1),
 	}
 }
 
@@ -104,118 +116,41 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 		return 1, err
 	}
 
-	defer store.Abort(ctx, txn)
-
-	var capabilities *ast.Capabilities
-	// if capabilities are not provided as a cmd flag,
-	// then ast.CapabilitiesForThisVersion must be called
-	// within checkModules to ensure custom builtins are properly captured
-	if testParams.capabilities.C != nil {
-		capabilities = testParams.capabilities.C
-	} else {
-		capabilities = ast.CapabilitiesForThisVersion()
-	}
-
-	var schemaSet *ast.SchemaSet
-	//	-s {file} (one input schema file)
-	//	-s {directory} (one schema directory with input and data schema files)
-	schemaSet, err = loader.Schemas(testParams.schema.path)
+	runner, reporter, err := compileAndSetupTests(ctx, testParams, store, txn, modules, bundles)
 	if err != nil {
+		store.Abort(ctx, txn)
 		fmt.Fprintln(os.Stderr, err)
 		return 1, err
 	}
 
-	compiler := ast.NewCompiler().
-		SetErrorLimit(testParams.errLimit).
-		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn)).
-		WithEnablePrintStatements(!testParams.benchmark).
-		WithCapabilities(capabilities).
-		WithSchemas(schemaSet).
-		WithUseTypeCheckAnnotations(true)
-
-	info, err := runtime.Term(runtime.Params{})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1, err
-	}
-
-	if testParams.threshold > 0 && !testParams.coverage {
-		testParams.coverage = true
-	}
-
-	var cov *cover.Cover
-	var coverTracer topdown.QueryTracer
-
-	if testParams.coverage {
-		if testParams.benchmark {
-			errMsg := "coverage reporting is not supported when benchmarking tests"
-			fmt.Fprintln(os.Stderr, errMsg)
-			return 1, fmt.Errorf(errMsg)
-		}
-		cov = cover.New()
-		coverTracer = cov
-	}
-
-	timeout := testParams.timeout
-	if timeout == 0 { // unset
-		timeout = 5 * time.Second
-		if testParams.benchmark {
-			timeout = 30 * time.Second
-		}
-	}
-
-	runner := tester.NewRunner().
-		SetCompiler(compiler).
-		SetStore(store).
-		CapturePrintOutput(true).
-		EnableTracing(testParams.verbose).
-		SetCoverageQueryTracer(coverTracer).
-		SetRuntime(info).
-		SetModules(modules).
-		SetBundles(bundles).
-		SetTimeout(timeout).
-		Filter(testParams.runRegex).
-		Target(testParams.target.String())
-
-	var reporter tester.Reporter
-
-	goBench := false
-
-	if !testParams.coverage {
-		switch testParams.outputFormat.String() {
-		case testJSONOutput:
-			reporter = tester.JSONReporter{
-				Output: os.Stdout,
-			}
-		case benchmarkGoBenchOutput:
-			goBench = true
-			fallthrough
-		default:
-			reporter = tester.PrettyReporter{
-				Verbose:                  testParams.verbose,
-				Output:                   os.Stdout,
-				BenchmarkResults:         testParams.benchmark,
-				BenchMarkShowAllocations: testParams.benchMem,
-				BenchMarkGoBenchFormat:   goBench,
-			}
-		}
-	} else {
-		reporter = tester.JSONCoverageReporter{
-			Cover:     cov,
-			Modules:   modules,
-			Output:    os.Stdout,
-			Threshold: testParams.threshold,
-		}
-	}
-
+	success := true
 	for i := 0; i < testParams.count; i++ {
-		var exitCode int
-		exitCode, err = runTests(ctx, txn, runner, reporter, testParams)
+		exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
+			success = false
+			store.Abort(ctx, txn)
+			if testParams.watch {
+				break
+			}
 			return exitCode, err
 		}
 	}
 
+	if success {
+		store.Abort(ctx, txn)
+	}
+
+	if !testParams.watch {
+		return 0, nil
+	}
+
+	done := make(chan struct{})
+	go startWatcher(ctx, testParams, args, inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false)), done)
+
+	signal.Notify(testParams.stopChan, syscall.SIGINT, syscall.SIGTERM)
+
+	<-testParams.stopChan
+	done <- struct{}{}
 	return 0, nil
 }
 
@@ -297,6 +232,193 @@ func isThresholdValid(t float64) bool {
 	return 0 <= t && t <= 100
 }
 
+func startWatcher(ctx context.Context, testParams testCommandParams, paths []string, store storage.Store, done chan struct{}) {
+	watcher, err := pathwatcher.CreatePathWatcher(paths)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error creating path watcher: ", err)
+		os.Exit(1)
+	}
+	readWatcher(ctx, testParams, watcher, paths, store, done)
+}
+
+func readWatcher(ctx context.Context, testParams testCommandParams, watcher *fsnotify.Watcher, paths []string, store storage.Store, done chan struct{}) {
+	for {
+
+		fmt.Fprintln(testParams.output, strings.Repeat("*", 80))
+		fmt.Fprintln(testParams.output, "Watching for changes ...")
+		select {
+		case evt := <-watcher.Events:
+			removalMask := fsnotify.Remove | fsnotify.Rename
+			mask := fsnotify.Create | fsnotify.Write | removalMask
+			if (evt.Op & mask) != 0 {
+				removed := ""
+				if (evt.Op & removalMask) != 0 {
+					removed = evt.Name
+				}
+				processWatcherUpdate(ctx, testParams, paths, removed, store)
+			}
+		case <-done:
+			watcher.Close()
+			return
+		}
+	}
+}
+
+func processWatcherUpdate(ctx context.Context, testParams testCommandParams, paths []string, removed string, store storage.Store) {
+	filter := loaderFilter{
+		Ignore: testParams.ignore,
+	}
+
+	var loadResult *initload.LoadPathsResult
+
+	err := pathwatcher.ProcessWatcherUpdate(ctx, paths, removed, store, filter.Apply, testParams.bundleMode,
+		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+			if len(loaded.Files.Documents) > 0 {
+				if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Files.Documents); err != nil {
+					return fmt.Errorf("storage error: %w", err)
+				}
+			}
+
+			loadResult = loaded
+
+			return nil
+		})
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	modules := map[string]*ast.Module{}
+	for id, module := range loadResult.Files.Modules {
+		modules[id] = module.Parsed
+	}
+
+	err = storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		runner, reporter, err := compileAndSetupTests(ctx, testParams, store, txn, modules, loadResult.Bundles)
+		if err != nil {
+			return err
+		}
+
+		for i := 0; i < testParams.count; i++ {
+			exitCode, err := runTests(ctx, txn, runner, reporter, testParams)
+			if exitCode != 0 {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func compileAndSetupTests(ctx context.Context, testParams testCommandParams, store storage.Store, txn storage.Transaction, modules map[string]*ast.Module, bundles map[string]*bundle.Bundle) (*tester.Runner, tester.Reporter, error) {
+
+	var capabilities *ast.Capabilities
+	// if capabilities are not provided as a cmd flag,
+	// then ast.CapabilitiesForThisVersion must be called
+	// within checkModules to ensure custom builtins are properly captured
+	if testParams.capabilities.C != nil {
+		capabilities = testParams.capabilities.C
+	} else {
+		capabilities = ast.CapabilitiesForThisVersion()
+	}
+
+	//	-s {file} (one input schema file)
+	//	-s {directory} (one schema directory with input and data schema files)
+	schemaSet, err := loader.Schemas(testParams.schema.path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	compiler := ast.NewCompiler().
+		SetErrorLimit(testParams.errLimit).
+		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn)).
+		WithEnablePrintStatements(!testParams.benchmark).
+		WithCapabilities(capabilities).
+		WithSchemas(schemaSet).
+		WithUseTypeCheckAnnotations(true)
+
+	info, err := runtime.Term(runtime.Params{})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if testParams.threshold > 0 && !testParams.coverage {
+		testParams.coverage = true
+	}
+
+	var cov *cover.Cover
+	var coverTracer topdown.QueryTracer
+
+	if testParams.coverage {
+		if testParams.benchmark {
+			errMsg := "coverage reporting is not supported when benchmarking tests"
+			fmt.Fprintln(os.Stderr, errMsg)
+			return nil, nil, fmt.Errorf(errMsg)
+		}
+		cov = cover.New()
+		coverTracer = cov
+	}
+
+	timeout := testParams.timeout
+	if timeout == 0 { // unset
+		timeout = 5 * time.Second
+		if testParams.benchmark {
+			timeout = 30 * time.Second
+		}
+	}
+
+	runner := tester.NewRunner().
+		SetCompiler(compiler).
+		SetStore(store).
+		CapturePrintOutput(true).
+		EnableTracing(testParams.verbose).
+		SetCoverageQueryTracer(coverTracer).
+		SetRuntime(info).
+		SetModules(modules).
+		SetBundles(bundles).
+		SetTimeout(timeout).
+		Filter(testParams.runRegex).
+		Target(testParams.target.String())
+
+	var reporter tester.Reporter
+
+	goBench := false
+
+	if !testParams.coverage {
+		switch testParams.outputFormat.String() {
+		case testJSONOutput:
+			reporter = tester.JSONReporter{
+				Output: testParams.output,
+			}
+		case benchmarkGoBenchOutput:
+			goBench = true
+			fallthrough
+		default:
+			reporter = tester.PrettyReporter{
+				Verbose:                  testParams.verbose,
+				Output:                   testParams.output,
+				BenchmarkResults:         testParams.benchmark,
+				BenchMarkShowAllocations: testParams.benchMem,
+				BenchMarkGoBenchFormat:   goBench,
+			}
+		}
+	} else {
+		reporter = tester.JSONCoverageReporter{
+			Cover:     cov,
+			Modules:   modules,
+			Output:    testParams.output,
+			Threshold: testParams.threshold,
+		}
+	}
+
+	return runner, reporter, nil
+}
+
 func init() {
 	var testParams = newTestCommandParams()
 
@@ -369,6 +491,10 @@ Example benchmark run:
 	$ opa test --bench ./example/
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
+
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, OPA reloads
+the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
+recommended as some updates might cause them to be dropped by OPA.
 `,
 		PreRunE: func(Cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -398,6 +524,7 @@ The optional "gobench" output format conforms to the Go Benchmark Data Format.
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
 
 	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)

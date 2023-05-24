@@ -23,12 +23,12 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
+	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/automaxprocs/maxprocs"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
@@ -740,47 +740,8 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 }
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
-	loaded, err := initload.LoadPaths(paths, rt.Params.Filter, rt.Params.BundleMode, nil, true, false, nil, nil)
-	if err != nil {
-		return err
-	}
 
-	removed = loader.CleanPath(removed)
-
-	return storage.Txn(ctx, rt.Store, storage.WriteParams, func(txn storage.Transaction) error {
-		if !rt.Params.BundleMode {
-			ids, err := rt.Store.ListPolicies(ctx, txn)
-			if err != nil {
-				return err
-			}
-			for _, id := range ids {
-				if id == removed {
-					if err := rt.Store.DeletePolicy(ctx, txn, id); err != nil {
-						return err
-					}
-				} else if _, exists := loaded.Files.Modules[id]; !exists {
-					// This branch get hit in two cases.
-					// 1. Another piece of code has access to the store and inserts
-					//    a policy out-of-band.
-					// 2. In between FS notification and loader.Filtered() call above, a
-					//    policy is removed from disk.
-					bs, err := rt.Store.GetPolicy(ctx, txn, id)
-					if err != nil {
-						return err
-					}
-					module, err := ast.ParseModule(id, string(bs))
-					if err != nil {
-						return err
-					}
-					loaded.Files.Modules[id] = &loader.RegoFile{
-						Name:   id,
-						Raw:    bs,
-						Parsed: module,
-					}
-				}
-			}
-		}
-
+	return pathwatcher.ProcessWatcherUpdate(ctx, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
 			Store:     rt.Store,
 			Txn:       txn,
@@ -788,11 +749,8 @@ func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, rem
 			Bundles:   loaded.Bundles,
 			MaxErrors: -1,
 		})
-		if err != nil {
-			return err
-		}
 
-		return nil
+		return err
 	})
 }
 
@@ -850,21 +808,13 @@ func (rt *Runtime) onReloadLogger(d time.Duration, err error) {
 }
 
 func (rt *Runtime) getWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
-	watchPaths, err := getWatchPaths(rootPaths)
+	watcher, err := pathwatcher.CreatePathWatcher(rootPaths)
 	if err != nil {
 		return nil, err
 	}
 
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, path := range watchPaths {
+	for _, path := range watcher.WatchList() {
 		rt.logger.WithFields(map[string]interface{}{"path": path}).Debug("watching path")
-		if err := watcher.Add(path); err != nil {
-			return nil, err
-		}
 	}
 
 	return watcher, nil
@@ -893,23 +843,6 @@ func errorLogger(logger logging.Logger) func(attrs map[string]interface{}, f str
 	return func(attrs map[string]interface{}, f string, a ...interface{}) {
 		logger.WithFields(attrs).Error(f, a...)
 	}
-}
-
-func getWatchPaths(rootPaths []string) ([]string, error) {
-	paths := []string{}
-
-	for _, path := range rootPaths {
-
-		_, path = loader.SplitPrefix(path)
-		result, err := loader.Paths(path, true)
-		if err != nil {
-			return nil, err
-		}
-
-		paths = append(paths, loader.Dirs(result)...)
-	}
-
-	return paths, nil
 }
 
 func onReloadPrinter(output io.Writer) func(time.Duration, error) {
