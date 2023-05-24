@@ -2455,7 +2455,7 @@ func TestGenerateJSON(t *testing.T) {
 	r := New(
 		Query("input"),
 		Input("original-input"),
-		GenerateJSON(func(t *ast.Term, ectx *EvalContext) (interface{}, error) {
+		GenerateJSON(func(*ast.Term, *EvalContext) (interface{}, error) {
 			return "converted-input", nil
 		}),
 	)
