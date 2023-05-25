@@ -7,6 +7,7 @@ package topdown
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -211,6 +212,35 @@ func TestRegoMetadataBuiltinCall(t *testing.T) {
 				t.Fatalf("expected error:\n\n%s\n\ngot:\n\n%s", tc.expectedError, err.Error())
 			}
 		})
+	}
+}
+
+func TestWithCompilerErrors(t *testing.T) {
+	store := inmem.New()
+	ctx := context.Background()
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	// Policy with reference to non-existing function
+	modules := map[string]*ast.Module{
+		"tst": ast.MustParseModule(`package test
+p := data.q(42)`),
+	}
+
+	c := ast.NewCompiler()
+	c.Compile(modules)
+	q := NewQuery(ast.MustParseBody("data.a = 1")).
+		WithCompiler(c).
+		WithStore(store).
+		WithTransaction(txn)
+
+	_, err := q.Run(context.Background())
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	expected := "eval_internal_error: compiler has errors"
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected error to contain '%s', got: %v", expected, err)
 	}
 }
 
