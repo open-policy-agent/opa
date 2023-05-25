@@ -107,6 +107,19 @@ type TagLister interface {
 	Tags(ctx context.Context, last string, fn func(tags []string) error) error
 }
 
+// Mounter allows cross-repository blob mounts.
+// For backward compatibility reasons, this is not implemented by
+// BlobStore: use a type assertion to check availability.
+type Mounter interface {
+	// Mount makes the blob with the given descriptor in fromRepo
+	// available in the repository signified by the receiver.
+	Mount(ctx context.Context,
+		desc ocispec.Descriptor,
+		fromRepo string,
+		getContent func() (io.ReadCloser, error),
+	) error
+}
+
 // Tags lists the tags available in the repository.
 func Tags(ctx context.Context, repo TagLister) ([]string, error) {
 	var res []string

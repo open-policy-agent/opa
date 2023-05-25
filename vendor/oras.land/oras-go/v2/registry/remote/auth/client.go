@@ -56,6 +56,12 @@ var defaultClientID = "oras-go"
 
 // StaticCredential specifies static credentials for the given host.
 func StaticCredential(registry string, cred Credential) func(context.Context, string) (Credential, error) {
+	if registry == "docker.io" {
+		// it is expected that traffic targeting "docker.io" will be redirected
+		// to "registry-1.docker.io"
+		// reference: https://github.com/moby/moby/blob/v24.0.0-beta.2/registry/config.go#L25-L48
+		registry = "registry-1.docker.io"
+	}
 	return func(_ context.Context, target string) (Credential, error) {
 		if target == registry {
 			return cred, nil
