@@ -3,7 +3,41 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.53.0
+
+This release contains some enhancements, bugfixes, and a new builtin function.
+
+### Runtime, Tooling, SDK
+
+- status: Ensure Status plugin is correctly reconfigured to register or unregister Prometheus Collectors based on the state provided in OPA's active config ([#5918](https://github.com/open-policy-agent/opa/issues/5918)) authored by @johanfylling
+- `opa eval`: Update OPA eval's `--profile-sort` flag description to highlight the valid options to sort the profile results ([#5924](https://github.com/open-policy-agent/opa/issues/5924)) authored by @ecbenezra
+- `opa fmt`:  Fix cases in which invalid code was generated due to parentheses being improperly handled ([#5537](https://github.com/open-policy-agent/opa/issues/5537)) authored by @Trolloldem
+- rest: Allow users to configure the AWS STS domain when using Web Identity Credentials ([#5915](https://github.com/open-policy-agent/opa/issues/5915)) authored by @johanfylling
+- status: Add an OPA environment information Gauge to Prometheus metrics to capture information like OPA version ([#5852](https://github.com/open-policy-agent/opa/issues/5852)) authored by @jmoghisi
+- server: Add ability to configure Unix socket permissions if OPA is listening on a Unix socket ([#5888](https://github.com/open-policy-agent/opa/pull/5888)) authored by @ashutosh-narkar
+- loader: Allow extensions to the `loader` package that provide ability to register handlers for certain file extensions. This feature is currently **EXPERIMENTAL**  ([#5940](https://github.com/open-policy-agent/opa/pull/5940)) authored by @srenatus
+
+### Topdown and Rego
+
+- New built-in function `crypto.x509.parse_keypair`: Returns a key pair from a pair of PEM or base64 encoded strings of data. See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.53.0/policy-reference/#builtin-crypto-cryptox509parse_keypair) for all the details. ([#5853](https://github.com/open-policy-agent/opa/issues/5853)) authored by @volck.
+- ast: Abort query evaluation if the compiler has errors. These errors will be exposed via the Status API if enabled ([#5947](https://github.com/open-policy-agent/opa/issues/5947)) authored by @johanfylling
+- `io.jwt.decode_verify`: Fix issue where token verification succeeded in case where `iss` constraint was required but JWT did not contain it ([#5850](https://github.com/open-policy-agent/opa/issues/5850)) authored by @AleksanderBrzozowski
+- wasm: Fix memory leaks in WASM when incrementally adding or removing data ([#5785](https://github.com/open-policy-agent/opa/issues/5785)) and ([#5901](https://github.com/open-policy-agent/opa/issues/5901)) authored by @ctelfer-sophos
+- `http.send`: Add a new option to the `http.send` input object which allows policy authors to specify a retry count for executing a HTTP request. Retries are performed with an exponential backoff delay ([#5891](https://github.com/open-policy-agent/opa/pull/5891)) authored by @ashutosh-narkar
+- ast: Fix issue with `_` matching only scalars in rule indexing for arrays ([#5916](https://github.com/open-policy-agent/opa/pull/5916)) authored by @jaspervdj
+- rego: Allow for extending the Rego evaluation targets with plugins ([#5939](https://github.com/open-policy-agent/opa/pull/5939)) authored by @srenatus
+
+### Miscellaneous
+
+- Add PITS Global Data Recovery Services to ADOPTERS.md (authored by @pheianox)
+- Avoid unnecessary byte/string conversion by using alternative functions/methods ([#5944](https://github.com/open-policy-agent/opa/pull/5944)) authored by @Juneezee
+- False positive finding of [CVE-2022-3517](https://github.com/advisories/GHSA-f8q6-p94x-37v3) addressed by removing the dead code ([#5941](https://github.com/open-policy-agent/opa/pull/5941)) authored by @testwill
+- Dependency bumps, notably:
+  - golang from 1.20.3 to 1.20.4
+  - golang.org/x/net from  0.9.0 to 0.10.0
+  - google.golang.org/grpc from 1.54.0 to 1.55.0
+  - oras.land/oras-go/v2 from 2.0.2 to 2.2.0
+  - github.com/prometheus/client_golang from 1.15.0 to 1.15.1
 
 ## 0.52.0
 
