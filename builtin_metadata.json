@@ -44,6 +44,7 @@
       "crypto.x509.parse_and_verify_certificates",
       "crypto.x509.parse_certificate_request",
       "crypto.x509.parse_certificates",
+      "crypto.x509.parse_keypair",
       "crypto.x509.parse_rsa_private_key"
     ],
     "encoding": [
@@ -4067,6 +4068,31 @@
       "description": "parsed X.509 certificates represented as objects",
       "name": "output",
       "type": "array[object[string: any]]"
+    },
+    "wasm": false
+  },
+  "crypto.x509.parse_keypair": {
+    "args": [
+      {
+        "description": "string containing PEM or base64 encoded DER certificates",
+        "name": "cert",
+        "type": "string"
+      },
+      {
+        "description": "string containing PEM or base64 encoded DER keys",
+        "name": "pem",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns a valid key pair",
+    "introduced": "edge",
+    "result": {
+      "description": "if key pair is valid, returns the tls.certificate(https://pkg.go.dev/crypto/tls#Certificate) as an object. If the key pair is invalid, nil and an error are returned.",
+      "name": "output",
+      "type": "object[string: any]"
     },
     "wasm": false
   },
