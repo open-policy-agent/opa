@@ -61,18 +61,21 @@ func newTestCommandParams() testCommandParams {
 	}
 }
 
-func opaTest(args []string, testParams testCommandParams) int {
+func opaTest(args []string, testParams testCommandParams) (int, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var err error
+
 	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
-		fmt.Fprintf(os.Stderr, "cannot use output format %s without running benchmarks (--bench)\n", benchmarkGoBenchOutput)
-		return 0
+		errMsg := "cannot use output format %s without running benchmarks (--bench)\n"
+		fmt.Fprintf(os.Stderr, errMsg, benchmarkGoBenchOutput)
+		return 0, fmt.Errorf(errMsg, benchmarkGoBenchOutput)
 	}
 
 	if !isThresholdValid(testParams.threshold) {
 		fmt.Fprintln(os.Stderr, "Code coverage threshold must be between 0 and 100")
-		return 1
+		return 1, err
 	}
 
 	filter := loaderFilter{
@@ -82,7 +85,6 @@ func opaTest(args []string, testParams testCommandParams) int {
 	var modules map[string]*ast.Module
 	var bundles map[string]*bundle.Bundle
 	var store storage.Store
-	var err error
 
 	if testParams.bundleMode {
 		bundles, err = tester.LoadBundles(args, filter.Apply)
@@ -93,13 +95,13 @@ func opaTest(args []string, testParams testCommandParams) int {
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return 1, err
 	}
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return 1, err
 	}
 
 	defer store.Abort(ctx, txn)
@@ -120,7 +122,7 @@ func opaTest(args []string, testParams testCommandParams) int {
 	schemaSet, err = loader.Schemas(testParams.schema.path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return 1, err
 	}
 
 	compiler := ast.NewCompiler().
@@ -134,7 +136,7 @@ func opaTest(args []string, testParams testCommandParams) int {
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return 1, err
 	}
 
 	if testParams.threshold > 0 && !testParams.coverage {
@@ -146,8 +148,9 @@ func opaTest(args []string, testParams testCommandParams) int {
 
 	if testParams.coverage {
 		if testParams.benchmark {
-			fmt.Fprintln(os.Stderr, "coverage reporting is not supported when benchmarking tests")
-			return 1
+			errMsg := "coverage reporting is not supported when benchmarking tests"
+			fmt.Fprintln(os.Stderr, errMsg)
+			return 1, fmt.Errorf(errMsg)
 		}
 		cov = cover.New()
 		coverTracer = cov
@@ -206,16 +209,17 @@ func opaTest(args []string, testParams testCommandParams) int {
 	}
 
 	for i := 0; i < testParams.count; i++ {
-		exitCode := runTests(ctx, txn, runner, reporter, testParams)
+		var exitCode int
+		exitCode, err = runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
-			return exitCode
+			return exitCode, err
 		}
 	}
 
-	return 0
+	return 0, nil
 }
 
-func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter, testParams testCommandParams) int {
+func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter, testParams testCommandParams) (int, error) {
 	var err error
 	var ch chan *tester.Result
 	if testParams.benchmark {
@@ -229,7 +233,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return 1, err
 	}
 
 	exitCode := 0
@@ -254,13 +258,13 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 		fmt.Fprintln(os.Stderr, err)
 		if !testParams.benchmark {
 			if _, ok := err.(*cover.CoverageThresholdError); ok {
-				return 2
+				return 2, err
 			}
 		}
-		return 1
+		return 1, err
 	}
 
-	return exitCode
+	return exitCode, err
 }
 
 func filterTrace(params *testCommandParams, trace []*topdown.Event) []*topdown.Event {
@@ -380,7 +384,8 @@ func init() {
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			os.Exit(opaTest(args, testParams))
+			exitCode, _ := opaTest(args, testParams)
+			os.Exit(exitCode)
 		},
 	}
 
