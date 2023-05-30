@@ -218,7 +218,8 @@ func opaTest(args []string) int {
 		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn)).
 		WithEnablePrintStatements(!testParams.benchmark).
 		WithCapabilities(capabilities).
-		WithSchemas(schemaSet)
+		WithSchemas(schemaSet).
+		WithUseTypeCheckAnnotations(true)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
