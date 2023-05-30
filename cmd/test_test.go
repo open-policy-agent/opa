@@ -212,10 +212,10 @@ func failTrace(t *testing.T) []*topdown.Event {
 	return *tracer
 }
 
-func testSchemasAnnotation(mod string) (int, error) {
+func testSchemasAnnotation(rego string) (int, error) {
 
 	files := map[string]string{
-		"test.rego": mod,
+		"test.rego": rego,
 	}
 
 	var exitCode int
@@ -272,5 +272,103 @@ test_p {
 		t.Fatalf("didn't get expected error when inlined schema is present")
 	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
 		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, err)
+	}
+}
+
+func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) {
+
+	files := map[string]string{
+		"test.rego":        rego,
+		"demo_schema.json": schema,
+	}
+
+	var exitCode int
+	var err error
+	test.WithTempFS(files, func(path string) {
+		regoFilePath := filepath.Join(path, "test.rego")
+
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.schema.path = path
+
+		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode, err
+}
+func TestJSONSchemaSuccess(t *testing.T) {
+
+	rego := `package test
+# METADATA
+# schemas:
+#   - input: schema.demo_schema
+p {
+input.foo == 42
+}
+
+test_p {
+p with input.foo as 42
+}`
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema",
+		"$id": "schema",
+		"type": "object",
+		"description": "The root schema comprises the entire JSON document.",
+		"required": [
+			"foo"
+		],
+		"properties": {
+			"foo": {
+				"$id": "#/properties/foo",
+				"type": "number",
+				"description": "foo"
+			}         
+		},
+		"additionalProperties": false
+   }`
+
+	_, err := testSchemasAnnotationWithJSONFile(rego, schema)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestJSONSchemaFail(t *testing.T) {
+
+	rego := `package test
+# METADATA
+# schemas:
+#   - input: schema.demo_schema
+p {
+input.foo == 42
+}
+
+test_p {
+p with input.foo as 42
+}`
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema",
+		"$id": "schema",
+		"type": "object",
+		"description": "The root schema comprises the entire JSON document.",
+		"required": [
+			"foo"
+		],
+		"properties": {
+			"foo": {
+				"$id": "#/properties/foo",
+				"type": "boolean",
+				"description": "foo"
+			}         
+		},
+		"additionalProperties": false
+   }`
+
+	exitCode, err := testSchemasAnnotationWithJSONFile(rego, schema)
+	if exitCode == 0 {
+		t.Fatalf("didn't get expected error when schema is present and is defining a different type than being used.")
+	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
+		t.Fatalf("didn't get expected %s error when schema is defining a different type than being used; got: %v", ast.TypeErr, err)
 	}
 }
