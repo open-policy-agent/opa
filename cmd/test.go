@@ -17,6 +17,7 @@ import (
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/internal/runtime"
+	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/tester"
@@ -47,6 +48,7 @@ type testCommandParams struct {
 	target       *util.EnumFlag
 	skipExitZero bool
 	capabilities *capabilitiesFlag
+	schema       *schemaFlags
 }
 
 func newTestCommandParams() *testCommandParams {
@@ -55,6 +57,7 @@ func newTestCommandParams() *testCommandParams {
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
 		capabilities: newcapabilitiesFlag(),
+		schema:       &schemaFlags{},
 	}
 }
 
@@ -201,11 +204,22 @@ func opaTest(args []string) int {
 		capabilities = ast.CapabilitiesForThisVersion()
 	}
 
+	var schemaSet *ast.SchemaSet
+	//	-s {file} (one input schema file)
+	//	-s {directory} (one schema directory with input and data schema files)
+	schemaSet, err = loader.Schemas(testParams.schema.path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
 	compiler := ast.NewCompiler().
 		SetErrorLimit(testParams.errLimit).
 		WithPathConflictsCheck(storage.NonEmpty(ctx, store, txn)).
 		WithEnablePrintStatements(!testParams.benchmark).
-		WithCapabilities(capabilities)
+		WithCapabilities(capabilities).
+		WithSchemas(schemaSet).
+		WithUseTypeCheckAnnotations(true)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
@@ -370,6 +384,7 @@ func isThresholdValid(t float64) bool {
 }
 
 func init() {
+	// Test specific flags
 	testCommand.Flags().BoolVarP(&testParams.skipExitZero, "exit-zero-on-skipped", "z", false, "skipped tests return status 0")
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
 	testCommand.Flags().DurationVar(&testParams.timeout, "timeout", 0, "set test timeout (default 5s, 30s when benchmarking)")
@@ -378,6 +393,8 @@ func init() {
 	testCommand.Flags().Float64VarP(&testParams.threshold, "threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
+
+	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)
 	addBenchmemFlag(testCommand.Flags(), &testParams.benchMem, true)
 	addCountFlag(testCommand.Flags(), &testParams.count, "test")
@@ -386,5 +403,7 @@ func init() {
 	setExplainFlag(testCommand.Flags(), testParams.explain)
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
+	addSchemaFlags(testCommand.Flags(), testParams.schema)
+
 	RootCommand.AddCommand(testCommand)
 }
