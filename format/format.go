@@ -914,7 +914,7 @@ func (w *writer) writeObjectComprehension(object *ast.ObjectComprehension, loc *
 }
 
 func (w *writer) writeComprehension(open, close byte, term *ast.Term, body ast.Body, loc *ast.Location, comments []*ast.Comment) []*ast.Comment {
-	if term.Location.Row-loc.Row > 1 {
+	if term.Location.Row-loc.Row >= 1 {
 		w.endLine()
 		w.startLine()
 	}
