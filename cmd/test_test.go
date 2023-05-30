@@ -26,7 +26,7 @@ func TestFilterTraceDefault(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceVerbose(t *testing.T) {
@@ -46,7 +46,7 @@ func TestFilterTraceVerbose(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainFails(t *testing.T) {
@@ -66,7 +66,7 @@ func TestFilterTraceExplainFails(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainNotes(t *testing.T) {
@@ -84,7 +84,7 @@ func TestFilterTraceExplainNotes(t *testing.T) {
 | | | | Enter data.testing.r
 | | | | | Note "got this far2"
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainFull(t *testing.T) {
@@ -135,7 +135,7 @@ func TestFilterTraceExplainFull(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestThresholdRange(t *testing.T) {

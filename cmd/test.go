@@ -51,8 +51,8 @@ type testCommandParams struct {
 	schema       *schemaFlags
 }
 
-func newTestCommandParams() *testCommandParams {
-	return &testCommandParams{
+func newTestCommandParams() testCommandParams {
+	return testCommandParams{
 		outputFormat: util.NewEnumFlag(testPrettyOutput, []string{testPrettyOutput, testJSONOutput, benchmarkGoBenchOutput}),
 		explain:      newExplainFlag([]string{explainModeFails, explainModeFull, explainModeNotes, explainModeDebug}),
 		target:       util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
@@ -61,97 +61,7 @@ func newTestCommandParams() *testCommandParams {
 	}
 }
 
-var testParams = newTestCommandParams()
-
-var testCommand = &cobra.Command{
-	Use:   "test <path> [path [...]]",
-	Short: "Execute Rego test cases",
-	Long: `Execute Rego test cases.
-
-The 'test' command takes a file or directory path as input and executes all
-test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
-
-If the '--bundle' option is specified the paths will be treated as policy bundles
-and loaded following standard bundle conventions. The path can be a compressed archive
-file or a directory which will be treated as a bundle. Without the '--bundle' flag OPA
-will recursively load ALL *.rego, *.json, and *.yaml files for evaluating the test cases.
-
-Test cases under development may be prefixed "todo_" in order to skip their execution,
-while still getting marked as skipped in the test results.
-
-Example policy (example/authz.rego):
-
-	package authz
-
-	import future.keywords.if
-
-	allow if {
-		input.path == ["users"]
-		input.method == "POST"
-	}
-
-	allow if {
-		input.path == ["users", input.user_id]
-		input.method == "GET"
-	}
-
-Example test (example/authz_test.rego):
-
-	package authz_test
-
-	import data.authz.allow
-
-	test_post_allowed {
-		allow with input as {"path": ["users"], "method": "POST"}
-	}
-
-	test_get_denied {
-		not allow with input as {"path": ["users"], "method": "GET"}
-	}
-
-	test_get_user_allowed {
-		allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
-	}
-
-	test_get_another_user_denied {
-		not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
-	}
-
-	todo_test_user_allowed_http_client_data {
-		false # Remember to test this later!
-	}
-
-Example test run:
-
-	$ opa test ./example/
-
-If used with the '--bench' option then tests will be benchmarked.
-
-Example benchmark run:
-
-	$ opa test --bench ./example/
-
-The optional "gobench" output format conforms to the Go Benchmark Data Format.
-`,
-	PreRunE: func(Cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("specify at least one file")
-		}
-
-		// If an --explain flag was set, turn on verbose output
-		if testParams.explain.IsSet() {
-			testParams.verbose = true
-		}
-
-		return nil
-	},
-
-	Run: func(cmd *cobra.Command, args []string) {
-		os.Exit(opaTest(args))
-	},
-}
-
-func opaTest(args []string) int {
+func opaTest(args []string, testParams testCommandParams) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -296,7 +206,7 @@ func opaTest(args []string) int {
 	}
 
 	for i := 0; i < testParams.count; i++ {
-		exitCode := runTests(ctx, txn, runner, reporter)
+		exitCode := runTests(ctx, txn, runner, reporter, testParams)
 		if exitCode != 0 {
 			return exitCode
 		}
@@ -305,7 +215,7 @@ func opaTest(args []string) int {
 	return 0
 }
 
-func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter) int {
+func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runner, reporter tester.Reporter, testParams testCommandParams) int {
 	var err error
 	var ch chan *tester.Result
 	if testParams.benchmark {
@@ -335,7 +245,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 				// there is a skipped test, adding the flag -z exits 0 if there are no failures
 				exitCode = 0
 			}
-			tr.Trace = filterTrace(testParams, tr.Trace)
+			tr.Trace = filterTrace(&testParams, tr.Trace)
 			dup <- tr
 		}
 	}()
@@ -384,6 +294,96 @@ func isThresholdValid(t float64) bool {
 }
 
 func init() {
+	var testParams = newTestCommandParams()
+
+	var testCommand = &cobra.Command{
+		Use:   "test <path> [path [...]]",
+		Short: "Execute Rego test cases",
+		Long: `Execute Rego test cases.
+	
+	The 'test' command takes a file or directory path as input and executes all
+	test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
+	
+	If the '--bundle' option is specified the paths will be treated as policy bundles
+	and loaded following standard bundle conventions. The path can be a compressed archive
+	file or a directory which will be treated as a bundle. Without the '--bundle' flag OPA
+	will recursively load ALL *.rego, *.json, and *.yaml files for evaluating the test cases.
+	
+	Test cases under development may be prefixed "todo_" in order to skip their execution,
+	while still getting marked as skipped in the test results.
+	
+	Example policy (example/authz.rego):
+	
+		package authz
+	
+		import future.keywords.if
+	
+		allow if {
+			input.path == ["users"]
+			input.method == "POST"
+		}
+	
+		allow if {
+			input.path == ["users", input.user_id]
+			input.method == "GET"
+		}
+	
+	Example test (example/authz_test.rego):
+	
+		package authz_test
+	
+		import data.authz.allow
+	
+		test_post_allowed {
+			allow with input as {"path": ["users"], "method": "POST"}
+		}
+	
+		test_get_denied {
+			not allow with input as {"path": ["users"], "method": "GET"}
+		}
+	
+		test_get_user_allowed {
+			allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
+		}
+	
+		test_get_another_user_denied {
+			not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
+		}
+	
+		todo_test_user_allowed_http_client_data {
+			false # Remember to test this later!
+		}
+	
+	Example test run:
+	
+		$ opa test ./example/
+	
+	If used with the '--bench' option then tests will be benchmarked.
+	
+	Example benchmark run:
+	
+		$ opa test --bench ./example/
+	
+	The optional "gobench" output format conforms to the Go Benchmark Data Format.
+	`,
+		PreRunE: func(Cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("specify at least one file")
+			}
+
+			// If an --explain flag was set, turn on verbose output
+			if testParams.explain.IsSet() {
+				testParams.verbose = true
+			}
+
+			return nil
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			os.Exit(opaTest(args, testParams))
+		},
+	}
+
 	// Test specific flags
 	testCommand.Flags().BoolVarP(&testParams.skipExitZero, "exit-zero-on-skipped", "z", false, "skipped tests return status 0")
 	testCommand.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
