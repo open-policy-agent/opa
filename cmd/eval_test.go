@@ -515,6 +515,7 @@ package test
 # schemas:
 #   - input: schema["input"]
 p { 	
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
 
@@ -528,7 +529,8 @@ package test
 # METADATA
 # schemas:
 #   - input.foo: {"type": "boolean"}
-p { 
+p {
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation	 
 	input.foo == 42 # type mismatch with schema that should NOT be ignored since it is an inlined schema format
 }`
 
