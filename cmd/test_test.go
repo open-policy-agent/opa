@@ -335,7 +335,7 @@ p with input.foo as 42
 
 func TestJSONSchemaFail(t *testing.T) {
 
-	rego := `package test
+	regoContents := `package test
 # METADATA
 # schemas:
 #   - input: schema.demo_schema
@@ -348,24 +348,24 @@ p with input.foo as 42
 }`
 
 	schema := `{
-		"$schema": "http://json-schema.org/draft-07/schema",
-		"$id": "schema",
-		"type": "object",
-		"description": "The root schema comprises the entire JSON document.",
-		"required": [
-			"foo"
-		],
-		"properties": {
-			"foo": {
-				"$id": "#/properties/foo",
-				"type": "boolean",
-				"description": "foo"
-			}         
-		},
-		"additionalProperties": false
-   }`
+"$schema": "http://json-schema.org/draft-07/schema",
+"$id": "schema",
+"type": "object",
+"description": "The root schema comprises the entire JSON document.",
+"required": [
+	"foo"
+],
+"properties": {
+	"foo": {
+		"$id": "#/properties/foo",
+		"type": "boolean",
+		"description": "foo"
+	}         
+},
+"additionalProperties": false
+}`
 
-	exitCode, err := testSchemasAnnotationWithJSONFile(rego, schema)
+	exitCode, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
 	if exitCode == 0 {
 		t.Fatalf("didn't get expected error when schema is present and is defining a different type than being used.")
 	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
