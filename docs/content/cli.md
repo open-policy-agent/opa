@@ -986,7 +986,7 @@ Execute Rego test cases
 ### Synopsis
 
 Execute Rego test cases.
-
+	
 The 'test' command takes a file or directory path as input and executes all
 test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
 
@@ -1073,6 +1073,7 @@ opa test <path> [path [...]] [flags]
       --ignore strings                     set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -m, --max-errors int                     set the number of errors to allow before compilation fails early (default 10)
   -r, --run string                         run only test cases matching the regular expression.
+  -s, --schema string                      set schema file path or directory path
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
