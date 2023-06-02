@@ -239,6 +239,7 @@ package test
 # schemas:
 #   - input: schema["input"]
 p { 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }
 
@@ -297,7 +298,7 @@ func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) 
 }
 func TestJSONSchemaSuccess(t *testing.T) {
 
-	rego := `package test
+	regoContents := `package test
 # METADATA
 # schemas:
 #   - input: schema.demo_schema
@@ -327,7 +328,7 @@ p with input.foo as 42
 		"additionalProperties": false
    }`
 
-	_, err := testSchemasAnnotationWithJSONFile(rego, schema)
+	_, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
