@@ -27,7 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/storage"
-	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
@@ -44,6 +43,7 @@ type OPA struct {
 	logger  logging.Logger
 	console logging.Logger
 	plugins map[string]plugins.Factory
+	store   storage.Store
 	config  []byte
 }
 
@@ -72,7 +72,8 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	}
 
 	opa := &OPA{
-		id: id,
+		id:    id,
+		store: opts.Store,
 		state: &state{
 			queryCache: newQueryCache(),
 		},
@@ -127,7 +128,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	manager, err := plugins.New(
 		bs,
 		opa.id,
-		inmem.New(),
+		opa.store,
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
