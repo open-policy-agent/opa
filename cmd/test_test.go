@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ func TestFilterTraceDefault(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceVerbose(t *testing.T) {
@@ -46,7 +47,7 @@ func TestFilterTraceVerbose(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainFails(t *testing.T) {
@@ -66,7 +67,7 @@ func TestFilterTraceExplainFails(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainNotes(t *testing.T) {
@@ -84,7 +85,7 @@ func TestFilterTraceExplainNotes(t *testing.T) {
 | | | | Enter data.testing.r
 | | | | | Note "got this far2"
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestFilterTraceExplainFull(t *testing.T) {
@@ -135,7 +136,7 @@ func TestFilterTraceExplainFull(t *testing.T) {
 | | Fail data.testing.p with data.x as "bar"
 | Fail data.testing.test_p = _
 `
-	verifyFilteredTrace(t, p, expected)
+	verifyFilteredTrace(t, &p, expected)
 }
 
 func TestThresholdRange(t *testing.T) {
@@ -211,23 +212,23 @@ func failTrace(t *testing.T) []*topdown.Event {
 	return *tracer
 }
 
-func testSchemasAnnotation(mod string) error {
-	query := "data.test.test_p"
+func testSchemasAnnotation(rego string) (int, error) {
 
 	files := map[string]string{
-		"test.rego": mod,
+		"test.rego": rego,
 	}
 
+	var exitCode int
 	var err error
 	test.WithTempFS(files, func(path string) {
-		_, err = rego.New(
-			rego.Module("test.rego", mod),
-			rego.Trace(true),
-			rego.Query(query),
-		).Eval(context.Background())
-	})
+		regoFilePath := filepath.Join(path, "test.rego")
 
-	return err
+		testParams := newTestCommandParams()
+		testParams.count = 1
+
+		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode, err
 }
 
 // Assert that 'schemas' annotations with schema ref are ignored, but not inlined schemas
@@ -238,7 +239,7 @@ package test
 # schemas:
 #   - input: schema["input"]
 p { 
-	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }
 
@@ -246,29 +247,129 @@ test_p {
     p with input.foo as 42
 }`
 
-	err := testSchemasAnnotation(policyWithSchemaRef)
-	if err != nil {
-		t.Fatalf("unexpected error when schema ref is present: %v", err)
+	exitCode, _ := testSchemasAnnotation(policyWithSchemaRef)
+	if exitCode > 0 {
+		t.Fatalf("unexpected error when schema ref is present")
 	}
-
+}
+func TestSchemasAnnotationInline(t *testing.T) {
 	policyWithInlinedSchema := `
 package test
 # METADATA
 # schemas:
 #   - input.foo: {"type": "boolean"}
 p { 
-	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation 
-	input.foo == 42 # type mismatch with schema that should be ignored
+	input.foo == 42 # type mismatch with schema that should NOT be ignored since it is an inlined schema format
 }
 
 test_p {
     p with input.foo as 42
 }`
 
-	err = testSchemasAnnotation(policyWithInlinedSchema)
-	if err == nil {
+	exitCode, err := testSchemasAnnotation(policyWithInlinedSchema)
+	// We expect an error here, as inlined schemas are always used for type checking
+
+	if exitCode == 0 {
 		t.Fatalf("didn't get expected error when inlined schema is present")
 	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
 		t.Fatalf("didn't get expected %s error when inlined schema is present; got: %v", ast.TypeErr, err)
+	}
+}
+
+func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) {
+
+	files := map[string]string{
+		"test.rego":        rego,
+		"demo_schema.json": schema,
+	}
+
+	var exitCode int
+	var err error
+	test.WithTempFS(files, func(path string) {
+		regoFilePath := filepath.Join(path, "test.rego")
+
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.schema.path = path
+
+		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode, err
+}
+func TestJSONSchemaSuccess(t *testing.T) {
+
+	regoContents := `package test
+# METADATA
+# schemas:
+#   - input: schema.demo_schema
+p {
+input.foo == 42
+}
+
+test_p {
+p with input.foo as 42
+}`
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema",
+		"$id": "schema",
+		"type": "object",
+		"description": "The root schema comprises the entire JSON document.",
+		"required": [
+			"foo"
+		],
+		"properties": {
+			"foo": {
+				"$id": "#/properties/foo",
+				"type": "number",
+				"description": "foo"
+			}         
+		},
+		"additionalProperties": false
+   }`
+
+	_, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestJSONSchemaFail(t *testing.T) {
+
+	regoContents := `package test
+# METADATA
+# schemas:
+#   - input: schema.demo_schema
+p {
+input.foo == 42
+}
+
+test_p {
+p with input.foo as 42
+}`
+
+	schema := `{
+"$schema": "http://json-schema.org/draft-07/schema",
+"$id": "schema",
+"type": "object",
+"description": "The root schema comprises the entire JSON document.",
+"required": [
+	"foo"
+],
+"properties": {
+	"foo": {
+		"$id": "#/properties/foo",
+		"type": "boolean",
+		"description": "foo"
+	}         
+},
+"additionalProperties": false
+}`
+
+	exitCode, err := testSchemasAnnotationWithJSONFile(regoContents, schema)
+	if exitCode == 0 {
+		t.Fatalf("didn't get expected error when schema is present and is defining a different type than being used.")
+	} else if !strings.Contains(err.Error(), "rego_type_error: match error") {
+		t.Fatalf("didn't get expected %s error when schema is defining a different type than being used; got: %v", ast.TypeErr, err)
 	}
 }
