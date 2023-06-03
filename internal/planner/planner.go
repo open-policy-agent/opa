@@ -2286,10 +2286,28 @@ outer:
 			break
 		}
 
-		for _, node := range nodes {
-			if len(node.Rules()) > 0 {
-				p.debugf("ref %s: at least one rule has 1+ rules, break", ref[0:index+1])
-				break outer
+		// NOTE(sr): we only need this check for the penultimate part:
+		// When planning the ref data.pkg.a[input.x][input.y],
+		// We want to capture this situation:
+		//   a.b[c] := "x" if c := "c"
+		//   a.b.d := "y"
+		//
+		// Not this:
+		//   a.b[c] := "x" if c := "c"
+		//   a.d := "y"
+		// since the length doesn't add up. Even if input.x was "d", the second
+		// rule (a.d) wouldn't contribute anything to the result, since we cannot
+		// "dot it".
+		if index == len(ref)-2 {
+			for _, node := range nodes {
+				anyNonGround := false
+				for _, r := range node.Rules() {
+					anyNonGround = anyNonGround || !r.Ref().IsGround()
+				}
+				if anyNonGround {
+					p.debugf("ref %s: at least one node has 1+ non-ground ref rules, break", ref[0:index+1])
+					break outer
+				}
 			}
 		}
 	}

@@ -40,7 +40,7 @@ cases:
     package test
     import future.keywords.if
     p := a[b].c if b := "b"
-    a.b.c := "C" if b := "b"
+    a.b.c := "C"
     a.x.d := "D"
   query: data.test.p = x
   want_result:
@@ -52,7 +52,7 @@ cases:
     import future.keywords.if
     p := a.b[c] if c := "c"
     a.b[c] := "C" if c := "c"
-    a.b["d"] := "D"
+    a.b.d := "D"
   query: data.test.p = x
   want_result:
   - x: C
@@ -67,3 +67,27 @@ cases:
   query: data.test.p = x
   want_result:
   - x: C
+- note: ir/call-dynamic with ref heads, issue 5839
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := a[b][c].allow if { b := "b"; c := "c" }
+    a.b.c.allow if true
+    a.x.d.allow if true
+    a.y[x] := "E" if x := "x"
+  query: data.test.p = x
+  want_result:
+  - x: true
+- note: ir/call-dynamic with ref heads, issue 5839, penultimate
+  modules:
+  - |
+    package test
+    import future.keywords.if
+    p := a[b][c] if { b := "b"; c := "c" }
+    a.b.c if true
+    a.x.d if true
+    a.y := "E"
+  query: data.test.p = x
+  want_result:
+  - x: true
