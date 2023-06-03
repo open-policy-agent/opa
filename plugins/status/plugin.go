@@ -398,7 +398,7 @@ func (p *Plugin) loop() {
 				if err != nil {
 					p.logger.Error("%v.", err)
 				} else {
-					p.logger.Info("Status update sent successfully in response to discovery update.")
+					p.logger.Info("Status update sent successfully in response to decision log update.")
 				}
 			}
 		case update := <-p.reconfig:
