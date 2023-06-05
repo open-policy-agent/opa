@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -125,13 +126,14 @@ func (c *Config) authPrepare(req *http.Request, lookup AuthPluginLookupFunc) err
 // Client implements an HTTP/REST client for communicating with remote
 // services.
 type Client struct {
-	bytes            *[]byte
-	json             *interface{}
-	config           Config
-	headers          map[string]string
-	authPluginLookup AuthPluginLookupFunc
-	logger           logging.Logger
-	loggerFields     map[string]interface{}
+	bytes                 *[]byte
+	json                  *interface{}
+	config                Config
+	headers               map[string]string
+	authPluginLookup      AuthPluginLookupFunc
+	logger                logging.Logger
+	loggerFields          map[string]interface{}
+	distributedTacingOpts tracing.Options
 }
 
 // Name returns an option that overrides the service name on the client.
@@ -155,6 +157,13 @@ func AuthPluginLookup(l AuthPluginLookupFunc) func(*Client) {
 func Logger(l logging.Logger) func(*Client) {
 	return func(c *Client) {
 		c.logger = l
+	}
+}
+
+// DistributedTracingOpts sets the options to be used by distributed tracing.
+func DistributedTracingOpts(tr tracing.Options) func(*Client) {
+	return func(c *Client) {
+		c.distributedTacingOpts = tr
 	}
 }
 
@@ -258,6 +267,10 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	httpClient, err := c.config.authHTTPClient(c.authPluginLookup)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(c.distributedTacingOpts) > 0 {
+		httpClient.Transport = tracing.NewTransport(httpClient.Transport, c.distributedTacingOpts)
 	}
 
 	path = strings.Trim(path, "/")

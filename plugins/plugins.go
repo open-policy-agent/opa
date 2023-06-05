@@ -29,6 +29,7 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -192,6 +193,7 @@ type Manager struct {
 	router                       *mux.Router
 	prometheusRegister           prometheus.Registerer
 	tracerProvider               *trace.TracerProvider
+	distributedTacingOpts        tracing.Options
 	registeredNDCacheTriggers    []func(bool)
 	bootstrapConfigLabels        map[string]string
 }
@@ -365,6 +367,13 @@ func WithTracerProvider(tracerProvider *trace.TracerProvider) func(*Manager) {
 	}
 }
 
+// WithDistributedTracingOpts sets the options to be used by distributed tracing.
+func WithDistributedTracingOpts(tr tracing.Options) func(*Manager) {
+	return func(m *Manager) {
+		m.distributedTacingOpts = tr
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -409,10 +418,11 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 	}
 
 	serviceOpts := cfg.ServiceOptions{
-		Raw:        parsedConfig.Services,
-		AuthPlugin: m.AuthPlugin,
-		Keys:       keys,
-		Logger:     m.logger,
+		Raw:                   parsedConfig.Services,
+		AuthPlugin:            m.AuthPlugin,
+		Keys:                  keys,
+		Logger:                m.logger,
+		DistributedTacingOpts: m.distributedTacingOpts,
 	}
 
 	services, err := cfg.ParseServicesConfig(serviceOpts)
@@ -647,9 +657,10 @@ func (m *Manager) Stop(ctx context.Context) {
 // Reconfigure updates the configuration on the manager.
 func (m *Manager) Reconfigure(config *config.Config) error {
 	opts := cfg.ServiceOptions{
-		Raw:        config.Services,
-		AuthPlugin: m.AuthPlugin,
-		Logger:     m.logger,
+		Raw:                   config.Services,
+		AuthPlugin:            m.AuthPlugin,
+		Logger:                m.logger,
+		DistributedTacingOpts: m.distributedTacingOpts,
 	}
 
 	keys, err := keys.ParseKeysConfig(config.Keys)
