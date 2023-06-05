@@ -386,3 +386,53 @@ cases:
     query: data.test.test_result = x
     want_result:
       - x: true
+  
+  - data:
+    modules:
+      - |
+        package test
+
+        A := [1,2,3,4,5,6]
+        B := [4,5,6,8]
+
+        AsubB := object.subset(A, B)
+        BsubA := object.subset(B, A)
+
+        # Notice that there isn't really a well-defined way to "match" the two
+        # nested sets to one another, so we B is not a subset of A in this
+        # case.
+
+        test_result {
+          not AsubB     # B is not a subset of A
+          not BsubA     # A is not a subset of B
+        }
+
+    note: subset/arrays 5
+    query: data.test.test_result = x
+    want_result:
+      - x: true
+
+  - data:
+    modules:
+      - |
+        package test
+
+        A := [1,2,3,4,5,6]
+        B := [8,9,10]
+
+        AsubB := object.subset(A, B)
+        BsubA := object.subset(B, A)
+
+        # Notice that there isn't really a well-defined way to "match" the two
+        # nested sets to one another, so we B is not a subset of A in this
+        # case.
+
+        test_result {
+          not AsubB     # B is not a subset of A
+          not BsubA     # A is not a subset of B
+        }
+
+    note: subset/arrays 6
+    query: data.test.test_result = x
+    want_result:
+      - x: true
