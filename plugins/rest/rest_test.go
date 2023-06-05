@@ -36,6 +36,7 @@ import (
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
+	"github.com/open-policy-agent/opa/tracing"
 
 	"github.com/open-policy-agent/opa/internal/version"
 	"github.com/open-policy-agent/opa/util/test"
@@ -799,6 +800,56 @@ func TestDoWithResponseHeaderTimeout(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+type tracemock struct {
+	called int
+}
+
+func (m *tracemock) NewTransport(rt http.RoundTripper, _ tracing.Options) http.RoundTripper {
+	m.called++
+	return rt
+}
+
+func (*tracemock) NewHandler(http.Handler, string, tracing.Options) http.Handler {
+	panic("unreachable")
+}
+
+func TestDoWithDistributedTracingOpts(t *testing.T) {
+	ctx := context.Background()
+	mock := tracemock{}
+	tracing.RegisterHTTPTracing(&mock)
+
+	body := "Some Bad Request was received"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, body)
+	}))
+	defer ts.Close()
+
+	buf := bytes.Buffer{}
+	logger := logging.New()
+	logger.SetOutput(&buf)
+	logger.SetLevel(logging.Debug)
+
+	config := fmt.Sprintf(`{
+				"name": "foo",
+				"url": %q,
+			}`, ts.URL)
+	ks := map[string]*keys.Config{}
+	client, err := New([]byte(config), ks, DistributedTracingOpts(tracing.Options{"testoption"}))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	_, err = client.Do(ctx, "GET", ts.URL)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if exp, act := 1, mock.called; exp != act {
+		t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
 	}
 }
 

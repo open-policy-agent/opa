@@ -3217,7 +3217,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 	}
 
 	if exp, act := 1, mock.called; exp != act {
-		t.Errorf("calls to NewTransported: expected %d, got %d", exp, act)
+		t.Errorf("calls to NewTransport: expected %d, got %d", exp, act)
 	}
 }
 
