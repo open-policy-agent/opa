@@ -70,9 +70,8 @@ html, body {
 
 #homebackground {
     width: 100%;
-    /* height: 100%;     */
     margin-top: -65px;
-    /* background: blue; */
+    margin-bottom: 2rem;
 }
 
 .bg img {
