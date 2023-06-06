@@ -50,6 +50,11 @@ func TestObjectUnionNBuiltin(t *testing.T) {
 			expected: `{"A": 1, "B": 200, "C": 3,}`,
 		},
 		{
+			note:     "2x objects, with simple merge on nested objects with different keys",
+			input:    `[{"X": {"A": "a"}}, {"X": {"B": "b"}}]`,
+			expected: `{"X": {"A": "a", "B": "b"}}`,
+		},
+		{
 			note:     "2x objects, with complex merge on nested object",
 			input:    `[{"A": 1, "B": {"N1": {"X": true, "Z": false}}, "C": 3},  {"B": {"N1": {"X": 49, "Z": 50}}}]`,
 			expected: `{"A": 1, "B": {"N1": {"X": 49, "Z": 50}}, "C": 3}`,
@@ -68,9 +73,14 @@ func TestObjectUnionNBuiltin(t *testing.T) {
 
 	for _, tc := range tests {
 		inputs := ast.MustParseTerm(tc.input)
+		inputsCopy := inputs.Copy()
 		result, err := getResult(builtinObjectUnionN, inputs)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if !inputsCopy.Equal(inputs) {
+			t.Fatal("Inputs were mutated")
 		}
 
 		expected := ast.MustParseTerm(tc.expected)
