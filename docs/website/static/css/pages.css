@@ -76,74 +76,6 @@
     font-size: 20px;
 }
 
-.card-text .subheader img {
-    width: 20px;
-    height: 20px;
-}
-
-.support-list {
-    position: relative;
-    font-size: 18px;
-    display: flex;
-    flex-flow: row wrap;
-    padding: 0.5em;
-}
-
-.support-footer {
-    z-index: 99;
-    position: relative;
-}
-
-/* overrides for home.css */
-
-.bg {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    overflow: hidden;
-    background-color: #5687e5;
-}
-
-.bg img {
-    width: 100%;
-    object-fit: cover;
-    margin-top: unset;
-}
-
-.cloud-top {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    overflow: hidden;
-}
-
-.cloud-top img {
-    width: 100%;
-    position: absolute;
-    top: 140px;
-    object-fit: cover;
-}
-
-@media screen and (min-width: 576px) {
-    .grid-container {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    }
-
-    .divider:before,
-    .divider:after {
-        content: "";
-        flex: 1;
-    }
-}
-
-@media screen and (min-width: 1200px) {
-    .grid-container {
-        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    }
-}
-
 @media screen and (max-width: 767px) {
     .bg img {
         display: unset;
@@ -163,3 +95,46 @@
         font-weight: 300;
     }
 }
+
+
+/*sup*/
+section {
+    padding-bottom: 5%;
+}
+
+.grid-container {
+    grid-template-columns: 1fr;
+}
+.card {
+    max-width: 100%;
+}
+
+
+/*sec*/
+.page-content ol, .page-content ul {
+    padding-left: 1rem;
+}
+
+.page-content ol {
+    list-style: decimal;
+}
+
+.page-content ul {
+    list-style: disc;
+}
+
+li {
+    padding-bottom: 0.5em;
+}
+
+section {
+    padding-bottom: 5%;
+}
+
+.grid-container {
+    grid-template-columns: 1fr;
+}
+.card {
+    max-width: 100%;
+}
+

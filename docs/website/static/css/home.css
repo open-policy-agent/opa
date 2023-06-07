@@ -1,15 +1,9 @@
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed,
-figure, figcaption, footer, header, hgroup,
-menu, nav, output, ruby, section, summary,
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p,
+blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img,
+ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i,
+center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption,
+tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure,
+figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary,
 time, mark, audio, video {
     margin: 0;
     padding: 0;
@@ -20,8 +14,7 @@ time, mark, audio, video {
 }
 
 /* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure,
-footer, header, hgroup, menu, nav, section {
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {
     display: block;
 }
 
@@ -30,16 +23,20 @@ body {
     font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
 }
 
-ol, ul {
+ol,
+ul {
     list-style: none;
 }
 
-blockquote, q {
+blockquote,
+q {
     quotes: none;
 }
 
-blockquote:before, blockquote:after,
-q:before, q:after {
+blockquote:before,
+blockquote:after,
+q:before,
+q:after {
     content: '';
     content: none;
 }
@@ -50,13 +47,17 @@ table {
 }
 
 
-html, body {
+html,
+body {
     width: 100%;
     height: 100%;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-[type=button]:not(:disabled), [type=reset]:not(:disabled), [type=submit]:not(:disabled), button:not(:disabled) {
+[type=button]:not(:disabled),
+[type=reset]:not(:disabled),
+[type=submit]:not(:disabled),
+button:not(:disabled) {
     cursor: unset;
 }
 
@@ -219,7 +220,7 @@ a {
 
 .more-link:hover {
     /* #287880 #3499a2 */
-    background: linear-gradient( #28767d, #285c82);
+    background: linear-gradient(#28767d, #285c82);
     border-color: #285c82;
 }
 
@@ -271,7 +272,7 @@ a {
 }
 
 .creator-note {
-   font-size: 0.9em;
+    font-size: 0.9em;
     color: #666666;
 }
 
@@ -553,7 +554,7 @@ h3 {
     margin-left: 45px;
 }
 
-.tab-content > .tab-pane {
+.tab-content>.tab-pane {
     width: 100%;
 }
 
@@ -578,7 +579,8 @@ h3 {
     border-bottom: 1px solid #eee;
 }
 
-.nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+.nav-pills .nav-link.active,
+.nav-pills .show>.nav-link {
     background-color: #e5e6eb;
     color: #333;
     padding: 20px;
@@ -592,7 +594,8 @@ h3 {
     line-height: 22px;
 }
 
-.nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
     color: #fff !important;
     font-size: 18px !important;
     background: linear-gradient(#47ced8, #49a1e1) !important;
@@ -952,7 +955,8 @@ h4 {
         line-height: 18px;
     }
 
-    .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    .nav-tabs .nav-item.show .nav-link,
+    .nav-tabs .nav-link.active {
         padding: 15px 10px;
         line-height: 18px;
     }
@@ -1019,7 +1023,8 @@ h4 {
         margin-left: 35px;
     }
 
-    .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    .nav-tabs .nav-item.show .nav-link,
+    .nav-tabs .nav-link.active {
         padding: 15px 10px;
         font-size: 17px !important;
         line-height: 30px;
@@ -1518,7 +1523,8 @@ h4 {
     /* .bg img{
         margin-top: -260px;
     } */
-    .boxBottom, .boxTop {
+    .boxBottom,
+    .boxTop {
         width: 280px;
         margin: auto;
     }
@@ -1583,7 +1589,8 @@ h4 {
         margin-bottom: 10px;
     }
 
-    .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    .nav-tabs .nav-item.show .nav-link,
+    .nav-tabs .nav-link.active {
         border-radius: 20px !important;
     }
 
@@ -1715,7 +1722,8 @@ h4 {
         display: inline-flex;
     }
 
-    .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    .nav-tabs .nav-item.show .nav-link,
+    .nav-tabs .nav-link.active {
         /* padding: 8px 15px !important; */
         font-size: 18px !important;
         line-height: 13px !important;
@@ -1730,7 +1738,9 @@ h4 {
         overflow: auto;
     }
 
-    .architectural-flexibility-graphic-left, .declarative-policy-tabs-graphic, .architectural-flexibility-graphic-right {
+    .architectural-flexibility-graphic-left,
+    .declarative-policy-tabs-graphic,
+    .architectural-flexibility-graphic-right {
         display: none;
     }
 
@@ -1853,13 +1863,15 @@ h4 {
     cursor: pointer;
 }
 
-.CodeMirror-cursor, div.CodeMirror-cursor {
+.CodeMirror-cursor,
+div.CodeMirror-cursor {
     opacity: 1;
     display: none;
 }
 
 .live--icon-bar--outer {
-    display: none; /* TODO: Fix this at some point? */
+    display: none;
+    /* TODO: Fix this at some point? */
 }
 
 .code-tab-content {
@@ -1892,6 +1904,7 @@ h4 {
     .social-icon-link {
         padding: 0;
     }
+
     .social-icon-link img {
         padding: 0;
     }
@@ -1902,14 +1915,17 @@ h4 {
     .navbar .container {
         display: flex !important;
     }
+
     .navbar .navbar-toggler-container {
         display: flex;
         align-items: center;
     }
+
     #navigation .navbar .navbar-brand {
         width: 12rem;
         display: block;
     }
+
     .navbar .navbar-toggler {
         display: block;
     }
@@ -1921,22 +1937,28 @@ h4 {
     .social-icon-title {
         display: inline;
     }
+
     .social-icon-link {
         padding: 0.5rem 1rem;
     }
+
     #navigation .social-icon-link img {
         display: none;
     }
+
     .home-bg #intro {
         padding-top: 1rem;
     }
+
     .home-bg #intro .banner {
         margin-top: -4rem;
     }
+
     .home-bg #intro .banner-content {
         padding-top: 0;
         margin-top: 0;
     }
+
     .home-bg #intro .banner-subcontent {
         padding: 0 0.3rem;
         font-size: 1.2rem;
