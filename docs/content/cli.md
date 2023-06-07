@@ -824,6 +824,10 @@ for existing bundle files or directories following the bundle structure.
 
 To skip bundle verification, use the --skip-verify flag.
 
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, the updated policy
+and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
+updates might cause them to be dropped by OPA.
+
 
 ```
 opa run [flags]
@@ -1052,6 +1056,10 @@ Example benchmark run:
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, OPA reloads
+the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
+recommended as some updates might cause them to be dropped by OPA.
+
 
 ```
 opa test <path> [path [...]] [flags]
@@ -1078,6 +1086,7 @@ opa test <path> [path [...]] [flags]
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
   -v, --verbose                            set verbose reporting mode
+  -w, --watch                              watch command line files for changes
 ```
 
 ____
