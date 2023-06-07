@@ -1,10 +1,21 @@
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-gap: 1rem;
+    margin-top: 1rem;
+    /* justify-items: center;  do NOT use for centering cards when squeezing; changes card sizes!  */
+    position: relative;
+}
+
 .card {
     border-radius: 20px;
     box-shadow: 2px 3px 6px rgba(51, 51, 51, 0.25);
-    cursor: pointer;
+    max-width: 500px;
+    flex: 1 0 80px;
 }
 
-.card-body {
+.card-text a {
+    text-decoration: none;
 }
 
 .card-img {
@@ -14,12 +25,33 @@
 
 .support-bg {
     width: 100%;
-    height: 100%;
-    background-color: #5687e5;
+    min-height: 100%;
+    background-color: #36d0dc;
+    background-image: url("../img/cloudAll.png");
+    background-attachment: fixed;
+    background-position: center 10rem;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 .support-content {
     height: 100%;
+}
+
+.banner-content {
+    padding: 0 1rem;
+}
+.banner-subcontent {
+    padding: 0 1rem;
+}
+.page-content {
+    padding: 0 1rem;
+}
+
+#homebackground .banner-content,
+#homebackground .banner-subcontent {
+    text-align: left;
+    line-height: 1.3;
 }
 
 .support-card-content {
@@ -28,13 +60,33 @@
 }
 
 .card-text {
-    padding: 10px
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.card-text .header {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.card-text .subheader {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+    font-size: 20px;
+}
+
+.card-text .subheader img {
+    width: 20px;
+    height: 20px;
 }
 
 .support-list {
-    margin-top: 20px;
-    z-index: 99;
     position: relative;
+    font-size: 18px;
+    display: flex;
+    flex-flow: row wrap;
+    padding: 0.5em;
 }
 
 .support-footer {
@@ -43,12 +95,6 @@
 }
 
 /* overrides for home.css */
-
-#homebackground {
-    width: 100%;
-    height: 100%;
-    margin-top: -65px;
-}
 
 .bg {
     width: 100%;
@@ -62,6 +108,7 @@
 .bg img {
     width: 100%;
     object-fit: cover;
+    margin-top: unset;
 }
 
 .cloud-top {
@@ -79,57 +126,21 @@
     object-fit: cover;
 }
 
-@media screen and (min-width: 350px) and (max-width: 400px) {
-    .bg img {
-        margin-top: unset;
+@media screen and (min-width: 576px) {
+    .grid-container {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
+    .divider:before,
+    .divider:after {
+        content: "";
+        flex: 1;
     }
 }
 
-@media screen and (min-width: 401px) and (max-width: 450px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (min-width: 451px) and (max-width: 500px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 550px) and (min-width: 501px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 600px) and (min-width: 576px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 650px) and (min-width: 601px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 700px) and (min-width: 651px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 750px) and (min-width: 701px) {
-    .bg img {
-        margin-top: unset;
-    }
-}
-
-@media screen and (max-width: 575px) and (min-width: 551px) {
-    .bg img {
-        margin-top: unset;
+@media screen and (min-width: 1200px) {
+    .grid-container {
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     }
 }
 
@@ -141,10 +152,35 @@
     .cloud-top img {
         display: none;
     }
+
+    .banner-content {
+        padding: 0 1rem;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+    .banner-subcontent {
+        padding: 0 1rem;
+        font-weight: 300;
+    }
 }
 
-@media screen and (max-width: 767px) and (min-width: 751px) {
-    .bg img {
-        margin-top: unset;
-    }
+
+
+
+
+
+
+
+
+
+
+section {
+    padding-bottom: 5%;
+}
+
+.grid-container {
+    grid-template-columns: 1fr;
+}
+.card {
+    max-width: 100%;
 }

@@ -28,7 +28,6 @@ footer, header, hgroup, menu, nav, section {
 body {
     line-height: 1;
     font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
-
 }
 
 ol, ul {
@@ -62,40 +61,72 @@ html, body {
 }
 
 #navigation {
+    background-color: #36d0dc;
     width: 100%;
-    min-height: 10px;
-    position: relative;
-    z-index: 999;
+}
+
+#navigation .navbar {
+    width: 100%;
+    max-width: 80rem;
+    margin: 0 auto;
+}
+
+#navigation .social-nav-item {
+    width: 4rem;
+}
+
+#navigation .social-nav-item img {
+    display: block;
+    margin: 0 auto;
+}
+
+#navigation .navbar-brand {
+    background-image: url("/img/logo-white.png");
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    width: 13rem;
+    height: 5rem;
+    margin-top: 0.3rem;
 }
 
 #homebackground {
     width: 100%;
-    margin-top: -65px;
-    margin-bottom: 2rem;
+    margin: 0 auto;
+    max-width: 70rem;
+    padding-bottom: 2rem;
 }
 
-.bg img {
+#homebackground h2 {
+    margin-top: 1rem;
+    color: white;
+    font-weight: 700;
+    font-size: 28px;
+}
+
+.home-bg h2 {
+    font-size: 40px;
+    font-weight: bold;
+    padding-bottom: 15px;
+    line-height: normal;
+    color: #000;
+}
+
+.home-bg #intro {
+    background-color: #36d0dc;
+    padding-top: 3rem;
     width: 100%;
-    position: relative;
-    margin-top: -240px;
+    max-width: 100%;
 }
 
-.bg {
-    position: relative;
+.home-bg #intro .banner {
+    margin-top: -17rem;
+    background-color: white;
 }
 
-#navb {
-    padding-top: 15px;
-}
-
-.bg-transparent {
-    background: transparent !important;
-}
-
-.navbar-brand img {
-    width: 220px;
-    position: absolute;
-    top: 10px;
+.home-bg section .container {
+    /* this is to override the bootstrap styles*/
+    max-width: 70rem !important;
 }
 
 .cloud-top img {
@@ -124,22 +155,19 @@ html, body {
 
 .banner-content {
     position: relative;
-    z-index: 99;
     color: #fff;
     font-size: 39px !important;
     font-weight: 700;
     padding-bottom: 25px;
-    padding-top: 150px;
     text-align: center;
 }
 
 .banner-subcontent {
     position: relative;
     text-align: center;
-    z-index: 99;
     color: #fff;
     font-size: 23px;
-    font-weight: 200;
+    font-weight: 300;
 }
 
 .about-text {
@@ -228,12 +256,23 @@ a {
     vertical-align: sub;
 }
 
-.styraText {
-    display: inline-flex;
+.styra-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    max-width: 40rem;
 }
 
-.styraText p {
-    padding-top: 10px;
+.styra-logo {
+    width: 15rem;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+.creator-note {
+   font-size: 0.9em;
+    color: #666666;
 }
 
 .box-1 {
@@ -876,17 +915,6 @@ h4 {
     position: relative;
 }
 
-.policy-sharing h4 {
-    /* position: absolute;
-    bottom: 0px;
-    left: 25%; */
-}
-
-
-@media screen and (min-width: 1201px) and (max-width: 1400px) {
-
-}
-
 @media screen and (min-width: 993px) and (max-width: 1100px) {
     .declarativeImage {
         width: 40px;
@@ -900,7 +928,6 @@ h4 {
         font-size: 17px;
         line-height: 34px;
     }
-
 }
 
 @media screen and (min-width: 1101px) and (max-width: 1200px) {
@@ -916,7 +943,6 @@ h4 {
         font-size: 17px;
         line-height: 34px;
     }
-
 }
 
 @media screen and (min-width: 993px) and (max-width: 1200px) {
@@ -935,9 +961,6 @@ h4 {
         width: 50px;
     }
 
-    /* .envoyLogo{
-        width: 50px !important;
-    } */
     .nav-tabs .nav-width {
         width: 140px !important;
         max-width: 140px;
@@ -947,8 +970,6 @@ h4 {
         width: 20px;
         height: 20px;
     }
-
-
 }
 
 @media screen and (min-width: 992px) and (max-width: 1024px) {
@@ -1557,10 +1578,6 @@ h4 {
         margin-left: 30px;
     }
 
-    .navbar-brand img {
-        width: 155px;
-    }
-
     .nav-tabs .nav-link {
         border-radius: 20px;
         margin-bottom: 10px;
@@ -1576,7 +1593,8 @@ h4 {
         top: 85px;
         width: 100%;
         left: 0px;
-        background: rgba(255, 255, 255, 0.90);
+        background: white;
+        z-index: 999;
     }
 
     .nav-tabs .nav-item {
@@ -1599,7 +1617,6 @@ h4 {
     }
 
     .banner-subcontent {
-
         text-align: center;
         font-size: 18px !important;
     }
@@ -1660,11 +1677,14 @@ h4 {
     }
 
     .banner-content {
-        font-size: 22px !important;
         padding-top: 100px;
         padding-left: 15px;
         padding-right: 15px;
         line-height: 28px;
+    }
+
+    .site-title {
+        font-size: 22px !important;
     }
 
     .policy-text p {
@@ -1759,17 +1779,13 @@ h4 {
         padding: 0px 15px;
     }
 
-    .navbar-brand img {
-        width: 180px;
-    }
-
     #navb {
         padding-top: 15px;
         position: absolute;
         top: 65px;
         width: 100%;
         left: 0px;
-        background: rgba(255, 255, 255, 0.90);
+        background: white;
     }
 
     .navbar-dark .navbar-nav .nav-link {
@@ -1883,15 +1899,46 @@ h4 {
 
 /* 991px is when the mobile nav-bar shows up */
 @media screen and (max-width: 991px) {
+    .navbar .container {
+        display: flex !important;
+    }
+    .navbar .navbar-toggler-container {
+        display: flex;
+        align-items: center;
+    }
+    #navigation .navbar .navbar-brand {
+        width: 12rem;
+        display: block;
+    }
+    .navbar .navbar-toggler {
+        display: block;
+    }
+
+    #navigation #navb {
+        margin-top: 1rem;
+    }
+
     .social-icon-title {
         display: inline;
     }
-
     .social-icon-link {
         padding: 0.5rem 1rem;
     }
-
-    .social-icon-link img {
+    #navigation .social-icon-link img {
         display: none;
+    }
+    .home-bg #intro {
+        padding-top: 1rem;
+    }
+    .home-bg #intro .banner {
+        margin-top: -4rem;
+    }
+    .home-bg #intro .banner-content {
+        padding-top: 0;
+        margin-top: 0;
+    }
+    .home-bg #intro .banner-subcontent {
+        padding: 0 0.3rem;
+        font-size: 1.2rem;
     }
 }
