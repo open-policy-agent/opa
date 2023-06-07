@@ -1,10 +1,10 @@
-html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p,
-blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img,
-ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i,
-center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption,
-tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure,
-figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary,
-time, mark, audio, video {
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote,
+pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd,
+q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt,
+dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead,
+tr, th, td, article, aside, canvas, details, embed, figure, figcaption, footer,
+header, hgroup, menu, nav, output, ruby, section, summary, time, mark, audio,
+video {
     margin: 0;
     padding: 0;
     border: 0;
@@ -14,7 +14,8 @@ time, mark, audio, video {
 }
 
 /* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav, section {
+article, aside, details, figcaption, figure, footer, header, hgroup, menu, nav,
+section {
     display: block;
 }
 
@@ -1001,10 +1002,6 @@ h4 {
         font-size: 31px !important;
     }
 
-    .bg img {
-        margin-top: -180px !important;
-    }
-
     .boxTop-heading {
         top: 53%;
     }
@@ -1057,10 +1054,6 @@ h4 {
 }
 
 @media screen and (max-width: 320px) {
-    .bg img {
-        margin-top: -270px;
-    }
-
     .declarative-policy-contentBox-header {
         width: 35%;
     }
@@ -1129,17 +1122,7 @@ h4 {
 
 }
 
-@media screen and (min-width: 350px) and (max-width: 400px) {
-    .bg img {
-        margin-top: -308px;
-    }
-}
-
 @media screen and (min-width: 401px) and (max-width: 450px) {
-    .bg img {
-        margin-top: -340px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1177,10 +1160,6 @@ h4 {
 
 
 @media screen and (min-width: 451px) and (max-width: 500px) {
-    .bg img {
-        margin-top: -400px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1257,18 +1236,9 @@ h4 {
     .declarativeEnvoy {
         line-height: 17px !important;
     }
-
-    .bg img {
-        margin-top: -430px;
-    }
-
 }
 
 @media screen and (min-width: 551px) and (max-width: 575px) {
-    .bg img {
-        margin-top: -445px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1306,10 +1276,6 @@ h4 {
 }
 
 @media screen and (min-width: 576px) and (max-width: 600px) {
-    .bg img {
-        margin-top: -475px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1347,10 +1313,6 @@ h4 {
 }
 
 @media screen and (min-width: 601px) and (max-width: 650px) {
-    .bg img {
-        margin-top: -475px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1388,10 +1350,6 @@ h4 {
 }
 
 @media screen and (min-width: 651px) and (max-width: 700px) {
-    .bg img {
-        margin-top: -555px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1429,10 +1387,6 @@ h4 {
 }
 
 @media screen and (min-width: 701px) and (max-width: 750px) {
-    .bg img {
-        margin-top: -605px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1470,10 +1424,6 @@ h4 {
 }
 
 @media screen and (min-width: 751px) and (max-width: 767px) {
-    .bg img {
-        margin-top: -655px;
-    }
-
     .declarativeBOx {
         height: 100px;
     }
@@ -1519,12 +1469,7 @@ h4 {
 }
 
 @media screen and (max-width: 575px) {
-
-    /* .bg img{
-        margin-top: -260px;
-    } */
-    .boxBottom,
-    .boxTop {
+    .boxBottom, .boxTop {
         width: 280px;
         margin: auto;
     }
@@ -1552,10 +1497,6 @@ h4 {
         padding-top: 100px;
         font-size: 31px !important;
     }
-
-    .bg img {
-        margin-top: -180px !important;
-    }
 }
 
 @media screen and (min-width: 1201px) and (max-width: 1400px) {
@@ -1563,10 +1504,6 @@ h4 {
         text-align: center;
         padding-top: 130px;
         font-size: 37px !important;
-    }
-
-    .bg img {
-        margin-top: -225px !important;
     }
 }
 
@@ -1617,10 +1554,6 @@ h4 {
         text-align: center;
         font-size: 23px !important;
         padding-bottom: 10px;
-    }
-
-    .bg img {
-        margin-top: -140px;
     }
 
     .banner-subcontent {
@@ -1745,8 +1678,8 @@ h4 {
     }
 
     /* .nav-tabs{
-        margin-left: 0px;
-    } */
+          margin-left: 0px;
+      } */
     .nav-tabs .nav-item img {
         width: 14px;
         height: 14px;
@@ -1766,10 +1699,6 @@ h4 {
         margin-top: 15px;
     }
 
-
-    .bg img {
-        display: none;
-    }
 
     .envoyLogo {
         width: 20px !important;
@@ -1963,7 +1892,9 @@ div.CodeMirror-cursor {
         padding: 0 0.3rem;
         font-size: 1.2rem;
     }
-}.grid-container {
+}
+
+.grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     grid-gap: 1rem;
@@ -2006,9 +1937,11 @@ div.CodeMirror-cursor {
 .banner-content {
     padding: 0 1rem;
 }
+
 .banner-subcontent {
     padding: 0 1rem;
 }
+
 .page-content {
     padding: 0 1rem;
 }
@@ -2042,10 +1975,6 @@ div.CodeMirror-cursor {
 }
 
 @media screen and (max-width: 767px) {
-    .bg img {
-        display: unset;
-    }
-
     .cloud-top img {
         display: none;
     }
@@ -2055,6 +1984,7 @@ div.CodeMirror-cursor {
         margin-bottom: 1rem;
         font-size: 1.5rem;
     }
+
     .banner-subcontent {
         padding: 0 1rem;
         font-weight: 300;
@@ -2064,11 +1994,13 @@ div.CodeMirror-cursor {
 .grid-container {
     grid-template-columns: 1fr;
 }
+
 .card {
     max-width: 100%;
 }
 
-.page-content ol, .page-content ul {
+.page-content ol,
+.page-content ul {
     padding-left: 1rem;
 }
 
@@ -2087,7 +2019,7 @@ li {
 .grid-container {
     grid-template-columns: 1fr;
 }
+
 .card {
     max-width: 100%;
 }
-
