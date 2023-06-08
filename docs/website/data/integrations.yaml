@@ -1330,6 +1330,27 @@ integrations:
     code:
       - https://github.com/dolevf/graphql-open-policy-agent
 
+  regal:
+    title: Regal
+    description: |
+      Regal is a linter for Rego, with the goal of making your Rego magnificent!
+
+      Regal can:
+      * Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
+      * Provide advice on best practices, coding style, and tooling
+      * Allow users, teams and organizations to enforce custom rules on their policy code
+    labels:
+      category: tooling
+      layer: shell
+    software:
+      - regal
+    inventors:
+      - styra
+    code:
+      - https://github.com/StyraInc/regal
+    videos:
+      - https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567
+
   rekor:
     title: Rekor transparency log monitoring and alerting
     description: |
@@ -2067,6 +2088,9 @@ software:
   rond:
     name: Rönd
     link: https://rond-authz.io/
+  regal:
+    name: Regal
+    link: https://github.com/StyraInc/regal
   ssikit:
     name: ssikit
     link: https://walt.id/ssi-kit
