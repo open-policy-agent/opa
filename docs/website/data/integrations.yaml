@@ -1607,20 +1607,20 @@ integrations:
     inventors:
       - megaease
 
-  styra-load:
-    title: Styra Load
-    description: Styra Load is the only enterprise-grade authorization engine built to provide resource-efficient performance for data-heavy workloads while connecting natively to your existing data sources.
+  enterprise-opa:
+    title: Enterprise OPA
+    description: Enterprise OPA from Styra is the only enterprise-grade authorization engine built to provide resource-efficient performance for data-heavy workloads while connecting natively to your existing data sources.
     software:
-      - styra-load
+      - enterprise-opa
     labels:
       category: authorization
       type: poweredbyopa
     tutorials:
-      - https://docs.styra.com/load
-      - https://docs.styra.com/load/performance-testing
-      - https://docs.styra.com/load/configuration/data/kafka-streams-api
+      - https://docs.styra.com/enterprise-opa
+      - https://docs.styra.com/enterprise-opa/performance-testing
+      - https://docs.styra.com/enterprise-opa/configuration/data/kafka-streams-api
     code:
-      - https://github.com/StyraInc/load
+      - https://github.com/StyraInc/enterprise-opa
     inventors:
       - styra
     blogs:
@@ -2004,9 +2004,9 @@ software:
   styra-das:
     name: Styra DAS
     link: https://www.styra.com/styra-das/
-  styra-load:
-    name: Styra Load
-    link: https://www.styra.com/styra-load/
+  enterprise-opa:
+    name: Enterprise OPA
+    link: https://www.styra.com/enterprise-opa/
   kustomize:
     name: Kustomize
     link: https://kustomize.io
