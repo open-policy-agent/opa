@@ -211,6 +211,47 @@ func TestConcurrentInsert(t *testing.T) {
 	}
 }
 
+func TestClone(t *testing.T) {
+	in := `{"inter_query_builtin_cache": {"max_size_bytes": 40},}`
+
+	config, err := ParseCachingConfig([]byte(in))
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	cache := NewInterQueryCache(config)
+
+	cacheValue := newInterQueryCacheValue(ast.StringTerm("bar").Value, 20)
+	dropped := cache.Insert(ast.StringTerm("foo").Value, cacheValue)
+	if dropped != 0 {
+		t.Fatal("Expected dropped to be zero")
+	}
+
+	val, found := cache.Get(ast.StringTerm("foo").Value)
+	if !found {
+		t.Fatal("Expected key \"foo\" in cache")
+	}
+
+	dup, err := cache.Clone(val)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	original, ok := val.(*testInterQueryCacheValue)
+	if !ok {
+		t.Fatal("unexpected type")
+	}
+
+	cloned, ok := dup.(*testInterQueryCacheValue)
+	if !ok {
+		t.Fatal("unexpected type")
+	}
+
+	if !reflect.DeepEqual(*original, *cloned) {
+		t.Fatalf("Expected to get %v, but got %v", *original, *cloned)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	config, err := ParseCachingConfig(nil)
 	if err != nil {
@@ -298,4 +339,8 @@ func newInterQueryCacheValue(value ast.Value, size int) *testInterQueryCacheValu
 
 func (p testInterQueryCacheValue) SizeInBytes() int64 {
 	return int64(p.size)
+}
+
+func (p testInterQueryCacheValue) Clone() (InterQueryCacheValue, error) {
+	return &testInterQueryCacheValue{value: p.value, size: p.size}, nil
 }
