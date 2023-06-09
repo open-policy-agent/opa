@@ -351,6 +351,12 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`ref_rule_single_with_number_key`, `p.q[3] { true }`},
 		{`ref_regression_array_key`,
 			`walker[[p, v]] = o { l = input; walk(l, k); [p, v] = k; o = {} }`},
+		{`overlap`, `p.q[r] = y { x = ["a", "b"]; y = x[r] }`},
+		{`overlap`, `p.q.r = false { true }`},
+		{`overlap`, `p.q.r = "false" { true }`},
+		{`overlap`, `p.q[42] = 1337 { true }`},
+		{`overlap`, `p.q.a = input.a { true }`},
+		{`overlap`, `p.q[56] = input.a { true }`},
 	}
 
 	tests := []struct {
@@ -504,6 +510,50 @@ func TestCheckInferenceRules(t *testing.T) {
 				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
 					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 			)},
+		{
+			note:     "ref-rules single value, full ref to known leaf",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q.r",
+			expected: types.NewAny(types.B, types.S),
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (same key type as dynamic, different value type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q[42]",
+			expected: types.N,
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (any type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q.a",
+			expected: types.A,
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (same key type as dynamic, any type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q[56]",
+			expected: types.A,
+		},
+		{
+			note:     "ref-rules single value, full ref to dynamic leaf",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q[1]",
+			expected: types.S,
+		},
+		{
+			note:  "ref-rules single value, prefix ref to partial object root",
+			rules: ruleset2,
+			ref:   "data.overlap.p.q",
+			expected: types.NewObject(
+				[]*types.StaticProperty{
+					types.NewStaticProperty(json.Number("42"), types.N),
+					types.NewStaticProperty(json.Number("56"), types.A),
+					types.NewStaticProperty("a", types.A),
+					types.NewStaticProperty("r", types.Or(types.B, types.S)),
+				},
+				types.NewDynamicProperty(types.N, types.S),
+			),
+		},
 	}
 
 	for _, tc := range tests {

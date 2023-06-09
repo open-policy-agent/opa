@@ -1,0 +1,32 @@
+cases:
+- note: regression/partial-object override, different key type, query
+  modules:
+  - |
+    package test
+    
+    p[k] := v {
+      v := ["a", "b", "c"][k]
+    }
+    
+    p.foo := "bar"
+  query: data.test.p.foo = x
+  want_result:
+  - x: "bar"
+- note: regression/partial-object override, different key type, referenced in other rule
+  modules:
+    - |
+      package test
+      
+      p[k] := v {
+        v := ["a", "b", "c"][k]
+      }
+      
+      p.foo := "bar"
+      
+      q[x] {
+        x := p[_]
+        x == "bar"
+      }
+  query: data.test.q = x
+  want_result:
+    - x: ["bar"]
