@@ -30,6 +30,7 @@ copy-builtin-metadata:
 .PHONY: dev-generate
 dev-generate: generate-cli-docs copy-builtin-metadata
 	DEV=true $(CURDIR)/website/scripts/load-docs.sh
+	cp -r $(CURDIR)/website/content/* $(CURDIR)/website/generated/
 
 # The website has some npm dependencies saved in ./website/node_modules
 # As well as dependencies required for the "live-blocks".
