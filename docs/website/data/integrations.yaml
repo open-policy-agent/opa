@@ -1331,7 +1331,7 @@ integrations:
       - https://github.com/dolevf/graphql-open-policy-agent
 
   regal:
-    title: Regal
+    title: Regal - The Rego Linter
     description: |
       Regal is a linter for Rego, with the goal of making your Rego magnificent!
 
