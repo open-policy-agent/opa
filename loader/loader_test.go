@@ -312,7 +312,61 @@ func TestLoadBundle(t *testing.T) {
 			t.Fatalf("Expected %v but got: %v", string(testBundle.Modules[0].Raw), loaded.Modules["/x.rego"].Raw)
 		}
 	})
+}
 
+func TestLoadBundleWithReader(t *testing.T) {
+
+	buf := bytes.Buffer{}
+	testBundle := bundle.Bundle{
+		Modules: []bundle.ModuleFile{
+			{
+				Path: "x.rego",
+				Raw: []byte(`
+				package baz
+
+				p = 1`),
+			},
+		},
+		Data: map[string]interface{}{
+			"foo": "bar",
+		},
+		Manifest: bundle.Manifest{
+			Revision: "",
+			Roots:    &[]string{"foo", "baz"},
+		},
+	}
+
+	if err := bundle.Write(&buf, testBundle); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := NewFileLoader().WithReader(&buf).AsBundle("bundle.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b == nil {
+		t.Fatalf("Expected bundle to be non-nil")
+	}
+
+	if exp, act := 1, len(b.Modules); exp != act {
+		t.Fatalf("expected %d modules, got %d", exp, act)
+	}
+
+	expectedModulePaths := map[string]struct{}{
+		"/x.rego": {},
+	}
+	for _, mf := range b.Modules {
+		if _, found := expectedModulePaths[mf.Path]; !found {
+			t.Errorf("Unexpected module file with path %s in bundle modules", mf.Path)
+		}
+	}
+
+	if exp, act := map[string]any{"foo": "bar"}, b.Data; !reflect.DeepEqual(act, exp) {
+		t.Fatalf("expected data %+v, got %+v", exp, act)
+	}
+	if exp, act := []string{"foo", "baz"}, *b.Manifest.Roots; !reflect.DeepEqual(act, exp) {
+		t.Fatalf("expected roots %v, got %v", exp, act)
+	}
 }
 
 func TestLoadBundleSubDir(t *testing.T) {

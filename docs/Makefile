@@ -20,15 +20,20 @@ generate-cli-docs:
 	$(CURDIR)/../build/gen-cli-docs.sh "$(CURDIR)/content"
 
 .PHONY: generate
-generate: generate-cli-docs copy-builtin-metadata
+generate: generate-cli-docs copy-builtin-metadata copy-hugo-static-content
 	$(CURDIR)/website/scripts/load-docs.sh
 
 .PHONY: copy-builtin-metadata
 copy-builtin-metadata:
 	cp -v $(CURDIR)/../builtin_metadata.json $(CURDIR)/website/data/builtin_metadata.json
 
+.PHONY: copy-hugo-static-content
+copy-hugo-static-content:
+	mkdir -p $(CURDIR)/website/generated/
+	cp -r $(CURDIR)/website/content/* $(CURDIR)/website/generated/
+
 .PHONY: dev-generate
-dev-generate: generate-cli-docs copy-builtin-metadata
+dev-generate: generate-cli-docs copy-builtin-metadata copy-hugo-static-content
 	DEV=true $(CURDIR)/website/scripts/load-docs.sh
 
 # The website has some npm dependencies saved in ./website/node_modules

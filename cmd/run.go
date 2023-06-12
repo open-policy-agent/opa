@@ -167,6 +167,10 @@ The 'run' command can ONLY be used with the --bundle flag to verify signatures
 for existing bundle files or directories following the bundle structure.
 
 To skip bundle verification, use the --skip-verify flag.
+
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, the updated policy
+and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
+updates might cause them to be dropped by OPA.
 `,
 
 		Run: func(cmd *cobra.Command, args []string) {

@@ -1,92 +1,34 @@
+{{ define "title" }}Open Policy Agent{{ end }}
+
+{{ define "head" }}
+  {{ partial "google-analytics.html" . }}
+  {{ partial "meta.html" . }}
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+<link rel="stylesheet" href="/css/styles.css">
+{{ end }}
+
 {{ define "main" }}
-{{- $latest := "latest" -}}
-{{- if eq (len site.Data.releases) 1 -}}
-{{- $latest = "edge" -}}
-{{- end -}}
-  <!doctype html>
-  <html lang="en">
 
-  <head>
-      {{ partial "google-analytics.html" . }}
-      {{ partial "meta.html" . }}
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<div class="home">
+  {{ partial "nav.html" . }}
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="css/bootstrap.min.css">
-
-    <title>Open Policy Agent</title>
-    <link rel="stylesheet" href="./css/home.css">
-  </head>
-
-  <body data-spy="scroll" data-target=".navbar" data-offset="90">
-  <div id="navigation">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
-      <div class="container">
-
-        <a class="navbar-brand" href="/"><img src="./img/logo-white.png" class="img-fluid"></a>
-        <button class="navbar-toggler navbar-toggler-right collapsed"
-                type="button" data-toggle="collapse"
-                data-target="#navb" aria-expanded="false">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="navbar-collapse collapse" id="navb">
-          <ul class="navbar-nav mr-auto">
-          </ul>
-
-          <ul class="navbar-nav">
-            <li class="nav-item"><a class="nav-link" href="./docs/{{ $latest }}/">Docs</a></li>
-            <li class="nav-item"><a class="nav-link" href="./docs/{{ $latest }}/#running-opa">Download</a></li>
-            <li class="nav-item"><a class="nav-link" href="./docs/{{ $latest }}/ecosystem/">Ecosystem</a></li>
-            <li class="nav-item"><a class="nav-link" href="./security">Security</a></li>
-            <li class="nav-item"><a class="nav-link" href="./support">Support</a></li>
-            <li class="nav-item"><a class="nav-link" href="./community">Community</a></li>
-            <li class="nav-item"><a class="nav-link" href="https://play.openpolicyagent.org/">Play</a></li>
-            <li class="nav-item"><a class="nav-link" href="https://blog.openpolicyagent.org/">Blog</a></li>
-            <li class="nav-item social-nav-item">
-              <a class="nav-link social-icon-link" href="https://twitter.com/openpolicyagent">
-                <img src="./img/twitter-icon.png" alt="Twitter">
-                <div class="nav-link social-icon-title">Twitter</div>
-              </a>
-            </li>
-            <li class="nav-item social-nav-item">
-              <a class="nav-link social-icon-link" href="https://slack.openpolicyagent.org/">
-                <img src="./img/slack-icon.png" alt="Slack">
-                <div class="nav-link social-icon-title">Slack</div>
-              </a>
-            </li>
-            <li class="nav-item social-nav-item">
-              <a class="nav-link social-icon-link" href="https://github.com/open-policy-agent/opa">
-                <img src="./img/github-icon.png" alt="GitHub">
-                <div class="social-icon-title">GitHub</div>
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-    </nav>
-  </div>
-
-  <section id="homebackground">
-
-    <div class="bg">
-      <div class="banner-content">Policy-based control for cloud native
-        environments
-      </div>
-      <div class="banner-subcontent">Flexible, fine-grained control for
+  <section id="intro">
+      <h1 class="banner-content site-title">
+        Policy-based control for cloud native environments
+      </h1>
+      <div class="banner-subcontent site-subtitle">Flexible, fine-grained control for
         administrators across the stack
       </div>
-      <img src="./img/banner-image.png">
-      <div class="mobile-view-Banner"><img
-                src="./img/opa-mobile-banner_mobile.png"></div>
+
+    <div class="banner">
+      <img src="/img/banner-image.png"/>
     </div>
   </section>
-
-  <div class="clearfix"></div>
 
   <section id="about">
     <div class="container">
@@ -108,11 +50,15 @@
             </p>
           </div>
           <div class="mt-5 text-center">
-            <div class="styraText">
-              <p>Created By</p><span> <a href="https://styra.com"><img
-                          src="./img/styra-logo.jpg"
-                          class="img-fluid"></a></span>
+            <div class="styra-text">
+              <p>Created By</p>
+              <a class="styra-logo" href="https://styra.com">
+                <img src="./img/styra-logo.jpg">
+              </a>
             </div>
+            <p class="creator-note">
+              OPA is now maintained by Styra and a large community of contributors
+            </p>
           </div>
         </div>
       </div>
@@ -221,7 +167,7 @@
                                         </pre>
                                 </div>
                                 <div class="highlight">
-                                    <a onclick='window.open("https://play.openpolicyagent.org/p/9OTwNMYSog")'>
+                                  <a onclick='window.open("https://play.openpolicyagent.org/p/9OTwNMYSog")'>
                                         <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                           <code class="language-live"
                                                 data-lang="live:kubernetes_registry_check_desktop:module:read_only">package kubernetes.admission
@@ -237,7 +183,7 @@ deny contains msg if {
 }
                                           </code>
                                         </pre>
-                                    </a>
+                                  </a>
                                 </div>
                                 <div class="highlight">
                                   <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
@@ -248,11 +194,11 @@ deny contains msg if {
                                 </div>
                                 <div class="text-center blue">
                                   <button
-                                      class="mt-4 btn btn-primary btn-playground"><a
-                                      target="_blank"
-                                      href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
-                                      <img src="/live-blocks/icons/playground-open.svg"
-                                        class="launch-playground-icon"></a>
+                                    class="mt-4 btn btn-primary btn-playground"><a
+                                    target="_blank"
+                                    href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
+                                    <img src="/live-blocks/icons/playground-open.svg"
+                                         class="launch-playground-icon"></a>
                                   </button>
                                 </div>
                               </div>
@@ -341,11 +287,11 @@ deny contains msg if {
                                 </div>
                                 <div class="text-center blue">
                                   <button
-                                      class="mt-4 btn btn-primary btn-playground"><a
-                                      target="_blank"
-                                      href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
-                                      <img src="/live-blocks/icons/playground-open.svg"
-                                        class="launch-playground-icon"></a>
+                                    class="mt-4 btn btn-primary btn-playground"><a
+                                    target="_blank"
+                                    href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
+                                    <img src="/live-blocks/icons/playground-open.svg"
+                                         class="launch-playground-icon"></a>
                                   </button>
                                 </div>
                               </div>
@@ -469,11 +415,11 @@ allow if {
                               </div>
                               <div class="text-center blue">
                                 <button
-                                    class="mt-4 btn btn-primary btn-playground"><a
-                                    target="_blank"
-                                    href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
-                                    <img src="/live-blocks/icons/playground-open.svg"
-                                      class="launch-playground-icon"></a>
+                                  class="mt-4 btn btn-primary btn-playground"><a
+                                  target="_blank"
+                                  href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
+                                  <img src="/live-blocks/icons/playground-open.svg"
+                                       class="launch-playground-icon"></a>
                                 </button>
                               </div>
                             </div>
@@ -574,11 +520,11 @@ source_spiffe_id := client_id if {
                               </div>
                               <div class="text-center blue">
                                 <button
-                                    class="mt-4 btn btn-primary btn-playground"><a
-                                    target="_blank"
-                                    href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
-                                    <img src="/live-blocks/icons/playground-open.svg"
-                                      class="launch-playground-icon"></a>
+                                  class="mt-4 btn btn-primary btn-playground"><a
+                                  target="_blank"
+                                  href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
+                                  <img src="/live-blocks/icons/playground-open.svg"
+                                       class="launch-playground-icon"></a>
                                 </button>
                               </div>
                             </div>
@@ -663,11 +609,11 @@ allow if {
                               </div>
                               <div class="text-center blue">
                                 <button
-                                    class="mt-4 btn btn-primary btn-playground"><a
-                                    target="_blank"
-                                    href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
-                                    <img src="/live-blocks/icons/playground-open.svg"
-                                      class="launch-playground-icon"></a>
+                                  class="mt-4 btn btn-primary btn-playground"><a
+                                  target="_blank"
+                                  href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
+                                  <img src="/live-blocks/icons/playground-open.svg"
+                                       class="launch-playground-icon"></a>
                                 </button>
                               </div>
                             </div>
@@ -730,11 +676,11 @@ allowed_pets contains pet if {
                               </div>
                               <div class="text-center blue">
                                 <button
-                                    class="mt-4 btn btn-primary btn-playground"><a
-                                    target="_blank"
-                                    href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
-                                    <img src="/live-blocks/icons/playground-open.svg"
-                                      class="launch-playground-icon"></a>
+                                  class="mt-4 btn btn-primary btn-playground"><a
+                                  target="_blank"
+                                  href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
+                                  <img src="/live-blocks/icons/playground-open.svg"
+                                       class="launch-playground-icon"></a>
                                 </button>
                               </div>
                             </div>
@@ -904,11 +850,11 @@ deny contains msg if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -996,11 +942,11 @@ deny contains msg if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -1129,11 +1075,11 @@ allow if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -1233,11 +1179,11 @@ source_spiffe_id = client_id if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -1328,11 +1274,11 @@ allow if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -1395,11 +1341,11 @@ allowed_pets contains pet if {
                         </div>
                         <div class="text-center blue">
                           <button
-                              class="mt-4 btn btn-primary btn-playground"><a
-                              target="_blank"
-                              href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
-                              <img src="/live-blocks/icons/playground-open.svg"
-                                class="launch-playground-icon"></a>
+                            class="mt-4 btn btn-primary btn-playground"><a
+                            target="_blank"
+                            href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
+                            <img src="/live-blocks/icons/playground-open.svg"
+                                 class="launch-playground-icon"></a>
                           </button>
                         </div>
                       </div>
@@ -1448,14 +1394,14 @@ allowed_pets contains pet if {
         <div class="col-12 mt-2">
           <div class="mt-4" style="font-weight:600"><label>Learn More</label></div>
           <div class="mt-2">
-            <a href="./docs/{{ $latest }}/kubernetes-introduction/" class="btn more-link btn-primary"
-              target="_blank">Kubernetes</a>
-            <a href="./docs/{{ $latest }}/envoy-introduction/" class="btn btn-primary more-link" target="_blank">Envoy</a>
-            <a href="./docs/{{ $latest }}/terraform/" class="btn more-link btn-primary" target="_blank">Terraform</a>
-            <a href="./docs/{{ $latest }}/kafka-authorization/" class="btn more-link btn-primary" target="_blank">Kafka</a>
+            <a href="./docs/latest/kubernetes-introduction/" class="btn more-link btn-primary"
+               target="_blank">Kubernetes</a>
+            <a href="./docs/latest/envoy-introduction/" class="btn btn-primary more-link" target="_blank">Envoy</a>
+            <a href="./docs/latest/terraform/" class="btn more-link btn-primary" target="_blank">Terraform</a>
+            <a href="./docs/latest/kafka-authorization/" class="btn more-link btn-primary" target="_blank">Kafka</a>
             <a href="https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4"
-              class="btn more-link btn-primary" target="_blank">SQL</a>
-            <a href="./docs/{{ $latest }}/ssh-and-sudo-authorization/" class="btn more-link btn-primary" target="_blank">Linux</a>
+               class="btn more-link btn-primary" target="_blank">SQL</a>
+            <a href="./docs/latest/ssh-and-sudo-authorization/" class="btn more-link btn-primary" target="_blank">Linux</a>
           </div>
         </div>
       </div>
@@ -1558,8 +1504,8 @@ allowed_pets contains pet if {
         <div class="col-12 mt-2">
           <div class="mt-4" style="font-weight:600"><label>Learn More</label></div>
           <div class="mt-2">
-            <a href="./docs/{{ $latest }}/deployments/" class="btn btn-primary more-link" target="_blank">Daemon</a>
-            <a href="./docs/{{ $latest }}/integration/#integrating-with-the-go-api" class="btn btn-primary more-link" target="_blank">Library</a>
+            <a href="./docs/latest/deployments/" class="btn btn-primary more-link" target="_blank">Daemon</a>
+            <a href="./docs/latest/integration/#integrating-with-the-go-api" class="btn btn-primary more-link" target="_blank">Library</a>
           </div>
         </div>
       </div>
@@ -1614,7 +1560,7 @@ allowed_pets contains pet if {
           <div class="mt-2">
             <a href="https://marketplace.visualstudio.com/items?itemName=tsandall.opa" class="btn btn-primary more-link" target="_blank">VS Code</a>
             <a href="https://play.openpolicyagent.org/" class="btn btn-primary more-link" target="_blank">Rego Playground</a>
-            <a href="./docs/{{ $latest }}/#running-opa" class="btn btn-primary more-link" target="_blank">General Tooling</a>
+            <a href="./docs/latest/#running-opa" class="btn btn-primary more-link" target="_blank">General Tooling</a>
             <a href="https://github.com/open-policy-agent" class="btn btn-primary more-link" target="_blank">OPA GitHub</a>
           </div>
         </div>
@@ -1636,7 +1582,7 @@ allowed_pets contains pet if {
           <div class="footer-bottom">
             © {{ now.Format "2006"}} Open Policy Agent contributors. Licensed under the Apache
             License, Version 2.0. For information about
-            contributing, <a href="/docs/{{ $latest }}/contributing/">see documentation</a>.
+            contributing, <a href="/docs/latest/contributing/">see documentation</a>.
           </div>
         </div>
       </div>
@@ -1661,26 +1607,21 @@ allowed_pets contains pet if {
           crossorigin="anonymous"
           referrerpolicy="no-referrer"></script>
   <script>
-      $(function () {
-          var offset = 50;
-          var scroll = new SmoothScroll('a[href*="#"]', {
-              speed: 500, offset
-          });
+    $(function () {
+      var offset = 50;
+      var scroll = new SmoothScroll('a[href*="#"]', {
+        speed: 500, offset
       });
+    });
   </script>
 
   <script>
 
-      $('a[data-toggle="pill"],a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-          $(".CodeMirror").each(function () {
-              this.CodeMirror.refresh();
-          });
+    $('a[data-toggle="pill"],a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+      $(".CodeMirror").each(function () {
+        this.CodeMirror.refresh();
       });
+    });
 
   </script>
-
-
-  </body>
-
-  </html>
 {{ end }}

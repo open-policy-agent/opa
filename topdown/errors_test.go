@@ -14,14 +14,17 @@ func TestErrorWrapping(t *testing.T) {
 		return errors.As(err, &topdown.Halt{})
 	}
 
-	e0 := topdown.Error{Code: topdown.BuiltinErr,
-		Message: "builtin error",
-		Location: &location.Location{
-			File: "b.rego",
-			Col:  10,
-			Row:  12,
-		},
+	builtinErr := errors.New("builtin error")
+	loc := location.Location{
+		File: "b.rego",
+		Col:  10,
+		Row:  12,
 	}
+
+	e0 := (&topdown.Error{Code: topdown.BuiltinErr,
+		Message:  "builtin error",
+		Location: &loc,
+	}).Wrap(builtinErr)
 
 	tests := []struct {
 		note  string
@@ -64,24 +67,38 @@ func TestErrorWrapping(t *testing.T) {
 			check: topdown.IsCancel,
 		},
 		{
+			note: "wrapped builtin error",
+			err:  e0,
+			check: func(err error) bool {
+				return errors.Is(err, builtinErr)
+			},
+		},
+		{
 			note: "matching errors, code",
-			err:  &e0,
+			err:  e0,
 			check: func(err error) bool {
 				return errors.Is(err, &topdown.Error{Code: topdown.BuiltinErr})
 			},
 		},
 		{
 			note: "matching errors, code and message",
-			err:  &e0,
+			err:  e0,
 			check: func(err error) bool {
 				return errors.Is(err, &topdown.Error{Code: topdown.BuiltinErr, Message: "builtin error"})
 			},
 		},
 		{
-			note: "matching errors, code and message and location",
-			err:  &e0,
+			note: "matching errors, code, message and location",
+			err:  e0,
 			check: func(err error) bool {
-				return errors.Is(err, &e0)
+				return errors.Is(err, &topdown.Error{Code: topdown.BuiltinErr, Message: "builtin error", Location: &loc})
+			},
+		},
+		{
+			note: "matching errors, code, message, location and builtin error",
+			err:  e0,
+			check: func(err error) bool {
+				return errors.Is(err, e0)
 			},
 		},
 	}
