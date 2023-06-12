@@ -82,6 +82,20 @@ func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func
 	return iter(ast.NumberTerm(int64ToJSONNumber(int64(value))))
 }
 
+// Represent exposed constants for formatting from the stdlib time pkg
+var AcceptedTimeFormats = map[string]string{
+	"ANSIC":       time.ANSIC,
+	"UnixDate":    time.UnixDate,
+	"RubyDate":    time.RubyDate,
+	"RFC822":      time.RFC822,
+	"RFC822Z":     time.RFC822Z,
+	"RFC850":      time.RFC850,
+	"RFC1123":     time.RFC1123,
+	"RFC1123Z":    time.RFC1123Z,
+	"RFC3339":     time.RFC3339,
+	"RFC3339Nano": time.RFC3339Nano,
+}
+
 func builtinFormat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	t, layout, err := tzTime(operands[0].Value)
 	if err != nil {
@@ -90,7 +104,12 @@ func builtinFormat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	// Using RFC3339Nano time formatting as default
 	if layout == "" {
 		layout = time.RFC3339Nano
+	} else if layoutStr, ok := AcceptedTimeFormats[layout]; ok {
+		// if we can find a constant specified, use the constant
+		layout = layoutStr
 	}
+	// otherwise try to treat the fmt string as a datetime fmt string
+
 	timestamp := t.Format(layout)
 	return iter(ast.StringTerm(timestamp))
 }
