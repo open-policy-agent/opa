@@ -74,7 +74,7 @@ echo "Git version: ${GIT_VERSION}"
 echo "Releases to consider: ${RELEASES[*]}"
 
 echo "Cleaning generated folder"
-rm -rf ${ROOT_DIR}/docs/website/generated/*
+rm -rf ${ROOT_DIR}/docs/website/generated/docs/*
 
 echo "Removing data/releases.yaml file"
 rm -f ${RELEASES_YAML_FILE}
