@@ -24,7 +24,7 @@ cases:
   - no_timezone: "2022-12-02T18:40:53.141828752Z"
     with_timezone: "2022-12-03T00:10:53.141828752+05:30"
     with_layout: "Sat Dec 03 00:10:53 +0530 2022"
-    with_constant: "Sat, 03 Dec 2002 00:10:53 +0530"
+    with_constant: "Sat, 03 Dec 2022 00:10:53 +0530"
 - data:
   modules:
   - |
