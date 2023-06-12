@@ -399,6 +399,7 @@ type Reader struct {
 	etag                  string
 	lazyLoadingMode       bool
 	name                  string
+	persist               bool
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -493,6 +494,12 @@ func (r *Reader) WithBundleName(name string) *Reader {
 // outside the bundle's roots will not be performed while reading the bundle.
 func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
 	r.lazyLoadingMode = yes
+	return r
+}
+
+// WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
+func (r *Reader) WithBundlePersistence(persist bool) *Reader {
+	r.persist = persist
 	return r
 }
 
@@ -658,6 +665,10 @@ func (r *Reader) Read() (Bundle, error) {
 
 		if len(bundle.WasmModules) != 0 {
 			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but wasm files found")
+		}
+
+		if r.persist {
+			return bundle, fmt.Errorf("'persist' property is true in config. persisting delta bundle to disk is not supported")
 		}
 	}
 

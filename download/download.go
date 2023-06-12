@@ -333,7 +333,8 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				WithBundleVerificationConfig(d.bvc).
 				WithBundleEtag(etag).
 				WithLazyLoadingMode(d.lazyLoadingMode).
-				WithBundleName(d.bundleName)
+				WithBundleName(d.bundleName).
+				WithBundlePersistence(d.persist)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
