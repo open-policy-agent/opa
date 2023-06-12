@@ -15541,7 +15541,7 @@
   "time.format": {
     "args": [
       {
-        "description": "a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string (see golang supported time formats)",
+        "description": "a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string or golang defined formatting constant (see golang supported time formats)",
         "name": "x",
         "type": "any\u003cnumber, array\u003cnumber, string\u003e, array\u003cnumber, string, string\u003e\u003e"
       }
