@@ -1,0 +1,19 @@
+{{ define "title" }}
+  {{ site.Title }} | {{ .Title }}
+{{ end }}
+
+{{ define "content-classes" }}wide{{end}}
+{{ define "edit-link" -}}
+{{ .Params.edit_link }}
+{{- end }}
+
+
+{{ define "content" }}
+
+{{ .Content }}
+
+<p>Integrations are ordered by the amount of related content.</p>
+{{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
+{{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
+
+{{ end }}

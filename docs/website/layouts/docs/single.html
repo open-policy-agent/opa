@@ -2,6 +2,6 @@
 {{ site.Title }} | {{ .Title }}
 {{ end }}
 
-{{ define "main" }}
-  {{ partial "docs/dashboard.html" . }}
+{{ define "content" }}
+  {{ .Content }}
 {{ end }}

@@ -1,0 +1,44 @@
+{{ $integrations := (index . "integrations") }}
+
+{{ $scratch := newScratch }}
+{{ range $name, $integration := $integrations }}
+  {{ $scratch.Set "tutorials" 0 }}
+  {{ if isset $integration "tutorials" }}
+    {{ $hosts := slice }}
+    {{ range $elem := index $integration "tutorials" }}
+      {{ $url := urls.Parse $elem }}
+      {{ $hosts = $hosts | append $url.Host }}
+    {{ end }}
+    {{ $scratch.Set "tutorials" (len ($hosts | uniq)) }}
+  {{ end }}
+
+  {{ $scratch.Set "videos" 0 }}
+  {{ if isset $integration "videos" }}
+    {{ $scratch.Set "videos" (len (index $integration "videos")) }}
+  {{ end }}
+
+  {{ $scratch.Set "blogs" 0 }}
+  {{ if isset $integration "blogs" }}
+    {{ $hosts := slice }}
+    {{ range $elem := index $integration "blogs" }}
+      {{ $url := urls.Parse $elem }}
+      {{ $hosts = $hosts | append $url.Host }}
+    {{ end }}
+    {{ $scratch.Set "blogs" (len ($hosts | uniq)) }}
+  {{ end }}
+
+  {{ $scratch.Set "code" 0 }}
+  {{ if isset $integration "code" }}
+    {{ $scratch.Set "code" (len (index $integration "code")) }}
+  {{ end }}
+
+  {{ $rank := (add ($scratch.Get "tutorials") (add ($scratch.Get "videos") (add ($scratch.Get "blogs") ($scratch.Get "code")))) }}
+  {{ $scratch.Add "integrations-ranked" (slice (dict "name" $name "rank" $rank)) }}
+{{ end }}
+
+{{ $scratch.Set "integrations" (slice) }}
+{{ range $int := sort ($scratch.Get "integrations-ranked") "rank" "desc" }}
+{{ $scratch.Add "integrations" $int.name }}
+{{ end }}
+
+{{ return ($scratch.Get "integrations") }}
