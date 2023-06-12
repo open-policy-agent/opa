@@ -1,10 +1,3 @@
-{{ $isDoc := eq .Section "docs" }}
-{{ $isHome := .IsHome }}
-{{ if $isHome }}
-{{/*  The homepage layouts/index.html template defines its own <head> content.  */}}
-{{ block "main" . }}
-{{ end }}
-{{ else }}
 <!DOCTYPE html>
 <html lang="{{ site.LanguageCode }}">
   <head>
@@ -15,15 +8,20 @@
       {{ block "title" . }}{{ site.Title }}{{ end }}
     </title>
 
+    {{ block "head" . }}{{ end }}
+    {{ define "head" }}{{ end }}
+
     {{ partial "css.html" . }}
   </head>
   <body>
     {{ block "main" . }}
     {{ end }}
+    {{ define "main" }}
+    {{ end }}
 
+    {{ $isDoc := eq .Section "docs" }}
     {{ if $isDoc }}
     {{ partial "javascript.html" . }}
     {{ end }}
   </body>
 </html>
-{{ end }}

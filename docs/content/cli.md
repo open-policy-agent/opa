@@ -824,6 +824,10 @@ for existing bundle files or directories following the bundle structure.
 
 To skip bundle verification, use the --skip-verify flag.
 
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, the updated policy
+and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
+updates might cause them to be dropped by OPA.
+
 
 ```
 opa run [flags]
@@ -986,7 +990,7 @@ Execute Rego test cases
 ### Synopsis
 
 Execute Rego test cases.
-
+	
 The 'test' command takes a file or directory path as input and executes all
 test cases discovered in matching files. Test cases are rules whose names have the prefix "test_".
 
@@ -1052,6 +1056,10 @@ Example benchmark run:
 
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 
+The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, OPA reloads
+the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
+recommended as some updates might cause them to be dropped by OPA.
+
 
 ```
 opa test <path> [path [...]] [flags]
@@ -1073,10 +1081,12 @@ opa test <path> [path [...]] [flags]
       --ignore strings                     set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -m, --max-errors int                     set the number of errors to allow before compilation fails early (default 10)
   -r, --run string                         run only test cases matching the regular expression.
+  -s, --schema string                      set schema file path or directory path
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
   -v, --verbose                            set verbose reporting mode
+  -w, --watch                              watch command line files for changes
 ```
 
 ____

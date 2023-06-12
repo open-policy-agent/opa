@@ -11,6 +11,8 @@ import (
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 )
 
 // Options contains parameters to setup and configure OPA.
@@ -44,6 +46,10 @@ type Options struct {
 	// is recommended, as it makes it easier to track the system over time.
 	ID string
 
+	// Store sets the store to be used by the SDK instance. If nil, it'll use OPA's
+	// inmem store.
+	Store storage.Store
+
 	config []byte
 	block  bool
 }
@@ -73,6 +79,10 @@ func (o *Options) init() error {
 			return err
 		}
 		o.config = bs
+	}
+
+	if o.Store == nil {
+		o.Store = inmem.New()
 	}
 
 	return nil

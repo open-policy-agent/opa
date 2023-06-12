@@ -71,6 +71,19 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
 
+  alluxio:
+    title: Alluxio
+    description: Alluxio is an open source data orchestration technology for analytics and AI for the cloud. Alluxio can integrate with OPA and delegate all permission checks to OPA.
+    software:
+      - alluxio
+    labels:
+      category: authorization
+      type: poweredbyopa
+    tutorials:
+      - https://docs.alluxio.io/ee/user/2.10.0/en/security/OpenPolicyAgent-Integration.html
+    inventors:
+      - alluxio
+
   circleci:
     title: CircleCI
     description: Use config policy management to create organization-level policies to impose rules and scopes around which configuration elements are required, allowed, not allowed etc.
@@ -1330,6 +1343,27 @@ integrations:
     code:
       - https://github.com/dolevf/graphql-open-policy-agent
 
+  regal:
+    title: Regal - The Rego Linter
+    description: |
+      Regal is a linter for Rego, with the goal of making your Rego magnificent!
+
+      Regal can:
+      * Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
+      * Provide advice on best practices, coding style, and tooling
+      * Allow users, teams and organizations to enforce custom rules on their policy code
+    labels:
+      category: tooling
+      layer: shell
+    software:
+      - regal
+    inventors:
+      - styra
+    code:
+      - https://github.com/StyraInc/regal
+    videos:
+      - https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567
+
   rekor:
     title: Rekor transparency log monitoring and alerting
     description: |
@@ -1607,20 +1641,20 @@ integrations:
     inventors:
       - megaease
 
-  styra-load:
-    title: Styra Load
-    description: Styra Load is the only enterprise-grade authorization engine built to provide resource-efficient performance for data-heavy workloads while connecting natively to your existing data sources.
+  enterprise-opa:
+    title: Enterprise OPA
+    description: Enterprise OPA from Styra is the only enterprise-grade authorization engine built to provide resource-efficient performance for data-heavy workloads while connecting natively to your existing data sources.
     software:
-      - styra-load
+      - enterprise-opa
     labels:
       category: authorization
       type: poweredbyopa
     tutorials:
-      - https://docs.styra.com/load
-      - https://docs.styra.com/load/performance-testing
-      - https://docs.styra.com/load/configuration/data/kafka-streams-api
+      - https://docs.styra.com/enterprise-opa
+      - https://docs.styra.com/enterprise-opa/performance-testing
+      - https://docs.styra.com/enterprise-opa/configuration/data/kafka-streams-api
     code:
-      - https://github.com/StyraInc/load
+      - https://github.com/StyraInc/enterprise-opa
     inventors:
       - styra
     blogs:
@@ -1828,6 +1862,9 @@ organizations:
   reposaur:
     name: Reposaur
     link: https://reposaur.com/
+  alluxio:
+    name: Alluxio
+    link: https://www.alluxio.io
 
 software:
   oauth:
@@ -2004,9 +2041,9 @@ software:
   styra-das:
     name: Styra DAS
     link: https://www.styra.com/styra-das/
-  styra-load:
-    name: Styra Load
-    link: https://www.styra.com/styra-load/
+  enterprise-opa:
+    name: Enterprise OPA
+    link: https://www.styra.com/enterprise-opa/
   kustomize:
     name: Kustomize
     link: https://kustomize.io
@@ -2067,6 +2104,9 @@ software:
   rond:
     name: Rönd
     link: https://rond-authz.io/
+  regal:
+    name: Regal
+    link: https://github.com/StyraInc/regal
   ssikit:
     name: ssikit
     link: https://walt.id/ssi-kit
@@ -2088,3 +2128,6 @@ software:
   github:
     name: GitHub
     link: https://github.com
+  alluxio:
+    name: Alluxio
+    link: https://www.alluxio.io
