@@ -71,6 +71,19 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
 
+  alluxio:
+    title: Alluxio
+    description: Alluxio is an open source data orchestration technology for analytics and AI for the cloud. Alluxio can integrate with OPA and delegate all permission checks to OPA.
+    software:
+      - alluxio
+    labels:
+      category: authorization
+      type: poweredbyopa
+    tutorials:
+      - https://docs.alluxio.io/ee/user/2.10.0/en/security/OpenPolicyAgent-Integration.html
+    inventors:
+      - alluxio
+
   circleci:
     title: CircleCI
     description: Use config policy management to create organization-level policies to impose rules and scopes around which configuration elements are required, allowed, not allowed etc.
@@ -1849,6 +1862,9 @@ organizations:
   reposaur:
     name: Reposaur
     link: https://reposaur.com/
+  alluxio:
+    name: Alluxio
+    link: https://www.alluxio.io
 
 software:
   oauth:
@@ -2112,3 +2128,6 @@ software:
   github:
     name: GitHub
     link: https://github.com
+  alluxio:
+    name: Alluxio
+    link: https://www.alluxio.io
