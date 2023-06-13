@@ -2160,7 +2160,7 @@ var Format = &Builtin{
 				types.N,
 				types.NewArray([]types.Type{types.N, types.S}, nil),
 				types.NewArray([]types.Type{types.N, types.S, types.S}, nil),
-			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string (see golang supported time formats)"),
+			)).Description("a number representing the nanoseconds since the epoch (UTC); or a two-element array of the nanoseconds, and a timezone string; or a three-element array of ns, timezone string and a layout string or golang defined formatting constant (see golang supported time formats)"),
 		),
 		types.Named("formatted timestamp", types.S).Description("the formatted timestamp represented for the nanoseconds since the epoch in the supplied timezone (or UTC)"),
 	),
