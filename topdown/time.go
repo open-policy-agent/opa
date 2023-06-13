@@ -49,7 +49,13 @@ func builtinTimeParseNanos(_ BuiltinContext, operands []*ast.Term, iter func(*as
 		return err
 	}
 
-	result, err := time.Parse(string(format), string(value))
+	formatStr := string(format)
+	// look for the formatStr in our acceptedTimeFormats and
+	// use the constant instead if it matches
+	if f, ok := acceptedTimeFormats[formatStr]; ok {
+		formatStr = f
+	}
+	result, err := time.Parse(formatStr, string(value))
 	if err != nil {
 		return err
 	}
@@ -83,7 +89,7 @@ func builtinParseDurationNanos(_ BuiltinContext, operands []*ast.Term, iter func
 }
 
 // Represent exposed constants for formatting from the stdlib time pkg
-var AcceptedTimeFormats = map[string]string{
+var acceptedTimeFormats = map[string]string{
 	"ANSIC":       time.ANSIC,
 	"UnixDate":    time.UnixDate,
 	"RubyDate":    time.RubyDate,
@@ -104,7 +110,7 @@ func builtinFormat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	// Using RFC3339Nano time formatting as default
 	if layout == "" {
 		layout = time.RFC3339Nano
-	} else if layoutStr, ok := AcceptedTimeFormats[layout]; ok {
+	} else if layoutStr, ok := acceptedTimeFormats[layout]; ok {
 		// if we can find a constant specified, use the constant
 		layout = layoutStr
 	}
