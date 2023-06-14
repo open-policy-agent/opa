@@ -66,7 +66,7 @@ button:not(:disabled) {
     background-color: #36d0dc;
     width: 100%;
     max-width: 90rem;
-    margin: 0 auto;
+    margin: 0 auto 1rem;
 }
 
 #navigation .navbar {
@@ -120,7 +120,7 @@ button:not(:disabled) {
     color: #000;
 }
 
-.home #intro {
+.home #header {
     background-color: #36d0dc;
     padding-top: 3rem;
     width: 100%;
@@ -136,16 +136,12 @@ button:not(:disabled) {
     text-align: center;
 }
 
-.home #intro .banner {
-    margin-top: -14rem;
+.home #header .banner {
     background-color: white;
 }
 
-.home #intro .banner img {
-    width: 100%;
-    max-width: 90rem;
-    margin: 0 auto;
-    display: block;
+.home #header .banner img {
+    margin: -5rem auto 0;
 }
 
 .home section .container {
@@ -942,6 +938,11 @@ li {
         display: none;
     }
 
+    .home #header .banner img {
+        width: 100%;
+        margin: 0 auto;
+    }
+
     .banner-content {
         padding: 0 1rem;
         margin-bottom: 1rem;
@@ -1326,20 +1327,20 @@ li {
         margin: 0;
     }
 
-    .home #intro {
+    .home #header {
         padding-top: 1rem;
     }
 
-    .home #intro .banner {
+    .home #header .banner {
         margin-top: -4rem;
     }
 
-    .home #intro .banner-content {
+    .home #header .banner-content {
         padding-top: 0;
         margin-top: 0;
     }
 
-    .home #intro .banner-subcontent {
+    .home #header .banner-subcontent {
         padding: 0 0.3rem;
         font-size: 1.2rem;
     }

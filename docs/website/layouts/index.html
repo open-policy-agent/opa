@@ -15,9 +15,9 @@
 {{ define "main" }}
 
 <div class="home">
-  {{ partial "nav.html" . }}
 
-  <section id="intro">
+  <section id="header">
+    {{ partial "nav.html" . }}
       <h1 class="banner-content site-title">
         Policy-based control for cloud native environments
       </h1>
@@ -26,7 +26,8 @@
       </div>
 
     <div class="banner">
-      <img src="/img/banner-image.png"/>
+      <img class="mobileView" src="/img/banner-image.jpg"/>
+      <img class="desktopView" src="/img/banner-image-wide.jpg"/>
     </div>
   </section>
 
