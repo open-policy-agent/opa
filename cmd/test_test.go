@@ -537,3 +537,77 @@ Watching for changes ...
 		}
 	})
 }
+
+func TestWatchModeWhenDataFileRemoved(t *testing.T) {
+	files := map[string]string{
+		"/policy.rego": "package foo\n test_p { data.y == 1 }",
+		"/data.json":   `{"y": 1}`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		var buf bytes.Buffer
+
+		testParams := newTestCommandParams()
+		testParams.output = &buf
+		testParams.watch = true
+		testParams.count = 1
+
+		done := make(chan struct{})
+		go func() {
+			_, _ = opaTest([]string{root}, testParams)
+			<-done
+		}()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update the data
+		f, _ := os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err := f.WriteString(`{"y": 2}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// update the data back to the original state, so the opa test passes
+		f, _ = os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		_, err = f.WriteString(`{"y": 1}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// remove the data file, check that test fails afterward
+		err = os.Remove(path.Join(root, "data.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(500 * time.Millisecond)
+
+		testParams.stopChan <- syscall.SIGINT
+		done <- struct{}{}
+
+		expected := `PASS: 1/1
+********************************************************************************
+Watching for changes ...
+%ROOT%/policy.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+		expected = strings.ReplaceAll(expected, "%ROOT%", root)
+
+		if !strings.Contains(actual, expected) {
+			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+		}
+	})
+}
