@@ -171,6 +171,6 @@ sections:
         Host a localized meetup in your area or virtually.
         Share what you've learned and connect with the OPA community!
       icon: /img/community-logos/meetup.png
-      link: mailto:opa_community@styra.com?subject=Host%20an%20OPA%20Meetup
+      link: mailto:devrel@styra.com?subject=Host%20an%20OPA%20Meetup
       link_text: Host a Meetup
 ---
