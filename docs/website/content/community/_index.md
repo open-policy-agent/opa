@@ -11,28 +11,6 @@ intro: |
 
 sections:
 
-- title: Social Channels
-  items:
-    - title: Twitter
-      icon: /img/community-logos/twitter.png
-      note: |
-        Connect with us on Twitter to get the latest announcements.
-      link: https://twitter.com/openpolicyagent
-      link_text: Follow us on Twitter
-    - title: Medium
-      icon: /img/community-logos/medium.png
-      note: |
-        Sign up to receive OPA news, blogs, and tutorials.
-      link: https://medium.com/open-policy-agent
-      link_text: Read the OPA Blog
-    - title: LinkedIn
-      icon: /img/community-logos/linkedin.png
-      note: |
-        Follow Open Policy Agent on LinkedIn and connect with others
-        working with OPA.
-      link: https://www.linkedin.com/company/open-policy-agent/
-      link_text: Follow us on LinkedIn
-
 - title: Community Support
   items:
     - title: OPA Slack
@@ -85,6 +63,28 @@ sections:
         to help. Let us know and we can review, suggest edits or help you practice.
       link: mailto:devrel@styra.com?subject=Write%20a%20CFP
       link_text: Write a CFP
+
+- title: Social Channels
+  items:
+    - title: Twitter
+      icon: /img/community-logos/twitter.png
+      note: |
+        Connect with us on Twitter to get the latest announcements.
+      link: https://twitter.com/openpolicyagent
+      link_text: Follow us on Twitter
+    - title: Medium
+      icon: /img/community-logos/medium.png
+      note: |
+        Sign up to receive OPA news, blogs, and tutorials.
+      link: https://medium.com/open-policy-agent
+      link_text: Read the OPA Blog
+    - title: LinkedIn
+      icon: /img/community-logos/linkedin.png
+      note: |
+        Follow Open Policy Agent on LinkedIn and connect with others
+        working with OPA.
+      link: https://www.linkedin.com/company/open-policy-agent/
+      link_text: Follow us on LinkedIn
 
 - title: Champions
   items:
