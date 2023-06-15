@@ -178,6 +178,7 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	ClientSecret         string                 `json:"client_secret"`
 	SigningKeyID         string                 `json:"signing_key"`
 	Thumbprint           string                 `json:"thumbprint"`
+	ClientAssertionFile  string                 `json:"client_assertion_file"`
 	Claims               map[string]interface{} `json:"additional_claims"`
 	IncludeJti           bool                   `json:"include_jti_claim"`
 	Scopes               []string               `json:"scopes,omitempty"`
@@ -287,7 +288,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("grant_type must be either client_credentials or jwt_bearer")
 	}
 
-	if ap.GrantType == grantTypeJwtBearer || (ap.GrantType == grantTypeClientCredentials && ap.SigningKeyID != "") {
+	if ap.GrantType == grantTypeJwtBearer || (ap.GrantType == grantTypeClientCredentials && ap.SigningKeyID != "" && ap.ClientAssertionFile != "") {
 		if err = ap.parseSigningKey(c); err != nil {
 			return nil, err
 		}
@@ -340,6 +341,14 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 			if ap.ClientID != "" {
 				body.Add("client_id", ap.ClientID)
 			}
+		} else if ap.ClientAssertionFile != "" {
+			body.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+			fileContent, err := os.ReadFile(ap.ClientAssertionFile)
+			if err != nil {
+				return nil, err
+			}
+			token := string(fileContent)
+			body.Add("client_assertion", token)
 		}
 	}
 
@@ -359,6 +368,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 
 	if ap.GrantType == grantTypeClientCredentials && ap.ClientSecret != "" {
 		r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
+	}
+
+	if ap.ClientAssertionType != "" {
+		body.
 	}
 
 	for k, v := range ap.AdditionalHeaders {
