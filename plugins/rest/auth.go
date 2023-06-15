@@ -370,10 +370,6 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 		r.SetBasicAuth(ap.ClientID, ap.ClientSecret)
 	}
 
-	if ap.ClientAssertionType != "" {
-		body.
-	}
-
 	for k, v := range ap.AdditionalHeaders {
 		r.Header.Add(k, v)
 	}
