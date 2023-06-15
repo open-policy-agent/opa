@@ -50,7 +50,7 @@ sections:
       link: https://academy.styra.com
       link_text: Visit Styra Academy
     - title: Awesome OPA
-      icon: /img/community-logos/awesome-opa.png
+      icon: /img/logos/opa-no-text-color.png
       note: |
         Curated list of OPA links and resources.
       link: https://github.com/StyraInc/awesome-opa
