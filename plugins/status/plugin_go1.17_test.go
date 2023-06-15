@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -135,13 +136,10 @@ func TestPluginPrometheus(t *testing.T) {
 }
 
 func eventually(t *testing.T, predicate func() bool) {
-	for i := 0; i < 100; i++ {
-		if predicate() {
-			return
-		}
-		time.Sleep(time.Millisecond * 10)
+	t.Helper()
+	if !test.Eventually(t, 1*time.Second, predicate) {
+		t.Fatal("check took too long")
 	}
-	t.Fatal("check took too long")
 }
 
 func assertOpInformationGauge(t *testing.T, registerMock *prometheusRegisterMock) {

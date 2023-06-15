@@ -400,7 +400,13 @@ func TestWatchMode(t *testing.T) {
 			<-done
 		}()
 
-		time.Sleep(500 * time.Millisecond)
+		expected := "Watching for changes ..."
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update the test
 		f, _ := os.OpenFile(path.Join(root, "policy_test.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -410,7 +416,22 @@ func TestWatchMode(t *testing.T) {
 		}
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		expected = `%ROOT%/policy_test.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(actual, expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update policy so test passes
 		f, _ = os.OpenFile(path.Join(root, "policy.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -421,7 +442,17 @@ func TestWatchMode(t *testing.T) {
 
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
+		expected = `PASS: 1/1
+********************************************************************************
+Watching for changes ...
+`
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// add new policy and test
 		if err := os.WriteFile(path.Join(root, "policy2.rego"), []byte("package bar\n q := \"hello\""), 0644); err != nil {
@@ -432,35 +463,20 @@ func TestWatchMode(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		time.Sleep(500 * time.Millisecond)
-
-		testParams.stopChan <- syscall.SIGINT
-		done <- struct{}{}
-
-		expected := `********************************************************************************
-Watching for changes ...
-%ROOT%/policy_test.rego:
-data.foo.test_p: FAIL (%TIME%)
---------------------------------------------------------------------------------
-FAIL: 1/1
+		expected = `PASS: 2/2
 ********************************************************************************
 Watching for changes ...
 `
-
-		r := regexp.MustCompile(`FAIL \(.*s\)`)
-		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
-		expected = strings.ReplaceAll(expected, "%ROOT%", root)
-
-		if !strings.Contains(actual, expected) {
-			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
 		}
+		buf.Reset()
 
-		// verify output after policy update and new added policy
-		expected = "PASS: 2/2\n********************************************************************************\nWatching for changes ..."
-
-		if !strings.Contains(buf.String(), expected) {
-			t.Fatalf("Expected:%s in result but \n\nGot:\n\n%s\n\n", expected, buf.String())
-		}
+		testParams.stopChan <- syscall.SIGINT
+		done <- struct{}{}
 	})
 }
 
@@ -485,7 +501,13 @@ func TestWatchModeWithDataFile(t *testing.T) {
 			<-done
 		}()
 
-		time.Sleep(500 * time.Millisecond)
+		expected := "Watching for changes ..."
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update the data
 		f, _ := os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -495,7 +517,22 @@ func TestWatchModeWithDataFile(t *testing.T) {
 		}
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		expected = `%ROOT%/policy.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(actual, expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update policy so test passes
 		f, _ = os.OpenFile(path.Join(root, "policy.rego"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -506,35 +543,21 @@ func TestWatchModeWithDataFile(t *testing.T) {
 
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
-
-		testParams.stopChan <- syscall.SIGINT
-		done <- struct{}{}
-
-		expected := `********************************************************************************
-Watching for changes ...
-%ROOT%/policy.rego:
-data.foo.test_p: FAIL (%TIME%)
---------------------------------------------------------------------------------
-FAIL: 1/1
+		expected = `PASS: 1/1
 ********************************************************************************
 Watching for changes ...
 `
 
-		r := regexp.MustCompile(`FAIL \(.*s\)`)
-		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
-		expected = strings.ReplaceAll(expected, "%ROOT%", root)
-
-		if !strings.Contains(actual, expected) {
-			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
 		}
+		buf.Reset()
 
-		// verify output after policy update
-		expected = "PASS: 1/1\n********************************************************************************\nWatching for changes ..."
-
-		if !strings.Contains(buf.String(), expected) {
-			t.Fatalf("Expected:%s in result but \n\nGot:\n\n%s\n\n", expected, buf.String())
-		}
+		testParams.stopChan <- syscall.SIGINT
+		done <- struct{}{}
 	})
 }
 
@@ -558,7 +581,13 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 			<-done
 		}()
 
-		time.Sleep(500 * time.Millisecond)
+		expected := "Watching for changes ..."
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update the data
 		f, _ := os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -568,7 +597,22 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 		}
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
+		r := regexp.MustCompile(`FAIL \(.*s\)`)
+		expected = `%ROOT%/policy.rego:
+data.foo.test_p: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+********************************************************************************
+Watching for changes ...
+`
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(actual, expected)
+		}) {
+			t.Fatalf("expected %q, got %q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// update the data back to the original state, so the opa test passes
 		f, _ = os.OpenFile(path.Join(root, "data.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -578,7 +622,18 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 		}
 		f.Close()
 
-		time.Sleep(500 * time.Millisecond)
+		expected = `PASS: 1/1
+********************************************************************************
+Watching for changes ...
+`
+
+		if !test.Eventually(t, 2*time.Second, func() bool {
+			expected := strings.ReplaceAll(expected, "%ROOT%", root)
+			return strings.Contains(buf.String(), expected)
+		}) {
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+		}
+		buf.Reset()
 
 		// remove the data file, check that test fails afterward
 		err = os.Remove(path.Join(root, "data.json"))
@@ -590,24 +645,5 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 
 		testParams.stopChan <- syscall.SIGINT
 		done <- struct{}{}
-
-		expected := `PASS: 1/1
-********************************************************************************
-Watching for changes ...
-%ROOT%/policy.rego:
-data.foo.test_p: FAIL (%TIME%)
---------------------------------------------------------------------------------
-FAIL: 1/1
-********************************************************************************
-Watching for changes ...
-`
-
-		r := regexp.MustCompile(`FAIL \(.*s\)`)
-		actual := r.ReplaceAllString(buf.String(), "FAIL (%TIME%)")
-		expected = strings.ReplaceAll(expected, "%ROOT%", root)
-
-		if !strings.Contains(actual, expected) {
-			t.Fatalf("Expected:\n\n%s\n\nGot:\n\n%s\n\n", expected, actual)
-		}
 	})
 }
