@@ -17,343 +17,52 @@
       <section class="background">
 
         <h1 class="banner-content">
-          Community
+          {{ .Title }}
         </h1>
+
         <div class="banner-subcontent">
-          Since its launch in 2016, Open Policy Agent has steadily gained momentum as
-          the de facto approach for establishing authorization policies
-          across cloud native environments.
-          Its remarkable growth and adoption is due in no small part to the amazing
-          community that has grown up right along side it.
-          Leverage this list of community resources to maximize the value OPA can provide!
+          {{ .Params.intro }}
         </div>
 
         <div class="page-content">
-          <h2>Social Channels</h2>
+          {{ range $section := .Params.sections }}
+            <h2>{{ $section.title }}</h2>
 
-          <div class="grid-container">
+            <div class="grid-container">
+              {{ range $item := $section.items }}
+                <div class="card">
+                  <div class="card-body">
+                    <div class="support-card-content d-flex flex-column align-items-start">
+                      <img title="{{ $item.title }}" class="card-img align-middle" src="{{ $item.icon }}"/>
+                      <div class="card-text">
+                        <div class="header">{{ $item.title }}</div>
+                        <div class="subheader">
+                          {{ $item.note }}
 
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Twitter" class="card-img align-middle" src="/img/community-logos/twitter.png"/>
-                  <div class="card-text">
-                    <div class="header">Twitter</div>
-                    <div class="subheader">
-                      Connect with us on Twitter to get the latest announcements.
-                    </div>
-                    <a href="https://twitter.com/openpolicyagent"
-                       class="btn btn-primary btn-lg" role="button">Follow us on Twitter</a>
-                  </div>
-                </div>
-              </div>
-            </div>
+                          {{ if $item.links }}
+                          {{ range $link := $item.links }}
+                          <a href="{{ $link.url }}" alt="{{ $item.title }} {{ $link.description }}">
+                            <i class="fab fa-{{ $link.icon }}"></i>
+                            {{ $link.text }}
+                          </a>
+                          <br/>
+                          {{ end }}
+                          {{ end }}
+                        </div>
 
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Medium" class="card-img align-middle" src="/img/community-logos/medium.png"/>
-                  <div class="card-text">
-                    <div class="header">Medium</div>
-                    <div class="subheader">
-                      Sign up to receive OPA news, blogs, and tutorials.
-                    </div>
-                    <a href="https://blog.openpolicyagent.org/"
-                       class="btn btn-primary btn-lg" role="button">Read the OPA Blog</a>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="LinkedIn" class="card-img align-middle" src="/img/community-logos/linkedin.png"/>
-                  <div class="card-text">
-                    <div class="header">LinkedIn</div>
-                    <div class="subheader">
-                      Follow Open Policy Agent on LinkedIn and connect with others working with OPA.
-                    </div>
-                    <a href="https://www.linkedin.com/company/open-policy-agent/"
-                       class="btn btn-primary btn-lg" role="button">Follow us on LinkedIn</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <h2>Community Support</h2>
-
-          <div class="grid-container">
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Slack" class="card-img align-middle" src="/img/community-logos/slack.png"/>
-                  <div class="card-text">
-                    <div class="header">Slack</div>
-                    <div class="subheader">
-                      Casual conversations with the OPA community.
-                    </div>
-                    <a href="https://slack.openpolicyagent.org/"
-                       class="btn btn-primary btn-lg" role="button">Join us on Slack</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="GitHub" class="card-img align-middle" src="/img/community-logos/github.png"/>
-                  <div class="card-text">
-                    <div class="header">GitHub</div>
-                    <div class="subheader">
-                      Get involved with OPA development. Request a feature, file a bug, or just check out the open source code base.
-                    </div>
-                    <a href="https://github.com/open-policy-agent"
-                       class="btn btn-primary btn-lg" role="button">View OPA on GitHub</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="GitHub Discussions" class="card-img align-middle" src="/img/community-logos/github-discussions.png"/>
-                  <div class="card-text">
-                    <div class="header">OPA Knowledge Base</div>
-                    <div class="subheader">
-                      Community powered support for OPA and Rego. Ask questions about writing Rego files, implementing OPA, or share the configurations you are working on.
-                    </div>
-                    <a href="https://github.com/open-policy-agent/community/discussions"
-                       class="btn btn-primary btn-lg" role="button">Ask a question</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Stack Overflow" class="card-img align-middle" src="/img/community-logos/stack-overflow.png"/>
-                  <div class="card-text">
-                    <div class="header">Stack Overflow</div>
-                    <div class="subheader">
-                      Ask the global developer community questions about OPA with the tag #open-policy-agent
-                    </div>
-                    <a href="https://stackoverflow.com/questions/tagged/open-policy-agent"
-                       class="btn btn-primary btn-lg" role="button">Ask a Question</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <h2>Champions</h2>
-
-          <div class="grid-container">
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Peter Macdonald" class="card-img align-middle" src="/img/community-logos/petermacdonald.jpg"/>
-                  <div class="card-text">
-                    <div class="header">Peter Macdonald</div>
-                    <div class="subheader">
-                      <a href="https://hachyderm.io/@parcifal" alt="Mastodon">
-                        <i class="fab fa-mastodon"></i>
-                        parcifal
-                      </a>
-                      <br/>
-                      <a href="https://twitter.com/_PeterM_" alt="Twitter">
-                        <i class="fab fa-twitter-square"></i>
-                        _PeterM_
-                      </a>
-                      <br>
-                      <a href="https://github.com/Parsifal-M" alt="GitHub">
-                        <i class="fab fa-github-square"></i>
-                        Parsifal-M
-                      </a>
+                        {{ if $item.link }}
+                          <a href="{{ $item.link }}" class="btn btn-primary btn-lg" role="button">
+                            {{ $item.link_text }}
+                          </a>
+                        {{ end }}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              {{ end }}
             </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="John Reese" class="card-img align-middle" src="/img/community-logos/john-reese.png"/>
-                  <div class="card-text">
-                    <div class="header">John Reese</div>
-                    <div class="subheader">
-                      <a href="https://hachyderm.io/@jpreese" alt="Mastodon">
-                        <i class="fab fa-mastodon"></i>
-                        jpreese
-                      </a>
-                      <br/>
-                      <a href="https://twitter.com/johnpreese" alt="Twitter">
-                        <i class="fab fa-twitter-square"></i>
-                        johnpreese
-                      </a>
-                      <br>
-                      <a href="https://github.com/jpreese" alt="Github">
-                        <i class="fab fa-github-square"></i>
-                        jpreese
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Grant Shively" class="card-img align-middle" src="/img/community-logos/grant-shively.png"/>
-                  <div class="card-text">
-                    <div class="header">Grant Shively</div>
-                    <div class="subheader">
-                      <a href="https://github.com/gshively11" alt="GitHub">
-                        <i class="fab fa-github-square"></i>
-                        gshively11
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Masayoshi Mizutani" class="card-img align-middle" src="/img/community-logos/mizutani-masayoshi.png"/>
-                  <div class="card-text">
-                    <div class="header">Masayoshi Mizutani</div>
-                    <div class="subheader">
-                      <a href="https://twitter.com/m_mizutani" alt="Twitter">
-                        <i class="fab fa-twitter-square"></i>
-                        m_mizutani
-                      </a>
-                      <br>
-                      <a href="https://github.com/m-mizutani" alt="Github">
-                        <i class="fab fa-github-square"></i>
-                        m-mizutani
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <h2>Contribute</h2>
-
-          <div class="grid-container">
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Blog Post" class="card-img align-middle" src="/img/community-logos/blog.png"/>
-                  <div class="card-text">
-                    <div class="header">Blog Post</div>
-                    <div class="subheader">
-                      Contribute to the official OPA blog. Write about special use cases, advance configurations, deployment strategies or the OPA community.
-                    </div>
-                    <a href="mailto:opa_community@styra.com?subject=Contribute%20to%20OPA%20Blog"
-                       class="btn btn-primary btn-lg" role="button">Email</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Conference and Meetup CFPs" class="card-img align-middle" src="/img/community-logos/cfp.png"/>
-                  <div class="card-text">
-                    <div class="header">Conference and Meetup CFPs</div>
-                    <div class="subheader">
-                      Want to share your OPA knowledge with the world? The OPA team is here to help. Let us know and we can review, suggest edits or help you practice.
-                    </div>
-                    <a href="mailto:opa_community@styra.com?subject=Write%20a%20CFP"
-                       class="btn btn-primary btn-lg" role="button">Write A CFP</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <h2>Meetups</h2>
-
-          <div class="grid-container">
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Amsterdam OPA Users" class="card-img align-middle" src="/img/community-logos/meetup.png"/>
-                  <div class="card-text">
-                    <div class="header">Amsterdam OPA Users</div>
-                    <br/>
-                    <a href="https://www.meetup.com/opa-amsterdam/"
-                       class="btn btn-primary btn-lg" role="button">Join Amsterdam OPA users</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="London OPA Meetup" class="card-img align-middle" src="/img/community-logos/meetup.png"/>
-                  <div class="card-text">
-                    <div class="header">London OPA Meetup</div>
-                    <br/>
-                    <a href="https://www.meetup.com/london-opa-meetup/"
-                       class="btn btn-primary btn-lg" role="button">Join London OPA Meetup</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Stockholm OPA Users" class="card-img align-middle" src="/img/community-logos/meetup.png"/>
-                  <div class="card-text">
-                    <div class="header">Stockholm OPA Users</div>
-                    <br/>
-                    <br/>
-                    <a href="https://www.meetup.com/stockholm-opa-meetup/"
-                       class="btn btn-primary btn-lg" role="button">Join Stockholm OPA Users</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-body">
-                <div class="support-card-content d-flex flex-column align-items-start">
-                  <img title="Meetup" class="card-img align-middle" src="/img/community-logos/meetup.png"/>
-                  <div class="card-text">
-                    <div class="header">Host your own!</div>
-                    <div class="subheader">
-                      Host a localized meetup in your area or virtually. Share what you've learned and connect with the OPA community!
-                    </div>
-                    <a href="mailto:opa_community@styra.com?subject=Host%20an%20OPA%20Meetup"
-                       class="btn btn-primary btn-lg" role="button">Host a Meetup</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-        </div>
-
+          {{ end }}
         </div>
       </section>
     </main>
