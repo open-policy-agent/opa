@@ -83,7 +83,7 @@ func TestIteratorOrder(t *testing.T) {
 	var archFiles = map[string]string{
 		"/a/b/c/data.json":     "[1,2,3]",
 		"/a/b/d/e/data.json":   `e: true`,
-		"/data.json":           `{"x": {"y": true}, "a": {"b": {"z": true}}}}`,
+		"/data.json":           `{"x": {"y": true}, "a": {"b": {"z": true}}}`,
 		"/a/b/y/x/z/data.yaml": `foo: 1`,
 		"/a/b/data.json":       "[4,5,6]",
 		"/a/data.json":         "hello",
