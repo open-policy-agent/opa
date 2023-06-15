@@ -98,6 +98,18 @@ integrations:
     inventors:
       - circleci
 
+  awesome-opa:
+    title: Awesome OPA List
+    description: A curated list of awesome OPA related tools, frameworks and articles.
+    software: []
+    labels:
+      category: learning
+      type: poweredbyopa
+    code:
+      - https://github.com/StyraInc/awesome-opa
+    inventors:
+      - styra
+
   aws-cloudformation-hook:
     title: AWS CloudFormation Hook
     description: AWS CloudFormation Hook that uses OPA to make policy decisions on infrastructure provisioned via AWS CloudFormation
