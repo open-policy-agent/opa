@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -387,7 +388,7 @@ func TestWatchMode(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		var buf bytes.Buffer
+		buf := blockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -488,7 +489,7 @@ func TestWatchModeWithDataFile(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		var buf bytes.Buffer
+		buf := blockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -568,7 +569,7 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		var buf bytes.Buffer
+		buf := blockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -610,7 +611,7 @@ Watching for changes ...
 			expected := strings.ReplaceAll(expected, "%ROOT%", root)
 			return strings.Contains(actual, expected)
 		}) {
-			t.Fatalf("expected %q, got %q", expected, buf.String())
+			t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
 		}
 		buf.Reset()
 
@@ -646,4 +647,27 @@ Watching for changes ...
 		testParams.stopChan <- syscall.SIGINT
 		done <- struct{}{}
 	})
+}
+
+type blockingWriter struct {
+	m   sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *blockingWriter) Write(p []byte) (n int, err error) {
+	w.m.Lock()
+	defer w.m.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *blockingWriter) String() string {
+	w.m.Lock()
+	defer w.m.Unlock()
+	return w.buf.String()
+}
+
+func (w *blockingWriter) Reset() {
+	w.m.Lock()
+	defer w.m.Unlock()
+	w.buf.Reset()
 }
