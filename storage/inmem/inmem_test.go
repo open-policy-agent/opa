@@ -390,7 +390,7 @@ func TestTruncate(t *testing.T) {
 	var archiveFiles = map[string]string{
 		"/a/b/c/data.json":   "[1,2,3]",
 		"/a/b/d/data.json":   "true",
-		"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}}`,
+		"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}`,
 		"/a/b/y/data.yaml":   `foo: 1`,
 		"/policy.rego":       "package foo\n p = 1",
 		"/roles/policy.rego": "package bar\n p = 1",

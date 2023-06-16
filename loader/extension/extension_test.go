@@ -18,8 +18,8 @@ import (
 
 func TestLoaderExtensionUnmarshal(t *testing.T) {
 	sentinelErr := fmt.Errorf("test handler called")
-	extension.RegisterExtension(".json", func([]byte) (any, error) {
-		return nil, sentinelErr
+	extension.RegisterExtension(".json", func([]byte, any) error {
+		return sentinelErr
 	})
 	defer extension.RegisterExtension(".json", nil)
 
@@ -36,8 +36,9 @@ func TestLoaderExtensionUnmarshal(t *testing.T) {
 
 func TestLoaderExtensionBundle(t *testing.T) {
 	data := map[string]any{"foo": "bar"}
-	extension.RegisterExtension(".json", func([]byte) (any, error) {
-		return data, nil
+	extension.RegisterExtension(".json", func(_ []byte, x any) error {
+		*(x.(*any)) = data
+		return nil
 	})
 	defer extension.RegisterExtension(".json", nil)
 

@@ -2851,6 +2851,10 @@ func (c *onlyOnceInterQueryCache) Delete(_ ast.Value) {}
 
 func (c *onlyOnceInterQueryCache) UpdateConfig(_ *iCache.Config) {}
 
+func (c *onlyOnceInterQueryCache) Clone(val iCache.InterQueryCacheValue) (iCache.InterQueryCacheValue, error) {
+	return val, nil
+}
+
 func TestInterQueryCacheConcurrentModification(t *testing.T) {
 
 	// create an inter-query cache that'll return a value on first access, but none at subsequent accesses.
@@ -2896,6 +2900,66 @@ func TestInterQueryCacheConcurrentModification(t *testing.T) {
 
 	if res[0]["x"].Value.Compare(res[0]["y"].Value) != 0 {
 		t.Fatalf("Expected x and y to be equal, got %v and %v", res[0]["x"].Value, res[0]["y"].Value)
+	}
+}
+
+func TestInterQueryCacheDataClone(t *testing.T) {
+	data := interQueryCacheData{
+		Headers: map[string][]string{
+			"Date": {"Thu, 01 Jan 1970 00:00:00 GMT"},
+		},
+		ExpiresAt:  time.Now().Add(time.Hour),
+		StatusCode: 200,
+		Status:     "200 OK",
+		RespBody:   []byte("foo"),
+	}
+
+	dup, err := data.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cloned, ok := dup.(*interQueryCacheData)
+	if !ok {
+		t.Fatal("unexpected type")
+	}
+
+	if !reflect.DeepEqual(data, *cloned) {
+		t.Fatalf("Expected to get %v, but got %v", data, *cloned)
+	}
+}
+
+func TestInterQueryCacheValueClone(t *testing.T) {
+
+	cacheData := interQueryCacheData{
+		Headers: map[string][]string{
+			"Date": {"Thu, 01 Jan 1970 00:00:00 GMT"},
+		},
+		ExpiresAt:  time.Now().Add(time.Hour),
+		StatusCode: 200,
+		Status:     "200 OK",
+		RespBody:   []byte("foo"),
+	}
+
+	b, err := json.Marshal(cacheData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cacheVal := interQueryCacheValue{Data: b}
+
+	dup, err := cacheVal.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cloned, ok := dup.(*interQueryCacheValue)
+	if !ok {
+		t.Fatal("unexpected type")
+	}
+
+	if !reflect.DeepEqual(cacheVal, *cloned) {
+		t.Fatal("inter-query cache element and its clone are not equal")
 	}
 }
 

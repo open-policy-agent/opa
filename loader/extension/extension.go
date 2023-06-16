@@ -14,7 +14,7 @@ var bundleExtensions map[string]Handler
 // Handler is used to unmarshal a byte slice of a registered extension
 // EXPERIMENTAL: Please don't rely on this functionality, it may go
 // away or change in the future.
-type Handler func([]byte) (any, error)
+type Handler func([]byte, any) error
 
 // RegisterExtension registers a Handler for a certain file extension, including
 // the dot: ".json", not "json".
@@ -36,11 +36,5 @@ func RegisterExtension(name string, handler Handler) {
 func FindExtension(ext string) Handler {
 	pluginMtx.Lock()
 	defer pluginMtx.Unlock()
-
-	for e, handler := range bundleExtensions {
-		if e == ext {
-			return handler
-		}
-	}
-	return nil
+	return bundleExtensions[ext]
 }

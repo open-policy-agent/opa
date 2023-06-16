@@ -803,10 +803,16 @@ func insertErrorIntoHTTPSendCache(bctx BuiltinContext, key ast.Object, err error
 func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 	requestCache := c.bctx.InterQueryBuiltinCache
 
-	value, found := requestCache.Get(c.key)
+	cachedValue, found := requestCache.Get(c.key)
 	if !found {
 		return nil, nil
 	}
+
+	value, cerr := requestCache.Clone(cachedValue)
+	if cerr != nil {
+		return nil, handleHTTPSendErr(c.bctx, cerr)
+	}
+
 	c.bctx.Metrics.Counter(httpSendInterQueryCacheHits).Incr()
 	var cachedRespData *interQueryCacheData
 
@@ -1035,6 +1041,12 @@ func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody 
 	return &interQueryCacheValue{Data: b}, nil
 }
 
+func (cb interQueryCacheValue) Clone() (cache.InterQueryCacheValue, error) {
+	dup := make([]byte, len(cb.Data))
+	copy(dup, cb.Data)
+	return &interQueryCacheValue{Data: dup}, nil
+}
+
 func (cb interQueryCacheValue) SizeInBytes() int64 {
 	return int64(len(cb.Data))
 }
@@ -1116,6 +1128,18 @@ func (c *interQueryCacheData) toCacheValue() (*interQueryCacheValue, error) {
 
 func (c *interQueryCacheData) SizeInBytes() int64 {
 	return 0
+}
+
+func (c *interQueryCacheData) Clone() (cache.InterQueryCacheValue, error) {
+	dup := make([]byte, len(c.RespBody))
+	copy(dup, c.RespBody)
+
+	return &interQueryCacheData{
+		ExpiresAt:  c.ExpiresAt,
+		RespBody:   dup,
+		Status:     c.Status,
+		StatusCode: c.StatusCode,
+		Headers:    c.Headers.Clone()}, nil
 }
 
 type responseHeaders struct {
