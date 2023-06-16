@@ -649,6 +649,107 @@ Watching for changes ...
 	})
 }
 
+func TestWatchModeBrokenFileRecovery(t *testing.T) {
+
+	tests := []struct {
+		note           string
+		fileName       string
+		brokenFile     string
+		fixedFile      string
+		expectedOutput string
+	}{
+		{
+			note:      "empty data file (EOF read by watcher)",
+			fileName:  "data.json",
+			fixedFile: `{"foo": "bar"}`,
+			expectedOutput: `1 error occurred during loading: %ROOT%/data.json: EOF
+********************************************************************************
+Watching for changes ...`,
+		},
+		{
+			note:       "broken policy",
+			fileName:   "broken_policy.rego",
+			brokenFile: "package foo\n bar {",
+			fixedFile:  "package foo\n bar {true}",
+			expectedOutput: `1 error occurred during loading: %ROOT%/broken_policy.rego:2: rego_parse_error: unexpected eof token
+	 bar {
+	     ^
+********************************************************************************
+Watching for changes ...`,
+		},
+	}
+
+	files := map[string]string{
+		"/policy.rego":      "package foo\n p := 1",
+		"/policy_test.rego": "package foo\n test_p { p == 1 }",
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(files, func(root string) {
+				buf := blockingWriter{}
+
+				testParams := newTestCommandParams()
+				testParams.output = &buf
+				testParams.watch = true
+				testParams.count = 1
+
+				done := make(chan struct{})
+				go func() {
+					_, _ = opaTest([]string{root}, testParams)
+					<-done
+				}()
+
+				expected := "Watching for changes ..."
+				if !test.Eventually(t, 2*time.Second, func() bool {
+					return strings.Contains(buf.String(), expected)
+				}) {
+					t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+				}
+				buf.Reset()
+
+				// create broken (possibly empty) file
+				f, _ := os.OpenFile(path.Join(root, tc.fileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+				if len(tc.brokenFile) > 0 {
+					_, err := f.WriteString(tc.brokenFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				f.Close()
+
+				if !test.Eventually(t, 2*time.Second, func() bool {
+					expected := strings.ReplaceAll(tc.expectedOutput, "%ROOT%", root)
+					return strings.Contains(buf.String(), expected)
+				}) {
+					t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", tc.expectedOutput, buf.String())
+				}
+				buf.Reset()
+
+				// write data to empty file
+				f, _ = os.OpenFile(path.Join(root, tc.fileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+				_, err := f.WriteString(tc.fixedFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.Close()
+
+				expected = "Watching for changes ..."
+				if !test.Eventually(t, 2*time.Second, func() bool {
+					expected := strings.ReplaceAll(expected, "%ROOT%", root)
+					return strings.Contains(buf.String(), expected)
+				}) {
+					t.Fatalf("expected:\n\n%q\n\ngot:\n\n%q", expected, buf.String())
+				}
+				buf.Reset()
+
+				testParams.stopChan <- syscall.SIGINT
+				done <- struct{}{}
+			})
+		})
+	}
+}
+
 type blockingWriter struct {
 	m   sync.Mutex
 	buf bytes.Buffer
