@@ -309,11 +309,11 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 	if ap.GrantType == grantTypeClientCredentials {
 		var clientCredentialsVariables = [4]string{ap.ClientSecret, ap.SigningKeyID, ap.ClientAssertion, ap.ClientAssertionPath}
 
-		var notEmptyVarCount int = 0
+		var notEmptyVarCount int
 
 		for i := 0; i < len(clientCredentialsVariables); i++ {
 			if clientCredentialsVariables[i] != "" {
-				notEmptyVarCount += 1
+				notEmptyVarCount++
 			}
 		}
 
