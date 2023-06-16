@@ -318,7 +318,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		}
 
 		if notEmptyVarCount == 0 {
-			return nil, errors.New("please provide one of client_secret, signing_key, client_assertion or client_assertion_path for client_credentials")
+			return nil, errors.New("please provide use one of client_secret, signing_key, client_assertion and client_assertion_path for client_credentials")
 		}
 
 		if notEmptyVarCount >= 1 {
@@ -327,8 +327,22 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 
 		if ap.ClientSecret != "" && ap.ClientID == "" {
 			return nil, errors.New("client_id and client_secret required")
-		} else if (ap.ClientAssertion != "" || ap.ClientAssertionPath != "") && ap.ClientAssertionType == "" {
-			ap.ClientAssertionType = defaultClientAssertionType
+		} else if ap.ClientAssertion != "" {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_assertion required")
+			}
+		} else if ap.ClientAssertionPath != "" {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_assertion_path required")
+			}
 		}
 	}
 
