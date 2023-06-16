@@ -35,6 +35,8 @@ import (
 const (
 	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
 	awsSigv4SigningDefaultService = "s3"
+	// Default to urn:ietf:params:oauth:client-assertion-type:jwt-bearer for ClientAssertionType
+	defaultClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
 // DefaultTLSConfig defines standard TLS configurations based on the Config
@@ -178,7 +180,9 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	ClientSecret         string                 `json:"client_secret"`
 	SigningKeyID         string                 `json:"signing_key"`
 	Thumbprint           string                 `json:"thumbprint"`
-	ClientAssertionFile  string                 `json:"client_assertion_file"`
+	ClientAssertionType  string                 `json:"client_assertion_type"`
+	ClientAssertion      string                 `json:"client_assertion"`
+	ClientAssertionPath  string                 `json:"client_assertion_path"`
 	Claims               map[string]interface{} `json:"additional_claims"`
 	IncludeJti           bool                   `json:"include_jti_claim"`
 	Scopes               []string               `json:"scopes,omitempty"`
@@ -288,7 +292,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("grant_type must be either client_credentials or jwt_bearer")
 	}
 
-	if ap.GrantType == grantTypeJwtBearer || (ap.GrantType == grantTypeClientCredentials && ap.SigningKeyID != "" && ap.ClientAssertionFile != "") {
+	if ap.GrantType == grantTypeJwtBearer || (ap.GrantType == grantTypeClientCredentials && ap.SigningKeyID != "") {
 		if err = ap.parseSigningKey(c); err != nil {
 			return nil, err
 		}
@@ -303,11 +307,28 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("token_url required to use https scheme")
 	}
 	if ap.GrantType == grantTypeClientCredentials {
-		if ap.ClientSecret != "" && ap.SigningKeyID != "" {
-			return nil, errors.New("can only use one of client_secret and signing_key for client_credentials")
+		var clientCredentialsVariables = [4]string{ap.ClientSecret, ap.SigningKeyID, ap.ClientAssertion, ap.ClientAssertionPath}
+
+		var notEmptyVarCount int = 0
+
+		for i := 1; i <= len(clientCredentialsVariables); i++ {
+			if clientCredentialsVariables[0] != "" {
+				notEmptyVarCount += 1
+			}
 		}
-		if ap.SigningKeyID == "" && (ap.ClientID == "" || ap.ClientSecret == "") {
+
+		if notEmptyVarCount == 0 {
+			return nil, errors.New("please provide one of client_secret, signing_key, client_assertion or client_assertion_path for client_credentials")
+		}
+
+		if notEmptyVarCount >= 1 {
+			return nil, errors.New("can only use one of client_secret, signing_key, client_assertion and client_assertion_path for client_credentials")
+		}
+
+		if ap.ClientSecret != "" && ap.ClientID == "" {
 			return nil, errors.New("client_id and client_secret required")
+		} else if (ap.ClientAssertion != "" || ap.ClientAssertionPath != "") && ap.ClientAssertionType == "" {
+			ap.ClientAssertionType = defaultClientAssertionType
 		}
 	}
 
@@ -335,15 +356,18 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 			if err != nil {
 				return nil, err
 			}
-			body.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+			body.Add("client_assertion_type", defaultClientAssertionType)
 			body.Add("client_assertion", *authJwt)
 
 			if ap.ClientID != "" {
 				body.Add("client_id", ap.ClientID)
 			}
-		} else if ap.ClientAssertionFile != "" {
-			body.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-			fileContent, err := os.ReadFile(ap.ClientAssertionFile)
+		} else if ap.ClientAssertion != "" {
+			body.Add("client_assertion_type", defaultClientAssertionType)
+			body.Add("client_assertion", ap.ClientAssertion)
+		} else if ap.ClientAssertionPath != "" {
+			body.Add("client_assertion_type", defaultClientAssertionType)
+			fileContent, err := os.ReadFile(ap.ClientAssertionPath)
 			if err != nil {
 				return nil, err
 			}
