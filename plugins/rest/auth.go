@@ -321,7 +321,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			return nil, errors.New("please provide use one of client_secret, signing_key, client_assertion and client_assertion_path for client_credentials")
 		}
 
-		if notEmptyVarCount >= 1 {
+		if notEmptyVarCount > 1 {
 			return nil, errors.New("can only use one of client_secret, signing_key, client_assertion and client_assertion_path for client_credentials")
 		}
 
