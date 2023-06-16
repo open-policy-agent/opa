@@ -311,8 +311,8 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 
 		var notEmptyVarCount int = 0
 
-		for i := 1; i <= len(clientCredentialsVariables); i++ {
-			if clientCredentialsVariables[0] != "" {
+		for i := 0; i < len(clientCredentialsVariables); i++ {
+			if clientCredentialsVariables[i] != "" {
 				notEmptyVarCount += 1
 			}
 		}
