@@ -127,7 +127,7 @@ func TestReadBundleInLazyMode(t *testing.T) {
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/.manifest", `{"revision": "foo", "roots": ["example"]}`}, // data is outside roots but validation skipped in lazy mode
 	}
 
@@ -196,7 +196,7 @@ func testReadBundle(t *testing.T, baseDir string, useMemoryFS bool) {
 		{"/example/example.rego", `package example`},
 		{"/policy.wasm", `legacy-wasm-module`},
 		{wasmResolverPath, `wasm-module`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/.manifest", fmt.Sprintf(`{"wasm":[{"entrypoint": "authz/allow", "module": "%s"}]}`, fullWasmResolverPath)},
 	}
 
@@ -665,7 +665,7 @@ func TestVerifyBundleFileHash(t *testing.T) {
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
 		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 	}
 
 	buf := archive.MustWriteTarGz(files)

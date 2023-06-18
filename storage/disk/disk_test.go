@@ -198,7 +198,7 @@ func runTruncateTest(t *testing.T, dir string) {
 	var archiveFiles = map[string]string{
 		"/a/b/c/data.json":   "[1,2,3]",
 		"/a/b/d/data.json":   `e: true`,
-		"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}}`,
+		"/data.json":         `{"x": {"y": true}, "a": {"b": {"z": true}}}`,
 		"/a/b/y/data.yaml":   `foo: 1`,
 		"/policy.rego":       "package foo\n p = 1",
 		"/roles/policy.rego": "package bar\n p = 1",
@@ -334,7 +334,7 @@ func TestTruncateMultipleTxn(t *testing.T) {
 		}
 
 		// additional data file at root
-		archiveFiles["/data.json"] = `{"a": {"b": {"z": true}}}}`
+		archiveFiles["/data.json"] = `{"a": {"b": {"z": true}}}`
 
 		files := make([][2]string, 0, len(archiveFiles))
 		for name, content := range archiveFiles {

@@ -307,7 +307,7 @@ func TestBundleLazyModeLifecycleRaw(t *testing.T) {
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
 		{"/authz/allow/policy.wasm", `wasm-module`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/.manifest", `{"revision": "foo", "roots": ["a", "example", "x", "authz"],"wasm":[{"entrypoint": "authz/allow", "module": "/authz/allow/policy.wasm"}]}`},
 	}
 
@@ -705,7 +705,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRoots(t *testing.T) {
 		{"/a/b/d/data.json", "true"},
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/.manifest", `{"revision": "rev-1"}`},
 	}
 
@@ -903,7 +903,7 @@ func TestBundleLazyModeLifecycleRawNoBundleRootsDiskStorage(t *testing.T) {
 			{"/a/b/d/data.json", "true"},
 			{"/a/b/y/data.yaml", `foo: 1`},
 			{"/example/example.rego", `package example`},
-			{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+			{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 			{"/.manifest", `{"revision": "rev-1"}`},
 		}
 

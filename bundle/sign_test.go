@@ -27,7 +27,7 @@ func TestGenerateSignedToken(t *testing.T) {
 		{"/a/b/y/data.yaml", `foo: 1`},
 		{"/example/example.rego", `package example`},
 		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 	}
 
 	input := []FileInfo{}

@@ -172,7 +172,7 @@ func TestGenerateBundleInfoWithBundleTarGz(t *testing.T) {
 		{"/example/example.rego", `package example`},
 		{"/example/policy.wasm", `modules-compiled-as-wasm-binary`},
 		{"/policy.wasm", `modules-compiled-as-wasm-binary`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 	}
 
 	buf := archive.MustWriteTarGz(files)
