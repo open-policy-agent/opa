@@ -364,6 +364,34 @@ func TestNew(t *testing.T) {
 			}`,
 		},
 		{
+			name: "Oauth2CredAssertion",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_assertion": "assertion_token"
+					}
+				}
+			}`,
+		},
+		{
+			name: "Oauth2CredAssertionPath",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_assertion_path": "assertion_path"
+					}
+				}
+			}`,
+		},
+		{
 			name: "Oauth2JwtBearerMissingSigningKey",
 			input: fmt.Sprintf(`{
 				"name": "foo",
