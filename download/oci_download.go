@@ -331,9 +331,7 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 
 	authorizer := pluginAuthorizer{
 		plugin: plugin,
-		authorizer: docker.NewDockerAuthorizer(
-			docker.WithAuthClient(client),
-		),
+		client: client,
 		logger: logger,
 	}
 
@@ -356,7 +354,11 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 }
 
 type pluginAuthorizer struct {
-	plugin     rest.HTTPAuthPlugin
+	plugin rest.HTTPAuthPlugin
+	client *http.Client
+
+	// authorizer will be populated by the first call to pluginAuthorizer.Prepare
+	// since it requires a first pass through the plugin.Prepare method.
 	authorizer docker.Authorizer
 
 	logger logging.Logger
@@ -378,6 +380,25 @@ func (a *pluginAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 		a.logger.Error(err.Error())
 
 		return err
+	}
+
+	if a.authorizer == nil {
+		// Some registry authentication implementations require a token fetch from
+		// a separate authenticated token server. This flow is described in the
+		// docker token auth spec:
+		// https://docs.docker.com/registry/spec/auth/token/#requesting-a-token
+		//
+		// Unfortunately, the containerd implementation does not use the Prepare
+		// mechanism to authenticate these token requests and we need to add
+		// auth information in form of a static docker.WithAuthHeader.
+		//
+		// Since rest.HTTPAuthPlugins will set the auth header on the request
+		// passed to HTTPAuthPlugin.Prepare, we can use it afterwards to build
+		// our docker.Authorizer.
+		a.authorizer = docker.NewDockerAuthorizer(
+			docker.WithAuthHeader(req.Header),
+			docker.WithAuthClient(a.client),
+		)
 	}
 
 	return a.authorizer.Authorize(ctx, req)
