@@ -285,8 +285,8 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 		})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(testParams.output, err)
+		return
 	}
 
 	modules := map[string]*ast.Module{}
@@ -310,8 +310,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 	})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(testParams.output, err)
 	}
 }
 

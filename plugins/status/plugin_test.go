@@ -24,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 
 	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
@@ -148,13 +149,10 @@ func TestPluginPrometheus(t *testing.T) {
 }
 
 func eventually(t *testing.T, predicate func() bool) {
-	for i := 0; i < 100; i++ {
-		if predicate() {
-			return
-		}
-		time.Sleep(time.Millisecond * 10)
+	t.Helper()
+	if !test.Eventually(t, 1*time.Second, predicate) {
+		t.Fatal("check took too long")
 	}
-	t.Fatal("check took too long")
 }
 
 func assertOpInformationGauge(t *testing.T, registerMock *prometheusRegisterMock) {
