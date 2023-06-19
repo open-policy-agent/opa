@@ -7,7 +7,6 @@ package status
 import (
 	"context"
 	"fmt"
-	"github.com/open-policy-agent/opa/util/test"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	inmem "github.com/open-policy-agent/opa/storage/inmem/test"
 	"github.com/open-policy-agent/opa/util"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 
 	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
