@@ -1221,6 +1221,22 @@ func TestLazyObjectGet(t *testing.T) {
 	assertForced(t, x, false)
 }
 
+func TestLazyObjectGetCache(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": true,
+		"b": false,
+	})
+	y := x.Get(StringTerm("a"))
+
+	if x.(*lazyObj).cache["a"].Compare(y.Value) != 0 {
+		t.Errorf("expected cache to be populated with retreived value")
+	}
+
+	if x.(*lazyObj).cache["b"] != nil {
+		t.Errorf("expected cache to not be populated with non-retrieved value")
+	}
+}
+
 func TestLazyObjectFind(t *testing.T) {
 	x := LazyObject(map[string]interface{}{
 		"a": map[string]interface{}{
@@ -1249,6 +1265,36 @@ func TestLazyObjectFind(t *testing.T) {
 	_, ok = z.(*Array)
 	if !ok {
 		t.Errorf("expected Find() to return array, got %v %[1]T", z)
+	}
+}
+
+func TestLazyObjectFindCache(t *testing.T) {
+	x := LazyObject(map[string]interface{}{
+		"a": []string{
+			"b", "c", "d",
+		},
+		"c": []string{
+			"d", "e", "f",
+		},
+	})
+	y, err := x.Find(Ref{StringTerm("a"), IntNumberTerm(1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if y.Compare(String("c")) != 0 {
+		t.Errorf("expected returned value to be 'c', got %v", y)
+	}
+
+	expected := NewArray(StringTerm("b"), StringTerm("c"), StringTerm("d"))
+	if x.(*lazyObj).cache["a"].Compare(expected) != 0 {
+		t.Errorf("expected cache to be populated with type-converted intermediate value, got %v",
+			x.(*lazyObj).cache["a"])
+	}
+
+	if x.(*lazyObj).cache["b"] != nil {
+		t.Errorf("expected cache to not be populated non-retrieved intermediate value, got %v",
+			x.(*lazyObj).cache["b"])
 	}
 }
 

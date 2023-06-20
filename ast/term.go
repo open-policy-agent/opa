@@ -2003,14 +2003,16 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		if v, ok := l.native[string(p0)]; ok {
 			switch v := v.(type) {
 			case map[string]interface{}:
+				// TODO: store created lazyObject in cache?
 				return (LazyObject(v)).Find(path[1:])
 			default:
-				converted, err := MustInterfaceToValue(v).Find(path[1:])
+				converted := MustInterfaceToValue(v)
+				l.cache[string(p0)] = converted
+				val, err := converted.Find(path[1:])
 				if err != nil {
 					return nil, err
 				}
-				l.cache[string(p0)] = converted
-				return converted, nil
+				return val, nil
 			}
 		}
 	}
