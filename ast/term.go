@@ -1934,14 +1934,15 @@ func (l *lazyObj) Get(k *Term) *Term {
 		}
 
 		if val, ok := l.native[string(s)]; ok {
+			var converted Value
 			switch val := val.(type) {
 			case map[string]interface{}:
-				return NewTerm(LazyObject(val))
+				converted = LazyObject(val)
 			default:
-				converted := MustInterfaceToValue(val)
-				l.cache[string(s)] = converted
-				return NewTerm(converted)
+				converted = MustInterfaceToValue(val)
 			}
+			l.cache[string(s)] = converted
+			return NewTerm(converted)
 		}
 	}
 	return nil
@@ -2001,19 +2002,15 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		}
 
 		if v, ok := l.native[string(p0)]; ok {
+			var converted Value
 			switch v := v.(type) {
 			case map[string]interface{}:
-				// TODO: store created lazyObject in cache?
-				return (LazyObject(v)).Find(path[1:])
+				converted = LazyObject(v)
 			default:
-				converted := MustInterfaceToValue(v)
-				l.cache[string(p0)] = converted
-				val, err := converted.Find(path[1:])
-				if err != nil {
-					return nil, err
-				}
-				return val, nil
+				converted = MustInterfaceToValue(v)
 			}
+			l.cache[string(p0)] = converted
+			return converted.Find(path[1:])
 		}
 	}
 	return nil, errFindNotFound
