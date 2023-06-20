@@ -45,6 +45,25 @@ concise than the equivalent in an imperative language.
 Like other applications which support declarative query languages, OPA is able
 to optimize queries to improve performance.
 
+## Learning Rego
+
+In while reviewing the examples below, you might find it helpful to follow along
+using the online [OPA playground](http://play.openpolicyagent.org). The
+playground also allows sharing of examples via URL which can be helpful when 
+asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
+In addition to these official resources, you may also be interested to check
+out the community learning materials and tools.
+{{<
+  ecosystem_feature_link
+  key="learning-rego"
+  singular_intro="There is currently 1 project"
+  singular_link="listed in the OPA Ecosystem"
+  singular_outro="which can help you learn Rego."
+  plural_intro="These "
+  plural_link="COUNT projects"
+  plural_outro="are listed on the OPA Ecosystem page as related to learning Rego."
+>}}
+
 ## The Basics
 
 This section introduces the main aspects of Rego.
@@ -3605,6 +3624,6 @@ Unused imports | Unused [imports](../policy-language/#imports) are prohibited.  
 `input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
 Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
 
-# Ecosystem Language Tooling
+## Ecosystem Projects
 
-[View ecosystem projects](../ecosystem/language-tooling) which can help you write, test OPA policies in Rego.
+{{< ecosystem_feature_embed key="learning-rego" topic="learning Rego" >}}

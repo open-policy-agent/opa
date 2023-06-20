@@ -103,6 +103,22 @@ This approach is more flexible than the JWT and `input` cases above because you 
 
 The drawback is that the consistency of the data with the source of truth is worse than the `input` case and could be better or worse than the consistency for the JWT case (because JWTs only get updated on login).  One feature currently under design is a delta-based bundle protocol, which could improve the data consistency model significantly by lowering the cost of frequent updates.  But as it stands this approach is ideal when the data is relatively static and the data fits into memory.
 
+### Ecosystem Projects
+
+Loading policy and data via Bundles is an important part of the OPA API. A number of
+ecosystem projects make use of this functionality to share code and keep data
+up-to-date. 
+{{<
+  ecosystem_feature_link
+  key="opa-bundles"
+  singular_intro="There is currently 1 project"
+  singular_link="listed in the OPA Ecosystem"
+  plural_outro="which integrates with Bundles."
+  plural_intro="There are"
+  plural_link="COUNT projects"
+  plural_outro="which are listed in the OPA Ecosystem which use or work with Bundles."
+>}}
+
 ## Option 4: Push Data
 
 Another way to replicate external data in its entirety into OPA is to use OPA's API for injecting arbitrary JSON data.  You can build a replicator that pulls information out of the external data source and pushes that information in OPA through its API.  This approach is similar in most respects to the bundle API, except it lets you optimize for update latency and network traffic.
@@ -135,6 +151,20 @@ The entirety of the external data source is stored in memory, which can obviousl
 ### Recommended usage: Dynamic, Medium-sized data
 
 This approach is very similar to the bundle approach except it updates the data stored in OPA with deltas instead of an entire snapshot at a time.  Because the data is updated as deltas, this approach is well-suited for data that changes frequently.  It assumes the data can fit entirely in memory and so is well-suited to small and medium-sized data sets.
+
+### Ecosystem Projects
+
+Some OPA Ecosystem projects support pushing data into OPA.
+{{<
+ecosystem_feature_link
+key="external-data-realtime-push"
+singular_intro="There is currently 1 project"
+singular_link="listed on the OPA Ecosystem page"
+singular_outro="which implements push updates to OPA data."
+plural_intro="There are"
+plural_link="COUNT projects"
+plural_outro="listed in the OPA Ecosystem which implement push updates to OPA data."
+>}}
 
 ## Option 5: Pull Data during Evaluation
 
@@ -174,6 +204,20 @@ If the data is too large to fit into memory, or it changes too frequently to cac
 
 The downside to pulling data on demand is reduced performance and availability because of the network, which can be mitigated via caching.  In the `input` case, caching is under the control of the OPA-enabled service and can therefore be tailored to fit the properties of the data.  In the `http.send` case, caching is largely under the control of the remote service that sets HTTP response headers to indicate how long the response can be cached for.  It is crucial in this approach for the OPA-enabled service to handle the case when OPA returns no decision.
 
+### Ecosystem Projects
+
+Loading data at evaluation time has been an area of focus for some projects in the OPA community.  
+{{<
+  ecosystem_feature_link
+  key="external-data-runtime"
+  singular_intro="There is currently 1 project"
+  singular_link="listed on the OPA Ecosystem page"
+  singular_outro="which implements additional evaluation-time data sources."
+  plural_intro="There are"
+  plural_link="COUNT projects"
+  plural_outro="listed in the OPA Ecosystem which implement additional evaluation-time data sources."
+>}}
+
 ## Summary
 
 | Approach | Perf/Avail | Limitations | Recommended Data |
@@ -183,3 +227,7 @@ The downside to pulling data on demand is reduced performance and availability b
 | Bundle | High | Updates to policy/data at the same time.  Size an issue. | Static, medium |
 | Push | High | Control data refresh rate.  Size an issue. | Dynamic, medium |
 | Evaluation Pull | Dependent on network | Perfectly up to date.  No size limit. | Dynamic or large |
+
+## Ecosystem Projects
+
+{{< ecosystem_feature_embed key="external-data" topic="External Data" >}}

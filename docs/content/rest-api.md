@@ -5,7 +5,30 @@ weight: 80
 restrictedtoc: true
 ---
 
-This document is the authoritative specification of the OPA REST API.
+This document is the authoritative specification of the OPA REST API. The API can be broken down into the following
+groups:
+
+* [Policy API](#policy-api) - manage policy loaded into the OPA instance.
+* [Data API](#data-api) - evaluate rules and retrieve data.
+* [Query API](#query-api) - execute adhoc queries.
+* [Compile API](#compile-api) - access Rego's [Partial Evaluation](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422) functionality.
+* [Health API](#health-api) - access instance operational health information.
+* [Config API](#config-api) - view instance configuration.
+* [Status API](#status-api) - view instance [status](../management-status) state.
+
+The REST API is a very common way to integrate with OPA.
+{{<
+  ecosystem_feature_link
+  key="rest-api-integration"
+  singular_intro="There is currently 1 project"
+  singular_link="listed in the OPA Ecosystem"
+  singular_outro="which is built on the REST API."
+  plural_intro="There are"
+  plural_link="COUNT OPA Ecosystem projects"
+  plural_outro="- many of which are open source - built on the REST API which might serve as inspiration."
+>}}
+You may also want to review the [integration documentation](../integration) for other options
+to build on OPA by embedding functionality directly into your application.
 
 ##  Policy API
 
@@ -2135,3 +2158,9 @@ OPA currently supports the following query provenance information:
 - **bundles**: A set of key-value pairs describing each bundle activated on the server. Includes
   the `revision` field which is the _revision_ string included in a .manifest file (if present)
   within a bundle
+
+## Ecosystem Projects
+
+OPA's REST API has already been used by many projects in the OPA Ecosystem to support a variety of use cases. 
+
+{{< ecosystem_feature_embed key="rest-api-integration" topic="built on the OPA REST API" >}} 

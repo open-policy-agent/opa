@@ -86,7 +86,7 @@
 
       <section class="section">
         <div class="content">
-          <p>Integrations are ordered by the amount of related content.</p>
+          <p>Integrations are ordered by the amount of linked content.</p>
           {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
           {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
         </div>

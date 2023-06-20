@@ -296,3 +296,10 @@ allow the service to consume logs without being overwhelmed. The `max_decisions_
 to set the maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded.
 This option provides users more control over how OPA buffers log events and is an effective mechanism to make sure the
 service can successfully process incoming log events.
+
+## Ecosystem Projects
+
+Decision Logging is an important feature of OPA which supports, in particular, auditing and debugging. The following OPA
+ecosystem projects implement functionality related to Decision Logging:
+
+{{< ecosystem_feature_embed key="decision-logging" topic="Decision Logging" >}}

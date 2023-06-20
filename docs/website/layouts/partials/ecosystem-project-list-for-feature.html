@@ -1,0 +1,42 @@
+{{ $selectedIntegrations := (index . "selectedIntegrations") }}
+{{ $integrationsData := (index . "integrationsData") }}
+{{ $feature := (index . "feature") }}
+
+<div class="ecosystem-list">
+{{ range $name := $selectedIntegrations }}
+{{ $integration := (index $integrationsData.integrations $name) }}
+<div class="ecosystem-list-item">
+  <div class="ecosystem-list-item-header">
+    <figure class="image is-64x64">
+      {{ partial "docs/integration-logo.html" (dict "name" $name) }}
+    </figure>
+    <div class="ecosystem-list-item-header-title">
+      <p class="title is-4">{{ $integration.title }}</p>
+      <p class="subtitle is-6">
+        {{ if $integration.subtitle }}
+        {{ $integration.subtitle }}
+        {{ end }}
+        {{ if and ($integration.subtitle) ($integration.inventors) }}
+        by&nbsp
+        {{- end -}}
+        {{- range $i, $id := $integration.inventors -}}
+        {{- $inventor := index $integrationsData.organizations $id -}}
+        <a href="{{ $inventor.link }}">{{ $inventor.name }}</a>
+        {{- if eq (add $i 1) (sub (len $integration.inventors) 1) }}
+        and
+        {{ else if lt (add $i 1) (len $integration.inventors) -}}
+        ,
+        {{- end }}
+        {{ end }}
+      </p>
+    </div>
+  </div>
+  <div class="ecosystem-list-item-content">
+    {{ (index (index $integration.docs_features $feature) "note") | markdownify }}
+  </div>
+  <a class="ecosystem-list-item-footer" href="../#{{ $name }}-detail">
+    View on the OPA Ecosystem page
+  </a>
+</div>
+{{ end }}
+</div>

@@ -265,3 +265,10 @@ information on admission control:
 * [Dynamic Admission
   Control](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
   for details on configuring external admission controllers.
+
+## Ecosystem Projects
+
+Kubernetes is a popular integration with OPA and there are number of projects already in this space
+which might work for your use case.
+
+{{< ecosystem_feature_embed key="kubernetes" topic="Kubernetes" >}}
