@@ -1371,6 +1371,8 @@ integrations:
       - regal
     inventors:
       - styra
+    blogs:
+      - https://www.styra.com/blog/guarding-the-guardrails-introducing-regal-the-rego-linter/
     code:
       - https://github.com/StyraInc/regal
     videos:
