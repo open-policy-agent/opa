@@ -1114,19 +1114,8 @@ func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*reg
 
 func (s *Server) canEval(ctx context.Context) bool {
 	// Create very simple query that binds a single variable.
-	opts := []func(*rego.Rego){
-		rego.Compiler(s.getCompiler()),
-		rego.Store(s.store),
-		rego.Query("x = 1"),
-	}
+	eval := rego.New(rego.Query("x = 1"))
 
-	for _, r := range s.manager.GetWasmResolvers() {
-		for _, ep := range r.Entrypoints() {
-			opts = append(opts, rego.Resolver(ep, r))
-		}
-	}
-
-	eval := rego.New(opts...)
 	// Run evaluation.
 	rs, err := eval.Eval(ctx)
 	if err != nil {
