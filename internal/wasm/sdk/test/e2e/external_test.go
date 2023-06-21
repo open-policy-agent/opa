@@ -190,11 +190,11 @@ func assertResultSet(t *testing.T, want []map[string]interface{}, sortBindings b
 	b := roundTripAstToJSON(result.Result, sortBindings)
 	got := ast.NewSet()
 
-	b.Value.(*ast.Array).Foreach(func(x *ast.Term) {
+	b.Value.(ast.Array).Foreach(func(x *ast.Term) {
 		obj := ast.NewObject()
 		x.Value.(ast.Object).Foreach(func(k, v *ast.Term) {
 			var val ast.Value
-			if a, ok := v.Value.(*ast.Array); ok && sortBindings {
+			if a, ok := v.Value.(ast.Array); ok && sortBindings {
 				val = a.Sorted()
 			} else {
 				val = v.Value

@@ -1055,7 +1055,7 @@ func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 		})
 	case ast.Var:
 		return p.planUnifyVar(va, b, iter)
-	case *ast.Array:
+	case ast.Array:
 		switch vb := b.Value.(type) {
 		case ast.Var:
 			return p.planUnifyVar(vb, a, iter)
@@ -1067,7 +1067,7 @@ func (p *Planner) planUnify(a, b *ast.Term, iter planiter) error {
 			return p.planTerm(b, func() error {
 				return p.planUnifyLocalArray(p.ltarget, va, iter)
 			})
-		case *ast.Array:
+		case ast.Array:
 			if va.Len() == vb.Len() {
 				return p.planUnifyArraysRec(va, vb, 0, iter)
 			}
@@ -1140,7 +1140,7 @@ func (p *Planner) planUnifyLocal(a ir.Operand, b *ast.Term, iter planiter) error
 			Target: lv,
 		})
 		return iter()
-	case *ast.Array:
+	case ast.Array:
 		return p.planUnifyLocalArray(a, vb, iter)
 	case ast.Object:
 		return p.planUnifyLocalObject(a, vb, iter)
@@ -1149,7 +1149,7 @@ func (p *Planner) planUnifyLocal(a ir.Operand, b *ast.Term, iter planiter) error
 	return fmt.Errorf("not implemented: unifyLocal(%v, %v)", a, b)
 }
 
-func (p *Planner) planUnifyLocalArray(a ir.Operand, b *ast.Array, iter planiter) error {
+func (p *Planner) planUnifyLocalArray(a ir.Operand, b ast.Array, iter planiter) error {
 	p.appendStmt(&ir.IsArrayStmt{
 		Source: a,
 	})
@@ -1183,7 +1183,7 @@ func (p *Planner) planUnifyLocalArray(a ir.Operand, b *ast.Array, iter planiter)
 	return p.planUnifyLocalArrayRec(a, 0, b, lkey, lval, iter)
 }
 
-func (p *Planner) planUnifyLocalArrayRec(a ir.Operand, index int, b *ast.Array, lkey, lval ir.Local, iter planiter) error {
+func (p *Planner) planUnifyLocalArrayRec(a ir.Operand, index int, b ast.Array, lkey, lval ir.Local, iter planiter) error {
 	if b.Len() == index {
 		return iter()
 	}
@@ -1301,7 +1301,7 @@ func (p *Planner) planUnifyLocalObjectRec(a ir.Operand, index int, keys []*ast.T
 	})
 }
 
-func (p *Planner) planUnifyArraysRec(a, b *ast.Array, index int, iter planiter) error {
+func (p *Planner) planUnifyArraysRec(a, b ast.Array, index int, iter planiter) error {
 	if index == a.Len() {
 		return iter()
 	}
@@ -1344,7 +1344,7 @@ func (p *Planner) planValue(t ast.Value, loc *ast.Location, iter planiter) error
 		return p.planVar(v, iter)
 	case ast.Ref:
 		return p.planRef(v, iter)
-	case *ast.Array:
+	case ast.Array:
 		return p.planArray(v, iter)
 	case ast.Object:
 		return p.planObject(v, iter)
@@ -1411,7 +1411,7 @@ func (p *Planner) planVar(v ast.Var, iter planiter) error {
 	return iter()
 }
 
-func (p *Planner) planArray(arr *ast.Array, iter planiter) error {
+func (p *Planner) planArray(arr ast.Array, iter planiter) error {
 
 	larr := p.newLocal()
 
@@ -1423,7 +1423,7 @@ func (p *Planner) planArray(arr *ast.Array, iter planiter) error {
 	return p.planArrayRec(arr, 0, larr, iter)
 }
 
-func (p *Planner) planArrayRec(arr *ast.Array, index int, larr ir.Local, iter planiter) error {
+func (p *Planner) planArrayRec(arr ast.Array, index int, larr ir.Local, iter planiter) error {
 	if index == arr.Len() {
 		p.ltarget = op(larr)
 		return iter()

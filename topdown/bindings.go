@@ -86,7 +86,7 @@ func (u *bindings) plugNamespaced(a *ast.Term, caller *bindings) *ast.Term {
 			return next.plugNamespaced(b, caller)
 		}
 		return u.namespaceVar(b, caller)
-	case *ast.Array:
+	case ast.Array:
 		if a.IsGround() {
 			return a
 		}
@@ -247,7 +247,7 @@ func (vis namespacingVisitor) namespaceTerm(a *ast.Term) *ast.Term {
 	switch v := a.Value.(type) {
 	case ast.Var:
 		return vis.b.namespaceVar(a, vis.caller)
-	case *ast.Array:
+	case ast.Array:
 		if a.IsGround() {
 			return a
 		}

@@ -45,17 +45,17 @@ func bothSets(t1, t2 *ast.Term) (bool, ast.Set, ast.Set) {
 	return true, set1, set2
 }
 
-func bothArrays(t1, t2 *ast.Term) (bool, *ast.Array, *ast.Array) {
+func bothArrays(t1, t2 *ast.Term) (bool, ast.Array, ast.Array) {
 	if (t1 == nil) || (t2 == nil) {
 		return false, nil, nil
 	}
 
-	array1, ok := t1.Value.(*ast.Array)
+	array1, ok := t1.Value.(ast.Array)
 	if !ok {
 		return false, nil, nil
 	}
 
-	array2, ok := t2.Value.(*ast.Array)
+	array2, ok := t2.Value.(ast.Array)
 	if !ok {
 		return false, nil, nil
 	}
@@ -63,12 +63,12 @@ func bothArrays(t1, t2 *ast.Term) (bool, *ast.Array, *ast.Array) {
 	return true, array1, array2
 }
 
-func arraySet(t1, t2 *ast.Term) (bool, *ast.Array, ast.Set) {
+func arraySet(t1, t2 *ast.Term) (bool, ast.Array, ast.Set) {
 	if (t1 == nil) || (t2 == nil) {
 		return false, nil, nil
 	}
 
-	array, ok := t1.Value.(*ast.Array)
+	array, ok := t1.Value.(ast.Array)
 	if !ok {
 		return false, nil, nil
 	}
@@ -173,7 +173,7 @@ func setSubset(super ast.Set, sub ast.Set) bool {
 // This is defined to mean that the entire "sub" array must appear in
 // the "super" array. For the same rationale as setSubset(), we do not attempt
 // to recurse into values.
-func arraySubset(super, sub *ast.Array) bool {
+func arraySubset(super, sub ast.Array) bool {
 	// Notice that this is essentially string search. The naive approach
 	// used here is O(n^2). This should probably be rewritten later to use
 	// Boyer-Moore or something.
@@ -218,7 +218,7 @@ func arraySubset(super, sub *ast.Array) bool {
 // the "super" array with no consideration of ordering.
 // For the same rationale as setSubset(), we do not attempt
 // to recurse into values.
-func arraySetSubset(super *ast.Array, sub ast.Set) bool {
+func arraySetSubset(super ast.Array, sub ast.Set) bool {
 	unmatched := sub.Len()
 	return super.Until(func(t *ast.Term) bool {
 		if sub.Contains(t) {

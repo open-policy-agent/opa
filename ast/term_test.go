@@ -168,7 +168,7 @@ func TestObjectSetOperations(t *testing.T) {
 
 	r2 := a.Intersect(b)
 	var expectedTerms []*Term
-	MustParseTerm(`["c", "d", "q"]`).Value.(*Array).Foreach(func(t *Term) {
+	MustParseTerm(`["c", "d", "q"]`).Value.(Array).Foreach(func(t *Term) {
 		expectedTerms = append(expectedTerms, t)
 	})
 	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
@@ -386,15 +386,15 @@ func TestHashArray(t *testing.T) {
 	stmt1 := MustParseStatement(doc)
 	stmt2 := MustParseStatement(doc)
 
-	arr1 := stmt1.(Body)[0].Terms.(*Term).Value.(*Array)
-	arr2 := stmt2.(Body)[0].Terms.(*Term).Value.(*Array)
+	arr1 := stmt1.(Body)[0].Terms.(*Term).Value.(Array)
+	arr2 := stmt2.(Body)[0].Terms.(*Term).Value.(Array)
 
 	if arr1.Hash() != arr2.Hash() {
 		t.Errorf("Expected hash codes to be equal")
 	}
 
 	// Calculate hash like we did before moving the caching to create/update:
-	exp := termSliceHash(arr1.elems)
+	exp := termSliceHash(arr1.elems())
 
 	if act := arr1.Hash(); exp != act {
 		t.Errorf("expected %v, got %v", exp, act)
@@ -403,7 +403,7 @@ func TestHashArray(t *testing.T) {
 	for j := 0; j < arr1.Len(); j++ {
 		for i := 0; i <= j; i++ {
 			slice := arr1.Slice(i, j)
-			exp := termSliceHash(slice.elems)
+			exp := termSliceHash(slice.elems())
 			if act := slice.Hash(); exp != act {
 				t.Errorf("arr1[%d:%d]: expected %v, got %v", i, j, exp, act)
 			}
@@ -943,7 +943,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 }
 
 func TestArrayOperations(t *testing.T) {
-	arr := MustParseTerm(`[1,2,3,4]`).Value.(*Array)
+	arr := MustParseTerm(`[1,2,3,4]`).Value.(Array)
 
 	getTests := []struct {
 		input    string
@@ -982,13 +982,13 @@ func TestArrayOperations(t *testing.T) {
 		note     string
 		input    string
 		expected []string
-		iterator func(arr *Array)
+		iterator func(arr Array)
 	}{
 		{
 			"for",
 			`[1, 2, 3, 4]`,
 			[]string{"1", "2", "3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				for i := 0; i < arr.Len(); i++ {
 					results = append(results, arr.Elem(i))
 				}
@@ -998,7 +998,7 @@ func TestArrayOperations(t *testing.T) {
 			"foreach",
 			"[1, 2, 3, 4]",
 			[]string{"1", "2", "3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1008,7 +1008,7 @@ func TestArrayOperations(t *testing.T) {
 			"until",
 			"[1, 2, 3, 4]",
 			[]string{"1"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Until(func(v *Term) bool {
 					results = append(results, v)
 					return len(results) == 1
@@ -1019,7 +1019,7 @@ func TestArrayOperations(t *testing.T) {
 			"append",
 			"[1, 2]",
 			[]string{"1", "2", "3"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Append(MustParseTerm("3")).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1029,7 +1029,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Slice(2, 4).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1039,7 +1039,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Slice(2, -1).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1049,7 +1049,7 @@ func TestArrayOperations(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			arr := MustParseTerm(tc.input).Value.(*Array)
+			arr := MustParseTerm(tc.input).Value.(Array)
 
 			var expected []*Term
 			for _, e := range tc.expected {
@@ -1287,7 +1287,7 @@ func TestLazyObjectFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok = z.(*Array)
+	_, ok = z.(Array)
 	if !ok {
 		t.Errorf("expected Find() to return array, got %v %[1]T", z)
 	}

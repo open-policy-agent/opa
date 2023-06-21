@@ -2174,7 +2174,7 @@ func TestEvalWithNDCache(t *testing.T) {
 	// Check the cached k/v types for the HTTP section of the cache.
 	if cachedResults, ok := ndBC["http.send"]; ok {
 		err := cachedResults.Iter(func(k, v *ast.Term) error {
-			if _, ok := k.Value.(*ast.Array); !ok {
+			if _, ok := k.Value.(ast.Array); !ok {
 				t.Fatalf("http.send failed to store Object key in the ND builtins cache")
 			}
 			if _, ok := v.Value.(ast.Object); !ok {

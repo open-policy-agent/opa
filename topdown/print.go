@@ -54,7 +54,7 @@ func builtinPrint(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	return iter(nil)
 }
 
-func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operands *ast.Array, i int, f func([]string) error) error {
+func builtinPrintCrossProductOperands(bctx BuiltinContext, buf []string, operands ast.Array, i int, f func([]string) error) error {
 
 	if i >= operands.Len() {
 		return f(buf)

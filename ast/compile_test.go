@@ -3353,7 +3353,7 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	mod14 := c.Modules["someinassign"]
 	someInAssignCall := mod14.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
 	assertTermEqual(t, someInAssignCall[1], VarTerm("x"))
-	collectionLastElem := someInAssignCall[2].Value.(*Array).Get(IntNumberTerm(2))
+	collectionLastElem := someInAssignCall[2].Value.(Array).Get(IntNumberTerm(2))
 	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassign.y"))
 
 	// Ignore key and val vars assigned via `some k, v in xs`.
@@ -3361,7 +3361,7 @@ p[foo[bar[i]]] = {"baz": baz} { true }`)
 	someInAssignCall = mod15.Rules[2].Body[0].Terms.(*SomeDecl).Symbols[0].Value.(Call)
 	assertTermEqual(t, someInAssignCall[1], VarTerm("k"))
 	assertTermEqual(t, someInAssignCall[2], VarTerm("v"))
-	collectionLastElem = someInAssignCall[3].Value.(*Array).Get(IntNumberTerm(2))
+	collectionLastElem = someInAssignCall[3].Value.(Array).Get(IntNumberTerm(2))
 	assertTermEqual(t, collectionLastElem, MustParseTerm("data.someinassignwithkey.y"))
 
 	mod16 := c.Modules["everykw"]
@@ -8256,7 +8256,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 					t.Fatalf("expected term to be %v but got: %v", expTerm, result.Term)
 				}
 
-				expKeys := MustParseTerm(exp.keys).Value.(*Array)
+				expKeys := MustParseTerm(exp.keys).Value.(Array)
 				if NewArray(result.Keys...).Compare(expKeys) != 0 {
 					t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
 				}

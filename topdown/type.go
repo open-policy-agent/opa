@@ -37,7 +37,7 @@ func builtinIsBoolean(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 func builtinIsArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		return iter(ast.BooleanTerm(true))
 	default:
 		return iter(ast.BooleanTerm(false))

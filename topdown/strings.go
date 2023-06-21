@@ -23,7 +23,7 @@ func builtinAnyPrefixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(
 	switch a := a.(type) {
 	case ast.String:
 		strs = []string{string(a)}
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		var err error
 		strs, err = builtins.StringSliceOperand(a, 1)
 		if err != nil {
@@ -37,7 +37,7 @@ func builtinAnyPrefixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(
 	switch b := b.(type) {
 	case ast.String:
 		prefixes = []string{string(b)}
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		var err error
 		prefixes, err = builtins.StringSliceOperand(b, 2)
 		if err != nil {
@@ -57,7 +57,7 @@ func builtinAnySuffixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(
 	switch a := a.(type) {
 	case ast.String:
 		strsReversed = []string{reverseString(string(a))}
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		strs, err := builtins.StringSliceOperand(a, 1)
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func builtinAnySuffixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(
 	switch b := b.(type) {
 	case ast.String:
 		suffixesReversed = []string{reverseString(string(b))}
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		suffixes, err := builtins.StringSliceOperand(b, 2)
 		if err != nil {
 			return err
@@ -154,7 +154,7 @@ func builtinConcat(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	strs := []string{}
 
 	switch b := operands[1].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		err := b.Iter(func(x *ast.Term) error {
 			s, ok := x.Value.(ast.String)
 			if !ok {
@@ -513,7 +513,7 @@ func builtinSprintf(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	astArr, ok := operands[1].Value.(*ast.Array)
+	astArr, ok := operands[1].Value.(ast.Array)
 	if !ok {
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "array")
 	}
