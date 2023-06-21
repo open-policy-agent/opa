@@ -3320,6 +3320,25 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`every __local0__1, __local1__1 in input.ys { __local1__1 = input.foo }; x1 = input.foo`},
 		},
+		{ // https://github.com/open-policy-agent/opa/issues/6027
+			note:  "ref heads: \"double\" unification, single-value rule",
+			query: "data.test.foo[input.a][input.b]",
+			modules: []string{`package test
+			foo.bar[baz] {
+				baz := "baz"
+			}`},
+			wantQueries: []string{`"bar" = input.a; "baz" = input.b`},
+		},
+		{ // https://github.com/open-policy-agent/opa/issues/6027
+			note:  "ref heads: \"double\" unification, multi-value rule",
+			query: "data.test.foo[input.a][input.b]",
+			modules: []string{`package test
+			import future.keywords.contains
+			foo.bar contains baz {
+				baz := "baz"
+			}`},
+			wantQueries: []string{`"bar" = input.a; "baz" = input.b`},
+		},
 	}
 
 	ctx := context.Background()

@@ -60,9 +60,11 @@
 .article
   padding-bottom: 5rem
 
-  .hero
-    width: 75%
+  &:not(.wide)
+    +widescreen
+      width: 75%
 
+  .hero
     +touch
       width: 100%
 
@@ -78,10 +80,9 @@
     +touch
       padding: 0rem 2rem
 
-  .content
-    width: 75%
-
-    +touch
+  // this undoes the above for cards nested in content
+  .card
+    .content
       width: 100%
 
   .icon-edit

@@ -18,10 +18,5 @@
     {{ end }}
     {{ define "main" }}
     {{ end }}
-
-    {{ $isDoc := eq .Section "docs" }}
-    {{ if $isDoc }}
-    {{ partial "javascript.html" . }}
-    {{ end }}
   </body>
 </html>

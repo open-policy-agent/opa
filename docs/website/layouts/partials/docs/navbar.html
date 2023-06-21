@@ -6,7 +6,8 @@
 {{ $twitter     := printf "https://twitter.com/%s" $social.twitter }}
 {{ $medium      := $social.medium }}
 {{ $slack       := $social.slack }}
-{{ $docsHome    := .CurrentSection }}
+{{ $docsVersionBasePath := printf "%s" (delimit (first 3 (split .RelPermalink "/")) "/") }}
+{{ $docsHome   := $.GetPage $docsVersionBasePath }}
 {{ $allDocs     := where site.RegularPages "Section" "docs" }}
 {{ $docs        := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $kubernetes  := where $allDocs ".Params.kind" "eq" "kubernetes" }}

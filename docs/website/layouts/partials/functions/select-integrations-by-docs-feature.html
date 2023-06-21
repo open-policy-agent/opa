@@ -1,0 +1,12 @@
+{{ $integrations := (index . "integrations") }}
+{{ $feature := (index . "feature") }}
+
+{{ $scratch := newScratch }}
+{{ $scratch.Set "integrations" (dict) }}
+{{ range $name, $integration := $integrations }}
+  {{ if (index $integration.docs_features $feature) }}
+    {{ $scratch.SetInMap "integrations" $name $integration  }}
+  {{ end }}
+{{ end }}
+
+{{ return ($scratch.Get "integrations") }}
