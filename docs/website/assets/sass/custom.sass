@@ -61,8 +61,9 @@
   padding-bottom: 5rem
 
   &:not(.wide)
-    +widescreen
-      width: 75%
+    .hero, .content
+      +widescreen
+        max-width: 60rem
 
   .hero
     +touch
