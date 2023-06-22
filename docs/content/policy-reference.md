@@ -701,7 +701,8 @@ Timezones can be specified as
 * "UTC" or "", which are equivalent to not passing a timezone (i.e. will return as UTC)
 * "Local", which will use the local timezone.
 
-Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
+Note that OPA will use the `time/tzdata` data if none is present on the runtime filesystem (see the
+[Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
 #### Timestamp Parsing
 
