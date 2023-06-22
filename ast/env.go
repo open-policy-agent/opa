@@ -47,7 +47,8 @@ func (env *TypeEnv) Get(x interface{}) types.Type {
 		return types.NewString()
 
 	// Composites.
-	// TODO: Add case for *lazyArray
+	case *lazyArray:
+		return env.Get(x.force())
 	case *array:
 		static := make([]types.Type, x.Len())
 		for i := range static {

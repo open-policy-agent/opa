@@ -1604,9 +1604,15 @@ func (e *eval) resolveReadFromStorage(ref ast.Ref, a ast.Value) (ast.Value, erro
 		case ast.Value:
 			v = blob
 		default:
-			if blob, ok := blob.(map[string]interface{}); ok && !e.strictObjects {
-				v = ast.LazyObject(blob)
-				break
+			if !e.strictObjects {
+				if blob, ok := blob.(map[string]interface{}); ok {
+					v = ast.LazyObject(blob)
+					break
+				}
+				if blob, ok := blob.([]interface{}); ok {
+					v = ast.LazyArray(blob)
+					break
+				}
 			}
 			v, err = ast.InterfaceToValue(blob)
 			if err != nil {

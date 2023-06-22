@@ -162,8 +162,12 @@ func Compare(a, b interface{}) int {
 	case Ref:
 		b := b.(Ref)
 		return termSliceCompare(a, b)
+	case *lazyArray:
+		return Compare(a.force(), b)
 	case *array:
-		// TODO: handle both array and lazyArray here
+		if x, ok := b.(*lazyArray); ok {
+			b = x.force()
+		}
 		b := b.(*array)
 		return termSliceCompare(a.elems(), b.elems())
 	case *lazyObj:
