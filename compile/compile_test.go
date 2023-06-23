@@ -538,6 +538,57 @@ func TestCompilerOptimizationL2(t *testing.T) {
 	}
 }
 
+func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
+
+	files := map[string]string{
+		"test.rego": `
+			package test
+
+			p { not q }
+			q { k[input.a]; k[input.b] }  # generate a product that is not inlined
+			k = {1,2,3}
+		`,
+	}
+
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
+
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithOptimizationLevel(1).
+				WithEntrypoints("test/p").
+				WithPartialNamespace("custom")
+
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(compiler.bundle.Modules) != 2 {
+				t.Fatalf("expected two modules but got: %v", len(compiler.bundle.Modules))
+			}
+
+			optimizedExp := ast.MustParseModule(`package custom
+
+			__not1_0_2__ = true { data.test.q = _; _ }`)
+
+			if optimizedExp.String() != compiler.bundle.Modules[0].Parsed.String() {
+				t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
+			}
+
+			expected := ast.MustParseModule(`package test
+k = {1, 2, 3} { true }
+p = true { not data.custom.__not1_0_2__ }
+q = true { __local0__3 = input.a; data.test.k[__local0__3] = _; _; __local1__3 = input.b; data.test.k[__local1__3] = _; _ }`)
+
+			if expected.String() != compiler.bundle.Modules[1].Parsed.String() {
+				t.Fatalf("expected module to be:\n\n%v\n\ngot:\n\n%v", expected, compiler.bundle.Modules[1])
+			}
+		})
+	}
+}
+
 // NOTE(sr): we override this to not depend on build tags in tests
 func wasmABIVersions(vs ...ast.WasmABIVersion) *ast.Capabilities {
 	caps := ast.CapabilitiesForThisVersion()
@@ -1428,7 +1479,7 @@ func TestOptimizerNoops(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints, nil)
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "")
 			cpy := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -1479,7 +1530,7 @@ func TestOptimizerErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			o := getOptimizer(tc.modules, "", tc.entrypoints, nil)
+			o := getOptimizer(tc.modules, "", tc.entrypoints, nil, "")
 			cpy := o.bundle.Copy()
 			got := o.Do(context.Background())
 			if got == nil || got.Error() != tc.wantErr.Error() {
@@ -1499,6 +1550,7 @@ func TestOptimizerOutput(t *testing.T) {
 		modules     map[string]string
 		data        string
 		roots       []string
+		namespace   string
 		wantModules map[string]string
 	}{
 		{
@@ -1768,6 +1820,46 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 		},
 		{
+			note:        "configured package namespace",
+			entrypoints: []string{"data.test.p"},
+			namespace:   "custom",
+			modules: map[string]string{
+				"test.rego": `
+					package test
+
+					p { not q }
+					q { k[input.a]; k[input.b] }  # generate a product that is not inlined
+					k = {1,2,3}
+				`,
+			},
+			wantModules: map[string]string{
+				"optimized/custom.rego": `
+					package custom
+
+					__not1_0_2__ = true { 1 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 1 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 1 = input.a; 3 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 2 = input.a; 3 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 1 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 2 = input.b }
+					__not1_0_2__ = true { 3 = input.a; 3 = input.b }
+				`,
+				"optimized/test.rego": `
+					package test
+
+					p = __result__ { not data.custom.__not1_0_2__; __result__ = true }
+				`,
+				"test.rego": `
+					package test
+
+					q = true { k[input.a]; k[input.b] }
+					k = {1, 2, 3} { true }
+				`,
+			},
+		},
+		{
 			note:        "infer unknowns from roots",
 			entrypoints: []string{"data.test.p"},
 			modules: map[string]string{
@@ -1935,7 +2027,7 @@ func TestOptimizerOutput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 
-			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots)
+			o := getOptimizer(tc.modules, tc.data, tc.entrypoints, tc.roots, tc.namespace)
 			original := o.bundle.Copy()
 			err := o.Do(context.Background())
 			if err != nil {
@@ -1949,7 +2041,13 @@ func TestOptimizerOutput(t *testing.T) {
 
 			if len(tc.roots) > 0 {
 				exp.Manifest.Roots = &tc.roots
-				exp.Manifest.AddRoot("partial") // optimizer will add this automatically
+
+				// optimizer will add the manifest root in the optimized bundle automatically
+				if tc.namespace != "" {
+					exp.Manifest.AddRoot(tc.namespace)
+				} else {
+					exp.Manifest.AddRoot("partial")
+				}
 			}
 
 			exp.Manifest.Revision = "" // optimizations must reset the revision.
@@ -2017,7 +2115,7 @@ func TestRefSet(t *testing.T) {
 
 }
 
-func getOptimizer(modules map[string]string, data string, entries []string, roots []string) *optimizer {
+func getOptimizer(modules map[string]string, data string, entries []string, roots []string, ns string) *optimizer {
 
 	b := &bundle.Bundle{
 		Modules: getModuleFiles(modules, true),
@@ -2041,6 +2139,10 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 
 	o := newOptimizer(ast.CapabilitiesForThisVersion(), b).
 		WithEntrypoints(entrypoints)
+
+	if ns != "" {
+		o = o.WithPartialNamespace(ns)
+	}
 
 	o.resultsymprefix = ""
 
