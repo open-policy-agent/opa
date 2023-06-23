@@ -1053,7 +1053,8 @@ func TestReconfigureWithUpdates(t *testing.T) {
 				"key": "some_private_key",
 				"scope": "write"
 			}
-		}
+		},
+		"persistence_directory": "test"
 	}`), "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
@@ -1063,6 +1064,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	originalConfig := disco.config
 
 	initialBundle := makeDataBundle(1, `
 		{
@@ -1079,7 +1081,6 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	originalConfig := disco.config
 	// update the discovery configuration and check
 	// the boot configuration is not overwritten
 	updatedBundle := makeDataBundle(2, `
@@ -1345,6 +1346,40 @@ func TestReconfigureWithUpdates(t *testing.T) {
 	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
+	}
+
+	// check that not setting persistence_directory doesn't remove boot config
+	updatedBundle = makeDataBundle(13, `
+		{
+			"config": {}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	if manager.Config.PersistenceDirectory == nil {
+		t.Fatal("Erased persistence directory configuration")
+	}
+
+	// update persistence directory
+	updatedBundle = makeDataBundle(14, `
+		{
+			"config": {
+				"persistence_directory": "my_bundles"
+			}
+		}
+	`)
+
+	err = disco.reconfigure(ctx, download.Update{Bundle: updatedBundle})
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory != "my_bundles" {
+		t.Fatal("Did not update persistence directory")
 	}
 }
 

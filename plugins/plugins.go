@@ -691,6 +691,11 @@ func (m *Manager) Reconfigure(config *config.Config) error {
 		}
 	}
 
+	// don't erase persistence directory
+	if config.PersistenceDirectory == nil {
+		config.PersistenceDirectory = m.Config.PersistenceDirectory
+	}
+
 	m.Config = config
 	m.interQueryBuiltinCacheConfig = interQueryBuiltinCacheConfig
 	for name, client := range services {
