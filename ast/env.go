@@ -321,7 +321,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 			child = c.(*typeTreeNode)
 
 			if child.value != nil && i+1 < len(path) {
-				// If child hase an object value, merge the new value into it.
+				// If child has an object value, merge the new value into it.
 				if o, ok := child.value.(*types.Object); ok {
 					var err error
 					child.value, err = insertIntoObject(o, path[i+1:], tpe)
