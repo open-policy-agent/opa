@@ -59,6 +59,7 @@ type testCommandParams struct {
 	watch        bool
 	stopChan     chan os.Signal
 	output       io.Writer
+	errOutput    io.Writer
 }
 
 func newTestCommandParams() testCommandParams {
@@ -69,6 +70,7 @@ func newTestCommandParams() testCommandParams {
 		capabilities: newcapabilitiesFlag(),
 		schema:       &schemaFlags{},
 		output:       os.Stdout,
+		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
 	}
 }
@@ -81,12 +83,12 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 
 	if testParams.outputFormat.String() == benchmarkGoBenchOutput && !testParams.benchmark {
 		errMsg := "cannot use output format %s without running benchmarks (--bench)\n"
-		fmt.Fprintf(os.Stderr, errMsg, benchmarkGoBenchOutput)
+		fmt.Fprintf(testParams.errOutput, errMsg, benchmarkGoBenchOutput)
 		return 0, fmt.Errorf(errMsg, benchmarkGoBenchOutput)
 	}
 
 	if !isThresholdValid(testParams.threshold) {
-		fmt.Fprintln(os.Stderr, "Code coverage threshold must be between 0 and 100")
+		fmt.Fprintln(testParams.errOutput, "Code coverage threshold must be between 0 and 100")
 		return 1, err
 	}
 
@@ -106,20 +108,20 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	}
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(testParams.errOutput, err)
 		return 1, err
 	}
 
 	txn, err := store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(testParams.errOutput, err)
 		return 1, err
 	}
 
 	runner, reporter, err := compileAndSetupTests(ctx, testParams, store, txn, modules, bundles)
 	if err != nil {
 		store.Abort(ctx, txn)
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(testParams.errOutput, err)
 		return 1, err
 	}
 
@@ -167,7 +169,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(testParams.errOutput, err)
 		return 1, err
 	}
 
@@ -190,7 +192,7 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	}()
 
 	if err := reporter.Report(dup); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(testParams.errOutput, err)
 		if !testParams.benchmark {
 			if _, ok := err.(*cover.CoverageThresholdError); ok {
 				return 2, err
@@ -235,7 +237,7 @@ func isThresholdValid(t float64) bool {
 func startWatcher(ctx context.Context, testParams testCommandParams, paths []string, store storage.Store, done chan struct{}) {
 	watcher, err := pathwatcher.CreatePathWatcher(paths)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating path watcher: ", err)
+		fmt.Fprintln(testParams.errOutput, "Error creating path watcher: ", err)
 		os.Exit(1)
 	}
 	readWatcher(ctx, testParams, watcher, paths, store, done)
@@ -356,7 +358,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 	if testParams.coverage {
 		if testParams.benchmark {
 			errMsg := "coverage reporting is not supported when benchmarking tests"
-			fmt.Fprintln(os.Stderr, errMsg)
+			fmt.Fprintln(testParams.errOutput, errMsg)
 			return nil, nil, fmt.Errorf(errMsg)
 		}
 		cov = cover.New()

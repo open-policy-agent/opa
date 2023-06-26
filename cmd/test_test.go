@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -297,6 +298,7 @@ func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) 
 		testParams := newTestCommandParams()
 		testParams.count = 1
 		testParams.schema.path = path
+		testParams.errOutput = io.Discard
 
 		exitCode, err = opaTest([]string{regoFilePath}, testParams)
 	})
