@@ -7,6 +7,7 @@ package version
 
 import (
 	"runtime"
+	"runtime/debug"
 )
 
 // Version is the canonical version of OPA.
@@ -25,3 +26,24 @@ var (
 	Timestamp = ""
 	Hostname  = ""
 )
+
+func init() {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	dirty := false
+	for _, s := range bi.Settings {
+		switch s.Key {
+		case "vcs.time":
+			Timestamp = s.Value
+		case "vcs.revision":
+			Vcs = s.Value
+		case "vcs.modified":
+			dirty = s.Value == "true"
+		}
+	}
+	if dirty {
+		Vcs = Vcs + "-dirty"
+	}
+}

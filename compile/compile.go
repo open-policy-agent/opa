@@ -81,6 +81,7 @@ type Compiler struct {
 	keyID                        string                     // represents the name of the default key used to verify a signed bundle
 	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
+	ns                           string
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -225,6 +226,12 @@ func (c *Compiler) WithMetadata(metadata *map[string]interface{}) *Compiler {
 // WithFS sets the file system to use when loading paths
 func (c *Compiler) WithFS(fsys fs.FS) *Compiler {
 	c.fsys = fsys
+	return c
+}
+
+// WithPartialNamespace sets the namespace to use for partial evaluation results
+func (c *Compiler) WithPartialNamespace(ns string) *Compiler {
+	c.ns = ns
 	return c
 }
 
@@ -489,6 +496,10 @@ func (c *Compiler) optimize(ctx context.Context) error {
 		WithDebug(c.debug.Writer()).
 		WithShallowInlining(c.optimizationLevel <= 1).
 		WithEnablePrintStatements(c.enablePrintStatements)
+
+	if c.ns != "" {
+		o = o.WithPartialNamespace(c.ns)
+	}
 
 	err := o.Do(ctx)
 	if err != nil {
@@ -841,6 +852,11 @@ func (o *optimizer) WithEntrypoints(es []*ast.Term) *optimizer {
 
 func (o *optimizer) WithShallowInlining(yes bool) *optimizer {
 	o.shallow = yes
+	return o
+}
+
+func (o *optimizer) WithPartialNamespace(ns string) *optimizer {
+	o.nsprefix = ns
 	return o
 }
 

@@ -2503,6 +2503,10 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 }
 
 func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.Rule) error {
+	headKey := rule.Head.Key
+	if headKey == nil {
+		headKey = rule.Head.Reference[len(rule.Head.Reference)-1]
+	}
 
 	key := e.ref[e.pos+1]
 	child := e.e.child(rule.Body)
@@ -2512,7 +2516,7 @@ func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.R
 
 	err := child.eval(func(child *eval) error {
 		defined = true
-		return e.e.biunify(rule.Head.Key, key, child.bindings, e.bindings, func() error {
+		return e.e.biunify(headKey, key, child.bindings, e.bindings, func() error {
 			return e.evalOneRuleContinue(iter, rule, child)
 		})
 	})

@@ -1,5 +1,6 @@
-{{ $docsHome   := .CurrentSection }}
-{{ $allDocs    := where site.RegularPages "Section" "docs" }}
+{{ $docsVersionBasePath := printf "%s" (delimit (first 3 (split .RelPermalink "/")) "/") }}
+{{ $docsHome   := $.GetPage $docsVersionBasePath }}
+{{ $allDocs    := where $docsHome.Pages "Section" "docs" }}
 {{ $docs       := where $allDocs ".Params.kind" "eq" "documentation" }}
 {{ $kubernetes := where $allDocs ".Params.kind" "eq" "kubernetes" }}
 {{ $envoy      := where $allDocs ".Params.kind" "eq" "envoy" }}
@@ -12,7 +13,7 @@
 {{ $pageUrl    := .Permalink }}
 {{ $isDocsHome := eq .Permalink $docsHome.Permalink }}
 {{ $version    := index (split .File.Path "/") 1 }}
-{{ $latest     := index site.Data.releases 1 }}
+{{ $latest     := index $.Site.Data.releases 1 }}
 
 <span class="docs-nav-title">
   Core Docs

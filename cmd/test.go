@@ -273,7 +273,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 
 	err := pathwatcher.ProcessWatcherUpdate(ctx, paths, removed, store, filter.Apply, testParams.bundleMode,
 		func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
-			if len(loaded.Files.Documents) > 0 {
+			if len(loaded.Files.Documents) > 0 || removed != "" {
 				if err := store.Write(ctx, txn, storage.AddOp, storage.Path{}, loaded.Files.Documents); err != nil {
 					return fmt.Errorf("storage error: %w", err)
 				}
@@ -285,8 +285,8 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 		})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(testParams.output, err)
+		return
 	}
 
 	modules := map[string]*ast.Module{}
@@ -310,8 +310,7 @@ func processWatcherUpdate(ctx context.Context, testParams testCommandParams, pat
 	})
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(testParams.output, err)
 	}
 }
 

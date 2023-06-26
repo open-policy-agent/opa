@@ -23,7 +23,7 @@ import (
 func TestDoInspect(t *testing.T) {
 	files := [][2]string{
 		{"/.manifest", `{"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]}`},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/example/foo.rego", `package foo`},
 	}
 
@@ -79,7 +79,7 @@ func TestDoInspectPretty(t *testing.T) {
 
 	files := [][2]string{
 		{"/.manifest", manifest},
-		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}}`},
+		{"/data.json", `{"x": {"y": true}, "a": {"b": {"z": true}}}`},
 		{"/http/example/authz/foo.rego", `package http.example.authz`},
 		{"/http/example/authz/data.json", `{"faz": "baz"}`},
 		{"/example/foo.rego", `package foo`},

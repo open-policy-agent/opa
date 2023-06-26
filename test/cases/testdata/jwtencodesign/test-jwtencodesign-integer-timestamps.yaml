@@ -1,0 +1,16 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package test
+
+    p = x {
+      now_ns := 1.678e15
+      iat := now_ns / 1e6
+      exp := iat + 300
+      io.jwt.encode_sign({"alg": "HS256", "typ": "JWT"}, {"iat": iat, "exp": exp}, {"k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow", "kty": "oct"}, x)
+    }
+  note: jwtencodesign/plain integer timestamps
+  query: data.test.p = x
+  want_result:
+  - x: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAxNjc4MDAwMzAwLCAiaWF0IjogMTY3ODAwMDAwMH0.y3F_yHYTv7sT7x9Io1aR_fsMmz9-zhG3P2vw-wVCUCo

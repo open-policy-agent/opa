@@ -701,12 +701,13 @@ Timezones can be specified as
 * "UTC" or "", which are equivalent to not passing a timezone (i.e. will return as UTC)
 * "Local", which will use the local timezone.
 
-Note that the opa executable will need access to the timezone files in the environment it is running in (see the [Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
+Note that OPA will use the `time/tzdata` data if none is present on the runtime filesystem (see the
+[Go `time.LoadLocation()`](https://pkg.go.dev/time#LoadLocation) documentation for more information).
 
 #### Timestamp Parsing
 
 OPA can parse timestamps of nearly arbitrary formats, and currently accepts the same inputs as Go's `time.Parse()` utility.
-As a result, you **must** describe the format of your timestamps using the Reference Timestamp that Go's `time` module expects:
+As a result, either you will pass a supported constant, or you **must** describe the format of your timestamps using the Reference Timestamp that Go's `time` module expects:
 
     2006-01-02T15:04:05Z07:00
 
@@ -729,7 +730,7 @@ Examples of valid values for each timestamp field:
  - Second: `"5"` `"05"`
  - AM/PM mark: `"PM"`
 
-For formatting of nanoseconds, time zones, and other fields, see the [Go `time/format` module documentation](https://cs.opensource.google/go/go/+/master:src/time/format.go;l=9-100).
+For supported constants, formatting of nanoseconds, time zones, and other fields, see the [Go `time/format` module documentation](https://cs.opensource.google/go/go/+/master:src/time/format.go;l=9-113). 
 
 #### Timestamp Parsing Example
 

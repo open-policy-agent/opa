@@ -112,7 +112,8 @@ The -O flag controls the optimization level. By default, optimization is disable
 When optimization is enabled the 'build' command generates a bundle that is semantically
 equivalent to the input files however the structure of the files in the bundle may have
 been changed by rewriting, inlining, pruning, etc. Higher optimization levels may result
-in longer build times.
+in longer build times. The --partial-namespace flag can used in conjunction with the -O flag
+to specify the namespace for the partially evaluated files in the optimized bundle.
 
 The 'build' command supports targets (specified by -t):
 
@@ -240,6 +241,7 @@ opa build <path> [<path> [...]] [flags]
       --ignore strings                 set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -O, --optimize int                   set optimization level
   -o, --output string                  set the output filename (default "bundle.tar.gz")
+      --partial-namespace string       set the namespace to use for partially evaluated files in an optimized bundle (default "partial")
       --prune-unused                   exclude dependents of entrypoints
   -r, --revision string                set output bundle revision
       --scope string                   scope to use for bundle signature verification

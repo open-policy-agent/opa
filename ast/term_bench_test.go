@@ -32,6 +32,35 @@ func BenchmarkObjectLookup(b *testing.B) {
 	}
 }
 
+func BenchmarkObjectFind(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		for _, m := range sizes {
+			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
+				obj := NewObject()
+				for i := 0; i < n; i++ {
+					arr := NewArray()
+					for j := 0; j < m; j++ {
+						arr = arr.Append(IntNumberTerm(j))
+					}
+					obj.Insert(StringTerm(fmt.Sprint(i)), NewTerm(arr))
+				}
+				key := Ref{StringTerm(fmt.Sprint(n - 1)), IntNumberTerm(m - 1)}
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					value, err := obj.Find(key)
+					if err != nil {
+						b.Fatal(err)
+					}
+					if value == nil {
+						b.Fatal("expected hit")
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkObjectCreationAndLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000, 500000}
 	for _, n := range sizes {
@@ -48,6 +77,57 @@ func BenchmarkObjectCreationAndLookup(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkLazyObjectLookup(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			data := make(map[string]interface{}, n)
+			for i := 0; i < n; i++ {
+				data[fmt.Sprint(i)] = i
+			}
+			obj := LazyObject(data)
+			key := StringTerm(fmt.Sprint(n - 1))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				value := obj.Get(key)
+				if value == nil {
+					b.Fatal("expected hit")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkLazyObjectFind(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		for _, m := range sizes {
+			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
+				data := make(map[string]interface{}, n)
+				for i := 0; i < n; i++ {
+					arr := make([]string, 0, m)
+					for j := 0; j < m; j++ {
+						arr = append(arr, fmt.Sprint(j))
+					}
+					data[fmt.Sprint(i)] = arr
+				}
+				obj := LazyObject(data)
+				key := Ref{StringTerm(fmt.Sprint(n - 1)), IntNumberTerm(m - 1)}
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					value, err := obj.Find(key)
+					if err != nil {
+						b.Fatal(err)
+					}
+					if value == nil {
+						b.Fatal("expected hit")
+					}
+				}
+			})
+		}
 	}
 }
 

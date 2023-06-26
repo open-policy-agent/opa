@@ -11,16 +11,20 @@ cases:
     b := time.format([time_ns, "Asia/Kolkata"])
 
     c := time.format([time_ns,"Asia/Kolkata","Mon Jan 02 15:04:05 -0700 2006"])
+    
+    d := time.format([time_ns,"Asia/Kolkata","RFC1123Z"])
 
   note: time/format
   query: >
     data.test.a = no_timezone;
     data.test.b = with_timezone;
-    data.test.c = with_layout
+    data.test.c = with_layout;
+    data.test.d = with_constant
   want_result:
   - no_timezone: "2022-12-02T18:40:53.141828752Z"
     with_timezone: "2022-12-03T00:10:53.141828752+05:30"
     with_layout: "Sat Dec 03 00:10:53 +0530 2022"
+    with_constant: "Sat, 03 Dec 2022 00:10:53 +0530"
 - data:
   modules:
   - |

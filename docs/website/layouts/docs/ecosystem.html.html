@@ -1,235 +1,105 @@
-{{ define "title" }}
-    {{ site.Title }} | {{ .Title }}
-{{ end }}
+<!--The ecosystem page architecture was refactored in https://github.com/open-policy-agent/opa/pull/6029-->
+<!--This layout is legacy and is only retained in order to render older versions of the docs.-->
 
-{{ define "main" }}
-<script type="application/javascript">
-    function openModal(modalID) {
-      location.hash = `#${modalID}`;
-      $("#"+modalID).addClass("is-active");
-    }
+<!DOCTYPE html>
+<html lang="{{ site.LanguageCode }}">
+<head>
+  {{ partial "google-analytics.html" . }}
+  {{ partial "meta.html" . }}
 
-    function closeModal(modalID) {
-      location.hash = "";
-      $("#"+modalID).removeClass("is-active");
-    }
+  <title>
+    {{ block "title" . }}{{ site.Title }}{{ end }}
+  </title>
 
-    window.addEventListener('DOMContentLoaded', () => {
-      if (location.hash) {
-        $(location.hash).addClass("is-active");
-      }
-    });
-</script>
-  <div class="dashboard">
-      {{ partial "docs/dashboard-panel.html" . }}
+  {{ block "head" . }}{{ end }}
+  {{ define "head" }}{{ end }}
 
-    <div class="dashboard-main is-scrollable">
-        {{ partial "docs/navbar.html" . }}
+  {{ partial "css.html" . }}
+</head>
+<body>
+{{- $latest := "latest" -}}
+{{- if eq (len site.Data.releases) 1 -}}
+{{- $latest = "edge" -}}
+{{- end -}}
 
-        <div class="integration-index">
-          <nav class="navbar ecosystem-navbar">
-            <div class="ecosystem-container">
-              <div class="title is-1">
-                OPA Ecosystem
-              </div>
-              <div class="is-6">
-                Showcase of OPA integrations, use-cases, and related projects.
-              </div>
-              <div class="is-6">
-                Ordered by the amount of content.
-              </div>
-            </div>
-            <div class="container">
-              <div class="navbar-menu">
-                <div class="navbar-end">
-                  <span class="navbar-item">
-                    <a class="button is-primary is-inverted" href="https://github.com/open-policy-agent/opa/edit/main/docs/website/data/integrations.yaml">
-                      <span class="icon">
-                        <i class="fab fa-github"></i>
-                      </span>
-                      <span>Contribute Here</span>
-                    </a>
-                  </span>
-                </div>
-              </div>
-            </div>
-          </nav>
-          {{ $scratch := newScratch }}
-          {{ range $name, $integration := $.Site.Data.integrations.integrations }}
-            <!-- using $scratch.tutorials so that IFs can modify -->
-            {{ $scratch.Set "tutorials" 0 }}
-            {{ if isset $integration "tutorials" }}
+{{ $releases            := site.Data.releases }}
 
-              {{ $hosts := slice }}
+{{ $version             := index (split .File.Path "/") 1 }}
 
-              {{ range $elem := index $integration "tutorials" }}
-                {{ $url := urls.Parse $elem }}
-                {{ $hosts = $hosts | append $url.Host }}
-              {{ end }}
+{{ $latestVersionString := printf "%s" (index $releases 1) }}
+{{- if eq (len $releases) 1 -}}
+{{- $latestVersionString = "(dev preview)" -}}
+{{- end -}}
 
-              {{ $scratch.Set "tutorials" (len ($hosts | uniq)) }}
-            {{ end }}
+{{ $rank := 1 }}
+{{- range $index, $ver := site.Data.releases -}}
+{{- if eq $ver $version -}}
+{{ $rank = $index }}
+{{- end -}}
+{{- end -}}
+{{ $ancient := gt $rank 5 }}
 
-            {{ $scratch.Set "videos" 0 }}
-            {{ if isset $integration "videos" }}
-              {{ $scratch.Set "videos" (len (index $integration "videos")) }}
-            {{ end }}
+{{ $isEdge := (eq $version "edge") }}
+{{ $isNotLatest := (and (ne $version $latest) (ne $version $latestVersionString)) }}
 
-            {{ $scratch.Set "blogs" 0 }}
-            {{ if isset $integration "blogs" }}
-
-              {{ $hosts := slice }}
-
-              {{ range $elem := index $integration "blogs" }}
-                {{ $url := urls.Parse $elem }}
-                {{ $hosts = $hosts | append $url.Host }}
-              {{ end }}
-
-              {{ $scratch.Set "blogs" (len ($hosts | uniq)) }}
-            {{ end }}
-
-            {{ $scratch.Set "code" 0 }}
-            {{ if isset $integration "code" }}
-              {{ $scratch.Set "code" (len (index $integration "code")) }}
-            {{ end }}
-
-            {{ $rank := (add ($scratch.Get "tutorials") (add ($scratch.Get "videos") (add ($scratch.Get "blogs") ($scratch.Get "code")))) }}
-            {{ $scratch.Add "integration-names" (slice (dict "name" $name "rank" $rank)) }}
-          {{ end }}
-          {{ range $integrations := (sort ($scratch.Get "integration-names") "rank" "desc") }}
-          {{ $name := (index $integrations "name") }}
-          {{ $rank := (index $integrations "rank") }}
-          {{ $integration := (index $.Site.Data.integrations.integrations $name) }}
-          <div class="integration-item" onclick="openModal('{{ $name }}-detail')">
-            <div class="card is-flex-grow-1">
-              <div class="card-image">
-                <figure class="image">
-                  {{ partial "docs/integration-logo.html" (dict "name" $name) }}
-                </figure>
-              </div>
-              <div class="card-content has-text-centered">
-                <p class="title is-6">{{- $integration.title -}}</p>
-              </div>
-            </div>
-          </div>
-          <div id="{{ $name }}-detail" class="modal">
-            <div class="modal-background" onclick="closeModal('{{ $name }}-detail')"></div>
-            <div class="modal-content has-background-light">
-              <div class="media integration-details">
-                <div class="media-left">
-                  <figure class="image is-48x48">
-                      {{ partial "docs/integration-logo.html" (dict "name" $name) }}
-                  </figure>
-                </div>
-                <div class="media-content">
-                  <p class="title is-4">{{- $integration.title -}}</p>
-                  <p>{{- $integration.description -}}</p>
-                  <br />
-
-                  <div class="integration-details-labels">
-                    {{ if isset $integration "labels" }}
-                      {{ range $name, $value := $integration.labels }}
-                        <div class="integration-label-wrapper">
-                          <a class="integration-label integration-label-{{ $name }}">{{ $value }}</a>
-                        </div>
-                      {{ end }}
-                    {{ end }}
-                    {{ if isset $integration "software" }}
-                        {{ range sort $integration.software }}
-                          <div class="integration-label-wrapper">
-                            {{ if isset $.Site.Data.integrations.software . }}
-                            <a class="integration-label integration-label-software" href="{{ index (index $.Site.Data.integrations.software .) "link" }}">{{ index (index $.Site.Data.integrations.software .) "name" }}</a>
-                            {{ else }}
-                            <a class="integration-label integration-label-software">{{ . }}</a>
-                            {{ end }}
-                          </div>
-                        {{ end }}
-                    {{ end }}
-                  </div>
-                  <br />
-
-                  {{ if isset $integration "inventors" }}
-                    <p class="title is-6">Inventors</p>
-                    <ul>
-                        {{ range $integration.inventors }}
-                            {{ if reflect.IsMap . }}
-                              <li> {{ .name }} - {{ partial "docs/integration-org-link.html" (dict "org" .organization "integrations" $.Site.Data.integrations) }} </li>
-                            {{ else }}
-                              <li>{{ partial "docs/integration-org-link.html" (dict "org" . "integrations" $.Site.Data.integrations) }}</li>
-                            {{ end }}
-                        {{ end }}
-                    </ul>
-                    <br />
-                  {{ end }}
-
-                  {{ if isset $integration "code" }}
-                  <p class="title is-6">Code</p>
-                  <ul>
-                  {{ range $integration.code }}
-                    <li><a href="{{ . }}">{{ . }}</a></li>
-                  {{ end }}
-                  </ul>
-                  <br />
-                  {{ end }}
-
-                  {{ if isset $integration "tutorials" }}
-                  <p class="title is-6">Tutorials</p>
-                  <ul>
-                      {{ range $integration.tutorials }}
-                        <li><a href="{{ . }}">{{ . }}</a></li>
-                      {{ end }}
-                  </ul>
-                  <br />
-                  {{ end }}
-
-                  {{ if isset $integration "videos"}}
-                  <p class="title is-6">Videos</p>
-                  <ul>
-                  {{ range $integration.videos }}
-                      {{ if reflect.IsMap . }}
-                          <li>
-                            <a href="{{ .link }}">{{ .title }} - {{ .venue }}</a>
-                            <ul>
-                              {{ range .speakers }}
-                                  {{ if reflect.IsMap . }}
-                                      {{ if isset $.Site.Data.integrations.organizations .organization }}
-                                        <li>{{ .name }} - {{ partial "docs/integration-org-link.html" (dict "org" .organization "integrations" $.Site.Data.integrations) }}</li>
-                                      {{ else }}
-                                        <li>{{ .name }} -  {{ .organization }}</li>
-                                      {{end}}
-                                  {{ else }}
-                                    <li>{{ . }}</li>
-                                  {{ end }}
-                              {{ end }}
-                            </ul>
-                          </li>
-                      {{ else }}
-                          <li><a href="{{ . }}">{{ . }}</a></li>
-                      {{ end }}
-                      <br />
-                  {{ end }}
-                  </ul>
-                  <br />
-                  {{ end }}
-
-                  {{ if isset $integration "blogs" }}
-                  <p class="title is-6">Blogs</p>
-                  <ul>
-                      {{ range $integration.blogs }}
-                        <li><a href="{{ . }}">{{ . }}</a></li>
-                      {{ end }}
-                  </ul>
-                  <br />
-                  {{ end }}
-                </div>
-                <div class="media-right">
-                  <button class="delete" onclick="closeModal('{{ $name }}-detail')"></button>
-                </div>
-              </div>
-            </div>
-          </div>
-          {{ end }}
-        </div>
+<div class="dashboard-wrapper {{ if (or $isEdge $isNotLatest) }}showing-banner-version-warning{{ end }}">
+  {{- if $isEdge }}
+  <div class="message is-info banner-version-warning">
+    <div class="message-body">
+      This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+      <button class="delete" aria-label="delete"></button>
     </div>
   </div>
-{{ end }}
+  {{- else if $isNotLatest }}
+  <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
+  <div class="message-body">
+    These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+    {{ if not $ancient }}
+    <button class="delete" aria-label="delete"></button>
+    {{ end }}
+  </div>
+</div>
+{{- end }}
+
+<div class="dashboard">
+  {{ partial "docs/dashboard-panel.html" . }}
+
+  <div class="dashboard-main is-scrollable">
+    {{ partial "docs/navbar.html" . }}
+
+    <article class="article wide">
+    <div class="container">
+      <section class="hero">
+        <div class="hero-body">
+              <span class="title is-size-1 is-size-2-mobile">
+                OPA Ecosystem
+              </span>
+          <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
+                <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
+                  <i class="fab fa-github"></i>
+                  <span>Edit</span>
+            </a>
+              </span>
+          <hr>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="content">
+          <p>Integrations are ordered by the amount of related content.</p>
+          {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
+          {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
+        </div>
+        {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable)) }}
+        {{ partial "feedback.html" site.Params.ui.feedback }}
+        {{ end }}
+        <div class="toc-padding"></div>
+      </section>
+    </div>
+    </article>
+  </div>
+</div>
+
+{{ partial "javascript.html" . }}
+</body>
+</html>
