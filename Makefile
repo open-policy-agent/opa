@@ -373,6 +373,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
 	$(DOCKER) buildx build \
@@ -380,6 +381,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
 	$(DOCKER) buildx build \
@@ -388,6 +390,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
 
@@ -397,6 +400,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--provenance=false \
 		--push \
 		.
 
@@ -406,6 +410,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--provenance=false \
 		--push \
 		.
 
