@@ -109,11 +109,15 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		if manager.Config.PersistenceDirectory != nil {
 			ociStorePath = filepath.Join(*manager.Config.PersistenceDirectory, "oci")
 		}
-		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).WithCallback(result.oneShot).
-			WithBundleVerificationConfig(config.Signing)
+		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).
+			WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing).
+			WithBundlePersistence(config.Persist)
 	} else {
-		result.downloader = download.New(config.Config, restClient, config.path).WithCallback(result.oneShot).
-			WithBundleVerificationConfig(config.Signing)
+		result.downloader = download.New(config.Config, restClient, config.path).
+			WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing).
+			WithBundlePersistence(config.Persist)
 	}
 	result.status = &bundle.Status{
 		Name: Name,
