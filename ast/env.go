@@ -304,6 +304,116 @@ func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 	curr.value = tpe
 }
 
+// Insert inserts tpe at path in the tree, but also merges the value into any types.Object present along that path.
+// If an types.Object is inserted, any leafs already present further down the tree are merged into the inserted object.
+// path must be ground.
+func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
+	curr := n
+	for i, term := range path {
+		c, ok := curr.children.Get(term.Value)
+
+		var child *typeTreeNode
+		if !ok {
+			child = newTypeTree()
+			child.key = term.Value
+			curr.children.Put(child.key, child)
+		} else {
+			child = c.(*typeTreeNode)
+
+			if child.value != nil && i+1 < len(path) {
+				// If child has an object value, merge the new value into it.
+				if o, ok := child.value.(*types.Object); ok {
+					var err error
+					child.value, err = insertIntoObject(o, path[i+1:], tpe)
+					if err != nil {
+						panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
+					}
+				}
+			}
+		}
+
+		curr = child
+	}
+
+	curr.value = tpe
+
+	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {
+		// merge all leafs into the inserted object
+		leafs := curr.Leafs()
+		for p, t := range leafs {
+			var err error
+			curr.value, err = insertIntoObject(curr.value.(*types.Object), *p, t)
+			if err != nil {
+				panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
+			}
+		}
+	}
+}
+
+func insertIntoObject(o *types.Object, path Ref, tpe types.Type) (*types.Object, error) {
+	if len(path) == 0 {
+		return o, nil
+	}
+
+	key, err := JSON(path[0].Value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid path term %v: %w", path[0], err)
+	}
+
+	if len(path) == 1 {
+		for _, prop := range o.StaticProperties() {
+			if util.Compare(prop.Key, key) == 0 {
+				prop.Value = types.Or(prop.Value, tpe)
+				return o, nil
+			}
+		}
+		staticProps := append(o.StaticProperties(), types.NewStaticProperty(key, tpe))
+		return types.NewObject(staticProps, o.DynamicProperties()), nil
+	}
+
+	for _, prop := range o.StaticProperties() {
+		if util.Compare(prop.Key, key) == 0 {
+			if propO := prop.Value.(*types.Object); propO != nil {
+				prop.Value, err = insertIntoObject(propO, path[1:], tpe)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, fmt.Errorf("cannot insert into non-object type %v", prop.Value)
+			}
+			return o, nil
+		}
+	}
+
+	child, err := insertIntoObject(types.NewObject(nil, nil), path[1:], tpe)
+	if err != nil {
+		return nil, err
+	}
+	staticProps := append(o.StaticProperties(), types.NewStaticProperty(key, child))
+	return types.NewObject(staticProps, o.DynamicProperties()), nil
+}
+
+func (n *typeTreeNode) Leafs() map[*Ref]types.Type {
+	leafs := map[*Ref]types.Type{}
+	n.children.Iter(func(k, v util.T) bool {
+		collectLeafs(v.(*typeTreeNode), nil, leafs)
+		return false
+	})
+	return leafs
+}
+
+func collectLeafs(n *typeTreeNode, path Ref, leafs map[*Ref]types.Type) {
+	nPath := append(path, NewTerm(n.key))
+	if n.Leaf() {
+		leafs[&nPath] = n.Value()
+		return
+	}
+	n.children.Iter(func(k, v util.T) bool {
+		collectLeafs(v.(*typeTreeNode), nPath, leafs)
+		return false
+	})
+}
+
 func (n *typeTreeNode) Value() types.Type {
 	return n.value
 }
