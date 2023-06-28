@@ -483,7 +483,7 @@ check-go-module:
 	docker run \
 	  $(DOCKER_FLAGS) \
 	  -w /src \
-	  -v $(PWD):/src \
+	  -v $(PWD):/src:Z \
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
 	  golang:$(GOVERSION) \
@@ -503,14 +503,14 @@ endif
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
-		-v $(PWD):/_src \
+		-v $(PWD):/_src:Z \
 		cmd.cat/make/git/go/python3/perl \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
 dev-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD):/_src \
+		-v $(PWD):/_src:Z \
 		cmd.cat/make/git/go/python3/perl \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
@@ -546,16 +546,16 @@ depr-build-windows: ensure-release-dir
 
 depr-release:
 	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
+		-v $(PWD):/_src:Z \
 		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
 depr-release-local:
 	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
+		-v $(PWD):/_src:Z \
 		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src
