@@ -7,6 +7,7 @@ package plugins
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/hooks"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
@@ -196,6 +198,7 @@ type Manager struct {
 	distributedTacingOpts        tracing.Options
 	registeredNDCacheTriggers    []func(bool)
 	bootstrapConfigLabels        map[string]string
+	hooks                        hooks.Hooks
 }
 
 type managerContextKey string
@@ -374,6 +377,13 @@ func WithDistributedTracingOpts(tr tracing.Options) func(*Manager) {
 	}
 }
 
+// WithHooks allows passing hooks to the plugin manager.
+func WithHooks(hs hooks.Hooks) func(*Manager) {
+	return func(m *Manager) {
+		m.hooks = hs
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -382,27 +392,15 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		return nil, err
 	}
 
-	keys, err := keys.ParseKeysConfig(parsedConfig.Keys)
-	if err != nil {
-		return nil, err
-	}
-
-	interQueryBuiltinCacheConfig, err := cache.ParseCachingConfig(parsedConfig.Caching)
-	if err != nil {
-		return nil, err
-	}
-
 	m := &Manager{
-		Store:                        store,
-		Config:                       parsedConfig,
-		ID:                           id,
-		keys:                         keys,
-		pluginStatus:                 map[string]*Status{},
-		pluginStatusListeners:        map[string]StatusListener{},
-		maxErrors:                    -1,
-		interQueryBuiltinCacheConfig: interQueryBuiltinCacheConfig,
-		serverInitialized:            make(chan struct{}),
-		bootstrapConfigLabels:        parsedConfig.Labels,
+		Store:                 store,
+		Config:                parsedConfig,
+		ID:                    id,
+		pluginStatus:          map[string]*Status{},
+		pluginStatusListeners: map[string]StatusListener{},
+		maxErrors:             -1,
+		serverInitialized:     make(chan struct{}),
+		bootstrapConfigLabels: parsedConfig.Labels,
 	}
 
 	for _, f := range opts {
@@ -417,20 +415,42 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		m.consoleLogger = logging.New()
 	}
 
-	serviceOpts := cfg.ServiceOptions{
-		Raw:                   parsedConfig.Services,
-		AuthPlugin:            m.AuthPlugin,
-		Keys:                  keys,
-		Logger:                m.logger,
-		DistributedTacingOpts: m.distributedTacingOpts,
-	}
-
-	services, err := cfg.ParseServicesConfig(serviceOpts)
+	m.hooks.Each(func(h hooks.Hook) {
+		if f, ok := h.(hooks.ConfigHook); ok {
+			if c, e := f.OnConfig(context.Background(), parsedConfig); e != nil {
+				err = errors.Join(err, e)
+			} else {
+				parsedConfig = c
+			}
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	m.services = services
+	// do after options and overrides
+	m.keys, err = keys.ParseKeysConfig(parsedConfig.Keys)
+	if err != nil {
+		return nil, err
+	}
+
+	m.interQueryBuiltinCacheConfig, err = cache.ParseCachingConfig(parsedConfig.Caching)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceOpts := cfg.ServiceOptions{
+		Raw:                   parsedConfig.Services,
+		AuthPlugin:            m.AuthPlugin,
+		Keys:                  m.keys,
+		Logger:                m.logger,
+		DistributedTacingOpts: m.distributedTacingOpts,
+	}
+
+	m.services, err = cfg.ParseServicesConfig(serviceOpts)
+	if err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }
