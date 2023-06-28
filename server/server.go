@@ -756,26 +756,26 @@ func (s *Server) initRouters() {
 	}
 
 	// Only the main mainRouter gets the OPA API's (data, policies, query, etc)
-	s.registerHandler(mainRouter, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	s.registerHandler(mainRouter, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	s.registerHandler(mainRouter, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
-	s.registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
-	s.registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
-	s.registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
-	s.registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
-	s.registerHandler(mainRouter, 1, "/status", http.MethodGet, s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
+	registerHandler(mainRouter, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
+	registerHandler(mainRouter, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
+	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
+	registerHandler(mainRouter, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
+	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
+	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
+	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
+	registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
+	registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
+	registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
+	registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
+	registerHandler(mainRouter, 1, "/status", http.MethodGet, s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
 	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
 	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
 
@@ -822,8 +822,8 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (results types.QueryResponseV1, err error) {
-
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+	results := types.QueryResponseV1{}
 	logger := s.getDecisionLogger(br)
 
 	var buf *topdown.BufferTracer
@@ -835,7 +835,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisi
 	if input != nil {
 		x, err := ast.JSON(input)
 		if err != nil {
-			return results, err
+			return nil, err
 		}
 		rawInput = &x
 	}
@@ -874,7 +874,7 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisi
 	output, err := rego.Eval(ctx)
 	if err != nil {
 		_ = logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, nil, ndbCache, err, m)
-		return results, err
+		return nil, err
 	}
 
 	for _, result := range output {
@@ -890,11 +890,13 @@ func (s *Server) execQuery(ctx context.Context, r *http.Request, br bundleRevisi
 	}
 
 	var x interface{} = results.Result
-	err = logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m)
-	return results, err
+	if err := logger.Log(ctx, txn, "", parsedQuery.String(), rawInput, input, &x, ndbCache, nil, m); err != nil {
+		return nil, err
+	}
+	return &results, nil
 }
 
-func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
+func (s *Server) indexGet(w http.ResponseWriter, _ *http.Request) {
 	_ = indexHTML.Execute(w, struct {
 		Version        string
 		BuildCommit    string
@@ -908,9 +910,9 @@ func (s *Server) indexGet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
-	prefix := fmt.Sprintf("/v%d", version)
-	router.Handle(prefix+path, h).Methods(method)
+func registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
+	prefix := fmt.Sprintf("/v%d%s", version, path)
+	router.Handle(prefix, h).Methods(method)
 }
 
 type bundleRevisions struct {
@@ -1084,8 +1086,8 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			messageType = types.MsgFoundUndefinedError
 		}
 		err := types.NewErrorV1(types.CodeUndefinedDocument, fmt.Sprintf("%v: %v", messageType, ref))
-		if logErr := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m); logErr != nil {
-			writer.ErrorAuto(w, logErr)
+		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m); err != nil {
+			writer.ErrorAuto(w, err)
 			return
 		}
 
@@ -1098,8 +1100,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		return
 	}
 
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	writer.JSON(w, http.StatusOK, rs[0].Expressions[0].Value, pretty)
+	writer.JSONOK(w, rs[0].Expressions[0].Value, pretty(r))
 }
 
 func (s *Server) getCachedPreparedEvalQuery(key string, m metrics.Metrics) (*rego.PreparedEvalQuery, bool) {
@@ -1261,7 +1262,6 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	)
 
 	rs, err := rego.Eval(r.Context())
-
 	if err != nil {
 		writeHealthResponse(w, err)
 		return
@@ -1273,7 +1273,6 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 	}
 
 	result, ok := rs[0].Expressions[0].Value.(bool)
-
 	if ok && result {
 		writeHealthResponse(w, nil)
 		return
@@ -1283,22 +1282,17 @@ func (s *Server) unversionedGetHealthWithPolicy(w http.ResponseWriter, r *http.R
 }
 
 func writeHealthResponse(w http.ResponseWriter, err error) {
-	status := http.StatusOK
-	var response types.HealthResponseV1
-
 	if err != nil {
-		status = http.StatusInternalServerError
-		response.Error = err.Error()
+		writer.JSON(w, http.StatusInternalServerError, types.HealthResponseV1{Error: err.Error()}, false)
+		return
 	}
 
-	writer.JSON(w, status, response, false)
+	writer.JSONOK(w, types.HealthResponseV1{}, false)
 }
 
 func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	m := metrics.New()
@@ -1308,8 +1302,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	// decompress the input if sent as zip
 	body, err := readPlainBody(r)
 	if err != nil {
-		reqErr := types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body")
-		writer.Error(w, http.StatusBadRequest, reqErr)
+		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body"))
 		return
 	}
 
@@ -1367,12 +1360,12 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	result := types.CompileResponseV1{}
 
-	if includeMetrics || includeInstrumentation {
+	if includeMetrics(r) || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
 	if explainMode != types.ExplainOffV1 {
-		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
 	var i interface{} = types.PartialEvaluationResultV1{
@@ -1382,7 +1375,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 
 	result.Result = &i
 
-	writer.JSON(w, http.StatusOK, result, pretty)
+	writer.JSONOK(w, result, pretty(r))
 }
 
 func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
@@ -1396,9 +1389,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
@@ -1522,7 +1513,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 	}
 
-	if includeMetrics || includeInstrumentation {
+	if includeMetrics(r) || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
@@ -1532,34 +1523,32 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 
 	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty)
+			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty(r))
 			if err != nil {
 				writer.ErrorAuto(w, err)
 				return
 			}
 		}
 
-		err = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m)
-		if err != nil {
+		if err := logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, nil, m); err != nil {
 			writer.ErrorAuto(w, err)
 			return
 		}
-		writer.JSON(w, http.StatusOK, result, pretty)
+		writer.JSONOK(w, result, pretty(r))
 		return
 	}
 
 	result.Result = &rs[0].Expressions[0].Value
 
 	if explainMode != types.ExplainOffV1 {
-		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m)
-	if err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
-	writer.JSON(w, http.StatusOK, result, pretty)
+	writer.JSONOK(w, result, pretty(r))
 }
 
 func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
@@ -1569,8 +1558,7 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
-	ops := []types.PatchV1{}
+	var ops []types.PatchV1
 
 	m.Timer(metrics.RegoInputParse).Start()
 	if err := util.NewJSONDecoder(r.Body).Decode(&ops); err != nil {
@@ -1616,15 +1604,15 @@ func (s *Server) v1DataPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if includeMetrics {
+	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
 		}
-		writer.JSON(w, http.StatusOK, result, false)
+		writer.JSONOK(w, result, false)
 		return
 	}
 
-	writer.Bytes(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
@@ -1637,9 +1625,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	urlPath := vars["path"]
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
@@ -1764,7 +1750,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		result.Warning = types.NewWarning(types.CodeAPIUsageWarn, types.MsgInputKeyMissing)
 	}
 
-	if includeMetrics || includeInstrumentation {
+	if includeMetrics(r) || includeInstrumentation {
 		result.Metrics = m.All()
 	}
 
@@ -1774,7 +1760,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	if len(rs) == 0 {
 		if explainMode == types.ExplainFullV1 {
-			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty)
+			result.Explanation, err = types.NewTraceV1(lineage.Full(*buf), pretty(r))
 			if err != nil {
 				writer.ErrorAuto(w, err)
 				return
@@ -1785,22 +1771,21 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			writer.ErrorAuto(w, err)
 			return
 		}
-		writer.JSON(w, http.StatusOK, result, pretty)
+		writer.JSONOK(w, result, pretty(r))
 		return
 	}
 
 	result.Result = &rs[0].Expressions[0].Value
 
 	if explainMode != types.ExplainOffV1 {
-		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty)
+		result.Explanation = s.getExplainResponse(explainMode, *buf, pretty(r))
 	}
 
-	err = logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m)
-	if err != nil {
+	if err := logger.Log(ctx, txn, urlPath, "", goInput, input, result.Result, ndbCache, nil, m); err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
-	writer.JSON(w, http.StatusOK, result, pretty)
+	writer.JSONOK(w, result, pretty(r))
 }
 
 func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
@@ -1810,7 +1795,6 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	m.Timer(metrics.RegoInputParse).Start()
 	var value interface{}
@@ -1853,7 +1837,7 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if r.Header.Get("If-None-Match") == "*" {
 		s.store.Abort(ctx, txn)
-		writer.Bytes(w, http.StatusNotModified, nil)
+		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 
@@ -1873,15 +1857,15 @@ func (s *Server) v1DataPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if includeMetrics {
+	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
 		}
-		writer.JSON(w, http.StatusOK, result, false)
+		writer.JSONOK(w, result, false)
 		return
 	}
 
-	writer.Bytes(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
@@ -1891,7 +1875,6 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	path, ok := storage.ParsePathEscaped("/" + strings.Trim(vars["path"], "/"))
 	if !ok {
@@ -1928,22 +1911,20 @@ func (s *Server) v1DataDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if includeMetrics {
+	if includeMetrics(r) {
 		result := types.DataResponseV1{
 			Metrics: m.All(),
 		}
-		writer.JSON(w, http.StatusOK, result, false)
+		writer.JSONOK(w, result, false)
 		return
 	}
 
-	writer.Bytes(w, http.StatusNoContent, nil)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 
 	id, err := url.PathUnescape(vars["path"])
 	if err != nil {
@@ -1966,7 +1947,6 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modules, err := s.loadModules(ctx, txn)
-
 	if err != nil {
 		s.abortAuto(ctx, txn, w, err)
 		return
@@ -1997,12 +1977,12 @@ func (s *Server) v1PoliciesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := types.PolicyDeleteResponseV1{}
-	if includeMetrics {
-		response.Metrics = m.All()
+	resp := types.PolicyDeleteResponseV1{}
+	if includeMetrics(r) {
+		resp.Metrics = m.All()
 	}
 
-	writer.JSON(w, http.StatusOK, response, pretty)
+	writer.JSONOK(w, resp, pretty(r))
 }
 
 func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
@@ -2014,8 +1994,6 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
 	}
-
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -2033,7 +2011,7 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 
 	c := s.getCompiler()
 
-	response := types.PolicyGetResponseV1{
+	resp := types.PolicyGetResponseV1{
 		Result: types.PolicyV1{
 			ID:  path,
 			Raw: string(bs),
@@ -2041,13 +2019,12 @@ func (s *Server) v1PoliciesGet(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writer.JSON(w, http.StatusOK, response, pretty)
+	writer.JSONOK(w, resp, pretty(r))
 }
 
 func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 
 	txn, err := s.store.NewTransaction(ctx)
 	if err != nil {
@@ -2081,11 +2058,7 @@ func (s *Server) v1PoliciesList(w http.ResponseWriter, r *http.Request) {
 		policies = append(policies, policy)
 	}
 
-	response := types.PolicyListResponseV1{
-		Result: policies,
-	}
-
-	writer.JSON(w, http.StatusOK, response, pretty)
+	writer.JSONOK(w, types.PolicyListResponseV1{Result: policies}, pretty(r))
 }
 
 func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
@@ -2098,8 +2071,7 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	includeMetrics := includeMetrics(r)
 	m := metrics.New()
 
 	m.Timer("server_read_bytes").Start()
@@ -2132,11 +2104,11 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		}
 	} else if bytes.Equal(buf, bs) {
 		s.store.Abort(ctx, txn)
-		response := types.PolicyPutResponseV1{}
+		resp := types.PolicyPutResponseV1{}
 		if includeMetrics {
-			response.Metrics = m.All()
+			resp.Metrics = m.All()
 		}
-		writer.JSON(w, http.StatusOK, response, pretty)
+		writer.JSONOK(w, resp, pretty(r))
 		return
 	}
 
@@ -2200,13 +2172,13 @@ func (s *Server) v1PoliciesPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := types.PolicyPutResponseV1{}
+	resp := types.PolicyPutResponseV1{}
 
 	if includeMetrics {
-		response.Metrics = m.All()
+		resp.Metrics = m.All()
 	}
 
-	writer.JSON(w, http.StatusOK, response, pretty)
+	writer.JSONOK(w, resp, pretty(r))
 }
 
 func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
@@ -2230,16 +2202,13 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		switch err := err.(type) {
 		case ast.Errors:
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgParseQueryError).WithASTErrors(err))
-			return
 		default:
 			writer.ErrorAuto(w, err)
-			return
 		}
+		return
 	}
 
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	params := storage.TransactionParams{Context: storage.NewContext().WithMetrics(m)}
@@ -2256,8 +2225,8 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		writer.ErrorAuto(w, err)
 		return
 	}
-
-	results, err := s.execQuery(ctx, r, br, txn, parsedQuery, nil, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	pretty := pretty(r)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2268,7 +2237,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writer.JSON(w, http.StatusOK, results, pretty)
+	writer.JSONOK(w, results, pretty)
 }
 
 func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
@@ -2291,16 +2260,15 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		switch err := err.(type) {
 		case ast.Errors:
 			writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, types.MsgParseQueryError).WithASTErrors(err))
-			return
 		default:
 			writer.ErrorAuto(w, err)
-			return
 		}
+		return
 	}
 
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
+	pretty := pretty(r)
 	explainMode := getExplain(r.URL.Query()["explain"], types.ExplainOffV1)
-	includeMetrics := getBoolParam(r.URL, types.ParamMetricsV1, true)
+	includeMetrics := includeMetrics(r)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
 
 	var input ast.Value
@@ -2328,7 +2296,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(ctx, r, br, txn, parsedQuery, input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2345,26 +2313,19 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		results.Metrics = m.All()
 	}
 
-	writer.JSON(w, http.StatusOK, results, pretty)
+	writer.JSONOK(w, results, pretty)
 }
 
 func (s *Server) v1ConfigGet(w http.ResponseWriter, r *http.Request) {
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
 	result, err := s.manager.Config.ActiveConfig()
 	if err != nil {
 		writer.ErrorAuto(w, err)
 		return
 	}
-
-	var resp types.ConfigResponseV1
-	resp.Result = &result
-
-	writer.JSON(w, http.StatusOK, resp, pretty)
+	writer.JSONOK(w, types.ConfigResponseV1{Result: &result}, pretty(r))
 }
 
 func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
-	pretty := getBoolParam(r.URL, types.ParamPrettyV1, true)
-
 	p := status.Lookup(s.manager)
 	if p == nil {
 		writer.ErrorString(w, http.StatusInternalServerError, types.CodeInternal, errors.New("status plugin not enabled"))
@@ -2372,10 +2333,7 @@ func (s *Server) v1StatusGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var st interface{} = p.Snapshot()
-	var resp types.StatusResponseV1
-	resp.Result = &st
-
-	writer.JSON(w, http.StatusOK, resp, pretty)
+	writer.JSONOK(w, types.StatusResponseV1{Result: &st}, pretty(r))
 }
 
 func (s *Server) checkPolicyIDScope(ctx context.Context, txn storage.Transaction, id string) error {
@@ -2695,8 +2653,7 @@ func (s *Server) updateNDCache(enabled bool) {
 
 func stringPathToDataRef(s string) (r ast.Ref) {
 	result := ast.Ref{ast.DefaultRootDocument}
-	result = append(result, stringPathToRef(s)...)
-	return result
+	return append(result, stringPathToRef(s)...)
 }
 
 func stringPathToRef(s string) (r ast.Ref) {
@@ -3085,4 +3042,12 @@ func readPlainBody(r *http.Request) (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(bytesBody)), err
 	}
 	return r.Body, nil
+}
+
+func pretty(r *http.Request) bool {
+	return getBoolParam(r.URL, types.ParamPrettyV1, true)
+}
+
+func includeMetrics(r *http.Request) bool {
+	return getBoolParam(r.URL, types.ParamMetricsV1, true)
 }
