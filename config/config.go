@@ -70,6 +70,9 @@ func ParseConfig(raw []byte, id string) (*Config, error) {
 			delete(result.Extra, key)
 		}
 	}
+	if len(result.Extra) == 0 {
+		result.Extra = nil
+	}
 	return &result, result.validateAndInjectDefaults(id)
 }
 
