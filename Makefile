@@ -62,7 +62,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -249,7 +249,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
-	golang:$(GOVERSION)
+	$(RELEASE_BUILD_IMAGE)
 
 .PHONY: ci-go-%
 ci-go-%: generate
@@ -486,7 +486,7 @@ check-go-module:
 	  -v $(PWD):/src:Z \
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
-	  golang:$(GOVERSION) \
+	  $(RELEASE_BUILD_IMAGE) \
 	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
 
 ######################################################
