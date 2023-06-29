@@ -45,9 +45,9 @@ function generate_testcases {
     docker run \
         --name $TESTGEN_CONTAINER_NAME \
         -u $(id -u):$(id -g) \
-        -v $PWD/.go/bin:/go/bin \
-        -v $PWD:/src \
-        -v $ASSETS:/assets \
+        -v $PWD/.go/bin:/go/bin:Z \
+        -v $PWD:/src:Z \
+        -v $ASSETS:/assets:Z \
         -e GOCACHE=/src/.go/cache \
         -w /src \
         golang:$GOVERSION \
