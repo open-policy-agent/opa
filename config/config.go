@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/ref"
@@ -41,14 +43,35 @@ type Config struct {
 	Storage *struct {
 		Disk json.RawMessage `json:"disk,omitempty"`
 	} `json:"storage,omitempty"`
+	Extra map[string]json.RawMessage `json:"-"`
 }
 
 // ParseConfig returns a valid Config object with defaults injected. The id
 // and version parameters will be set in the labels map.
 func ParseConfig(raw []byte, id string) (*Config, error) {
+	// NOTE(sr): based on https://stackoverflow.com/a/33499066/993018
 	var result Config
-	if err := util.Unmarshal(raw, &result); err != nil {
+	objValue := reflect.ValueOf(&result).Elem()
+	knownFields := map[string]reflect.Value{}
+	for i := 0; i != objValue.NumField(); i++ {
+		jsonName := strings.Split(objValue.Type().Field(i).Tag.Get("json"), ",")[0]
+		knownFields[jsonName] = objValue.Field(i)
+	}
+
+	if err := util.Unmarshal(raw, &result.Extra); err != nil {
 		return nil, err
+	}
+
+	for key, chunk := range result.Extra {
+		if field, found := knownFields[key]; found {
+			if err := util.Unmarshal(chunk, field.Addr().Interface()); err != nil {
+				return nil, err
+			}
+			delete(result.Extra, key)
+		}
+	}
+	if len(result.Extra) == 0 {
+		result.Extra = nil
 	}
 	return &result, result.validateAndInjectDefaults(id)
 }
@@ -149,30 +172,32 @@ func (c *Config) ActiveConfig() (interface{}, error) {
 	}
 
 	var result map[string]interface{}
-	if err := util.Unmarshal(bs, &result); err != nil {
+	if err := util.UnmarshalJSON(bs, &result); err != nil {
+		return nil, err
+	}
+	for k, e := range c.Extra {
+		var v any
+		if err := util.UnmarshalJSON(e, &v); err != nil {
+			return nil, err
+		}
+		result[k] = v
+	}
+
+	if err := removeServiceCredentials(result["services"]); err != nil {
 		return nil, err
 	}
 
-	if result["services"] != nil {
-		err = removeServiceCredentials(result["services"])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if result["keys"] != nil {
-		err = removeCryptoKeys(result["keys"])
-		if err != nil {
-			return nil, err
-		}
+	if err := removeCryptoKeys(result["keys"]); err != nil {
+		return nil, err
 	}
 
 	return result, nil
 }
 
 func removeServiceCredentials(x interface{}) error {
-
 	switch x := x.(type) {
+	case nil:
+		return nil
 	case []interface{}:
 		for _, v := range x {
 			err := removeKey(v, "credentials")
@@ -196,8 +221,9 @@ func removeServiceCredentials(x interface{}) error {
 }
 
 func removeCryptoKeys(x interface{}) error {
-
 	switch x := x.(type) {
+	case nil:
+		return nil
 	case map[string]interface{}:
 		for _, v := range x {
 			err := removeKey(v, "key", "private_key")
