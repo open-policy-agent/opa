@@ -756,26 +756,26 @@ func (s *Server) initRouters() {
 	}
 
 	// Only the main mainRouter gets the OPA API's (data, policies, query, etc)
-	registerHandler(mainRouter, 0, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	registerHandler(mainRouter, 0, "/data", http.MethodPost, s.instrumentHandler(s.v0DataPost, PromHandlerV0Data))
-	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data", http.MethodPut, s.instrumentHandler(s.v1DataPut, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data", http.MethodGet, s.instrumentHandler(s.v1DataGet, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data", http.MethodPatch, s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data/{path:.+}", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/data", http.MethodPost, s.instrumentHandler(s.v1DataPost, PromHandlerV1Data))
-	registerHandler(mainRouter, 1, "/policies", http.MethodGet, s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies))
-	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodDelete, s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies))
-	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodGet, s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies))
-	registerHandler(mainRouter, 1, "/policies/{path:.+}", http.MethodPut, s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies))
-	registerHandler(mainRouter, 1, "/query", http.MethodGet, s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query))
-	registerHandler(mainRouter, 1, "/query", http.MethodPost, s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query))
-	registerHandler(mainRouter, 1, "/compile", http.MethodPost, s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile))
-	registerHandler(mainRouter, 1, "/config", http.MethodGet, s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config))
-	registerHandler(mainRouter, 1, "/status", http.MethodGet, s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status))
+	mainRouter.Handle("/v0/data/{path:.+}", s.instrumentHandler(s.v0DataPost, PromHandlerV0Data)).Methods(http.MethodPost)
+	mainRouter.Handle("/v0/data", s.instrumentHandler(s.v0DataPost, PromHandlerV0Data)).Methods(http.MethodPost)
+	mainRouter.Handle("/v1/data/{path:.+}", s.instrumentHandler(s.v1DataDelete, PromHandlerV1Data)).Methods(http.MethodDelete)
+	mainRouter.Handle("/v1/data/{path:.+}", s.instrumentHandler(s.v1DataPut, PromHandlerV1Data)).Methods(http.MethodPut)
+	mainRouter.Handle("/v1/data", s.instrumentHandler(s.v1DataPut, PromHandlerV1Data)).Methods(http.MethodPut)
+	mainRouter.Handle("/v1/data/{path:.+}", s.instrumentHandler(s.v1DataGet, PromHandlerV1Data)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/data", s.instrumentHandler(s.v1DataGet, PromHandlerV1Data)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/data/{path:.+}", s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data)).Methods(http.MethodPatch)
+	mainRouter.Handle("/v1/data", s.instrumentHandler(s.v1DataPatch, PromHandlerV1Data)).Methods(http.MethodPatch)
+	mainRouter.Handle("/v1/data/{path:.+}", s.instrumentHandler(s.v1DataPost, PromHandlerV1Data)).Methods(http.MethodPost)
+	mainRouter.Handle("/v1/data", s.instrumentHandler(s.v1DataPost, PromHandlerV1Data)).Methods(http.MethodPost)
+	mainRouter.Handle("/v1/policies", s.instrumentHandler(s.v1PoliciesList, PromHandlerV1Policies)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/policies/{path:.+}", s.instrumentHandler(s.v1PoliciesDelete, PromHandlerV1Policies)).Methods(http.MethodDelete)
+	mainRouter.Handle("/v1/policies/{path:.+}", s.instrumentHandler(s.v1PoliciesGet, PromHandlerV1Policies)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/policies/{path:.+}", s.instrumentHandler(s.v1PoliciesPut, PromHandlerV1Policies)).Methods(http.MethodPut)
+	mainRouter.Handle("/v1/query", s.instrumentHandler(s.v1QueryGet, PromHandlerV1Query)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/query", s.instrumentHandler(s.v1QueryPost, PromHandlerV1Query)).Methods(http.MethodPost)
+	mainRouter.Handle("/v1/compile", s.instrumentHandler(s.v1CompilePost, PromHandlerV1Compile)).Methods(http.MethodPost)
+	mainRouter.Handle("/v1/config", s.instrumentHandler(s.v1ConfigGet, PromHandlerV1Config)).Methods(http.MethodGet)
+	mainRouter.Handle("/v1/status", s.instrumentHandler(s.v1StatusGet, PromHandlerV1Status)).Methods(http.MethodGet)
 	mainRouter.Handle("/", s.instrumentHandler(s.unversionedPost, PromHandlerIndex)).Methods(http.MethodPost)
 	mainRouter.Handle("/", s.instrumentHandler(s.indexGet, PromHandlerIndex)).Methods(http.MethodGet)
 
@@ -908,11 +908,6 @@ func (s *Server) indexGet(w http.ResponseWriter, _ *http.Request) {
 		BuildTimestamp: version.Timestamp,
 		BuildHostname:  version.Hostname,
 	})
-}
-
-func registerHandler(router *mux.Router, version int, path string, method string, h http.Handler) {
-	prefix := fmt.Sprintf("/v%d%s", version, path)
-	router.Handle(prefix, h).Methods(method)
 }
 
 type bundleRevisions struct {
