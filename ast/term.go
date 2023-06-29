@@ -1861,6 +1861,13 @@ func (l *lazyObj) force() Object {
 }
 
 func (l *lazyObj) Compare(other Value) int {
+	o1 := sortOrder(l)
+	o2 := sortOrder(other)
+	if o1 < o2 {
+		return -1
+	} else if o2 < o1 {
+		return 1
+	}
 	return l.force().Compare(other)
 }
 
