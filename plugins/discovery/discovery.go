@@ -412,6 +412,7 @@ func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pl
 	// Note: We don't currently support changes to the discovery
 	// configuration. These changes are risky because errors would be
 	// unrecoverable (without keeping track of changes and rolling back...)
+	config.Discovery = c.manager.Config.Discovery
 
 	// check for updates to the discovery service
 	opts := cfg.ServiceOptions{
