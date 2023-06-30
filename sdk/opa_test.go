@@ -161,7 +161,8 @@ func TestHookOnConfigDiscovery(t *testing.T) {
 			"foo":     "baz",
 			"fox":     "quz",
 		},
-		Plugins: map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+		Plugins:   map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+		Discovery: json.RawMessage(`{"service":"disco", "resource": "disco.tar.gz"}`),
 	}
 	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
 	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
