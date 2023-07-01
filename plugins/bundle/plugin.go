@@ -116,6 +116,9 @@ func (p *Plugin) Start(ctx context.Context) error {
 	}
 
 	p.loadAndActivateBundlesFromDisk(ctx)
+	if p.BundleLocationLocal() {
+		return nil
+	}
 
 	p.initDownloaders(ctx)
 	for name, dl := range p.downloaders {
@@ -346,13 +349,25 @@ func (p *Plugin) readBundleEtagFromStore(ctx context.Context, name string) strin
 	return etag
 }
 
+// BundleLocationLocal returns true if the bundle tar ball is local.
+func (p *Plugin) BundleLocationLocal() bool {
+	return p.manager.BundleLocationLocal()
+}
+
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	persistedBundles := map[string]*bundle.Bundle{}
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
+			var b *bundle.Bundle
+			var err error
+			if p.BundleLocationLocal() {
+				b, err = loadBundleFromDisk("", "", src)
+			} else {
+				b, err = loadBundleFromDisk(p.bundlePersistPath, name, src)
+			}
+
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)

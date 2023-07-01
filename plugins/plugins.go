@@ -199,6 +199,7 @@ type Manager struct {
 	registeredNDCacheTriggers    []func(bool)
 	bootstrapConfigLabels        map[string]string
 	hooks                        hooks.Hooks
+	bundleLocationLocal          bool
 }
 
 type managerContextKey string
@@ -381,6 +382,14 @@ func WithDistributedTracingOpts(tr tracing.Options) func(*Manager) {
 func WithHooks(hs hooks.Hooks) func(*Manager) {
 	return func(m *Manager) {
 		m.hooks = hs
+	}
+}
+
+// WithBundleLocationLocal sets the property whether the bundle tar ball is locally loaded or not.
+// Will be true in command like opa run -s bundle.tar.gz where tarball is local on user machine
+func WithBundleLocationLocal(local bool) func(*Manager) {
+	return func(m *Manager) {
+		m.bundleLocationLocal = local
 	}
 }
 
@@ -980,4 +989,8 @@ func (m *Manager) RegisterNDCacheTrigger(trigger func(bool)) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.registeredNDCacheTriggers = append(m.registeredNDCacheTriggers, trigger)
+}
+
+func (m *Manager) BundleLocationLocal() bool {
+	return m.bundleLocationLocal
 }

@@ -290,7 +290,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	var filePaths []string
-	urlPathCount := 0
+	var localPathCount, urlPathCount int
+	var bundleLocal bool
 	for _, path := range params.Paths {
 		if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 			urlPathCount++
@@ -300,6 +301,15 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			}
 			params.ConfigOverrides = append(params.ConfigOverrides, override...)
 		} else {
+			bundleLocal = true
+			localPathCount++
+			params.ConfigOverrides = append(params.ConfigOverrides,
+				[]string{
+					fmt.Sprintf("bundles.cli%d.service=cli%d", localPathCount, localPathCount),
+					fmt.Sprintf("bundles.cli%d.resource=file://%s", localPathCount, path),
+					fmt.Sprintf("bundles.cli%d.persist=true", localPathCount),
+				}...)
+
 			filePaths = append(filePaths, path)
 		}
 	}
@@ -384,7 +394,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
-		plugins.WithTracerProvider(tracerProvider))
+		plugins.WithTracerProvider(tracerProvider),
+		plugins.WithBundleLocationLocal(bundleLocal))
+
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
