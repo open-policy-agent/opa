@@ -19,8 +19,10 @@ import (
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/hooks"
 	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
 	cfg "github.com/open-policy-agent/opa/internal/config"
+	"github.com/open-policy-agent/opa/internal/errors"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -59,6 +61,7 @@ type Discovery struct {
 	readyOnce         sync.Once
 	logger            logging.Logger
 	bundlePersistPath string
+	hooks             hooks.Hooks
 }
 
 // Factories provides a set of factory functions to use for
@@ -73,6 +76,12 @@ func Factories(fs map[string]plugins.Factory) func(*Discovery) {
 func Metrics(m metrics.Metrics) func(*Discovery) {
 	return func(d *Discovery) {
 		d.metrics = m
+	}
+}
+
+func Hooks(hs hooks.Hooks) func(*Discovery) {
+	return func(d *Discovery) {
+		d.hooks = hs
 	}
 }
 
@@ -109,11 +118,15 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		if manager.Config.PersistenceDirectory != nil {
 			ociStorePath = filepath.Join(*manager.Config.PersistenceDirectory, "oci")
 		}
-		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).WithCallback(result.oneShot).
-			WithBundleVerificationConfig(config.Signing)
+		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).
+			WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing).
+			WithBundlePersistence(config.Persist)
 	} else {
-		result.downloader = download.New(config.Config, restClient, config.path).WithCallback(result.oneShot).
-			WithBundleVerificationConfig(config.Signing)
+		result.downloader = download.New(config.Config, restClient, config.path).
+			WithCallback(result.oneShot).
+			WithBundleVerificationConfig(config.Signing).
+			WithBundlePersistence(config.Persist)
 	}
 	result.status = &bundle.Status{
 		Name: Name,
@@ -379,6 +392,19 @@ func (c *Discovery) reconfigure(ctx context.Context, u download.Update) error {
 func (c *Discovery) processBundle(ctx context.Context, b *bundleApi.Bundle) (*pluginSet, error) {
 
 	config, err := evaluateBundle(ctx, c.manager.ID, c.manager.Info, b, c.config.query)
+	if err != nil {
+		return nil, err
+	}
+
+	c.hooks.Each(func(h hooks.Hook) {
+		if f, ok := h.(hooks.ConfigDiscoveryHook); ok {
+			if c, e := f.OnConfigDiscovery(ctx, config); e != nil {
+				err = errors.Join(err, e)
+			} else {
+				config = c
+			}
+		}
+	})
 	if err != nil {
 		return nil, err
 	}

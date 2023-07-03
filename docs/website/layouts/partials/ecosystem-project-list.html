@@ -1,0 +1,154 @@
+<script type="application/javascript">
+  function openModal(modalID) {
+    location.hash = `#${modalID}`;
+    $("#"+modalID).addClass("is-active");
+  }
+
+  function closeModal(modalID) {
+    location.hash = "";
+    $("#"+modalID).removeClass("is-active");
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (location.hash) {
+      $(location.hash).addClass("is-active");
+    }
+  });
+</script>
+
+{{ $selectedIntegrations := (index . "selectedIntegrations") }}
+{{ $integrationsData := (index . "integrationsData") }}
+
+<div class="integration-index">
+  {{ range $name := $selectedIntegrations }}
+  {{ $integration := (index $integrationsData.integrations $name) }}
+  <div class="integration-item" onclick="openModal('{{ $name }}-detail')">
+    <div class="card is-flex-grow-1">
+      <div class="card-image">
+        <figure class="image">
+          {{ partial "docs/integration-logo.html" (dict "name" $name) }}
+        </figure>
+      </div>
+      <div class="card-content has-text-centered">
+        <p class="title is-6">{{- $integration.title -}}</p>
+      </div>
+    </div>
+  </div>
+  <div id="{{ $name }}-detail" class="modal">
+    <div class="modal-background" onclick="closeModal('{{ $name }}-detail')"></div>
+    <div class="modal-content has-background-light">
+      <div class="media integration-details">
+        <div class="media-left">
+          <figure class="image is-48x48">
+            {{ partial "docs/integration-logo.html" (dict "name" $name) }}
+          </figure>
+        </div>
+        <div class="media-content">
+          <p class="title is-4">{{- $integration.title -}}</p>
+          <p>{{- $integration.description -}}</p>
+          <br />
+
+          <div class="integration-details-labels">
+            {{ if isset $integration "labels" }}
+            {{ range $name, $value := $integration.labels }}
+            <div class="integration-label-wrapper">
+              <a class="integration-label integration-label-{{ $name }}">{{ $value }}</a>
+            </div>
+            {{ end }}
+            {{ end }}
+            {{ if isset $integration "software" }}
+            {{ range sort $integration.software }}
+            <div class="integration-label-wrapper">
+              {{ if isset $integrationsData.software . }}
+              <a class="integration-label integration-label-software" href="{{ index (index $integrationsData.software .) "link" }}">{{ index (index $integrationsData.software .) "name" }}</a>
+              {{ else }}
+              <a class="integration-label integration-label-software">{{ . }}</a>
+              {{ end }}
+            </div>
+            {{ end }}
+            {{ end }}
+          </div>
+          <br />
+
+          {{ if isset $integration "inventors" }}
+          <p class="title is-6">Inventors</p>
+          <ul>
+            {{ range $integration.inventors }}
+            {{ if reflect.IsMap . }}
+            <li> {{ .name }} - {{ partial "docs/integration-org-link.html" (dict "org" .organization "integrations" $integrationsData) }} </li>
+            {{ else }}
+            <li>{{ partial "docs/integration-org-link.html" (dict "org" . "integrations" $integrationsData) }}</li>
+            {{ end }}
+            {{ end }}
+          </ul>
+          <br />
+          {{ end }}
+
+          {{ if isset $integration "code" }}
+          <p class="title is-6">Code</p>
+          <ul>
+            {{ range $integration.code }}
+            <li><a href="{{ . }}">{{ . }}</a></li>
+            {{ end }}
+          </ul>
+          <br />
+          {{ end }}
+
+          {{ if isset $integration "tutorials" }}
+          <p class="title is-6">Tutorials</p>
+          <ul>
+            {{ range $integration.tutorials }}
+            <li><a href="{{ . }}">{{ . }}</a></li>
+            {{ end }}
+          </ul>
+          <br />
+          {{ end }}
+
+          {{ if isset $integration "videos"}}
+          <p class="title is-6">Videos</p>
+          <ul>
+            {{ range $integration.videos }}
+            {{ if reflect.IsMap . }}
+            <li>
+              <a href="{{ .link }}">{{ .title }} - {{ .venue }}</a>
+              <ul>
+                {{ range .speakers }}
+                {{ if reflect.IsMap . }}
+                {{ if isset $integrationsData.organizations .organization }}
+                <li>{{ .name }} - {{ partial "docs/integration-org-link.html" (dict "org" .organization "integrations" $integrationsData) }}</li>
+                {{ else }}
+                <li>{{ .name }} -  {{ .organization }}</li>
+                {{end}}
+                {{ else }}
+                <li>{{ . }}</li>
+                {{ end }}
+                {{ end }}
+              </ul>
+            </li>
+            {{ else }}
+            <li><a href="{{ . }}">{{ . }}</a></li>
+            {{ end }}
+            <br />
+            {{ end }}
+          </ul>
+          <br />
+          {{ end }}
+
+          {{ if isset $integration "blogs" }}
+          <p class="title is-6">Blogs</p>
+          <ul>
+            {{ range $integration.blogs }}
+            <li><a href="{{ . }}">{{ . }}</a></li>
+            {{ end }}
+          </ul>
+          <br />
+          {{ end }}
+        </div>
+        <div class="media-right">
+          <button class="delete" onclick="closeModal('{{ $name }}-detail')"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{ end }}
+</div>

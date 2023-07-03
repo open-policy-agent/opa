@@ -6715,12 +6715,6 @@ button.bg-dark:focus {
   border-radius: 0 !important;
 }
 
-.clearfix::after {
-  display: block;
-  clear: both;
-  content: "";
-}
-
 .d-none {
   display: none !important;
 }

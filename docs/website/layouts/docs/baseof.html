@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="{{ site.LanguageCode }}">
+  <head>
+    {{ partial "google-analytics.html" . }}
+    {{ partial "meta.html" . }}
+
+    <title>
+      {{ block "title" . }}{{ site.Title }}{{ end }}
+    </title>
+
+    {{ block "head" . }}{{ end }}
+    {{ define "head" }}{{ end }}
+
+    {{ partial "css.html" . }}
+  </head>
+  <body>
+    {{- $latest := "latest" -}}
+    {{- if eq (len site.Data.releases) 1 -}}
+    {{- $latest = "edge" -}}
+    {{- end -}}
+
+    {{ $releases            := site.Data.releases }}
+
+    {{ $version             := index (split .File.Path "/") 1 }}
+
+    {{ $latestVersionString := printf "%s" (index $releases 1) }}
+    {{- if eq (len $releases) 1 -}}
+    {{- $latestVersionString = "(dev preview)" -}}
+    {{- end -}}
+
+    {{ $rank := 1 }}
+    {{- range $index, $ver := site.Data.releases -}}
+    {{- if eq $ver $version -}}
+    {{ $rank = $index }}
+    {{- end -}}
+    {{- end -}}
+    {{ $ancient := gt $rank 5 }}
+
+    {{ $isEdge := (eq $version "edge") }}
+    {{ $isNotLatest := (and (ne $version $latest) (ne $version $latestVersionString)) }}
+
+    <div class="dashboard-wrapper {{ if (or $isEdge $isNotLatest) }}showing-banner-version-warning{{ end }}">
+      {{- if $isEdge }}
+      <div class="message is-info banner-version-warning">
+        <div class="message-body">
+          This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+          <button class="delete" aria-label="delete"></button>
+        </div>
+      </div>
+      {{- else if $isNotLatest }}
+      <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
+      <div class="message-body">
+        These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
+        {{ if not $ancient }}
+        <button class="delete" aria-label="delete"></button>
+        {{ end }}
+      </div>
+    </div>
+    {{- end }}
+
+    <div class="dashboard">
+      {{ partial "docs/dashboard-panel.html" . }}
+
+      <div class="dashboard-main is-scrollable">
+        {{ partial "docs/navbar.html" . }}
+
+        <article class="article {{ block "content-classes" . }}{{end}}{{define "content-classes"}}{{end}}">
+          <div class="container">
+            <section class="hero">
+              <div class="hero-body">
+              <span class="title is-size-1 is-size-2-mobile">
+                {{ block "page_title" . }}{{ end }}
+                {{ define "page_title" }}{{ .Title }}{{ end }}
+              </span>
+                <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
+                <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
+                  <i class="fab fa-github"></i>
+                  <span>Edit</span>
+                </a>
+              </span>
+                <hr>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="content">
+                {{ block "content" . }}{{ end }}
+                {{ define "content" }}{{ .Content }}{{ end }}
+              </div>
+              {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable)) }}
+              {{ partial "feedback.html" site.Params.ui.feedback }}
+              {{ end }}
+              <div class="toc-padding"></div>
+            </section>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    {{ partial "javascript.html" . }}
+  </body>
+</html>

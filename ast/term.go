@@ -1840,22 +1840,34 @@ func ObjectTerm(o ...[2]*Term) *Term {
 }
 
 func LazyObject(blob map[string]interface{}) Object {
-	return &lazyObj{native: blob}
+	return &lazyObj{native: blob, cache: map[string]Value{}}
 }
 
 type lazyObj struct {
 	strict Object
+	cache  map[string]Value
 	native map[string]interface{}
 }
 
 func (l *lazyObj) force() Object {
 	if l.strict == nil {
 		l.strict = MustInterfaceToValue(l.native).(Object)
+		// NOTE(jf): a possible performance improvement here would be to check how many
+		// entries have been realized to AST in the cache, and if some threshold compared to the
+		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
+		l.cache = map[string]Value{} // We don't need the cache anymore; drop it to free up memory.
 	}
 	return l.strict
 }
 
 func (l *lazyObj) Compare(other Value) int {
+	o1 := sortOrder(l)
+	o2 := sortOrder(other)
+	if o1 < o2 {
+		return -1
+	} else if o2 < o1 {
+		return 1
+	}
 	return l.force().Compare(other)
 }
 
@@ -1924,13 +1936,20 @@ func (l *lazyObj) Get(k *Term) *Term {
 		return l.strict.Get(k)
 	}
 	if s, ok := k.Value.(String); ok {
+		if v, ok := l.cache[string(s)]; ok {
+			return NewTerm(v)
+		}
+
 		if val, ok := l.native[string(s)]; ok {
+			var converted Value
 			switch val := val.(type) {
 			case map[string]interface{}:
-				return NewTerm(&lazyObj{native: val})
+				converted = LazyObject(val)
 			default:
-				return NewTerm(MustInterfaceToValue(val))
+				converted = MustInterfaceToValue(val)
 			}
+			l.cache[string(s)] = converted
+			return NewTerm(converted)
 		}
 	}
 	return nil
@@ -1985,13 +2004,20 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 		return l, nil
 	}
 	if p0, ok := path[0].Value.(String); ok {
+		if v, ok := l.cache[string(p0)]; ok {
+			return v.Find(path[1:])
+		}
+
 		if v, ok := l.native[string(p0)]; ok {
+			var converted Value
 			switch v := v.(type) {
 			case map[string]interface{}:
-				return (&lazyObj{native: v}).Find(path[1:])
+				converted = LazyObject(v)
 			default:
-				return MustInterfaceToValue(v).Find(path[1:])
+				converted = MustInterfaceToValue(v)
 			}
+			l.cache[string(p0)] = converted
+			return converted.Find(path[1:])
 		}
 	}
 	return nil, errFindNotFound

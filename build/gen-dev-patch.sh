@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+stty -onlcr # don't translate newline to carriage return-newline, as these break patch tool
 set -e
 
 OPA_DIR=/go/src/github.com/open-policy-agent/opa

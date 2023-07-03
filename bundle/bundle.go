@@ -23,7 +23,6 @@ import (
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
-	"github.com/open-policy-agent/opa/loader/extension"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -399,6 +398,7 @@ type Reader struct {
 	etag                  string
 	lazyLoadingMode       bool
 	name                  string
+	persist               bool
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -493,6 +493,12 @@ func (r *Reader) WithBundleName(name string) *Reader {
 // outside the bundle's roots will not be performed while reading the bundle.
 func (r *Reader) WithLazyLoadingMode(yes bool) *Reader {
 	r.lazyLoadingMode = yes
+	return r
+}
+
+// WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
+func (r *Reader) WithBundlePersistence(persist bool) *Reader {
+	r.persist = persist
 	return r
 }
 
@@ -601,15 +607,10 @@ func (r *Reader) Read() (Bundle, error) {
 				continue
 			}
 
-			var err error
 			var value interface{}
 
 			r.metrics.Timer(metrics.RegoDataParse).Start()
-			if handler := extension.FindExtension(".json"); handler != nil {
-				value, err = handler(buf.Bytes())
-			} else {
-				err = util.NewJSONDecoder(&buf).Decode(&value)
-			}
+			err := util.UnmarshalJSON(buf.Bytes(), &value)
 			r.metrics.Timer(metrics.RegoDataParse).Stop()
 
 			if err != nil {
@@ -658,6 +659,10 @@ func (r *Reader) Read() (Bundle, error) {
 
 		if len(bundle.WasmModules) != 0 {
 			return bundle, fmt.Errorf("delta bundle expected to contain only patch file but wasm files found")
+		}
+
+		if r.persist {
+			return bundle, fmt.Errorf("'persist' property is true in config. persisting delta bundle to disk is not supported")
 		}
 	}
 

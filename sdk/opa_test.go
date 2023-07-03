@@ -9,27 +9,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/server/types"
+	"github.com/fortytw2/leaktest"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/hooks"
 	"github.com/open-policy-agent/opa/logging"
+	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/sdk"
+	sdktest "github.com/open-policy-agent/opa/sdk/test"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/lineage"
-
-	"github.com/fortytw2/leaktest"
-	loggingtest "github.com/open-policy-agent/opa/logging/test"
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/sdk"
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -58,7 +63,7 @@ func (p *plugin) Stop(ctx context.Context) {
 func (*plugin) Reconfigure(context.Context, interface{}) {
 }
 
-func (f factory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+func (f factory) New(manager *plugins.Manager, _ interface{}) plugins.Plugin {
 	return &plugin{
 		manager:  manager,
 		shutdown: f.shutdown,
@@ -70,9 +75,7 @@ func (factory) Validate(*plugins.Manager, []byte) (interface{}, error) {
 }
 
 func TestPlugins(t *testing.T) {
-
 	ctx := context.Background()
-
 	config := `{
         "plugins": {
             "test_plugin": {}
@@ -85,23 +88,111 @@ func TestPlugins(t *testing.T) {
 			"test_plugin": factory{},
 		},
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
+	opa.Stop(ctx)
+}
 
+func TestHookOnConfig(t *testing.T) {
+	ctx := context.Background()
+
+	// We're setting up two hooks that smuggle in some new labels, and hold on
+	// to their config.
+	// NOTE: Hook ordering isn't guaranteed, so we cannot rely on their invocation
+	// in sequence.
+	th0 := &testhook{k: "foo", v: "baz"}
+	th1 := &testhook{k: "fox", v: "quz"}
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID:     "sdk-id-0",
+		Config: strings.NewReader(`{}`),
+		Hooks:  hooks.New(th0, th1),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer opa.Stop(ctx)
+
+	exp := &config.Config{
+		Labels: map[string]string{
+			"id":      "sdk-id-0",
+			"version": version.Version,
+			"foo":     "baz",
+			"fox":     "quz",
+		},
+	}
+	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
+	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
+		t.Errorf("unexpected config: (-want, +got):\n%s", diff)
+	}
+}
+
+func TestHookOnConfigDiscovery(t *testing.T) {
+	ctx := context.Background()
+	th0 := &testhook{k: "foo", v: "baz"}
+	th1 := &testhook{k: "fox", v: "quz"}
+	disco := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			return // ignore status plugin POSTs
+		}
+		http.FileServer(http.Dir("testdata")).ServeHTTP(w, r)
+	}))
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID: "sdk-id-0",
+		Config: strings.NewReader(fmt.Sprintf(`{
+"discovery": {"service":"disco", "resource": "disco.tar.gz"},
+"services": [{"name":"disco", "url": "%[1]s"}]
+		}`, disco.URL)),
+		Hooks:  hooks.New(th0, th1),
+		Logger: logging.New(),
+		Plugins: map[string]plugins.Factory{
+			"test_plugin": factory{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opa.Stop(ctx)
+
+	exp := &config.Config{
+		Labels: map[string]string{
+			"id":      "sdk-id-0",
+			"version": version.Version,
+			"foo":     "baz",
+			"fox":     "quz",
+		},
+		Plugins: map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+	}
+	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
+	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
+		t.Errorf("unexpected config: (-want, +got):\n%s", diff)
+	}
+}
+
+type testhook struct {
+	k, v string
+	c    *config.Config
+}
+
+func (h *testhook) OnConfig(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.k] = h.v
+	h.c = c
+	return c, nil
+}
+
+func (h *testhook) OnConfigDiscovery(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.k] = h.v
+	h.c = c
+	return c, nil
 }
 
 func TestPluginPanic(t *testing.T) {
 	ctx := context.Background()
 
 	opa, err := sdk.New(ctx, sdk.Options{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	opa.Stop(ctx)
 }
 

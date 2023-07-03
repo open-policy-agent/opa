@@ -242,6 +242,8 @@ func TestSelect(t *testing.T) {
 		{"non int-2", NewArray([]Type{S, N, B}, nil), 1, nil},
 		{"static", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "hello", S},
 		{"dynamic", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, NewDynamicProperty(S, N)), "goodbye", N},
+		{"dynamic, different key types", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, NewDynamicProperty(N, N)), json.Number("2"), N},
+		{"dynamic, different key types", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, NewDynamicProperty(N, N)), "hello", S},
 		{"non exist", NewObject([]*StaticProperty{NewStaticProperty("hello", S)}, nil), "deadbeef", nil},
 		{"non string", NewObject([]*StaticProperty{NewStaticProperty(json.Number("1"), S), NewStaticProperty(json.Number("2"), N)}, nil), json.Number("2"), N},
 		{"member of", NewSet(N), json.Number("2"), N},
