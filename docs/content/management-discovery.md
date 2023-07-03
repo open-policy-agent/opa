@@ -307,3 +307,9 @@ If `persistence_directory` is changed through discovery this will not affect
 where the discovery plugin will store the discovery bundles, the boot
 configuration will always be used.
 {{< /info >}}
+
+## Ecosystem Projects
+
+Configuring OPA using Discovery Bundles is a powerful production feature.
+
+{{< ecosystem_feature_embed key="opa-bundles-discovery" topic="or support distributing discovery bundles" >}}

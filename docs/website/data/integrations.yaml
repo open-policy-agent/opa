@@ -82,6 +82,12 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
     docs_features:
+      envoy:
+        note: |
+          Styra DAS provides an out-of-the-box integration for writing Envoy
+          authorization policies. See the
+          [tutorial](https://docs.styra.com/das/systems/envoy/tutorials)
+          here.
       policy-testing:
         note: |
           DAS supports the running of tests alongside Rego policy in its UI.
@@ -104,6 +110,12 @@ integrations:
         note: |
           Styra DAS exposes a Bundle Service compatible API to the OPA instances
           that it manages. Delta bundles are also supported. Read the
+          [Bundle Registry Docs](https://docs.styra.com/das/policies/bundles/bundle-registry)
+          to learn more.
+      opa-bundles-discovery:
+        note: |
+          Styra DAS exposes a Bundle Service compatible API to the OPA instances
+          that it manages. Discovery bundles are also supported. Read the
           [Bundle Registry Docs](https://docs.styra.com/das/policies/bundles/bundle-registry)
           to learn more.
       terraform:
@@ -668,6 +680,11 @@ integrations:
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=Z6aN3Smt-9M
     docs_features:
+      envoy:
+        note: |
+          The
+          [opa-envoy-plugin](https://github.com/open-policy-agent/opa-envoy-plugin)
+          project is the official integration for OPA and Envoy.
       rest-api-integration:
         note: |
           The [opa-envoy-plugin](https://github.com/open-policy-agent/opa-envoy-plugin)
@@ -860,10 +877,13 @@ integrations:
     labels:
       category: servicemesh
       layer: network
-    code:
-      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
     tutorials:
-      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
+      - https://release-v1-2.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/
+    docs_features:
+      envoy:
+        note: |
+          External Authorization supports OPA and is documented
+          [here](https://release-v1-2.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/)
 
   minio:
     title: Minio API Authorization
@@ -1505,13 +1525,18 @@ integrations:
       - spiffe
       - spire
     blogs:
-      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
+      - https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/
     code:
       - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
     tutorials:
       - https://spiffe.io/docs/latest/microservices/envoy-opa/readme/
       - https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/
     docs_features:
+      envoy:
+        note: |
+          SPIRE can be used to integrate with Envoy and OPA. See a
+          [blog here](https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/)
+          to learn more.
       rest-api-integration:
         note: |
           SPIRE can work in tandem with the Envoy proxy to integrate with the OPA
@@ -1861,6 +1886,11 @@ integrations:
         note: |
           OPCR policy images can be loaded in over the Bundle API. The feature
           it documented in the
+          [OPCR docs](https://openpolicycontainers.com/docs/opa).
+      opa-bundles-discovery:
+        note: |
+          OPCR images can be loaded in over the Bundle API and contain
+          discovery bundles. The feature it documented in the
           [OPCR docs](https://openpolicycontainers.com/docs/opa).
       external-data:
         note: |

@@ -1321,3 +1321,9 @@ Content-Length: 24
 
 {"play":{"hello":false}}
 ```
+
+## Ecosystem Projects
+
+The Bundle API is a great way to integrate with and update OPA.
+
+{{< ecosystem_feature_embed key="opa-bundles" topic="or built using Bundles" >}}
