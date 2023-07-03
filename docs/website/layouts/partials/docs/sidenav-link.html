@@ -12,7 +12,7 @@
 <a class="docs-nav-item{{ if $isThisPage }} is-active{{ end }}" href="{{ $linkRef }}">
   {{ $title }}
 </a>
-{{- if (and $isThisPage (ne .ctx.Params.toc "toc" false)) -}}
+{{- if $isThisPage }}
 <div class="toc">
   <!-- generated at runtime  -->
 </div>

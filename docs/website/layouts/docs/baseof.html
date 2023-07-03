@@ -68,16 +68,18 @@
           <div class="container">
             <section class="hero">
               <div class="hero-body">
-              <span class="title is-size-1 is-size-2-mobile">
-                {{ block "page_title" . }}{{ end }}
-                {{ define "page_title" }}{{ .Title }}{{ end }}
-              </span>
+                <span class="title is-size-1 is-size-2-mobile">
+                  {{ block "page_title" . }}{{ end }}
+                  {{ define "page_title" }}{{ .Title }}{{ end }}
+                </span>
                 <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
-                <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
-                  <i class="fab fa-github"></i>
-                  <span>Edit</span>
-                </a>
-              </span>
+                  <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
+                    <i class="fab fa-github"></i>
+                    <span>Edit</span>
+                  </a>
+                </span>
+                {{ block "breadcrumbs" . }}{{ end }}
+                {{ define "breadcrumbs" }}{{ end }}
                 <hr>
               </div>
             </section>
