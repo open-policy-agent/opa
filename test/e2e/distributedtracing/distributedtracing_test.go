@@ -9,7 +9,9 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -68,21 +70,32 @@ func TestServerSpan(t *testing.T) {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
+		if got, expected := spans[0].Name, "v0/data"; got != expected {
+			t.Fatalf("Expected span name to be %q but got %q", expected, got)
+		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
 			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
 		}
 
+		u, err := url.Parse(testRuntime.URL())
+		if err != nil {
+			t.Fatal(err)
+		}
+		port, err := strconv.Atoi(u.Port())
+		if err != nil {
+			t.Fatal(err)
+		}
 		expected := []attribute.KeyValue{
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
+			attribute.String("net.host.name", u.Hostname()),
+			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.server_name", "v0/data"),
+			attribute.String("http.flavor", "1.1"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.target", "/v0/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 3),
-			attribute.String("net.transport", "ip_tcp"),
 		}
+
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 	})
 
@@ -102,20 +115,30 @@ func TestServerSpan(t *testing.T) {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
+		if got, expected := spans[0].Name, "v1/data"; got != expected {
+			t.Fatalf("Expected span name to be %q but got %q", expected, got)
+		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
 			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
 		}
 
+		u, err := url.Parse(testRuntime.URL())
+		if err != nil {
+			t.Fatal(err)
+		}
+		port, err := strconv.Atoi(u.Port())
+		if err != nil {
+			t.Fatal(err)
+		}
 		expected := []attribute.KeyValue{
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
+			attribute.String("net.host.name", u.Hostname()),
+			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "GET"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.server_name", "v1/data"),
+			attribute.String("http.flavor", "1.1"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.target", "/v1/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 67),
-			attribute.String("net.transport", "ip_tcp"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 	})
@@ -271,11 +294,10 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
 			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 3),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -314,11 +336,10 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
 			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 3),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
@@ -364,11 +385,10 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
 			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 3),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
@@ -417,11 +437,10 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.url", testRuntime.URL()+"/health"),
-			attribute.String("http.scheme", "http"),
-			attribute.String("http.host", strings.Replace(testRuntime.URL(), "http://", "", 1)),
 			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
+			attribute.Int("http.response_content_length", 3),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -606,21 +625,28 @@ allow {
 		if !spans[0].SpanContext.IsValid() {
 			t.Fatalf("invalid span created: %#v", spans[0].SpanContext)
 		}
-
+		if got, expected := spans[0].Name, server.PromHandlerAPIAuthz; got != expected {
+			t.Fatalf("Expected span name to be %q but got %q", expected, got)
+		}
 		if got, expected := spans[0].SpanKind.String(), "server"; got != expected {
 			t.Fatalf("Expected span kind to be %q but got %q", expected, got)
 		}
 
+		u := mr.Request.URL
+		port, err := strconv.Atoi(u.Port())
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		expected := []attribute.KeyValue{
-			attribute.String("http.host", strings.Replace(rt.URL(), "http://", "", 1)),
+			attribute.String("net.host.name", u.Hostname()),
+			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.server_name", server.PromHandlerAPIAuthz),
+			attribute.String("http.flavor", "1.1"),
 			attribute.Int("http.status_code", 401),
-			attribute.String("http.target", "/v1/data"),
 			attribute.String("http.user_agent", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 87),
-			attribute.String("net.transport", "ip_tcp"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
