@@ -21,7 +21,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
+	github.com/opencontainers/image-spec v1.1.0-rc4
 	github.com/peterh/liner v1.2.2
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
