@@ -22,7 +22,7 @@ provides a globally unique identifier or the running OPA instance and a
 
 See the [Configuration Reference](../configuration) for configuration details.
 
-### Status Service API
+## Status Service API
 
 OPA expects the service to expose an API endpoint that will receive status
 updates.
@@ -273,7 +273,7 @@ the following additional fields.
 Services should reply with a `2xx` HTTP status if the status update is
 processed successfully.
 
-### Local Status Logs
+## Local Status Logs
 
 Local console logging of status updates can be enabled via the `console` config option.
 This does not require any remote server. Example of minimal config to enable:
@@ -289,7 +289,7 @@ This will dump all status updates to the console. See
 >`metrics.prometheus` portion of the status update in particular can create a considerable
 > amount of log text at info level.
 
-### Prometheus Status Metrics
+## Prometheus Status Metrics
 
 Prometheus status metrics can be enabled via the `prometheus` config option. (see [the configuration documentation](../configuration/#status))
 Example of minimal config to enable:
@@ -300,3 +300,7 @@ status:
 ```
 
 When enabled the OPA instance's Prometheus endpoint exposes the metrics described on [the monitoring documentation](../monitoring/#status-metrics).
+
+## Ecosystem Projects
+
+{{< ecosystem_feature_embed key="status-api" topic="OPA Status API Integration" >}}

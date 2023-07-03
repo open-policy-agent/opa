@@ -82,6 +82,12 @@ integrations:
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
     docs_features:
+      status-api:
+        note: |
+          Styra DAS can receive status updates from OPA instances via the status
+          API. See the
+          [documentation here](https://docs.styra.com/das/policies/policy-organization/systems/view-opa-status)
+          for more information.
       envoy:
         note: |
           Styra DAS provides an out-of-the-box integration for writing Envoy
