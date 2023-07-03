@@ -2165,7 +2165,8 @@ integrations:
           in Enterprise OPA.
       external-data:
         note: |
-          Enterprise OPA supports various external data sources, including:
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          supports various external data sources, including:
           [Kafka](https://docs.styra.com/enterprise-opa/reference/configuration/data/kafka),
           [Okta](https://docs.styra.com/enterprise-opa/reference/configuration/data/okta),
           [LDAP](https://docs.styra.com/enterprise-opa/reference/configuration/data/ldap),
@@ -2178,18 +2179,20 @@ integrations:
           is also available.
       external-data-runtime:
         note: |
-          Enterprise OPA can load data from SQL sources at runtime. The feature
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          can load data from SQL sources at runtime. The feature
           [is documented](https://docs.styra.com/enterprise-opa/tutorials/abac-with-sql)
           here with an ABAC example.
       external-data-realtime-push:
         note: |
-          It's possible to steam data updates to Enterprise OPA using Kafka.
-          The Kafka integration is
+          It's possible to steam data updates to
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          using Kafka. The Kafka integration is
           [documented](https://docs.styra.com/enterprise-opa/tutorials/kafka)
           here.
       policy-testing:
         note: |
-          Enterprise OPA's
+          [Enterprise OPA's](https://docs.styra.com/enterprise-opa/)
           [Live Impact Analysis (LIA) feature](https://docs.styra.com/enterprise-opa/tutorials/lia)
           allows you to test changes to Rego policy on running instances.
       decision-logging:
