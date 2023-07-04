@@ -33,19 +33,18 @@ cases:
         1: true
       c:
         2: true
-# FIXME: Below test case returns: rego_type_error: undefined ref: data.test.p.b
-#- note: 'refheads/arbitrary-var, deep query'
-#  env:
-#    OPA_ENABLE_GENERAL_RULE_REFS: "true"
-#  modules:
-#    - |
-#      package test
-#
-#      p[q][r] { q := ["a", "b", "c"][r] }
-#  query: data.test.p.b = x
-#  want_result:
-#    - x:
-#        1: true
+- note: 'refheads/arbitrary-var, deep query'
+  env:
+    OPA_ENABLE_GENERAL_RULE_REFS: "true"
+  modules:
+    - |
+      package test
+
+      p[q][r] { q := ["a", "b", "c"][r] }
+  query: data.test.p.b = x
+  want_result:
+    - x:
+        1: true
 - note: 'refheads/arbitrary-var, overlapping rule, no conflict'
   env:
     OPA_ENABLE_GENERAL_RULE_REFS: "true"

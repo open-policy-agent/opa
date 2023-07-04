@@ -338,10 +338,26 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 
 	if curr.value != nil {
 		if tpeObj, ok := tpe.(*types.Object); ok {
-			// FIXME: Merge objects differently to preserve static and dynamic parts(?)
-			typeK := types.Or(types.Keys(curr.value), types.Keys(tpeObj))
-			typeV := types.Or(types.Values(curr.value), types.Values(tpeObj))
-			tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
+			if currObj, ok := curr.value.(*types.Object); ok {
+				tpe = tpeObj.Merge(currObj)
+			} else {
+				var typeK types.Type
+				var typeV types.Type
+				dynProps := tpeObj.DynamicProperties()
+				if dynProps != nil {
+					typeK = types.Or(types.Keys(curr.value), dynProps.Key)
+					typeV = types.Or(types.Values(curr.value), dynProps.Value)
+					dynProps = types.NewDynamicProperty(typeK, typeV)
+				} else {
+					typeK = types.Keys(curr.value)
+					typeV = types.Values(curr.value)
+					if typeK != nil && typeV != nil {
+						dynProps = types.NewDynamicProperty(typeK, typeV)
+					}
+				}
+
+				tpe = types.NewObject(tpeObj.StaticProperties(), dynProps)
+			}
 		} else if tpeSet, ok := tpe.(*types.Set); ok {
 			typeK := types.Or(types.Keys(curr.value), tpeSet.Of())
 			tpe = types.NewSet(typeK)

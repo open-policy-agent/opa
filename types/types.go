@@ -430,6 +430,33 @@ func (t *Object) Select(name interface{}) Type {
 	return nil
 }
 
+// TODO: Merge sub-objects instead of putting them all in a types.Or
+func (t *Object) Merge(other *Object) *Object {
+	typeK := Or(t.DynamicProperties().Key, other.DynamicProperties().Key)
+	typeV := Or(t.DynamicProperties().Value, other.DynamicProperties().Value)
+	staticPropsMap := make(map[interface{}]Type)
+
+	for _, sp := range t.StaticProperties() {
+		staticPropsMap[sp.Key] = sp.Value
+	}
+
+	for _, sp := range other.StaticProperties() {
+		currV := staticPropsMap[sp.Key]
+		if currV != nil {
+			staticPropsMap[sp.Key] = Or(currV, sp.Value)
+		} else {
+			staticPropsMap[sp.Key] = sp.Value
+		}
+	}
+
+	var staticProps []*StaticProperty
+	for k, v := range staticPropsMap {
+		staticProps = append(staticProps, NewStaticProperty(k, v))
+	}
+
+	return NewObject(staticProps, NewDynamicProperty(typeK, typeV))
+}
+
 // Any represents a dynamic type.
 type Any []Type
 

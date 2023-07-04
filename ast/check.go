@@ -237,14 +237,16 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 		switch rule.Head.RuleKind() {
 		case SingleValue:
 			typeV := cpy.Get(rule.Head.Value)
-			if last := path[len(path)-1]; !last.IsGround() {
-
-				// e.g. store object[string: whatever] at data.p.q.r, not data.p.q.r[x]
+			if !path.IsGround() {
+				// e.g. store object[string: whatever] at data.p.q.r, not data.p.q.r[x] or data.p.q.r[x].y[z]
+				objPath := path.DynamicSuffix()
 				path = path.GroundPrefix()
 
-				typeK := cpy.Get(last)
-				if typeK != nil && typeV != nil {
-					tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
+				var err error
+				tpe, err = nestedObject(cpy, objPath, typeV)
+				if err != nil {
+					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, err.Error())})
+					tpe = nil
 				}
 			} else {
 				if typeV != nil {
@@ -262,6 +264,39 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	if tpe != nil {
 		env.tree.Insert(path, tpe)
 	}
+}
+
+func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
+	if len(path) == 0 {
+		return tpe, nil
+	}
+
+	k := path[0]
+	typeV, err := nestedObject(env, path[1:], tpe)
+	if err != nil {
+		return nil, err
+	}
+	if typeV == nil {
+		return nil, nil
+	}
+
+	var staticProperties []*types.StaticProperty
+	var dynamicProperty *types.DynamicProperty
+	if k.IsGround() {
+		key, err := JSON(path[0].Value)
+		if err != nil {
+			return nil, err
+		}
+		staticProperties = append(staticProperties, types.NewStaticProperty(key, typeV))
+	} else {
+		typeK := env.Get(k)
+		if typeK == nil {
+			return nil, nil
+		}
+		dynamicProperty = types.NewDynamicProperty(typeK, typeV)
+	}
+
+	return types.NewObject(staticProperties, dynamicProperty), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
