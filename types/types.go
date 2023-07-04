@@ -259,6 +259,10 @@ func NewSet(of Type) *Set {
 	}
 }
 
+func (t *Set) Of() Type {
+	return t.of
+}
+
 // MarshalJSON returns the JSON encoding of t.
 func (t *Set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())

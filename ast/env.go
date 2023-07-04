@@ -321,6 +321,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 			child = c.(*typeTreeNode)
 
 			if child.value != nil && i+1 < len(path) {
+
 				// If child has an object value, merge the new value into it.
 				if o, ok := child.value.(*types.Object); ok {
 					var err error
@@ -335,6 +336,19 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 		curr = child
 	}
 
+	if curr.value != nil {
+		if tpeObj, ok := tpe.(*types.Object); ok {
+			// FIXME: Merge objects differently to preserve static and dynamic parts(?)
+			typeK := types.Or(types.Keys(curr.value), types.Keys(tpeObj))
+			typeV := types.Or(types.Values(curr.value), types.Values(tpeObj))
+			tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
+		} else if tpeSet, ok := tpe.(*types.Set); ok {
+			typeK := types.Or(types.Keys(curr.value), tpeSet.Of())
+			tpe = types.NewSet(typeK)
+		} else {
+			tpe = types.Or(curr.value, tpe)
+		}
+	}
 	curr.value = tpe
 
 	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {

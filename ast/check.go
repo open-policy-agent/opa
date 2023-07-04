@@ -232,10 +232,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 		f := types.NewFunction(args, cpy.Get(rule.Head.Value))
 
-		// Union with existing.
-		exist := env.tree.Get(path)
-		tpe = types.Or(exist, f)
-
+		tpe = f
 	} else {
 		switch rule.Head.RuleKind() {
 		case SingleValue:
@@ -247,22 +244,16 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 				typeK := cpy.Get(last)
 				if typeK != nil && typeV != nil {
-					exist := env.tree.Get(path)
-					typeV = types.Or(types.Values(exist), typeV)
-					typeK = types.Or(types.Keys(exist), typeK)
 					tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
 				}
 			} else {
 				if typeV != nil {
-					exist := env.tree.Get(path)
-					tpe = types.Or(typeV, exist)
+					tpe = typeV
 				}
 			}
 		case MultiValue:
 			typeK := cpy.Get(rule.Head.Key)
 			if typeK != nil {
-				exist := env.tree.Get(path)
-				typeK = types.Or(types.Keys(exist), typeK)
 				tpe = types.NewSet(typeK)
 			}
 		}
