@@ -430,32 +430,9 @@ func (t *Object) Select(name interface{}) Type {
 	return nil
 }
 
-// TODO: Merge sub-objects instead of putting them all in a types.Or
 func (t *Object) Merge(other Type) *Object {
 	if otherObj, ok := other.(*Object); ok {
-		typeK := Or(t.dynamic.Key, otherObj.dynamic.Key)
-		typeV := Or(t.dynamic.Value, otherObj.dynamic.Value)
-		staticPropsMap := make(map[interface{}]Type)
-
-		for _, sp := range t.static {
-			staticPropsMap[sp.Key] = sp.Value
-		}
-
-		for _, sp := range otherObj.static {
-			currV := staticPropsMap[sp.Key]
-			if currV != nil {
-				staticPropsMap[sp.Key] = Or(currV, sp.Value)
-			} else {
-				staticPropsMap[sp.Key] = sp.Value
-			}
-		}
-
-		var staticProps []*StaticProperty
-		for k, v := range staticPropsMap {
-			staticProps = append(staticProps, NewStaticProperty(k, v))
-		}
-
-		return NewObject(staticProps, NewDynamicProperty(typeK, typeV))
+		return mergeObjects(t, otherObj)
 	} else {
 		var typeK Type
 		var typeV Type
@@ -474,6 +451,54 @@ func (t *Object) Merge(other Type) *Object {
 
 		return NewObject(t.StaticProperties(), dynProps)
 	}
+}
+
+func mergeObjects(a, b *Object) *Object {
+	var dynamicProps *DynamicProperty
+	if a.dynamic != nil && b.dynamic != nil {
+		typeK := Or(a.dynamic.Key, b.dynamic.Key)
+		var typeV Type
+		aObj, aIsObj := a.dynamic.Value.(*Object)
+		bObj, bIsObj := b.dynamic.Value.(*Object)
+		if aIsObj && bIsObj {
+			typeV = mergeObjects(aObj, bObj)
+		} else {
+			typeV = Or(a.dynamic.Value, b.dynamic.Value)
+		}
+		dynamicProps = NewDynamicProperty(typeK, typeV)
+	} else if a.dynamic != nil {
+		dynamicProps = a.dynamic
+	} else {
+		dynamicProps = b.dynamic
+	}
+
+	staticPropsMap := make(map[interface{}]Type)
+
+	for _, sp := range a.static {
+		staticPropsMap[sp.Key] = sp.Value
+	}
+
+	for _, sp := range b.static {
+		currV := staticPropsMap[sp.Key]
+		if currV != nil {
+			currVObj, currVIsObj := currV.(*Object)
+			spVObj, spVIsObj := sp.Value.(*Object)
+			if currVIsObj && spVIsObj {
+				staticPropsMap[sp.Key] = mergeObjects(currVObj, spVObj)
+			} else {
+				staticPropsMap[sp.Key] = Or(currV, sp.Value)
+			}
+		} else {
+			staticPropsMap[sp.Key] = sp.Value
+		}
+	}
+
+	var staticProps []*StaticProperty
+	for k, v := range staticPropsMap {
+		staticProps = append(staticProps, NewStaticProperty(k, v))
+	}
+
+	return NewObject(staticProps, dynamicProps)
 }
 
 // Any represents a dynamic type.
