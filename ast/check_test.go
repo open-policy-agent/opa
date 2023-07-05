@@ -565,7 +565,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:  "generic ref-rules, only vars in obj-path, complete obj access",
+			note:  "general ref-rules, only vars in obj-path, complete obj access",
 			rules: ruleset3,
 			ref:   "data.simple.p.q",
 			expected: types.NewObject(
@@ -579,7 +579,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:  "generic ref-rules, only vars in obj-path, intermediate obj access",
+			note:  "general ref-rules, only vars in obj-path, intermediate obj access",
 			rules: ruleset3,
 			ref:   "data.simple.p.q.b",
 			expected: types.NewObject(
@@ -588,13 +588,13 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:     "generic ref-rules, only vars in obj-path, leaf access",
+			note:     "general ref-rules, only vars in obj-path, leaf access",
 			rules:    ruleset3,
 			ref:      "data.simple.p.q.b[1]",
 			expected: types.N,
 		},
 		{
-			note:  "generic ref-rules, vars and constants in obj-path, complete obj access",
+			note:  "general ref-rules, vars and constants in obj-path, complete obj access",
 			rules: ruleset3,
 			ref:   "data.mixed.p.q",
 			expected: types.NewObject(
@@ -612,7 +612,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:  "generic ref-rules, key overrides, complete obj access",
+			note:  "general ref-rules, key overrides, complete obj access",
 			rules: ruleset3,
 			ref:   "data.overrides.p.q",
 			expected: types.NewObject(
@@ -633,7 +633,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:  "generic ref-rules, multiple static key overrides, complete obj access",
+			note:  "general ref-rules, multiple static key overrides, complete obj access",
 			rules: ruleset3,
 			ref:   "data.overrides_static.p.q",
 			expected: types.NewObject(
@@ -648,7 +648,7 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:  "generic ref-rules, multiple static key overrides, intermediate obj access",
+			note:  "general ref-rules, multiple static key overrides, intermediate obj access",
 			rules: ruleset3,
 			ref:   "data.overrides_static.p.q.foo",
 			expected: types.NewAny(
@@ -658,19 +658,19 @@ func TestCheckInferenceRules(t *testing.T) {
 			),
 		},
 		{
-			note:     "generic ref-rules, multiple static key overrides, leaf access (a)",
+			note:     "general ref-rules, multiple static key overrides, leaf access (a)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.foo.a",
 			expected: types.S,
 		},
 		{
-			note:     "generic ref-rules, multiple static key overrides, leaf access (b)",
+			note:     "general ref-rules, multiple static key overrides, leaf access (b)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.bar.b",
 			expected: types.N,
 		},
 		{
-			note:     "generic ref-rules, multiple static key overrides, leaf access (c)",
+			note:     "general ref-rules, multiple static key overrides, leaf access (c)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.baz.c",
 			expected: types.B,
