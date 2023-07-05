@@ -90,7 +90,7 @@ func packArtifact(ctx context.Context, pusher content.Pusher, artifactType strin
 		artifactType = MediaTypeUnknownArtifact
 	}
 
-	annotations, err := ensureAnnotationCreated(opts.ManifestAnnotations, ocispec.AnnotationArtifactCreated)
+	annotations, err := ensureAnnotationCreated(opts.ManifestAnnotations, spec.AnnotationArtifactCreated)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
