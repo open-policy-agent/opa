@@ -968,24 +968,24 @@ func TestPartialRule(t *testing.T) {
 			exp:   `[{"x": {"s": 1}}]`,
 		},
 		// Multiple results
-		//{
-		//	note: "deep query to partial object, overlapping rules with same key/value, dynamic ref",
-		//	module: `package test
-		//		p.q[r] := 1 { r := "foo" }
-		//		p.q[r] := 2 { r := "bar" }
-		//	`,
-		//	query: `i := ["foo", "bar"][_]; data.test.p.q[i] = x`,
-		//	exp:   `[{"x": {"s": 1}}]`,
-		//},
-		//{
-		//	note: "deep query into partial object, overlapping rules with same key/value, dynamic ref",
-		//	module: `package test
-		//		p.q[r].s := 1 { r := "foo" }
-		//		p.q[r].s := 2 { r := "bar" }
-		//	`,
-		//	query: `i := ["foo", "bar"][_]; data.test.p.q[i].s = x`,
-		//	exp:   `[{"x": 1}, {"x": 2}]`,
-		//},
+		{
+			note: "query to partial object, overlapping rules, dynamic ref, multiple results",
+			module: `package test
+				p.q[r].s := 1 { r := "foo" }
+				p.q[r].s := 2 { r := "bar" }
+			`,
+			query: `data.test.p.q[i] = x`,
+			exp:   `[{"i": "bar", "x": {"s": 2}}, {"i": "foo", "x": {"s": 1}}]`,
+		},
+		{
+			note: "deep query into partial object, overlapping rules, dynamic ref, multiple results",
+			module: `package test
+				p.q[r].s := 1 { r := "foo" }
+				p.q[r].s := 2 { r := "bar" }
+			`,
+			query: `data.test.p.q[i].s = x`,
+			exp:   `[{"i": "bar", "x": 2}, {"i": "foo", "x": 1}]`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -1011,11 +1011,12 @@ func TestPartialRule(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Unexpected error: %v", err)
 				}
-				if exp, act := 1, len(qrs); exp != act {
-					t.Fatalf("expected %d query result, got %d query results: %+v", exp, act, qrs)
-				}
+
 				var exp []map[string]interface{}
 				_ = json.Unmarshal([]byte(tc.exp), &exp)
+				if exp, act := len(exp), len(qrs); exp != act {
+					t.Fatalf("expected %d query result, got %d query results: %+v", exp, act, qrs)
+				}
 				testAssertResultSet(t, exp, qrs, false)
 			}
 		})
