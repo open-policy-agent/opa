@@ -82,6 +82,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalPrettyOutput,
 			evalSourceOutput,
 			evalRawOutput,
+			evalDiscardOutput,
 		}),
 		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails, explainModeDebug}),
 		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
@@ -142,6 +143,7 @@ const (
 	evalPrettyOutput   = "pretty"
 	evalSourceOutput   = "source"
 	evalRawOutput      = "raw"
+	evalDiscardOutput  = "discard"
 
 	// number of profile results to return by default
 	defaultProfileLimit = 10
@@ -394,6 +396,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		err = pr.Source(w, result)
 	case evalRawOutput:
 		err = pr.Raw(w, result)
+	case evalDiscardOutput:
+		err = pr.Discard(w, result)
 	default:
 		err = pr.JSON(w, result)
 	}
