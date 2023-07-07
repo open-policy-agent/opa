@@ -500,7 +500,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 5, len(m.All()); exp != act {
+	if exp, act := 4, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -576,7 +576,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 26, len(m.All()); exp != act {
+	if exp, act := 25, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1024,7 +1024,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 6, len(m.All()); exp != act {
+	if exp, act := 5, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1111,7 +1111,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 33, len(m.All()); exp != act {
+	if exp, act := 32, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
