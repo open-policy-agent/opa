@@ -211,6 +211,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoX509ParseCertificateRequest,
 	CryptoX509ParseRSAPrivateKey,
 	CryptoX509ParseKeyPair,
+	CryptoParsePrivateKeys,
 	CryptoHmacMd5,
 	CryptoHmacSha1,
 	CryptoHmacSha256,
@@ -2309,6 +2310,19 @@ var CryptoX509ParseRSAPrivateKey = &Builtin{
 			types.Named("pem", types.S).Description("base64 string containing a PEM encoded RSA private key"),
 		),
 		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JWK as an object"),
+	),
+}
+
+var CryptoParsePrivateKeys = &Builtin{
+	Name: "crypto.parse_private_keys",
+	Description: `Returns zero or more private keys from the given encoded string containing DER certificate data.
+
+If the input is empty, the function will return null. The input string should be a list of one or more concatenated PEM blocks. The whole input of concatenated PEM blocks can optionally be Base64 encoded.`,
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("keys", types.S).Description("PEM encoded data containing one or more private keys as concatenated blocks. Optionally Base64 encoded."),
+		),
+		types.Named("output", types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)))).Description("parsed private keys represented as objects"),
 	),
 }
 

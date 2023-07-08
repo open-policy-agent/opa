@@ -6,6 +6,7 @@ package topdown
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
@@ -21,8 +22,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
+
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -39,7 +41,8 @@ const (
 	blockTypeRSAPrivateKey = "RSA PRIVATE KEY"
 	// blockTypeRSAPrivateKey indicates this PEM block contains a RSA private key.
 	// Exported for tests.
-	blockTypePrivateKey = "PRIVATE KEY"
+	blockTypePrivateKey   = "PRIVATE KEY"
+	blockTypeEcPrivateKey = "EC PRIVATE KEY"
 )
 
 func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -168,7 +171,8 @@ func builtinCryptoX509ParseCertificateRequest(_ BuiltinContext, operands []*ast.
 	return iter(ast.NewTerm(v))
 }
 
-func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinCryptoJWKFromPrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	var x interface{}
 
 	a := operands[0].Value
 	input, err := builtins.StringOperand(a, 1)
@@ -177,23 +181,83 @@ func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, operands []*ast.Term,
 	}
 
 	// get the raw private key
-	rawKey, err := getRSAPrivateKeyFromString(string(input))
+	pemDataString := string(input)
+
+	if pemDataString == "" {
+		return fmt.Errorf("input PEM data was empty")
+	}
+
+	// This built in must be supplied a valid PEM or base64 encoded string.
+	// If the input is not a PEM string, attempt to decode b64.
+	// If the base64 decode fails - this is an error
+	if !strings.HasPrefix(pemDataString, "-----BEGIN") {
+		bs, err := base64.StdEncoding.DecodeString(pemDataString)
+		if err != nil {
+			return err
+		}
+		pemDataString = string(bs)
+	}
+
+	rawKeys, err := getPrivateKeysFromPEMData(pemDataString)
 	if err != nil {
 		return err
 	}
 
-	rsaPrivateKey, err := jwk.New(rawKey)
+	if len(rawKeys) == 0 {
+		return iter(ast.NullTerm())
+	}
+
+	key, err := jwk.New(rawKeys[0])
 	if err != nil {
 		return err
 	}
 
-	jsonKey, err := json.Marshal(rsaPrivateKey)
+	jsonKey, err := json.Marshal(key)
+	if err != nil {
+		return err
+	}
+
+	if err := util.UnmarshalJSON(jsonKey, &x); err != nil {
+		return err
+	}
+
+	value, err := ast.InterfaceToValue(x)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.NewTerm(value))
+}
+
+func builtinCryptoParsePrivateKeys(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	a := operands[0].Value
+	input, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return err
+	}
+
+	if string(input) == "" {
+		return iter(ast.NullTerm())
+	}
+
+	// get the raw private key
+	rawKeys, err := getPrivateKeysFromPEMData(string(input))
+	if err != nil {
+		return err
+	}
+
+	if len(rawKeys) == 0 {
+		return iter(ast.NewTerm(ast.NewArray()))
+	}
+
+	bs, err := json.Marshal(rawKeys)
 	if err != nil {
 		return err
 	}
 
 	var x interface{}
-	if err := util.UnmarshalJSON(jsonKey, &x); err != nil {
+	if err := util.UnmarshalJSON(bs, &x); err != nil {
 		return err
 	}
 
@@ -298,7 +362,8 @@ func init() {
 	RegisterBuiltinFunc(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterBuiltinFunc(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
-	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoX509ParseRSAPrivateKey)
+	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoJWKFromPrivateKey)
+	RegisterBuiltinFunc(ast.CryptoParsePrivateKeys.Name, builtinCryptoParsePrivateKeys)
 	RegisterBuiltinFunc(ast.CryptoX509ParseKeyPair.Name, builtinCryptoX509ParseKeyPair)
 	RegisterBuiltinFunc(ast.CryptoHmacMd5.Name, builtinCryptoHmacMd5)
 	RegisterBuiltinFunc(ast.CryptoHmacSha1.Name, builtinCryptoHmacSha1)
@@ -378,43 +443,56 @@ func getX509CertsFromPem(pemBlocks []byte) ([]*x509.Certificate, error) {
 	return x509.ParseCertificates(decodedCerts)
 }
 
-func getRSAPrivateKeyFromString(key string) (interface{}, error) {
-	// if the input is PEM handle that
-	if strings.HasPrefix(key, "-----BEGIN") {
-		return getRSAPrivateKeyFromPEM([]byte(key))
+func getPrivateKeysFromPEMData(pemData string) ([]crypto.PrivateKey, error) {
+	pemBlockString := pemData
+
+	var validPrivateKeys []crypto.PrivateKey
+
+	// if the input is base64, decode it
+	bs, err := base64.StdEncoding.DecodeString(pemBlockString)
+	if err == nil {
+		pemBlockString = string(bs)
 	}
+	bs = []byte(pemBlockString)
 
-	// assume input is base64 if not PEM
-	b64, err := base64.StdEncoding.DecodeString(key)
-	if err != nil {
-		return nil, err
+	for len(bs) > 0 {
+		inputLen := len(bs)
+		var block *pem.Block
+		block, bs = pem.Decode(bs)
+		if block == nil && len(bs) == 0 {
+			break
+		}
+		// should only happen if end of input is not a valid PEM block. See TestParseRSAPrivateKeyVariedPemInput.
+		if inputLen == len(bs) {
+			break
+		}
+
+		if block == nil {
+			continue
+		}
+
+		switch block.Type {
+		case blockTypeRSAPrivateKey:
+			parsedKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			validPrivateKeys = append(validPrivateKeys, parsedKey)
+		case blockTypePrivateKey:
+			parsedKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			validPrivateKeys = append(validPrivateKeys, parsedKey)
+		case blockTypeEcPrivateKey:
+			parsedKey, err := x509.ParseECPrivateKey(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			validPrivateKeys = append(validPrivateKeys, parsedKey)
+		}
 	}
-
-	return getRSAPrivateKeyFromPEM(b64)
-}
-
-func getRSAPrivateKeyFromPEM(pemBlocks []byte) (interface{}, error) {
-
-	// decode the pem into the Block struct
-	p, _ := pem.Decode(pemBlocks)
-	if p == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
-	}
-
-	// if the key is in PKCS1 format
-	if p.Type == blockTypeRSAPrivateKey {
-		return x509.ParsePKCS1PrivateKey(p.Bytes)
-	}
-
-	// if the key is in PKCS8 format
-	if p.Type == blockTypePrivateKey {
-		return x509.ParsePKCS8PrivateKey(p.Bytes)
-	}
-
-	// unsupported key format
-	return nil, fmt.Errorf("PEM block type is '%s', expected %s or %s", p.Type, blockTypeRSAPrivateKey,
-		blockTypePrivateKey)
-
+	return validPrivateKeys, nil
 }
 
 // addCACertsFromFile adds CA certificates from filePath into the given pool.
