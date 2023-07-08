@@ -1,0 +1,35 @@
+cases:
+  - data:
+    modules:
+      - |
+        package testing
+        
+        pem := "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA9D/bK4171aiTNUkrUCHKGMLSQooV+o3wdz2889h9iv0HhhBJ\nCAGU54K3duB8ofHpmYL50QodcR4RLw1vSkaI+FPdPDMyKxKj/YcmofJjz4kW+Iqw\nFbBcbMnKnEVzye+CyW9YYOTu0xWtcgen80zGp2opG0GZX86hBjjXJnjOdrJTk6x2\nNAiJIbjsQevysmj+2MyqVm8widxw0x+rGhTaCD+ZXWitN0a0WO1aaA8c/7i99I9z\nhe2peKvXzEtMaqYO9ptHcYmq2z0QWvZuJVMv5Yn0mScLWyh91R099IOtn6sNaMMs\nOyTpi7E/2IlVgI2uKGPEopKkMFV8Fl2YaAbo7wIDAQABAoIBAAyMZ08ygqU0dvOq\n4a3JPp/NCo5el8h6mFsX8eg5PCHy4/sQRSBDLIpEXfaei+iqDA1V/E2wDlksaUeY\nkhony4uui1Q3cSFjYMd6tRJm6JfV/DcisO88U1NHfsBOlSdPxdFhhhHcUSTJHVMZ\nb5iBXkdlnd0HnsCcVguCyhLw6/KPFyiA+NYRz68flxze7admyVp5C6i/HbMPq8Pr\nMilBUvOFtxuaGeJBAiavuzUe9I70dRwpe424tMvisSA8h7Xbm8BeN/PJHDV/2JrI\nURgQ563yQ5So/Qg8AgxXRkpgWM9zAh7r31PBO86vq/B4ZbON/TtWdcZVsAcVB4Pk\ntqc8JNkCgYEA+g8V+y92SETdcwUkbd5O9Fg5CkfdsALsBXVH6FunrCUV5HS9l5o6\nMMBbJ/08odW/bP5BmOa4A/Hbk9uG/UfQn2KQ3HCgPlxUEwQO07R1/FcQOe4xmyG6\nJpDgQ30viE1RtlCkceQWUeitCIqZsYu0i8sLZLWJH+V/07OB4G17ELMCgYEA+g1v\nhrlAFNhZvrIX/zcP3xF2pZ+AqkFXdL/tWQZkWAVToONn/LlXTH71C/TO2x+OaQRm\nqX1bA9Zhyjf1gYQN9RenjUswvggk0aY2Tk28wUqowMGSsjQHmZ20EphHNMWNJpdS\nfKFfrQIFKCnLlpQVNz+j3bLWZUnq+jPaYnJP7NUCgYEA48qcVo7c7Ga3aNEVZ3St\nbg90HrZq760pvqshDz13V+0MrWnfUFxxh/mi0KHy+uYRlMNllFkQ5p8LTP0dUlt6\nY8dReU6r20MWX6BBtX9eP7o8ENm4nL4zqnAtq609gKgWuMNrmkiSQJl6Dx7bdY5z\nsSkNPvfUa5cQRBTxSjXRdtsCgYBHrzpdwRXh4/Q2ew/uFnbyWCtPZ96W8IyF58+/\nSdnSchR7dzYEeY3RXEQb3V6/6tgEu0JDLLC+9OKr+kbjjlwB+3oJQ5kBoYwMnj3L\nTPXj4+dk+xl3BPt4yoEpI4amVkwU2CTJnemzy3R3AyReUq2SXSg5El/sQbifaeYd\neu/20QKBgH/5IZHGBKiRAe1ww2FzOpDtL8VXXTe3EAXKutfajrHTqPz9+lXknX/D\nUMosh264nYXYS29WqxhJVutbE9u8e0VpuY1qIN9/3R0WKfTLTMUFlZtbqTepvsy1\nW2UbK732I4Nfp0/mtUvOSdMZO8dxbSdEeMnw/Ec8QgxK9a1rRu9+\n-----END RSA PRIVATE KEY-----"
+        
+        p {
+        count(crypto.parse_private_keys(pem)) == 1
+        }
+    note: cryptoparseprivatekey/valid
+    query: data.testing.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package testing 
+        pem := "nope"
+        p := crypto.parse_private_keys(pem)
+    note: cryptoparseprivatekey/invalid
+    query: data.testing.p = x
+    want_result:
+      - x: []
+  - data:
+    modules:
+      - |
+        package testing 
+        pem := ""
+        p := crypto.parse_private_keys(pem)
+    note: cryptoparseprivatekey/invalid
+    query: data.testing.p = x
+    want_result:
+      - x: null
