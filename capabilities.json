@@ -672,6 +672,28 @@
       }
     },
     {
+      "name": "crypto.parse_private_key",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "crypto.sha1",
       "decl": {
         "args": [

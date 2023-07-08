@@ -6,8 +6,11 @@ package topdown
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/md5"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -16,15 +19,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
-	"hash"
-	"os"
-	"strings"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/util"
+	"hash"
+	"os"
+	"strings"
 )
 
 const (
@@ -39,7 +42,8 @@ const (
 	blockTypeRSAPrivateKey = "RSA PRIVATE KEY"
 	// blockTypeRSAPrivateKey indicates this PEM block contains a RSA private key.
 	// Exported for tests.
-	blockTypePrivateKey = "PRIVATE KEY"
+	blockTypePrivateKey   = "PRIVATE KEY"
+	blockTypeEcPrivateKey = "EC PRIVATE KEY"
 )
 
 func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -205,6 +209,59 @@ func builtinCryptoX509ParseRSAPrivateKey(_ BuiltinContext, operands []*ast.Term,
 	return iter(ast.NewTerm(value))
 }
 
+func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	a := operands[0].Value
+	input, err := builtins.StringOperand(a, 1)
+	if err != nil {
+		return err
+	}
+
+	// get the raw private key
+	rawKey, err := getRSAPrivateKeyFromString(string(input))
+	if err != nil {
+		return err
+	}
+	key, parseErr := parsePrivateKey(rawKey)
+
+	if parseErr != nil {
+		return err
+	}
+
+	theJSONKey, err := json.Marshal(key)
+	if err != nil {
+		return err
+	}
+
+	var x interface{}
+	if err := util.UnmarshalJSON(theJSONKey, &x); err != nil {
+		return err
+	}
+
+	value, err := ast.InterfaceToValue(x)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.NewTerm(value))
+}
+
+func parsePrivateKey(privatekey interface{}) (interface{}, error) {
+
+	switch pk := privatekey.(type) {
+	case *rsa.PrivateKey:
+		return pk, nil
+	case *ecdsa.PrivateKey:
+		return pk, nil
+	case *ed25519.PrivateKey:
+		return pk, nil
+	}
+
+	eText := errors.New("key did not fit any criterion")
+
+	return nil, eText
+}
+
 func hashHelper(a ast.Value, h func(ast.String) string) (ast.Value, error) {
 	s, err := builtins.StringOperand(a, 1)
 	if err != nil {
@@ -299,6 +356,7 @@ func init() {
 	RegisterBuiltinFunc(ast.CryptoSha256.Name, builtinCryptoSha256)
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificateRequest.Name, builtinCryptoX509ParseCertificateRequest)
 	RegisterBuiltinFunc(ast.CryptoX509ParseRSAPrivateKey.Name, builtinCryptoX509ParseRSAPrivateKey)
+	RegisterBuiltinFunc(ast.CryptoParsePrivateKey.Name, builtinCryptoParsePrivateKey)
 	RegisterBuiltinFunc(ast.CryptoX509ParseKeyPair.Name, builtinCryptoX509ParseKeyPair)
 	RegisterBuiltinFunc(ast.CryptoHmacMd5.Name, builtinCryptoHmacMd5)
 	RegisterBuiltinFunc(ast.CryptoHmacSha1.Name, builtinCryptoHmacSha1)
@@ -409,6 +467,9 @@ func getRSAPrivateKeyFromPEM(pemBlocks []byte) (interface{}, error) {
 	// if the key is in PKCS8 format
 	if p.Type == blockTypePrivateKey {
 		return x509.ParsePKCS8PrivateKey(p.Bytes)
+	}
+	if p.Type == blockTypeEcPrivateKey {
+		return x509.ParseECPrivateKey(p.Bytes)
 	}
 
 	// unsupported key format

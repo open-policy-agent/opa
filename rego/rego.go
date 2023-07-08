@@ -1736,22 +1736,20 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 }
 
 func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.modules) == 0 {
+		return nil
+	}
+
 	ids, err := r.store.ListPolicies(ctx, txn)
 	if err != nil {
 		return err
-	}
-
-	// if there are no raw modules, nor modules in the store, then there
-	// is nothing to do.
-	if len(r.modules) == 0 && len(ids) == 0 {
-		return nil
 	}
 
 	m.Timer(metrics.RegoModuleParse).Start()
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
 
-	// Parse any modules in the are saved to the store, but only if
+	// Parse any modules that are saved to the store, but only if
 	// another compile step is going to occur (ie. we have parsed modules
 	// that need to be compiled).
 	for _, id := range ids {
