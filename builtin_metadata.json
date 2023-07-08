@@ -39,6 +39,7 @@
       "crypto.hmac.sha256",
       "crypto.hmac.sha512",
       "crypto.md5",
+      "crypto.parse_private_key",
       "crypto.sha1",
       "crypto.sha256",
       "crypto.x509.parse_and_verify_certificates",
@@ -3709,6 +3710,26 @@
       "description": "MD5-hash of `x`",
       "name": "y",
       "type": "string"
+    },
+    "wasm": false
+  },
+  "crypto.parse_private_key": {
+    "args": [
+      {
+        "description": "base64 string containing a PEM encoded RSA private key",
+        "name": "pem",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns the private key object of a PEM-encoded private key.",
+    "introduced": "edge",
+    "result": {
+      "description": "PrivateKey as an object",
+      "name": "output",
+      "type": "object[string: any]"
     },
     "wasm": false
   },

@@ -211,6 +211,7 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoX509ParseCertificateRequest,
 	CryptoX509ParseRSAPrivateKey,
 	CryptoX509ParseKeyPair,
+	CryptoParsePrivateKey,
 	CryptoHmacMd5,
 	CryptoHmacSha1,
 	CryptoHmacSha256,
@@ -2309,6 +2310,17 @@ var CryptoX509ParseRSAPrivateKey = &Builtin{
 			types.Named("pem", types.S).Description("base64 string containing a PEM encoded RSA private key"),
 		),
 		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("JWK as an object"),
+	),
+}
+
+var CryptoParsePrivateKey = &Builtin{
+	Name:        "crypto.parse_private_key",
+	Description: "Returns the private key object of a PEM-encoded private key.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("pem", types.S).Description("base64 string containing a PEM encoded RSA private key"),
+		),
+		types.Named("output", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("PrivateKey as an object"),
 	),
 }
 
