@@ -339,12 +339,12 @@ AwEHoUQDQgAEFhb1oUsRLKWjyIir6XXEA9JunJrr5iJ5GBaWP0G67Ei/53pN3kKT
 			t.Fatalf("we expect this to return no errors, but it returned: %v", parseErr)
 		}
 
-		theJson, err := json.Marshal(theKey)
+		theJSON, err := json.Marshal(theKey)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		fmt.Printf("%s\n", theJson)
+		fmt.Printf("%s\n", theJSON)
 
 	})
 	t.Run("TestParseECPrivateb64", func(t *testing.T) {
