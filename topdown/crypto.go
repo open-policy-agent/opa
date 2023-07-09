@@ -222,15 +222,19 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 	if err != nil {
 		return err
 	}
-	key, err := parsePrivateKey(rawKey)
+	key, parseErr := parsePrivateKey(rawKey)
 
-	theJsonKey, err := json.Marshal(key)
+	if parseErr != nil {
+		return err
+	}
+
+	theJSONKey, err := json.Marshal(key)
 	if err != nil {
 		return err
 	}
 
 	var x interface{}
-	if err := util.UnmarshalJSON(theJsonKey, &x); err != nil {
+	if err := util.UnmarshalJSON(theJSONKey, &x); err != nil {
 		return err
 	}
 
