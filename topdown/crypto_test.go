@@ -342,6 +342,7 @@ AwEHoUQDQgAEFhb1oUsRLKWjyIir6XXEA9JunJrr5iJ5GBaWP0G67Ei/53pN3kKT
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 		theJSON, err := json.Marshal(theKey)
 =======
 		theJson, err := json.Marshal(theKey)
@@ -352,10 +353,14 @@ AwEHoUQDQgAEFhb1oUsRLKWjyIir6XXEA9JunJrr5iJ5GBaWP0G67Ei/53pN3kKT
 =======
 		theJSON, err := json.Marshal(theKey)
 >>>>>>> ab3997c09 (var-naming: var theJson should be theJSON)
+=======
+		theJSON, err := json.Marshal(theKey)
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 		if err != nil {
 			fmt.Println(err)
 		}
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -369,6 +374,9 @@ AwEHoUQDQgAEFhb1oUsRLKWjyIir6XXEA9JunJrr5iJ5GBaWP0G67Ei/53pN3kKT
 =======
 		fmt.Printf("%s\n", theJSON)
 >>>>>>> ab3997c09 (var-naming: var theJson should be theJSON)
+=======
+		fmt.Printf("%s\n", theJSON)
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 
 	})
 	t.Run("TestParseECPrivateb64", func(t *testing.T) {

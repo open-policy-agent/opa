@@ -224,6 +224,9 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 	}
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 	key, parseErr := parsePrivateKey(rawKey)
 
 	if parseErr != nil {
@@ -231,6 +234,7 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 	}
 
 	theJSONKey, err := json.Marshal(key)
+<<<<<<< HEAD
 =======
 	key, err := parsePrivateKey(rawKey)
 
@@ -245,11 +249,14 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 
 	theJSONKey, err := json.Marshal(key)
 >>>>>>> 42d19ad04 (var-naming: var theJsonKey should be theJSONKey (revive))
+=======
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 	if err != nil {
 		return err
 	}
 
 	var x interface{}
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 	if err := util.UnmarshalJSON(theJSONKey, &x); err != nil {
@@ -259,6 +266,9 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 =======
 	if err := util.UnmarshalJSON(theJSONKey, &x); err != nil {
 >>>>>>> 42d19ad04 (var-naming: var theJsonKey should be theJSONKey (revive))
+=======
+	if err := util.UnmarshalJSON(theJSONKey, &x); err != nil {
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 		return err
 	}
 
@@ -274,6 +284,9 @@ func parsePrivateKey(privatekey interface{}) (interface{}, error) {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 	switch pk := privatekey.(type) {
 	case *rsa.PrivateKey:
 		return pk, nil
@@ -281,6 +294,7 @@ func parsePrivateKey(privatekey interface{}) (interface{}, error) {
 		return pk, nil
 	case *ed25519.PrivateKey:
 		return pk, nil
+<<<<<<< HEAD
 =======
 	switch privatekey.(type) {
 =======
@@ -297,6 +311,8 @@ func parsePrivateKey(privatekey interface{}) (interface{}, error) {
 =======
 		return pk, nil
 >>>>>>> dc6bedbae (fix:  assigning the result of this type assertion to a variable (switch privatekey := privatekey.(type)) could eliminate type assertions in switch cases (gosimple))
+=======
+>>>>>>> 2f89ab7033b57ce52ed39e2efdd3e907e264ca68
 	}
 
 	eText := errors.New("key did not fit any criterion")
