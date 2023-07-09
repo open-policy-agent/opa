@@ -161,7 +161,8 @@ func TestHookOnConfigDiscovery(t *testing.T) {
 			"foo":     "baz",
 			"fox":     "quz",
 		},
-		Plugins: map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+		Plugins:   map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+		Discovery: json.RawMessage(`{"service":"disco", "resource": "disco.tar.gz"}`),
 	}
 	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
 	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
@@ -499,7 +500,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 5, len(m.All()); exp != act {
+	if exp, act := 4, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -575,7 +576,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 26, len(m.All()); exp != act {
+	if exp, act := 25, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1023,7 +1024,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 6, len(m.All()); exp != act {
+	if exp, act := 5, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1110,7 +1111,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 33, len(m.All()); exp != act {
+	if exp, act := 32, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 

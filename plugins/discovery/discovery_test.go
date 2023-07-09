@@ -275,7 +275,9 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 			}
 		},
 		"default_authorization_decision": "baz/qux",
-		"default_decision": "bar/baz"}`, version.Version)
+		"default_decision": "bar/baz",
+		"discovery": {"name": "config"}
+	}`, version.Version)
 
 	var expected map[string]interface{}
 	if err := util.Unmarshal([]byte(expectedConfig), &expected); err != nil {
@@ -340,7 +342,9 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 			}
 		},
 		"default_authorization_decision": "/system/authz/allow",
-		"default_decision": "/system/main"}`, version.Version)
+		"default_decision": "/system/main",
+		"discovery": {"name": "config"}
+	}`, version.Version)
 
 	var expected2 map[string]interface{}
 	if err := util.Unmarshal([]byte(expectedConfig2), &expected2); err != nil {
@@ -1348,7 +1352,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	// check that not setting persistence_directory doesn't remove boot config
+	// check that omitting persistence_directory or discovery doesn't remove boot config
 	updatedBundle = makeDataBundle(13, `
 		{
 			"config": {}
@@ -1362,6 +1366,9 @@ func TestReconfigureWithUpdates(t *testing.T) {
 
 	if manager.Config.PersistenceDirectory == nil {
 		t.Fatal("Erased persistence directory configuration")
+	}
+	if manager.Config.Discovery == nil {
+		t.Fatal("Erased discovery plugin configuration")
 	}
 
 	// update persistence directory
