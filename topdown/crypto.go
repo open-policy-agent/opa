@@ -244,13 +244,13 @@ func builtinCryptoParsePrivateKey(_ BuiltinContext, operands []*ast.Term, iter f
 
 func parsePrivateKey(privatekey interface{}) (interface{}, error) {
 
-	switch privatekey.(type) {
+	switch pk := privatekey.(type) {
 	case *rsa.PrivateKey:
-		return privatekey.(*rsa.PrivateKey), nil
+		return pk, nil
 	case *ecdsa.PrivateKey:
-		return privatekey.(*ecdsa.PrivateKey), nil
+		return pk, nil
 	case *ed25519.PrivateKey:
-		return privatekey.(ed25519.PrivateKey), nil
+		return pk, nil
 	}
 
 	eText := errors.New("key did not fit any criterion")
