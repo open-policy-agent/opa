@@ -75,17 +75,18 @@ cases:
       p.a.r := 42
   query: data.test.p = x
   want_error: eval_conflict_error
-# FIXME: We can't do complex queries in these tests?
-#- note: 'refheads/arbitrary-var, multiple result-set entries'
-#  env:
-#    OPA_ENABLE_GENERAL_RULE_REFS: "true"
-#  modules:
-#    - |
-#      package test
-#
-#      p.q[r].s := 1 { r := "foo" }
-#      p.q[r].s := 2 { r := "bar" }
-#  query: i := ["foo", "bar"][_]; data.test.p.q[i].s = x
-#  want_result:
-#    - x: 1
-#    - x: 2
+- note: 'refheads/arbitrary-var, multiple result-set entries'
+  env:
+    OPA_ENABLE_GENERAL_RULE_REFS: "true"
+  modules:
+    - |
+      package test
+
+      p.q[r].s := 1 { r := "foo" }
+      p.q[r].s := 2 { r := "bar" }
+  query: data.test.p.q[i].s = x
+  want_result:
+    - i: foo
+      x: 1
+    - i: bar
+      x: 2
