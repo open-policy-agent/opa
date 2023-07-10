@@ -157,7 +157,6 @@ cases:
               foo: 0
               bar: 1
               baz: 2
-# FIXME: We can't do complex queries in these tests?
   - note: 'refheads/general, multiple result-set entries'
     env:
       OPA_ENABLE_GENERAL_RULE_REFS: "true"
