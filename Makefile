@@ -341,12 +341,6 @@ ifneq ($(GOARCH),arm64) # build only static images for arm64
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
-	$(DOCKER) build \
-		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
-		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
-		--platform linux/$* \
 		.
 endif
 	$(DOCKER) build \
@@ -379,15 +373,6 @@ push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
 		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
-		--build-arg BIN_DIR=$(RELEASE_DIR) \
-		--platform $(DOCKER_PLATFORMS) \
-		--provenance=false \
-		--push \
-		.
-	$(DOCKER) buildx build \
-		--tag $(DOCKER_IMAGE):$*-rootless \
-		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
 		--provenance=false \
@@ -426,7 +411,7 @@ ifneq ($(GOARCH),arm64) # we build only static images for arm64
 
 	$(DOCKER) image inspect $(DOCKER_IMAGE):$(VERSION) |\
 	  $(DOCKER) run --interactive --platform linux/$* $(DOCKER_IMAGE):$(VERSION) \
-	  eval --fail --format raw --stdin-input 'input[0].Config.User = "1000:1000"'
+	  eval --fail --format raw --stdin-input 'input[0].Config.User = "65532:65532"'
 endif
 	$(DOCKER) run --platform linux/$* $(DOCKER_IMAGE):$(VERSION)-static version
 
