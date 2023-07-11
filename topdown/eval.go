@@ -2402,10 +2402,21 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 				return err
 			}
 		}
-		e.e.virtualCache.Put(hint.key, result)
+		if hint.key != nil {
+			pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
+			if pluggedKey.IsGround() {
+				hintResult := result.Get(pluggedKey)
+				if hintResult != nil {
+					e.e.virtualCache.Put(hint.key, hintResult)
+				}
+			}
+		}
 		return e.evalTerm(iter, e.pos+1, result, e.bindings)
 	}
 
+	// FIXME: It should be possible to skip this loop, and always apply the dymanic ref case above.
+	// FIXME: Tracing breaks: TestFilterTraceDefault
+	// FIXME: PE fails: TestTopDownPartialEval
 	for _, rule := range e.ir.Rules {
 		if err := e.evalOneRulePreUnify(iter, rule, hint, result, unknown); err != nil {
 			return err

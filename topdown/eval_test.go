@@ -247,6 +247,9 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 }
 
 func TestTopdownVirtualCache(t *testing.T) {
+	// TODO: break out into separate tests
+	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -326,6 +329,35 @@ func TestTopdownVirtualCache(t *testing.T) {
 			query: `data.p.s["foo"]; data.p.s["foo"]`,
 			hit:   1,
 			miss:  1,
+		},
+		{
+			note: "partial object: simple, query into value",
+			module: `package p
+			s["foo"] = { "x": 42, "y": 43 } { true }
+			s["bar"] = { "x": 42, "y": 43 } { true }`,
+			query: `data.p.s["foo"].x = x; data.p.s["foo"].y`,
+			hit:   1,
+			miss:  1,
+			exp:   42,
+		},
+		{
+			note: "partial object: simple, general ref",
+			module: `package p
+			s.t[u].v = true { x = ["foo", "bar"]; u = x[_] }`,
+			query: `data.p.s.t["foo"].v = x; data.p.s.t["foo"].v`,
+			hit:   1,
+			miss:  1,
+			exp:   true,
+		},
+		{
+			note: "partial object: simple, query into value",
+			module: `package p
+			s["foo"].t = { "x": 42, "y": 43 } { true }
+			s["bar"].t = { "x": 42, "y": 43 } { true }`,
+			query: `data.p.s["foo"].t.x = x; data.p.s["foo"].t.x`,
+			hit:   1,
+			miss:  1,
+			exp:   42,
 		},
 		{
 			note: "partial set: simple",
