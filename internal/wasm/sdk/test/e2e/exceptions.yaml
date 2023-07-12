@@ -8,3 +8,4 @@
 "refheads/arbitrary-var, multiple": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
 "refheads/arbitrary-var, overlapping rule, no conflict": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
 "refheads/arbitrary-var, overlapping rule, conflict": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
+"refheads/arbitrary-var, multiple result-set entries": "Tests with arbitrary vars in rule refs (general refs) are not supported by the planner yet"
