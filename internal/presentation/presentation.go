@@ -119,20 +119,6 @@ type Output struct {
 	AggregatedProfile []profiler.ExprStatsAggregated `json:"aggregated_profile,omitempty"`
 	Coverage          *cover.Report                  `json:"coverage,omitempty"`
 	limit             int
-	discard           bool
-}
-
-type DiscardedOutput struct {
-	Errors            OutputErrors                   `json:"errors,omitempty"`
-	Result            string                         `json:"result,omitempty"`
-	Partial           *rego.PartialQueries           `json:"partial,omitempty"`
-	Metrics           metrics.Metrics                `json:"metrics,omitempty"`
-	AggregatedMetrics map[string]interface{}         `json:"aggregated_metrics,omitempty"`
-	Explanation       []*topdown.Event               `json:"explanation,omitempty"`
-	Profile           []profiler.ExprStats           `json:"profile,omitempty"`
-	AggregatedProfile []profiler.ExprStatsAggregated `json:"aggregated_profile,omitempty"`
-	Coverage          *cover.Report                  `json:"coverage,omitempty"`
-	limit             int
 }
 
 // WithLimit sets the output limit to set on stringified values.
@@ -413,41 +399,26 @@ func Raw(w io.Writer, r Output) error {
 	return nil
 }
 
-
-func (o Output) MarshalJSON() ([]byte, error) {
-	if o.discard {
-		var s map[string]interface{} = map[string]interface{} {
-			"metrics": o.Metrics,
-			"profile": o.Profile,
-		}
-		return json.Marshal(s)
-	} 
-	var s map[string]interface{} = map[string]interface{}{}
-	s["result"] = o.Result
-	s["metrics"] = o.Metrics
-	s["profile"] = o.Profile
-	
-	return json.Marshal(s)
-}
-
-func (o Output) WithDiscard() Output {
-	o.discard = true
-	return o
-}
-
 func Discard(w io.Writer, x interface{}) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
-	// var discarded DiscardedOutput
 	field, ok := x.(Output)
-	field = field.WithDiscard()
-	// discarded.Result = "discarded"
-	// discarded.Metrics = field.Metrics
-	// discarded.Profile = field.Profile
-	if ok {
-		return encoder.Encode(field)
+	if !ok {
+		return fmt.Errorf("error in converting interface to type Output")
 	}
-	return encoder.Encode(x)
+	bs, err := json.Marshal(field)
+	if err != nil {
+		return err
+	}
+	var rawData map[string]interface{}
+	err = json.Unmarshal(bs, &rawData)
+	if err != nil {
+		return err
+	}
+	if rawData["result"] != nil {
+		rawData["result"] = "discarded"
+	}
+	return encoder.Encode(rawData)
 }
 
 func prettyError(w io.Writer, errs OutputErrors) error {

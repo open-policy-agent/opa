@@ -46,6 +46,8 @@ require (
 	oras.land/oras-go/v2 v2.2.1
 )
 
+require golang.org/x/mod v0.11.0 // indirect
+
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -86,8 +88,6 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
-	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect

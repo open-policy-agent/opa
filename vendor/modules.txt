@@ -324,9 +324,8 @@ go.opentelemetry.io/proto/otlp/trace/v1
 go.uber.org/automaxprocs/internal/cgroups
 go.uber.org/automaxprocs/internal/runtime
 go.uber.org/automaxprocs/maxprocs
-# golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
-## explicit; go 1.20
-golang.org/x/exp/maps
+# golang.org/x/mod v0.11.0
+## explicit; go 1.17
 # golang.org/x/net v0.12.0
 ## explicit; go 1.17
 golang.org/x/net/bpf
