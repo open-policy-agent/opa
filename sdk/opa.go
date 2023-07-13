@@ -347,6 +347,17 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	record.Metrics.Timer(metrics.SDKDecisionEval).Stop()
 
 	if logger := logs.Lookup(s.manager); logger != nil {
+		// Decision log masking requires the event object to be a map[string]interface{},
+		// or a []interface{}, and all internal objects referenced in the mask to be
+		// similarly generic. Convert the input AST back into a JSON-representation to
+		// ensure decision logging will work if the input Go type does not fit these requirements.
+		if record.InputAST != nil {
+			asJSON, err := ast.JSON(record.InputAST)
+			if err != nil {
+				return nil, err
+			}
+			*record.Input = asJSON
+		}
 		if err := logger.Log(ctx, record); err != nil {
 			return result, fmt.Errorf("decision log: %w", err)
 		}

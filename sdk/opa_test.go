@@ -1341,6 +1341,113 @@ main = time.now_ns()
 
 }
 
+func TestDecisionLoggingWithMasking(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = true
+
+str = "foo"
+
+loopback = input
+`,
+			"log.rego": `
+package system.log
+
+mask["/input/secret"]
+mask["/input/top/secret"]
+mask["/input/dossier/1/highly"]
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Input: map[string]interface{}{
+			"secret": "foo",
+			"top": map[string]string{
+				"secret": "bar",
+			},
+			"dossier": []map[string]interface{}{
+				{
+					"very": "private",
+				},
+				{
+					"highly": "classified",
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry but got %d", len(entries))
+	}
+
+	expectedErased := []interface{}{
+		"/input/dossier/1/highly",
+		"/input/secret",
+		"/input/top/secret",
+	}
+	erased := entries[0].Fields["erased"].([]interface{})
+	stringLess := func(a, b string) bool {
+		return a < b
+	}
+	if !cmp.Equal(expectedErased, erased, cmpopts.SortSlices(stringLess)) {
+		t.Errorf("Did not get expected result for erased field in decision log:\n%s", cmp.Diff(expectedErased, erased, cmpopts.SortSlices(stringLess)))
+	}
+	errMsg := `Expected masked field "%s" to be removed, but it was present.`
+	input := entries[0].Fields["input"].(map[string]interface{})
+	if _, ok := input["secret"]; ok {
+		t.Errorf(errMsg, "/input/secret")
+	}
+
+	if _, ok := input["top"].(map[string]interface{})["secret"]; ok {
+		t.Errorf(errMsg, "/input/top/secret")
+	}
+
+	if _, ok := input["dossier"].([]interface{})[1].(map[string]interface{})["highly"]; ok {
+		t.Errorf(errMsg, "/input/dossier/1/highly")
+	}
+
+}
+
 func TestDecisionLoggingWithNDBCache(t *testing.T) {
 
 	ctx := context.Background()
