@@ -67,7 +67,7 @@ func messageForWarnings(warnings []warning, env []string, command string) (strin
 
 	printFormattedTitle(buf, "end "+title)
 
-	return string(buf.Bytes()), fatal
+	return buf.String(), fatal
 }
 
 func printFormattedTitle(out io.Writer, title string) {
