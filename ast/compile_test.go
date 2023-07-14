@@ -1844,6 +1844,41 @@ bar.baz contains "quz" if true`,
 	assertCompilerErrorStrings(t, c, expected)
 }
 
+func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		err     string
+	}{
+		{
+			note: "conflicting rules",
+			modules: modules(
+				`package pkg
+				default f(_) = 100
+				f(x, y) = x {
+                   x == y
+				}`),
+			err: "rego_type_error: conflicting rules data.pkg.f found",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.checkRuleConflicts)
+			if tc.err != "" {
+				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				assertCompilerErrorStrings(t, c, []string{})
+			}
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 
 	tests := []struct {
