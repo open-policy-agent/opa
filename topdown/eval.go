@@ -1795,13 +1795,16 @@ type evalFunc struct {
 
 func (e evalFunc) eval(iter unifyIterator) error {
 
-	// default functions aren't supported:
-	// https://github.com/open-policy-agent/opa/issues/2445
-	if len(e.ir.Rules) == 0 {
+	if e.ir.Empty() {
 		return nil
 	}
 
-	argCount := len(e.ir.Rules[0].Head.Args)
+	var argCount int
+	if len(e.ir.Rules) > 0 {
+		argCount = len(e.ir.Rules[0].Head.Args)
+	} else if e.ir.Default != nil {
+		argCount = len(e.ir.Default.Head.Args)
+	}
 
 	if len(e.ir.Else) > 0 && e.e.unknown(e.e.query[e.e.index], e.e.bindings) {
 		// Partial evaluation of ordered rules is not supported currently. Save the
@@ -1820,6 +1823,7 @@ func (e evalFunc) eval(iter unifyIterator) error {
 			return e.partialEvalSupport(argCount, iter)
 		}
 	}
+
 	return suppressEarlyExit(e.evalValue(iter, argCount, e.ir.EarlyExit))
 }
 
@@ -1857,6 +1861,11 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 		if next != nil {
 			prev = next
 		}
+	}
+
+	if e.ir.Default != nil && prev == nil {
+		_, err := e.evalOneRule(iter, e.ir.Default, cacheKey, prev, findOne)
+		return err
 	}
 
 	return nil

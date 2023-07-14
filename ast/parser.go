@@ -614,6 +614,12 @@ func (p *Parser) parseRules() []*Rule {
 			return nil
 		}
 
+		if len(rule.Head.Args) > 0 {
+			if !p.validateDefaultRuleArgs(&rule) {
+				return nil
+			}
+		}
+
 		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
 		return []*Rule{&rule}
 	}
@@ -2173,6 +2179,38 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	})
 
 	vis.Walk(rule.Head.Value.Value)
+	return valid
+}
+
+func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
+
+	valid := true
+	vars := NewVarSet()
+
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case Var:
+			if vars.Contains(x) {
+				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot be repeated %v)", x))
+				valid = false
+				return true
+			}
+			vars.Add(x)
+
+		case *Term:
+			switch v := x.Value.(type) {
+			case Var: // do nothing
+			default:
+				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot contain %v)", TypeName(v)))
+				valid = false
+				return true
+			}
+		}
+
+		return false
+	})
+
+	vis.Walk(rule.Head.Args)
 	return valid
 }
 
