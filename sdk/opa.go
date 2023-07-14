@@ -239,7 +239,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		Input:          &options.Input,
 		NDBuiltinCache: &options.NDBCache,
 		Metrics:        options.Metrics,
-		DecisionID:		options.DecisionID,
+		DecisionID:     options.DecisionID,
 	}
 
 	// Only use non-deterministic builtins cache if it's available.
@@ -295,7 +295,7 @@ type DecisionOptions struct {
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
-	DecisionID			string				// the identifier for this decision; if not set, a globally unique identifier will be generated
+	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
 }
 
 // DecisionResult contains the output of query evaluation.
@@ -371,10 +371,10 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 	}
 
 	record := server.Info{
-		Timestamp: options.Now,
-		Input:     &options.Input,
-		Query:     options.Query,
-		Metrics:   options.Metrics,
+		Timestamp:  options.Now,
+		Input:      &options.Input,
+		Query:      options.Query,
+		Metrics:    options.Metrics,
 		DecisionID: options.DecisionID,
 	}
 
@@ -445,7 +445,7 @@ type PartialOptions struct {
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
-	DecisionID			string				// the identifier for this decision; if not set, a globally unique identifier will be generated
+	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
 }
 
 type PartialResult struct {

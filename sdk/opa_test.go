@@ -784,7 +784,7 @@ main = time.now_ns()
 	}
 
 	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
-		Now: time.Unix(0, 1619868194450288000).UTC(),
+		Now:        time.Unix(0, 1619868194450288000).UTC(),
 		DecisionID: "164031de-e511-11ec-8fea-0242ac120002",
 	}); err != nil {
 		t.Fatal(err)
@@ -1358,11 +1358,11 @@ allow {
 	}
 
 	if result, err := opa.Partial(ctx, sdk.PartialOptions{
-		Input:    map[string]int{"y": 2},
-		Query:    "data.test.allow = true",
-		Unknowns: []string{"data.junk.x"},
-		Mapper:   &sdk.RawMapper{},
-		Now:      time.Unix(0, 1619868194450288000).UTC(),
+		Input:      map[string]int{"y": 2},
+		Query:      "data.test.allow = true",
+		Unknowns:   []string{"data.junk.x"},
+		Mapper:     &sdk.RawMapper{},
+		Now:        time.Unix(0, 1619868194450288000).UTC(),
 		DecisionID: "164031de-e511-11ec-8fea-0242ac120002",
 	}); err != nil {
 		t.Fatal(err)
