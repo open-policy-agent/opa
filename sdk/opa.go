@@ -239,6 +239,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		Input:          &options.Input,
 		NDBuiltinCache: &options.NDBCache,
 		Metrics:        options.Metrics,
+		DecisionID:     options.DecisionID,
 	}
 
 	// Only use non-deterministic builtins cache if it's available.
@@ -294,22 +295,14 @@ type DecisionOptions struct {
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
+	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
 }
 
 // DecisionResult contains the output of query evaluation.
 type DecisionResult struct {
-	ID         string             // provides a globally unique identifier for this decision (which is included in the decision log.)
+	ID         string             // provides the identifier for this decision (which is included in the decision log.)
 	Result     interface{}        // provides the output of query evaluation.
 	Provenance types.ProvenanceV1 // wraps the bundle build/version information
-}
-
-func newDecisionResult() (*DecisionResult, error) {
-	id, err := uuid.New(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-	result := &DecisionResult{ID: id}
-	return result, nil
 }
 
 func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, work func(state, *DecisionResult)) (*DecisionResult, error) {
@@ -318,16 +311,19 @@ func (opa *OPA) executeTransaction(ctx context.Context, record *server.Info, wor
 	}
 	record.Metrics.Timer(metrics.SDKDecisionEval).Start()
 
-	result, err := newDecisionResult()
-	if err != nil {
-		return nil, err
+	if record.DecisionID == "" {
+		id, err := uuid.New(rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		record.DecisionID = id
 	}
+
+	result := &DecisionResult{ID: record.DecisionID}
 
 	opa.mtx.Lock()
 	s := *opa.state
 	opa.mtx.Unlock()
-
-	record.DecisionID = result.ID
 
 	if record.Timestamp.IsZero() {
 		record.Timestamp = time.Now().UTC()
@@ -375,10 +371,11 @@ func (opa *OPA) Partial(ctx context.Context, options PartialOptions) (*PartialRe
 	}
 
 	record := server.Info{
-		Timestamp: options.Now,
-		Input:     &options.Input,
-		Query:     options.Query,
-		Metrics:   options.Metrics,
+		Timestamp:  options.Now,
+		Input:      &options.Input,
+		Query:      options.Query,
+		Metrics:    options.Metrics,
+		DecisionID: options.DecisionID,
 	}
 
 	var provenance types.ProvenanceV1
@@ -448,6 +445,7 @@ type PartialOptions struct {
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
 	Profiler            topdown.QueryTracer // specifies the profiler to use, optional
 	Instrument          bool                // if true, instrumentation will be enabled
+	DecisionID          string              // the identifier for this decision; if not set, a globally unique identifier will be generated
 }
 
 type PartialResult struct {
