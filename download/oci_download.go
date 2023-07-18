@@ -19,7 +19,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2"
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/oci"
 
@@ -384,7 +383,7 @@ func (a *pluginAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 	return a.authorizer.Authorize(ctx, req)
 }
 
-func manifestFromDesc(ctx context.Context, target oras.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
+func manifestFromDesc(ctx context.Context, target oraslib.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
 	var manifest ocispec.Manifest
 
 	descReader, err := target.Fetch(ctx, *desc)

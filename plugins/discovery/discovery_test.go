@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/logging/test"
@@ -403,7 +402,7 @@ func TestStartWithBundlePersistence(t *testing.T) {
 	initialBundle.Manifest.Init()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -521,7 +520,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 	expBndl := initialBundle.Copy()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -611,7 +610,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 	initialBundle.Manifest.Init()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -672,7 +671,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 	ctx := context.Background()
 
 	disco.bundlePersistPath = filepath.Join(dir, ".opa")
-	disco.config.Signing = bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
+	disco.config.Signing = bundleApi.NewVerificationConfig(map[string]*bundleApi.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
 
 	ensurePluginState(t, disco, plugins.StateNotReady)
 
@@ -702,12 +701,12 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 
 	initialBundle.Manifest.Init()
 
-	if err := initialBundle.GenerateSignature(bundle.NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
+	if err := initialBundle.GenerateSignature(bundleApi.NewSigningConfig("secret", "HS256", ""), "foo", false); err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -799,7 +798,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 	initialBundle.Manifest.Init()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -859,7 +858,7 @@ func TestSaveBundleToDiskNew(t *testing.T) {
 	initialBundle.Manifest.Init()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -917,7 +916,7 @@ func TestSaveBundleToDiskNewConfiguredPersistDir(t *testing.T) {
 	initialBundle.Manifest.Init()
 
 	var buf bytes.Buffer
-	if err := bundle.NewWriter(&buf).Write(*initialBundle); err != nil {
+	if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
@@ -975,7 +974,7 @@ func TestReconfigure(t *testing.T) {
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
-	} else if disco.status.Type != bundle.SnapshotBundleType {
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	} else if disco.status.Size != snapshotBundleSize {
 		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
@@ -1026,7 +1025,7 @@ func TestReconfigure(t *testing.T) {
 
 	if disco.status == nil {
 		t.Fatal("Expected to find status, found nil")
-	} else if disco.status.Type != bundle.SnapshotBundleType {
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
 		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
 	}
 
