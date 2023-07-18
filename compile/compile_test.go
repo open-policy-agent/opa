@@ -1403,6 +1403,35 @@ func TestCompilerSetMetadata(t *testing.T) {
 	}
 }
 
+func TestCompilerSetRoots(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+
+		import data.common
+
+		x = true`,
+	}
+
+	for _, useMemoryFS := range []bool{false, true} {
+		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
+
+			compiler := New().
+				WithFS(fsys).
+				WithPaths(root).
+				WithRoots("test")
+
+			err := compiler.Build(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(*compiler.bundle.Manifest.Roots) != 1 || (*compiler.bundle.Manifest.Roots)[0] != "test" {
+				t.Fatal("expected roots to be set to ['test'] but got:", compiler.bundle.Manifest.Roots)
+			}
+		})
+	}
+}
+
 func TestCompilerOutput(t *testing.T) {
 	// NOTE(tsandall): must use format package here because the compiler formats.
 	files := map[string]string{
