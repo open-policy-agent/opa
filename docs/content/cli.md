@@ -483,6 +483,7 @@ Set the output format with the --format flag.
     --format=pretty    : output query results in a human-readable format
     --format=source    : output partial evaluation results in a source format
     --format=raw       : output the values from query results in a scripting friendly format
+	--format=discard   : output the result field as "discarded" when non-nil
 
 ### Schema
 
@@ -523,42 +524,42 @@ opa eval <query> [flags]
 ### Options
 
 ```
-  -b, --bundle string                                     set bundle file(s) or directory path(s). This flag can be repeated.
-      --capabilities string                               set capabilities version or capabilities.json file path
-      --count int                                         number of times to repeat each benchmark (default 1)
-      --coverage                                          report coverage
-  -d, --data string                                       set policy or data file(s). This flag can be repeated.
-      --disable-early-exit                                disable 'early exit' optimizations
-      --disable-indexing                                  disable indexing optimizations
-      --disable-inlining stringArray                      set paths of documents to exclude from inlining
-  -e, --entrypoint string                                 set slash separated entrypoint path
-      --explain {off,full,notes,fails,debug}              enable query explanations (default off)
-      --fail                                              exits with non-zero exit code on undefined/empty result and errors
-      --fail-defined                                      exits with non-zero exit code on defined/non-empty result and errors
-  -f, --format {json,values,bindings,pretty,source,raw}   set output format (default json)
-  -h, --help                                              help for eval
-      --ignore strings                                    set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
-      --import string                                     set query import(s). This flag can be repeated.
-  -i, --input string                                      set input file path
-      --instrument                                        enable query instrumentation metrics (implies --metrics)
-      --metrics                                           report query performance metrics
-  -O, --optimize int                                      set optimization level
-      --package string                                    set query package
-  -p, --partial                                           perform partial evaluation
-      --pretty-limit int                                  set limit after which pretty output gets truncated (default 80)
-      --profile                                           perform expression profiling
-      --profile-limit int                                 set number of profiling results to show (default 10)
-      --profile-sort string                               set sort order of expression profiler results. Accepts: total_time_ns, num_eval, num_redo, num_gen_expr, file, line. This flag can be repeated.
-  -s, --schema string                                     set schema file path or directory path
-      --shallow-inlining                                  disable inlining of rules that depend on unknowns
-      --show-builtin-errors                               collect and return all encountered built-in errors, built in errors are not fatal
-      --stdin                                             read query from stdin
-  -I, --stdin-input                                       read input document from stdin
-  -S, --strict                                            enable compiler strict mode
-      --strict-builtin-errors                             treat the first built-in function error encountered as fatal
-  -t, --target {rego,wasm}                                set the runtime to exercise (default rego)
-      --timeout duration                                  set eval timeout (default unlimited)
-  -u, --unknowns stringArray                              set paths to treat as unknown during partial evaluation (default [input])
+  -b, --bundle string                                             set bundle file(s) or directory path(s). This flag can be repeated.
+      --capabilities string                                       set capabilities version or capabilities.json file path
+      --count int                                                 number of times to repeat each benchmark (default 1)
+      --coverage                                                  report coverage
+  -d, --data string                                               set policy or data file(s). This flag can be repeated.
+      --disable-early-exit                                        disable 'early exit' optimizations
+      --disable-indexing                                          disable indexing optimizations
+      --disable-inlining stringArray                              set paths of documents to exclude from inlining
+  -e, --entrypoint string                                         set slash separated entrypoint path
+      --explain {off,full,notes,fails,debug}                      enable query explanations (default off)
+      --fail                                                      exits with non-zero exit code on undefined/empty result and errors
+      --fail-defined                                              exits with non-zero exit code on defined/non-empty result and errors
+  -f, --format {json,values,bindings,pretty,source,raw,discard}   set output format (default json)
+  -h, --help                                                      help for eval
+      --ignore strings                                            set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
+      --import string                                             set query import(s). This flag can be repeated.
+  -i, --input string                                              set input file path
+      --instrument                                                enable query instrumentation metrics (implies --metrics)
+      --metrics                                                   report query performance metrics
+  -O, --optimize int                                              set optimization level
+      --package string                                            set query package
+  -p, --partial                                                   perform partial evaluation
+      --pretty-limit int                                          set limit after which pretty output gets truncated (default 80)
+      --profile                                                   perform expression profiling
+      --profile-limit int                                         set number of profiling results to show (default 10)
+      --profile-sort string                                       set sort order of expression profiler results. Accepts: total_time_ns, num_eval, num_redo, num_gen_expr, file, line. This flag can be repeated.
+  -s, --schema string                                             set schema file path or directory path
+      --shallow-inlining                                          disable inlining of rules that depend on unknowns
+      --show-builtin-errors                                       collect and return all encountered built-in errors, built in errors are not fatal
+      --stdin                                                     read query from stdin
+  -I, --stdin-input                                               read input document from stdin
+  -S, --strict                                                    enable compiler strict mode
+      --strict-builtin-errors                                     treat the first built-in function error encountered as fatal
+  -t, --target {rego,wasm}                                        set the runtime to exercise (default rego)
+      --timeout duration                                          set eval timeout (default unlimited)
+  -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
 ```
 
 ____
