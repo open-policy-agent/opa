@@ -483,7 +483,7 @@ Set the output format with the --format flag.
     --format=pretty    : output query results in a human-readable format
     --format=source    : output partial evaluation results in a source format
     --format=raw       : output the values from query results in a scripting friendly format
-	--format=discard   : output the result field as "discarded" when non-nil
+    --format=discard   : output the result field as "discarded" when non-nil
 
 ### Schema
 
