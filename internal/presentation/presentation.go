@@ -399,6 +399,28 @@ func Raw(w io.Writer, r Output) error {
 	return nil
 }
 
+func Discard(w io.Writer, x interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	field, ok := x.(Output)
+	if !ok {
+		return fmt.Errorf("error in converting interface to type Output")
+	}
+	bs, err := json.Marshal(field)
+	if err != nil {
+		return err
+	}
+	var rawData map[string]interface{}
+	err = json.Unmarshal(bs, &rawData)
+	if err != nil {
+		return err
+	}
+	if rawData["result"] != nil {
+		rawData["result"] = "discarded"
+	}
+	return encoder.Encode(rawData)
+}
+
 func prettyError(w io.Writer, errs OutputErrors) error {
 	_, err := fmt.Fprintln(w, errs)
 	return err
