@@ -1960,6 +1960,27 @@ a variable or reference. If the value is a composite then it may not contain
 variables or references. Comprehensions however may, as the result of a
 comprehension is never undefined.
 
+Similar to rules, the `default` keyword can be applied to functions as well.
+
+For example:
+
+```live:eg/defaultfunc:module:read_only
+default clamp_positive(x) := 0
+
+clamp_positive(x) = x {
+    x > 0
+}
+```
+
+When `clamp_positive` is queried, the return value will be either the argument provided to the function or `0`.
+
+The value of a `default` function follows the same conditions as that of a `default` rule. In addition, a `default`
+function satisfies the following properties:
+
+* same arity as other functions with the same name
+* arguments should only be plain variables ie. no composite values
+* argument names should not be repeated
+
 ## Else Keyword
 
 The ``else``  keyword is a basic control flow construct that gives you control
