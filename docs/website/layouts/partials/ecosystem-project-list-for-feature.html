@@ -1,6 +1,7 @@
 {{ $selectedIntegrations := (index . "selectedIntegrations") }}
 {{ $integrationsData := (index . "integrationsData") }}
 {{ $feature := (index . "feature") }}
+{{ $base := (index . "base") }}
 
 <div class="ecosystem-list">
 {{ range $name := $selectedIntegrations }}
@@ -34,8 +35,12 @@
   <div class="ecosystem-list-item-content">
     {{ (index (index $integration.docs_features $feature) "note") | markdownify }}
   </div>
-  <a class="ecosystem-list-item-footer" href="../#{{ $name }}-detail">
-    View on the OPA Ecosystem page
+  <a class="ecosystem-list-item-footer" href="{{ $base }}/ecosystem/#{{ $name }}-detail">
+    {{ if lt (len $integration.title) 30 }}
+      View {{ $integration.title }} in Ecosystem
+    {{ else }}
+      View in Ecosystem
+    {{ end }}
   </a>
 </div>
 {{ end }}
