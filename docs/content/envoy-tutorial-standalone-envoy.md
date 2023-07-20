@@ -31,7 +31,8 @@ you'll need to have Docker installed on your machine. Running
 `docker info` is the easiest way to check if Docker is installed and
 running.
 
-You should see output simil
+You should see output similar to the following, showing information about
+the Docker client **and** server on our machine:
 
 ```shell
 $ docker info
