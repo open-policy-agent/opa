@@ -6,11 +6,14 @@ weight: 5
 
 ## High Performance Policy Decisions
 
-For low-latency/high-performance use-cases, e.g. microservice API authorization, policy evaluation has a budget on the order of 1 millisecond.  Not all use cases require that kind of performance, and OPA is powerful enough that you can write expressive policies that take longer than 1 millisecond to evaluate.  But for high-performance use cases, there is a fragment of the policy language that has been engineered to evaluate quickly.  Even as the size of the policies grow, the performance for this fragment can be nearly constant-time.
+Some use cases require very low-latency policy decisions. For example, a microservice API authorization decision might
+have a budget in the order of 1 millisecond. OPA is a general-purpose policy engine and supports some features and
+techniques to address high-performance use cases.
 
 ### Linear fragment
 
-The *linear fragment* of the language is all of those policies where evaluation amounts to walking over the policy once.  This means there is no search required to make a policy decision.  Any variables you use can be assigned at most one value.
+For such high-performance use cases, there is a fragment of the Rego language which has been engineered to evaluate
+in near constant time. Adding more rules to the policy will not significantly increase the evaluation time.
 
 For example, the following rule has one local variable `user`, and that variable can only be assigned one value.  Intuitively, evaluating this rule requires checking each of the conditions in the body, and if there were N of these rules, evaluation would only require walking over each of them as well.
 
@@ -41,7 +44,7 @@ d[i].id == "a789"
 d[i].first ...
 ```
 
-Instead, use a dictionary where the key is the ID and the value is the first-name/last-name.  Given the ID, you can lookup the name information directly.
+Instead, use a dictionary where the key is the ID and the value is the first-name/last-name.  Given the ID, you can look up the name information directly.
 
 ```live:prefer_objects/good:query
 # DO THIS INSTEAD OF THE ABOVE
@@ -337,7 +340,7 @@ In order to be indexed, comprehensions must meet the following conditions:
 1. The comprehension body is safe when considered independent of the outer query.
 1. The comprehension body closes over at least one variable in the outer query and none of these variables appear as outputs in references or `walk()` calls or inside nested comprehensions.
 
-The following examples show cases that are NOT indexed:
+The following examples shows rules that are **not** indexed:
 
 ```rego
 not_indexed_because_missing_assignment {
@@ -382,7 +385,7 @@ not_indexed_because_nested_closure {
 
 ### Profiling
 
-You can also *profile* your policies using `opa eval`. The profiler is useful if you need to understand
+You can also profile your policies using `opa eval`. The profiler is useful if you need to understand
 why policy evaluation is slow.
 
 The `opa eval` command provides the following profiler options:
@@ -403,8 +406,8 @@ The `opa eval` command provides the following profiler options:
 * `file`  - Results are sorted in reverse alphabetical order based on the *rego source filename*
 * `line`  - Results are displayed is decreasing order of *expression line number* in the source file
 
-When the sort criteria is not provided `total_time_ns` has the **highest** priority
-while `line` has the **lowest**.
+When the sort criteria is not provided `total_time_ns` has the highest sort priority
+while `line` has the lowest.
 
 The `num_gen_expr` represents the number of expressions generated for a given statement on a particular line. For example,
 let's take the following policy:
@@ -422,7 +425,7 @@ p {
 
 If we profile the above policy we would get something like the following output:
 
-```ruby
+```
 +----------+----------+----------+--------------+-------------+
 |   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |  LOCATION   |
 +----------+----------+----------+--------------+-------------+
@@ -439,10 +442,17 @@ ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` co
 are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:7`. This is because the compiler rewrites the above policy to
 something like below:
 
-`p = true { __local0__ = 1; __local1__ = 2; __local2__ = 3; mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__ }`
+`p = true {
+  __local0__ = 1;
+  __local1__ = 2;
+  __local2__ = 3;
+  mul(__local1__, __local2__, __local3__);
+  plus(__local0__, __local3__, __local4__);
+  x = __local4__ 
+}`
 
 And that line `test.rego:7` is rewritten to `mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__` which
-results in a `NUM GEN EXPR` count of `3`. Hence the `NUM GEN EXPR` count can help to better understand the `EVAL/REDO` counts
+results in a `NUM GEN EXPR` count of `3`. Hence, the `NUM GEN EXPR` count can help to better understand the `EVAL/REDO` counts
 for a given expression and also provide more clarity into the profile results and how policy evaluation works.
 
 
@@ -513,7 +523,7 @@ role_has_permission[role_name] {
 }
 ```
 
-#### Example: Display `ALL` profile results with `default` ordering criteria
+#### Example: Display all profile results with default ordering criteria
 
 ```bash
 opa eval --data rbac.rego --profile --format=pretty 'data.rbac.allow'
@@ -552,7 +562,7 @@ false
 As seen from the above table, all results are displayed. The profile results are
 sorted on the default sort criteria.
 
-To evaluation the policy multiple times, and aggregate the profiling data over those
+To evaluate the policy multiple times, and aggregate the profiling data over those
 runs, pass `--count=NUMBER`:
 
 ```bash
@@ -589,7 +599,7 @@ false
 +----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
 ```
 
-##### Example: Display top `5` profile results
+##### Example: Display top 5 profile results
 
 ```bash
 opa eval --data rbac.rego --profile-limit 5 --format=pretty 'data.rbac.allow'
@@ -612,7 +622,7 @@ opa eval --data rbac.rego --profile-limit 5 --format=pretty 'data.rbac.allow'
 The profile results are sorted on the default sort criteria.
 Also `--profile` option is implied and does not need to be provided.
 
-##### Example: Display top `5` profile results based on the `number of times an expression is evaluated`
+##### Example: Display top 5 profile results based on the 'number of times an expression is evaluated'
 
 ```bash
 opa  eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --format=pretty 'data.rbac.allow'
@@ -638,7 +648,7 @@ the same number of times, the default criteria is used since no other sort crite
 In this case, total_time_ns => num_redo => file => line.
 Also `--profile` option is implied and does not need to be provided.
 
-##### Example: Display top `5` profile results based on the `number of times an expression is evaluated` and `number of times an expression is re-evaluated`
+##### Example: Display top 5 profile results based on the 'number of times an expression is evaluated' and 'number of times an expression is re-evaluated'
 
 ```bash
 opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --format=pretty 'data.rbac.allow'
