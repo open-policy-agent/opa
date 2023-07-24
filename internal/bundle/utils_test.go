@@ -10,7 +10,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 )
 
-func TestLoadBundleFromDisk_Legacy(t *testing.T) {
+func TestLoadBundleFromDiskLegacy(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
@@ -51,7 +51,7 @@ func TestLoadBundleFromDisk_Legacy(t *testing.T) {
 	}
 }
 
-func TestLoadBundleFromDisk_BundlePackage(t *testing.T) {
+func TestLoadBundleFromDiskBundlePackage(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
@@ -129,7 +129,7 @@ func TestSaveBundleToDisk(t *testing.T) {
 	}
 }
 
-func TestSaveBundleToDisk_Overwrite(t *testing.T) {
+func TestSaveBundleToDiskOverwrite(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
@@ -207,7 +207,7 @@ func TestSaveBundleToDisk_Overwrite(t *testing.T) {
 	}
 }
 
-func TestSaveBundleToDisk_NewPath(t *testing.T) {
+func TestSaveBundleToDiskNewPath(t *testing.T) {
 	var err error
 
 	tempDir := t.TempDir()
@@ -248,7 +248,7 @@ func TestSaveBundleToDisk_NewPath(t *testing.T) {
 	}
 }
 
-func TestSaveBundleToDisk_Nil(t *testing.T) {
+func TestSaveBundleToDiskNil(t *testing.T) {
 	var err error
 	srcDir := t.TempDir()
 

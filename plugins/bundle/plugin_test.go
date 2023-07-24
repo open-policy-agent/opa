@@ -417,7 +417,7 @@ func TestPluginBundleETagPersistenceDir(t *testing.T) {
 	if status, ok := plugin.status[bundleName]; !ok {
 		t.Fatalf("Expected to find status for %s, found nil", bundleName)
 	} else if status.Type != bundle.SnapshotBundleType {
-		t.Fatalf("expected delta bundle but got %v", status.Type)
+		t.Fatalf("expected snapshot bundle but got %v", status.Type)
 	}
 
 	txn := storage.NewTransactionOrDie(ctx, manager.Store)
@@ -433,7 +433,7 @@ func TestPluginBundleETagPersistenceDir(t *testing.T) {
 	}
 
 	if _, err := os.Stat(filepath.Join(persistenceDir, "bundles", bundleName, bundleUtils.PackageFileName)); errors.Is(err, os.ErrNotExist) {
-		t.Fatal("bundlePackage.tar.gz was not persisted")
+		t.Fatal("bundlePackage.json was not persisted")
 	}
 }
 
