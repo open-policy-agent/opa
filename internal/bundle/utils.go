@@ -173,26 +173,28 @@ func LoadBundleFromDiskWithOptions(path string, opts *LoadOptions) (*bundle.Bund
 	// downloads.
 	bundlePackagePath := filepath.Join(path, PackageFileName)
 	if _, err := os.Stat(bundlePackagePath); err == nil {
-		f, err := os.Open(filepath.Join(bundlePackagePath))
+		var f *os.File
+		f, err = os.Open(filepath.Join(bundlePackagePath))
 		if err != nil {
 			return nil, fmt.Errorf("failed to open bundle package file: %w", err)
 		}
 
-		var bundlePackage bundlePackage
-		err = json.NewDecoder(f).Decode(&bundlePackage)
+		var bp bundlePackage
+		err = json.NewDecoder(f).Decode(&bp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode bundle package file: %w", err)
 		}
 
-		r := bundle.NewReader(bytes.NewReader(bundlePackage.Bundle))
+		r := bundle.NewReader(bytes.NewReader(bp.Bundle))
 		if opts != nil && opts.VerificationConfig != nil {
 			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
 		}
-		if bundlePackage.Etag != "" {
-			r = r.WithBundleEtag(bundlePackage.Etag)
+		if bp.Etag != "" {
+			r = r.WithBundleEtag(bp.Etag)
 		}
 
-		b, err := r.Read()
+		var b bundle.Bundle
+		b, err = r.Read()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read bundle data: %w", err)
 		}
