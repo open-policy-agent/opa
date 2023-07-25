@@ -49,7 +49,7 @@ type OCIDownloader struct {
 	etag           string
 }
 
-// New returns a new Downloader that can be started.
+// NewOCI returns a new Downloader that can be started.
 func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownloader {
 	localstore, err := oci.New(storePath)
 	if err != nil {
@@ -98,7 +98,7 @@ func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	return d
 }
 
-// TODO: remove method ClearCache is deprecated. Use SetCache instead.
+// ClearCache is deprecated. Use SetCache instead.
 func (d *OCIDownloader) ClearCache() {
 }
 
