@@ -118,13 +118,15 @@ type Server struct {
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
-	certMtx                sync.RWMutex
+	tlsConfigMtx           sync.RWMutex
 	certFile               string
 	certFileHash           []byte
 	certKeyFile            string
 	certKeyFileHash        []byte
 	certRefresh            time.Duration
 	certPool               *x509.CertPool
+	certPoolFile           string
+	certPoolFileHash       []byte
 	minTLSVersion          uint16
 	mtx                    sync.RWMutex
 	partials               map[string]rego.PartialResult
@@ -151,6 +153,20 @@ type Server struct {
 type Metrics interface {
 	RegisterEndpoints(registrar func(path, method string, handler http.Handler))
 	InstrumentHandler(handler http.Handler, label string) http.Handler
+}
+
+// TLSConfig represents the TLS configuration for the server.
+// This configuration is used to configure file watchers to reload each file as it
+// changes on disk.
+type TLSConfig struct {
+	// CertFile is the path to the certificate file.
+	CertFile string
+
+	// KeyFile is the path to the key file.
+	KeyFile string
+
+	// CertPoolFile is the path to the CA cert pool file.
+	CertPoolFile string
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -271,6 +287,14 @@ func (s *Server) WithCertificatePaths(certFile, keyFile string, refresh time.Dur
 // WithCertPool sets the server-side cert pool that the server will use.
 func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
 	s.certPool = pool
+	return s
+}
+
+// WithTLSConfig sets the TLS configuration used by the server.
+func (s *Server) WithTLSConfig(tlsConfig *TLSConfig) *Server {
+	s.certFile = tlsConfig.CertFile
+	s.certKeyFile = tlsConfig.KeyFile
+	s.certPoolFile = tlsConfig.CertPoolFile
 	return s
 }
 
@@ -566,11 +590,13 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
+
+		// if a manual cert refresh period has been set, then use the polling behavior,
+		// otherwise use the fsnotify default behavior
 		if s.certRefresh > 0 {
-			certLoop := s.certLoop(logger)
-			loops = []Loop{loop, certLoop}
-		} else {
-			loops = []Loop{loop}
+			loops = []Loop{loop, s.certLoopPolling(logger)}
+		} else if s.certFile != "" {
+			loops = []Loop{loop, s.certLoopNotify(logger)}
 		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)

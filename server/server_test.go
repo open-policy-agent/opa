@@ -9,14 +9,26 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -26,12 +38,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/open-policy-agent/opa/internal/prometheus"
-
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/distributedtracing"
+	"github.com/open-policy-agent/opa/internal/prometheus"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
@@ -4850,6 +4861,445 @@ func TestDistributedTracingEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
 	}
+}
+
+func TestCertReloading(t *testing.T) {
+
+	ctx := context.Background()
+
+	testCases := map[string]struct {
+		Server func(
+			addr string,
+			initialCert *tls.Certificate,
+			initialCertPool *x509.CertPool,
+			certFilePath, keyFilePath, caCertPath string,
+		) *Server
+	}{
+		"fs notified server": {
+			Server: func(
+				addr string,
+				initialCert *tls.Certificate,
+				initialCertPool *x509.CertPool,
+				certFilePath, keyFilePath, caCertPath string,
+			) *Server {
+				return New().
+					WithAddresses([]string{addr}).
+					WithStore(inmem.New()).
+					WithCertificate(initialCert).
+					WithCertPool(initialCertPool).
+					WithTLSConfig(
+						&TLSConfig{
+							CertFile:     certFilePath,
+							KeyFile:      keyFilePath,
+							CertPoolFile: caCertPath,
+						},
+					)
+			},
+		},
+		"interval reloaded server": {
+			Server: func(
+				addr string,
+				initialCert *tls.Certificate,
+				initialCertPool *x509.CertPool,
+				certFilePath, keyFilePath, caCertPath string,
+			) *Server {
+				return New().
+					WithAddresses([]string{addr}).
+					WithStore(inmem.New()).
+					WithCertificate(initialCert).
+					WithCertPool(initialCertPool).
+					WithCertificatePaths(
+						certFilePath,
+						keyFilePath,
+						1*time.Second,
+					)
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+
+			tempDir := t.TempDir()
+
+			serverCert1Path := filepath.Join(tempDir, "serverCert1.pem")
+			serverCert1KeyPath := filepath.Join(tempDir, "serverCert1Key.pem")
+			serverCert2Path := filepath.Join(tempDir, "serverCert2.pem")
+			serverCert2KeyPath := filepath.Join(tempDir, "serverCert2Key.pem")
+			caCertPath := filepath.Join(tempDir, "ca.pem")
+
+			t.Helper()
+
+			san := net.ParseIP("127.0.0.1")
+
+			// create the CA cert used in the cert pool and for signing server certs
+			caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			caSerial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+			if err != nil {
+				t.Fatal(err)
+			}
+			caSubj := pkix.Name{
+				CommonName:   "CA",
+				SerialNumber: caSerial.String(),
+			}
+			caTemplate := &x509.Certificate{
+				BasicConstraintsValid: true,
+				SignatureAlgorithm:    x509.ECDSAWithSHA256,
+				PublicKeyAlgorithm:    x509.ECDSA,
+				PublicKey:             caKey.Public(),
+				SerialNumber:          caSerial,
+				Issuer:                caSubj,
+				Subject:               caSubj,
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(100 * time.Hour * 24 * 365),
+				KeyUsage:              x509.KeyUsageCertSign,
+				ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				IsCA:                  true,
+				DNSNames:              nil,
+				EmailAddresses:        nil,
+				IPAddresses:           nil,
+			}
+
+			caCertData, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, caKey.Public(), caKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			caCertPEMEncoded := pem.EncodeToMemory(&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: caCertData,
+			})
+
+			err = os.WriteFile(caCertPath, caCertPEMEncoded, 0o600)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// create a cert and key for the server to load at startup
+			var serverCert1 tls.Certificate
+
+			serverCert1Key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverCert1.PrivateKey = serverCert1Key
+
+			serverCert1Serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverCert1Template := &x509.Certificate{
+				BasicConstraintsValid: true,
+				SignatureAlgorithm:    x509.ECDSAWithSHA256,
+				PublicKeyAlgorithm:    x509.ECDSA,
+				PublicKey:             serverCert1Key.Public(),
+				SerialNumber:          serverCert1Serial,
+				Issuer:                caSubj,
+				Subject: pkix.Name{
+					CommonName:   "Server 1",
+					SerialNumber: serverCert1Serial.String(),
+				},
+				NotBefore:      time.Now(),
+				NotAfter:       time.Now().Add(99 * time.Hour * 24 * 365),
+				KeyUsage:       x509.KeyUsageDigitalSignature,
+				ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				IsCA:           false,
+				DNSNames:       nil,
+				EmailAddresses: nil,
+				IPAddresses:    []net.IP{san},
+			}
+
+			serverCert1Data2, err := x509.CreateCertificate(rand.Reader, serverCert1Template, caTemplate, serverCert1Key.Public(), caKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			serverCert1PEMEncoded := pem.EncodeToMemory(&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: serverCert1Data2,
+			})
+
+			serverCert1KeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(serverCert1.PrivateKey)
+			serverCert1KeyPEMEncoded := pem.EncodeToMemory(&pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: serverCert1KeyMarshalled,
+			})
+
+			err = os.WriteFile(serverCert1Path, serverCert1PEMEncoded, 0o600)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = os.WriteFile(serverCert1KeyPath, serverCert1KeyPEMEncoded, 0o600)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// create a cert to load after startup
+			var serverCert2 tls.Certificate
+
+			serverCert2Key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverCert2.PrivateKey = serverCert2Key
+
+			serverCert2Serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverCert1Template = &x509.Certificate{
+				BasicConstraintsValid: true,
+				SignatureAlgorithm:    x509.ECDSAWithSHA256,
+				PublicKeyAlgorithm:    x509.ECDSA,
+				PublicKey:             serverCert2Key.Public(),
+				SerialNumber:          serverCert2Serial,
+				Issuer:                caSubj,
+				Subject: pkix.Name{
+					CommonName:   "Server 2",
+					SerialNumber: serverCert1Serial.String(),
+				},
+				NotBefore:      time.Now(),
+				NotAfter:       time.Now().Add(99 * time.Hour * 24 * 365),
+				KeyUsage:       x509.KeyUsageDigitalSignature,
+				ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				IsCA:           false,
+				DNSNames:       nil,
+				EmailAddresses: nil,
+				IPAddresses:    []net.IP{san},
+			}
+
+			serverCert2Data2, err := x509.CreateCertificate(rand.Reader, serverCert1Template, caTemplate, serverCert2Key.Public(), caKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			serverCert2.Certificate = [][]byte{serverCert2Data2, caCertData}
+
+			serverCert2PEMEncoded := pem.EncodeToMemory(&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: serverCert2Data2,
+			})
+
+			serverCert2KeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(serverCert2.PrivateKey)
+			serverCert2KeyPEMEncoded := pem.EncodeToMemory(&pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: serverCert2KeyMarshalled,
+			})
+
+			err = os.WriteFile(serverCert2Path, serverCert2PEMEncoded, 0o600)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = os.WriteFile(serverCert2KeyPath, serverCert2KeyPEMEncoded, 0o600)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			certPool2 := x509.NewCertPool()
+			ok := certPool2.AppendCertsFromPEM(caCertPEMEncoded)
+			if !ok {
+				t.Fatal("failed to add CA cert to cert pool")
+			}
+			certPool, _, _, serverCert1Data, serverCert2Data := certPool2, &serverCert1, &serverCert2, serverCert1Data2, serverCert2Data2
+
+			initialCert, err := tls.LoadX509KeyPair(serverCert1Path, serverCert1KeyPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			listener, err := net.Listen("tcp", "localhost:0")
+			if err != nil {
+				t.Fatalf("Unexpected error creating listener while finding free port: %s", err)
+			}
+
+			serverAddress := listener.Addr().String()
+			err = listener.Close()
+			if err != nil {
+				t.Fatalf("Unexpected error closing listener to free port: %s", err)
+			}
+
+			t.Log("server address:", serverAddress)
+
+			server := tc.Server(serverAddress, &initialCert, certPool, serverCert1Path, serverCert1KeyPath, caCertPath)
+
+			// start the server referencing the certs
+			m, err := plugins.New([]byte{}, "test", server.store)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server = server.WithManager(m)
+			if err = m.Start(ctx); err != nil {
+				t.Fatal(err)
+			}
+			server, err = server.Init(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			loops, err := server.Listeners()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, loop := range loops {
+				go func(serverLoop func() error) {
+					errc := make(chan error)
+					errc <- serverLoop()
+					err := <-errc
+					t.Errorf("Unexpected error from server loop: %s", err)
+				}(loop)
+			}
+
+			// wait for the server to start
+			retries := 10
+			for {
+				if retries == 0 {
+					t.Fatal("failed to start server before deadline")
+				}
+				_, err = tls.Dial("tcp", serverAddress, &tls.Config{
+					RootCAs: certPool,
+				})
+				if err != nil {
+					retries--
+					time.Sleep(300 * time.Millisecond)
+					continue
+				}
+				t.Log("server started")
+				break
+			}
+
+			// make the first connection, check that the server 1 cert is returned
+			retries = 10
+			for {
+				if retries == 0 {
+					t.Fatal("failed to get serverCert1 before deadline")
+				}
+				conn1, err := tls.Dial("tcp", serverAddress, &tls.Config{
+					RootCAs: certPool,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = conn1.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				certs := conn1.ConnectionState().PeerCertificates
+				if len(certs) != 1 {
+					t.Fatalf("expected 1 cert, got %d", len(certs))
+				}
+
+				servedCert := certs[0]
+				if !bytes.Equal(servedCert.Raw, serverCert1Data) {
+					retries--
+					time.Sleep(300 * time.Millisecond)
+					t.Logf("expected serverCert1, got %s", servedCert.Subject)
+					continue
+				}
+
+				break
+			}
+
+			// update the cert and key files by moving the second cert into place instead
+			err = os.Rename(serverCert2Path, serverCert1Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = os.Rename(serverCert2KeyPath, serverCert1KeyPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// make another connection, check that the server 2 cert is returned
+			retries = 10
+			for {
+				if retries == 0 {
+					t.Fatal("failed to get serverCert2 before deadline")
+				}
+
+				conn2, err := tls.Dial("tcp", serverAddress, &tls.Config{
+					RootCAs: certPool,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = conn2.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				certs := conn2.ConnectionState().PeerCertificates
+				if len(certs) != 1 {
+					t.Fatalf("expected 1 cert, got %d", len(certs))
+				}
+
+				servedCert := certs[0]
+				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
+					retries--
+					time.Sleep(300 * time.Millisecond)
+					t.Logf("expected serverCert2, got %s", servedCert.Subject)
+					continue
+				}
+
+				break
+			}
+
+			// remove the certs on disk, and check that the server still serves the previous certs
+			err = os.Remove(serverCert1Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = os.Remove(serverCert1KeyPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// make a third connection, and check that the server 2 cert is still returned despite the certs being removed
+			retries = 10
+			for {
+				if retries == 0 {
+					t.Fatal("failed to get serverCert2 before deadline")
+				}
+
+				conn3, err := tls.Dial("tcp", serverAddress, &tls.Config{
+					RootCAs: certPool,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = conn3.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				certs := conn3.ConnectionState().PeerCertificates
+				if len(certs) != 1 {
+					t.Fatalf("expected 1 cert, got %d", len(certs))
+				}
+
+				servedCert := certs[0]
+				if !bytes.Equal(servedCert.Raw, serverCert2Data) {
+					retries--
+					time.Sleep(300 * time.Millisecond)
+					t.Logf("expected serverCert2, got %s", servedCert.Subject)
+					continue
+				}
+
+				break
+			}
+
+			err = server.Shutdown(ctx)
+			if err != nil {
+				t.Fatalf("Unexpected error shutting down server: %s", err)
+			}
+		})
+	}
+
 }
 
 type mockHTTPHandler struct{}

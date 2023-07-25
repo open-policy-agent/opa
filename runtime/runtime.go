@@ -23,9 +23,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
-	"github.com/open-policy-agent/opa/internal/compiler"
-	"github.com/open-policy-agent/opa/internal/pathwatcher"
-	"github.com/open-policy-agent/opa/internal/ref"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -33,10 +30,13 @@ import (
 
 	"github.com/open-policy-agent/opa/bundle"
 	opa_config "github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
+	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/internal/prometheus"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/internal/runtime"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
@@ -115,6 +115,8 @@ type Params struct {
 
 	// CertPool holds the CA certs trusted by the OPA server.
 	CertPool *x509.CertPool
+	// CertPoolFile, if set permits the reloading of the CA cert pool from disk
+	CertPoolFile string
 
 	// MinVersion contains the minimum TLS version that is acceptable.
 	// If zero, TLS 1.2 is currently taken as the minimum.
@@ -537,8 +539,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithPprofEnabled(rt.Params.PprofEnabled).
 		WithAddresses(*rt.Params.Addrs).
 		WithH2CEnabled(rt.Params.H2CEnabled).
+		// always use the initial values for the certificate and ca pool, reloading behavior is configured below
 		WithCertificate(rt.Params.Certificate).
-		WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh).
 		WithCertPool(rt.Params.CertPool).
 		WithAuthentication(rt.Params.Authentication).
 		WithAuthorization(rt.Params.Authorization).
@@ -560,6 +562,16 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 
 	if rt.Params.UnixSocketPerm != nil {
 		rt.server = rt.server.WithUnixSocketPermission(rt.Params.UnixSocketPerm)
+	}
+
+	if rt.Params.CertificateRefresh > 0 {
+		rt.server = rt.server.WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh)
+	} else if rt.Params.Certificate != nil {
+		rt.server = rt.server.WithTLSConfig(&server.TLSConfig{
+			CertFile:     rt.Params.CertificateFile,
+			KeyFile:      rt.Params.CertificateKeyFile,
+			CertPoolFile: rt.Params.CertPoolFile,
+		})
 	}
 
 	rt.server, err = rt.server.Init(ctx)
