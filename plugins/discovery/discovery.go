@@ -215,7 +215,7 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 
 	if c.config != nil && c.config.Persist {
-		b, err := bundleUtils.LoadBundleFromDisk(
+		b, err := bundleUtils.LoadBundleFromDiskWithOptions(
 			filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
 			&bundleUtils.LoadOptions{VerificationConfig: c.config.Signing},
 		)
@@ -309,7 +309,7 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		if c.config != nil && c.config.Persist {
 			c.logger.Debug("Persisting discovery bundle to disk in progress.")
-			err := bundleUtils.SaveBundleToDisk(
+			err := bundleUtils.SaveBundleToDiskWithOptions(
 				filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
 				u.Raw,
 				&bundleUtils.SaveOptions{Etag: u.ETag},

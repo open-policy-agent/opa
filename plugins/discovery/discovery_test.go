@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-	bundleUtils "github.com/open-policy-agent/opa/internal/bundle"
-
 	"github.com/open-policy-agent/opa/ast"
 	bundleApi "github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/download"
@@ -533,7 +531,7 @@ func TestOneShotWithBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, disco, plugins.StateOK)
 
-	result, err := bundleUtils.LoadBundleFromDisk(
+	result, err := bundleUtils.LoadBundleFromDiskWithOptions(
 		filepath.Join(disco.bundlePersistPath, disco.discoveryBundleDirName()),
 		&bundleUtils.LoadOptions{VerificationConfig: disco.config.Signing},
 	)
@@ -623,7 +621,7 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(
+	err = bundleUtils.SaveBundleToDiskWithOptions(
 		filepath.Join(bundlePersistPath, "config"),
 		&buf,
 		&bundleUtils.SaveOptions{},
@@ -658,6 +656,8 @@ func TestLoadAndActivateBundleFromDisk(t *testing.T) {
 }
 
 func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
+	var ctx context.Context
+
 	dir := t.TempDir()
 	bundlePersistPath := filepath.Join(dir, ".opa")
 
@@ -681,8 +681,6 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ctx := context.Background()
 
 	disco.bundlePersistPath = bundlePersistPath
 	disco.config.Signing = bundleApi.NewVerificationConfig(map[string]*bundleApi.KeyConfig{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil)
@@ -724,7 +722,7 @@ func TestLoadAndActivateSignedBundleFromDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(
+	err = bundleUtils.SaveBundleToDiskWithOptions(
 		filepath.Join(bundlePersistPath, "config"),
 		&buf,
 		&bundleUtils.SaveOptions{},
@@ -819,7 +817,7 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = bundleUtils.SaveBundleToDisk(
+	err = bundleUtils.SaveBundleToDiskWithOptions(
 		filepath.Join(bundlePersistPath, Name),
 		&buf,
 		&bundleUtils.SaveOptions{},

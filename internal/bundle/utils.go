@@ -166,8 +166,8 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 	return resolvers, nil
 }
 
-// LoadBundleFromDisk loads a previously persisted activated bundle from disk
-func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) {
+// LoadBundleFromDiskWithOptions loads a previously persisted activated bundle from disk
+func LoadBundleFromDiskWithOptions(path string, opts *LoadOptions) (*bundle.Bundle, error) {
 	// if a bundle package exists, use that as it might contain the bundle etag which
 	// is not stored in the legacy bundle file. This can help avoid unnecessary bundle
 	// downloads.
@@ -213,7 +213,7 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 
 		r := bundle.NewCustomReader(bundle.NewTarballLoaderWithBaseURL(f, ""))
 
-		if opts.VerificationConfig != nil {
+		if opts != nil && opts.VerificationConfig != nil {
 			r = r.WithBundleVerificationConfig(opts.VerificationConfig)
 		}
 
@@ -230,9 +230,9 @@ func LoadBundleFromDisk(path string, opts *LoadOptions) (*bundle.Bundle, error) 
 	}
 }
 
-// SaveBundleToDisk persists a bundle to disk. Bundles are wrapped in a 'bundlePackage' in order
+// SaveBundleToDiskWithOptions persists a bundle to disk. Bundles are wrapped in a 'bundlePackage' in order
 // to support additional metadata (e.g. etag) that is not part of the original bundle.
-func SaveBundleToDisk(path string, rawBundle io.Reader, opts *SaveOptions) error {
+func SaveBundleToDiskWithOptions(path string, rawBundle io.Reader, opts *SaveOptions) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, os.ModePerm)
 		if err != nil {

@@ -41,7 +41,7 @@ func TestLoadBundleFromDiskLegacy(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	loadedBundle, err := LoadBundleFromDiskWithOptions(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -71,12 +71,12 @@ func TestLoadBundleFromDiskBundlePackage(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
+	err = SaveBundleToDiskWithOptions(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	loadedBundle, err := LoadBundleFromDiskWithOptions(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -110,12 +110,12 @@ func TestSaveBundleToDisk(t *testing.T) {
 		t.Fatal("unexpected error:", err)
 	}
 
-	err = SaveBundleToDisk(tempDir, &buf, &SaveOptions{Etag: "123"})
+	err = SaveBundleToDiskWithOptions(tempDir, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	loadedBundle, err := LoadBundleFromDiskWithOptions(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -167,13 +167,13 @@ func TestSaveBundleToDiskOverwrite(t *testing.T) {
 	sourceBundle2Etag := "456"
 
 	// write the first version of the bundle to disk
-	err = SaveBundleToDisk(tempDir, &buf1, &SaveOptions{Etag: sourceBundle1ETag})
+	err = SaveBundleToDiskWithOptions(tempDir, &buf1, &SaveOptions{Etag: sourceBundle1ETag})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
 	// load the bundle and validate it
-	loadedBundle1, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	loadedBundle1, err := LoadBundleFromDiskWithOptions(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -187,13 +187,13 @@ func TestSaveBundleToDiskOverwrite(t *testing.T) {
 	}
 
 	// overwrite the bundle
-	err = SaveBundleToDisk(tempDir, &buf2, &SaveOptions{Etag: sourceBundle2Etag})
+	err = SaveBundleToDiskWithOptions(tempDir, &buf2, &SaveOptions{Etag: sourceBundle2Etag})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
 	// load the new bundle and validate it
-	loadedBundle2, err := LoadBundleFromDisk(tempDir, &LoadOptions{})
+	loadedBundle2, err := LoadBundleFromDiskWithOptions(tempDir, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -229,12 +229,12 @@ func TestSaveBundleToDiskNewPath(t *testing.T) {
 
 	bundlePath := filepath.Join(tempDir, "foo", "bar", "example1")
 
-	err = SaveBundleToDisk(bundlePath, &buf, &SaveOptions{Etag: "123"})
+	err = SaveBundleToDiskWithOptions(bundlePath, &buf, &SaveOptions{Etag: "123"})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	loadedBundle, err := LoadBundleFromDisk(bundlePath, &LoadOptions{})
+	loadedBundle, err := LoadBundleFromDiskWithOptions(bundlePath, &LoadOptions{})
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -252,7 +252,7 @@ func TestSaveBundleToDiskNil(t *testing.T) {
 	var err error
 	srcDir := t.TempDir()
 
-	err = SaveBundleToDisk(srcDir, nil, &SaveOptions{})
+	err = SaveBundleToDiskWithOptions(srcDir, nil, &SaveOptions{})
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}

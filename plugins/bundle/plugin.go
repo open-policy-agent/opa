@@ -351,7 +351,16 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := bundleUtils.LoadBundleFromDisk(filepath.Join(p.bundlePersistPath, name), &bundleUtils.LoadOptions{VerificationConfig: src.Signing})
+
+			var loadOpts *bundleUtils.LoadOptions
+			if src != nil {
+				loadOpts = &bundleUtils.LoadOptions{VerificationConfig: src.Signing}
+			}
+
+			b, err := bundleUtils.LoadBundleFromDiskWithOptions(
+				filepath.Join(p.bundlePersistPath, name),
+				loadOpts,
+			)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
@@ -506,7 +515,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := bundleUtils.SaveBundleToDisk(
+			err := bundleUtils.SaveBundleToDiskWithOptions(
 				filepath.Join(p.bundlePersistPath, name),
 				u.Raw,
 				&bundleUtils.SaveOptions{Etag: u.ETag},
