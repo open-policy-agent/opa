@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -21,39 +22,43 @@ func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error
 	return s.cert, nil
 }
 
+func (s *Server) reloadTLSConfig(logger logging.Logger) error {
+	certHash, err := hash(s.certFile)
+	if err != nil {
+		return fmt.Errorf("failed to refresh server certificate: %w", err)
+	}
+	certKeyHash, err := hash(s.certKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to refresh server certificate: %w", err)
+	}
+
+	s.certMtx.Lock()
+	defer s.certMtx.Unlock()
+
+	different := !bytes.Equal(s.certFileHash, certHash) ||
+		!bytes.Equal(s.certKeyFileHash, certKeyHash)
+
+	if different { // load and store
+		newCert, err := tls.LoadX509KeyPair(s.certFile, s.certKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to refresh server certificate: %w", err)
+		}
+		s.cert = &newCert
+		s.certFileHash = certHash
+		s.certKeyFileHash = certKeyHash
+		logger.Debug("Refreshed server certificate.")
+	}
+
+	return nil
+}
+
 func (s *Server) certLoop(logger logging.Logger) Loop {
 	return func() error {
 		for range time.NewTicker(s.certRefresh).C {
-			certHash, err := hash(s.certFile)
+			err := s.reloadTLSConfig(logger)
 			if err != nil {
-				logger.Info("Failed to refresh server certificate: %s.", err.Error())
-				continue
+				logger.Error("Failed to reload TLS config: %v", err)
 			}
-			certKeyHash, err := hash(s.certKeyFile)
-			if err != nil {
-				logger.Info("Failed to refresh server certificate: %s.", err.Error())
-				continue
-			}
-
-			s.certMtx.Lock()
-
-			different := !bytes.Equal(s.certFileHash, certHash) ||
-				!bytes.Equal(s.certKeyFileHash, certKeyHash)
-
-			if different { // load and store
-				newCert, err := tls.LoadX509KeyPair(s.certFile, s.certKeyFile)
-				if err != nil {
-					logger.Info("Failed to refresh server certificate: %s.", err.Error())
-					s.certMtx.Unlock()
-					continue
-				}
-				s.cert = &newCert
-				s.certFileHash = certHash
-				s.certKeyFileHash = certKeyHash
-				logger.Debug("Refreshed server certificate.")
-			}
-
-			s.certMtx.Unlock()
 		}
 
 		return nil
