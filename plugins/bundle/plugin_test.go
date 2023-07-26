@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -107,6 +108,246 @@ func TestPluginOneShot(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager := getTestManager()
+
+	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.Info = info
+
+	plugin := New(&Config{}, manager)
+
+	bundleName := "test-bundle"
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// authz rules with no error
+	authzModule := `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identity == "foo"
+		}`
+
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// authz rules with errors
+	authzModule = `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identty == "foo"            # type error 1
+		}
+
+        allow {
+          helper1
+        }
+
+        helper1 {
+          helper2
+        }
+
+        helper2 {
+          input.method == 123               # type error 2
+		}
+
+        dont_type_check_me {
+          input.methd == "GET"               # type error 3
+		}`
+
+	b = bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 2 {
+		t.Fatalf("expected 2 errors but got %v", len(status.Errors))
+	}
+
+	// disable authorization to ensure bundle activates with bad authz policy
+	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin.manager.Info = info
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
+	}
+
+	// enable authorization but skip type checking of known input schemas
+	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true, SkipKnownSchemaCheck: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin.manager.Info = info
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
+	}
+}
+
+func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager := getTestManager()
+
+	s := "/foo/authz/allow"
+	manager.Config.DefaultAuthorizationDecision = &s
+
+	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.Info = info
+
+	plugin := New(&Config{}, manager)
+
+	bundleName := "test-bundle"
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package foo\n\ncorge=1"
+
+	authzModule := `package foo.authz
+
+		default allow := false
+
+		allow {
+          input.identty == "foo"            # type error 1
+		}
+
+        allow {
+          helper
+        }
+
+        helper {
+          input.method == 123               # type error 2
+		}
+
+        dont_type_check_me {
+          input.methd == "GET"               # type error 3
+		}`
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 2 {
+		t.Fatalf("expected 2 errors but got %v", len(status.Errors))
+	}
+
+	// no authz policy
+	b = bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
 	}
 }
 
@@ -2257,15 +2498,17 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	}
 }
 
-func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
+func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
+
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
 		downloaders: map[string]Loader{},
 	}
+
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
