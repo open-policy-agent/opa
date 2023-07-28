@@ -179,12 +179,10 @@ func runTests(ctx context.Context, txn storage.Transaction, runner *tester.Runne
 	go func() {
 		defer close(dup)
 		for tr := range ch {
-			if !tr.Pass() && !testParams.skipExitZero {
-				exitCode = 2
-			}
-			if tr.Skip && exitCode == 0 && testParams.skipExitZero {
-				// there is a skipped test, adding the flag -z exits 0 if there are no failures
-				exitCode = 0
+			if !tr.Pass() {
+				if !(tr.Skip && testParams.skipExitZero) {
+					exitCode = 2
+				}
 			}
 			tr.Trace = filterTrace(&testParams, tr.Trace)
 			dup <- tr

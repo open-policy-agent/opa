@@ -752,6 +752,101 @@ Watching for changes ...`,
 	}
 }
 
+func testExitCode(rego string, skipExitZero bool) (int, error) {
+	files := map[string]string{
+		"test.rego": rego,
+	}
+
+	var exitCode int
+	var err error
+	test.WithTempFS(files, func(path string) {
+		regoFilePath := filepath.Join(path, "test.rego")
+
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.skipExitZero = skipExitZero
+
+		exitCode, err = opaTest([]string{regoFilePath}, testParams)
+	})
+	return exitCode, err
+}
+
+func TestExitCode(t *testing.T) {
+	testCases := map[string]struct {
+		Test              string
+		ExitZeroOnSkipped bool
+		ExpectedExitCode  int
+	}{
+		"pass when no failed or skipped tests": {
+			Test: `package foo
+			test_pass { true }
+			`,
+			ExitZeroOnSkipped: false,
+			ExpectedExitCode:  0,
+		},
+		"fail when failed tests": {
+			Test: `package foo
+			test_pass { true }
+			test_fail { false }
+			`,
+			ExitZeroOnSkipped: false,
+			ExpectedExitCode:  2,
+		},
+		"fail when skipped tests": {
+			Test: `package foo
+			test_pass { true }
+			todo_test_skip { true }
+			`,
+			ExitZeroOnSkipped: false,
+			ExpectedExitCode:  2,
+		},
+		"fail when failed tests and skipped tests": {
+			Test: `package foo
+			test_pass { true }
+			test_fail { false }
+			todo_test_skip { true }
+			`,
+			ExitZeroOnSkipped: false,
+			ExpectedExitCode:  2,
+		},
+		"pass when skipped tests and exit zero on skipped": {
+			Test: `package foo
+			test_pass { true }
+			todo_test_skip { true }
+			`,
+			ExitZeroOnSkipped: true,
+			ExpectedExitCode:  0,
+		},
+		"fail when failed tests and exit zero on skipped": {
+			Test: `package foo
+			test_pass { true }
+			test_fail { false }
+			`,
+			ExitZeroOnSkipped: true,
+			ExpectedExitCode:  2,
+		},
+		"fail when failed tests, skipped tests and exit zero on skipped": {
+			Test: `package foo
+			test_pass { true }
+			test_fail { false }
+			todo_test_skip { true }
+			`,
+			ExitZeroOnSkipped: true,
+			ExpectedExitCode:  2,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			exitCode, _ := testExitCode(tc.Test, tc.ExitZeroOnSkipped)
+
+			if exitCode != tc.ExpectedExitCode {
+				t.Errorf("Expected exit code to be %d but got %d", tc.ExpectedExitCode, exitCode)
+			}
+		})
+	}
+}
+
 type blockingWriter struct {
 	m   sync.Mutex
 	buf bytes.Buffer
