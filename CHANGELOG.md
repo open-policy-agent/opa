@@ -5,6 +5,16 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Breaking changes
+
+Since its introduction in 0.34.0, the `--exit-zero-on-skipped` option always made the `opa test` command return an exit code 0. When used, it now returns the exit code 0 only if no failed tests were found.
+
+Test runs on existing projects using `--exit-zero-on-skipped` will fail if any failed tests were inhibited by this behavior.
+
+### Tooling, SDK, and Runtime
+
+- `opa test`: Fix `--exit-zero-on-skipped` behavior to make test runs fail with failing test rules ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) reported and authored by @fdaguin
+
 ## 0.55.0
 
 > **_NOTES:_**
