@@ -1965,7 +1965,7 @@ Similar to rules, the `default` keyword can be applied to functions as well.
 For example:
 
 ```live:eg/defaultfunc:module:read_only
-default clamp_positive(x) := 0
+default clamp_positive(_) := 0
 
 clamp_positive(x) = x {
     x > 0
