@@ -2236,7 +2236,7 @@ func (c *Compiler) rewriteLocalVars() {
 				// Report an error for each unused function argument
 				for arg := range unusedArgs {
 					if !arg.IsWildcard() {
-						c.err(NewError(CompileErr, rule.Head.Location, "unused argument %v", arg))
+						c.err(NewError(CompileErr, rule.Head.Location, "unused argument %v. (hint: use _ (wildcard variable) instead)", arg))
 					}
 				}
 			}
