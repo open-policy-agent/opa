@@ -3339,6 +3339,113 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`"bar" = input.a; "baz" = input.b`},
 		},
+		{
+			note:    "ref heads: unknown rule value",
+			query:   "data.test.p.q[x]",
+			shallow: false,
+			modules: []string{`package test
+			p.q[x] := y {
+				x := "foo"
+				y := input.y
+			}`},
+			wantQueries: []string{`input.y; x = "foo"`},
+		},
+		{
+			note:  "ref heads: unknown ref var, unknown rule value",
+			query: "data.test.p.q[x]",
+			modules: []string{`package test
+			p.q[x] := y {
+				x := input.x
+				y := input.y
+			}`},
+			wantQueries: []string{`x = input.x; input.y`},
+		},
+		{
+			note:    "ref heads: unknown rule value, shallow inlining",
+			query:   "data.test.p.q.r[x]",
+			shallow: true,
+			modules: []string{`package test
+			p.q.r.s := y {
+				y := input.y
+			}`},
+			wantQueries: []string{`data.partial.test.p.q.r.s = x_term_0_0; x_term_0_0; x = "s"`},
+			wantSupport: []string{`package partial.test.p.q.r
+			s = __local0__1 { 
+				__local0__1 = input.y 
+			}`},
+		},
+		{
+			note:    "ref heads: unknown rule value, part-way query, shallow inlining",
+			query:   "y = data.test.p.q[x]",
+			shallow: true,
+			modules: []string{`package test
+			p.q.r.s := y {
+				y := input.y
+			}`},
+			wantQueries: []string{`data.test.p.q.r = y; x = "r"`},
+		},
+		{ // https://github.com/open-policy-agent/opa/issues/6094
+			note:    "ref heads: ref var, unknown rule value, shallow inlining",
+			query:   "data.test.p.q[x]",
+			shallow: true,
+			modules: []string{`package test
+			p.q[x] := y {
+				x := "foo"
+				y := input.y
+			}`},
+			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
+			wantSupport: []string{`package partial.test.p
+			q.foo = __local1__1 { 
+				__local1__1 = input.y 
+			}`},
+		},
+		{ // https://github.com/open-policy-agent/opa/issues/6094
+			note:    "ref heads: unknown ref var, unknown rule value, shallow inlining",
+			query:   "data.test.p.q[x]",
+			shallow: true,
+			modules: []string{`package test
+			p.q[x] := y {
+				x := input.x
+				y := input.y
+			}`},
+			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
+			wantSupport: []string{`package partial.test.p
+			q[__local0__1] = __local1__1 { 
+				__local0__1 = input.x
+				__local1__1 = input.y
+			}`},
+		},
+		{ // https://github.com/open-policy-agent/opa/issues/6094
+			note:    "ref heads: unknown ref var, unknown rule value, shallow inlining",
+			query:   "data.test.p.q.r.s[x]",
+			shallow: true,
+			modules: []string{`package test
+			p.q.r.s[x] := y {
+				x := input.x
+				y := input.y
+			}`},
+			wantQueries: []string{`data.partial.test.p.q.r.s[x] = x_term_0_0; x_term_0_0`},
+			wantSupport: []string{`package partial.test.p.q.r
+			s[__local0__1] = __local1__1 { 
+				__local0__1 = input.x
+				__local1__1 = input.y
+			}`},
+		},
+		{ // https://github.com/open-policy-agent/opa/issues/6094
+			note:    "ref heads, partial set: unknown key, shallow inlining",
+			query:   "data.test.p.q[x]",
+			shallow: true,
+			modules: []string{`package test
+			import future.keywords.contains
+			p.q contains y {
+				y := input.y
+			}`},
+			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
+			wantSupport: []string{`package partial.test.p
+			q[__local0__1] { 
+				__local0__1 = input.y
+			}`},
+		},
 	}
 
 	ctx := context.Background()

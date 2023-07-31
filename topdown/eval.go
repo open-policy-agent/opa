@@ -2622,6 +2622,25 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref)
 
 			head := ast.NewHead(rule.Head.Name, key, value)
 
+			ruleRef := e.e.namespaceRef(rule.Ref())
+			l := len(path)
+			if l <= len(ruleRef) {
+				ruleRef = ruleRef[l-1:] // safe; path always has the data document prefix
+				if s, ok := ruleRef[0].Value.(ast.String); ok {
+					ruleRef[0].Value = ast.Var(s)
+				}
+				for i := 1; i < len(ruleRef); i++ {
+					ruleRef[i] = child.bindings.plugNamespaced(ruleRef[i], e.e.caller.bindings)
+				}
+				head.Reference = ruleRef
+				if head.Name.Equal(ast.Var("")) {
+					head.Name = ruleRef[0].Value.(ast.Var)
+				}
+				if len(ruleRef) > 1 && head.Key == nil {
+					head.Key = ruleRef[len(ruleRef)-1]
+				}
+			}
+
 			if !e.e.inliningControl.shallow {
 				cp := copypropagation.New(head.Vars()).
 					WithEnsureNonEmptyBody(true).
