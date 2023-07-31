@@ -82,6 +82,7 @@ func newEvalCommandParams() evalCommandParams {
 			evalPrettyOutput,
 			evalSourceOutput,
 			evalRawOutput,
+			evalDiscardOutput,
 		}),
 		explain:         newExplainFlag([]string{explainModeOff, explainModeFull, explainModeNotes, explainModeFails, explainModeDebug}),
 		target:          util.NewEnumFlag(compile.TargetRego, []string{compile.TargetRego, compile.TargetWasm}),
@@ -142,6 +143,7 @@ const (
 	evalPrettyOutput   = "pretty"
 	evalSourceOutput   = "source"
 	evalRawOutput      = "raw"
+	evalDiscardOutput  = "discard"
 
 	// number of profile results to return by default
 	defaultProfileLimit = 10
@@ -232,6 +234,7 @@ Set the output format with the --format flag.
     --format=pretty    : output query results in a human-readable format
     --format=source    : output partial evaluation results in a source format
     --format=raw       : output the values from query results in a scripting friendly format
+    --format=discard   : output the result field as "discarded" when non-nil
 
 Schema
 ------
@@ -394,6 +397,8 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		err = pr.Source(w, result)
 	case evalRawOutput:
 		err = pr.Raw(w, result)
+	case evalDiscardOutput:
+		err = pr.Discard(w, result)
 	default:
 		err = pr.JSON(w, result)
 	}
