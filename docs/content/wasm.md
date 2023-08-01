@@ -80,14 +80,25 @@ API that produces OPA bundle files. The compile API is recommended.
 
 There is a JavaScript SDK available that simplifies the process of loading and
 evaluating compiled policies. If you want to evaluate Rego policies inside
-JavaScript we recommend you use the JavaScript SDK.
+JavaScript we recommend you use the
+[Javascript SDK](https://github.com/open-policy-agent/npm-opa-wasm).
+There is also an 
+[example NodeJS application](https://github.com/open-policy-agent/npm-opa-wasm/tree/master/examples/nodejs-app)
+provided for reference.
 
-See
-[https://github.com/open-policy-agent/npm-opa-wasm](https://github.com/open-policy-agent/npm-opa-wasm)
-for more details.
+### Other Languages
 
-There is an example NodeJS application located
-[here](https://github.com/open-policy-agent/npm-opa-wasm/tree/master/examples/nodejs-app).
+A number of other languages have OPA Wasm support too via various community SDKs. 
+{{<
+  ecosystem_feature_link
+  key="wasm-integration"
+  singular_intro="There is currently 1"
+  singular_link="listed on the OPA Ecosystem Page."
+  singular_outro=""
+  plural_intro="Community Wasm SDKs and integrations (COUNT projects) are listed on the"
+  plural_link="Wasm integrations page"
+  plural_outro="in the OPA Ecosystem section."
+>}}
 
 ### From Scratch
 
@@ -369,3 +380,9 @@ produce the following result set:
 ```
 
 Sets are represented as JSON arrays.
+
+## Ecosystem Projects
+
+Wasm is a great way to integrate OPA into applications where the Go SDK is unavailable.
+
+{{< ecosystem_feature_embed key="wasm-integration" topic="OPA Wasm" >}}

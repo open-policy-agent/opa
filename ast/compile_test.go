@@ -1904,6 +1904,41 @@ p[r] := 2 { r := "foo" }`,
 	assertCompilerErrorStrings(t, c, expected)
 }
 
+func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		err     string
+	}{
+		{
+			note: "conflicting rules",
+			modules: modules(
+				`package pkg
+				default f(_) = 100
+				f(x, y) = x {
+                   x == y
+				}`),
+			err: "rego_type_error: conflicting rules data.pkg.f found",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.checkRuleConflicts)
+			if tc.err != "" {
+				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				assertCompilerErrorStrings(t, c, []string{})
+			}
+		})
+	}
+}
+
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
 
@@ -5434,7 +5469,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5448,7 +5483,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("a.b.c.func(x, y)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5463,12 +5498,12 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
-					Message:  "unused argument x",
+					Message:  "unused argument x. (hint: use _ (wildcard variable) instead)",
 				},
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5483,7 +5518,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5506,7 +5541,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, _)"), "", 2, 4),
-					Message:  "unused argument x",
+					Message:  "unused argument x. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5549,7 +5584,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x) := { x: v | x := \"foo\"; v := a[x] }"), "", 3, 4),
-					Message:  "unused argument x",
+					Message:  "unused argument x. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5627,7 +5662,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "unused argument x",
+					Message:  "unused argument x. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5645,7 +5680,7 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5663,7 +5698,19 @@ func TestCheckUnusedFunctionArgVars(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y, z)"), "", 2, 4),
-					Message:  "unused argument z",
+					Message:  "unused argument z. (hint: use _ (wildcard variable) instead)",
+				},
+			},
+		},
+		{
+			note: "unused default function argvar",
+			module: `package test
+			default func(x) := 0`,
+			expectedErrors: Errors{
+				&Error{
+					Code:     CompileErr,
+					Location: NewLocation([]byte("func(x) := 0"), "", 2, 12),
+					Message:  "unused argument x. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},
@@ -5695,7 +5742,7 @@ func TestCompileUnusedAssignedVarsErrorLocations(t *testing.T) {
 				&Error{
 					Code:     CompileErr,
 					Location: NewLocation([]byte("func(x, y)"), "", 2, 4),
-					Message:  "unused argument y",
+					Message:  "unused argument y. (hint: use _ (wildcard variable) instead)",
 				},
 			},
 		},

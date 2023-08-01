@@ -1,21 +1,99 @@
 cases:
 - data:
   modules:
-  - |
-    package p.m
+    - |
+      package test
 
-    default hello = false
+      default f(x) = 1
 
-    hello() = m {
-      m = input.message
-      1 == 2
-      m = "world"
-    }
-    h = m {
-      m = hello()
-    }
-  note: functions/default # not supported but shouldn't panic
-  query: data.p.m = x
+      f(x) = x {
+        x > 0
+      }
+
+      p {
+        f(-1) == 1
+      }
+
+  note: functions/default
+  query: data.test.p = x
   want_result:
-  - x:
-      hello: false
+    - x: true
+
+- data:
+  modules:
+    - |
+      package test
+
+      default f(x) = 1
+
+      f(x) = x {
+        x > 0
+      }
+
+      p {
+        f(2) == 2
+      }
+
+  note: functions/non default
+  query: data.test.p = x
+  want_result:
+    - x: true
+
+- data:
+  modules:
+    - |
+      package test
+
+      default f(x) = 1
+
+      p {
+        f(2) == 1
+      }
+
+  note: functions/only default
+  query: data.test.p = x
+  want_result:
+    - x: true
+
+- data:
+  modules:
+    - |
+      package test
+
+      default f(_, _) = 1
+
+      f(x, y) = x {
+        x == y
+      }
+
+      p {
+        f(2, 2) == 2
+      }
+
+  note: functions/wildcard args
+  query: data.test.p = x
+  want_result:
+    - x: true
+
+- data:
+  modules:
+    - |
+      package test
+
+      default f(x) = 1000
+
+      f(x) = x {
+        x > 0
+      }
+
+      p = xs {
+        xs := [y | x = [1, -2, 3][_]; y := f(x)]
+      }
+
+  note: functions/comprehensions
+  query: data.test.p = x
+  want_result:
+    - x:
+        - 1
+        - 1000
+        - 3

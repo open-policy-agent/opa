@@ -26,9 +26,20 @@ integrations:
       - quali
     blogs:
       - https://www.quali.com/blog/enforcing-open-policy-agent-guardrails-across-your-cloud-configurations/
+    docs_features:
+      cli-integration:
+        note: |
+          Torque policy evaluation is done using the OPA CLI. See an
+          [example command](https://github.com/QualiTorque/opa#perform-policy-evaluation)
+          in the documentation.
+      terraform:
+        note: |
+          Torque supports Terraform policy enforcement and defines some
+          [sample policies here](https://github.com/QualiTorque/opa).
 
   styra-das:
     title: Styra Declarative Authorization Service
+    subtitle: Policy as Code Control Plane
     description: Styra DAS provides a single pane of glass for authorization and policy across the cloud-native ecosystem of software systems. Beyond a simple control plane, Styra DAS pushes OPA’s potential, providing powerful impact analysis, policy authoring, and decision logging.
     software:
       - styra-das
@@ -70,6 +81,65 @@ integrations:
             organization: styra
         venue: online
         link: https://www.youtube.com/watch?v=3K0RqIvNfAc
+    docs_features:
+      status-api:
+        note: |
+          Styra DAS can receive status updates from OPA instances via the status
+          API. See the
+          [documentation here](https://docs.styra.com/das/policies/policy-organization/systems/view-opa-status)
+          for more information.
+      envoy:
+        note: |
+          Styra DAS provides an out-of-the-box integration for writing Envoy
+          authorization policies. See the
+          [tutorial](https://docs.styra.com/das/systems/envoy/tutorials)
+          here.
+      policy-testing:
+        note: |
+          DAS supports the running of tests alongside Rego policy in its UI.
+          Read documentation about
+          [testing Rego policies in DAS](https://docs.styra.com/das/policies/policy-authoring/test-policies).
+      language-tooling:
+        note: |
+          DAS supports the writing, testing and debugging of Rego policies in a UI.
+          Read about
+          [Writing Policies](https://docs.styra.com/das/policies/policy-authoring/write-policies)
+          and
+          [Testing Policies](https://docs.styra.com/das/policies/policy-authoring/test-policies)
+          in the DAS documentation.
+      external-data:
+        note: |
+          The [Bundle Registry](https://docs.styra.com/das/policies/bundles/bundle-registry)
+          feature of DAS uses OPA's Bundle API to distribute policy and data updates to
+          OPA instances.
+      opa-bundles:
+        note: |
+          Styra DAS exposes a Bundle Service compatible API to the OPA instances
+          that it manages. Delta bundles are also supported. Read the
+          [Bundle Registry Docs](https://docs.styra.com/das/policies/bundles/bundle-registry)
+          to learn more.
+      opa-bundles-discovery:
+        note: |
+          Styra DAS exposes a Bundle Service compatible API to the OPA instances
+          that it manages. Discovery bundles are also supported. Read the
+          [Bundle Registry Docs](https://docs.styra.com/das/policies/bundles/bundle-registry)
+          to learn more.
+      terraform:
+        note: |
+          Styra DAS has native support for the validation of Terraform code and
+          plans via a prebuilt 'system-type', this is
+          [documented here](https://docs.styra.com/das/systems/terraform/overview).
+      kubernetes:
+        note: |
+          Styra DAS has native support for mutating and validating Kubernetes
+          at admission time via a prebuilt 'system-type', this is
+          [documented here](https://docs.styra.com/das/systems/kubernetes/overview).
+      decision-logging:
+        note: |
+          Styra DAS can aggregate and index OPA decision logs. Exporting to
+          object storage, and Kafka is also supported. View
+          [the documentation](https://docs.styra.com/das/observability-and-audit/decision-logs/overview)
+          here.
 
   alluxio:
     title: Alluxio
@@ -109,6 +179,13 @@ integrations:
       - https://github.com/StyraInc/awesome-opa
     inventors:
       - styra
+    docs_features:
+      learning-rego:
+        note: |
+          The Awesome OPA project maintains a list of
+          [policy packages](https://github.com/StyraInc/awesome-opa#policy-packages),
+          and [editor integrations](https://github.com/StyraInc/awesome-opa#ide-and-editor-integrations)
+          which can be helpful references for learning Rego.
 
   aws-cloudformation-hook:
     title: AWS CloudFormation Hook
@@ -126,6 +203,14 @@ integrations:
       - https://blog.styra.com/blog/the-opa-aws-cloudformation-hook
     inventors:
       - styra
+    docs_features:
+      rest-api-integration:
+        note: |
+          The OPA CloudFormation Hook uses AWS Lambda to consult an OPA instance
+          using the REST API before allowing a CloudFormation stack to be created.
+
+          Read [the tutorial](https://www.openpolicyagent.org/docs/latest/aws-cloudformation-hooks/)
+          here in the OPA documentation.
 
   oauth2:
     title: OAuth2
@@ -153,8 +238,8 @@ integrations:
       - https://blog.styra.com/blog/integrating-identity-oauth2-and-openid-connect-in-open-policy-agent
 
   google-kubernetes-engine:
-    title: Google Kubernetes Engine (GKE)
-    description: OPA related tools and policy libraries for Kubernetes in the Google Cloud Platform
+    title: GKE Policy Automation
+    description: Tool and policy library for reviewing Google Kubernetes Engine clusters against best practices
     software:
       - kubernetes
       - google-kubernetes-engine
@@ -167,6 +252,12 @@ integrations:
       - https://github.com/google/gke-policy-automation/tree/main/gke-policies
     inventors:
       - google
+    docs_features:
+      kubernetes:
+        note: |
+          The GKE Policy Automation project provides a set of policies for
+          validating Kubernetes clusters running on GKE. Review the
+          [policy library here](https://github.com/google/gke-policy-automation/tree/main/gke-policies-v2)
 
   apache-apisix:
     title: Authorization Integration with Apache APISIX
@@ -183,6 +274,13 @@ integrations:
     blogs:
       - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
       - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c
+    docs_features:
+      rest-api-integration:
+        note: |
+          Apache APISIX routes can be configured to call an OPA instance over
+          the REST API.
+          [This blog post](https://apisix.apache.org/blog/2021/12/24/open-policy-agent/)
+          explains how such a configuration can be achieved.
 
   dapr:
     title: Dapr
@@ -196,6 +294,14 @@ integrations:
       - https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/
     code:
       - https://github.com/dapr/dapr
+      - https://github.com/dapr/components-contrib/blob/master/middleware/http/opa/middleware.go
+    docs_features:
+      go-integration:
+        note: |
+          Dapr's contrib middleware include an OPA integration built on the Go
+          API.
+          [This tutorial](https://docs.dapr.io/reference/components-reference/supported-middleware/middleware-opa/)
+          explains how to configure it.
 
   fig:
     title: fig
@@ -238,6 +344,34 @@ integrations:
     labels:
       category: tooling
       layer: cicd
+
+  opa-playground:
+    title: OPA Playground
+    subtitle: Online Rego Playground
+    description: Interactive online Rego playground for writing and sharing policies
+    software: []
+    inventors:
+      - styra
+    labels:
+      category: tooling
+      layer: rego
+    code:
+      - https://play.openpolicyagent.org/
+    blogs:
+      - https://blog.openpolicyagent.org/the-rego-playground-977566855cec
+      - https://blog.openpolicyagent.org/rego-playground-new-features-ec0345a73b9e
+    docs_features:
+      learning-rego:
+        note: |
+          Sometimes if you're working on a Rego policy in an integrated system
+          it can help to debug it in isolation first. The playground is a great
+          place to do that. Get started with a [hello world example](https://play.openpolicyagent.org/).
+      language-tooling:
+        note: |
+          The playground is a great place to get started with writing and testing
+          your first policies. You can also share links if you're asking for
+          help in the community Slack. Get started with a simple
+          [RBAC example](https://play.openpolicyagent.org/p/Bb9FqBvauC).
 
   kubernetes-validating-admission:
     title: Kubernetes Admission Control
@@ -324,6 +458,17 @@ integrations:
       - https://itnext.io/kubernetes-authorization-via-open-policy-agent-a9455d9d5ceb
       - https://medium.com/capital-one-tech/policy-enabled-kubernetes-with-open-policy-agent-3b612b3f0203
       - https://blog.openshift.com/fine-grained-policy-enforcement-in-openshift-with-open-policy-agent/
+    docs_features:
+      rest-api-integration:
+        note: |
+          The Kubernetes API server can be configured to use OPA as an
+          admission controller. Creating a
+          [ValidatingWebhookConfiguration](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#validatingwebhookconfiguration)
+          resource can be used to query OPA for policy decisions.
+      kubernetes:
+        note: |
+          View a selection of projects and talks about integrating OPA with
+          Kubernetes.
 
   kubernetes-authorization:
     title: Kubernetes Authorization
@@ -339,6 +484,19 @@ integrations:
       - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
     inventors:
       - styra
+    docs_features:
+      rest-api-integration:
+        note: |
+          The Kubernetes API server can be configured to use OPA as an
+          authorization webhook. Such an integration can be configured by
+          following [the documentation](https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization)
+          in the contrib repo.
+      kubernetes:
+        note: |
+          View
+          [an example project](https://github.com/open-policy-agent/contrib/tree/main/k8s_authorization)
+          showing how it's possible to integrate OPA with Kubernetes User Authorization.
+
 
   kubernetes-provisioning:
     title: Kubernetes Provisioning
@@ -439,6 +597,13 @@ integrations:
       - https://github.com/build-security/opa-express-middleware
     inventors:
       - build.security
+    docs_features:
+      rest-api-integration:
+        note: |
+          This project provides a middleware that can query an OPA server for
+          policy decisions. See the project's
+          [README](https://github.com/build-security/opa-express-middleware#simple-usage)
+          for a js simple example.
 
   nginx:
     title: Nginx
@@ -478,6 +643,7 @@ integrations:
 
   envoy-authorization:
     title: Container Network Authorization with Envoy
+    subtitle: Official OPA Envoy Integration
     description: Envoy is a networking abstraction for cloud-native applications. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
     labels:
       category: servicemesh
@@ -488,7 +654,7 @@ integrations:
       - https://github.com/tsandall/minimal-opa-envoy-example/blob/master/README.md
       - https://www.openpolicyagent.org/docs/latest/envoy-introduction/
     code:
-      - https://github.com/open-policy-agent/opa-istio-plugin
+      - https://github.com/open-policy-agent/opa-envoy-plugin
       - https://github.com/tsandall/minimal-opa-envoy-example
     inventors:
       - styra
@@ -519,6 +685,19 @@ integrations:
             organization: yelp
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=Z6aN3Smt-9M
+    docs_features:
+      envoy:
+        note: |
+          The
+          [opa-envoy-plugin](https://github.com/open-policy-agent/opa-envoy-plugin)
+          project is the official integration for OPA and Envoy.
+      rest-api-integration:
+        note: |
+          The [opa-envoy-plugin](https://github.com/open-policy-agent/opa-envoy-plugin)
+          project uses the REST API to allow and deny requests routed via an Envoy proxy.
+
+          Read about this integration in the
+          [OPA Docs](https://www.openpolicyagent.org/docs/latest/envoy-introduction/).
 
   custom-library-microservice-authorization:
     title: Library-based Microservice Authorization
@@ -537,27 +716,6 @@ integrations:
             organization: styra
         venue: Kubecon Austin 2017
         link: https://www.youtube.com/watch?v=R6tUNpRpdnY
-
-  istio-authorization-edge:
-    title: Container Network Authorization with Istio (at the Edge)
-    description: Istio is a networking abstraction for cloud-native applications that uses Envoy at the edge. OPA hooks into Envoy’s external authorization filter to provide fine-grained, context-aware authorization for network or HTTP requests.
-    labels:
-      category: servicemesh
-      layer: network
-    software:
-      - istio
-      - envoy
-      - spire
-    tutorials:
-      - https://github.com/open-policy-agent/opa-istio-plugin/blob/master/README.md
-    code:
-      - https://github.com/open-policy-agent/opa-istio-plugin
-      - https://github.com/tsandall/minimal-opa-envoy-example
-      - https://github.com/open-policy-agent/opa-envoy-spire-ext-authz
-    blogs:
-      - https://blog.openpolicyagent.org/envoy-external-authorization-with-opa-578213ed567c
-    inventors:
-      - styra
 
   istio-authorization-mixer:
     title: Container Network Authorization with Istio (as part of Mixer)
@@ -646,6 +804,15 @@ integrations:
             organization: pinterest
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=LhgxFICWsA8
+    docs_features:
+      rest-api-integration:
+        note: |
+          This project implements a custom
+          [Kafka authorizer](https://docs.confluent.io/platform/current/kafka/authorization.html#authorizer)
+          that uses OPA to make authorization decisions by calling the REST API.
+
+          Installation and configuration instructions are available in the
+          project's [README](https://github.com/StyraInc/opa-kafka-plugin#installation).
 
   strimzi:
     title: Strimzi (Apache Kafka on Kubernetes)
@@ -665,6 +832,11 @@ integrations:
       - https://github.com/StyraInc/opa-kafka-plugin
     inventors:
       - redhat
+    docs_features:
+      rest-api-integration:
+        note: |
+          Strimzi can be configured to use OPA via the REST API as the Kafka
+          authorizer using [this project](https://github.com/scholzj/demo-opa-kafka-authorization).
 
   ceph:
     title: Ceph Object Storage Authorization
@@ -682,6 +854,13 @@ integrations:
       - redhat
     videos:
       - https://www.youtube.com/watch?v=9m4FymEvOqM&feature=share
+    docs_feature:
+      rest-api-integration:
+        note: |
+          The Ceph Object Gateway implements a native integration with OPA using
+          the REST API.
+          The [integration is documented](https://docs.ceph.com/en/latest/radosgw/opa/)
+          in the Ceph docs.
 
   clojure:
     title: App authorization for Clojure
@@ -704,10 +883,13 @@ integrations:
     labels:
       category: servicemesh
       layer: network
-    code:
-      - https://github.com/openservicemesh/osm/blob/main/docs/example/manifests/opa/deploy-opa-envoy.yaml
     tutorials:
-      - https://release-v0-11.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/#osm-with-opa-plugin-external-authorization-walkthrough
+      - https://release-v1-2.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/
+    docs_features:
+      envoy:
+        note: |
+          External Authorization supports OPA and is documented
+          [here](https://release-v1-2.docs.openservicemesh.io/docs/guides/integrations/external_auth_opa/)
 
   minio:
     title: Minio API Authorization
@@ -722,6 +904,12 @@ integrations:
     inventors:
       - minio
       - styra
+    docs_features:
+      rest-api-integration:
+        note: |
+          Minio implements a native integration with OPA using the REST API.
+          The [integration is documented](https://github.com/minio/minio/blob/master/docs/iam/opa.md)
+          in the Minio docs.
 
   terraform:
     title: Terraform Policy
@@ -758,7 +946,10 @@ integrations:
 
   terraform-cloud:
     title: Terraform Cloud
-    description: Policies are rules that Terraform Cloud enforces on runs. You use the Rego policy language to write policies for the Open Policy Agent (OPA) framework.
+    description: |
+      Policies are rules that Terraform Cloud enforces on runs.
+      You use the Rego policy language to write policies for the
+      Open Policy Agent (OPA) framework.
     software:
       - terraform
       - terraform-cloud
@@ -783,6 +974,11 @@ integrations:
         link: https://www.youtube.com/watch?v=jO2CiYMPxFE
     inventors:
       - hashicorp
+    docs_features:
+      terraform:
+        note: |
+          Terraform cloud has native support for enforcing Rego policy on plans.
+          The feature is [documented here](https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement/opa).
 
   pulumi:
     title: Pulumi
@@ -808,6 +1004,11 @@ integrations:
         link: https://www.pulumi.com/resources/testing-configuration-with-open-policy-agent/
     inventors:
       - pulumi
+    docs_features:
+      go-integration:
+        note: |
+          The Pulumi OPA bridge uses the Rego API to evaluate policies in a
+          policy pack. View the [docs and code](https://github.com/pulumi/pulumi-policy-opa).
 
   iptables:
     title: IPTables
@@ -865,6 +1066,12 @@ integrations:
       - build.security
       - bisnode
       - alertavert
+    docs_features:
+      rest-api-integration:
+        note: |
+          OPA Spring Security uses the REST API to query OPA about authz decisions.
+          See an example application in OPA's
+          [contrib repo](https://github.com/open-policy-agent/contrib/tree/main/spring_authz).
 
   spinnaker-pipeline:
     title: Spinnaker Pipeline Policy Enforcment
@@ -945,7 +1152,11 @@ integrations:
 
   clair-datasource:
     title: Kubernetes Admission Control using Vulnerability Scanning
-    description: Admission control policies in Kubernetes can be augmented with vulnerability scanning results to make more informed decisions.  This integration demonstrates how to integrate Clair with OPA and run it as an admission controller.
+    description: |
+      Admission control policies in Kubernetes can be augmented with
+      vulnerability scanning results to make more informed decisions.
+      This integration demonstrates how to integrate CoreOS Clair with OPA and
+      run it as an admission controller.
     software:
       - kubernetes
       - clair
@@ -957,10 +1168,24 @@ integrations:
       - https://github.com/open-policy-agent/contrib/tree/master/image_enforcer
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/image_enforcer/README.md
+    docs_features:
+      rest-api-integration:
+        note: |
+          This example project in
+          [OPA contrib](https://github.com/open-policy-agent/contrib/tree/main/image_enforcer)
+          uses OPA over the REST API to enforce admission policy based on
+          vulnerability scanning results.
+      kubernetes:
+        note: |
+          This example project in
+          [OPA contrib](https://github.com/open-policy-agent/contrib/tree/main/image_enforcer)
+          uses OPA to enforce admission policy in Kubernetes.
 
   cloudflare-worker:
-    title: Cloudflare Worker Enforcement of OPA Policies Using WASM
-    description: Cloudflare Workers are a serverless platform that supports WASM.  This integration uses OPA's WASM compiler to generate code enforced at the edge of Cloudflare's network.
+    title: Cloudflare Worker Enforcement of OPA Policies Using Wasm
+    description: |
+      Cloudflare Workers are a serverless platform that supports Wasm.
+      This integration uses OPA's Wasm compiler to generate code enforced at the edge of Cloudflare's network.
     software:
       - cloudflare
     labels:
@@ -970,6 +1195,14 @@ integrations:
       - https://github.com/open-policy-agent/contrib/tree/master/wasm/cloudflare-worker
     tutorials:
       - https://github.com/open-policy-agent/contrib/blob/master/wasm/cloudflare-worker/README.md
+    docs_features:
+      wasm-integration:
+        note: |
+          This example project in
+          [OPA contrib](https://github.com/open-policy-agent/contrib/tree/main/wasm/cloudflare-worker)
+          uses the
+          [NodeJS OPA Wasm Module](https://github.com/open-policy-agent/npm-opa-wasm)
+          to enforce policy at the edge of Cloudflare's network.
 
   docker-machine:
     title: Docker controls via OPA Policies
@@ -986,20 +1219,53 @@ integrations:
     inventors:
       - styra
 
+  gatekeeper:
+    title: OPA Gatekeeper
+    subtitle: Rego Policy Controller for Kubernetes
+    description: Manage Rego Kubernetes admission policies using Custom Resources.
+    labels:
+      type: poweredbyopa
+      layer: configuration
+    code:
+      - https://github.com/open-policy-agent/gatekeeper
+    software:
+      - kubernetes
+    tutorials:
+      - https://open-policy-agent.github.io/gatekeeper/website/docs/howto
+    videos:
+      - https://youtu.be/RMiovzGGCfI?t=1049
+      - https://youtu.be/6RNp3m_THw4?t=864
+    docs_features:
+      go-integration:
+        note: |
+          OPA Gatekeeper is written in Go and uses the
+          [Rego Go API](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-api)
+          to evaluate policies loaded from Custom Resources.
+      kubernetes:
+        note: |
+          OPA Gatekeeper integrates with
+          [Kubernetes Admission](https://open-policy-agent.github.io/gatekeeper/website/docs/customize-admission/)
+          and also uses Custom Resources and the Kubernetes API server to
+          store policy state.
+
   conftest:
-    title: Conftest -- Configuration checking
+    title: Conftest
+    subtitle: Rego policy for configuration files
     description: Conftest is a utility built on top of OPA to help you write tests against structured configuration data.
     labels:
       type: poweredbyopa
       layer: configuration
     code:
-      - https://github.com/instrumenta/conftest
+      - https://github.com/open-policy-agent/conftest
     software:
       - kustomize
       - terraform
       - aws
       - toml
       - docker
+    tutorials:
+      - https://www.conftest.dev
+      - https://www.conftest.dev/examples/
     videos:
       - title: "Applying Policy Throughout the Application Lifecycle with Open Policy Agent"
         speakers:
@@ -1007,6 +1273,31 @@ integrations:
             organization: snyk
         venue: Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=cXfsaE6RKfc
+      - title: "Terraform Code Reviews: Supercharged with Conftest"
+        speakers:
+          - name: Jay Wallace
+            organization: doordash
+        venue: Hashitalks 2020
+        link: https://www.youtube.com/watch?v=ziKT-ZjZ7mM
+    docs_features:
+      policy-testing:
+        note: |
+          Conftest supports unit testing of policy and has a number of extra language
+          features for working with configuration files. The functionality is
+          [documented here](https://www.conftest.dev/#testingverifying-policies).
+      go-integration:
+        note: |
+          Conftest is written in Go and uses the
+          [Rego Go API](https://www.openpolicyagent.org/docs/latest/integration/#integrating-with-the-go-api).
+      opa-bundles:
+        note: |
+          Conftest supports the loading of policy in a bundle format. The feature
+          is [documented here](https://www.conftest.dev/sharing/).
+      terraform:
+        note: |
+          Conftest has generic support for Terraform source files defined in HCL.
+          There is an example provided here on
+          [GitHub](https://github.com/open-policy-agent/conftest/tree/master/examples/hcl2).
 
   boomerang-bosun:
     title: Boomerang Bosun Policy Gating
@@ -1022,9 +1313,18 @@ integrations:
       - boomerang
     software:
       - bosun
+    docs_features:
+      rest-api-integration:
+        note: |
+          The
+          [Boomerang Bosun Service](https://github.com/boomerang-io/bosun.service.policy)
+          component interacts with an OPA instance over the REST API to evaluate
+          policy during CICD runs.
+
 
   kubeshield:
-    title: Secure Kubernetes using eBPF & Open Policy Agent
+    title: KubeShield
+    subtitle: Secure Kubernetes using eBPF & Open Policy Agent
     description: Ensure runtime security in any linux machine by combining Extended Berkeley Packet Filter(eBPF) and Open Policy Agent.
     software:
       - linux
@@ -1037,9 +1337,17 @@ integrations:
       - https://github.com/kubeshield/bpf-opa-demo
     blogs:
       - https://blog.byte.builders/post/bpf-opa/
+    docs_features:
+      kubernetes:
+        note: |
+          KubeShield implements runtime policy for containers in a Kubernetes
+          cluster using eBPF. Follow the
+          [tutorial here](https://github.com/kubeshield/bpf-opa-demo#usage)
+          to get up and running.
+
 
   php-authorization:
-    title: HTTP API Authorization in PHP
+    title: PHP OPA Library
     description: These integrations demonstrate using OPA to perform API authorization in PSR-15 and Symfony compliant frameworks.
     labels:
       layer: network
@@ -1054,6 +1362,13 @@ integrations:
       - https://github.com/build-security/opa-symfony-middleware
     inventors:
       - build.security
+    docs_features:
+      rest-api-integration:
+        note: |
+          This library provides a PHP wrapper around the OPA REST API. It can
+          update policies and query for decisions. See the
+          [project README](https://github.com/segrax/openpolicyagent)
+          for various examples.
 
   gradle-plugin:
     title: Gradle Build Plugin
@@ -1073,8 +1388,9 @@ integrations:
     inventors:
       - bisnode
 
-  custom-application:
-    title: Custom Application Authorization
+  chef-automate:
+    title: Chef Automate
+    subtitle: Operational Visibility Dashboard
     description: |
       Application require authorization decisions made at the API gateway, frontend, backend, and database.
       OPA helps developers decouple authorization logic from application code, define a custom authorization model
@@ -1092,9 +1408,15 @@ integrations:
             organization: chef
         venue: OPA Summit at Kubecon San Diego 2019
         link: https://www.youtube.com/watch?v=jrrW855xL3s
+    docs_features:
+      go-integration:
+        note: |
+          Chef Automate uses the Go Rego API to evaluate authorization policies
+          controlling access to its own API endpoints. The feature is
+          [documented here](https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa).
 
   sysdig-image-scanner:
-    title: Kubernetes Sysdig Image Scanner Admission Controller
+    title: Sysdig Image Scanner Admission Controller
     description: Sysdig’s OPA Image Scanner combines Sysdig Secure image scanner with OPA policy-based rego language to evaluate the scan results and the admission context, providing great flexibility on the admission decision.
     software:
       - kubernetes
@@ -1106,6 +1428,13 @@ integrations:
       - https://github.com/sysdiglabs/opa-image-scanner
     inventors:
       - sysdig
+    docs_feature:
+      kubernetes:
+        note: |
+          Integrates image scanning results with Kubernetes admission checks
+          using Rego to make pod admission decisions. See the
+          [README](https://github.com/sysdiglabs/opa-image-scanner#overview)
+          for more details.
 
   pomerium-authz:
     title: Pomerium Access Proxy
@@ -1162,7 +1491,8 @@ integrations:
       - independent
 
   scalr-iacp:
-    title: Scalr - Policy enforcement for Terraform
+    title: Scalr
+    subtitle: Policy enforcement for Terraform
     description: Scalr allows teams to easily collaborate on Terraform through its pipeline that runs all Terraform operations, policy checks, and stores state. Scalr uses OPA to check the auto-generated Terraform JSON plan to ensure that it meets your organization standards prior to an apply.
     labels:
       category: Infrastructure as Code
@@ -1177,6 +1507,19 @@ integrations:
       - scalr
     blogs:
       - https://www.scalr.com/blog/opa-is-to-policy-automation-as-terraform-is-to-iac/
+    docs_features:
+      cli-integration:
+        note: |
+          These policies can be run using OPA at the command line against a
+          Terraform plan JSON. See
+          [the example](https://github.com/Scalr/sample-tf-opa-policies#policy-evaluation)
+          in the README.
+      terraform:
+        note: |
+          These policies can be run using OPA at the command line against a
+          Terraform plan JSON. See
+          [the example](https://github.com/Scalr/sample-tf-opa-policies#policy-evaluation)
+          in the README.
 
   spire:
     title: SPIRE
@@ -1188,12 +1531,23 @@ integrations:
       - spiffe
       - spire
     blogs:
-      - https://blog.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa
+      - https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/
     code:
       - https://github.com/spiffe/spire/blob/v1.0.2/doc/authorization_policy_engine.md
     tutorials:
       - https://spiffe.io/docs/latest/microservices/envoy-opa/readme/
       - https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/
+    docs_features:
+      envoy:
+        note: |
+          SPIRE can be used to integrate with Envoy and OPA. See a
+          [blog here](https://www.styra.com/blog/zero-trust-with-envoy-spire-and-open-policy-agent-opa/)
+          to learn more.
+      rest-api-integration:
+        note: |
+          SPIRE can work in tandem with the Envoy proxy to integrate with the OPA
+          REST API. See the
+          [tutorial here](https://spiffe.io/docs/latest/microservices/envoy-jwt-opa/readme/).
 
   fairwinds-insights:
     title: Fairwinds Insights Configuration Validation Software
@@ -1222,6 +1576,12 @@ integrations:
       - https://www.fairwinds.com/blog/what-is-kubernetes-policy-as-code
       - https://www.fairwinds.com/blog/why-kubernetes-policy-enforcement
       - https://www.fairwinds.com/blog/an-interview-with-flatfile-on-why-fairwinds-insights-kubernetes-configuration-validation
+    docs_features:
+      kubernetes:
+        note: |
+          Implements auditing and admission checking of Kubernetes resources
+          using Rego policy using
+          [Polaris](https://github.com/FairwindsOps/Polaris).
 
   flask-opa:
     title: Flask-OPA
@@ -1256,7 +1616,8 @@ integrations:
       - https://www.permit.io/blog/implement-rbac-using-opa
 
   opal:
-    title: OPAL (Open Policy Administration Layer)
+    title: OPAL
+    subtitle: Open Policy Administration Layer
     description:  |
       OPAL is an administration layer for Open Policy Agent (OPA), detecting changes in realtime to both policy and policy data and pushing live updates to your agents.
       OPAL brings open-policy up to the speed needed by live applications. As your application state changes (whether it's via your APIs, DBs, git, S3 or 3rd-party SaaS services), OPAL will make sure your services are always in sync with the authorization data and policy they need (and only those they need).
@@ -1273,6 +1634,23 @@ integrations:
       - https://github.com/permitio/opal/tree/master/documentation/docs/tutorials
     videos:
       - https://www.youtube.com/watch?v=K1Zm2FPfrh8
+    docs_features:
+      rest-api-integration:
+        note: |
+          OPAL uses the OPA REST API to update the policy and data pushed down
+          from the OPAL server.
+          See [how this works](https://docs.opal.ac/overview/architecture).
+      external-data:
+        note: |
+          The OPAL Client uses the OPA REST API to update the state pushed down
+          from the OPAL server.
+          See [how this works](https://docs.opal.ac/overview/architecture).
+      external-data-realtime-push:
+        note: |
+          OPAL is able to deliver real-time data updates to OPA instances.
+          See
+          [how this works](https://docs.opal.ac/getting-started/quickstart/opal-playground/publishing-data-update)
+          in the OPAL docs.
 
   optoggles:
     title: OPToggles (Open Policy Toggles)
@@ -1291,22 +1669,31 @@ integrations:
       - https://optoggles.opal.ac/tutorials/demo
 
   bottle:
-    title: Custom Bottle Application Authorization
+    title: Bottle Application Authorization
     description:  |
       This integration demonstrates using Open Policy Agent to perform API authorization for a Python application backed by Bottle.
       Bottle is a fast, simple and lightweight WSGI micro web-framework for Python.
     labels:
       layer: network
       category: application
+    inventors:
+      - dolevf
     software:
       - bottle
     code:
       - https://github.com/dolevf/bottle-acl-openpolicyagent
     blogs:
       - https://blog.lethalbit.com/open-policy-agent-for-bottle-web-framework/
+    docs_features:
+      rest-api-integration:
+        note: |
+          This sample python application calls has a middleware to call OPA
+          before processing each request. See the
+          [example code](https://github.com/dolevf/bottle-acl-openpolicyagent/blob/00a4336/main.py#L37).
 
   kubescape:
-    title: Kubescape Kubernetes security posture scanner
+    title: Kubescape
+    subtitle: Kubernetes security posture scanner
     description: |
       This integration uses OPA for defining security controls over Kubernetes clusters. Kubescape is a simple extensible tool
       finding security problems in your environment. OPA enables Kubescape to implement and extend very fast to answer new problems.
@@ -1322,6 +1709,11 @@ integrations:
       - armo
     tutorials:
       - https://hub.armosec.io/docs
+    docs_features:
+      go-integration:
+        note: |
+          Kubescape uses the Go Repo API to test Kubernetes objects against
+          a range of posture controls.
 
   i2scim:
     title: i2scim.io SCIM Restful User/Group Provisioning API
@@ -1342,6 +1734,11 @@ integrations:
       - i2
     tutorials:
       - https://i2scim.io/OPA_AccessControl.html
+    docs_features:
+      rest-api-integration:
+        note: |
+          i2scim supports externalized access control decisions using OPA's REST API.
+          The integration is described in the [i2scim documentation](https://i2scim.io/OPA_AccessControl.html).
 
   graphene-graphql:
     title: Custom Application with Field-level Authorization in Graphene GraphQL
@@ -1356,7 +1753,8 @@ integrations:
       - https://github.com/dolevf/graphql-open-policy-agent
 
   regal:
-    title: Regal - The Rego Linter
+    title: Regal
+    subtitle: The Linter of Rego Language
     description: |
       Regal is a linter for Rego, with the goal of making your Rego magnificent!
 
@@ -1377,6 +1775,27 @@ integrations:
       - https://github.com/StyraInc/regal
     videos:
       - https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567
+    tutorials:
+      - https://github.com/StyraInc/regal#try-it-out
+    docs_features:
+      learning-rego:
+        note: |
+          Regal can automatically check for common Rego mistakes as you code.
+          Each violation is accompanied by a detailed explanation which can be a
+          great learning tool for new Rego users. See the
+          [Supported Rules](https://github.com/StyraInc/regal/tree/main#rules).
+      go-integration:
+        note: |
+          Regal is built using the Go Rego API. Regal evaluates linting rules
+          defined in Rego against the Rego AST of policy files. The
+          [linter package](https://github.com/StyraInc/regal/blob/main/pkg/linter/linter.go)
+          is a good place to see how OPA is used in the project.
+      policy-testing:
+        note: |
+          Regal is a useful step to use when testing Rego policies to ensure
+          code is correct and free of common errors. See
+          [the README](https://github.com/StyraInc/regal#try-it-out)
+          to get started.
 
   rekor:
     title: Rekor transparency log monitoring and alerting
@@ -1413,9 +1832,16 @@ integrations:
       - https://github.com/sigstore/cosign-gatekeeper-provider
     vides:
       - https://www.youtube.com/watch?v=gCi9_4NYyR0
+    docs_features:
+      go-integration:
+        note: |
+          Cosign In-Toto attestations can be
+          [written in Rego](https://docs.sigstore.dev/cosign/attestation/#cosign-custom-predicate-type-and-rego-policy),
+          these are evaluated in the Cosign binary using the Go API.
 
   alfred:
-    title: Self-hosted Alternative to OPA Playground
+    title: "Alfred"
+    subtitle: "Self-hosted OPA playground"
     description:  |
       Alfred introduces a local graphical user interface to interact with Open Policy Agent and acts as an alternative to OPA's playground, allowing the user to keep information related to policy testing locally.
     labels:
@@ -1423,14 +1849,26 @@ integrations:
       category: application
     software:
       - alfred
+    inventors:
+      - dolevf
     code:
       - https://github.com/dolevf/Open-Policy-Agent-Alfred
+    docs_features:
+      learning-rego:
+        note: |
+          Similar to the public [OPA Playground](https://play.openpolicyagent.org/),
+          Alfred can be used to learn Rego interactively in an environment that
+          can't use the public playground. Read about
+          [installation](https://github.com/dolevf/Open-Policy-Agent-Alfred#how-to-install).
 
   open-policy-registry:
     title: Open Policy Registry
+    subtitle: A Docker-inspired workflow for OPA policies
     description:  |
-      The Open Policy Registry project provides a docker workflow for OPA policies. The policy CLI can be used to build, tag, sign, push, and pull OPA policies as OCIv2 container images,
-      in conjunction with any container registry. The Open Policy Registry (OPCR) is a reference implementation of a policy registry, built and hosted on GCP.
+      The Open Policy Registry project provides a docker-style workflow for OPA policies.
+      The policy CLI can be used to build, tag, sign, push, and pull OPA policies as OCIv2 container images,
+      in conjunction with any container registry.
+      The Open Policy Registry (OPCR) is a reference implementation of a policy registry, built and hosted on GCP.
     labels:
       category: containers
       layer: application
@@ -1444,6 +1882,28 @@ integrations:
       - https://www.openpolicyregistry.io/docs/tutorial
     blogs:
       - https://www.openpolicyregistry.io/blog/docker-workflow-for-opa
+    docs_features:
+      go-integration:
+        note: |
+          Makes use of the
+          [OPA Repl package](https://pkg.go.dev/github.com/open-policy-agent/opa/repl)
+          to interact with an OPA instance.
+      opa-bundles:
+        note: |
+          OPCR policy images can be loaded in over the Bundle API. The feature
+          it documented in the
+          [OPCR docs](https://openpolicycontainers.com/docs/opa).
+      opa-bundles-discovery:
+        note: |
+          OPCR images can be loaded in over the Bundle API and contain
+          discovery bundles. The feature it documented in the
+          [OPCR docs](https://openpolicycontainers.com/docs/opa).
+      external-data:
+        note: |
+          OPCR policy images can contain data as well as policy. If you need to
+          distribute data to OPA from an OCI registry, OPCR can build and push
+          such images. See the docs for
+          [building images here](https://openpolicycontainers.com/docs/cli/build).
 
   aserto:
     title: Aserto
@@ -1492,6 +1952,11 @@ integrations:
       - https://github.com/aserto-dev/topaz#quickstart
     blogs:
       - https://www.aserto.com/blog/topaz-oss-cloud-native-authorization-combines-opa-zanzibar
+    docs_features:
+      go-integration:
+        note: |
+          Topaz's Authorizer component makes use of the Rego API to evaluate
+          policies to make authorization decisions for connected applications.
 
   emissary-ingress:
     title: Emissary-Ingress
@@ -1563,9 +2028,17 @@ integrations:
     blogs:
       - https://blog.mia-platform.eu/en/announcing-rond-new-open-source-security-enforcement-over-your-apis
       - https://blog.mia-platform.eu/en/how-why-adopted-role-based-access-control-rbac
+    docs_features:
+      go-integration:
+        note: |
+          The Rönd sidecar uses the OPA Rego API to make API-access
+          authorization decisions. See the
+          [OPA evaluator](https://github.com/rond-authz/rond/blob/4c27fa6a127f68b8670a39c792b0e40dac52dafa/core/opaevaluator.go#L173)
+          code.
 
   waltid:
-    title: walt.id
+    title: walt.id SSI Kit
+    subtitle: Self-Sovereign Identity toolkit with OPA policy support
     description:  |
       Verifying W3C Verifiable Credentials for building SSI (Self-Sovereign Identity) use cases.
     labels:
@@ -1589,6 +2062,12 @@ integrations:
           - name: Severin Stampler
             organization: waltid
         link: https://youtu.be/mue4UjzOZ3Q
+    docs_features:
+      rest-api-integration:
+        note: |
+          SSI Kit's CLI exposes policy management commands which update a local
+          OPA instance. The feature is
+          [documented in the walt.id docs](https://docs.walt.id/v/ssikit/concepts/open-policy-agent).
 
   graphql:
     title: GraphQL
@@ -1607,7 +2086,10 @@ integrations:
   wirelesssecuritylab:
     title: ccbr
     description:  |
-      CCBR is a policy management system project. It uses the policy language Rego to implement the CIS benchmark test of cloud native kubernetes. In addition, it integrates gatekeeper, manages its constraint templates, constraints and policies, and supports policy deployment and audit inspection.
+      CCBR is a policy management system project. It uses the policy language
+      Rego to implement the CIS benchmark test of cloud native kubernetes.
+      In addition, it integrates gatekeeper, manages its constraint templates,
+      constraints and policies, and supports policy deployment and audit inspection.
     labels:
       category: network
       layer: application
@@ -1617,30 +2099,52 @@ integrations:
       - https://github.com/wirelesssecuritylab/ccbr
     inventors:
       - wirelesssecuritylab
+    docs_features:
+      kubernetes:
+        note: |
+          Implements the CIS benchmark using Rego for Kubernetes workloads.
 
   spacelift:
-     title: Spacelift
-     description: Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.
-     labels:
-       category: Infrastructure as Code
-       layer: cicd
-     software:
-       - terraform
-       - pulumi
-       - cloudformation
-       - kubernetes
-       - ansible
-       - aws
-       - gcp
-       - azure
-     tutorials:
-       - https://docs.spacelift.io/concepts/policy
-     code:
-       - https://github.com/spacelift-io/spacelift-policies-example-library
-     inventors:
-       - spacelift
-     blogs:
-       - https://spacelift.io/blog/what-is-open-policy-agent-and-how-it-works
+    title: Spacelift
+    description: Spacelift is a sophisticated CI/CD platform for Infrastructure as Code including Terraform, Pulumi, CloudFormation, Kubernetes, and Ansible. Spacelift utilizes Open Policy Agent to support a variety of policy types within the platform and Policy as Code for secure and compliance Infrastructure as Code.
+    labels:
+      category: Infrastructure as Code
+      layer: cicd
+    software:
+      - terraform
+      - pulumi
+      - cloudformation
+      - kubernetes
+      - ansible
+      - aws
+      - gcp
+      - azure
+    tutorials:
+      - https://docs.spacelift.io/concepts/policy
+    code:
+      - https://github.com/spacelift-io/spacelift-policies-example-library
+    inventors:
+      - spacelift
+    blogs:
+      - https://spacelift.io/blog/what-is-open-policy-agent-and-how-it-works
+    docs_features:
+      rego-language-embedding:
+        note: |
+          Spacelift supports Rego as a language to describe policies for IaC
+          resources. View the docs on
+          [creating Rego policies](https://docs.spacelift.io/concepts/policy/).
+      terraform:
+        note: |
+          Spacelift supports Rego as a language to describe policies for Terraform
+          JSON plans.
+          [This blog](https://spacelift.io/blog/what-is-open-policy-agent-and-how-it-works)
+          outlines how the integration works.
+      kubernetes:
+        note: |
+          Spacelift supports Rego as a language to describe policies for various
+          resource types, including Kubernetes. View the
+          [policy documentation](https://docs.spacelift.io/concepts/policy/) for
+          more information.
 
   easegress:
     title: Easegress
@@ -1656,7 +2160,7 @@ integrations:
       - megaease
 
   enterprise-opa:
-    title: Enterprise OPA
+    title: Styra Enterprise OPA
     description: An enterprise-grade drop-in replacement for the Open Policy Agent with improved performance and out of the box enterprise integrations
     software:
       - enterprise-opa
@@ -1687,6 +2191,51 @@ integrations:
             organization: styra
         venue: online
         link: https://www.youtube.com/watch?v=Is1iBPr1YVs
+    docs_features:
+      opa-bundles:
+        note: |
+          Its possible to configure bundles for both
+          [policy](https://docs.styra.com/enterprise-opa/reference/configuration/policy/bundle-api)
+          and
+          [data](https://docs.styra.com/enterprise-opa/reference/configuration/data/bundle-api)
+          in Enterprise OPA.
+      external-data:
+        note: |
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          supports various external data sources, including:
+          [Kafka](https://docs.styra.com/enterprise-opa/reference/configuration/data/kafka),
+          [Okta](https://docs.styra.com/enterprise-opa/reference/configuration/data/okta),
+          [LDAP](https://docs.styra.com/enterprise-opa/reference/configuration/data/ldap),
+          [HTTP](https://docs.styra.com/enterprise-opa/reference/configuration/data/http),
+          [Git](https://docs.styra.com/enterprise-opa/reference/configuration/data/git)
+          and
+          [S3](https://docs.styra.com/enterprise-opa/reference/configuration/data/s3).
+          Runtime support for
+          [SQL](https://docs.styra.com/enterprise-opa/tutorials/abac-with-sql)
+          is also available.
+      external-data-runtime:
+        note: |
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          can load data from SQL sources at runtime. The feature
+          [is documented](https://docs.styra.com/enterprise-opa/tutorials/abac-with-sql)
+          here with an ABAC example.
+      external-data-realtime-push:
+        note: |
+          It's possible to steam data updates to
+          [Enterprise OPA](https://docs.styra.com/enterprise-opa/)
+          using Kafka. The Kafka integration is
+          [documented](https://docs.styra.com/enterprise-opa/tutorials/kafka)
+          here.
+      policy-testing:
+        note: |
+          [Enterprise OPA's](https://docs.styra.com/enterprise-opa/)
+          [Live Impact Analysis (LIA) feature](https://docs.styra.com/enterprise-opa/tutorials/lia)
+          allows you to test changes to Rego policy on running instances.
+      decision-logging:
+        note: |
+          It's possible to send decision logs to a enterprise tools like Splunk,
+          and Kafka. This enhanced decision logging functionality is
+          [documented here](https://docs.styra.com/enterprise-opa/tutorials/decision-logs/).
 
   reposaur:
     title: Reposaur
@@ -1702,7 +2251,7 @@ integrations:
       - https://github.com/reposaur/reposaur
     inventors:
       - reposaur
-      
+
   carbonetes:
     title: Carbonetes - BrainIAC
     description: BrainIAC uses static code analysis to analyze IAC code to detect security issues before deployment. This tool can scan for issues like security policy misconfigurations, insecure cloud-based services, and compliance issues. The BrainIAC tool performs a comprehensive code scan and generates reports containing detailed insights into the identified issues..
@@ -1717,6 +2266,145 @@ integrations:
       - https://github.com/carbonetes/brainiac
     inventors:
       - carbonetes
+
+  atmos:
+    title: Atmos
+    description: Workflow automation tool for DevOps. Keep configuration DRY with hierarchical imports of configurations, inheritance, and WAY more.
+    software:
+      - aws
+      - gcp
+      - terraform
+      - helm
+    inventors:
+      - cloudposse
+    labels:
+      category: Infrastructure as Code
+      type: poweredbyopa
+    tutorials:
+      - https://atmos.tools/core-concepts/components/validation/#open-policy-agent-opa
+    code:
+      - https://github.com/cloudposse/atmos
+    docs_features:
+      terraform:
+        note: |
+          Atmos can validate Terraform stack before applying them. This is done
+          using the `validate component` command
+          [documented here](https://atmos.tools/cli/commands/validate/component).
+
+  opa-wasm-js:
+    title: OPA Wasm Javascript Module
+    description: |
+      A small SDK for using WebAssembly (Wasm) compiled Rego policies
+    software:
+      - javascript
+    inventors:
+      - styra
+    labels:
+      category: wasm
+      type: poweredbyopa
+    tutorials:
+      - https://github.com/open-policy-agent/npm-opa-wasm/blob/main/README.md
+    code:
+      - https://github.com/open-policy-agent/npm-opa-wasm/
+      - https://www.npmjs.com/package/@open-policy-agent/opa-wasm?activeTab=readme
+    videos:
+      - title: "Scratching an Itch: Running Policy in Hard to Reach Places with Wasm & OPA"
+        speakers:
+          - name: Charlie Egan
+            organization: styra
+        link: https://www.youtube.com/watch?v=BdeBhukLwt4
+    docs_features:
+      wasm-integration:
+        note: |
+          This project implements the OPA Wasm module interface in JavaScript.
+
+  opa-wasm-dotnet:
+    title: OPA Wasm .NET package
+    description: |
+      Call Rego policies in Wasm from C# .NET Core
+    software:
+      - csharp
+    inventors:
+      - christophwille
+    labels:
+      category: wasm
+      type: poweredbyopa
+    tutorials:
+      - https://github.com/christophwille/dotnet-opa-wasm
+    code:
+      - https://github.com/christophwille/dotnet-opa-wasm
+      - https://www.nuget.org/packages/Opa.Wasm/
+    docs_features:
+      wasm-integration:
+        note: |
+          This project implements the OPA Wasm module interface in C#.
+
+  opa-wasm-java:
+    title: OPA Wasm Java Gradle SDK
+    description: |
+      SDK to illustrate how to use Wasm compiled Rego policies from a Java application
+    software:
+      - java
+    inventors:
+      - sangkeon
+    labels:
+      category: wasm
+      type: poweredbyopa
+    tutorials:
+      - https://github.com/sangkeon/java-opa-wasm#usage
+    code:
+      - https://github.com/sangkeon/java-opa-wasm
+    docs_features:
+      wasm-integration:
+        note: |
+          This project implements the OPA Wasm module interface in Java.
+
+  opa-wasm-rust:
+    title: OPA Wasm Rust Crate
+    description: |
+      A crate to use OPA policies compiled to WASM.
+    software:
+      - rust
+    inventors:
+      - matrix
+    labels:
+      category: wasm
+      type: poweredbyopa
+    tutorials:
+      - https://github.com/matrix-org/rust-opa-wasm#try-it-out
+      - https://docs.rs/opa/latest/opa/wasm/index.html
+    code:
+      - https://github.com/matrix-org/rust-opa-wasm
+    docs_features:
+      wasm-integration:
+        note: |
+          This project implements the OPA Wasm module interface in Rust.
+
+  styra-academy:
+    title: Styra Academy
+    subtitle: OPA Learning Portal
+    description: |
+      Styra Academy is a free, self-paced learning portal for OPA and Styra Products.
+      It includes a series of courses on a range of topics from beginner to advanced.
+    software: []
+    inventors:
+      - styra
+    labels:
+      category: learning
+      type: poweredbyopa
+    tutorials:
+      - https://academy.styra.com
+      - https://academy.styra.com/courses/opa-by-example
+      - https://academy.styra.com/courses/opa-rego
+      - https://academy.styra.com/courses/opa-k8s-admission-control
+      - https://academy.styra.com/courses/opa-performance
+    code:
+      - https://github.com/StyraInc/academy-samples
+    docs_features:
+      learning-rego:
+        note: |
+          ['OPA Policy Authoring'](https://academy.styra.com/courses/opa-rego)
+          is a free course that teaches the fundamentals of writing Rego policies.
 
 organizations:
   quali:
@@ -1826,7 +2514,7 @@ organizations:
     link: https://sigstore.dev/
   build.security:
     name: build.security
-    link: https://build.security
+    link: https://www.elastic.co/blog/elastic-and-build-security-shifting-left-together-to-secure-the-cloud
   fugue:
     name: Fugue
     link: https://www.fugue.co
@@ -1902,6 +2590,24 @@ organizations:
   carbonetes:
     name: Carbonetes
     link: https://www.carbonetes.com/
+  cloudposse:
+    name: Cloud Posse
+    link: https://cloudposse.com
+  dolevf:
+    name: Dolev Farhi
+    link: https://github.com/dolevf
+  christophwille:
+    name: Christoph Wille
+    link: https://github.com/christophwille
+  a2d24:
+    name: a2d24
+    link: https://github.com/a2d24
+  sangkeon:
+    name: Sangkeon Nam
+    link: https://github.com/sangkeon
+  matrix:
+    name: matrix.org
+    link: https://matrix.org
 
 software:
   oauth:
@@ -2171,3 +2877,12 @@ software:
   brainiac:
     name: BrainIAC
     link: https://github.com/carbonetes/brainiac
+  csharp:
+    name: "C#"
+    link: https://docs.microsoft.com/en-us/dotnet/csharp/
+  javascript:
+    name: JavaScript
+    link: https://developer.mozilla.org/en-US/docs/Web/JavaScript
+  rust:
+    name: Rust
+    link: https://www.rust-lang.org/

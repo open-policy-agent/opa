@@ -13,6 +13,19 @@ Terraform is about to make before it makes them. Such tests help in different wa
 * tests can help catch problems that arise when applying Terraform to production after applying it to staging
 
 
+Terraform is a popular integration case for OPA and there are already a number of popular tools for 
+running policy on HCL and plan JSONs.
+{{<
+  ecosystem_feature_link
+  key="terraform"
+  singular_intro="There is currently 1 project"
+  singular_link="listed in the OPA Ecosystem"
+  singular_outro="which integrates OPA and Terraform."
+  plural_intro="You may wish to review the "
+  plural_link="COUNT projects"
+  plural_outro="listed in the OPA Ecosystem which support Terraform use cases."
+>}}
+
 ## Goals
 
 In this tutorial, you'll learn how to use OPA to implement unit tests for Terraform plans that create
@@ -885,3 +898,10 @@ Additional use cases might include:
 * Ensuring all resources have tags before they are created
 * Making sure naming standards for resources are followed
 * Security or operational requirements
+
+# Ecosystem Projects
+
+As further reading, you might be interested to review the Terraform integrations
+from the OPA Ecosystem.
+
+{{< ecosystem_feature_embed key="terraform" topic="Terraform Validation" >}}

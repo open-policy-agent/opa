@@ -17,8 +17,16 @@ package spec
 
 import ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-// AnnotationReferrersFiltersApplied is the annotation key for the comma separated list of filters applied by the registry in the referrers listing.
-const AnnotationReferrersFiltersApplied = "org.opencontainers.referrers.filtersApplied"
+const (
+	// AnnotationArtifactCreated is the annotation key for the date and time on which the artifact was built, conforming to RFC 3339.
+	AnnotationArtifactCreated = "org.opencontainers.artifact.created"
+
+	// AnnotationArtifactDescription is the annotation key for the human readable description for the artifact.
+	AnnotationArtifactDescription = "org.opencontainers.artifact.description"
+
+	// AnnotationReferrersFiltersApplied is the annotation key for the comma separated list of filters applied by the registry in the referrers listing.
+	AnnotationReferrersFiltersApplied = "org.opencontainers.referrers.filtersApplied"
+)
 
 // MediaTypeArtifactManifest specifies the media type for a content descriptor.
 const MediaTypeArtifactManifest = "application/vnd.oci.artifact.manifest.v1+json"

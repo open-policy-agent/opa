@@ -290,6 +290,7 @@ containers:
     name: example-policy
   livenessProbe:
     httpGet:
+      path: /health
       scheme: HTTP              # assumes OPA listens on localhost:8181
       port: 8181
     initialDelaySeconds: 5      # tune these periods for your environment

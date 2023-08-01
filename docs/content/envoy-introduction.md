@@ -81,5 +81,8 @@ information on external authorization:
 * [Network](https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/ext_authz_filter#config-network-filters-ext-authz)
   and [HTTP](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter#config-http-filters-ext-authz)
   for details on configuring the External Authorization filter.
-  
+
+## Ecosystem Projects
+
+{{< ecosystem_feature_embed key="envoy" topic="Envoy Integration" >}}
   
