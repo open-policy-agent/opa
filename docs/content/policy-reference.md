@@ -255,6 +255,7 @@ a_map[w] := z if { ... }
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
+# with `import future.keywords.if`
 default a := 1
 a := 5 if { ... }
 else := 10 if { ... }
