@@ -388,7 +388,7 @@ Following successful authentication at the token endpoint the returned token wil
 Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
 
 {{< info >}}
-For using `services[_].credentials.oauth2.aws_kms`, a method for setting the AWS credentials has to be specifed in the `services[_].credentials.oauth2.aws_signing`.
+For using `services[_].credentials.oauth2.aws_kms`, a method for setting the AWS credentials has to be specified in the `services[_].credentials.oauth2.aws_signing`.
 The value of  `services[_].credentials.oauth2.aws_signing.service` should be `kms`. Several methods of obtaining the necessary credentials are available; exactly one must be specified,
 see description for `services[_].credentials.s3_signing`.
 {{< /info >}}
