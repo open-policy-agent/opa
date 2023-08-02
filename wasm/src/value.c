@@ -32,7 +32,7 @@ int opa_value_type(opa_value *node)
     // For all intents and purposes, interned strings are strings,
     // interned booleans are booleans.
     // Only opa_value_free and opa_value_shallow_copy handle them
-    // separately, by refering to node->type directly.
+    // separately, by referring to node->type directly.
     switch (node->type)
     {
     case OPA_STRING_INTERNED:

@@ -1332,7 +1332,7 @@ integrations:
       - ebpf
     labels:
       layer: application
-      catagory: filtering
+      category: filtering
     code:
       - https://github.com/kubeshield/bpf-opa-demo
     blogs:
