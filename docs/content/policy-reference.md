@@ -246,7 +246,7 @@ a := 100 if { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
-# alternatively, with `future.keywords.contains` and `future.keywords.if`
+# alternatively, with `import future.keywords.contains` and `import future.keywords.if`
 a_set contains x if { ... }
 a_set contains y if { ... }
 
@@ -291,7 +291,7 @@ f(x) := "C" if { x >= 70; x < 80 }
 ### Reference Heads
 
 ```live:rules/ref_heads:module:read_only
-# with `future.keywords.contains` and `future.keywords.if`
+# with `import future.keywords.contains` and `import future.keywords.if`
 fruit.apple.seeds = 12 if input == "apple"             # complete document (single value rule)
 
 fruit.pineapple.colors contains x if x := "yellow"     # multi-value rule
