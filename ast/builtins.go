@@ -2212,7 +2212,7 @@ var Weekday = &Builtin{
 
 var AddDate = &Builtin{
 	Name:        "time.add_date",
-	Description: "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
+	Description: "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. Month & day values outside their usual ranges after the operation and will be normalized - for example, October 32 would become November 1. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("ns", types.N).Description("nanoseconds since the epoch"),
