@@ -253,7 +253,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		return nil, err
 	}
 	loader := bundle.NewTarballLoaderWithBaseURL(fileReader, d.localStorePath)
-	reader := bundle.NewCustomReader(loader).WithBaseDir(d.localStorePath).
+	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
 		WithBundleEtag(etag)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/open-policy-agent/opa/bundle"
 	"net/http"
 	"strings"
 	"testing"
@@ -15,6 +16,48 @@ import (
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
+
+// when changed the layer hash & size should be updated in signed.manifest
+//go:generate go run github.com/open-policy-agent/opa build -b --signing-alg HS256 --signing-key secret testdata/signed_bundle_data --output testdata/signed.tar.gz
+
+func TestOCIDownloaderWithBundleVerificationConfig(t *testing.T) {
+	vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"default": {Key: "secret", Algorithm: "HS256"}}, "", "", nil)
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:signed", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) {
+		if u.Error != nil {
+			t.Fatalf("expected no error but got: %v", u.Error)
+		}
+		updates <- &u
+	}).WithBundleVerificationConfig(vc)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
+	d.Stop(ctx)
+
+}
 
 func TestOCIStartStop(t *testing.T) {
 	ctx := context.Background()
