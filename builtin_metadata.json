@@ -15581,7 +15581,7 @@
       "v0.55.0",
       "edge"
     ],
-    "description": "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
+    "description": "Returns the nanoseconds since epoch after adding years, months and days to nanoseconds. Month \u0026 day values outside their usual ranges after the operation and will be normalized - for example, October 32 would become November 1. `undefined` if the result would be outside the valid time range that can fit within an `int64`.",
     "introduced": "v0.19.0",
     "result": {
       "description": "nanoseconds since the epoch representing the input time, with years, months and days added",
