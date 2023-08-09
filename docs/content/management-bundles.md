@@ -331,6 +331,85 @@ When OPA loads scoped bundles, it validates that:
 If bundle validation fails, OPA will report the validation error via
 the Status API.
 
+
+### Bundle Service API - Worker Task Pattern 
+
+OPA invokes Bundle Service API to pull policy bundles.  
+
+Bundle download is implemented in GO as plugins in OPA.  Periodic download of Bundle (`short polling`) is implemented in a loop, which listens to Timer elapse(configurable). If Timer elapses, bundle download happens in background.  Depending on client needs, it could result an increase in `polling` frequency. Lesser the needs of the acceptable latency from client, more the `polling` frequency, more the resources consumed on the server/network side. `Long Polling` addresses this latency and resource issues, but not necessarily at `scale`. 
+
+`Long Polling` makes HTTP request to a server and keep the TCP/IP connection open till server responds. The server would respond with an update or timeout, as applicable.
+
+
+[HTTP Long Polling Issues](https://datatracker.ietf.org/doc/html/rfc6202#section-2.2) are summarized below:
+
+i.	During the connection setup, request would go through intermediaries, which will aid in scalability, in the form of gateways, proxy to enable load-balancing, caching, monitoring, SSL handling etc., Hence scalability would be an issue for maintaining open connection across intermediaries.
+ii.	Though [Proxies](https://datatracker.ietf.org/doc/html/rfc6202#section-5.3) support `long polling`, not all proxies can buffer response on behalf of server for client and it incurs overhead in resources (CPU, memory, Network Bandwidth) across all intermediaries for maintaining open connections. These factors would lead to performance impact.
+iii.	Scalability and Performance will be an issue if there is a need to maintain sticky sessions for `long polling` client.
+iv.	Surge in the client-side and server-side load would have detrimental effect on both parties performance.
+v.	For every new connection, headers and cookies must be sent on each request.
+vi.	[Timeouts](https://datatracker.ietf.org/doc/html/rfc6202#section-5.5) need to be substantially and relatively high for long polling
+vii.	[Caching](https://datatracker.ietf.org/doc/html/rfc6202#section-5.6) implemented at the intermediaries like proxy/gateway would not go well with Long Polling. Typically, cache-control is set to ‘no-cache’, max-age=0
+
+While `Worker Task Pattern` may not address all above issues, it does alleviate above issues and it helps in scalability, performance gain by not needing long timeouts, caching etc., Assumption for this pattern is Bundle Service API should support `POST` and implements `Worker Task Pattern` in asynchronous way.
+
+
+### Worker Task Pattern Implementation
+
+[Worker Task Pattern](https://jsonapi.org/recommendations/#asynchronous-processing), which is called as `Queue-Job`, can be used to address scalability, availability, and maintainability.  Hence, `Worker Task` and `Queue-Job` are synonymous.
+
+Narrated below are the few aspects to consider while implementing this pattern.
+
+1.Worker Resource URI: 
+
+`Worker Resource URI` can be sent to OPA client invoking Bundle Service API in two ways.
+
+i. The `Content-Location` header could be populated with the `Worker Resource URI` on initial POST request.  Initial `POST` request could validate the request coming from OPA Client  and return this header with `202`.                     
+
+ii. It could be returned in the link object, the value of which would point to `Worker Resource URI`
+          
+  Combination of the above two approaches also could be implemented.           
+The status of the `worker resource` should be returned with appropriate status codes and friendly messages   like “Policy Bundle for this document path is in progress etc.,”
+
+2.	Retry-After Header: 
+
+Since the initial request returns a `Worker Resource URI`, it would be an icing on the cake from OPA Client perspective to get  `Retry-After` header in the response to the `GET` on the worker resource. This header would provide OPA Client when to poll or even not to poll at all. It would save network I/O(s).
+
+If the worker task is done, it would return a status `303` with link in `Location` header
+
+3.	Caching of Worker Resource: 
+
+It make sense to cache worker resources on several service instances where OPA is deployed. 
+
+Depending on the use case requirement, `worker resource` can be used to scope to the entire scope of OPA Policy and Data or Subset of OPA Policy and Data, if policy and data is coming from multiple sources. For the latter, each `worker resource` could point to its subset of policy and data, pertaining to document path defined in `roots` element in manifest. 
+
+The `Etag` Header must be set to a hashed representation of the cacheable resource state in
+the   response, along with `Cache-Control` header, which describes cacheability of resource.
+If the `worker resource` is done/finished, OPA policy and data can be cached in service
+instance until deletion.  In other cases, `Cache-Control` Header can ideally be set to
+max-age <=  `Retry-After` header value.
+
+ Trade-Off for `Worker Task Pattern` is that OPA client may not be able to get real-time policy updates as with  `Long Polling`. Client using this pattern may have to content with near real-time updates  but benefits outweigh trade-offs in terms of scalability, performance etc.,
+
+{{< info >}}
+If the Bundle Server supports `Worker Task Pattern`, remove `polling` in the bundle download configuration 
+from [HTTP Long Polling](#http-long-polling) section
+TO BE DELETED : BUNDLE DOWNLOAD CONFIGURATION CHANGE FOR THE ABOVE HAS TO BE IMPLEMENTED IN GO FOR OPA
+{{< /info >}}
+ 
+
+ [Bundle Service API](#bundle-service-api) URL is in the form of HTTP `GET` but `GET` request does not necessarily warrant an async approach.Hence, `GET` can be modeled/overloaded as `POST` 
+ 
+ {{< info >}}
+ The `GET` Operation from OPA client to remote HTTP server can be overloaded as `POST` method by either 
+ i) Intermediaries like API Gateway/Proxy  or 
+ ii) Through Configuration change in the HTTP server 
+{{< /info >}}
+
+{{< info >}}
+ Instead of overloading `GET` as `POST` method, OPA Client can invoke Bundle Service API as POST, in which case no intermediaries are needed to overload, but method signature of [Bundle Service API](#bundle-service-api) is changed from `GET` to `POST` 
+ {{< /info >}}
+
 ### Debugging Your Bundles
 
 When you run OPA, you can provide bundle files over the command line. This
