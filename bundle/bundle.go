@@ -543,11 +543,7 @@ func (r *Reader) Read() (Bundle, error) {
 
 		// verify the file content
 		if bundle.Type() == SnapshotBundleType && !bundle.Signatures.isEmpty() {
-			path := f.Path()
-			if r.baseDir != "" {
-				path = f.URL()
-			}
-			path = strings.TrimPrefix(path, "/")
+			path := strings.TrimPrefix(f.Path(), "/")
 
 			// check if the file is to be excluded from bundle verification
 			if r.isFileExcluded(path) {
