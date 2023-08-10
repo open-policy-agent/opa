@@ -2540,6 +2540,14 @@ else := 2
 			err: "else keyword cannot be used on rules with variables in head",
 		},
 		{
+			note: "single-value general ref head with var",
+			rule: `
+a.b[x].c := 1 if false
+else := 2
+`,
+			err: "else keyword cannot be used on rules with variables in head",
+		},
+		{
 			note: "single-value ref head with length 1 (last is var)",
 			rule: `
 a := 1 if false
