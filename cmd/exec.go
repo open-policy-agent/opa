@@ -70,7 +70,7 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	cmd.Flags().StringVarP(&params.Decision, "decision", "", "", "set decision to evaluate")
 	cmd.Flags().BoolVarP(&params.FailDefined, "fail-defined", "", false, "")
 	cmd.Flags().BoolVarP(&params.Fail, "fail", "", false, "")
-	cmd.Flags().BoolVarP(&params.Fail, "fail-non-empty", "", false, "exits with non-zero exit code on non-empty set (array) results")
+	cmd.Flags().BoolVarP(&params.Fail, "fail-non-empty", "", false, "")
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")

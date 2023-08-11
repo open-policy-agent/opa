@@ -112,21 +112,31 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		if err := r.Report(result{Path: item.Path, Result: &rs.Result}); err != nil {
 			return err
 		}
-		var fruits [4]string
-		if (params.FailDefined && rs.Result != nil) || (params.Fail && rs.Result == nil) || (params.FailNonEmpty && len(fruits) > 0) {
+
+		if (params.FailDefined && rs.Result != nil) || (params.Fail && rs.Result == nil) {
 			failCount++
 		}
-	}
 
+		if params.FailNonEmpty && rs.Result != nil {
+			// Check if rs.Result is an array and has one or more members
+			resultArray, isArray := rs.Result.([]interface{})
+			if (!isArray) || (isArray && (len(resultArray) > 0)) {
+				failCount++
+			}
+		}
+	}
 	if err := r.Close(); err != nil {
 		return err
 	}
 
-	if (params.Fail || params.FailDefined) && (failCount > 0 || errorCount > 0) {
+	if (params.Fail || params.FailDefined || params.FailNonEmpty) && (failCount > 0 || errorCount > 0) {
 		if params.Fail {
 			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail is set", failCount, errorCount)
 		}
-		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
+		if params.FailDefined {
+			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
+		}
+		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-non-empty is set", failCount, errorCount)
 	}
 
 	return nil
