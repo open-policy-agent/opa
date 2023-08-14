@@ -177,27 +177,26 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 	env = env.wrap()
 
-	if schemaAnnots := getRuleAnnotation(as, rule); schemaAnnots != nil {
-		for _, schemaAnnot := range schemaAnnots {
-			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.allowNet)
+	schemaAnnots := getRuleAnnotation(as, rule)
+	for _, schemaAnnot := range schemaAnnots {
+		ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.allowNet)
+		if err != nil {
+			tc.err([]*Error{err})
+			continue
+		}
+		if ref == nil && refType == nil {
+			continue
+		}
+		prefixRef, t := getPrefix(env, ref)
+		if t == nil || len(prefixRef) == len(ref) {
+			env.tree.Put(ref, refType)
+		} else {
+			newType, err := override(ref[len(prefixRef):], t, refType, rule)
 			if err != nil {
 				tc.err([]*Error{err})
 				continue
 			}
-			if ref == nil && refType == nil {
-				continue
-			}
-			prefixRef, t := getPrefix(env, ref)
-			if t == nil || len(prefixRef) == len(ref) {
-				env.tree.Put(ref, refType)
-			} else {
-				newType, err := override(ref[len(prefixRef):], t, refType, rule)
-				if err != nil {
-					tc.err([]*Error{err})
-					continue
-				}
-				env.tree.Put(prefixRef, newType)
-			}
+			env.tree.Put(prefixRef, newType)
 		}
 	}
 
