@@ -1,5 +1,5 @@
 cases:
-  - note: 'refheads/general, single'
+  - note: 'refheads/general, single var'
     env:
       OPA_ENABLE_GENERAL_RULE_REFS: "true"
     modules:
@@ -16,7 +16,7 @@ cases:
             r: 1
           c:
             r: 2
-  - note: 'refheads/general, multiple'
+  - note: 'refheads/general, multiple vars'
     env:
       OPA_ENABLE_GENERAL_RULE_REFS: "true"
     modules:
@@ -84,7 +84,7 @@ cases:
         
         p[q].r contains s { 
           x := ["a", "b", "c"]
-          q := x[i] 
+          q := x[_] 
           s := x[_]
           q != s
         }
@@ -109,7 +109,7 @@ cases:
         
         p[q].r contains s { 
           x := ["a", "b", "c"]
-          q := x[i] 
+          q := x[_] 
           s := x[_]
           q != s
         }

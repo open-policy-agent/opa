@@ -23,6 +23,8 @@ type evalIterator func(*eval) error
 
 type unifyIterator func() error
 
+type unifyRefIterator func(pos int) error
+
 type queryIDFactory struct {
 	curr uint64
 }
@@ -185,7 +187,7 @@ func (e *eval) unknown(x interface{}, b *bindings) bool {
 		x = ast.NewTerm(v)
 	}
 
-	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false)
+	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false) // TODO: update for general refs?
 }
 
 func (e *eval) traceEnter(x ast.Node) {
@@ -2369,7 +2371,9 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 
 func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error {
 
+	// FIXME: Check if any part of ref[e.pos+1:] is unknown?
 	if e.e.unknown(e.ref[e.pos+1], e.bindings) {
+		// Queried rule key is unknown
 		for _, rule := range e.ir.Rules {
 			if err := e.evalOneRulePostUnify(iter, rule); err != nil {
 				return err
@@ -2395,26 +2399,30 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	result := e.empty
+
 	if e.ir.DynamicRef {
 		for _, rule := range e.ir.Rules {
-			result, err = e.evalOneDynamicRefRulePreUnify(rule, result, unknown)
+			result, err = e.evalOneDynamicRefRulePreUnify(iter, rule, hint, result, unknown)
 			if err != nil {
 				return err
 			}
 		}
 		if hint.key != nil {
 			pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
-			if pluggedKey.IsGround() {
+			if pluggedKey.IsGround() { // FIXME: This should be unnecessary
 				hintResult := result.Get(pluggedKey)
 				if hintResult != nil {
 					e.e.virtualCache.Put(hint.key, hintResult)
 				}
 			}
 		}
-		return e.evalTerm(iter, e.pos+1, result, e.bindings)
+		if !unknown {
+			return e.evalTerm(iter, e.pos+1, result, e.bindings)
+		}
+		return nil
 	}
 
-	// FIXME: It should be possible to skip this loop, and always apply the dymanic ref case above.
+	// FIXME: It should be possible to skip this loop, and always apply the dynamic ref case above.
 	// FIXME: Tracing breaks: TestFilterTraceDefault
 	// FIXME: PE fails: TestTopDownPartialEval
 	for _, rule := range e.ir.Rules {
@@ -2541,29 +2549,82 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	return nil
 }
 
-func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(rule *ast.Rule, result *ast.Term, unknown bool) (*ast.Term, error) {
+func wrapInObjects(val *ast.Term, ref ast.Ref) *ast.Term {
+	if len(ref) == 0 {
+		return val
+	}
+	obj := ast.NewObject()
+	current := obj
+	for i := 0; i < len(ref); i++ {
+		key := ref[i]
+		if i == len(ref)-1 {
+			current.Insert(key, val)
+		} else {
+			next := ast.NewObject()
+			current.Insert(key, ast.NewTerm(next))
+			current = next
+		}
+	}
+	return ast.NewTerm(obj)
+}
+
+func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, rule *ast.Rule, hint evalVirtualPartialCacheHint, result *ast.Term, unknown bool) (*ast.Term, error) {
 
 	child := e.e.child(rule.Body)
 
 	child.traceEnter(rule)
 	var defined bool
 
-	// Walk the dynamic portion of rule ref to unify vars
-	err := child.biunifyDynamicRef(e.pos+1, rule.Ref(), e.ref, child.bindings, e.bindings, func() error {
+	headKey := rule.Head.Key
+	if headKey == nil {
+		headKey = rule.Head.Reference[len(rule.Head.Reference)-1]
+	}
+
+	// Walk the dynamic portion of rule ref and key to unify vars
+	err := child.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(pos int) error {
 		defined = true
 		return child.eval(func(child *eval) error {
+
 			child.traceExit(rule)
-			var dup bool
-			var err error
-			result, dup, err = e.reduce(rule, child.bindings, result)
-			if err != nil {
-				return err
-			} else if !unknown && dup {
-				child.traceDuplicate(rule)
-				return nil
+
+			term := rule.Head.Value
+			if term == nil {
+				term = headKey
+			}
+
+			if unknown {
+				fullPath := rule.Ref()
+				// FIXME: Anchor at pos instead of e.pos+1 (?)
+				objPath := fullPath[e.pos+1 : len(fullPath)-1]            // the portion of the ref that generates nested objects
+				leafKey := child.bindings.Plug(fullPath[len(fullPath)-1]) // the portion of the ref that is the deepest nested key for the value
+
+				obj := ast.NewObject()
+				// FIXME: getNestedObject() will plug bindings for each key, is this necessary as evalTerm() will apply them?
+				leafObj, err := getNestedObject(objPath, &obj, child.bindings, rule.Head.Location)
+				if err != nil {
+					return err
+				}
+				(*leafObj).Insert(leafKey, term)
+
+				term, termbindings := child.bindings.apply(ast.NewTerm(obj))
+				err = e.evalTerm(iter, e.pos+1, term, termbindings)
+				if err != nil {
+					return err
+				}
+			} else {
+				var dup bool
+				var err error
+				result, dup, err = e.reduce(rule, child.bindings, result)
+				if err != nil {
+					return err
+				} else if !unknown && dup {
+					child.traceDuplicate(rule)
+					return nil
+				}
 			}
 
 			child.traceRedo(rule)
+
 			return nil
 		})
 	})
@@ -2580,9 +2641,25 @@ func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(rule *ast.Rule, result
 	return result, nil
 }
 
-func (e *eval) biunifyDynamicRef(pos int, a, b ast.Ref, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyRuleHead(pos int, ref ast.Ref, rule *ast.Rule, refBindings, ruleBindings *bindings, iter unifyRefIterator) error {
+	return e.biunifyDynamicRef(pos, ref, rule.Ref(), refBindings, ruleBindings, func(pos int) error {
+		// FIXME: Is there a simpler, more robust way of figuring out that we should biunify the rule key?
+		if rule.Head.RuleKind() == ast.MultiValue && pos < len(ref) && len(rule.Ref()) <= len(ref) {
+			headKey := rule.Head.Key
+			if headKey == nil {
+				headKey = rule.Head.Reference[len(rule.Head.Reference)-1]
+			}
+			return e.biunify(ref[pos], headKey, refBindings, ruleBindings, func() error {
+				return iter(pos + 1)
+			})
+		}
+		return iter(pos)
+	})
+}
+
+func (e *eval) biunifyDynamicRef(pos int, a, b ast.Ref, b1, b2 *bindings, iter unifyRefIterator) error {
 	if pos >= len(a) || pos >= len(b) {
-		return iter()
+		return iter(pos)
 	}
 
 	return e.biunify(a[pos], b[pos], b1, b2, func() error {
@@ -2591,12 +2668,6 @@ func (e *eval) biunifyDynamicRef(pos int, a, b ast.Ref, b1, b2 *bindings, iter u
 }
 
 func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.Rule) error {
-	headKey := rule.Head.Key
-	if headKey == nil {
-		headKey = rule.Head.Reference[len(rule.Head.Reference)-1]
-	}
-
-	key := e.ref[e.pos+1]
 	child := e.e.child(rule.Body)
 
 	child.traceEnter(rule)
@@ -2604,7 +2675,7 @@ func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.R
 
 	err := child.eval(func(child *eval) error {
 		defined = true
-		return e.e.biunify(headKey, key, child.bindings, e.bindings, func() error {
+		return e.e.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(pos int) error {
 			return e.evalOneRuleContinue(iter, rule, child)
 		})
 	})
@@ -2629,8 +2700,15 @@ func (e evalVirtualPartial) evalOneRuleContinue(iter unifyIterator, rule *ast.Ru
 		term = rule.Head.Key
 	}
 
+	if rule.Head.RuleKind() == ast.MultiValue {
+		term = ast.SetTerm(term)
+	}
+
+	objRef := rule.Ref()[e.pos+1:]
+	term = wrapInObjects(term, objRef)
+
 	term, termbindings := child.bindings.apply(term)
-	err := e.evalTerm(iter, e.pos+2, term, termbindings)
+	err := e.evalTerm(iter, e.pos+1, term, termbindings)
 	if err != nil {
 		return err
 	}
@@ -2712,10 +2790,10 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref)
 					ruleRef[i] = child.bindings.plugNamespaced(ruleRef[i], e.e.caller.bindings)
 				}
 				head.Reference = ruleRef
-				if head.Name.Equal(ast.Var("")) {
+				if (len(ruleRef) == 1 || len(ruleRef) == 2) && head.Name.Equal(ast.Var("")) {
 					head.Name = ruleRef[0].Value.(ast.Var)
 				}
-				if len(ruleRef) > 1 && head.Key == nil {
+				if len(ruleRef) == 2 && head.Key == nil {
 					head.Key = ruleRef[len(ruleRef)-1]
 				}
 			}
@@ -3090,6 +3168,7 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 				s := ref[len(ref)-1].Value.(ast.String)
 				name = ast.Var(s)
 			}
+			// TODO: Do we need to deal with general refs here?
 			head := ast.NewHead(name, nil, child.bindings.PlugNamespaced(rule.Head.Value, e.e.caller.bindings))
 
 			if !e.e.inliningControl.shallow {

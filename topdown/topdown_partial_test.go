@@ -18,6 +18,8 @@ import (
 )
 
 func TestTopDownPartialEval(t *testing.T) {
+	// TODO: break out into separate tests
+	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
 
 	tests := []struct {
 		note                 string
@@ -203,6 +205,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`input.x = "bar"; x = "bar"`,
 			},
 		},
+		// TODO: "single term, general ref: save"(?)
 		{
 			note:  "single term: false save",
 			query: `input = x; x = false; x`, // last expression must be preserved
@@ -220,6 +223,128 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				`x = input.x`,
+			},
+		},
+		//{ // FIXME: Just for experimenting, don't keep
+		//	note:  "reference: partial object, no query match",
+		//	query: "data.test.p[x].foo = 2",
+		//	modules: []string{
+		//		`package test
+		//		p[x] = {y: z} { x = input.x; y = "foo"; z = 1 }
+		//		p[x] = {y: z} { x = input.y; y = "bar"; z = 2 }`,
+		//	},
+		//	wantQueries: []string{
+		//		`x = input.x`,
+		//	},
+		//},
+		{
+			note:  "reference: partial object, general ref",
+			query: "data.test.p[x].q.foo = 1",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (2)",
+			query: "data.test.p[x].q.foo",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (3)",
+			query: "data.test.p[x].q",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a`,
+				`x = input.b`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (4)",
+			query: "data.test.p[x].q[y]",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a; y = "foo"`,
+				`x = input.b; y = "bar"`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (5)",
+			query: "data.test.p[x].q[y] = z",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a; y = "foo"; z = 1`,
+				`x = input.b; y = "bar"; z = 2`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (6)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = z`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				p[a2].q = {"foo": 1} { a2 = input.a }
+				p[a1].q = {"bar": 2} { a1 = input.b }`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (7)",
+			query: "data.test.p[x] = z",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }`,
+			},
+			wantQueries: []string{
+				`x = input.a; z = {"q": {"foo": 1}}`,
+				`x = input.b; z = {"q": {"bar": 2}}`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (8)",
+			query: "data.test.p[x] = z",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }
+				p.foo.r = a { a = "baz" }
+				p.foo.s = a { a = input.c }`,
+			},
+			wantQueries: []string{
+				`x = input.a; z = {"q": {"foo": 1}}`,
+				`x = input.b; z = {"q": {"bar": 2}}`,
+				`x = "foo"; z = {"r": "baz"}`,
+				`z = {"s": input.c}; x = "foo"`,
 			},
 		},
 		{
@@ -241,6 +366,18 @@ func TestTopDownPartialEval(t *testing.T) {
 				`package test
 
 				p = x { input.x = x }`,
+			},
+			wantQueries: []string{
+				`input.x = 1`,
+			},
+		},
+		{
+			note:  "reference: complete, ref head",
+			query: "data.test.p.q = 1",
+			modules: []string{
+				`package test
+
+				p.q = x { input.x = x }`,
 			},
 			wantQueries: []string{
 				`input.x = 1`,
@@ -3329,6 +3466,16 @@ func TestTopDownPartialEval(t *testing.T) {
 			}`},
 			wantQueries: []string{`"bar" = input.a; "baz" = input.b`},
 		},
+		{
+			note:  "general ref heads: \"triple\" unification, single-value rule",
+			query: "data.test.foo[input.a][input.b][input.c]",
+			modules: []string{`package test
+			foo.bar[baz][bax] {
+				baz := "baz"
+				bax := "bax"
+			}`},
+			wantQueries: []string{`"bar" = input.a; "baz" = input.b; "bax" = input.c`},
+		},
 		{ // https://github.com/open-policy-agent/opa/issues/6027
 			note:  "ref heads: \"double\" unification, multi-value rule",
 			query: "data.test.foo[input.a][input.b]",
@@ -3338,6 +3485,17 @@ func TestTopDownPartialEval(t *testing.T) {
 				baz := "baz"
 			}`},
 			wantQueries: []string{`"bar" = input.a; "baz" = input.b`},
+		},
+		{
+			note:  "general ref heads: \"triple\" unification, multi-value rule",
+			query: "data.test.foo[input.a][input.b][input.c]",
+			modules: []string{`package test
+			import future.keywords.contains
+			foo.bar[baz] contains bax {
+				baz := "baz"
+				bax := "bax"
+			}`},
+			wantQueries: []string{`"bar" = input.a; "baz" = input.b; "bax" = input.c`},
 		},
 		{
 			note:    "ref heads: unknown rule value",
