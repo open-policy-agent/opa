@@ -454,11 +454,12 @@ func TestTopDownPartialEval(t *testing.T) {
 					x.b = 2
 				}`,
 			},
+			// FIXME: is this a problem?
 			wantQueries: []string{`
-				input[x_term_1_01]
-				x_term_1_01.b = 2
-				x_term_1_01
-				x_term_1_01.a = 1
+				input[x_ref_01]
+				x_ref_01.b = 2
+				x_ref_01
+				x_ref_01.a = 1
 			`},
 		},
 		{

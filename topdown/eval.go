@@ -2400,35 +2400,25 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 
 	result := e.empty
 
-	if e.ir.DynamicRef {
-		for _, rule := range e.ir.Rules {
-			result, err = e.evalOneDynamicRefRulePreUnify(iter, rule, hint, result, unknown)
-			if err != nil {
-				return err
-			}
-		}
-		if hint.key != nil {
-			pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
-			if pluggedKey.IsGround() { // FIXME: This should be unnecessary
-				hintResult := result.Get(pluggedKey)
-				if hintResult != nil {
-					e.e.virtualCache.Put(hint.key, hintResult)
-				}
-			}
-		}
-		if !unknown {
-			return e.evalTerm(iter, e.pos+1, result, e.bindings)
-		}
-		return nil
-	}
-
-	// FIXME: It should be possible to skip this loop, and always apply the dynamic ref case above.
-	// FIXME: Tracing breaks: TestFilterTraceDefault
-	// FIXME: PE fails: TestTopDownPartialEval
 	for _, rule := range e.ir.Rules {
-		if err := e.evalOneRulePreUnify(iter, rule, hint, result, unknown); err != nil {
+		result, err = e.evalOneDynamicRefRulePreUnify(iter, rule, hint, result, unknown)
+		if err != nil {
 			return err
 		}
+	}
+
+	if hint.key != nil {
+		pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
+		if pluggedKey.IsGround() { // FIXME: This should be unnecessary
+			hintResult := result.Get(pluggedKey)
+			if hintResult != nil {
+				e.e.virtualCache.Put(hint.key, hintResult)
+			}
+		}
+	}
+
+	if !unknown {
+		return e.evalTerm(iter, e.pos+1, result, e.bindings)
 	}
 
 	return nil
@@ -2483,6 +2473,7 @@ func (e evalVirtualPartial) evalAllRulesNoCache(rules []*ast.Rule) (*ast.Term, e
 	return result, nil
 }
 
+// FIXME: unused; remove
 func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, hint evalVirtualPartialCacheHint, result *ast.Term, unknown bool) error {
 
 	key := e.ref[e.pos+1]
@@ -2593,21 +2584,15 @@ func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, ru
 			}
 
 			if unknown {
-				fullPath := rule.Ref()
-				// FIXME: Anchor at pos instead of e.pos+1 (?)
-				objPath := fullPath[e.pos+1 : len(fullPath)-1]            // the portion of the ref that generates nested objects
-				leafKey := child.bindings.Plug(fullPath[len(fullPath)-1]) // the portion of the ref that is the deepest nested key for the value
-
-				obj := ast.NewObject()
-				// FIXME: getNestedObject() will plug bindings for each key, is this necessary as evalTerm() will apply them?
-				leafObj, err := getNestedObject(objPath, &obj, child.bindings, rule.Head.Location)
-				if err != nil {
-					return err
+				if rule.Head.RuleKind() == ast.MultiValue {
+					term = ast.SetTerm(term)
 				}
-				(*leafObj).Insert(leafKey, term)
 
-				term, termbindings := child.bindings.apply(ast.NewTerm(obj))
-				err = e.evalTerm(iter, e.pos+1, term, termbindings)
+				objRef := rule.Ref()[e.pos+1:]
+				term = wrapInObjects(term, objRef)
+
+				term, termbindings := child.bindings.apply(term)
+				err := e.evalTerm(iter, e.pos+1, term, termbindings)
 				if err != nil {
 					return err
 				}
