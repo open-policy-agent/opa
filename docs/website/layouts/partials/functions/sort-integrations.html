@@ -1,7 +1,8 @@
 {{ $integrations := (index . "integrations") }}
 
 {{ $scratch := newScratch }}
-{{ range $name, $integration := $integrations }}
+{{ $scratch.Set "integrations-ranked" (slice) }}
+{{ range $id, $integration := $integrations }}
   {{ $scratch.Set "tutorials" 0 }}
   {{ if isset $integration "tutorials" }}
     {{ $hosts := slice }}
@@ -33,12 +34,12 @@
   {{ end }}
 
   {{ $rank := (add ($scratch.Get "tutorials") (add ($scratch.Get "videos") (add ($scratch.Get "blogs") ($scratch.Get "code")))) }}
-  {{ $scratch.Add "integrations-ranked" (slice (dict "name" $name "rank" $rank)) }}
+  {{ $scratch.Add "integrations-ranked" (slice (dict "id" $id "rank" $rank)) }}
 {{ end }}
 
 {{ $scratch.Set "integrations" (slice) }}
 {{ range $int := sort ($scratch.Get "integrations-ranked") "rank" "desc" }}
-{{ $scratch.Add "integrations" $int.name }}
+{{ $scratch.Add "integrations" $int.id }}
 {{ end }}
 
 {{ return ($scratch.Get "integrations") }}

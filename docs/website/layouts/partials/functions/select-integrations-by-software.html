@@ -1,0 +1,12 @@
+{{ $integrations := (index . "integrations") }}
+{{ $software := (index . "software") }}
+
+{{ $scratch := newScratch }}
+{{ $scratch.Set "integrations" (dict) }}
+{{ range $name, $integration := $integrations }}
+  {{ if in $integration.software $software }}
+    {{ $scratch.SetInMap "integrations" $name $integration  }}
+  {{ end }}
+{{ end }}
+
+{{ return ($scratch.Get "integrations") }}

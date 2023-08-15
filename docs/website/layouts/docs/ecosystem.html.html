@@ -87,8 +87,9 @@
       <section class="section">
         <div class="content">
           <p>Integrations are ordered by the amount of linked content.</p>
+<!-- TODO: this is not using the new data from the integrations pages it will not be populated in old versions of the docs -->
           {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
-          {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
+          {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrations" $.Site.Data.integrations.integrations) }}
         </div>
         {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable)) }}
         {{ partial "feedback.html" site.Params.ui.feedback }}

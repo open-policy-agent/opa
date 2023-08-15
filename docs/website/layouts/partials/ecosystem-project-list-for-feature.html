@@ -1,15 +1,16 @@
 {{ $selectedIntegrations := (index . "selectedIntegrations") }}
-{{ $integrationsData := (index . "integrationsData") }}
+{{ $organizations := (index . "organizations") }}
+{{ $integrations := (index . "integrations") }}
 {{ $feature := (index . "feature") }}
 {{ $base := (index . "base") }}
 
 <div class="ecosystem-list">
-{{ range $name := $selectedIntegrations }}
-{{ $integration := (index $integrationsData.integrations $name) }}
+{{ range $id := $selectedIntegrations }}
+{{ $integration := (index $integrations $id) }}
 <div class="ecosystem-list-item">
   <div class="ecosystem-list-item-header">
     <figure class="image is-64x64">
-      {{ partial "docs/integration-logo.html" (dict "name" $name) }}
+      {{ partial "docs/integration-logo.html" (dict "name" $id) }}
     </figure>
     <div class="ecosystem-list-item-header-title">
       <p class="title is-4">{{ $integration.title }}</p>
@@ -21,8 +22,8 @@
         by&nbsp
         {{- end -}}
         {{- range $i, $id := $integration.inventors -}}
-        {{- $inventor := index $integrationsData.organizations $id -}}
-        <a href="{{ $inventor.link }}">{{ $inventor.name }}</a>
+        {{- $inventor := index $organizations $id -}}
+        <a href="{{ $inventor.link }}">{{ $inventor.title }}</a>
         {{- if eq (add $i 1) (sub (len $integration.inventors) 1) }}
         and
         {{ else if lt (add $i 1) (len $integration.inventors) -}}
@@ -35,11 +36,11 @@
   <div class="ecosystem-list-item-content">
     {{ (index (index $integration.docs_features $feature) "note") | markdownify }}
   </div>
-  <a class="ecosystem-list-item-footer" href="{{ $base }}/ecosystem/#{{ $name }}-detail">
+  <a class="ecosystem-list-item-footer" href="{{ $base }}/integrations/{{ $id }}">
     {{ if lt (len $integration.title) 30 }}
-      View {{ $integration.title }} in Ecosystem
+      View {{ $integration.title }} Details
     {{ else }}
-      View in Ecosystem
+      View Details
     {{ end }}
   </a>
 </div>
