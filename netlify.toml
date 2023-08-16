@@ -9,6 +9,7 @@ path = "/badge-endpoint/*"
 function = "badge"
 
 [build.environment]
+# keep this version in sync with the version in .github/workflows/pull-request.yml
 HUGO_VERSION = "0.113.0"
 
 [context.deploy-preview]

@@ -17,8 +17,6 @@ import data.helpers.extension
 
 filenames := {f.filename | some f in input}
 
-logo_exts := {"png", "svg"}
-
 changes[filename] := attributes if {
 	some change in input
 	filename := change.filename
@@ -44,69 +42,6 @@ get_file_in_pr(filename) := dump_response_on_error(http.send({
 	"enable_redirect": true,
 	"raise_error": false,
 })).raw_body
-
-deny contains "Logo must be placed in docs/website/static/img/logos/integrations" if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	some filename in filenames
-	extension(filename) in logo_exts
-	changes[filename].status == "added"
-	directory(filename) != "docs/website/static/img/logos/integrations"
-}
-
-deny contains "Logo must be a .png or .svg file" if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	some filename in filenames
-	changes[filename].status == "added"
-	directory(filename) == "docs/website/static/img/logos/integrations"
-	not extension(filename) in logo_exts
-}
-
-deny contains "Logo name must match integration" if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	some filename in filenames
-	ext := extension(filename)
-	ext in logo_exts
-	changes[filename].status == "added"
-	logo_name := trim_suffix(basename(filename), concat("", [".", ext]))
-
-	integrations := {integration | some integration, _ in yaml.unmarshal(integrations_file).integrations}
-	not logo_name in integrations
-}
-
-deny contains sprintf("Integration '%v' missing required attribute '%v'", [name, attr]) if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	file := yaml.unmarshal(integrations_file)
-	required := {"title", "description"}
-
-	some name, item in file.integrations
-	some attr in (required - {key | some key, _ in item})
-}
-
-deny contains sprintf("Integration '%v' references unknown software '%v' (i.e. not in 'software' object)", [name, software]) if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	file := yaml.unmarshal(integrations_file)
-	software_list := object.keys(file.software)
-
-	some name, item in file.integrations
-	some software in item.software
-	not software in software_list
-}
-
-deny contains sprintf("Integration '%v' references unknown organization '%v' (i.e. not in 'organizations' object)", [name, organization]) if {
-	"docs/website/data/integrations.yaml" in filenames
-
-	file := yaml.unmarshal(integrations_file)
-	organizations_list := object.keys(file.organizations)
-
-	some name, item in file.integrations
-	some organization in item.inventors
-	not organization in organizations_list
-}
 
 deny contains sprintf("%s is an invalid YAML file: %s", [filename, content]) if {
 	some filename, content in yaml_file_contents
