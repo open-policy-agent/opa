@@ -8,8 +8,6 @@ blogs:
 - https://itnext.io/optimizing-open-policy-agent-based-kubernetes-authorization-via-go-execution-tracer-7b439bb5dc5b
 inventors:
 - styra
-software:
-- kubenetes
 docs_features:
   rest-api-integration:
     note: |

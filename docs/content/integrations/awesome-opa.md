@@ -16,5 +16,6 @@ docs_features:
       and [editor integrations](https://github.com/StyraInc/awesome-opa#ide-and-editor-integrations)
       which can be helpful references for learning Rego.
 layout: integration-single
+allow_missing_image: true
 ---
 A curated list of awesome OPA related tools, frameworks and articles.

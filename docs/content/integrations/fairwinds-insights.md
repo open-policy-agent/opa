@@ -31,5 +31,6 @@ docs_features:
       using Rego policy using
       [Polaris](https://github.com/FairwindsOps/Polaris).
 layout: integration-single
+allow_missing_image: true
 ---
 Automate, monitor and enforce OPA policies with visibility across multiple clusters and multiple teams. It ensures the same policies are applied across all your clusters and gives some flexibility if you want certain policies to apply to only certain workloads. Run the same policies in CI/CD, Admission Control, and In-cluster scanning to apply policy consistently throughout the development and deployment process.

@@ -20,6 +20,7 @@ docs_features:
       controlling access to its own API endpoints. The feature is
       [documented here](https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa).
 layout: integration-single
+allow_missing_image: true
 ---
 Application require authorization decisions made at the API gateway, frontend, backend, and database.
 OPA helps developers decouple authorization logic from application code, define a custom authorization model

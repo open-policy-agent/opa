@@ -7,7 +7,7 @@
 {{ range $page := $pages }}
   {{ if hasPrefix $page.RelPermalink $prefix }}
     {{ $id := printf "%s" (delimit (last 2 (split $page.RelPermalink "/")) "") }}
-    {{ $newPages = merge $newPages (dict $id $page.Params) }}
+    {{ $newPages = merge $newPages (dict $id (merge $page.Params (dict "content" $page.Content))) }}
   {{ end }}
 {{ end }}
 

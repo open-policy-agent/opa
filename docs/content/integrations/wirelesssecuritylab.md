@@ -11,10 +11,9 @@ inventors:
 - wirelesssecuritylab
 docs_features:
   kubernetes:
-    note: 'Implements the CIS benchmark using Rego for Kubernetes workloads.
-
-'
+    note: 'Implements the CIS benchmark using Rego for Kubernetes workloads.'
 layout: integration-single
+allow_missing_image: true
 ---
 CCBR is a policy management system project. It uses the policy language
 Rego to implement the CIS benchmark test of cloud native kubernetes.

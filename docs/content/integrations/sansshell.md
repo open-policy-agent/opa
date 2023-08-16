@@ -13,5 +13,6 @@ blogs:
 inventors:
 - snowflake
 layout: integration-single
+allow_missing_image: true
 ---
 A non-interactive daemon for host management

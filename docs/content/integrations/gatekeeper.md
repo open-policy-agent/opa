@@ -26,5 +26,6 @@ docs_features:
       and also uses Custom Resources and the Kubernetes API server to
       store policy state.
 layout: integration-single
+allow_missing_image: true
 ---
 Manage Rego Kubernetes admission policies using Custom Resources.
