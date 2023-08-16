@@ -334,7 +334,7 @@ jobs:
 
       - name: Build docs site and test integrations data
         run: |
-cd docs && \
-make dev-generate hugo-production-build && \
-cd - && \
-opa eval 'data.integrations.deny[message]' -i docs/website/public/index.json -d build/policy/integrations.rego --format=values --fail-defined
+          cd docs
+          make dev-generate hugo-production-build
+          cd -
+          opa eval 'data.integrations.deny[message]' -i docs/website/public/index.json -d build/policy/integrations.rego --format=values --fail-defined
