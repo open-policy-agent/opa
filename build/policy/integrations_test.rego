@@ -27,9 +27,7 @@ print_if(false, key, expected, output) := false {
 }
 
 test_integration_has_required_fields_missing {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
 
 	key := "fields"
 	message := "integration regal missing required fields: layout, title"
@@ -42,9 +40,7 @@ test_integration_has_required_fields_missing {
 }
 
 test_integration_has_required_fields_present {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {"title": "Regal", "layout": "integration"}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {"title": "Regal", "layout": "integration"}}}
 
 	key := "fields"
 	message := "integration regal missing required fields: layout, title"
@@ -57,9 +53,7 @@ test_integration_has_required_fields_present {
 }
 
 test_integration_has_layout_missing {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
 
 	key := "layout"
 	message := "integration regal does not have layout set to: integration-single"
@@ -72,9 +66,7 @@ test_integration_has_layout_missing {
 }
 
 test_integration_has_layout_missing {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {"layout": "wrong"}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {"layout": "wrong"}}}
 
 	key := "layout"
 	message := "integration regal does not have layout set to: integration-single"
@@ -87,9 +79,7 @@ test_integration_has_layout_missing {
 }
 
 test_integration_has_layout_present {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {"layout": "integration-single"}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {"layout": "integration-single"}}}
 
 	key := "layout"
 
@@ -101,9 +91,7 @@ test_integration_has_layout_present {
 }
 
 test_integration_has_content_missing {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
 
 	key := "content"
 	message := "integration regal has no content"
@@ -116,9 +104,7 @@ test_integration_has_content_missing {
 }
 
 test_integration_has_content_blank {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {"content": "\t\t\n   "}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {"content": "\t\t\n   "}}}
 
 	key := "content"
 	message := "integration regal has no content"
@@ -131,9 +117,7 @@ test_integration_has_content_blank {
 }
 
 test_integration_has_content_present {
-	output := data.integrations.deny with input as {
-		"integrations": {"regal": {"content": "foobar"}},
-	}
+	output := data.integrations.deny with input as {"integrations": {"regal": {"content": "foobar"}}}
 
 	key := "content"
 	got := messages_for_key(key, output)
@@ -279,9 +263,7 @@ test_integration_softwares_present {
 }
 
 test_software_has_required_fields_missing {
-	output := data.integrations.deny with input as {
-		"softwares": {"terraform": {}},
-	}
+	output := data.integrations.deny with input as {"softwares": {"terraform": {}}}
 
 	key := "fields"
 	message := "software terraform missing required fields: layout, link, title"
@@ -294,9 +276,7 @@ test_software_has_required_fields_missing {
 }
 
 test_software_has_required_fields_present {
-	output := data.integrations.deny with input as {
-		"softwares": {"terraform": {"layout": "software-single", "link": "https://www.terraform.io/", "title": "Terraform"}},
-	}
+	output := data.integrations.deny with input as {"softwares": {"terraform": {"layout": "software-single", "link": "https://www.terraform.io/", "title": "Terraform"}}}
 
 	key := "fields"
 
@@ -308,9 +288,7 @@ test_software_has_required_fields_present {
 }
 
 test_organization_has_required_labels {
-	output := data.integrations.deny with input as {
-		"organizations": {"styra": {}},
-	}
+	output := data.integrations.deny with input as {"organizations": {"styra": {}}}
 
 	key := "fields"
 	message := "organization styra missing required fields: layout, link, title"
@@ -323,9 +301,7 @@ test_organization_has_required_labels {
 }
 
 test_organization_has_required_fields_present {
-	output := data.integrations.deny with input as {
-		"organizations": {"styra": {"layout": "organization-single", "link": "https://styra.com/", "title": "Styra"}},
-	}
+	output := data.integrations.deny with input as {"organizations": {"styra": {"layout": "organization-single", "link": "https://styra.com/", "title": "Styra"}}}
 
 	key := "fields"
 

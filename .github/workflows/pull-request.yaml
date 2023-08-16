@@ -325,12 +325,12 @@ jobs:
         run: opa eval --input files.json --format pretty input
         if: ${{ failure() }}
 
-
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v2
         with:
           # keep this version in sync with the version in netlify.toml
           hugo-version: '0.113.0'
+          extended: true
 
       - name: Build docs site and test integrations data
         run: |
