@@ -6,8 +6,6 @@ labels:
   type: poweredbyopa
 inventors:
 - aserto
-software:
-- aserto
 code:
 - https://github.com/aserto-dev
 - https://github.com/opcr-io
