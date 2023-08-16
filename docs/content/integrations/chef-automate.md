@@ -3,9 +3,6 @@ title: Chef Automate
 subtitle: Operational Visibility Dashboard
 tutorials:
 - https://github.com/chef/automate/tree/master/components/authz-service#authz-with-opa
-blogs:
-- https://blog.verygoodsecurity.com/posts/building-a-fine-grained-permission-system-in-a-distributed-environment/
-- https://choria.io/blog/post/2020/02/14/rego_policies_opa/
 videos:
 - title: 'OPA in Practice: From Angular to OPA in Chef Automate'
   speakers:
