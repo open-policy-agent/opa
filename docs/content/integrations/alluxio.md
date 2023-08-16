@@ -1,7 +1,5 @@
 ---
 title: Alluxio
-software:
-- alluxio
 labels:
   category: authorization
   type: poweredbyopa

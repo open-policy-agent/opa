@@ -1,7 +1,5 @@
 ---
 title: CircleCI
-software:
-- circleci
 labels:
   category: tooling
   layer: cicd

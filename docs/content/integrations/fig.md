@@ -1,7 +1,5 @@
 ---
 title: fig
-software:
-- fig
 labels:
   category: utilities
   layer: shell

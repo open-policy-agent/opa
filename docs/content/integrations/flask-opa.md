@@ -3,6 +3,8 @@ title: Flask-OPA
 labels:
   category: flask
   layer: library
+software:
+- flask
 code:
 - https://github.com/EliuX/flask-opa
 blogs:

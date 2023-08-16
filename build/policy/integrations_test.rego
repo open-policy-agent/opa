@@ -311,3 +311,62 @@ test_organization_has_required_fields_present {
 
 	print_if(result, key, false, output)
 }
+
+test_organization_has_one_or_more_integrations_none {
+	output := data.integrations.deny with input as {"organizations": {"foobar": {}}, "integrations": {}}
+
+	key := "orphaned_org"
+	message := "organization foobar has no integrations"
+
+	got := messages_for_key(key, output)
+
+	result := message in got
+
+	print_if(result, key, message, output)
+}
+
+test_organization_has_one_or_more_integrations_one {
+	output := data.integrations.deny with input as {"organizations": {"foobaz": {}}, "integrations": {"foobar": {"inventors": ["foobaz"]}}}
+
+	key := "orphaned_org"
+	got := messages_for_key(key, output)
+
+	result := got == set()
+
+	print_if(result, key, false, output)
+}
+
+test_organization_has_one_or_more_integrations_speaker {
+	output := data.integrations.deny with input as {"organizations": {"foobaz": {}}, "integrations": {"foobar": {"videos": [{"speakers": [{"organization": "foobaz"}]}]}}}
+
+	key := "orphaned_org"
+	got := messages_for_key(key, output)
+
+	result := got == set()
+
+	print_if(result, key, false, output)
+}
+
+test_software_has_one_or_more_integrations_none {
+	output := data.integrations.deny with input as {"softwares": {"foobar": {}}, "integrations": {}}
+
+	key := "orphaned_software"
+	message := "software foobar has no integrations"
+
+	got := messages_for_key(key, output)
+
+	result := message in got
+
+	print_if(result, key, message, output)
+}
+
+test_software_has_one_or_more_integrations_one {
+	output := data.integrations.deny with input as {"softwares": {"foobaz": {}}, "integrations": {"foobar": {"software": ["foobaz"]}}}
+
+	key := "orphaned_software"
+	got := messages_for_key(key, output)
+
+	result := got == set()
+
+	print_if(result, key, false, output)
+}

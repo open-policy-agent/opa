@@ -7,8 +7,6 @@ labels:
   layer: network
 code:
 - https://github.com/apache/apisix
-inventors:
-- apache-apisix
 blogs:
 - https://apisix.apache.org/blog/2021/12/24/open-policy-agent
 - https://medium.com/@ApacheAPISIX/apache-apisix-integrates-with-open-policy-agent-to-enrich-its-ecosystem-15569fe3ab9c

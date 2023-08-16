@@ -145,3 +145,45 @@ deny contains result if {
 		"message": sprintf("organization %s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
 	}
 }
+
+# check that each organization has at least one integration
+deny contains result if {
+    some id, organization in input.organizations
+
+    inventor_integrations := {i|
+        some i, integration in input.integrations
+        id in integration.inventors
+    }
+    speaker_integrations := {i|
+        some i, integration in input.integrations
+        some _, video in integration.videos
+
+        some _, speaker in video.speakers
+
+        speaker.organization == id
+    }
+
+    count(inventor_integrations) + count(speaker_integrations) == 0
+
+    result := {
+        "key": "orphaned_org",
+        "message": sprintf("organization %s has no integrations", [id]),
+    }
+}
+
+# check that each software has at least one integration
+deny contains result if {
+    some id, software in input.softwares
+
+    integrations := {i|
+        some i, integration in input.integrations
+        id in integration.software
+    }
+
+    count(integrations) == 0
+
+    result := {
+        "key": "orphaned_software",
+        "message": sprintf("software %s has no integrations", [id]),
+    }
+}

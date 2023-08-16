@@ -7,6 +7,8 @@ code:
 - https://github.com/build-security/opa-express-middleware
 inventors:
 - build.security
+software:
+- nodejsexpress
 docs_features:
   rest-api-integration:
     note: |

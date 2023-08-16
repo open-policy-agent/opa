@@ -3,7 +3,7 @@
 {{- $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) -}}
 {{- $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) -}}
 {{- $softwares := partial "functions/section-pages" (dict "section" "softwares" "base" $base "pages" $.Site.Pages) -}}
-{{- $.Scratch.Add "json" dict -}}
+{{- $.Scratch.Set "json" dict -}}
 {{- $.Scratch.SetInMap "json" "integrations" $integrations -}}
 {{- $.Scratch.SetInMap "json" "organizations" $organizations -}}
 {{- $.Scratch.SetInMap "json" "softwares" $softwares -}}

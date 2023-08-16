@@ -9,8 +9,6 @@ code:
 inventors:
 - ibm
 - boomerang
-software:
-- bosun
 docs_features:
   rest-api-integration:
     note: |

@@ -1,7 +1,5 @@
 ---
 title: Minio API Authorization
-software:
-- minio
 labels:
   layer: data
   category: authorization
