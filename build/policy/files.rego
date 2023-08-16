@@ -2,7 +2,7 @@
 # https://api.github.com/repos/open-policy-agent/opa/pulls/${PR_ID}/files
 #
 # Note that the "filename" here refers to the full path of the file, like
-# docs/website/data/integrations.yaml - since that's how it's named in the
+# docs/foo/bar.yaml - since that's how it's named in the
 # input we'll use the same convention here.
 
 package files
@@ -54,8 +54,6 @@ deny contains sprintf("%s is an invalid JSON file: %s", [filename, content]) if 
 	changes[filename].status in {"added", "modified"}
 	not json.is_valid(content)
 }
-
-integrations_file := get_file_in_pr("docs/website/data/integrations.yaml")
 
 yaml_file_contents[filename] := get_file_in_pr(filename) if {
 	some filename in filenames
