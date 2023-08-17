@@ -1681,6 +1681,31 @@ func (c *Compiler) init() {
 		return
 	}
 
+	if defaultModuleLoader != nil {
+		if c.moduleLoader == nil {
+			c.moduleLoader = defaultModuleLoader
+		} else {
+			first := c.moduleLoader
+			c.moduleLoader = func(res map[string]*Module) (map[string]*Module, error) {
+				res0, err := first(res)
+				if err != nil {
+					return nil, err
+				}
+				res1, err := defaultModuleLoader(res)
+				if err != nil {
+					return nil, err
+				}
+				// merge res1 into res0, based on module "file" names, to avoid clashes
+				for k, v := range res1 {
+					if _, ok := res0[k]; !ok {
+						res0[k] = v
+					}
+				}
+				return res0, nil
+			}
+		}
+	}
+
 	if c.capabilities == nil {
 		c.capabilities = CapabilitiesForThisVersion()
 	}
