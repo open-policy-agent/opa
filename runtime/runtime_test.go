@@ -293,7 +293,7 @@ func TestCheckAuthIneffective(t *testing.T) {
 	logger.SetOutput(stdout)
 
 	params.Logger = logger
-	params.Addrs = &[]string{":0"}
+	params.Addrs = &[]string{"localhost:0"}
 	params.GracefulShutdownPeriod = 1
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
@@ -321,7 +321,7 @@ func TestServerInitialized(t *testing.T) {
 
 	params := NewParams()
 	params.Output = &output
-	params.Addrs = &[]string{":0"}
+	params.Addrs = &[]string{"localhost:0"}
 	params.GracefulShutdownPeriod = 1
 	params.Logger = logging.NewNoOpLogger()
 
@@ -476,7 +476,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			logLevel := logging.Info
 
 			params.Logger = logger
-			params.Addrs = &[]string{":8181"}
+			params.Addrs = &[]string{"localhost:8181"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
 			rt, err := NewRuntime(ctx, params)

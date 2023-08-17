@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	testServerParams := e2e.NewAPIServerTestParams()
 	testServerParams.DistributedTracingOpts = options
+	testServerParams.Addrs = &[]string{"localhost:0"}
 
 	var err error
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)

@@ -50,7 +50,7 @@ func TestRunServerBase(t *testing.T) {
 
 func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params := newTestRunParams()
-	params.rt.DiagnosticAddrs = &[]string{":0"}
+	params.rt.DiagnosticAddrs = &[]string{"localhost:0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rt, err := initRuntime(ctx, params, nil, false)
@@ -194,7 +194,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 			}
 
 			params := newTestRunParams()
-			params.rt.Addrs = &[]string{":0"}
+			params.rt.Addrs = &[]string{"localhost:0"}
 			ctx, cancel := context.WithCancel(context.Background())
 
 			rt, err := initRuntime(ctx, params, []string{}, cmd.Flags().Changed("addr"))
@@ -214,7 +214,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 func newTestRunParams() runCmdParams {
 	params := newRunParams()
 	params.rt.GracefulShutdownPeriod = 1
-	params.rt.Addrs = &[]string{":0"}
+	params.rt.Addrs = &[]string{"localhost:0"}
 	params.rt.DiagnosticAddrs = &[]string{}
 	params.serverMode = true
 	return params
