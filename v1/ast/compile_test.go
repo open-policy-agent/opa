@@ -11500,3 +11500,63 @@ func TestCompile_DefaultRegoVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestCompilerInitWithDefaultModuleLoader(t *testing.T) {
+	// Reset the global variable after the test
+	defer func() { defaultModuleLoader = nil }()
+
+	// a dummy loader that adds "foo"
+	loader1 := func(res map[string]*Module) (map[string]*Module, error) {
+		mod := MustParseModule(`package foo`)
+		resCopy := map[string]*Module{}
+		maps.Copy(resCopy, res)
+		resCopy["foo.rego"] = mod
+		return resCopy, nil
+	}
+
+	// a dummy loader that adds "bar"
+	loader2 := func(res map[string]*Module) (map[string]*Module, error) {
+		mod := MustParseModule(`package bar`)
+		resCopy := map[string]*Module{}
+		maps.Copy(resCopy, res)
+		resCopy["bar.rego"] = mod
+		return resCopy, nil
+	}
+
+	DefaultModuleLoader(loader2)
+
+	c := NewCompiler().WithModuleLoader(loader1)
+	c.init()
+
+	got, err := c.moduleLoader(make(map[string]*Module))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := map[string]*Module{
+		"foo.rego": MustParseModule(`package foo`),
+		"bar.rego": MustParseModule(`package bar`),
+	}
+	// check both modules are present
+	for k, v := range expected {
+		gotMod, ok := got[k]
+		if !ok {
+			t.Errorf("expected key %q in result", k)
+			continue
+		}
+		if !reflect.DeepEqual(gotMod, v) {
+			t.Errorf("unexpected module for %q: got %v want %v", k, gotMod, v)
+		}
+	}
+
+	// Now, test defaultModuleLoader only
+	c2 := NewCompiler()
+	c2.init()
+	got2, err := c2.moduleLoader(make(map[string]*Module))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := got2["bar.rego"]; !ok {
+		t.Error("expected bar.rego from defaultModuleLoader in result")
+	}
+}
