@@ -110,7 +110,7 @@ func TestRequestLogging(t *testing.T) {
 	gzipMinLength := "server.encoding.gzip.min_length=5"
 	shutdownSeconds := 1
 	params := NewParams()
-	params.Addrs = &[]string{":0"}
+	params.Addrs = &[]string{"localhost:0"}
 	params.Logger = logger
 	params.PprofEnabled = true
 	params.GracefulShutdownPeriod = shutdownSeconds // arbitrary, must be non-zero
