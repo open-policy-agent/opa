@@ -13,7 +13,7 @@ code:
 videos:
 - https://www.youtube.com/live/Xx8npd2TQJ0?feature=share&t=2567
 tutorials:
-- https://github.com/StyraInc/regal#try-it-out
+- https://docs.styra.com/regal#try-it-out
 docs_features:
   learning-rego:
     note: |
@@ -41,4 +41,3 @@ Regal can:
 * Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
 * Provide advice on best practices, coding style, and tooling
 * Allow users, teams and organizations to enforce custom rules on their policy code
-
