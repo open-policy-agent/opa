@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/future"
@@ -270,6 +271,8 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 		return locLess(others[i], others[j])
 	})
 
+	comments = trimTrailingWhitespaceInComments(comments)
+
 	comments = w.writePackage(pkg, comments)
 	var imports []*ast.Import
 	var rules []*ast.Rule
@@ -286,6 +289,14 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 			w.write("\n")
 		}
 	}
+}
+
+func trimTrailingWhitespaceInComments(comments []*ast.Comment) []*ast.Comment {
+	for _, c := range comments {
+		c.Text = bytes.TrimRightFunc(c.Text, unicode.IsSpace)
+	}
+
+	return comments
 }
 
 func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.Comment {
