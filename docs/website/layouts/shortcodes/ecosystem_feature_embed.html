@@ -1,7 +1,10 @@
 {{ $feature := .Get "key" }}
-{{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $.Site.Data.integrations.integrations "feature" $feature) }}
-
 {{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+{{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
+{{ $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) }}
+{{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+
 {{ if (gt (len $selectedIntegrations) 6) }}
   <p>
     The {{ len $selectedIntegrations }} ecosystem projects related to this page
@@ -14,7 +17,7 @@
   </p>
 
   {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $selectedIntegrations) }}
-  {{ partial "ecosystem-project-list-for-feature" (dict "selectedIntegrations" $sortedIntegrations "integrationsData" $.Site.Data.integrations "feature" $feature "base" $base) }}
+  {{ partial "ecosystem-project-list-for-feature" (dict "base" $base "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature) }}
 
   <p class="mt-4">
     View these projects in the <a href="{{ $base }}/ecosystem/{{ $feature }}">OPA Ecosystem</a>.

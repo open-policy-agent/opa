@@ -1,0 +1,133 @@
+{{ define "page_title" }}
+  {{ .Title }}
+{{ end }}
+
+{{ define "breadcrumbs" -}}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+<p class="mt-2">
+  <a href="{{ $base}}/ecosystem">OPA Ecosystem</a> / Integrations / {{ .Title }}
+</p>
+{{- end }}
+
+{{ define "content" }}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+{{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
+{{ $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) }}
+{{ $id := delimit (last 2 (split .Page.RelPermalink "/")) "" }}
+
+<figure class="image is-128x128">
+  {{ partial "docs/integration-logo.html" (dict "name" $id) }}
+</figure>
+
+<p>
+  <strong>
+    {{ .Params.subtitle }}
+  </strong>
+</p>
+
+{{ .Content }}
+
+{{ if .Params.code }}
+<p class="title is-6">Code &amp; Repos</p>
+<ul>
+  {{ range .Params.code }}
+  <li><a href="{{ . }}">{{ . }}</a></li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Params.tutorials }}
+<p class="title is-6">Tutorials</p>
+<ul>
+  {{ range .Params.tutorials }}
+  <li><a href="{{ . }}">{{ . }}</a></li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Params.videos }}
+<p class="title is-6">Videos</p>
+<ul>
+  {{ range .Params.videos }}
+  {{ if reflect.IsMap . }}
+  <li>
+    <a href="{{ .link }}">{{ .title }} - {{ .venue }}</a>
+    <ul>
+      {{ range .speakers }}
+      {{ if reflect.IsMap . }}
+      {{ if isset $organizations .organization }}
+      <li>{{ .name }} - <a href="{{ $base }}/organizations/{{ .organization }}">{{ index (index $organizations .organization) "title" }}</a></li>
+      {{ else }}
+      <li>{{ .name }} - {{ .organization }}</li>
+      {{end}}
+      {{ else }}
+      <li>{{ . }}</li>
+      {{ end }}
+      {{ end }}
+    </ul>
+  </li>
+  {{ else }}
+  <li><a href="{{ . }}">{{ . }}</a></li>
+  {{ end }}
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Params.blogs }}
+<p class="title is-6">Blogs</p>
+<ul>
+  {{ range .Params.blogs }}
+  <li><a href="{{ . }}">{{ . }}</a></li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Params.labels }}
+<p class="title is-6">Labels</p>
+<table>
+  {{ range $k, $v := .Params.labels }}
+  <tr>
+    <th>{{ title $k }}</th>
+    <td>{{ lower $v }}</td>
+  </tr>
+  {{ end }}
+</table>
+{{ end }}
+
+{{ if .Params.software }}
+<p class="title is-6">Related Software</p>
+<ul>
+  {{ range .Params.software }}
+  {{ $softwares := partial "functions/section-pages" (dict "section" "softwares" "base" $base "pages" $.Site.Pages) }}
+  {{ $software := index $softwares . }}
+  <li>
+    <a href="{{ $base }}/softwares/{{ . }}">{{ $software.title }}</a>
+    <ul>
+      <li>
+        <a href="{{ $software.link }}">{{ $software.title }}'s Website</a>
+      </li>
+    </ul>
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Params.inventors }}
+<p class="title is-6">Inventors</p>
+<ul>
+  {{ range .Params.inventors }}
+  {{ $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) }}
+  {{ $org := index $organizations . }}
+  <li>
+    <a href="{{ $base }}/organizations/{{ . }}">{{ $org.title }}</a>
+    <ul>
+      <li>
+        <a href="{{ $org.link }}">{{ $org.title }}'s Website</a>
+      </li>
+    </ul>
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ end }}

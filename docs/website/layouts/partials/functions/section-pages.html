@@ -1,0 +1,14 @@
+{{ $base := (index . "base") }}
+{{ $pages := (index . "pages") }}
+{{ $section := (index . "section") }}
+
+{{ $prefix := printf "%s/%s" $base $section }}
+{{ $newPages := dict }}
+{{ range $page := $pages }}
+  {{ if hasPrefix $page.RelPermalink $prefix }}
+    {{ $id := printf "%s" (delimit (last 2 (split $page.RelPermalink "/")) "") }}
+    {{ $newPages = merge $newPages (dict $id (merge $page.Params (dict "content" $page.Content))) }}
+  {{ end }}
+{{ end }}
+
+{{ return $newPages }}

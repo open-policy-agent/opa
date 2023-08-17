@@ -2,7 +2,7 @@
 title: "OPA Ecosystem"
 layout: ecosystem-section
 kind: support
-edit_link: https://github.com/open-policy-agent/opa/edit/main/docs/website/data/integrations.yaml
+edit_link: https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem
 categories:
 - key: rego
   title: Rego Language

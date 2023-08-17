@@ -311,11 +311,12 @@ jobs:
       - name: Ensure proper formatting
         run: opa fmt --list --fail build/policy
 
-      - name: Run policy checks on changed files
+      - name: Run file policy checks on changed files
         run: |
           curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \
             https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files
-          opa eval --bundle build/policy/ --format values --input files.json \
+          
+          opa eval -d build/policy/files.rego -d build/policy/helpers.rego  --format values --input files.json \
             --fail-defined 'data.files.deny[message]'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -323,3 +324,17 @@ jobs:
       - name: Show input on failure
         run: opa eval --input files.json --format pretty input
         if: ${{ failure() }}
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          # keep this version in sync with the version in netlify.toml
+          hugo-version: '0.113.0'
+          extended: true
+
+      - name: Build docs site and test integrations data
+        run: |
+          cd docs
+          make dev-generate hugo-production-build
+          cd -
+          opa eval 'data.integrations.deny[message]' -i docs/website/public/index.json -d build/policy/integrations.rego --format=values --fail-defined

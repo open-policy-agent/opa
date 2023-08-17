@@ -48,4 +48,4 @@ mediaType = "text/netlify"
 baseName = "_redirects"
 
 [outputs]
-home = ["HTML", "REDIRECTS"]
+home = ["HTML", "REDIRECTS", "JSON"]
