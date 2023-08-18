@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,7 +215,10 @@ func (c *Discovery) getBundlePersistPath() (string, error) {
 func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 
 	if c.config != nil && c.config.Persist {
-		b, err := c.loadBundleFromDisk()
+		b, err := bundleUtils.LoadBundleFromDiskWithOptions(
+			filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
+			&bundleUtils.LoadOptions{VerificationConfig: c.config.Signing},
+		)
 		if err != nil {
 			c.logger.Error("Failed to load discovery bundle from disk: %v", err)
 			c.status.SetError(err)
@@ -256,40 +258,13 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 				c.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
 			})
 
+			if b.Etag != "" {
+				c.downloader.SetCache(b.Etag)
+			}
+
 			c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
 		}
 	}
-}
-
-func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
-	return bundleUtils.LoadBundleFromDisk(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
-}
-
-func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
-
-	bundleDir := filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName())
-	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
-
-	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
-	if saveErr != nil {
-		c.logger.Error("Failed to save new discovery bundle to disk: %v", saveErr)
-
-		if err := os.Remove(tmpFile); err != nil {
-			c.logger.Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
-		}
-
-		if _, err := os.Stat(bundleFile); err == nil {
-			c.logger.Warn("Older version of activated discovery bundle persisted, ignoring error")
-			return nil
-		}
-		return saveErr
-	}
-
-	return os.Rename(tmpFile, bundleFile)
-}
-
-func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
-	return bundleUtils.SaveBundleToDisk(path, raw)
 }
 
 func (c *Discovery) oneShot(ctx context.Context, u download.Update) {
@@ -334,8 +309,11 @@ func (c *Discovery) processUpdate(ctx context.Context, u download.Update) {
 
 		if c.config != nil && c.config.Persist {
 			c.logger.Debug("Persisting discovery bundle to disk in progress.")
-
-			err := c.saveBundleToDisk(u.Raw)
+			err := bundleUtils.SaveBundleToDiskWithOptions(
+				filepath.Join(c.bundlePersistPath, c.discoveryBundleDirName()),
+				u.Raw,
+				&bundleUtils.SaveOptions{Etag: u.ETag},
+			)
 			if err != nil {
 				c.logger.Error("Persisting discovery bundle to disk failed: %v", err)
 				c.status.SetError(err)

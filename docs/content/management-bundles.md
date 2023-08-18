@@ -107,13 +107,15 @@ be useful when relying on default `resource` behavior with a name like
 `authz/bundle.tar.gz` which results in a `resource` of
 `bundles/authz/bundle.tar.gz`.
 
-OPA can optionally persist activated bundles to disk for recovery purposes. To enable
-persistence, set the `bundles[_].persist` field to `true`. When bundle
-persistence is enabled, OPA will attempt to read the bundle from disk on startup. This
+OPA can optionally persist activated bundles to disk for recovery and performance purposes. To enable
+persistence, set the `bundles[_].persist` field to `true`.
+When bundle persistence is enabled, OPA will attempt to read the bundle from disk on startup. This
 allows OPA to start with the most recently activated bundle in case OPA cannot communicate
 with the bundle server. OPA will try to load and activate persisted bundles on a best-effort basis. Any errors
-encountered during the process will be surfaced in the bundle's status update. When communication between OPA and
-the bundle server is restored, the latest bundle is downloaded, activated, and persisted.
+encountered during the process will be surfaced in the bundle's status update.
+Once OPA connects to the bundle server, if a more recent bundle is available, the latest bundle is downloaded,
+activated, and persisted. Bundles will always be downloaded, regardless of whether they are already persisted, if the
+server does not set the [`Etag`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) header in the response.
 
 {{< info >}}
 By default, bundles are persisted under the current working directory of the OPA process (e.g., `./.opa/bundles/<bundle-name>/bundle.tar.gz`).

@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -144,7 +143,7 @@ func (p *Plugin) Stop(ctx context.Context) {
 
 // Reconfigure notifies the plugin that it's configuration has changed.
 // Any bundle configs that have changed or been added/removed will take
-// affect.
+// effect.
 func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Reconfiguring should not occur in parallel, lock to ensure
 	// nothing swaps underneath us with the current p.config and the updated one.
@@ -352,7 +351,16 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
+
+			var loadOpts *bundleUtils.LoadOptions
+			if src != nil {
+				loadOpts = &bundleUtils.LoadOptions{VerificationConfig: src.Signing}
+			}
+
+			b, err := bundleUtils.LoadBundleFromDiskWithOptions(
+				filepath.Join(p.bundlePersistPath, name),
+				loadOpts,
+			)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
@@ -507,7 +515,11 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
-			err := p.saveBundleToDisk(name, u.Raw)
+			err := bundleUtils.SaveBundleToDiskWithOptions(
+				filepath.Join(p.bundlePersistPath, name),
+				u.Raw,
+				&bundleUtils.SaveOptions{Etag: u.ETag},
+			)
 			if err != nil {
 				p.log(name).Error("Persisting bundle to disk failed: %v", err)
 				p.status[name].SetError(err)
@@ -517,6 +529,7 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 				}
 				return
 			}
+
 			p.log(name).Debug("Bundle persisted to disk successfully at path %v.", filepath.Join(p.bundlePersistPath, name))
 		}
 
@@ -649,40 +662,6 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 	}
 
 	return newBundles, updatedBundles, deletedBundles
-}
-
-func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
-
-	bundleDir := filepath.Join(p.bundlePersistPath, name)
-	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
-
-	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
-	if saveErr != nil {
-		p.log(name).Error("Failed to save new bundle to disk: %v", saveErr)
-
-		if err := os.Remove(tmpFile); err != nil {
-			p.log(name).Warn("Failed to remove temp file ('%s'): %v", tmpFile, err)
-		}
-
-		if _, err := os.Stat(bundleFile); err == nil {
-			p.log(name).Warn("Older version of activated bundle persisted, ignoring error")
-			return nil
-		}
-		return saveErr
-	}
-
-	return os.Rename(tmpFile, bundleFile)
-}
-
-func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
-	return bundleUtils.SaveBundleToDisk(path, raw)
-}
-
-func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
-	if src != nil {
-		return bundleUtils.LoadBundleFromDisk(path, name, src.Signing)
-	}
-	return bundleUtils.LoadBundleFromDisk(path, name, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {
