@@ -9,14 +9,25 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -25,9 +36,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/open-policy-agent/opa/internal/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
+
+	"github.com/open-policy-agent/opa/internal/prometheus"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -4978,6 +4990,274 @@ func TestDistributedTracingDisabled(t *testing.T) {
 	_, ok := handler.(*otelhttp.Handler)
 	if ok {
 		t.Fatal("Unexpected otelhttp handler if distributed tracing disabled")
+	}
+}
+
+func TestFSNotifyCertReloading(t *testing.T) {
+	ctx := context.Background()
+
+	tempDir := t.TempDir()
+
+	// create the CA cert
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caSerial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	caSubj := pkix.Name{
+		Country:            []string{"GB"},
+		Organization:       []string{"example"},
+		OrganizationalUnit: []string{"Example"},
+		SerialNumber:       caSerial.String(),
+	}
+	caTemplate := &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             caKey.Public(),
+		SerialNumber:          caSerial,
+		Issuer:                caSubj,
+		Subject:               caSubj,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(100 * time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IsCA:                  true,
+		DNSNames:              nil,
+		EmailAddresses:        nil,
+		IPAddresses:           nil,
+	}
+
+	caCertData, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, caKey.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// write the CA to disk
+	cert1Encoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertData,
+	})
+
+	err = os.WriteFile(filepath.Join(tempDir, "ca.pem"), cert1Encoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a cert and key for the server to load at startup
+	var cert1 tls.Certificate
+
+	cert1Key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert1.PrivateKey = cert1Key
+
+	cert1Serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert1Subj := pkix.Name{
+		Country:            []string{"GB"},
+		Organization:       []string{"example"},
+		OrganizationalUnit: []string{"Server"},
+		SerialNumber:       cert1Serial.String(),
+	}
+
+	cert1Template := &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             cert1Key.Public(),
+		SerialNumber:          cert1Serial,
+		Issuer:                caSubj,
+		Subject:               cert1Subj,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(99 * time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		IsCA:                  false,
+		DNSNames:              []string{"localhost"},
+		EmailAddresses:        nil,
+		IPAddresses:           nil,
+	}
+
+	cert1Data, err := x509.CreateCertificate(rand.Reader, cert1Template, caTemplate, cert1Key.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cert1Encoded = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert1Data,
+	})
+
+	cert1KeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(cert1.PrivateKey)
+	cert1KeyEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: cert1KeyMarshalled,
+	})
+
+	err = os.WriteFile(filepath.Join(tempDir, "cert.pem"), cert1Encoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(filepath.Join(tempDir, "key.pem"), cert1KeyEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a cert to load after startup
+	var cert2 tls.Certificate
+
+	cert2Key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert2.PrivateKey = cert2Key
+
+	cert2Serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert2Subj := pkix.Name{
+		Country:            []string{"GB"},
+		Organization:       []string{"example"},
+		OrganizationalUnit: []string{"Server"},
+		SerialNumber:       cert1Serial.String(),
+	}
+
+	cert1Template = &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             cert2Key.Public(),
+		SerialNumber:          cert2Serial,
+		Issuer:                caSubj,
+		Subject:               cert2Subj,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(99 * time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		IsCA:                  false,
+		DNSNames:              nil,
+		EmailAddresses:        nil,
+		IPAddresses:           nil,
+	}
+
+	cert2Data, err := x509.CreateCertificate(rand.Reader, cert1Template, caTemplate, cert2Key.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert2.Certificate = [][]byte{cert2Data, caCertData}
+
+	cert2Encoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert2Data,
+	})
+
+	cert2KeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(cert2.PrivateKey)
+	cert2KeyEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: cert2KeyMarshalled,
+	})
+
+	err = os.WriteFile(filepath.Join(tempDir, "cert2.pem"), cert2Encoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(filepath.Join(tempDir, "key2.pem"), cert2KeyEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start the server referencing the certs
+	server := New().
+		WithAddresses([]string{"https://localhost:8181"}).
+		WithStore(inmem.New()).
+		WithTLSConfig(
+			&TLSConfig{
+				CertFile: filepath.Join(tempDir, "cert.pem"),
+				KeyFile:  filepath.Join(tempDir, "key.pem"),
+			},
+		)
+
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server = server.WithManager(m)
+	if err = m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	server, err = server.Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Shutdown(ctx)
+
+	loops, err := server.Listeners()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	errc := make(chan error)
+	for _, loop := range loops {
+		go func(serverLoop func() error) {
+			errc <- serverLoop()
+		}(loop)
+	}
+
+	// make a connection
+	conn1, err := tls.Dial("tcp", "localhost:8181", &tls.Config{
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn1.Close()
+	certs := conn1.ConnectionState().PeerCertificates
+	if len(certs) != 1 {
+		t.Fatalf("expected 1 cert, got %d", len(certs))
+	}
+
+	servedCert := certs[0]
+	if !bytes.Equal(servedCert.Raw, cert1Data) {
+		t.Fatalf("expected cert1, got %s", servedCert.Subject)
+	}
+
+	// move the cert and key files
+	err = os.Rename(filepath.Join(tempDir, "cert2.pem"), filepath.Join(tempDir, "cert.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Rename(filepath.Join(tempDir, "key2.pem"), filepath.Join(tempDir, "key.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// make another connection
+	conn2, err := tls.Dial("tcp", "localhost:8181", &tls.Config{
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn2.Close()
+	certs = conn2.ConnectionState().PeerCertificates
+	if len(certs) != 1 {
+		t.Fatalf("expected 1 cert, got %d", len(certs))
+	}
+
+	servedCert = certs[0]
+	if !bytes.Equal(servedCert.Raw, cert2Data) {
+		t.Fatalf("expected cert2, got %s", servedCert.Subject)
 	}
 }
 

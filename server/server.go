@@ -25,6 +25,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
+
+	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/plugins/server/encoding"
 
 	"github.com/gorilla/mux"
@@ -153,6 +156,17 @@ type Metrics interface {
 	InstrumentHandler(handler http.Handler, label string) http.Handler
 }
 
+// TLSConfig represents the TLS configuration for the server.
+// This configuration is used to configure file watchers to reload each file as it
+// changes on disk.
+type TLSConfig struct {
+	// CertFile is the path to the certificate file.
+	CertFile string
+
+	// KeyFile is the path to the key file.
+	KeyFile string
+}
+
 // Loop will contain all the calls from the server that we'll be listening on.
 type Loop func() error
 
@@ -181,6 +195,38 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		s.store.Abort(ctx, txn)
 		return nil, err
 	}
+
+	err = s.reloadTLSConfig(s.manager.Logger())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS config: %w", err)
+	}
+
+	done := make(chan struct{})
+	watcher, err := pathwatcher.CreatePathWatcher([]string{
+		s.certFile, s.certKeyFile,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create path watcher: %w", err)
+	}
+	go func() {
+		for {
+			s.manager.Logger().Info("watching for TLS config changes")
+			select {
+			case evt := <-watcher.Events:
+				removalMask := fsnotify.Remove | fsnotify.Rename
+				mask := fsnotify.Create | fsnotify.Write | removalMask
+				if (evt.Op & mask) != 0 {
+					err = s.reloadTLSConfig(s.manager.Logger())
+					if err != nil {
+						s.manager.Logger().Error("failed to reload TLS config: %w", err)
+					}
+				}
+			case <-done:
+				watcher.Close()
+				return
+			}
+		}
+	}()
 
 	s.partials = map[string]rego.PartialResult{}
 	s.preparedEvalQueries = newCache(pqMaxCacheSize)
@@ -271,6 +317,13 @@ func (s *Server) WithCertificatePaths(certFile, keyFile string, refresh time.Dur
 // WithCertPool sets the server-side cert pool that the server will use.
 func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
 	s.certPool = pool
+	return s
+}
+
+// WithTLSConfig sets the TLS configuration used by the server.
+func (s *Server) WithTLSConfig(tlsConfig *TLSConfig) *Server {
+	s.certFile = tlsConfig.CertFile
+	s.certKeyFile = tlsConfig.KeyFile
 	return s
 }
 
