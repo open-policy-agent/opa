@@ -37,17 +37,18 @@
     {{ $ancient := gt $rank 5 }}
 
     {{ $isEdge := (eq $version "edge") }}
+    {{ $isNotEcosystem := (ne (index (split .File.Path "/") 2) "ecosystem") }}
     {{ $isNotLatest := (and (ne $version $latest) (ne $version $latestVersionString)) }}
 
-    <div class="dashboard-wrapper {{ if (or $isEdge $isNotLatest) }}showing-banner-version-warning{{ end }}">
-      {{- if $isEdge }}
+    <div class="dashboard-wrapper {{ if (or (and $isEdge $isNotEcosystem) $isNotLatest) }}showing-banner-version-warning{{ end }}">
+    {{- if $isEdge }}
       <div class="message is-info banner-version-warning">
         <div class="message-body">
           This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
           <button class="delete" aria-label="delete"></button>
         </div>
       </div>
-      {{- else if $isNotLatest }}
+    {{- else if $isNotLatest }}
       <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
       <div class="message-body">
         These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
