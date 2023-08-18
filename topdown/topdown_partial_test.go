@@ -663,6 +663,38 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: ref head: from query",
+			query: "data.test.p.q[y] = 1",
+			modules: []string{
+				`package test
+
+				p.q[x] = 1 {
+					input.foo[x] = z
+					x.bar = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`y.bar = 1; z1 = input.foo[y]`,
+			},
+		},
+		{
+			note:  "reference: general ref head: from query",
+			query: "data.test.p.q[y].s = 1",
+			modules: []string{
+				`package test
+
+				p.q[x].s = 1 {
+					input.foo[x] = z
+					x.bar = 1
+				}
+				`,
+			},
+			wantQueries: []string{
+				`y.bar = 1; z1 = input.foo[y]`,
+			},
+		},
+		{
 			note:  "reference: head: applied",
 			query: "data.test.p = true",
 			modules: []string{
@@ -741,6 +773,28 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				`input.x = "foo"; x = "foo"; y = 2`,
+			},
+		},
+		{
+			note:  "namespace: partial object, ref head",
+			query: "input.x = x; data.test.p.q[x] = y; y = 2",
+			modules: []string{
+				`package test
+				p.q[y] = x { y = "foo"; x = 2 }`,
+			},
+			wantQueries: []string{
+				`input.x = "foo"; x = "foo"; y = 2`,
+			},
+		},
+		{
+			note:  "namespace: partial object, general ref head",
+			query: "input.x = x; input.y = y; data.test.p.q[x][y] = z; z = 2",
+			modules: []string{
+				`package test
+				p.q[x][y] = z { x = "foo"; y = "bar"; z = 2 }`,
+			},
+			wantQueries: []string{
+				`input.x = "foo"; input.y = "bar"; x = "foo"; y = "bar"; z = 2`,
 			},
 		},
 		{
@@ -1507,6 +1561,23 @@ func TestTopDownPartialEval(t *testing.T) {
 			`},
 		},
 		{
+			note:  "automatic shallow inlining: full extent: partial set, general ref head",
+			query: "data.test.p.q = x",
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p.q contains x { input.x = x }
+				p.q[r].s contains t { input.r = r; input.t = t }`,
+			},
+			wantQueries: []string{`data.partial.test.p.q = x`},
+			wantSupport: []string{`
+				package partial.test.p
+				import future.keywords.contains
+				q[x2] { input.x = x2 }
+				q[r1].s contains t1 { input.r = r1; input.t = t1 }
+			`},
+		},
+		{
 			note:  "automatic shallow inlining: full extent: partial object",
 			query: "data.test.p = x",
 			modules: []string{
@@ -1519,6 +1590,21 @@ func TestTopDownPartialEval(t *testing.T) {
 				package partial.test
 				p[x1] = y1 { x1 = input.z; y1 = input.a }
 				p[x2] = y2 { x2 = input.x; y2 = input.y }
+			`},
+		},
+		{
+			note:  "automatic shallow inlining: full extent: partial object, general ref head",
+			query: "data.test.p.q = x",
+			modules: []string{
+				`package test
+				p.q[x] = y { x = input.x; y = input.y }
+				p.q[r].s[t] = y { r = input.r; t = input.t; y = input.y }`,
+			},
+			wantQueries: []string{`data.partial.test.p.q = x`},
+			wantSupport: []string{`
+				package partial.test.p
+				q[x2] = y2 { x2 = input.x; y2 = input.y }
+				q[r1].s[t1] = y1 { r1 = input.r; t1 = input.t; y1 = input.y }
 			`},
 		},
 		{
@@ -1536,19 +1622,27 @@ func TestTopDownPartialEval(t *testing.T) {
 			query: "data.test[x] = y",
 			modules: []string{
 				`package test
+				import future.keywords.contains
 				s[x] { x = input.x }
+				s2[x].u contains y { x = input.x; y = input.y }
 				p[x] = y { x = input.x; y = input.y }
+				p2[x].r[y] = z { x = input.x; y = input.y; z = input.z }
 				r = x { x = input.x }`,
 			},
 			wantQueries: []string{
 				`data.partial.test.s = y; x = "s"`,
+				`data.partial.test.s2 = y; x = "s2"`,
 				`data.partial.test.p = y; x = "p"`,
+				`data.partial.test.p2 = y; x = "p2"`,
 				`y = input.x; x = "r"`,
 			},
 			wantSupport: []string{`
 				package partial.test
+				import future.keywords.contains
 				p[x1] = y1 { x1 = input.x; y1 = input.y }
-				s[x3] { x3 = input.x }
+				p2[x2].r[y2] = z2 { x2 = input.x; y2 = input.y; z2 = input.z }
+				s[x4] { x4 = input.x }
+				s2[x5].u contains y5 { x5 = input.x; y5 = input.y }
 			`},
 		},
 		{

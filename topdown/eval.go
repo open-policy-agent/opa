@@ -2410,11 +2410,9 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 
 	if hint.key != nil {
 		pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
-		if pluggedKey.IsGround() { // FIXME: This should be unnecessary
-			hintResult := result.Get(pluggedKey)
-			if hintResult != nil {
-				e.e.virtualCache.Put(hint.key, hintResult)
-			}
+		hintResult := result.Get(pluggedKey)
+		if hintResult != nil {
+			e.e.virtualCache.Put(hint.key, hintResult)
 		}
 	}
 
