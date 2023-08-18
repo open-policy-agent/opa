@@ -40,8 +40,18 @@ and are build into a `_redirects` file when the Hugo build happens via
 ## Site updates
 
 The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
-changes in this directory are pushed to `master`, the site will be re-built and
+changes in this directory are pushed to `main`, the site will be re-built and
 re-deployed.
+
+**Note:** The site is built for many versions of the docs, this introduces some
+complexities to be aware of when making changes to the site's layout:
+
+* Updates to the [site's templates or styles/](./website/) are applied to all versions
+  (edge, latest and all versions) when merged to `main`.
+* Site [data](./website/data) treated in the same way, so updates to data files also
+  apply to all versions as soon as they are merged.
+* Site [content/](./content/), when merged to `main`, is only shown on `edge` until the
+  next release.
 
 ## How to Edit and Test
 
