@@ -139,7 +139,7 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{},
 		},
-		{
+		{ // TODO: duplicate for general refs?
 			note:  "iterate rules: partial object",
 			query: `data.test.p[x] = input.x`,
 			modules: []string{
@@ -154,7 +154,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`"d" = input.x; x = "c"`,
 			},
 		},
-		{
+		{ // TODO: duplicate for general refs?
 			note:  "iterate rules: partial set",
 			query: `input.x = x; data.test.p[x]`,
 			modules: []string{
@@ -192,7 +192,7 @@ func TestTopDownPartialEval(t *testing.T) {
 				`x = input; x[j] = z; y = [x]; i = 0`,
 			},
 		},
-		{
+		{ // TODO: duplicate for general refs?
 			note:  "single term: save",
 			query: `input.x = x; data.test.p[x]`,
 			modules: []string{
@@ -205,7 +205,6 @@ func TestTopDownPartialEval(t *testing.T) {
 				`input.x = "bar"; x = "bar"`,
 			},
 		},
-		// TODO: "single term, general ref: save"(?)
 		{
 			note:  "single term: false save",
 			query: `input = x; x = false; x`, // last expression must be preserved
@@ -225,18 +224,6 @@ func TestTopDownPartialEval(t *testing.T) {
 				`x = input.x`,
 			},
 		},
-		//{ // FIXME: Just for experimenting, don't keep
-		//	note:  "reference: partial object, no query match",
-		//	query: "data.test.p[x].foo = 2",
-		//	modules: []string{
-		//		`package test
-		//		p[x] = {y: z} { x = input.x; y = "foo"; z = 1 }
-		//		p[x] = {y: z} { x = input.y; y = "bar"; z = 2 }`,
-		//	},
-		//	wantQueries: []string{
-		//		`x = input.x`,
-		//	},
-		//},
 		{
 			note:  "reference: partial object, general ref",
 			query: "data.test.p[x].q.foo = 1",
@@ -332,6 +319,27 @@ func TestTopDownPartialEval(t *testing.T) {
 		},
 		{
 			note:  "reference: partial object, general ref (8)",
+			query: "data.test.p = z",
+			modules: []string{
+				`package test
+				p[a].q = {b: c} { a = input.a; b = "foo"; c = 1 }
+				p[a].q = {b: c} { a = input.b; b = "bar"; c = 2 }
+				p.foo.r = a { a = "baz" }
+				p.foo.s = a { a = input.c }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = z`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				p[a4].q = {"foo": 1} { a4 = input.a }
+				p[a3].q = {"bar": 2} { a3 = input.b }
+				p.foo.r = "baz" { true }
+				p.foo.s = a2 { a2 = input.c }`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref (9)",
 			query: "data.test.p[x] = z",
 			modules: []string{
 				`package test
@@ -348,6 +356,54 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: partial object, general ref, multiple vars",
+			query: `data.test.p = x`,
+			modules: []string{
+				`package test
+				p[q].r[s] := v { v := "foo"; q := 42; s := "bar" }
+				p[q].r[s].t := v { v := input.x; q := input.y; s := "baz" }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				p[42].r.bar = "foo" { true }
+				p[__local4__2].r.baz.t = __local3__2 { __local3__2 = input.x; __local4__2 = input.y }`,
+			},
+		},
+		{
+			note:  "reference: partial object, general ref, multiple vars (2)",
+			query: `data.test.p[42] = x`,
+			modules: []string{
+				`package test
+				p[q].r[s] := v { v := "foo"; q := 42; s := "bar" }
+				p[q].r[s].t := v { v := input.x; q := input.y; s := "baz" }`,
+			},
+			wantQueries: []string{
+				`x = {"r": {"bar": "foo"}}`,
+				`42 = input.y; x = {"r": {"baz": {"t": input.x}}}`,
+			},
+		},
+		{
+			note:    "reference: partial object, general ref, multiple vars (2) (shallow)",
+			query:   `data.test.p[42] = x`,
+			shallow: true,
+			modules: []string{
+				`package test
+				#p[q].r[s] := v { v := "foo"; q := 42; s := "bar" }
+				#p[q].r[s].t := v { v := input.x; q := input.y; s := "baz" }
+				p[q][r][s].t := v { v := input.x; q := input.y; s := input.z; r := "known" }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p[42] = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				p[__local1__1].known[__local2__1].t = __local0__1 { __local0__1 = input.x; __local1__1 = input.y; __local2__1 = input.z }`,
+			},
+		},
+		{
 			note:  "reference: partial set",
 			query: "data.test.p[x].foo = 1",
 			modules: []string{
@@ -357,6 +413,174 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 			wantQueries: []string{
 				`1 = input.x; x = {"foo": 1}`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref",
+			query: "data.test.p[x][y].foo = 1",
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`1 = input.x; y = {"foo": 1}; x = 42`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (2)",
+			query: "data.test.p[x][y].bar = 1",
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x = 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x = input.y }`,
+			},
+			wantQueries: []string{
+				`1 = input.x; x = input.y; y = {"bar": 1}`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (3)",
+			query: "data.test.p[42][y].foo = 1",
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`1 = input.x; y = {"foo": 1}`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (4)",
+			query: `data.test.p[x][y] = {"foo": 1}`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`1 = input.x; y = {"foo": 1}; x = 42`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (5)",
+			query: `data.test.p[x] = {{"foo": 1}}`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`{{"foo": input.x}} = {{"foo": 1}}; x = 42`, // `1 = input.x; x = 42` would be a more precise optimization (?)
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (6)",
+			query: `data.test.p`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				import future.keywords.contains
+				p[42] contains {"foo": b1} { b1 = input.x }
+				p[__local1__2] contains {"bar": b2} { b2 = input.x; __local1__2 = input.y }`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (7)",
+			query: `data.test.p = x`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x] contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x] contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				import future.keywords.contains
+				p[42] contains {"foo": b1} { b1 = input.x }
+				p[__local1__2] contains {"bar": b2} { b2 = input.x; __local1__2 = input.y }`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref (8)",
+			query: `data.test.p = x`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[x].r contains y { y = {a: b}; a = "foo"; b = input.x; x := 42 }
+				p[x].r contains y { y = {a: b}; a = "bar"; b = input.x; x := input.y }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				import future.keywords.contains
+				p[42].r contains {"foo": b1} { b1 = input.x }
+				p[__local1__2].r contains {"bar": b2} { b2 = input.x; __local1__2 = input.y }`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref, multiple vars",
+			query: `data.test.p = x`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[q].r[s] contains x { x = "foo"; q := 42; s = "bar" }
+				p[q].r[s].t contains x { x = input.x; q := input.y; s = "baz" }`,
+			},
+			wantQueries: []string{
+				`data.partial.test.p = x`,
+			},
+			wantSupport: []string{
+				`package partial.test
+				import future.keywords.contains
+				p[42].r.bar contains "foo" { true }
+				p[__local1__2].r.baz.t contains x2 { x2 = input.x; __local1__2 = input.y }`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref, multiple vars (2)",
+			query: `data.test.p[42] = x`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[q].r[s] contains v { v := "foo"; q := 42; s := "bar" }
+				p[q].r[s].t contains v { v := input.x; q := input.y; s := "baz" }`,
+			},
+			wantQueries: []string{
+				`x = {"r": {"bar": {"foo"}}}`,
+				`42 = input.y; x = {"r": {"baz": {"t": {input.x}}}}`,
+			},
+		},
+		{
+			note:  "reference: partial set, general ref, multiple vars (3)",
+			query: `data.test.p.foo = x`,
+			modules: []string{
+				`package test
+				import future.keywords.contains
+				p[q].r[s] contains x { x = "foo"; q := 42; s = "bar" }
+				p[q].r[s].t contains x { x = input.x; q := input.y; s = "baz" }`,
+			},
+			wantQueries: []string{
+				`"foo" = input.y; x = {"r": {"baz": {"t": {input.x}}}}`,
 			},
 		},
 		{

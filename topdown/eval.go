@@ -2372,6 +2372,7 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error {
 
 	// FIXME: Check if any part of ref[e.pos+1:] is unknown?
+	// TODO: Make TestTopDownPartialEval test for above
 	if e.e.unknown(e.ref[e.pos+1], e.bindings) {
 		// Queried rule key is unknown
 		for _, rule := range e.ir.Rules {
@@ -2540,23 +2541,14 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	return nil
 }
 
-func wrapInObjects(val *ast.Term, ref ast.Ref) *ast.Term {
+func wrapInObjects(leaf *ast.Term, ref ast.Ref) *ast.Term {
+	// We build the nested objects leaf-to-root to preserve ground:ness
 	if len(ref) == 0 {
-		return val
+		return leaf
 	}
-	obj := ast.NewObject()
-	current := obj
-	for i := 0; i < len(ref); i++ {
-		key := ref[i]
-		if i == len(ref)-1 {
-			current.Insert(key, val)
-		} else {
-			next := ast.NewObject()
-			current.Insert(key, ast.NewTerm(next))
-			current = next
-		}
-	}
-	return ast.NewTerm(obj)
+	key := ref[0] // Do we need to plug bindings here?
+	val := wrapInObjects(leaf, ref[1:])
+	return ast.ObjectTerm(ast.Item(key, val))
 }
 
 func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, rule *ast.Rule, hint evalVirtualPartialCacheHint, result *ast.Term, unknown bool) (*ast.Term, error) {
@@ -2584,6 +2576,8 @@ func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, ru
 			}
 
 			if unknown {
+				term, termbindings := child.bindings.apply(term)
+
 				if rule.Head.RuleKind() == ast.MultiValue {
 					term = ast.SetTerm(term)
 				}
@@ -2591,7 +2585,6 @@ func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, ru
 				objRef := rule.Ref()[e.pos+1:]
 				term = wrapInObjects(term, objRef)
 
-				term, termbindings := child.bindings.apply(term)
 				err := e.evalTerm(iter, e.pos+1, term, termbindings)
 				if err != nil {
 					return err
@@ -2685,6 +2678,8 @@ func (e evalVirtualPartial) evalOneRuleContinue(iter unifyIterator, rule *ast.Ru
 		term = rule.Head.Key
 	}
 
+	term, termbindings := child.bindings.apply(term)
+
 	if rule.Head.RuleKind() == ast.MultiValue {
 		term = ast.SetTerm(term)
 	}
@@ -2692,7 +2687,6 @@ func (e evalVirtualPartial) evalOneRuleContinue(iter unifyIterator, rule *ast.Ru
 	objRef := rule.Ref()[e.pos+1:]
 	term = wrapInObjects(term, objRef)
 
-	term, termbindings := child.bindings.apply(term)
 	err := e.evalTerm(iter, e.pos+1, term, termbindings)
 	if err != nil {
 		return err
@@ -2775,7 +2769,7 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref)
 					ruleRef[i] = child.bindings.plugNamespaced(ruleRef[i], e.e.caller.bindings)
 				}
 				head.Reference = ruleRef
-				if (len(ruleRef) == 1 || len(ruleRef) == 2) && head.Name.Equal(ast.Var("")) {
+				if head.Name.Equal(ast.Var("")) && (len(ruleRef) == 1 || (len(ruleRef) == 2 && head.Key == nil)) {
 					head.Name = ruleRef[0].Value.(ast.Var)
 				}
 				if len(ruleRef) == 2 && head.Key == nil {
