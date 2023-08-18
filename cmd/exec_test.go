@@ -420,7 +420,7 @@ func TestFailFlagCases(t *testing.T) {
 			description: "--fail-non-empty with true boolean result",
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
-				"bundle/x.rego": `package fail.defined.flag
+				"bundle/x.rego": `package fail.non.empty.flag
 
                some_function {
                        input.foo == 7
@@ -431,7 +431,7 @@ func TestFailFlagCases(t *testing.T) {
                        some_function
                }`,
 			},
-			decision:    "fail/defined/flag/fail_test",
+			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
@@ -443,14 +443,14 @@ func TestFailFlagCases(t *testing.T) {
 			description: "--fail-non-empty with false boolean result",
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
-				"bundle/x.rego": `package fail.defined.flag
+				"bundle/x.rego": `package fail.non.empty.flag
 
 		default fail_test := false
 		fail_test {
 			false
 		}`,
 			},
-			decision:    "fail/defined/flag/fail_test",
+			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
@@ -462,14 +462,33 @@ func TestFailFlagCases(t *testing.T) {
 			description: "--fail-non-empty with an empty array",
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
-				"bundle/x.rego": `package fail.defined.flag
+				"bundle/x.rego": `package fail.non.empty.flag
 
 		default fail_test := ["something", "hello"]
 		fail_test := [] if {
 			input.foo == 7
 		}`,
 			},
-			decision:    "fail/defined/flag/fail_test",
+			decision:    "fail/non/empty/flag/fail_test",
+			expectError: false,
+			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": []
+		}]}`)),
+			failNonEmpty: true,
+		},
+		{
+			description: "--fail-non-empty for an empty set coming from a partial rule",
+			files: map[string]string{
+				"files/test.json": `{"foo": 7}`,
+				"bundle/x.rego": `package fail.non.empty.flag
+
+		fail_test[message] {
+		   false
+		   message := "not gonna happen"
+		}`,
+			},
+			decision:    "fail/non/empty/flag/fail_test",
 			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
 			"path": "/files/test.json",
