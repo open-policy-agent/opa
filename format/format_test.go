@@ -78,6 +78,8 @@ func TestFormatSourceError(t *testing.T) {
 }
 
 func TestFormatSource(t *testing.T) {
+	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+
 	regoFiles, err := filepath.Glob("testfiles/*.rego")
 	if err != nil {
 		panic(err)

@@ -453,7 +453,7 @@ func (w *writer) writeElse(rule *ast.Rule, o fmtOpts, comments []*ast.Comment) [
 
 func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fmtOpts, comments []*ast.Comment) []*ast.Comment {
 	ref := head.Ref()
-	if head.Key != nil && head.Value == nil {
+	if head.Key != nil && head.Value == nil && !head.HasDynamicRef() {
 		ref = ref.GroundPrefix()
 	}
 	if o.refHeads || len(ref) == 1 {
