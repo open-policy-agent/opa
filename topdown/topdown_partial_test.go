@@ -584,6 +584,99 @@ func TestTopDownPartialEval(t *testing.T) {
 			},
 		},
 		{
+			note:  "reference: partial object, unknown in query ref",
+			query: "data.test.p[input.x]",
+			modules: []string{
+				`package test
+				p[q].r[s] = v { q = {"foo", "bar"}[s]; v = "baz" }
+				p.q.r.s := 1`,
+			},
+			wantQueries: []string{
+				`"foo" = input.x`,
+				`"bar" = input.x`,
+				`"q" = input.x`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (2)",
+			query: "data.test.p.foo.r[input.x]",
+			modules: []string{
+				`package test
+				p[q].r[s] = v { q = {"foo", "bar"}[s]; v = "baz" }
+				p.q.r.s := 1`,
+			},
+			wantQueries: []string{
+				`"foo" = input.x`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (3)",
+			query: "data.test.p[input.x].r[input.y]",
+			modules: []string{
+				`package test
+				p[q].r[s] = v { q = {"foo", "bar"}[s]; v = "baz" }
+				p.q.r.s := 1`,
+			},
+			wantQueries: []string{
+				`"foo" = input.x; "foo" = input.y`,
+				`"bar" = input.x; "bar" = input.y`,
+				`"q" = input.x; "s" = input.y`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (4)",
+			query: "data.test.p[x].r[y][input.x]",
+			modules: []string{
+				`package test
+				p[q].r[s] = {v: w} { q = {"foo", "bar"}[s]; v = "baz"; w = "bax" }
+				p.q.r.s := {1: 2}`,
+			},
+			wantQueries: []string{
+				`"baz" = input.x; x = "foo"; y = "foo"`,
+				`"baz" = input.x; x = "bar"; y = "bar"`,
+				`1 = input.x; x = "q"; y = "s"`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (5)",
+			query: "data.test.p[x].r[y][input.x] = input.y",
+			modules: []string{
+				`package test
+				p[q].r[s] = {v: w} { q = {"foo", "bar"}[s]; v = "baz"; w = "bax" }
+				p.q.r.s := {1: 2}`,
+			},
+			wantQueries: []string{
+				`"baz" = input.x; "bax" = input.y; x = "foo"; y = "foo"`,
+				`"baz" = input.x; "bax" = input.y; x = "bar"; y = "bar"`,
+				`1 = input.x; 2 = input.y; x = "q"; y = "s"`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (6)",
+			query: `data.test.p[x].r[y][input.x] = "bax"`,
+			modules: []string{
+				`package test
+				p[q].r[s] = {v: w} { q = {"foo", "bar"}[s]; v = "baz"; w = "bax" }
+				p.q.r.s := {1: 2}`,
+			},
+			wantQueries: []string{
+				`"baz" = input.x; x = "foo"; y = "foo"`,
+				`"baz" = input.x; x = "bar"; y = "bar"`,
+			},
+		},
+		{
+			note:  "reference: partial object, unknown in query ref (7)",
+			query: `data.test.p[x].r[y][input.x] = 2`,
+			modules: []string{
+				`package test
+				p[q].r[s] = {v: w} { q = {"foo", "bar"}[s]; v = "baz"; w = "bax" }
+				p.q.r.s := {1: 2}`,
+			},
+			wantQueries: []string{
+				`1 = input.x; x = "q"; y = "s"`,
+			},
+		},
+		{
 			note:  "reference: complete",
 			query: "data.test.p = 1",
 			modules: []string{

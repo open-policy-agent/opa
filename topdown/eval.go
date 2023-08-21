@@ -2369,12 +2369,31 @@ func (e evalVirtualPartial) eval(iter unifyIterator) error {
 	return e.evalEachRule(iter, unknown)
 }
 
+// returns the maximum length a ref can be without being longer than the longest rule ref in rules.
+func maxRefLength(rules []*ast.Rule, ceil int) int {
+	var l int
+	for _, r := range rules {
+		rl := len(r.Ref())
+		if r.Head.RuleKind() == ast.MultiValue {
+			rl = rl + 1
+		}
+		if rl >= ceil {
+			return ceil
+		} else if rl > l {
+			l = rl
+		}
+	}
+	return l
+}
+
 func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error {
 
-	// FIXME: Check if any part of ref[e.pos+1:] is unknown?
-	// TODO: Make TestTopDownPartialEval test for above
-	if e.e.unknown(e.ref[e.pos+1], e.bindings) {
-		// Queried rule key is unknown
+	if e.ir.Empty() {
+		return nil
+	}
+
+	m := maxRefLength(e.ir.Rules, len(e.ref))
+	if e.e.unknown(e.ref[e.pos+1:m], e.bindings) {
 		for _, rule := range e.ir.Rules {
 			if err := e.evalOneRulePostUnify(iter, rule); err != nil {
 				return err
