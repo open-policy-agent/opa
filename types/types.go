@@ -433,24 +433,24 @@ func (t *Object) Select(name interface{}) Type {
 func (t *Object) Merge(other Type) *Object {
 	if otherObj, ok := other.(*Object); ok {
 		return mergeObjects(t, otherObj)
-	} else {
-		var typeK Type
-		var typeV Type
-		dynProps := t.DynamicProperties()
-		if dynProps != nil {
-			typeK = Or(Keys(other), dynProps.Key)
-			typeV = Or(Values(other), dynProps.Value)
-			dynProps = NewDynamicProperty(typeK, typeV)
-		} else {
-			typeK = Keys(other)
-			typeV = Values(other)
-			if typeK != nil && typeV != nil {
-				dynProps = NewDynamicProperty(typeK, typeV)
-			}
-		}
-
-		return NewObject(t.StaticProperties(), dynProps)
 	}
+
+	var typeK Type
+	var typeV Type
+	dynProps := t.DynamicProperties()
+	if dynProps != nil {
+		typeK = Or(Keys(other), dynProps.Key)
+		typeV = Or(Values(other), dynProps.Value)
+		dynProps = NewDynamicProperty(typeK, typeV)
+	} else {
+		typeK = Keys(other)
+		typeV = Values(other)
+		if typeK != nil && typeV != nil {
+			dynProps = NewDynamicProperty(typeK, typeV)
+		}
+	}
+
+	return NewObject(t.StaticProperties(), dynProps)
 }
 
 func mergeObjects(a, b *Object) *Object {
@@ -493,7 +493,7 @@ func mergeObjects(a, b *Object) *Object {
 		}
 	}
 
-	var staticProps []*StaticProperty
+	staticProps := make([]*StaticProperty, 0, len(staticPropsMap))
 	for k, v := range staticPropsMap {
 		staticProps = append(staticProps, NewStaticProperty(k, v))
 	}
