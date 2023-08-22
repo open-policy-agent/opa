@@ -14,8 +14,8 @@ the website.
 directory. This content is versioned for each release and should have all images
 and code snippets alongside the markdown content files.
 
-[website/data/integrations.yaml](./website/data/integrations.yaml) - Source for the
-integrations index. See [Integration Index](#integration-index) below for more details.
+[content/integrations/](./content/integrations) - Source for the
+OPA Ecosystem page. See [OPA Ecosystem](#opa-ecosystem) below for more details.
 
 ## Website Components
 
@@ -40,8 +40,18 @@ and are build into a `_redirects` file when the Hugo build happens via
 ## Site updates
 
 The OPA site is automatically published using [Netlify](https://netlify.com). Whenever
-changes in this directory are pushed to `master`, the site will be re-built and
+changes in this directory are pushed to `main`, the site will be re-built and
 re-deployed.
+
+**Note:** The site is built for many versions of the docs, this introduces some
+complexities to be aware of when making changes to the site's layout:
+
+* Updates to the [site's templates or styles/](./website/) are applied to all versions
+  (edge, latest and all versions) when merged to `main`.
+* Site [data](./website/data) treated in the same way, so updates to data files also
+  apply to all versions as soon as they are merged.
+* Site [content/](./content/), when merged to `main`, is only shown on `edge` until the
+  next release.
 
 ## How to Edit and Test
 
@@ -287,73 +297,86 @@ another group's module when evaluating (e.g. so that they can be imported).
 
 > If a query isn't specified for the output's group, when other modules are included the default becomes `data` instead of `data.<package name>`.
 
-# Integration Index
+# OPA Ecosystem
 
-The integration index makes it easy to find either a specific integration with OPA
-or to browse the integrations with OPA within a particular category.  And it pulls
-information about that integration (e.g. blogs, videos, tutorials, code) into a
-single place while allowing integration authors to maintain the code wherever they like.  
+The [OPA Ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/)
+makes it easy to find either a specific integration with OPA
+or to browse the integrations with OPA within a particular category. It pulls
+information about different integrations (e.g. blogs, videos, tutorials, code) into a
+single place while allowing integration authors to update the docs content as needed.
 
 ## Schema
 
-The schema of integrations.yaml has the following highlevel entries, each of which is self-explanatory.
-- integrations
-- organizations
-- software
+Source information for the OPA Ecosystem is stored in the following places:
 
-Each entry is an object where keys are unique identifiers for each subentry.  
-Organizations and Software are self-explanatory by inspection.  The schema for integrations is as follows.
+- [content/integrations/](./content/integrations) - each file creates a page in the OPA Ecosystem for a particular integration.
+- [content/organizations/](./content/organizations) - each file is a page for organizations and companies associated with integrations.
+- [content/softwares/](./content/softwares) - each file is for software categories related to integrations.
 
-- title: string
-- description: string
-- software: array of strings
-- labels: collection of key/value pairs.
-- tutorials: array of links
-- code: array of links
-- inventors: array of either
-  - string (organization name)
-  - object with fields
-    - name: string
-    - organization: string
-- videos: array of either
-  - link
-  - object with fields
-    - title: string
-    - speakers: array of name/organization objects
-    - venue: string
-    - link: string
-- blogs: array of links
+Integrations should have a file in `content/integrations/` with the following schema:
 
-The UI for this is currently hosted at [https://openpolicyagent.org/docs/latest/ecosystem/](https://openpolicyagent.org/docs/latest/ecosystem/)
+```md
+---
+layout: integration-single # required to be set and to this value
+title: <integration name>
+software:
+- <related software>
+- <related software>
+inventors:
+- <inventor name>
+- <inventor name>
+tutorials: # optional, links to tutorials for the integration
+- https://example.com/tutorial
+code: # optional, links to code for the integration
+- https://github.com/...
+blogs: # optional, links to blog posts for the integration
+- https://example.com/blog/1
+videos: # optional, links to videos for the integration
+- title: <video title>
+  speakers:
+  - name: <speaker name>
+    organization: <speaker organization>
+    venue: <venue>
+    link: <link>
+---
+Description of the integration (required)
+```
 
-The future plan is to use the following labels to generate categories of integrations.
+Any `inventor` that is not already in `content/organizations/` will need to be added too in `content/organizations/`.
+Organizations have the following format:
 
-- layer: which layer of the stack does this belong to
-- category: which kind of component within that layer is this
-- type: what kind of integration this is.  Either `enforcement` or `poweredbyopa`.  `enforcement` is the default
-  if `type` is missing.  `poweredbyopa` is intended to be integrations built using OPA that are not tied to a
-  particular layer of the stack.  This distinction is the most ambiguous and may change.
+```md
+---
+link: https://example.com
+title: <organization name>
+layout: organization-single # required to be set and to this value
+---
+```
 
-As of now the labels are only displayed for each entry.
+Any `software` that is not already in `content/softwares/` will need to be added too in `content/softwares/`.
+Software categories have the following format:
+
+```md
+---
+link: https://example.com
+title: <software name>
+layout: software-single # required to be set and to this value
+---
+```
 
 ## Logos
 
-For each entry in the [integrations.yaml](./website/data/integrations.yaml)
-integrations section the UI will use a PNG or SVG logo with the same name as the key from
-[./website/static/img/logos/integrations](./website/static/img/logos/integrations)
+For each file in under [content/integrations/](./website/content/integrations) 
+a png or svg logo with the same name must be placed in `./website/static/img/logos/integrations`.
 
 For example:
 
-```yaml
-integrations:
-  my-cool-integration:
-    ...
+```md
+# content/integrations/my-cool-integration.md
 ```
 
-Would need a file called `my-cool-integration.png` at `./website/static/img/logos/integrations/my-cool-integration.png`
-(or `my-cool-integration.svg` in the same location).
-
-If it doesn't exist the OPA logo will be shown by default.
+Would need a file called `my-cool-integration.(png|svg)` at
+`./website/static/img/logos/integrations/my-cool-integration.(png|svg)`.
 
 ## Google Analytics
 

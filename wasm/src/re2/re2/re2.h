@@ -585,7 +585,7 @@ class RE2 {
   // to string "out".
   // Returns true on success.  This method can fail because of a malformed
   // rewrite string.  CheckRewriteString guarantees that the rewrite will
-  // be sucessful.
+  // be successful.
   bool Rewrite(std::string* out,
                const StringPiece& rewrite,
                const StringPiece* vec,

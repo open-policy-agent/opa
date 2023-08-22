@@ -19,7 +19,7 @@ Docs for the OPA sub-projects each have their own home. Check out their docs to 
 - [devel/](https://github.com/open-policy-agent/opa/blob/main/docs/devel) - Developer documentation for OPA (not part of the website)
 - [website/](https://github.com/open-policy-agent/opa/blob/main/docs/website) - This directory contains all of the Markdown, HTML, Sass/CSS, and other assets needed to build the [openpolicyagent.org](https://openpolicyagent.org) website. See the section below for steps to build the site and test documentation changes locally. This content is not versioned for each release, it is common scaffolding for the website.
 - [content/](https://github.com/open-policy-agent/opa/blob/main/docs/content) - The raw OPA documentation can be found under the directory. This content is versioned for each release and should have all images and code snippets alongside the markdown content files.
-- [website/data/integrations.yaml](https://github.com/open-policy-agent/opa/blob/main/docs/website/data/integrations.yaml) - Source for the integrations index. See [Integration Index](https://github.com/open-policy-agent/opa/blob/main/docs/README.md#integration-index) below for more details.
+- [content/integrations, content/organizations, content/softwares](https://github.com/open-policy-agent/opa/blob/main/docs/content) - the source for data used to generate the [OPA Ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/)
 
 ## Markdown Page Structure
 

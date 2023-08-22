@@ -1,0 +1,30 @@
+{{ define "page_title" }}
+  {{ .Title }}
+{{ end }}
+
+{{ define "breadcrumbs" -}}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+<p class="mt-2">
+  <a href="{{ $base}}/ecosystem">OPA Ecosystem</a> / Organizations / {{ .Title }}
+</p>
+{{- end }}
+
+{{ define "content" }}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+{{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
+{{ $id := printf "%s" (delimit (last 2 (split .Page.RelPermalink "/")) "") }}
+
+{{ $orgIntegrations := partial "functions/select-integrations-by-organization" (dict "organization" $id "integrations" $integrations) }}
+{{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $orgIntegrations) }}
+
+<p class="title is-6">Links</p>
+<ul>
+  <li><a href="{{ .Params.link }}">{{ .Title }}'s Website</a></li>
+</ul>
+
+<p class="title is-6">OPA Integrations</p>
+<p>{{ .Title }} has created or been involved in the following OPA integrations:</p>
+
+{{ partial "ecosystem-project-list" (dict "base" $base "selectedIntegrations" $sortedIntegrations "integrations" $integrations) }}
+
+{{ end }}

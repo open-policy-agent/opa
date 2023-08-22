@@ -75,7 +75,7 @@
                 OPA Ecosystem
               </span>
           <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
-                <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
+                <a href="https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem" target="_blank">
                   <i class="fab fa-github"></i>
                   <span>Edit</span>
             </a>
@@ -86,9 +86,9 @@
 
       <section class="section">
         <div class="content">
-          <p>Integrations are ordered by the amount of linked content.</p>
-          {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
-          {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
+          <p>
+            Please see the latest docs for the <a href="https://www.openpolicyagent.org/docs/edge/ecosystem/">OPA Ecosystem List</a>.
+          </p>
         </div>
         {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable)) }}
         {{ partial "feedback.html" site.Params.ui.feedback }}

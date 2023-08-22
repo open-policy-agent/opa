@@ -1,5 +1,6 @@
-{{- $integrationsData := $.Site.Data.integrations -}}
-{{- $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $.Site.Data.integrations.integrations "feature" (.Get "key")) -}}
+{{- $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" -}}
+{{- $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) -}}
+{{- $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" (.Get "key")) -}}
 {{- $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" -}}
 {{- $count := len $selectedIntegrations -}}
 

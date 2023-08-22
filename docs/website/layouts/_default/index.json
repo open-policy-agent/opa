@@ -1,0 +1,15 @@
+{{/* this file is used to validate updates to integrations state */}}
+{{- $base := "/docs/edge" -}}
+{{- $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) -}}
+{{- $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) -}}
+{{- $softwares := partial "functions/section-pages" (dict "section" "softwares" "base" $base "pages" $.Site.Pages) -}}
+{{- $.Scratch.Set "json" dict -}}
+{{- $.Scratch.SetInMap "json" "integrations" $integrations -}}
+{{- $.Scratch.SetInMap "json" "organizations" $organizations -}}
+{{- $.Scratch.SetInMap "json" "softwares" $softwares -}}
+{{- $.Scratch.Add "images" slice -}}
+{{- range (readDir "static/img/logos/integrations") -}}
+{{- $.Scratch.Add "images" .Name -}}
+{{- end -}}
+{{- $.Scratch.SetInMap "json" "images" ($.Scratch.Get "images") -}}
+{{- $.Scratch.Get "json" | jsonify (dict "indent" "  ") -}}

@@ -1,5 +1,9 @@
-# This file is used to generate the OPA ecosystem page: https://www.openpolicyagent.org/docs/latest/ecosystem/
-# For instructions on how to add an entry, see https://github.com/open-policy-agent/opa/tree/main/docs#integration-index
+# NOTE: this file has been deprecated as of
+# https://github.com/open-policy-agent/opa/pull/6158
+# Please see the docs to learn how to add new integrations
+# https://github.com/open-policy-agent/opa/blob/1e4f120beb9777d3202bb594a2c212256549d953/docs/README.md
+
+# TODO: this file can be removed after v0.56.0 release
 integrations:
 
   torque:
@@ -583,7 +587,9 @@ integrations:
       category: servicemesh
       layer: gateway
     blogs:
-      - https://engineering.etermax.com/api-authorization-with-kubernetes-traefik-and-open-policy-agent-23647fc384a1
+      - https://medium.com/etermax-technology/api-authorization-with-kubernetes-traefik-and-open-policy-agent-23647fc384a1
+    code:
+      - https://github.com/edgeflare/traefik-opa-proxy
 
   nodejs-express:
     title: NodeJS express
@@ -1332,7 +1338,7 @@ integrations:
       - ebpf
     labels:
       layer: application
-      catagory: filtering
+      category: filtering
     code:
       - https://github.com/kubeshield/bpf-opa-demo
     blogs:

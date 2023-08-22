@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/future"
@@ -263,12 +264,11 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 		return locLess(comments[i], comments[j])
 	})
 
-	// XXX: The parser currently duplicates comments for some reason, so we need
-	// to remove duplicates here.
-	comments = dedupComments(comments)
 	sort.Slice(others, func(i, j int) bool {
 		return locLess(others[i], others[j])
 	})
+
+	comments = trimTrailingWhitespaceInComments(comments)
 
 	comments = w.writePackage(pkg, comments)
 	var imports []*ast.Import
@@ -286,6 +286,14 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 			w.write("\n")
 		}
 	}
+}
+
+func trimTrailingWhitespaceInComments(comments []*ast.Comment) []*ast.Comment {
+	for _, c := range comments {
+		c.Text = bytes.TrimRightFunc(c.Text, unicode.IsSpace)
+	}
+
+	return comments
 }
 
 func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.Comment {
@@ -1288,21 +1296,6 @@ func skipPast(open, close byte, loc *ast.Location) (int, int) {
 	}
 
 	return i, offset
-}
-
-func dedupComments(comments []*ast.Comment) []*ast.Comment {
-	if len(comments) == 0 {
-		return nil
-	}
-
-	filtered := []*ast.Comment{comments[0]}
-	for i := 1; i < len(comments); i++ {
-		if comments[i].Location.Equal(comments[i-1].Location) {
-			continue
-		}
-		filtered = append(filtered, comments[i])
-	}
-	return filtered
 }
 
 // startLine begins a line with the current indentation level.

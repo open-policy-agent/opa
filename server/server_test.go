@@ -3511,7 +3511,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 func TestQueryPostBasic(t *testing.T) {
 	f := newFixture(t)
 	f.server, _ = New().
-		WithAddresses([]string{":8182"}).
+		WithAddresses([]string{"localhost:8182"}).
 		WithStore(f.server.store).
 		WithManager(f.server.manager).
 		Init(context.Background())
@@ -4024,7 +4024,7 @@ func TestAuthorization(t *testing.T) {
 	}
 
 	server, err := New().
-		WithAddresses([]string{":8182"}).
+		WithAddresses([]string{"localhost:8182"}).
 		WithStore(store).
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).
@@ -4155,7 +4155,7 @@ allow {
 	}
 
 	server, err := New().
-		WithAddresses([]string{":8182"}).
+		WithAddresses([]string{"localhost:8182"}).
 		WithStore(store).
 		WithManager(m).
 		WithAuthorization(AuthorizationBasic).

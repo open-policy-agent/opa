@@ -18,12 +18,15 @@
   {{ .Content }}
 
   {{ $feature := path.BaseName .RelPermalink }}
-  {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $.Site.Data.integrations.integrations "feature" $feature) }}
+  {{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+  {{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
+  {{ $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) }}
+  {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
   {{ if (gt (len $selectedIntegrations) 0) }}
     <p>Integrations are ordered by the amount of linked content.</p>
     {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $selectedIntegrations) }}
     {{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
-    {{ partial "ecosystem-project-list-for-feature" (dict "selectedIntegrations" $sortedIntegrations "integrationsData" $.Site.Data.integrations "feature" $feature "base" $base) }}
+    {{ partial "ecosystem-project-list-for-feature" (dict "base" $base "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature "base" $base) }}
   {{ else }}
     <p>There are no integrations for this category.</p>
   {{ end }}

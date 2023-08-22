@@ -11,6 +11,8 @@
 {{ define "content" }}
 
 {{ .Content }}
+{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
+{{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
 
 {{ range $category := .Params.categories }}
 <h2>{{ $category.title }}</h2>
@@ -19,7 +21,7 @@
     {{ range $page := $.Page.Pages }}
       {{ if eq $page.Params.category $category.key }}
         {{ $feature := path.BaseName $page.RelPermalink }}
-        {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $.Site.Data.integrations.integrations "feature" $feature) }}
+        {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
 
         {{ if (gt (len $selectedIntegrations) 1) }}
           <li>
@@ -39,7 +41,7 @@
 
 <h2>All Integrations</h2>
 <p>Integrations are ordered by the amount of linked content.</p>
-{{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $.Site.Data.integrations.integrations) }}
-{{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrationsData" $.Site.Data.integrations) }}
+{{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $integrations) }}
+{{ partial "ecosystem-project-list" (dict "base" $base "selectedIntegrations" $selectedIntegrations "integrations" $integrations) }}
 
 {{ end }}

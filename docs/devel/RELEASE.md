@@ -155,6 +155,9 @@ standard GitHub fork workflow. See [OPA Dev Instructions](DEVELOPMENT.md)
 		```bash
 		curl -X POST -d {} https://api.netlify.com/build_hooks/612e8941ffe30d2902bcce80
 		```
+- The Algolia search index is automatically updated when the site is crawled daily at 20:30 (UTC). The
+  crawling process takes around 25 minutes to complete and can be triggered from
+  [crawler.algolia.com](https://crawler.algolia.com) (login details required). 
 
 # Bugfix Release Process
 
