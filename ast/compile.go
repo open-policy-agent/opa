@@ -814,12 +814,18 @@ func (c *Compiler) buildRuleIndices() {
 			return false
 		}
 		rules := extractRules(node.Values)
-		hasNonGroundKey := false
+		hasNonGroundRef := false
 		for _, r := range rules {
-			hasNonGroundKey = !r.Head.Ref().IsGround()
+			hasNonGroundRef = !r.Head.Ref().IsGround()
 		}
-		if hasNonGroundKey {
-			// collect children
+		if hasNonGroundRef {
+			// Collect children to ensure that all rules within the extent of a rule with a general ref
+			// are found on the same index. E.g. the following rules should be indexed under data.a.b.c:
+			//
+			// package a
+			// b.c[x].e := 1 { x := input.x }
+			// b.c.d := 2
+			// b.c.d2.e[x] := 3 { x := input.x }
 			for _, child := range node.Children {
 				child.DepthFirst(func(c *TreeNode) bool {
 					rules = append(rules, extractRules(c.Values)...)
@@ -834,7 +840,7 @@ func (c *Compiler) buildRuleIndices() {
 		if index.Build(rules) {
 			c.ruleIndices.Put(rules[0].Ref().GroundPrefix(), index)
 		}
-		return hasNonGroundKey // currently, we don't allow those branches to go deeper
+		return hasNonGroundRef // currently, we don't allow those branches to go deeper
 	})
 
 }

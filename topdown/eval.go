@@ -187,7 +187,7 @@ func (e *eval) unknown(x interface{}, b *bindings) bool {
 		x = ast.NewTerm(v)
 	}
 
-	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false) // TODO: update for general refs?
+	return saveRequired(e.compiler, e.inliningControl, true, e.saveSet, b, x, false)
 }
 
 func (e *eval) traceEnter(x ast.Node) {
@@ -2281,11 +2281,11 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	switch ir.Kind {
 	case ast.MultiValue:
 		var empty *ast.Term
-		if ir.OnlyGroundRefs { //e.pos == len(e.ref)-1 {
+		if ir.OnlyGroundRefs {
 			// rule ref contains no vars, so we're building a set
 			empty = ast.SetTerm()
 		} else {
-			// rule ref contains vars, so we're building an object
+			// rule ref contains vars, so we're building an object containing a set leaf
 			empty = ast.ObjectTerm()
 		}
 		eval := evalVirtualPartial{
@@ -2301,8 +2301,6 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 		}
 		return eval.eval(iter)
 	case ast.SingleValue:
-		// NOTE(sr): If we allow vars in others than the last position of a ref, we need
-		//           to start reworking things here
 		if ir.OnlyGroundRefs {
 			eval := evalVirtualComplete{
 				e:         e.e,
@@ -2421,7 +2419,7 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	result := e.empty
 
 	for _, rule := range e.ir.Rules {
-		result, err = e.evalOneDynamicRefRulePreUnify(iter, rule, hint, result, unknown)
+		result, err = e.evalOneRulePreUnify(iter, rule, hint, result, unknown)
 		if err != nil {
 			return err
 		}
@@ -2496,12 +2494,12 @@ func wrapInObjects(leaf *ast.Term, ref ast.Ref) *ast.Term {
 	if len(ref) == 0 {
 		return leaf
 	}
-	key := ref[0] // Do we need to plug bindings here?
+	key := ref[0]
 	val := wrapInObjects(leaf, ref[1:])
 	return ast.ObjectTerm(ast.Item(key, val))
 }
 
-func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, rule *ast.Rule, hint evalVirtualPartialCacheHint, result *ast.Term, unknown bool) (*ast.Term, error) {
+func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Rule, hint evalVirtualPartialCacheHint, result *ast.Term, unknown bool) (*ast.Term, error) {
 
 	child := e.e.child(rule.Body)
 
@@ -2561,7 +2559,6 @@ func (e evalVirtualPartial) evalOneDynamicRefRulePreUnify(iter unifyIterator, ru
 		return nil, err
 	}
 
-	// We're tracing here to exhibit similar behaviour to evalOneRulePreUnify
 	if !defined {
 		child.traceFail(rule)
 	}

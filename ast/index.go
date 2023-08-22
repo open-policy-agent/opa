@@ -38,7 +38,6 @@ type IndexResult struct {
 	Default        *Rule
 	EarlyExit      bool
 	OnlyGroundRefs bool
-	DynamicRef     bool
 }
 
 // NewIndexResult returns a new IndexResult object.
@@ -61,7 +60,6 @@ type baseDocEqIndex struct {
 	defaultRule    *Rule
 	kind           RuleKind
 	onlyGroundRefs bool
-	dynamicRef     bool
 }
 
 func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
@@ -70,7 +68,6 @@ func newBaseDocEqIndex(isVirtual func(Ref) bool) *baseDocEqIndex {
 		isVirtual:      isVirtual,
 		root:           newTrieNodeImpl(),
 		onlyGroundRefs: true,
-		dynamicRef:     false,
 	}
 }
 
@@ -91,9 +88,6 @@ func (i *baseDocEqIndex) Build(rules []*Rule) bool {
 			}
 			if i.onlyGroundRefs {
 				i.onlyGroundRefs = rule.Head.Reference.IsGround()
-			}
-			if !i.dynamicRef {
-				i.dynamicRef = rule.Head.HasDynamicRef()
 			}
 			var skip bool
 			for _, expr := range rule.Body {
@@ -147,7 +141,6 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
 	result.OnlyGroundRefs = i.onlyGroundRefs
-	result.DynamicRef = i.dynamicRef
 	result.Rules = make([]*Rule, 0, len(tr.ordering))
 
 	for _, pos := range tr.ordering {
@@ -180,7 +173,6 @@ func (i *baseDocEqIndex) AllRules(resolver ValueResolver) (*IndexResult, error) 
 
 	result := NewIndexResult(i.kind)
 	result.Default = i.defaultRule
-	result.DynamicRef = i.dynamicRef
 	result.OnlyGroundRefs = i.onlyGroundRefs
 	result.Rules = make([]*Rule, 0, len(tr.ordering))
 
