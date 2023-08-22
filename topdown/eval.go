@@ -2426,10 +2426,8 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	if hint.key != nil {
-		pluggedKey := e.bindings.Plug(e.ref[e.pos+1])
-		hintResult := result.Get(pluggedKey)
-		if hintResult != nil {
-			e.e.virtualCache.Put(hint.key, hintResult)
+		if v, err := result.Value.Find(hint.key[e.pos+1:]); err == nil && v != nil {
+			e.e.virtualCache.Put(hint.key, ast.NewTerm(v))
 		}
 	}
 
@@ -2764,6 +2762,7 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 	var hint evalVirtualPartialCacheHint
 
 	if e.e.unknown(e.ref[:e.pos+1], e.bindings) {
+		// FIXME: Return empty hint if unknowns in any e.ref elem overlapping with applicable rule refs?
 		return hint, nil
 	}
 
@@ -2775,17 +2774,29 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 
 	plugged := e.bindings.Plug(e.ref[e.pos+1])
 
-	if plugged.IsGround() {
-		hint.key = append(e.plugged[:e.pos+1], plugged)
+	if _, ok := plugged.Value.(ast.Var); ok {
+		hint.full = true
+		hint.key = e.plugged[:e.pos+1]
+		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
+		return hint, nil
+	}
+
+	m := maxRefLength(e.ir.Rules, len(e.ref))
+
+	for i := e.pos + 1; i < m; i++ {
+		plugged = e.bindings.Plug(e.ref[i])
+
+		if !plugged.IsGround() {
+			break
+		}
+
+		hint.key = append(e.plugged[:i], plugged)
 
 		if cached, _ := e.e.virtualCache.Get(hint.key); cached != nil {
 			e.e.instr.counterIncr(evalOpVirtualCacheHit)
 			hint.hit = true
-			return hint, e.evalTerm(iter, e.pos+2, cached, e.bindings)
+			return hint, e.evalTerm(iter, i+1, cached, e.bindings)
 		}
-	} else if _, ok := plugged.Value.(ast.Var); ok {
-		hint.full = true
-		hint.key = e.plugged[:e.pos+1]
 	}
 
 	e.e.instr.counterIncr(evalOpVirtualCacheMiss)

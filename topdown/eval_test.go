@@ -331,7 +331,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 			miss:  1,
 		},
 		{
-			note: "partial object: simple, query into value",
+			note: "partial object: query into object value",
 			module: `package p
 			s["foo"] = { "x": 42, "y": 43 } { true }
 			s["bar"] = { "x": 42, "y": 43 } { true }`,
@@ -348,6 +348,131 @@ func TestTopdownVirtualCache(t *testing.T) {
 			hit:   1,
 			miss:  1,
 			exp:   true,
+		},
+		{
+			note: "partial object: simple, general ref, multiple vars",
+			module: `package p
+			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			query: `data.p.s.t = x; data.p.s.t`,
+			hit:   1,
+			miss:  1,
+			exp: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"v": map[string]interface{}{
+						"do": true,
+						"re": true,
+					},
+				},
+				"bar": map[string]interface{}{
+					"v": map[string]interface{}{
+						"do": true,
+						"re": true,
+					},
+				},
+			},
+		},
+		{
+			note: "partial object: simple, general ref, multiple vars (2)",
+			module: `package p
+			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			query: `data.p.s.t.foo = x; data.p.s.t["foo"]`,
+			hit:   1,
+			miss:  1,
+			exp: map[string]interface{}{
+				"v": map[string]interface{}{
+					"do": true,
+					"re": true,
+				},
+			},
+		},
+		{
+			note: "partial object: simple, general ref, multiple vars (3)",
+			module: `package p
+			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			query: `data.p.s.t.foo.v = x; data.p.s.t["foo"].v`,
+			hit:   1,
+			miss:  1,
+			exp: map[string]interface{}{
+				"do": true,
+				"re": true,
+			},
+		},
+		{
+			note: "partial object: simple, general ref, multiple vars (4)",
+			module: `package p
+			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			query: `data.p.s.t.foo.v.re = x; data.p.s.t["foo"].v["re"]`,
+			hit:   1,
+			miss:  1,
+			exp:   true,
+		},
+		{
+			note: "partial object: simple, general ref, miss",
+			module: `package p
+			s.t[u].v[w] = true { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[_] }`,
+			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do`,
+			hit:   0,
+			miss:  2,
+			exp:   true,
+		},
+		{
+			note: "partial object: simple, general ref, miss (2)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.foo.v.re`,
+			hit:   1,
+			miss:  2,
+			exp:   1,
+		},
+		{
+			note: "partial object: simple, general ref, miss (3)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.bar.v.re`,
+			hit:   0,
+			miss:  3,
+			exp:   1,
+		},
+		{
+			note: "partial object: simple, general ref, miss (3)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo.v.re = x; data.p.s.t.foo.v.do; data.p.s.t.bar.v.re; data.p.s.t.foo.v.do`,
+			hit:   1,
+			miss:  3,
+			exp:   1,
+		},
+		{
+			note: "partial object: simple, general ref, miss (4)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo = x; data.p.s.t.foo.v.do`,
+			hit:   1,
+			miss:  1,
+			exp: map[string]interface{}{
+				"v": map[string]interface{}{
+					"do": 0,
+					"re": 1,
+				},
+			},
+		},
+		{
+			note: "partial object: simple, general ref, miss (5)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo; data.p.s.t.foo.v.do = x`,
+			hit:   1,
+			miss:  1,
+			exp:   0,
+		},
+		{
+			note: "partial object: simple, general ref, miss (6)",
+			module: `package p
+			s.t[u].v[w] = i { x = ["foo", "bar"]; u = x[_]; y = ["do", "re"]; w = y[i] }`,
+			query: `data.p.s.t.foo.v.do = x; data.p.s.t.foo`,
+			hit:   0, // Note: Could we be smart in query term eval order to gain an extra hit here?
+			miss:  2,
+			exp:   0,
 		},
 		{
 			note: "partial object: simple, query into value",
@@ -804,121 +929,6 @@ func TestPartialRule(t *testing.T) {
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
 		},
-		// NOTE: There is a bit of ambiguity in the parser about when an else-body is permitted.
-		// Sometimes when successfully parsed, evaluation doesn't consider the else body, though.
-		// else bodies
-		//{
-		//	note: "partial object with else block on key override rule (else body defined)",
-		//	module: `package test
-		//		p[x] := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.baz := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 2
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"bar": 1, "baz": "a", "foo": 0}}, "x": 2}}]`,
-		//},
-		//{
-		//	note: "partial object (ref head) with else block on key override rule (primary body defined)",
-		//	module: `package test
-		//		p.q[x] := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 1
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": 1, "baz": "a", "foo": 0}}, "x": 1}}}]`,
-		//},
-		//{
-		//	note: "partial object (ref head) with else block on key override rule (else body defined)",
-		//	module: `package test
-		//		p.q[x] := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 2
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": 1, "baz": "a", "foo": 0}}, "x": 2}}}]`,
-		//},
-		//{
-		//	note: "partial object (ref head) with else block on key override rule (no body defined)",
-		//	module: `package test
-		//		p.q[x] := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 3
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": 1, "foo": 0}}, "x": 3}}}]`,
-		//},
-		//{
-		//	note: "partial object (general ref head) with else block on key override rule (primary body defined)",
-		//	module: `package test
-		//		p.q[x].r := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz.s := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 1
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": {"r": 1}, "baz": {"s": "a"}, "foo": {"r": 0}}}, "x": 1}}}]`,
-		//},
-		//{
-		//	note: "partial object (general ref head) with else block on key override rule (else body defined)",
-		//	module: `package test
-		//		p.q[x].r := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz.s := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 2
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": {"r": 1}, "baz": {"s": "b"}, "foo": {"r": 0}}}, "x": 1}}}]`,
-		//},
-		//{
-		//	note: "partial object (general ref head) with else block on key override rule (no body defined)",
-		//	module: `package test
-		//		p.q[x].r := i {
-		//			x := ["foo", "bar"][i]
-		//		}
-		//		p.q.baz.s := "a" {
-		//			x == 1
-		//		} else := "b" {
-		//			x == 2
-		//		}
-		//		x := 3
-		//	`,
-		//	query: `data = x`,
-		//	exp:   `[{"x": {"test": {"p": {"q": {"bar": {"r": 1}, "foo": {"r": 0}}}, "x": 3}}}]`,
-		//},
 		// Deep queries
 		{
 			note: "deep query into partial object (ref head)",
