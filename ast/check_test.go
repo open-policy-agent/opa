@@ -355,8 +355,8 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`overlap`, `p.q.r = false { true }`},
 		{`overlap`, `p.q.r = "false" { true }`},
 		{`overlap`, `p.q[42] = 1337 { true }`},
-		{`overlap`, `p.q.a = input.a { true }`},
-		{`overlap`, `p.q[56] = input.a { true }`},
+		{`overlap`, `p.q2.a = input.a { true }`},
+		{`overlap`, `p.q2[56] = input.a { true }`},
 	}
 
 	tests := []struct {
@@ -525,33 +525,28 @@ func TestCheckInferenceRules(t *testing.T) {
 		{
 			note:     "ref-rules single value, full ref to known leaf (any type)",
 			rules:    ruleset2,
-			ref:      "data.overlap.p.q.a",
+			ref:      "data.overlap.p.q2.a",
 			expected: types.A,
 		},
 		{
 			note:     "ref-rules single value, full ref to known leaf (same key type as dynamic, any type)",
 			rules:    ruleset2,
-			ref:      "data.overlap.p.q[56]",
+			ref:      "data.overlap.p.q2[56]",
 			expected: types.A,
 		},
 		{
 			note:     "ref-rules single value, full ref to dynamic leaf",
 			rules:    ruleset2,
 			ref:      "data.overlap.p.q[1]",
-			expected: types.S,
+			expected: types.Any{types.B, types.N, types.S}, // key type cannot be tied to specific dynamic value type, so we get all of them
 		},
 		{
 			note:  "ref-rules single value, prefix ref to partial object root",
 			rules: ruleset2,
 			ref:   "data.overlap.p.q",
 			expected: types.NewObject(
-				[]*types.StaticProperty{
-					types.NewStaticProperty(json.Number("42"), types.N),
-					types.NewStaticProperty(json.Number("56"), types.A),
-					types.NewStaticProperty("a", types.A),
-					types.NewStaticProperty("r", types.Or(types.B, types.S)),
-				},
-				types.NewDynamicProperty(types.N, types.S),
+				nil,
+				types.NewDynamicProperty(types.Any{types.N, types.S}, types.Any{types.B, types.N, types.S}),
 			),
 		},
 	}

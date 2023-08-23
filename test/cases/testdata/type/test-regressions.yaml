@@ -30,3 +30,28 @@ cases:
   query: data.test.q = x
   want_result:
     - x: ["bar"]
+- note: regression/dynamic object to static object comparison (https://github.com/open-policy-agent/opa/issues/6138)
+  modules:
+    - |
+      package test
+      
+      obj[k] := v {
+        v := ["a", "b", "c"][k]
+      }
+
+      obj.foo := "bar"
+      
+      obj.baz := true { false }
+      
+      compare {
+        # Comparison with static object that doesn't contain "optional" key.
+        obj == {
+          0: "a",
+          1: "b",
+          2: "c",
+          "foo": "bar"
+        }
+      }
+  query: data.test.compare = x
+  want_result:
+    - x: true
