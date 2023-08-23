@@ -6,9 +6,10 @@ package ast
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
-	"strings"
 )
 
 // TypeEnv contains type info for static analysis such as type checking.
