@@ -268,7 +268,7 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	}
 
 	if tpe != nil {
-		env.tree.Insert(path, tpe)
+		env.tree.Insert(path, tpe, env)
 	}
 }
 
