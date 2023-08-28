@@ -341,7 +341,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 		curr = child
 	}
 
-	curr.value = tpe
+	curr.value = mergeTypes(curr.value, tpe)
 
 	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {
 		// merge all leafs into the inserted object
@@ -354,6 +354,32 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 			}
 		}
 	}
+}
+
+func mergeTypes(a, b types.Type) types.Type {
+	if a == nil {
+		return b
+	}
+
+	if b == nil {
+		return a
+	}
+
+	if aObj, ok := a.(*types.Object); ok {
+		if bObj, ok := b.(*types.Object); ok && len(aObj.StaticProperties()) == 0 && len(bObj.StaticProperties()) == 0 {
+			aDynProps := aObj.DynamicProperties()
+			bDynProps := bObj.DynamicProperties()
+			return types.NewObject(nil, types.NewDynamicProperty(
+				types.Or(aDynProps.Key, bDynProps.Key),
+				types.Or(aDynProps.Value, bDynProps.Value)))
+		}
+	} else if aSet, ok := a.(*types.Set); ok {
+		if bSet, ok := b.(*types.Set); ok {
+			return types.NewSet(types.Or(aSet.Of(), bSet.Of()))
+		}
+	}
+
+	return types.Or(a, b)
 }
 
 func (n *typeTreeNode) String() string {

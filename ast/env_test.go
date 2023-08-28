@@ -215,6 +215,167 @@ func TestInsertIntoObject(t *testing.T) {
 	}
 }
 
+type pathAndType struct {
+	path Ref
+	tpe  types.Type
+}
+
+func TestTypeTreeNode_Insert(t *testing.T) {
+	cases := []struct {
+		note       string
+		insertions []pathAndType
+		expected   []pathAndType
+	}{
+		{
+			note: "only primitives",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b.c"),
+					tpe:  types.N,
+				},
+				{
+					path: MustParseRef("data.a.b.c2"),
+					tpe:  types.S,
+				},
+				{
+					path: MustParseRef("data.a.b[42]"),
+					tpe:  types.B,
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b.c"),
+					tpe:  types.N,
+				},
+				{
+					path: MustParseRef("data.a.b.c2"),
+					tpe:  types.S,
+				},
+				{
+					path: MustParseRef("data.a.b[42]"),
+					tpe:  types.B,
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  nil,
+				},
+			},
+		},
+		{
+			note: "primitive leafs inserted into object",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b.c"),
+					tpe:  types.S,
+				},
+				{
+					path: MustParseRef("data.a.b[true]"),
+					tpe:  types.S,
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.B, types.N, types.S}, types.Any{types.B, types.S})),
+				},
+			},
+		},
+		{
+			note: "primitive leafs first, then object",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b.c"),
+					tpe:  types.S,
+				},
+				{
+					path: MustParseRef("data.a.b[true]"),
+					tpe:  types.S,
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.N, types.B)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.B, types.N, types.S},
+						types.Any{types.B, types.S},
+					)),
+				},
+			},
+		},
+		{
+			note: "object beside object",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.N, types.S},
+						types.Any{types.B, types.S},
+					)),
+				},
+			},
+		},
+		{
+			note: "object into object",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b.c"),
+					tpe:  types.NewObject(nil, types.NewDynamicProperty(types.B, types.N)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.N, types.S},
+						types.Any{types.B, types.NewObject(nil, types.NewDynamicProperty(types.B, types.N))},
+					)),
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			root := newTypeTree()
+			env := TypeEnv{tree: root}
+
+			for _, insertion := range tc.insertions {
+				root.Insert(insertion.path, insertion.tpe, &env)
+			}
+
+			for _, expected := range tc.expected {
+				actual := root.Get(expected.path)
+				if types.Compare(actual, expected.tpe) != 0 {
+					t.Fatalf("Expected %v but got %v", expected.tpe, actual)
+				}
+			}
+		})
+	}
+}
+
 func TestTypeTreeInsert(t *testing.T) {
 	env := TypeEnv{}
 	n := newTypeTree()
