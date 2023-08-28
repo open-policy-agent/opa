@@ -1653,3 +1653,201 @@ func TestBundleWithStrictFlag(t *testing.T) {
 	}
 
 }
+
+func TestUnexpectedElseNoBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if false
+			else := 2`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if { false }
+			else := 2`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 `,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseNoIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else = x {
+				x=2
+			} `,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+			} `,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseIfElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else =x {
+				x=3
+			}`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseIfElseErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else 
+				x=3
+			`,
+		"data.json": `
+			{"foo": 1}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+		if err == nil {
+			t.Fatalf("expect error: %v", err)
+		}
+	})
+}
