@@ -334,6 +334,132 @@ func TestTypeTreeNode_Insert(t *testing.T) {
 			},
 		},
 		{
+			note: "object beside object with static types",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+						types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty("bar", types.S)},
+						types.NewDynamicProperty(types.S, types.S)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.Any{
+						types.NewObject(
+							[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+							types.NewDynamicProperty(types.N, types.B)),
+						types.NewObject(
+							[]*types.StaticProperty{types.NewStaticProperty("bar", types.S)},
+							types.NewDynamicProperty(types.S, types.S)),
+					},
+				},
+			},
+		},
+		{
+			note: "object beside object with static types (2)",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						nil,
+						types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty("bar", types.S)},
+						types.NewDynamicProperty(types.S, types.S)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.Any{
+						types.NewObject(
+							nil,
+							types.NewDynamicProperty(types.N, types.B)),
+						types.NewObject(
+							[]*types.StaticProperty{types.NewStaticProperty("bar", types.S)},
+							types.NewDynamicProperty(types.S, types.S)),
+					},
+				},
+			},
+		},
+		{
+			note: "object beside object with static types (3)",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+						types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						nil,
+						types.NewDynamicProperty(types.S, types.S)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.Any{
+						types.NewObject(
+							[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+							types.NewDynamicProperty(types.N, types.B)),
+						types.NewObject(
+							nil,
+							types.NewDynamicProperty(types.S, types.S)),
+					},
+				},
+			},
+		},
+		{
+			note: "object beside object with static types (4)",
+			insertions: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+						types.NewDynamicProperty(types.N, types.B)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						nil,
+						types.NewDynamicProperty(types.S, types.S)),
+				},
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.NewObject(
+						nil,
+						types.NewDynamicProperty(types.N, types.B)),
+				},
+			},
+			expected: []pathAndType{
+				{
+					path: MustParseRef("data.a.b"),
+					tpe: types.Any{
+						types.NewObject(
+							[]*types.StaticProperty{types.NewStaticProperty("foo", types.N)},
+							types.NewDynamicProperty(types.N, types.B)),
+						types.NewObject(
+							nil,
+							types.NewDynamicProperty(types.Any{types.N, types.S}, types.Any{types.B, types.S})),
+					},
+				},
+			},
+		},
+		{
 			note: "object into object",
 			insertions: []pathAndType{
 				{

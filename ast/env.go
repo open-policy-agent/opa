@@ -356,6 +356,13 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 	}
 }
 
+// mergeTypes merges the types of 'a' and 'b'. If both are sets, their 'of' types are joined with an types.Or.
+// If bot are objects, the key and value types of their dynamic properties are joined with types.Or:s.
+// If 'a' and 'b' are both objects, and at least one of them have static properties, they are joined
+// with an types.Or, instead of being merged.
+// If 'a' is an Any containing an Object, and 'b' is an Object (or vice versa); AND both objects have no
+// static properties, they are merged.
+// If 'a' and 'b' are different types, they are joined with an types.Or.
 func mergeTypes(a, b types.Type) types.Type {
 	if a == nil {
 		return b
@@ -365,17 +372,38 @@ func mergeTypes(a, b types.Type) types.Type {
 		return a
 	}
 
-	if aObj, ok := a.(*types.Object); ok {
-		if bObj, ok := b.(*types.Object); ok && len(aObj.StaticProperties()) == 0 && len(bObj.StaticProperties()) == 0 {
-			aDynProps := aObj.DynamicProperties()
+	switch a := a.(type) {
+	case *types.Object:
+		if bObj, ok := b.(*types.Object); ok && len(a.StaticProperties()) == 0 && len(bObj.StaticProperties()) == 0 {
+			if len(a.StaticProperties()) > 0 || len(bObj.StaticProperties()) > 0 {
+				return types.Or(a, bObj)
+			}
+
+			aDynProps := a.DynamicProperties()
 			bDynProps := bObj.DynamicProperties()
 			return types.NewObject(nil, types.NewDynamicProperty(
 				types.Or(aDynProps.Key, bDynProps.Key),
 				types.Or(aDynProps.Value, bDynProps.Value)))
+		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 {
+			// If a is an object type with no static components ...
+			for _, t := range bAny {
+				if tObj, ok := t.(*types.Object); ok && len(tObj.StaticProperties()) == 0 {
+					// ... and b is a types.Any containing an object with no static components, we merge them.
+					aDynProps := a.DynamicProperties()
+					tDynProps := tObj.DynamicProperties()
+					tDynProps.Key = types.Or(tDynProps.Key, aDynProps.Key)
+					tDynProps.Value = types.Or(tDynProps.Value, aDynProps.Value)
+					return bAny
+				}
+			}
 		}
-	} else if aSet, ok := a.(*types.Set); ok {
+	case *types.Set:
 		if bSet, ok := b.(*types.Set); ok {
-			return types.NewSet(types.Or(aSet.Of(), bSet.Of()))
+			return types.NewSet(types.Or(a.Of(), bSet.Of()))
+		}
+	case types.Any:
+		if _, ok := b.(types.Any); !ok {
+			return mergeTypes(b, a)
 		}
 	}
 
