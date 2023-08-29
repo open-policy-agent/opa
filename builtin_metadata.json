@@ -11559,6 +11559,33 @@
     },
     "wasm": true
   },
+  "numbers.range_step": {
+    "args": [
+      {
+        "name": "a",
+        "type": "number"
+      },
+      {
+        "name": "b",
+        "type": "number"
+      },
+      {
+        "name": "step",
+        "type": "number"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns an array of numbers in the given (inclusive) range incremented by a positive step. If `a==b`, then `range == [a]`; if `a \u003e b`, then `range` is in descending order.",
+    "introduced": "edge",
+    "result": {
+      "description": "the range between `a` and `b` incremented by a positive step.",
+      "name": "range",
+      "type": "array[number]"
+    },
+    "wasm": false
+  },
   "object.filter": {
     "args": [
       {
