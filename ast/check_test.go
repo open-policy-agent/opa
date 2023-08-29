@@ -687,7 +687,6 @@ func TestCheckInferenceRules(t *testing.T) {
 				t.Fatalf("Unexpected error %v:", err)
 			}
 
-			fmt.Println(env.tree.String())
 			result := env.Get(ref)
 			if tc.expected == nil {
 				if result != nil {
