@@ -28,7 +28,7 @@ func builtinNumbersRange(bctx BuiltinContext, operands []*ast.Term, iter func(*a
 		return err
 	}
 
-	ast, err := builtinRange(bctx, x, y, one, "numbers.range")
+	ast, err := generateRange(bctx, x, y, one, "numbers.range")
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func builtinNumbersRangeStep(bctx BuiltinContext, operands []*ast.Term, iter fun
 		return fmt.Errorf("numbers.range_step: step must be a positive number above zero")
 	}
 
-	ast, err := builtinRange(bctx, x, y, step, "numbers.range_step")
+	ast, err := generateRange(bctx, x, y, step, "numbers.range_step")
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func builtinNumbersRangeStep(bctx BuiltinContext, operands []*ast.Term, iter fun
 	return iter(ast)
 }
 
-func builtinRange(bctx BuiltinContext, x *big.Int, y *big.Int, step *big.Int, funcName string) (*ast.Term, error) {
+func generateRange(bctx BuiltinContext, x *big.Int, y *big.Int, step *big.Int, funcName string) (*ast.Term, error) {
 
 	cmp := x.Cmp(y)
 
@@ -89,7 +89,6 @@ func builtinRange(bctx BuiltinContext, x *big.Int, y *big.Int, step *big.Int, fu
 		if bctx.Cancel != nil && bctx.Cancel.Cancelled() {
 			return nil, haltErr
 		}
-		fmt.Println(i)
 		result = result.Append(ast.NewTerm(builtins.IntToNumber(i)))
 	}
 

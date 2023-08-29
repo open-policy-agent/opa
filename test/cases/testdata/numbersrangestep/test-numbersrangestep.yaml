@@ -60,3 +60,28 @@ cases:
     - 2048
     - 3072
     - 4096
+- note: numbersrangestep/equal
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(2, 2, 2)
+    }
+  want_result:
+  - x:
+    - 2
+- note: numbersrangestep/notinrange
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(2, 5, 2)
+    }
+  want_result:
+  - x:
+    - 2
+    - 4

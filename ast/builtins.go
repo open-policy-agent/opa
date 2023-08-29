@@ -1349,8 +1349,12 @@ var NumbersRange = &Builtin{
 }
 
 var NumbersRangeStep = &Builtin{
-	Name:        "numbers.range_step",
-	Description: "Returns an array of numbers in the given (inclusive) range incremented by a positive step. If `a==b`, then `range == [a]`; if `a > b`, then `range` is in descending order.",
+	Name: "numbers.range_step",
+	Description: `Returns an array of numbers in the given (inclusive) range incremented by a positive step.
+	If "a==b", then "range == [a]"; if "a > b", then "range" is in descending order.
+	If the provided "step" is less then 1, an error will be thrown.
+	If "b" is not in the range of the provided "step", "b" won't be included in the result.
+	`,
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("a", types.N),
