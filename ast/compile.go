@@ -724,15 +724,15 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 			// The head of the ref is always grounded.  In case another part of the
 			// ref is also grounded, we can lookup the exact child.  If it's not found
 			// we can immediately return...
-			if child := node.Child(ref[i].Value); child == nil {
-				return
-			} else if len(child.Values) > 0 {
-				// If there are any rules at this position, it's what the ref would
-				// refer to.  We can just append those and stop here.
-				insertRules(set, child.Values)
-			} else {
-				// Otherwise, we continue using the child node.
+			if child := node.Child(ref[i].Value); child != nil {
+				if len(child.Values) > 0 {
+					// Add any rules at this position
+					insertRules(set, child.Values)
+				}
+				// There might still be "sub-rules" contributing key-value "overrides" for e.g. partial object rules, continue walking
 				walk(child, i+1)
+			} else {
+				return
 			}
 
 		default:
