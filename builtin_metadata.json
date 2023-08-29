@@ -110,6 +110,7 @@
       "minus",
       "mul",
       "numbers.range",
+      "numbers.range_step",
       "plus",
       "rand.intn",
       "rem",
