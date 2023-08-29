@@ -357,7 +357,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 }
 
 // mergeTypes merges the types of 'a' and 'b'. If both are sets, their 'of' types are joined with an types.Or.
-// If bot are objects, the key and value types of their dynamic properties are joined with types.Or:s.
+// If both are objects, the key and value types of their dynamic properties are joined with types.Or:s.
 // If 'a' and 'b' are both objects, and at least one of them have static properties, they are joined
 // with an types.Or, instead of being merged.
 // If 'a' is an Any containing an Object, and 'b' is an Object (or vice versa); AND both objects have no
