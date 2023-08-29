@@ -1502,6 +1502,7 @@ type PrepareOption func(*PrepareConfig)
 type PrepareConfig struct {
 	doPartialEval   bool
 	disableInlining *[]string
+	builtinFuncs    map[string]*topdown.Builtin
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -1518,6 +1519,25 @@ func WithNoInline(paths []string) PrepareOption {
 	return func(p *PrepareConfig) {
 		p.disableInlining = &paths
 	}
+}
+
+// WithBuiltinFuncs carries the rego.Function{1,2,3} per-query function definitions
+// to the target plugins.
+func WithBuiltinFuncs(bis map[string]*topdown.Builtin) PrepareOption {
+	return func(p *PrepareConfig) {
+		if p.builtinFuncs == nil {
+			p.builtinFuncs = make(map[string]*topdown.Builtin, len(bis))
+		}
+		for k, v := range bis {
+			p.builtinFuncs[k] = v
+		}
+	}
+}
+
+// BuiltinFuncs allows retrieving the builtin funcs set via PrepareOption
+// WithBuiltinFuncs.
+func (p *PrepareConfig) BuiltinFuncs() map[string]*topdown.Builtin {
+	return p.builtinFuncs
 }
 
 // PrepareForEval will parse inputs, modules, and query arguments in preparation
@@ -1622,6 +1642,8 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			if err != nil {
 				return PreparedEvalQuery{}, err
 			}
+			// always add the builtins provided via rego.FunctionN options
+			opts = append(opts, WithBuiltinFuncs(r.builtinFuncs))
 			r.targetPrepState, err = tgt.PrepareForEval(ctx, pol, opts...)
 			if err != nil {
 				return PreparedEvalQuery{}, err
