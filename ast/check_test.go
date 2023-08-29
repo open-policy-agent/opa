@@ -595,13 +595,9 @@ func TestCheckInferenceRules(t *testing.T) {
 			expected: types.NewObject(
 				[]*types.StaticProperty{},
 				types.NewDynamicProperty(types.S,
-					types.NewObject(
-						[]*types.StaticProperty{types.NewStaticProperty("s",
-							types.NewObject(
-								[]*types.StaticProperty{},
-								types.NewDynamicProperty(types.N, types.N),
-							))},
-						nil,
+					types.NewObject(nil,
+						types.NewDynamicProperty(types.S, types.NewObject(nil,
+							types.NewDynamicProperty(types.N, types.N))),
 					),
 				),
 			),
@@ -610,21 +606,15 @@ func TestCheckInferenceRules(t *testing.T) {
 			note:  "general ref-rules, key overrides, complete obj access",
 			rules: ruleset3,
 			ref:   "data.overrides.p.q",
-			expected: types.NewObject(
-				[]*types.StaticProperty{types.NewStaticProperty("r",
-					types.NewObject(
-						nil,
-						types.NewDynamicProperty(types.N, types.N),
-					))},
-				types.NewDynamicProperty(types.Or(types.B, types.S),
-					types.Or(
-						types.S,
-						types.NewObject(
-							[]*types.StaticProperty{types.NewStaticProperty("s", types.B)},
-							nil,
-						),
-					),
-				),
+			expected: types.NewObject(nil, types.NewDynamicProperty(
+				types.Or(types.B, types.S),
+				types.Any{
+					types.S,
+					types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.N, types.S},
+						types.Any{types.B, types.N})),
+				},
+			),
 			),
 		},
 		{
@@ -635,11 +625,8 @@ func TestCheckInferenceRules(t *testing.T) {
 				[]*types.StaticProperty{},
 				types.NewDynamicProperty(types.S,
 					types.NewObject(
-						[]*types.StaticProperty{
-							types.NewStaticProperty("a", types.S),
-							types.NewStaticProperty("b", types.N),
-							types.NewStaticProperty("c", types.B)},
 						nil,
+						types.NewDynamicProperty(types.S, types.Any{types.B, types.N, types.S}),
 					),
 				),
 			),
@@ -648,31 +635,27 @@ func TestCheckInferenceRules(t *testing.T) {
 			note:  "general ref-rules, multiple static key overrides, intermediate obj access",
 			rules: ruleset3,
 			ref:   "data.overrides_static.p.q.foo",
-			expected: types.NewObject(
-				[]*types.StaticProperty{
-					types.NewStaticProperty("a", types.S),
-					types.NewStaticProperty("b", types.N),
-					types.NewStaticProperty("c", types.B)},
-				nil,
+			expected: types.NewObject(nil,
+				types.NewDynamicProperty(types.S, types.Any{types.B, types.N, types.S}),
 			),
 		},
 		{
 			note:     "general ref-rules, multiple static key overrides, leaf access (a)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.foo.a",
-			expected: types.S,
+			expected: types.Any{types.B, types.N, types.S}, // Dynamically build object types don't have static properties, so even though we "know" the 'a' key has a string value, we've lost this information.
 		},
 		{
 			note:     "general ref-rules, multiple static key overrides, leaf access (b)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.bar.b",
-			expected: types.N,
+			expected: types.Any{types.B, types.N, types.S},
 		},
 		{
 			note:     "general ref-rules, multiple static key overrides, leaf access (c)",
 			rules:    ruleset3,
 			ref:      "data.overrides_static.p.q.baz.c",
-			expected: types.B,
+			expected: types.Any{types.B, types.N, types.S},
 		},
 	}
 
@@ -704,6 +687,7 @@ func TestCheckInferenceRules(t *testing.T) {
 				t.Fatalf("Unexpected error %v:", err)
 			}
 
+			fmt.Println(env.tree.String())
 			result := env.Get(ref)
 			if tc.expected == nil {
 				if result != nil {

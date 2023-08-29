@@ -265,6 +265,8 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 	}
 }
 
+// nestedObject creates a nested structure of object types, where each term on path corresponds to a level in the
+// nesting. Each term in the path only contributes to the dynamic portion of its corresponding object.
 func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
 	if len(path) == 0 {
 		return tpe, nil
@@ -279,23 +281,14 @@ func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
 		return nil, nil
 	}
 
-	var staticProperties []*types.StaticProperty
 	var dynamicProperty *types.DynamicProperty
-	if k.IsGround() {
-		key, err := JSON(path[0].Value)
-		if err != nil {
-			return nil, err
-		}
-		staticProperties = append(staticProperties, types.NewStaticProperty(key, typeV))
-	} else {
-		typeK := env.Get(k)
-		if typeK == nil {
-			return nil, nil
-		}
-		dynamicProperty = types.NewDynamicProperty(typeK, typeV)
+	typeK := env.Get(k)
+	if typeK == nil {
+		return nil, nil
 	}
+	dynamicProperty = types.NewDynamicProperty(typeK, typeV)
 
-	return types.NewObject(staticProperties, dynamicProperty), nil
+	return types.NewObject(nil, dynamicProperty), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {
