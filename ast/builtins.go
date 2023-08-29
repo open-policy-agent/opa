@@ -1361,7 +1361,7 @@ var NumbersRangeStep = &Builtin{
 			types.Named("b", types.N),
 			types.Named("step", types.N),
 		),
-		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b` incremented by a positive step."),
+		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b` in `step` increments"),
 	),
 }
 
