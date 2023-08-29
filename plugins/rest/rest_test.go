@@ -1274,9 +1274,17 @@ func TestClientCert(t *testing.T) {
 		// Ensure the keys don't work anymore, make a new client as the url will have changed
 		client = newTestClient(t, &ts, certPath, keyPath)
 		_, err := client.Do(ctx, "GET", "test")
-		expectedErrMsg := "tls: bad certificate"
-		if err == nil || !strings.Contains(err.Error(), expectedErrMsg) {
-			t.Fatalf("Expected '%s' error but request succeeded", expectedErrMsg)
+		expectedErrMsg := func(s string) bool {
+			switch {
+			case strings.Contains(s, "tls: unknown certificate authority"):
+			case strings.Contains(s, "tls: bad certificate"):
+			default:
+				return false
+			}
+			return true
+		}
+		if err == nil || !expectedErrMsg(err.Error()) {
+			t.Fatalf("Unexpected error %v", err)
 		}
 
 		// Update the key files and try again..
