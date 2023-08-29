@@ -13,6 +13,9 @@
 // limitations under the License.
 
 // Package internal contains common functionality for all OTLP exporters.
+//
+// Deprecated: package internal exists for historical compatibility, it should
+// not be used.
 package internal // import "go.opentelemetry.io/otel/exporters/otlp/internal"
 
 import (
