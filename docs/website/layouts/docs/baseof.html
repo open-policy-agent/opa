@@ -34,10 +34,9 @@
     {{ $ancient := gt $rank 5 }}
 
     {{ $isEdge := (eq $version "edge") }}
-    {{ $isNotEcosystem := (ne (index (split .File.Path "/") 2) "ecosystem") }}
     {{ $isNotLatest := (and (ne $version $latest) (ne $version $latestVersionString)) }}
 
-    <div class="dashboard-wrapper {{ if (or (and $isEdge $isNotEcosystem) $isNotLatest) }}showing-banner-version-warning{{ end }}">
+    <div class="dashboard-wrapper {{ if (or $isEdge $isNotLatest) }}showing-banner-version-warning{{ end }}">
     {{- if $isEdge }}
       <div class="message is-info banner-version-warning">
         <div class="message-body">
