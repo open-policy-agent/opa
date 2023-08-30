@@ -458,7 +458,7 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# oras.land/oras-go/v2 v2.2.1
+# oras.land/oras-go/v2 v2.3.0
 ## explicit; go 1.19
 oras.land/oras-go/v2
 oras.land/oras-go/v2/content
@@ -473,6 +473,7 @@ oras.land/oras-go/v2/internal/fs/tarfs
 oras.land/oras-go/v2/internal/graph
 oras.land/oras-go/v2/internal/interfaces
 oras.land/oras-go/v2/internal/ioutil
+oras.land/oras-go/v2/internal/manifestutil
 oras.land/oras-go/v2/internal/platform
 oras.land/oras-go/v2/internal/registryutil
 oras.land/oras-go/v2/internal/resolver
