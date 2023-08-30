@@ -19,7 +19,7 @@
       </div>
 
       <div class="page-content">
-        {{ $integrations := where $.Site.Pages "Section" "integrations" }}
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
 
         {{ range $category := .Params.categories }}
         <h2>{{ $category.title }}</h2>

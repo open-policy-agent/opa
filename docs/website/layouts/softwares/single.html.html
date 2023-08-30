@@ -23,7 +23,7 @@
       </div>
 
       <div class="page-content">
-        {{ $integrations := where $.Site.Pages "Section" "integrations" }}
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
         {{ $id := printf "%s" (delimit (last 2 (split .Page.RelPermalink "/")) "") }}
 
         {{ $orgIntegrations := partial "functions/select-integrations-by-software" (dict "software" $id "integrations" $integrations) }}

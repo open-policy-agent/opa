@@ -1,6 +1,6 @@
 {{ $feature := .Get "key" }}
-{{ $integrations := where $.Site.Pages "Section" "integrations" }}
-{{ $organizations := where $.Site.Pages "Section" "organizations" }}
+{{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+{{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
 {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
 
 {{ if (gt (len $selectedIntegrations) 6) }}

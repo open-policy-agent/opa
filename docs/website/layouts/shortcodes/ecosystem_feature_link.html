@@ -1,4 +1,4 @@
-{{- $integrations := where $.Site.Pages "Section" "integrations" -}}
+{{- $integrations := where $.Site.RegularPages "Section" "integrations" -}}
 {{- $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" (.Get "key")) -}}
 {{- $count := len $selectedIntegrations -}}
 

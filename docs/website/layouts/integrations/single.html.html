@@ -24,8 +24,8 @@
       </div>
 
       <div class="page-content">
-        {{ $integrations := where $.Site.Pages "Section" "integrations" }}
-        {{ $organizations := where $.Site.Pages "Section" "organizations" }}
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+        {{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
         {{ $id := .Page.RelPermalink }}
 
         <div class="grid-container">
