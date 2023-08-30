@@ -11,9 +11,6 @@
     {{ block "title" . }}{{ site.Title }}{{ end }}
   </title>
 
-  {{ block "head" . }}{{ end }}
-  {{ define "head" }}{{ end }}
-
   {{ partial "css.html" . }}
 </head>
 <body>
@@ -87,7 +84,7 @@
       <section class="section">
         <div class="content">
           <p>
-            Please see the latest docs for the <a href="https://www.openpolicyagent.org/docs/edge/ecosystem/">OPA Ecosystem List</a>.
+            Please see the latest docs for the <a href="https://www.openpolicyagent.org/ecosystem/">OPA Ecosystem List</a>.
           </p>
         </div>
         {{ if (and (not .Params.hide_feedback) (site.Params.ui.feedback.enable)) }}

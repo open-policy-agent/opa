@@ -2,39 +2,41 @@
 
 {{ $scratch := newScratch }}
 {{ $scratch.Set "integrations-ranked" (slice) }}
-{{ range $id, $integration := $integrations }}
+{{ range $integration := $integrations }}
+  {{ $params := $integration.Params }}
+
   {{ $scratch.Set "tutorials" 0 }}
-  {{ if isset $integration "tutorials" }}
-    {{ $hosts := slice }}
-    {{ range $elem := index $integration "tutorials" }}
-      {{ $url := urls.Parse $elem }}
-      {{ $hosts = $hosts | append $url.Host }}
-    {{ end }}
-    {{ $scratch.Set "tutorials" (len ($hosts | uniq)) }}
+  {{ if isset $params "tutorials" }}
+  {{ $hosts := slice }}
+  {{ range $elem := index $params "tutorials" }}
+  {{ $url := urls.Parse $elem }}
+  {{ $hosts = $hosts | append $url.Host }}
+  {{ end }}
+  {{ $scratch.Set "tutorials" (len ($hosts | uniq)) }}
   {{ end }}
 
   {{ $scratch.Set "videos" 0 }}
-  {{ if isset $integration "videos" }}
-    {{ $scratch.Set "videos" (len (index $integration "videos")) }}
+  {{ if isset $params "videos" }}
+  {{ $scratch.Set "videos" (len (index $params "videos")) }}
   {{ end }}
 
   {{ $scratch.Set "blogs" 0 }}
-  {{ if isset $integration "blogs" }}
-    {{ $hosts := slice }}
-    {{ range $elem := index $integration "blogs" }}
-      {{ $url := urls.Parse $elem }}
-      {{ $hosts = $hosts | append $url.Host }}
-    {{ end }}
-    {{ $scratch.Set "blogs" (len ($hosts | uniq)) }}
+  {{ if isset $params "blogs" }}
+  {{ $hosts := slice }}
+  {{ range $elem := index $params "blogs" }}
+  {{ $url := urls.Parse $elem }}
+  {{ $hosts = $hosts | append $url.Host }}
+  {{ end }}
+  {{ $scratch.Set "blogs" (len ($hosts | uniq)) }}
   {{ end }}
 
   {{ $scratch.Set "code" 0 }}
-  {{ if isset $integration "code" }}
-    {{ $scratch.Set "code" (len (index $integration "code")) }}
+  {{ if isset $params "code" }}
+  {{ $scratch.Set "code" (len (index $params "code")) }}
   {{ end }}
 
   {{ $rank := (add ($scratch.Get "tutorials") (add ($scratch.Get "videos") (add ($scratch.Get "blogs") ($scratch.Get "code")))) }}
-  {{ $scratch.Add "integrations-ranked" (slice (dict "id" $id "rank" $rank)) }}
+  {{ $scratch.Add "integrations-ranked" (slice (dict "id" $integration.RelPermalink "rank" $rank)) }}
 {{ end }}
 
 {{ $scratch.Set "integrations" (slice) }}

@@ -8,15 +8,16 @@
       {{ block "title" . }}{{ site.Title }}{{ end }}
     </title>
 
-    {{ block "head" . }}{{ end }}
-    {{ define "head" }}{{ end }}
-
+    <!-- these are only for non-docs pages -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+    <link rel="stylesheet" href="/css/styles.css">
     {{ partial "css.html" . }}
   </head>
   <body>
-    {{ block "main" . }}
+    {{ block "content" . }}
     {{ end }}
-    {{ define "main" }}
+    {{ define "content" }}
     {{ end }}
   </body>
 </html>
