@@ -50,8 +50,13 @@ complexities to be aware of when making changes to the site's layout:
   (edge, latest and all versions) when merged to `main`.
 * Site [data](./website/data) treated in the same way, so updates to data files also
   apply to all versions as soon as they are merged.
-* Site [content/](./content/), when merged to `main`, is only shown on `edge` until the
+* Docs [content/](./content/), when merged to `main`, is only shown on `edge` until the
   next release.
+* Other, unversioned [content/](./website/content/) is shown immediately after merging.
+  This includes pages in the [OPA Ecosystem](https://www.openpolicyagent.org/ecosystem/)
+  as well as [Security](https://www.openpolicyagent.org/security/),
+  [Support](https://www.openpolicyagent.org/support/), and
+  [Community](https://www.openpolicyagent.org/community/) pages.
 
 ## How to Edit and Test
 
@@ -299,7 +304,7 @@ another group's module when evaluating (e.g. so that they can be imported).
 
 # OPA Ecosystem
 
-The [OPA Ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/)
+The [OPA Ecosystem](https://www.openpolicyagent.org/ecosystem/)
 makes it easy to find either a specific integration with OPA
 or to browse the integrations with OPA within a particular category. It pulls
 information about different integrations (e.g. blogs, videos, tutorials, code) into a
@@ -309,15 +314,14 @@ single place while allowing integration authors to update the docs content as ne
 
 Source information for the OPA Ecosystem is stored in the following places:
 
-- [content/integrations/](./content/integrations) - each file creates a page in the OPA Ecosystem for a particular integration.
-- [content/organizations/](./content/organizations) - each file is a page for organizations and companies associated with integrations.
-- [content/softwares/](./content/softwares) - each file is for software categories related to integrations.
+- [content/integrations/](./website/content/integrations) - each file creates a page in the OPA Ecosystem for a particular integration.
+- [content/organizations/](./website/content/organizations) - each file is a page for organizations and companies associated with integrations.
+- [content/softwares/](./website/content/softwares) - each file is for software categories related to integrations.
 
-Integrations should have a file in `content/integrations/` with the following schema:
+Integrations should have a file in `/docs/website/content/integrations/` with the following schema:
 
 ```md
 ---
-layout: integration-single # required to be set and to this value
 title: <integration name>
 software:
 - <related software>
@@ -349,7 +353,6 @@ Organizations have the following format:
 ---
 link: https://example.com
 title: <organization name>
-layout: organization-single # required to be set and to this value
 ---
 ```
 
@@ -360,7 +363,6 @@ Software categories have the following format:
 ---
 link: https://example.com
 title: <software name>
-layout: software-single # required to be set and to this value
 ---
 ```
 
