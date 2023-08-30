@@ -8,7 +8,9 @@ allowed_image_extensions := ["png", "svg"]
 
 # check that all integrations have an image
 deny contains result if {
-	some id, integration in input.integrations
+	some path, integration in input.integrations
+
+	id := split(path, "/")[2]
 
 	# some integrations are allowed to have a missing image as no suitable image is available
 	not integration.allow_missing_image == true
@@ -26,7 +28,7 @@ deny contains result if {
 
 	result := {
 		"key": "integration_image",
-		"message": sprintf("integration %s missing image in 'static/img/logos/integrations' with extension of: %v", [id, concat(",", allowed_image_extensions)]),
+		"message": sprintf("%s missing image in 'static/img/logos/integrations' with extension of: %v", [path, concat(",", allowed_image_extensions)]),
 	}
 }
 
@@ -36,7 +38,7 @@ deny contains result if {
 
 	id := split(image, ".")[0]
 
-	not id in object.keys(input.integrations)
+	not sprintf("/integrations/%s/", [id]) in object.keys(input.integrations)
 
 	result := {
 		"key": "image_integration",
@@ -48,13 +50,13 @@ deny contains result if {
 deny contains result if {
 	some id, integration in input.integrations
 
-	missing_fields := {"title", "layout"} - object.keys(integration)
+	missing_fields := {"title"} - object.keys(integration)
 
 	count(missing_fields) > 0
 
 	result := {
 		"key": "fields",
-		"message": sprintf("integration %s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
+		"message": sprintf("%s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
 	}
 }
 
@@ -68,21 +70,7 @@ deny contains result if {
 
 	result := {
 		"key": "content",
-		"message": sprintf("integration %s has no content", [id]),
-	}
-}
-
-# check that all integrations have a layout set to integration-single
-deny contains result if {
-	some id, integration in input.integrations
-
-	layout := object.get(integration, "layout", "")
-
-	layout != "integration-single"
-
-	result := {
-		"key": "layout",
-		"message": sprintf("integration %s does not have layout set to: integration-single", [id]),
+		"message": sprintf("%s has no content", [id]),
 	}
 }
 
@@ -94,11 +82,11 @@ deny contains result if {
 
 	some _, inventor in inventors
 
-	not inventor in object.keys(input.organizations)
+	not sprintf("/organizations/%s/", [inventor]) in object.keys(input.organizations)
 
 	result := {
 		"key": "inventors",
-		"message": sprintf("integration %s references organization %s which does not exist", [id, inventor]),
+		"message": sprintf("%s references organization %s which does not exist", [id, inventor]),
 	}
 }
 
@@ -110,11 +98,11 @@ deny contains result if {
 
 	some _, software in softwares
 
-	not software in object.keys(input.softwares)
+	not sprintf("/softwares/%s/", [software]) in object.keys(input.softwares)
 
 	result := {
 		"key": "software",
-		"message": sprintf("integration %s references software %s which does not exist", [id, software]),
+		"message": sprintf("%s references software %s which does not exist", [id, software]),
 	}
 }
 
@@ -122,33 +110,35 @@ deny contains result if {
 deny contains result if {
 	some id, software in input.softwares
 
-	missing_fields := {"title", "layout", "link"} - object.keys(software)
+	missing_fields := {"title", "link"} - object.keys(software)
 
 	count(missing_fields) > 0
 
 	result := {
 		"key": "fields",
-		"message": sprintf("software %s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
+		"message": sprintf("%s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
 	}
 }
 
 # check that organizations have required fields
 deny contains result if {
-	some id, organization in input.organizations
+	some path, organization in input.organizations
 
-	missing_fields := {"title", "layout", "link"} - object.keys(organization)
+	missing_fields := {"title", "link"} - object.keys(organization)
 
 	count(missing_fields) > 0
 
 	result := {
 		"key": "fields",
-		"message": sprintf("organization %s missing required fields: %v", [id, concat(", ", sort(missing_fields))]),
+		"message": sprintf("%s missing required fields: %v", [path, concat(", ", sort(missing_fields))]),
 	}
 }
 
 # check that each organization has at least one integration
 deny contains result if {
-	some id, organization in input.organizations
+	some path, organization in input.organizations
+
+	id := split(path, "/")[2]
 
 	inventor_integrations := {i |
 		some i, integration in input.integrations
@@ -167,13 +157,15 @@ deny contains result if {
 
 	result := {
 		"key": "orphaned_org",
-		"message": sprintf("organization %s has no integrations", [id]),
+		"message": sprintf("%s has no integrations", [path]),
 	}
 }
 
 # check that each software has at least one integration
 deny contains result if {
-	some id, software in input.softwares
+	some path, software in input.softwares
+
+	id := split(path, "/")[2]
 
 	integrations := {i |
 		some i, integration in input.integrations
@@ -184,6 +176,6 @@ deny contains result if {
 
 	result := {
 		"key": "orphaned_software",
-		"message": sprintf("software %s has no integrations", [id]),
+		"message": sprintf("%s has no integrations", [path]),
 	}
 }
