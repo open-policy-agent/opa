@@ -33,9 +33,6 @@ docs_features:
       code is correct and free of common errors. See
       [the README](https://github.com/StyraInc/regal#try-it-out)
       to get started.
-aliases:
-  - /docs/edge/integrations/regal
-  - /docs/latest/integrations/regal
 ---
 Regal is a linter for Rego, with the goal of making your Rego magnificent!
 
