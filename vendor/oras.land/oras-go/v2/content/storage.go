@@ -31,7 +31,7 @@ type Fetcher interface {
 // Pusher pushes content.
 type Pusher interface {
 	// Push pushes the content, matching the expected descriptor.
-	// Reader is perferred to Writer so that the suitable buffer size can be
+	// Reader is preferred to Writer so that the suitable buffer size can be
 	// chosen by the underlying implementation. Furthermore, the implementation
 	// can also do reflection on the Reader for more advanced I/O optimization.
 	Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error

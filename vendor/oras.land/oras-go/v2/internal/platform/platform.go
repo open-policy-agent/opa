@@ -25,6 +25,7 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/internal/docker"
+	"oras.land/oras-go/v2/internal/manifestutil"
 )
 
 // Match checks whether the current platform matches the target platform.
@@ -35,7 +36,7 @@ import (
 //     array of the current platform.
 //
 // Note: Variant, OSVersion and OSFeatures are optional fields, will skip
-// the comparison if the target platform does not provide specfic value.
+// the comparison if the target platform does not provide specific value.
 func Match(got *ocispec.Platform, want *ocispec.Platform) bool {
 	if got.Architecture != want.Architecture || got.OS != want.OS {
 		return false
@@ -77,7 +78,7 @@ func isSubset(a, b []string) bool {
 func SelectManifest(ctx context.Context, src content.ReadOnlyStorage, root ocispec.Descriptor, p *ocispec.Platform) (ocispec.Descriptor, error) {
 	switch root.MediaType {
 	case docker.MediaTypeManifestList, ocispec.MediaTypeImageIndex:
-		manifests, err := content.Successors(ctx, src, root)
+		manifests, err := manifestutil.Manifests(ctx, src, root)
 		if err != nil {
 			return ocispec.Descriptor{}, err
 		}
@@ -90,7 +91,8 @@ func SelectManifest(ctx context.Context, src content.ReadOnlyStorage, root ocisp
 		}
 		return ocispec.Descriptor{}, fmt.Errorf("%s: %w: no matching manifest was found in the manifest list", root.Digest, errdef.ErrNotFound)
 	case docker.MediaTypeManifest, ocispec.MediaTypeImageManifest:
-		descs, err := content.Successors(ctx, src, root)
+		// config will be non-nil for docker manifest and OCI image manifest
+		config, err := manifestutil.Config(ctx, src, root)
 		if err != nil {
 			return ocispec.Descriptor{}, err
 		}
@@ -99,8 +101,7 @@ func SelectManifest(ctx context.Context, src content.ReadOnlyStorage, root ocisp
 		if root.MediaType == ocispec.MediaTypeImageManifest {
 			configMediaType = ocispec.MediaTypeImageConfig
 		}
-
-		cfgPlatform, err := getPlatformFromConfig(ctx, src, descs[0], configMediaType)
+		cfgPlatform, err := getPlatformFromConfig(ctx, src, *config, configMediaType)
 		if err != nil {
 			return ocispec.Descriptor{}, err
 		}
