@@ -110,6 +110,7 @@
       "minus",
       "mul",
       "numbers.range",
+      "numbers.range_step",
       "plus",
       "rand.intn",
       "rem",
@@ -11557,6 +11558,33 @@
       "type": "array[number]"
     },
     "wasm": true
+  },
+  "numbers.range_step": {
+    "args": [
+      {
+        "name": "a",
+        "type": "number"
+      },
+      {
+        "name": "b",
+        "type": "number"
+      },
+      {
+        "name": "step",
+        "type": "number"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns an array of numbers in the given (inclusive) range incremented by a positive step.\n\tIf \"a==b\", then \"range == [a]\"; if \"a \u003e b\", then \"range\" is in descending order.\n\tIf the provided \"step\" is less then 1, an error will be thrown.\n\tIf \"b\" is not in the range of the provided \"step\", \"b\" won't be included in the result.\n\t",
+    "introduced": "edge",
+    "result": {
+      "description": "the range between `a` and `b` in `step` increments",
+      "name": "range",
+      "type": "array[number]"
+    },
+    "wasm": false
   },
   "object.filter": {
     "args": [
