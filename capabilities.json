@@ -2896,6 +2896,29 @@
       }
     },
     {
+      "name": "numbers.range_step",
+      "decl": {
+        "args": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "object.filter",
       "decl": {
         "args": [

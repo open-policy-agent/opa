@@ -136,6 +136,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Numbers
 	NumbersRange,
+	NumbersRangeStep,
 	RandIntn,
 
 	// Encoding
@@ -1344,6 +1345,19 @@ var NumbersRange = &Builtin{
 			types.Named("b", types.N),
 		),
 		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b`"),
+	),
+}
+
+var NumbersRangeStep = &Builtin{
+	Name:        "numbers.range_step",
+	Description: "Returns an array of numbers in the given (inclusive) range incremented by a positive step. If `a==b`, then `range == [a]`; if `a > b`, then `range` is in descending order.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("a", types.N),
+			types.Named("b", types.N),
+			types.Named("step", types.N),
+		),
+		types.Named("range", types.NewArray(nil, types.N)).Description("the range between `a` and `b` incremented by a positive step."),
 	),
 }
 

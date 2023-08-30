@@ -1,0 +1,18 @@
+cases:
+- data: {}
+  modules:
+  - |
+    package generated
+
+    p = __local0__ {
+      numbers.range_step(1024, 4096, 1024, __local1__)
+      __local0__ = __local1__
+    }
+  note: numbersrangestep/memoryexample
+  query: data.generated.p = x
+  want_result:
+  - x:
+    - 1024
+    - 2048
+    - 3072
+    - 4096
