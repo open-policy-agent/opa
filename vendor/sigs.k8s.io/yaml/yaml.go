@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 
 	"gopkg.in/yaml.v2"
 )
 
-// Marshals the object into JSON then converts JSON to YAML and returns the
+// Marshal marshals the object into JSON then converts JSON to YAML and returns the
 // YAML.
 func Marshal(o interface{}) ([]byte, error) {
 	j, err := json.Marshal(o)
@@ -26,15 +27,35 @@ func Marshal(o interface{}) ([]byte, error) {
 	return y, nil
 }
 
-// Converts YAML to JSON then uses JSON to unmarshal into an object.
-func Unmarshal(y []byte, o interface{}) error {
+// JSONOpt is a decoding option for decoding from JSON format.
+type JSONOpt func(*json.Decoder) *json.Decoder
+
+// Unmarshal converts YAML to JSON then uses JSON to unmarshal into an object,
+// optionally configuring the behavior of the JSON unmarshal.
+func Unmarshal(y []byte, o interface{}, opts ...JSONOpt) error {
+	return yamlUnmarshal(y, o, false, opts...)
+}
+
+// UnmarshalStrict strictly converts YAML to JSON then uses JSON to unmarshal
+// into an object, optionally configuring the behavior of the JSON unmarshal.
+func UnmarshalStrict(y []byte, o interface{}, opts ...JSONOpt) error {
+	return yamlUnmarshal(y, o, true, append(opts, DisallowUnknownFields)...)
+}
+
+// yamlUnmarshal unmarshals the given YAML byte stream into the given interface,
+// optionally performing the unmarshalling strictly
+func yamlUnmarshal(y []byte, o interface{}, strict bool, opts ...JSONOpt) error {
 	vo := reflect.ValueOf(o)
-	j, err := yamlToJSON(y, &vo)
+	unmarshalFn := yaml.Unmarshal
+	if strict {
+		unmarshalFn = yaml.UnmarshalStrict
+	}
+	j, err := yamlToJSON(y, &vo, unmarshalFn)
 	if err != nil {
 		return fmt.Errorf("error converting YAML to JSON: %v", err)
 	}
 
-	err = json.Unmarshal(j, o)
+	err = jsonUnmarshal(bytes.NewReader(j), o, opts...)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling JSON: %v", err)
 	}
@@ -42,7 +63,22 @@ func Unmarshal(y []byte, o interface{}) error {
 	return nil
 }
 
-// Convert JSON to YAML.
+// jsonUnmarshal unmarshals the JSON byte stream from the given reader into the
+// object, optionally applying decoder options prior to decoding.  We are not
+// using json.Unmarshal directly as we want the chance to pass in non-default
+// options.
+func jsonUnmarshal(r io.Reader, o interface{}, opts ...JSONOpt) error {
+	d := json.NewDecoder(r)
+	for _, opt := range opts {
+		d = opt(d)
+	}
+	if err := d.Decode(&o); err != nil {
+		return fmt.Errorf("while decoding JSON: %v", err)
+	}
+	return nil
+}
+
+// JSONToYAML Converts JSON to YAML.
 func JSONToYAML(j []byte) ([]byte, error) {
 	// Convert the JSON to an object.
 	var jsonObj interface{}
@@ -60,8 +96,8 @@ func JSONToYAML(j []byte) ([]byte, error) {
 	return yaml.Marshal(jsonObj)
 }
 
-// Convert YAML to JSON. Since JSON is a subset of YAML, passing JSON through
-// this method should be a no-op.
+// YAMLToJSON converts YAML to JSON. Since JSON is a subset of YAML,
+// passing JSON through this method should be a no-op.
 //
 // Things YAML can do that are not supported by JSON:
 // * In YAML you can have binary and null keys in your maps. These are invalid
@@ -70,14 +106,22 @@ func JSONToYAML(j []byte) ([]byte, error) {
 //   use binary data with this library, encode the data as base64 as usual but do
 //   not use the !!binary tag in your YAML. This will ensure the original base64
 //   encoded data makes it all the way through to the JSON.
+//
+// For strict decoding of YAML, use YAMLToJSONStrict.
 func YAMLToJSON(y []byte) ([]byte, error) {
-	return yamlToJSON(y, nil)
+	return yamlToJSON(y, nil, yaml.Unmarshal)
 }
 
-func yamlToJSON(y []byte, jsonTarget *reflect.Value) ([]byte, error) {
+// YAMLToJSONStrict is like YAMLToJSON but enables strict YAML decoding,
+// returning an error on any duplicate field names.
+func YAMLToJSONStrict(y []byte) ([]byte, error) {
+	return yamlToJSON(y, nil, yaml.UnmarshalStrict)
+}
+
+func yamlToJSON(y []byte, jsonTarget *reflect.Value, yamlUnmarshal func([]byte, interface{}) error) ([]byte, error) {
 	// Convert the YAML to an object.
 	var yamlObj interface{}
-	err := yaml.Unmarshal(y, &yamlObj)
+	err := yamlUnmarshal(y, &yamlObj)
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +316,65 @@ func convertToJSONableObject(yamlObj interface{}, jsonTarget *reflect.Value) (in
 		}
 		return yamlObj, nil
 	}
+}
 
-	return nil, nil
+// JSONObjectToYAMLObject converts an in-memory JSON object into a YAML in-memory MapSlice,
+// without going through a byte representation. A nil or empty map[string]interface{} input is
+// converted to an empty map, i.e. yaml.MapSlice(nil).
+//
+// interface{} slices stay interface{} slices. map[string]interface{} becomes yaml.MapSlice.
+//
+// int64 and float64 are down casted following the logic of github.com/go-yaml/yaml:
+// - float64s are down-casted as far as possible without data-loss to int, int64, uint64.
+// - int64s are down-casted to int if possible without data-loss.
+//
+// Big int/int64/uint64 do not lose precision as in the json-yaml roundtripping case.
+//
+// string, bool and any other types are unchanged.
+func JSONObjectToYAMLObject(j map[string]interface{}) yaml.MapSlice {
+	if len(j) == 0 {
+		return nil
+	}
+	ret := make(yaml.MapSlice, 0, len(j))
+	for k, v := range j {
+		ret = append(ret, yaml.MapItem{Key: k, Value: jsonToYAMLValue(v)})
+	}
+	return ret
+}
+
+func jsonToYAMLValue(j interface{}) interface{} {
+	switch j := j.(type) {
+	case map[string]interface{}:
+		if j == nil {
+			return interface{}(nil)
+		}
+		return JSONObjectToYAMLObject(j)
+	case []interface{}:
+		if j == nil {
+			return interface{}(nil)
+		}
+		ret := make([]interface{}, len(j))
+		for i := range j {
+			ret[i] = jsonToYAMLValue(j[i])
+		}
+		return ret
+	case float64:
+		// replicate the logic in https://github.com/go-yaml/yaml/blob/51d6538a90f86fe93ac480b35f37b2be17fef232/resolve.go#L151
+		if i64 := int64(j); j == float64(i64) {
+			if i := int(i64); i64 == int64(i) {
+				return i
+			}
+			return i64
+		}
+		if ui64 := uint64(j); j == float64(ui64) {
+			return ui64
+		}
+		return j
+	case int64:
+		if i := int(j); j == int64(i) {
+			return i
+		}
+		return j
+	}
+	return j
 }

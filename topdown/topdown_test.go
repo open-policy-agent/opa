@@ -21,8 +21,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/format"
-
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	iCache "github.com/open-policy-agent/opa/topdown/cache"
 
