@@ -1,10 +1,10 @@
-// Copyright 2020 Google LLC
+// Copyright The OpenTelemetry Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package field_mask aliases all exported identifiers in
-// package "google.golang.org/protobuf/types/known/fieldmaskpb".
-package field_mask
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.21.0"
 
-import "google.golang.org/protobuf/types/known/fieldmaskpb"
-
-type FieldMask = fieldmaskpb.FieldMask
-
-var File_google_protobuf_field_mask_proto = fieldmaskpb.File_google_protobuf_field_mask_proto
+// SchemaURL is the schema URL that matches the version of the semantic conventions
+// that this package defines. Semconv packages starting from v1.4.0 must declare
+// non-empty schema URL in the form https://opentelemetry.io/schemas/<version>
+const SchemaURL = "https://opentelemetry.io/schemas/1.21.0"

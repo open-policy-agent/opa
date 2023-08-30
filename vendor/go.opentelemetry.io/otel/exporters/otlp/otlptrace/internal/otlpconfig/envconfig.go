@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/exporters/otlp/internal/envconfig"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/envconfig" // nolint: staticcheck  // Atomic deprecation.
 )
 
 // DefaultEnvOptionsReader is the default environments reader.

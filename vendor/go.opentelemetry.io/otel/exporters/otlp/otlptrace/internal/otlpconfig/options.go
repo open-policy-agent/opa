@@ -17,6 +17,8 @@ package otlpconfig // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/
 import (
 	"crypto/tls"
 	"fmt"
+	"path"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,9 +27,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding/gzip"
 
-	"go.opentelemetry.io/otel/exporters/otlp/internal"
-	"go.opentelemetry.io/otel/exporters/otlp/internal/retry"
-	otinternal "go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/retry" // nolint: staticcheck  // Atomic deprecation.
 )
 
 const (
@@ -83,13 +84,28 @@ func NewHTTPConfig(opts ...HTTPOption) Config {
 	for _, opt := range opts {
 		cfg = opt.ApplyHTTPOption(cfg)
 	}
-	cfg.Traces.URLPath = internal.CleanPath(cfg.Traces.URLPath, DefaultTracesPath)
+	cfg.Traces.URLPath = cleanPath(cfg.Traces.URLPath, DefaultTracesPath)
 	return cfg
+}
+
+// cleanPath returns a path with all spaces trimmed and all redundancies
+// removed. If urlPath is empty or cleaning it results in an empty string,
+// defaultPath is returned instead.
+func cleanPath(urlPath string, defaultPath string) string {
+	tmp := path.Clean(strings.TrimSpace(urlPath))
+	if tmp == "." {
+		return defaultPath
+	}
+	if !path.IsAbs(tmp) {
+		tmp = fmt.Sprintf("/%s", tmp)
+	}
+	return tmp
 }
 
 // NewGRPCConfig returns a new Config with all settings applied from opts and
 // any unset setting using the default gRPC config values.
 func NewGRPCConfig(opts ...GRPCOption) Config {
+	userAgent := "OTel OTLP Exporter Go/" + otlptrace.Version()
 	cfg := Config{
 		Traces: SignalConfig{
 			Endpoint:    fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorGRPCPort),
@@ -98,7 +114,7 @@ func NewGRPCConfig(opts ...GRPCOption) Config {
 			Timeout:     DefaultTimeout,
 		},
 		RetryConfig: retry.DefaultConfig,
-		DialOptions: []grpc.DialOption{grpc.WithUserAgent(otinternal.GetUserAgentHeader())},
+		DialOptions: []grpc.DialOption{grpc.WithUserAgent(userAgent)},
 	}
 	cfg = ApplyGRPCEnvConfigs(cfg)
 	for _, opt := range opts {
