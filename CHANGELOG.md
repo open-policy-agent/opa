@@ -80,7 +80,7 @@ authored by @sspaink.
   - golang.org/x/net from 0.12.0 to 0.14.0
   - google.golang.org/grpc from 1.56.2 to 1.57.0
   - oras.land/oras-go/v2 from 2.2.1 to 2.3.0
-  - Replace ghodss/yaml with sigs.k8s.io/yaml ([#6195]https://github.com/open-policy-agent/opa/pull/6195) authored by @mrueg
+  - Replace ghodss/yaml with sigs.k8s.io/yaml ([#6195](https://github.com/open-policy-agent/opa/pull/6195)) authored by @mrueg
 
 ### Breaking changes
 
