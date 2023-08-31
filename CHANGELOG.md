@@ -5,68 +5,88 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.56.0
 
-### Fixes
+### Support for General References in Rule Heads (Experimental)
 
-- Bind test server to localhost interface (#6164) ([#6162](https://github.com/open-policy-agent/opa/issues/6162)) authored by @anderseknert
-- Changed the LoadPaths function. ([#5879](https://github.com/open-policy-agent/opa/issues/5879)) authored by @yogisinha
-- Fix: Partial-eval for partial object/set ref head rules (#6095) ([#6094](https://github.com/open-policy-agent/opa/issues/6094)) authored by @johanfylling
-- General refs in rule heads (#5913) ([#5993](https://github.com/open-policy-agent/opa/issues/5993)) authored by @johanfylling
-- ast: Including "child" rules when fetching rules by ref (#6183) ([#6182](https://github.com/open-policy-agent/opa/issues/6182)) authored by @johanfylling
-- ast: Making partial object key rules contribute to dynamic portion of object type (#6177) ([#6138](https://github.com/open-policy-agent/opa/issues/6138)) authored by @johanfylling
-- cmd: make `opa test -z` fail with failing tests ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) authored by @fdaguin reported by @fdaguin
-- fmt: Trim trailing whitespace in comments (#6163) ([#6161](https://github.com/open-policy-agent/opa/issues/6161)) authored by @anderseknert
-- topdown: add numbers.range_step built-in function (#6187) ([#6186](https://github.com/open-policy-agent/opa/issues/6186)) authored by @sspaink reported by @sspaink
+A new experimental feature in OPA is support for general refs in rule heads. Where a general ref is a reference with variables at arbitrary locations.
+
+```rego
+package example
+
+import future.keywords
+
+# A partial object rule that converts a list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in data.users
+    id := user.id
+    role := user.role
+}
+
+# Partial rule with an explicit "admin" key override
+users_by_role.admin[id] := user if {
+    some user in data.admins
+    id := user.id
+}
+
+# Leaf entries can be partial sets
+users_by_country[country] contains user.id if {
+    some user in data.users
+    country := user.country
+}
+```
+
+General refs are currently not supported by the OPA planner, making this feature unsupported for Wasm and IR.
+
+Note: this feature is disabled by default, and needs to be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable.
+
+Authored by @johanfylling.
+
+### New Built-In Function: `numbers.range_step`
+
+Similar to hte `numbers.range` built-in function, `numbers.range_step` returns an array of numbers in a given range. The difference being the function as input also takes the step between each entry.
+
+See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.56.0/policy-reference/#builtin-numbers-numbersrange_step)
+for all the details.
+
+authored by @sspaink.
+
+### Runtime, Tooling, SDK
+
+- ast: Update strict error check message for unused args ([#6125](https://github.com/open-policy-agent/opa/pull/6125)) authored by @ashutosh-narkar
+- ast: Remove unnecessary nil check ([#6155](https://github.com/open-policy-agent/opa/pull/6155)) authored by @Juneezee
+- cmd: Make `opa test -z` fail with failing tests ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) authored by @fdaguin
+- cmd: Fix opa test `--ignore` when used together with `--bundle` ([#6185](https://github.com/open-policy-agent/opa/pull/6185)) authored by @joaobrandt
+- cmd: Adding `--fail-non-empty` flag ([#6153](https://github.com/open-policy-agent/opa/pull/6153)) authored by @Ronnie-personal
+- download: Sdd opa_no_oci flag to build without containerd ([#6159](https://github.com/open-policy-agent/opa/pull/6159)) authored by @slonka
+- download: Remove not required basedir for oci bundles & add test to verify signature verification ([#6145](https://github.com/open-policy-agent/opa/pull/6145)) authored by @gitu
+- fmt: Trim trailing whitespace in comments ([#6161](https://github.com/open-policy-agent/opa/issues/6161)) authored by @anderseknert
+- fmt: Remove dedup comment function in opa fmt ([#6165](https://github.com/open-policy-agent/opa/pull/6165)) authored by @anderseknert
+- runtime: Always read .tar.gz file provided in argument as a bundle ([#5879](https://github.com/open-policy-agent/opa/issues/5879)) authored by @yogisinha
+- server/authorizer: Inline readBody ([#6156](https://github.com/open-policy-agent/opa/pull/6156)) authored by @srenatus
+- test: Bind test server to localhost interface ([#6162](https://github.com/open-policy-agent/opa/issues/6162)) authored by @anderseknert
+
+### Topdown and Rego
+
+- ast: Including "child" rules when fetching rules by ref ([#6182](https://github.com/open-policy-agent/opa/issues/6182)) authored by @johanfylling
+- ast: Making partial object key rules contribute to dynamic portion of object type ([#6138](https://github.com/open-policy-agent/opa/issues/6138)) authored by @johanfylling
+- rego: Expose PrepareOption, add BuiltinFuncs ([#6188](https://github.com/open-policy-agent/opa/pull/6188)) authored by @srenatus
+- topdown: Support force cache even when server doesn't set the Date header ([#6175](https://github.com/open-policy-agent/opa/pull/6175)) authored by @c2zwdjnlcg
+- topdown: Partial-eval for partial object/set ref head rules ([#6094](https://github.com/open-policy-agent/opa/issues/6094)) authored by @johanfylling
 
 ### Miscellaneous
 
-- Add note about updating search index after release (#6143) (authored by @charlieegan3)
-- Explain date normalization in time.add_date (#6144) (authored by @charlieegan3)
-- Fix typos (#6135) (authored by @testwill)
-- Prepare v0.56.0 development (#6121) (authored by @ashutosh-narkar)
-- Specify "path" for livenessProbe (authored by @atkrad)
-- Support force cache even when server doesn't set the Date header (authored by @c2zwdjnlcg)
-- Update Regal link from GH -> docs.styra.com (#6169) (authored by @anderseknert)
-- Update contributing page link to latest not edge (#6149) (authored by @charlieegan3)
-- [docs] Added Missing Hints in policy-reference (#6139) (authored by @Pushkarm029)
-- [docs] Address issue OPA ecosystem missing items (#6168) (authored by @charlieegan3)
-- [docs] Missing hint "future.keywords.if" for "Ordered (Else)" (authored by @Pushkarm029)
-- [docs] Move OPA ecosystem pages to site top-level (#6198) (authored by @charlieegan3)
-- [docs] Update integrations, organisations and softwares to have pages (#6158) (authored by @charlieegan3)
-- [docs] Update note on site updates (authored by @charlieegan3)
-- ast: Update strict error check message for unused args (authored by @ashutosh-narkar)
-- ast: remove unnecessary nil check (#6155) (authored by @Juneezee)
-- build(deps): bump github.com/containerd/containerd from 1.7.2 to 1.7.3 (authored by @dependabot[bot])
-- build(deps): bump github.com/containerd/containerd from 1.7.3 to 1.7.4 (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/net from 0.12.0 to 0.13.0 (#6136) (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/net from 0.13.0 to 0.14.0 (authored by @dependabot[bot])
-- build(deps): bump google.golang.org/grpc from 1.56.2 to 1.57.0 (authored by @dependabot[bot])
-- build(deps): bump oras.land/oras-go/v2 from 2.2.1 to 2.3.0 (authored by @dependabot[bot])
-- build: bump golang 1.20.6 -> 1.20.7 (authored by @ashutosh-narkar)
-- chore: Remove dedup comment function in opa fmt (#6165) (authored by @anderseknert)
-- chore: Replace ghodss/yaml with sigs.k8s.io/yaml (#6195) (authored by @mrueg)
-- cmd: Fix opa test --ignore when used together with --bundle (authored by @joaobrandt)
-- doc: updated support page to include a link to the OPA support page at PACLabs (authored by @johndbro1)
-- docs: Update def func ex to use wildcard (authored by @ashutosh-narkar)
-- docs: Update generated CLI docs (authored by @)
-- docs: make it clear dropped decisions aren't logged (#6180) (authored by @anderseknert)
-- docs: update traefik integration link (#6150) (authored by @hmoazzem)
-- feat(cmd): Adding fail-non-empty flag (#6153) (authored by @Ronnie-personal)
-- feat(download): add opa_no_oci flag to build without containerd (authored by @slonka)
-- golang: 1.20.7 -> 1.21 (#6189) (authored by @srenatus)
-- rego: expose PrepareOption, add BuiltinFuncs (authored by @srenatus)
-- remove not required basedir for oci bundles & add test to verify signature verification (authored by @gitu)
-- server/authorizer: inline readBody (#6156) (authored by @srenatus)
-- website: link ecosystem from edge (#6170) (authored by @srenatus)
+- Updates to Documentation and Website (authored by: @anderseknert, @ashutosh-narkar, @atkrad, @charlieegan3, @hmoazzem, @johndbro1, @Pushkarm029, @srenatus and @testwill)
+- Dependency updates; notably:
+  - golang: from 1.20.6 to 1.21 (authored by @ashutosh-narkar amd @srenatus)
+  - golang.org/x/net from 0.12.0 to 0.14.0
+  - google.golang.org/grpc from 1.56.2 to 1.57.0
+  - oras.land/oras-go/v2 from 2.2.1 to 2.3.0
+  - Replace ghodss/yaml with sigs.k8s.io/yaml ([#6195]https://github.com/open-policy-agent/opa/pull/6195) authored by @mrueg
 
 ### Breaking changes
 
 Since its introduction in 0.34.0, the `--exit-zero-on-skipped` option always made the `opa test` command return an exit code 0. When used, it now returns the exit code 0 only if no failed tests were found.
 
 Test runs on existing projects using `--exit-zero-on-skipped` will fail if any failed tests were inhibited by this behavior.
-
-### Tooling, SDK, and Runtime
-
-- `opa test`: Fix `--exit-zero-on-skipped` behavior to make test runs fail with failing test rules ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) reported and authored by @fdaguin
 
 ## 0.55.0
 
