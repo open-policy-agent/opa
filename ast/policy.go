@@ -975,6 +975,12 @@ func (head *Head) SetLoc(loc *Location) {
 	head.Location = loc
 }
 
+func (head *Head) HasDynamicRef() bool {
+	pos := head.Reference.Dynamic()
+	// Ref is dynamic if it has one non-constant term that isn't the first or last term or if it's a partial set rule.
+	return pos > 0 && (pos < len(head.Reference)-1 || head.RuleKind() == MultiValue)
+}
+
 // Copy returns a deep copy of a.
 func (a Args) Copy() Args {
 	cpy := Args{}

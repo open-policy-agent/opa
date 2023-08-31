@@ -1043,6 +1043,14 @@ func (ref Ref) GroundPrefix() Ref {
 	return prefix
 }
 
+func (ref Ref) DynamicSuffix() Ref {
+	i := ref.Dynamic()
+	if i < 0 {
+		return nil
+	}
+	return ref[i:]
+}
+
 // IsGround returns true if all of the parts of the Ref are ground.
 func (ref Ref) IsGround() bool {
 	if len(ref) == 0 {

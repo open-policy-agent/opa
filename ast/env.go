@@ -357,7 +357,8 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 }
 
 // mergeTypes merges the types of 'a' and 'b'. If both are sets, their 'of' types are joined with an types.Or.
-// If both are objects, the key and value types of their dynamic properties are joined with types.Or:s.
+// If both are objects, the key types of their dynamic properties are joined with types.Or:s, and their value types
+// are recursively merged (using mergeTypes).
 // If 'a' and 'b' are both objects, and at least one of them have static properties, they are joined
 // with an types.Or, instead of being merged.
 // If 'a' is an Any containing an Object, and 'b' is an Object (or vice versa); AND both objects have no
@@ -381,9 +382,10 @@ func mergeTypes(a, b types.Type) types.Type {
 
 			aDynProps := a.DynamicProperties()
 			bDynProps := bObj.DynamicProperties()
-			return types.NewObject(nil, types.NewDynamicProperty(
+			dynProps := types.NewDynamicProperty(
 				types.Or(aDynProps.Key, bDynProps.Key),
-				types.Or(aDynProps.Value, bDynProps.Value)))
+				mergeTypes(aDynProps.Value, bDynProps.Value))
+			return types.NewObject(nil, dynProps)
 		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 {
 			// If a is an object type with no static components ...
 			for _, t := range bAny {
