@@ -54,3 +54,8 @@
 
 /badge/:tag style=:style https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/:tag&style=:style
 /badge/:tag https://img.shields.io/endpoint?url=https://openpolicyagent.org/badge-endpoint/:tag
+
+/docs/:version/ecosystem/*  /ecosystem/:splat 301!
+/docs/:version/integrations/*  /integrations/:splat 301!
+/docs/:version/organizations/*  /organizations/:splat 301!
+/docs/:version/softwares/*  /softwares/:splat 301!

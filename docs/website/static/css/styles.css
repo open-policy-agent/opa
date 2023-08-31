@@ -171,7 +171,7 @@ button:not(:disabled) {
     color: #fff;
     font-size: 39px !important;
     font-weight: 700;
-    padding-bottom: 25px;
+    padding: 0 1rem;
 }
 
 .banner-subcontent {
@@ -179,6 +179,16 @@ button:not(:disabled) {
     color: #fff;
     font-size: 23px;
     font-weight: 300;
+    padding: 0 1rem;
+}
+
+.banner-subcontent p, .banner-subcontent a {
+    color: #fff;
+    font-size: 23px;
+}
+.banner-subcontent a {
+    text-decoration: underline;
+    font-weight: bold;
 }
 
 .about-text {
@@ -833,18 +843,6 @@ div.CodeMirror-cursor {
     height: 100%;
 }
 
-.banner-content {
-    padding: 0 1rem;
-}
-
-.banner-subcontent {
-    padding: 0 1rem;
-}
-
-.page-content {
-    padding: 0 1rem;
-}
-
 .background .banner-content,
 .background .banner-subcontent {
     text-align: left;
@@ -873,6 +871,9 @@ div.CodeMirror-cursor {
     font-size: 20px;
 }
 
+.page-content {
+    padding: 0 1rem;
+}
 .page-content ol,
 .page-content ul {
     padding-left: 1rem;

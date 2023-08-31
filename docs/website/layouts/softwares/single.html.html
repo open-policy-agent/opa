@@ -1,0 +1,56 @@
+{{ define "title" }}
+{{ site.Title }} | OPA Ecosystem - {{ .Title }}
+{{ end }}
+
+{{ define "content" }}
+<div class="support-bg">
+  {{ partial "nav.html" . }}
+
+  <main class="support-content">
+
+    <section class="background">
+
+      <p class="ecosystem-breadcrumbs">
+        <a href="/ecosystem">OPA Ecosystem</a> / Software / {{ .Title }}
+      </p>
+
+      <h1 class="banner-content">
+        {{ .Title }}
+      </h1>
+
+      <div class="banner-subcontent">
+        {{ .Content }}
+      </div>
+
+      <div class="page-content">
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+        {{ $id := printf "%s" (delimit (last 2 (split .Page.RelPermalink "/")) "") }}
+
+        {{ $orgIntegrations := partial "functions/select-integrations-by-software" (dict "software" $id "integrations" $integrations) }}
+        {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $orgIntegrations) }}
+
+        <h2>Links</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  <li><a href="{{ .Params.link }}">{{ .Title }}'s Website</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <h2>OPA Integrations</h2>
+        <p class="ecosystem-note">
+          The following OPA integrations are related to {{ .Title }}:
+        </p>
+
+        {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $sortedIntegrations "integrations" $integrations) }}
+        <p class="ecosystem-note">Integrations are ordered by the amount of linked content.</p>
+      </div>
+    </section>
+  </main>
+</div>
+{{ end }}
+

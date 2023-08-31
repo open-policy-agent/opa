@@ -27,10 +27,10 @@ print_if(false, key, expected, output) := false {
 }
 
 test_integration_has_required_fields_missing {
-	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
+	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {}}}
 
 	key := "fields"
-	message := "integration regal missing required fields: layout, title"
+	message := "/integrations/regal/ missing required fields: title"
 
 	got := messages_for_key(key, output)
 
@@ -40,48 +40,10 @@ test_integration_has_required_fields_missing {
 }
 
 test_integration_has_required_fields_present {
-	output := data.integrations.deny with input as {"integrations": {"regal": {"title": "Regal", "layout": "integration"}}}
+	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"title": "Regal"}}}
 
 	key := "fields"
-	message := "integration regal missing required fields: layout, title"
-
-	got := messages_for_key(key, output)
-
-	result := got == set()
-
-	print_if(result, key, false, output)
-}
-
-test_integration_has_layout_missing {
-	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
-
-	key := "layout"
-	message := "integration regal does not have layout set to: integration-single"
-
-	got := messages_for_key(key, output)
-
-	result := message in got
-
-	print_if(result, key, message, output)
-}
-
-test_integration_has_layout_missing {
-	output := data.integrations.deny with input as {"integrations": {"regal": {"layout": "wrong"}}}
-
-	key := "layout"
-	message := "integration regal does not have layout set to: integration-single"
-
-	got := messages_for_key(key, output)
-
-	result := message in got
-
-	print_if(result, key, message, output)
-}
-
-test_integration_has_layout_present {
-	output := data.integrations.deny with input as {"integrations": {"regal": {"layout": "integration-single"}}}
-
-	key := "layout"
+	message := "/integrations/regal/ missing required fields: title"
 
 	got := messages_for_key(key, output)
 
@@ -91,10 +53,10 @@ test_integration_has_layout_present {
 }
 
 test_integration_has_content_missing {
-	output := data.integrations.deny with input as {"integrations": {"regal": {}}}
+	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {}}}
 
 	key := "content"
-	message := "integration regal has no content"
+	message := "/integrations/regal/ has no content"
 
 	got := messages_for_key(key, output)
 
@@ -104,10 +66,10 @@ test_integration_has_content_missing {
 }
 
 test_integration_has_content_blank {
-	output := data.integrations.deny with input as {"integrations": {"regal": {"content": "\t\t\n   "}}}
+	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"content": "\t\t\n   "}}}
 
 	key := "content"
-	message := "integration regal has no content"
+	message := "/integrations/regal/ has no content"
 
 	got := messages_for_key(key, output)
 
@@ -117,7 +79,7 @@ test_integration_has_content_blank {
 }
 
 test_integration_has_content_present {
-	output := data.integrations.deny with input as {"integrations": {"regal": {"content": "foobar"}}}
+	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {"content": "foobar"}}}
 
 	key := "content"
 	got := messages_for_key(key, output)
@@ -130,11 +92,11 @@ test_integration_has_content_present {
 test_every_integration_has_image_missing {
 	output := data.integrations.deny with input as {
 		"images": ["reegal.png"],
-		"integrations": {"regal": {}},
+		"integrations": {"/integrations/regal/": {}},
 	}
 
 	key := "integration_image"
-	message := "integration regal missing image in 'static/img/logos/integrations' with extension of: png,svg"
+	message := "/integrations/regal/ missing image in 'static/img/logos/integrations' with extension of: png,svg"
 
 	got := messages_for_key(key, output)
 
@@ -191,7 +153,7 @@ test_every_image_has_integration_missing {
 test_every_image_has_integration_present {
 	output := data.integrations.deny with input as {
 		"images": ["regal.png"],
-		"integrations": {"regal": {}},
+		"integrations": {"/integrations/regal/": {}},
 	}
 
 	key := "image_integration"
@@ -204,12 +166,12 @@ test_every_image_has_integration_present {
 
 test_integration_organizations_missing {
 	output := data.integrations.deny with input as {
-		"organizations": {"stira": {}},
-		"integrations": {"regal": {"inventors": ["styra"]}},
+		"organizations": {"/organizations/stira/": {}},
+		"integrations": {"/integrations/regal/": {"inventors": ["styra"]}},
 	}
 
 	key := "inventors"
-	message := "integration regal references organization styra which does not exist"
+	message := "/integrations/regal/ references organization styra which does not exist"
 
 	got := messages_for_key(key, output)
 
@@ -220,8 +182,8 @@ test_integration_organizations_missing {
 
 test_integration_organizations_present {
 	output := data.integrations.deny with input as {
-		"organizations": {"styra": {}},
-		"integrations": {"regal": {"inventors": ["styra"]}},
+		"organizations": {"/organizations/styra/": {}},
+		"integrations": {"/integrations/regal/": {"inventors": ["styra"]}},
 	}
 
 	key := "inventors"
@@ -234,12 +196,12 @@ test_integration_organizations_present {
 
 test_integration_softwares_missing {
 	output := data.integrations.deny with input as {
-		"softwares": {"mars": {}},
-		"integrations": {"regal": {"software": ["terraform"]}},
+		"softwares": {"/softwares/mars/": {}},
+		"integrations": {"/integrations/regal/": {"software": ["terraform"]}},
 	}
 
 	key := "software"
-	message := "integration regal references software terraform which does not exist"
+	message := "/integrations/regal/ references software terraform which does not exist"
 
 	got := messages_for_key(key, output)
 
@@ -250,8 +212,8 @@ test_integration_softwares_missing {
 
 test_integration_softwares_present {
 	output := data.integrations.deny with input as {
-		"softwares": {"terraform": {}},
-		"integrations": {"regal": {"software": ["terraform"]}},
+		"softwares": {"/softwares/terraform/": {}},
+		"integrations": {"/integrations/regal/": {"software": ["terraform"]}},
 	}
 
 	key := "software"
@@ -263,10 +225,10 @@ test_integration_softwares_present {
 }
 
 test_software_has_required_fields_missing {
-	output := data.integrations.deny with input as {"softwares": {"terraform": {}}}
+	output := data.integrations.deny with input as {"softwares": {"/softwares/terraform/": {}}}
 
 	key := "fields"
-	message := "software terraform missing required fields: layout, link, title"
+	message := "/softwares/terraform/ missing required fields: link, title"
 
 	got := messages_for_key(key, output)
 
@@ -276,7 +238,7 @@ test_software_has_required_fields_missing {
 }
 
 test_software_has_required_fields_present {
-	output := data.integrations.deny with input as {"softwares": {"terraform": {"layout": "software-single", "link": "https://www.terraform.io/", "title": "Terraform"}}}
+	output := data.integrations.deny with input as {"softwares": {"terraform": {"link": "https://www.terraform.io/", "title": "Terraform"}}}
 
 	key := "fields"
 
@@ -288,10 +250,10 @@ test_software_has_required_fields_present {
 }
 
 test_organization_has_required_labels {
-	output := data.integrations.deny with input as {"organizations": {"styra": {}}}
+	output := data.integrations.deny with input as {"organizations": {"/organizations/styra/": {}}}
 
 	key := "fields"
-	message := "organization styra missing required fields: layout, link, title"
+	message := "/organizations/styra/ missing required fields: link, title"
 
 	got := messages_for_key(key, output)
 
@@ -301,7 +263,7 @@ test_organization_has_required_labels {
 }
 
 test_organization_has_required_fields_present {
-	output := data.integrations.deny with input as {"organizations": {"styra": {"layout": "organization-single", "link": "https://styra.com/", "title": "Styra"}}}
+	output := data.integrations.deny with input as {"organizations": {"styra": {"link": "https://styra.com/", "title": "Styra"}}}
 
 	key := "fields"
 
@@ -313,10 +275,10 @@ test_organization_has_required_fields_present {
 }
 
 test_organization_has_one_or_more_integrations_none {
-	output := data.integrations.deny with input as {"organizations": {"foobar": {}}, "integrations": {}}
+	output := data.integrations.deny with input as {"organizations": {"/organizations/foobar/": {}}, "integrations": {}}
 
 	key := "orphaned_org"
-	message := "organization foobar has no integrations"
+	message := "/organizations/foobar/ has no integrations"
 
 	got := messages_for_key(key, output)
 
@@ -326,7 +288,7 @@ test_organization_has_one_or_more_integrations_none {
 }
 
 test_organization_has_one_or_more_integrations_one {
-	output := data.integrations.deny with input as {"organizations": {"foobaz": {}}, "integrations": {"foobar": {"inventors": ["foobaz"]}}}
+	output := data.integrations.deny with input as {"organizations": {"/organizations/foobaz/": {}}, "integrations": {"/integrations/foobar/": {"inventors": ["foobaz"]}}}
 
 	key := "orphaned_org"
 	got := messages_for_key(key, output)
@@ -348,10 +310,10 @@ test_organization_has_one_or_more_integrations_speaker {
 }
 
 test_software_has_one_or_more_integrations_none {
-	output := data.integrations.deny with input as {"softwares": {"foobar": {}}, "integrations": {}}
+	output := data.integrations.deny with input as {"softwares": {"/softwares/foobar/": {}}, "integrations": {}}
 
 	key := "orphaned_software"
-	message := "software foobar has no integrations"
+	message := "/softwares/foobar/ has no integrations"
 
 	got := messages_for_key(key, output)
 

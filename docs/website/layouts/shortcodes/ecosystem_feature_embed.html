@@ -1,14 +1,12 @@
 {{ $feature := .Get "key" }}
-{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
-{{ $integrations := partial "functions/section-pages" (dict "section" "integrations" "base" $base "pages" $.Site.Pages) }}
-{{ $organizations := partial "functions/section-pages" (dict "section" "organizations" "base" $base "pages" $.Site.Pages) }}
+{{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+{{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
 {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
-{{ $base := delimit (first 3 (split .Page.RelPermalink "/")) "/" }}
 
 {{ if (gt (len $selectedIntegrations) 6) }}
   <p>
     The {{ len $selectedIntegrations }} ecosystem projects related to this page
-    can be found in the corresponding <a href="{{ $base }}/ecosystem/{{ $feature }}">OPA Ecosystem section</a>.
+    can be found in the corresponding <a href="/ecosystem/{{ $feature }}">OPA Ecosystem section</a>.
   </p>
 {{ else if (gt (len $selectedIntegrations) 0) }}
   <p>
@@ -17,10 +15,10 @@
   </p>
 
   {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $selectedIntegrations) }}
-  {{ partial "ecosystem-project-list-for-feature" (dict "base" $base "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature) }}
+  {{ partial "ecosystem-project-list-for-feature" (dict "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature) }}
 
   <p class="mt-4">
-    View these projects in the <a href="{{ $base }}/ecosystem/{{ $feature }}">OPA Ecosystem</a>.
+    View these projects in the <a href="/ecosystem/{{ $feature }}">OPA Ecosystem</a>.
   </p>
 {{ else }}
   <p>There are no integrations for this category.</p>

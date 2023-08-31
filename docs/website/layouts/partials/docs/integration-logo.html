@@ -1,9 +1,9 @@
-{{- $logoFilePng := (printf "%s.png" .name) -}}
-{{- $logoFileSvg := (printf "%s.svg" .name) -}}
-{{- if fileExists (printf "/static/img/logos/integrations/%s" $logoFilePng) -}}
-<img class="integration-logo is-vcentered" src="{{ (printf "/img/logos/integrations/%s" $logoFilePng) }}" alt="Integration Logo">
-{{- else if fileExists (printf "/static/img/logos/integrations/%s" $logoFileSvg) -}}
-<img class="integration-logo is-vcentered" src="{{ (printf "/img/logos/integrations/%s" $logoFileSvg) }}" alt="Integration Logo">
+{{- $logoFilePng := (printf "%s.png" (strings.Trim .id "/")) -}}
+{{- $logoFileSvg := (printf "%s.svg" (strings.Trim .id "/")) -}}
+{{- if fileExists (printf "/static/img/logos/%s" $logoFilePng) -}}
+<img class="integration-logo is-vcentered" src="{{ (printf "/img/logos/%s" $logoFilePng) }}" alt="Integration Logo">
+{{- else if fileExists (printf "/static/img/logos/%s" $logoFileSvg) -}}
+<img class="integration-logo is-vcentered" src="{{ (printf "/img/logos/%s" $logoFileSvg) }}" alt="Integration Logo">
 {{- else -}}
 <img class="integration-logo is-vcentered" src="/img/logos/opa-no-text-color.png" alt="Integration Logo">
 {{- end -}}

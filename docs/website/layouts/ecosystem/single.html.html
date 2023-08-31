@@ -1,0 +1,45 @@
+{{ define "title" -}}
+  {{ site.Title }} | {{ .Parent.Title }} - {{ .Title }}
+{{- end }}
+
+{{ define "content" }}
+<div class="support-bg">
+  {{ partial "nav.html" . }}
+
+  <main class="support-content">
+
+    <section class="background">
+
+      <p class="ecosystem-breadcrumbs">
+        <a href="/ecosystem">OPA Ecosystem</a> / {{ .Title }}
+      </p>
+
+      <h1 class="banner-content">
+        {{ .Title }}
+      </h1>
+
+      <div class="banner-subcontent">
+        {{ .Content }}
+      </div>
+
+      <div class="page-content">
+
+        {{ $feature := path.BaseName .RelPermalink }}
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+        {{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
+        {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
+
+        {{ if (gt (len $selectedIntegrations) 0) }}
+        <div class="grid-container">
+          {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $selectedIntegrations) }}
+          {{ partial "ecosystem-project-list-for-feature" (dict "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature) }}
+          {{ else }}
+          <p>There are no integrations for this category.</p>
+          {{ end }}
+        </div>
+        <p class="ecosystem-note">Integrations are ordered by the amount of linked content.</p>
+      </div>
+    </section>
+  </main>
+</div>
+{{ end }}
