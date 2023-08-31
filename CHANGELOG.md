@@ -3,7 +3,60 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.56.0
+
+### Fixes
+
+- Bind test server to localhost interface (#6164) ([#6162](https://github.com/open-policy-agent/opa/issues/6162)) authored by @anderseknert
+- Changed the LoadPaths function. ([#5879](https://github.com/open-policy-agent/opa/issues/5879)) authored by @yogisinha
+- Fix: Partial-eval for partial object/set ref head rules (#6095) ([#6094](https://github.com/open-policy-agent/opa/issues/6094)) authored by @johanfylling
+- General refs in rule heads (#5913) ([#5993](https://github.com/open-policy-agent/opa/issues/5993)) authored by @johanfylling
+- ast: Including "child" rules when fetching rules by ref (#6183) ([#6182](https://github.com/open-policy-agent/opa/issues/6182)) authored by @johanfylling
+- ast: Making partial object key rules contribute to dynamic portion of object type (#6177) ([#6138](https://github.com/open-policy-agent/opa/issues/6138)) authored by @johanfylling
+- cmd: make `opa test -z` fail with failing tests ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) authored by @fdaguin reported by @fdaguin
+- fmt: Trim trailing whitespace in comments (#6163) ([#6161](https://github.com/open-policy-agent/opa/issues/6161)) authored by @anderseknert
+- topdown: add numbers.range_step built-in function (#6187) ([#6186](https://github.com/open-policy-agent/opa/issues/6186)) authored by @sspaink reported by @sspaink
+
+### Miscellaneous
+
+- Add note about updating search index after release (#6143) (authored by @charlieegan3)
+- Explain date normalization in time.add_date (#6144) (authored by @charlieegan3)
+- Fix typos (#6135) (authored by @testwill)
+- Prepare v0.56.0 development (#6121) (authored by @ashutosh-narkar)
+- Specify "path" for livenessProbe (authored by @atkrad)
+- Support force cache even when server doesn't set the Date header (authored by @c2zwdjnlcg)
+- Update Regal link from GH -> docs.styra.com (#6169) (authored by @anderseknert)
+- Update contributing page link to latest not edge (#6149) (authored by @charlieegan3)
+- [docs] Added Missing Hints in policy-reference (#6139) (authored by @Pushkarm029)
+- [docs] Address issue OPA ecosystem missing items (#6168) (authored by @charlieegan3)
+- [docs] Missing hint "future.keywords.if" for "Ordered (Else)" (authored by @Pushkarm029)
+- [docs] Move OPA ecosystem pages to site top-level (#6198) (authored by @charlieegan3)
+- [docs] Update integrations, organisations and softwares to have pages (#6158) (authored by @charlieegan3)
+- [docs] Update note on site updates (authored by @charlieegan3)
+- ast: Update strict error check message for unused args (authored by @ashutosh-narkar)
+- ast: remove unnecessary nil check (#6155) (authored by @Juneezee)
+- build(deps): bump github.com/containerd/containerd from 1.7.2 to 1.7.3 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.3 to 1.7.4 (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.12.0 to 0.13.0 (#6136) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.13.0 to 0.14.0 (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.56.2 to 1.57.0 (authored by @dependabot[bot])
+- build(deps): bump oras.land/oras-go/v2 from 2.2.1 to 2.3.0 (authored by @dependabot[bot])
+- build: bump golang 1.20.6 -> 1.20.7 (authored by @ashutosh-narkar)
+- chore: Remove dedup comment function in opa fmt (#6165) (authored by @anderseknert)
+- chore: Replace ghodss/yaml with sigs.k8s.io/yaml (#6195) (authored by @mrueg)
+- cmd: Fix opa test --ignore when used together with --bundle (authored by @joaobrandt)
+- doc: updated support page to include a link to the OPA support page at PACLabs (authored by @johndbro1)
+- docs: Update def func ex to use wildcard (authored by @ashutosh-narkar)
+- docs: Update generated CLI docs (authored by @)
+- docs: make it clear dropped decisions aren't logged (#6180) (authored by @anderseknert)
+- docs: update traefik integration link (#6150) (authored by @hmoazzem)
+- feat(cmd): Adding fail-non-empty flag (#6153) (authored by @Ronnie-personal)
+- feat(download): add opa_no_oci flag to build without containerd (authored by @slonka)
+- golang: 1.20.7 -> 1.21 (#6189) (authored by @srenatus)
+- rego: expose PrepareOption, add BuiltinFuncs (authored by @srenatus)
+- remove not required basedir for oci bundles & add test to verify signature verification (authored by @gitu)
+- server/authorizer: inline readBody (#6156) (authored by @srenatus)
+- website: link ecosystem from edge (#6170) (authored by @srenatus)
 
 ### Breaking changes
 
