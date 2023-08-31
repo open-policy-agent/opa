@@ -38,7 +38,7 @@ users_by_country[country] contains user.id if {
 
 General refs are currently not supported by the OPA planner, making this feature unsupported for Wasm and IR.
 
-Note: this feature is disabled by default, and needs to be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable.
+Note: this feature is disabled by default, and needs to be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable (once the feature is complete - supports Wasm and IR - this requirement will be dropped).
 
 Authored by @johanfylling.
 
