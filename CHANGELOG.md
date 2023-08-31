@@ -62,9 +62,9 @@ If you're interested to add any new integrations you've been working on, please 
 - ast: Update strict error check message for unused args ([#6125](https://github.com/open-policy-agent/opa/pull/6125)) authored by @ashutosh-narkar
 - ast: Remove unnecessary nil check ([#6155](https://github.com/open-policy-agent/opa/pull/6155)) authored by @Juneezee
 - cmd: Make `opa test -z` fail with failing tests ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) authored by @fdaguin
-- cmd: Fix opa test `--ignore` when used together with `--bundle` ([#6185](https://github.com/open-policy-agent/opa/pull/6185)) authored by @joaobrandt
-- cmd: Adding `--fail-non-empty` flag ([#6153](https://github.com/open-policy-agent/opa/pull/6153)) authored by @Ronnie-personal
-- download: Sdd opa_no_oci flag to build without containerd ([#6159](https://github.com/open-policy-agent/opa/pull/6159)) authored by @slonka
+- cmd: Fix `opa test` `--ignore` when used together with `--bundle` ([#6185](https://github.com/open-policy-agent/opa/pull/6185)) authored by @joaobrandt
+- cmd: Adding `--fail-non-empty` flag to `opa exec` ([#6153](https://github.com/open-policy-agent/opa/pull/6153)) authored by @Ronnie-personal
+- download: Add `opa_no_oci` flag to build without containerd ([#6159](https://github.com/open-policy-agent/opa/pull/6159)) authored by @slonka
 - download: Remove not required basedir for oci bundles & add test to verify signature verification ([#6145](https://github.com/open-policy-agent/opa/pull/6145)) authored by @gitu
 - fmt: Trim trailing whitespace in comments ([#6161](https://github.com/open-policy-agent/opa/issues/6161)) authored by @anderseknert
 - fmt: Remove dedup comment function in opa fmt ([#6165](https://github.com/open-policy-agent/opa/pull/6165)) authored by @anderseknert
