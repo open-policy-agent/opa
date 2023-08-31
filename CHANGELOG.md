@@ -49,7 +49,7 @@ Similar to the `numbers.range` built-in function, `numbers.range_step` returns a
 See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.56.0/policy-reference/#builtin-numbers-numbersrange_step)
 for all the details.
 
-authored by @sspaink.
+Authored by @sspaink.
 
 ### Runtime, Tooling, SDK
 
