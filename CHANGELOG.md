@@ -51,6 +51,12 @@ for all the details.
 
 Authored by @sspaink.
 
+### New Ecosystem page on The Website
+
+The OPA Ecosystem of related integrations has been refreshed and moved to a more prominent location on [the website](https://www.openpolicyagent.org/ecosystem/). 
+
+If you're interested to add any new integrations you've been working on, please see the [docs here](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem) (updates to existing integrations are very welcome too!).
+
 ### Runtime, Tooling, SDK
 
 - ast: Update strict error check message for unused args ([#6125](https://github.com/open-policy-agent/opa/pull/6125)) authored by @ashutosh-narkar
