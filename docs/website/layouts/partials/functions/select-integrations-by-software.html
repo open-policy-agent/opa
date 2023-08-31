@@ -3,10 +3,11 @@
 
 {{ $scratch := newScratch }}
 {{ $scratch.Set "integrations" (dict) }}
-{{ range $name, $integration := $integrations }}
-  {{ if in $integration.software $software }}
-    {{ $scratch.SetInMap "integrations" $name $integration  }}
-  {{ end }}
+{{ range $integration := $integrations }}
+{{ $params := $integration.Params }}
+{{ if in $params.software $software }}
+{{ $scratch.SetInMap "integrations" $integration.Permalink $integration  }}
+{{ end }}
 {{ end }}
 
 {{ return ($scratch.Get "integrations") }}
