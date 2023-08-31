@@ -44,7 +44,7 @@ Authored by @johanfylling.
 
 ### New Built-In Function: `numbers.range_step`
 
-Similar to hte `numbers.range` built-in function, `numbers.range_step` returns an array of numbers in a given range. The difference being the function as input also takes the step between each entry.
+Similar to the `numbers.range` built-in function, `numbers.range_step` returns an array of numbers in a given range. The new built-in function also allows you to control the _step between each entry_.
 
 See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.56.0/policy-reference/#builtin-numbers-numbersrange_step)
 for all the details.
