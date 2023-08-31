@@ -5,6 +5,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.56.0
 
+This release contains a mix of new features, bugfixes and a new builtin function.
+
 ### Support for General References in Rule Heads (Experimental)
 
 A new experimental feature in OPA is support for general refs in rule heads. Where a general ref is a reference with variables at arbitrary locations.
