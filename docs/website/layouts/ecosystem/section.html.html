@@ -23,12 +23,12 @@
 
         {{ range $category := .Params.categories }}
         <h2>{{ $category.title }}</h2>
-        <p class="ecosystem-note">{{ $category.description }}</p>
         <div class="grid-container">
           <div class="card">
             <div class="card-body">
               <div class="card-text">
                 <div>
+                  <p class="mb-4">{{ $category.description }}</p>
                   <ul>
                     {{ range $page := where $.Pages "Section" "ecosystem" }}
                     {{ if eq $page.Params.category $category.key }}
