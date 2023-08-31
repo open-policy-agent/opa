@@ -1,7 +1,7 @@
 cases:
   - note: 'refheads/general, single var'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -18,7 +18,7 @@ cases:
             r: 2
   - note: 'refheads/general, multiple vars'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -35,7 +35,7 @@ cases:
             2: true
   - note: 'refheads/general, deep query'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -47,7 +47,7 @@ cases:
           1: true
   - note: 'refheads/general, overlapping rule, no conflict'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -65,7 +65,7 @@ cases:
             r: 2
   - note: 'refheads/general, overlapping rule, conflict'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -76,7 +76,7 @@ cases:
     want_error: eval_conflict_error
   - note: 'refheads/general, set leaf'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -101,7 +101,7 @@ cases:
             r: [ "a", "b" ]
   - note: 'refheads/general, set leaf, deep query'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -120,7 +120,7 @@ cases:
       - x: "c"
   - note: 'refheads/general, input var'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -135,7 +135,7 @@ cases:
             r: "foo"
   - note: 'refheads/general, external non-ground var'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -159,7 +159,7 @@ cases:
               baz: 2
   - note: 'refheads/general, multiple result-set entries'
     env:
-      OPA_ENABLE_GENERAL_RULE_REFS: "true"
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test

@@ -467,7 +467,7 @@ func toRef(s string) Ref {
 }
 
 func TestCompilerCheckRuleHeadRefs(t *testing.T) {
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	tests := []struct {
 		note     string
@@ -1940,7 +1940,7 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 }
 
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	tests := []struct {
 		note    string
@@ -2189,7 +2189,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 
 // TODO: Remove when general rule refs are enabled by default.
 func TestGeneralRuleRefsDisabled(t *testing.T) {
-	// OPA_ENABLE_GENERAL_RULE_REFS env var not set
+	// EXPERIMENTAL_GENERAL_RULE_REFS env var not set
 
 	tests := []struct {
 		note    string

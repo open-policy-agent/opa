@@ -19,7 +19,7 @@ import (
 
 func TestTopDownPartialEval(t *testing.T) {
 	// TODO: break out into separate tests
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	tests := []struct {
 		note                 string

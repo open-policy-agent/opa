@@ -997,7 +997,7 @@ data.example
 Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects. 
 
 {{< danger >}}
-General refs in rule heads is an experimental feature, and can be enabled by setting the `OPA_ENABLE_GENERAL_RULE_REFS` environment variable.
+General refs in rule heads is an experimental feature, and can be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable.
 
 This feature is currently not supported for Wasm and IR.
 {{< /danger >}}
@@ -1039,20 +1039,20 @@ package example
 import future.keywords
 
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
-users_by_role[role][id] := user {
+users_by_role[role][id] := user if {
     some user in data.users
     id := user.id
     role := user.role
 }
 
 # Partial rule with an explicit "admin" key override
-users_by_role.admin[id] := user {
+users_by_role.admin[id] := user if {
     some user in data.admins
     id := user.id
 }
 
 # Leaf entries can be partial sets
-users_by_country[country] contains user.id {
+users_by_country[country] contains user.id if {
     some user in data.users
     country := user.country
 }

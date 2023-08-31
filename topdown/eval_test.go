@@ -248,7 +248,7 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 
 func TestTopdownVirtualCache(t *testing.T) {
 	// TODO: break out into separate tests
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	ctx := context.Background()
 	store := inmem.New()
@@ -604,7 +604,7 @@ func TestTopdownVirtualCache(t *testing.T) {
 }
 
 func TestPartialRule(t *testing.T) {
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	ctx := context.Background()
 	store := inmem.New()
@@ -1393,7 +1393,7 @@ func TestGeneralRuleRefsFeatureFlag(t *testing.T) {
 		t.Fatal("Expected error but got:", c.Errors)
 	}
 
-	t.Setenv("OPA_ENABLE_GENERAL_RULE_REFS", "true")
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
 
 	c = ast.NewCompiler()
 	c.Compile(mods)

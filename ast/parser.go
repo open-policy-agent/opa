@@ -142,7 +142,7 @@ func NewParser() *Parser {
 		s:  &state{},
 		po: ParserOptions{},
 	}
-	_, p.po.generalRuleRefsEnabled = os.LookupEnv("OPA_ENABLE_GENERAL_RULE_REFS")
+	_, p.po.generalRuleRefsEnabled = os.LookupEnv("EXPERIMENTAL_GENERAL_RULE_REFS")
 	return p
 }
 

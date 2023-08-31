@@ -335,7 +335,7 @@ func NewCompiler() *Compiler {
 		{"BuildComprehensionIndices", "compile_stage_rebuild_comprehension_indices", c.buildComprehensionIndices},
 	}
 
-	_, c.generalRuleRefsEnabled = os.LookupEnv("OPA_ENABLE_GENERAL_RULE_REFS")
+	_, c.generalRuleRefsEnabled = os.LookupEnv("EXPERIMENTAL_GENERAL_RULE_REFS")
 
 	return c
 }
@@ -1757,7 +1757,7 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 			}
 
 			for i := 1; i < len(ref); i++ {
-				// NOTE: Unless enabled via the OPA_ENABLE_GENERAL_RULE_REFS env var, non-string values in the refs are forbidden
+				// NOTE: Unless enabled via the EXPERIMENTAL_GENERAL_RULE_REFS env var, non-string values in the refs are forbidden
 				// except for the last position, e.g.
 				//     OK: p.q.r[s]
 				// NOT OK: p[q].r.s
