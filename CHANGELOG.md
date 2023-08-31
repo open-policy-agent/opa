@@ -16,20 +16,20 @@ package example
 
 import future.keywords
 
-# A partial object rule that converts a list of users to a mapping by "role" and then "id".
+# Converting a flat list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
     some user in data.users
     id := user.id
     role := user.role
 }
 
-# Partial rule with an explicit "admin" key override
+# Explicit "admin" key override to the above mapping.
 users_by_role.admin[id] := user if {
     some user in data.admins
     id := user.id
 }
 
-# Leaf entries can be partial sets
+# Leaf entries can be multi-value.
 users_by_country[country] contains user.id if {
     some user in data.users
     country := user.country
