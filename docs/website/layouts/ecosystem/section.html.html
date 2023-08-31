@@ -23,6 +23,7 @@
 
         {{ range $category := .Params.categories }}
         <h2>{{ $category.title }}</h2>
+        <p class="ecosystem-note">{{ $category.description }}</p>
         <div class="grid-container">
           <div class="card">
             <div class="card-body">
