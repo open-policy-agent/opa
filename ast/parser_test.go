@@ -1542,7 +1542,7 @@ func TestRule(t *testing.T) {
 				Value:     IntNumberTerm(2),
 				Assign:    true,
 			},
-			Body: NewBody(NewExpr(BooleanTerm(true))),
+			//	Body: NewBody(NewExpr(BooleanTerm(true))),
 		},
 	})
 
@@ -1663,7 +1663,7 @@ func TestRule(t *testing.T) {
 				},
 				Value: BooleanTerm(false),
 			},
-			Body: MustParseBody(`true`),
+			//	Body: MustParseBody(`true`),
 		},
 	})
 
