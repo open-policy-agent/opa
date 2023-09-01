@@ -7,6 +7,7 @@ package topdown
 import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/uuid"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 type uuidCachingKey string
@@ -31,6 +32,32 @@ func builtinUUIDRFC4122(bctx BuiltinContext, operands []*ast.Term, iter func(*as
 	return iter(result)
 }
 
+func builtinUUIDParse(_ BuiltinContext, operands []*ast.Term, iter func(term *ast.Term) error) error {
+	str, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	parsed, err := uuid.Parse(string(str))
+	if err != nil {
+		return nil
+	}
+
+	result := ast.NewObject()
+	for prop, val := range parsed {
+		switch val := val.(type) {
+		case string:
+			result.Insert(ast.StringTerm(prop), ast.StringTerm(val))
+		case int:
+			result.Insert(ast.StringTerm(prop), ast.IntNumberTerm(val))
+		case int64:
+			result.Insert(ast.StringTerm(prop), ast.NumberTerm(int64ToJSONNumber(val)))
+		}
+	}
+	return iter(ast.NewTerm(result))
+}
+
 func init() {
 	RegisterBuiltinFunc(ast.UUIDRFC4122.Name, builtinUUIDRFC4122)
+	RegisterBuiltinFunc(ast.UUIDParse.Name, builtinUUIDParse)
 }

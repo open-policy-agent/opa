@@ -237,6 +237,7 @@
       "units.parse_bytes"
     ],
     "uuid": [
+      "uuid.parse",
       "uuid.rfc4122"
     ]
   },
@@ -18470,6 +18471,25 @@
       "description": "the URL-encoded serialization of `object`",
       "name": "y",
       "type": "string"
+    },
+    "wasm": false
+  },
+  "uuid.parse": {
+    "args": [
+      {
+        "name": "uuid",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Parses the string value as an UUID and returns an object with the well-defined fields of the UUID if valid.",
+    "introduced": "edge",
+    "result": {
+      "description": "properties of UUID if valid (version, variant, etc). Undefined otherwise ",
+      "name": "result",
+      "type": "object[string: any]"
     },
     "wasm": false
   },
