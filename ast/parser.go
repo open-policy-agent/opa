@@ -799,13 +799,18 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	if p.s.tok == tokens.LBrace {
 		p.scan()
-
 		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
 			return nil
 		}
+		p.scan()
+	} else if p.s.tok != tokens.EOF {
+		expr := p.parseLiteral()
+		if expr == nil {
+			return nil
+		}
+		rule.Body.Append(expr)
+		setLocRecursive(rule.Body, rule.Location)
 	}
-
-	p.scan()
 
 	if p.s.tok == tokens.Else {
 		if rule.Else = p.parseElse(head); rule.Else == nil {
@@ -816,7 +821,6 @@ func (p *Parser) parseElse(head *Head) *Rule {
 }
 
 func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
-
 	head := &Head{}
 	loc := p.s.Loc()
 	defer func() {
