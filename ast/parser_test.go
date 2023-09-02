@@ -2394,7 +2394,6 @@ func TestRuleElseKeyword(t *testing.T) {
 						Reference: Ref{VarTerm("nobody")},
 						Value:     IntNumberTerm(7),
 					},
-					Body: MustParseBody("true"),
 				},
 			},
 			{
@@ -2412,7 +2411,6 @@ func TestRuleElseKeyword(t *testing.T) {
 						Args:      Args{VarTerm("x")},
 						Value:     IntNumberTerm(7),
 					},
-					Body: MustParseBody("true"),
 				},
 			},
 		},
