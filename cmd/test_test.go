@@ -219,6 +219,51 @@ func failTrace(t *testing.T) []*topdown.Event {
 	return *tracer
 }
 
+// Assert that ignore flag is correctly used when the bundle flag is activated
+func TestIgnoreFlag(t *testing.T) {
+	files := map[string]string{
+		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/broken.rego": "package foo\n bar {",
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(root string) {
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.errOutput = io.Discard
+		testParams.bundleMode = false
+		testParams.ignore = []string{"broken.rego"}
+
+		exitCode, _ = opaTest([]string{root}, testParams)
+	})
+
+	if exitCode > 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+}
+
+// Assert that ignore flag is correctly used when the bundle flag is activated
+func TestIgnoreFlagWithBundleFlag(t *testing.T) {
+	files := map[string]string{
+		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/broken.rego": "package foo\n bar {",
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(root string) {
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.errOutput = io.Discard
+		testParams.bundleMode = true
+		testParams.ignore = []string{"broken.rego"}
+		exitCode, _ = opaTest([]string{root}, testParams)
+	})
+
+	if exitCode > 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+}
+
 func testSchemasAnnotation(rego string) (int, error) {
 
 	files := map[string]string{

@@ -1,0 +1,174 @@
+cases:
+  - note: 'refheads/general, single var'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r := i { q := ["a", "b", "c"][i] }
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: 0
+          b:
+            r: 1
+          c:
+            r: 2
+  - note: 'refheads/general, multiple vars'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q][r] { q := ["a", "b", "c"][r] }
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            0: true
+          b:
+            1: true
+          c:
+            2: true
+  - note: 'refheads/general, deep query'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q][r] { q := ["a", "b", "c"][r] }
+    query: data.test.p.b = x
+    want_result:
+      - x:
+          1: true
+  - note: 'refheads/general, overlapping rule, no conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r := i { q := ["a", "b", "c"][i] }
+        p.a.r := 0
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: 0
+          b:
+            r: 1
+          c:
+            r: 2
+  - note: 'refheads/general, overlapping rule, conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r := i { q := ["a", "b", "c"][i] }
+        p.a.r := 42
+    query: data.test.p = x
+    want_error: eval_conflict_error
+  - note: 'refheads/general, set leaf'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        import future.keywords
+        
+        p[q].r contains s { 
+          x := ["a", "b", "c"]
+          q := x[_] 
+          s := x[_]
+          q != s
+        }
+        
+        p.b.r contains "foo"
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: [ "b", "c" ]
+          b:
+            r: [ "a", "c", "foo" ]
+          c:
+            r: [ "a", "b" ]
+  - note: 'refheads/general, set leaf, deep query'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        import future.keywords
+        
+        p[q].r contains s { 
+          x := ["a", "b", "c"]
+          q := x[_] 
+          s := x[_]
+          q != s
+        }
+        
+        p.b.r contains "foo"
+    query: data.test.p.b.r.c = x
+    want_result:
+      - x: "c"
+  - note: 'refheads/general, input var'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[input.x].r := "foo"
+    query: data.test.p = x
+    input:
+      x: "bar"
+    want_result:
+      - x:
+          bar:
+            r: "foo"
+  - note: 'refheads/general, external non-ground var'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        a := [x | x := input.x[_]]
+        b := input.y
+        
+        p[a[b]].r[s] := i {
+          s := a[i]
+        }
+    query: data.test.p = x
+    input:
+      x: [ "foo", "bar", "baz" ]
+      "y": 1
+    want_result:
+      - x:
+          bar:
+            r:
+              foo: 0
+              bar: 1
+              baz: 2
+  - note: 'refheads/general, multiple result-set entries'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+
+        p.q[r].s := 1 { r := "foo" }
+        p.q[r].s := 2 { r := "bar" }
+    query: data.test.p.q[i].s = x
+    want_result:
+      - i: foo
+        x: 1
+      - i: bar
+        x: 2

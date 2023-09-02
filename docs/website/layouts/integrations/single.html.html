@@ -1,0 +1,207 @@
+{{ define "title" }}
+{{ site.Title }} | OPA Ecosystem - {{ .Title }}
+{{ end }}
+
+{{ define "content" }}
+<div class="support-bg">
+
+  {{ partial "nav.html" . }}
+
+  <main class="support-content">
+
+    <section class="background">
+
+      <p class="ecosystem-breadcrumbs">
+        <a href="/ecosystem">OPA Ecosystem</a> / Integrations / {{ .Title }}
+      </p>
+
+      <h1 class="banner-content">
+        {{ .Title }}
+      </h1>
+
+      <div class="banner-subcontent">
+        {{ .Params.subtitle }}
+      </div>
+
+      <div class="page-content">
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+        {{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
+        {{ $id := .Page.RelPermalink }}
+
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <figure class="image is-128x128 mb-5">
+                  {{ partial "docs/integration-logo.html" (dict "id" $id) }}
+                </figure>
+
+                {{ .Content }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {{ if .Params.code }}
+        <h2>Code &amp; Repos</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.code }}
+                  <li><a href="{{ . }}">{{ . }}</a></li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.tutorials }}
+        <h2>Tutorials</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.tutorials }}
+                  <li><a href="{{ . }}">{{ . }}</a></li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.videos }}
+        <h2>Videos</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.videos }}
+                  {{ if reflect.IsMap . }}
+                  <li>
+                    <a href="{{ .link }}">{{ .title }} - {{ .venue }}</a>
+                    <ul>
+                      {{ range .speakers }}
+                      {{ if reflect.IsMap . }}
+                      {{ $org := $.Site.GetPage (printf "/organizations/%s" .) }}
+                      {{ if $org }}
+                      <li>{{ .name }} - <a href="/organizations/{{ . }}">{{ $org.Params.title }}</a></li>
+                      {{ else }}
+                      <li>{{ .name }} - {{ .organization }}</li>
+                      {{end}}
+                      {{ else }}
+                      <li>{{ . }}</li>
+                      {{ end }}
+                      {{ end }}
+                    </ul>
+                  </li>
+                  {{ else }}
+                  <li><a href="{{ . }}">{{ . }}</a></li>
+                  {{ end }}
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.blogs }}
+        <h2>Blogs</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.blogs }}
+                  <li><a href="{{ . }}">{{ . }}</a></li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.software }}
+        <h2>Related Software</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.software }}
+                  {{ $software := $.Site.GetPage (printf "/softwares/%s" .) }}
+                  <li class="ecosystem-text">
+                    <a href="{{ $software.Permalink }}">{{ $software.Title }}</a> in the OPA Ecosystem
+                    <ul>
+                      <li>
+                        <a href="{{ $software.Params.link }}">{{ replaceRE `^https?:\/\/` "" $software.Params.link }}</a>
+                      </li>
+                    </ul>
+                  </li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.inventors }}
+        <h2>Inventors</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <ul>
+                  {{ range .Params.inventors }}
+                  {{ $org := $.Site.GetPage (printf "/organizations/%s" .) }}
+                  <li class="ecosystem-text">
+                    <a href="{{ $org.Permalink }}">{{ $org.Title }}</a> in the OPA Ecosystem
+                    <ul>
+                      <li>
+                        <a href="{{ $org.Params.link }}">{{ replaceRE `^https?:\/\/` "" $org.Params.link }}</a>
+                      </li>
+                    </ul>
+                  </li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+        {{ if .Params.labels }}
+        <h2>Labels</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <table class="ecosystem-table">
+                  {{ range $k, $v := .Params.labels }}
+                  <tr>
+                    <th class="ecosystem-text">{{ title $k }}</th>
+                    <td class="ecosystem-text">{{ lower $v }}</td>
+                  </tr>
+                  {{ end }}
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+      </div>
+    </section>
+  </main>
+</div>
+{{ end }}
+

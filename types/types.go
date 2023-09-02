@@ -259,6 +259,10 @@ func NewSet(of Type) *Set {
 	}
 }
 
+func (t *Set) Of() Type {
+	return t.of
+}
+
 // MarshalJSON returns the JSON encoding of t.
 func (t *Set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.toMap())
@@ -424,6 +428,77 @@ func (t *Object) Select(name interface{}) Type {
 	}
 
 	return nil
+}
+
+func (t *Object) Merge(other Type) *Object {
+	if otherObj, ok := other.(*Object); ok {
+		return mergeObjects(t, otherObj)
+	}
+
+	var typeK Type
+	var typeV Type
+	dynProps := t.DynamicProperties()
+	if dynProps != nil {
+		typeK = Or(Keys(other), dynProps.Key)
+		typeV = Or(Values(other), dynProps.Value)
+		dynProps = NewDynamicProperty(typeK, typeV)
+	} else {
+		typeK = Keys(other)
+		typeV = Values(other)
+		if typeK != nil && typeV != nil {
+			dynProps = NewDynamicProperty(typeK, typeV)
+		}
+	}
+
+	return NewObject(t.StaticProperties(), dynProps)
+}
+
+func mergeObjects(a, b *Object) *Object {
+	var dynamicProps *DynamicProperty
+	if a.dynamic != nil && b.dynamic != nil {
+		typeK := Or(a.dynamic.Key, b.dynamic.Key)
+		var typeV Type
+		aObj, aIsObj := a.dynamic.Value.(*Object)
+		bObj, bIsObj := b.dynamic.Value.(*Object)
+		if aIsObj && bIsObj {
+			typeV = mergeObjects(aObj, bObj)
+		} else {
+			typeV = Or(a.dynamic.Value, b.dynamic.Value)
+		}
+		dynamicProps = NewDynamicProperty(typeK, typeV)
+	} else if a.dynamic != nil {
+		dynamicProps = a.dynamic
+	} else {
+		dynamicProps = b.dynamic
+	}
+
+	staticPropsMap := make(map[interface{}]Type)
+
+	for _, sp := range a.static {
+		staticPropsMap[sp.Key] = sp.Value
+	}
+
+	for _, sp := range b.static {
+		currV := staticPropsMap[sp.Key]
+		if currV != nil {
+			currVObj, currVIsObj := currV.(*Object)
+			spVObj, spVIsObj := sp.Value.(*Object)
+			if currVIsObj && spVIsObj {
+				staticPropsMap[sp.Key] = mergeObjects(currVObj, spVObj)
+			} else {
+				staticPropsMap[sp.Key] = Or(currV, sp.Value)
+			}
+		} else {
+			staticPropsMap[sp.Key] = sp.Value
+		}
+	}
+
+	staticProps := make([]*StaticProperty, 0, len(staticPropsMap))
+	for k, v := range staticPropsMap {
+		staticProps = append(staticProps, NewStaticProperty(k, v))
+	}
+
+	return NewObject(staticProps, dynamicProps)
 }
 
 // Any represents a dynamic type.

@@ -1,0 +1,67 @@
+{{ define "title" }}
+  {{ site.Title }} | {{ .Title }}
+{{ end }}
+
+{{ define "content" }}
+<div class="support-bg">
+  {{ partial "nav.html" . }}
+
+  <main class="support-content">
+
+    <section class="background">
+
+      <h1 class="banner-content">
+        {{ .Title }}
+      </h1>
+
+      <div class="banner-subcontent">
+        {{ .Params.intro }}
+      </div>
+
+      <div class="page-content">
+        {{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+
+        {{ range $category := .Params.categories }}
+        <h2>{{ $category.title }}</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <div>
+                  <p class="mb-4">{{ $category.description }}</p>
+                  <ul>
+                    {{ range $page := where $.Pages "Section" "ecosystem" }}
+                    {{ if eq $page.Params.category $category.key }}
+                    {{ $feature := path.BaseName $page.RelPermalink }}
+                    {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
+
+                    {{ if (gt (len $selectedIntegrations) 1) }}
+                    <li>
+                      <a href="{{ .Permalink }}">{{ .Title }}</a>
+                      ({{ len $selectedIntegrations }} projects)
+                      {{ if .Params.description }}
+                      - {{ .Params.description }}
+                      {{ end }}
+                    </li>
+                    {{ end }}
+                    {{ end }}
+                    {{ end }}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+
+
+        <h2>All Integrations</h2>
+        {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $integrations) }}
+        {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrations" $integrations) }}
+        <p class="ecosystem-note">Integrations are ordered by the amount of linked content.</p>
+
+      </div>
+    </section>
+  </main>
+</div>
+{{ end }}

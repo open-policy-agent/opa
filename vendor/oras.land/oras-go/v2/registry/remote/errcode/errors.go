@@ -24,7 +24,7 @@ import (
 )
 
 // References:
-//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#error-codes
+//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#error-codes
 //   - https://docs.docker.com/registry/spec/api/#errors-2
 const (
 	ErrorCodeBlobUnknown         = "BLOB_UNKNOWN"
@@ -45,7 +45,7 @@ const (
 // Error represents a response inner error returned by the remote
 // registry.
 // References:
-//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#error-codes
+//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#error-codes
 //   - https://docs.docker.com/registry/spec/api/#errors-2
 type Error struct {
 	Code    string `json:"code"`
@@ -73,7 +73,7 @@ func (e Error) Error() string {
 // Errors represents a list of response inner errors returned by the remote
 // server.
 // References:
-//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#error-codes
+//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#error-codes
 //   - https://docs.docker.com/registry/spec/api/#errors-2
 type Errors []Error
 
