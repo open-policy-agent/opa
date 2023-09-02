@@ -795,6 +795,11 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	}
 
 	hasIf := p.s.tok == tokens.If
+	hasLBrace := p.s.tok == tokens.LBrace
+
+	if !hasIf && !hasLBrace {
+		return &rule
+	}
 
 	if hasIf {
 		p.scan()
