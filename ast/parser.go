@@ -855,7 +855,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 	if term == nil {
 		return nil, false
 	}
-
+	// modify the code to always return ref type, does not return var type
 	ref := p.parseTermFinish(term, true)
 	if ref == nil {
 		p.illegal("expected rule head name")
@@ -1472,7 +1472,7 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 		p.scan()
 		fallthrough
 	default:
-		if _, ok := head.Value.(Var); ok && RootDocumentNames.Contains(head) {
+		if _, ok := head.Value.(Var); ok {
 			return RefTerm(head).SetLocation(head.Location)
 		}
 		return head
