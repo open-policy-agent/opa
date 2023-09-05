@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Generate
         run: make clean generate
@@ -53,7 +53,7 @@ jobs:
             targets: ci-build-darwin ci-build-darwin-arm64-static
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - id: go_version
         name: Read go version
@@ -97,7 +97,7 @@ jobs:
             run: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - id: go_version
         name: Read go version
@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Golang Style and Lint Check
         run: make check
@@ -134,7 +134,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Check PR for changes to Wasm
         uses: dorny/paths-filter@v2
@@ -175,7 +175,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download generated artifacts
         uses: actions/download-artifact@v3
@@ -194,7 +194,7 @@ jobs:
     needs: generate
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download generated artifacts
         uses: actions/download-artifact@v3
@@ -212,7 +212,7 @@ jobs:
     needs: go-build
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download release binaries
         uses: actions/download-artifact@v3
@@ -276,7 +276,7 @@ jobs:
         os: [ubuntu-22.04, macos-latest]
         version: ["1.19"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download generated artifacts
         uses: actions/download-artifact@v3
         with:
@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download OPA
         uses: open-policy-agent/setup-opa@v2
