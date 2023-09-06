@@ -245,6 +245,9 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 
 	if v, ok := lhs.Value.(Var); ok {
 		head = NewHead(v)
+		// modify the code to add location to head ref, also need to set jsonOptions to include option
+		head.Reference[0].SetLocation(lhs.Location)
+		head.Reference[0].setJSONOptions(lhs.jsonOptions)
 	} else if r, ok := lhs.Value.(Ref); ok { // groundness ?
 		if _, ok := r[0].Value.(Var); !ok {
 			return nil, fmt.Errorf("invalid rule head: %v", r)
@@ -351,6 +354,8 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 			return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
 		}
 		head = NewHead(v)
+		head.Reference[0].SetLocation(ref[0].Location)
+		head.Reference[0].setJSONOptions(ref[0].jsonOptions)
 		head.Key = ref[1]
 	}
 	head.Location = term.Location

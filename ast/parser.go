@@ -855,7 +855,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 	if term == nil {
 		return nil, false
 	}
-	// modify the code to always return ref type, does not return var type
+
 	ref := p.parseTermFinish(term, true)
 	if ref == nil {
 		p.illegal("expected rule head name")
@@ -864,7 +864,10 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	switch x := ref.Value.(type) {
 	case Var:
+		// modify the code to add location to head ref, also need to set jsonOptions to include option
 		head = NewHead(x)
+		head.Reference[0].SetLocation(ref.Location)
+		head.Reference[0].setJSONOptions(*p.po.JSONOptions)
 	case Ref:
 		head = RefHead(x)
 	case Call:
@@ -1472,7 +1475,7 @@ func (p *Parser) parseTermFinish(head *Term, skipws bool) *Term {
 		p.scan()
 		fallthrough
 	default:
-		if _, ok := head.Value.(Var); ok {
+		if _, ok := head.Value.(Var); ok && RootDocumentNames.Contains(head) {
 			return RefTerm(head).SetLocation(head.Location)
 		}
 		return head
