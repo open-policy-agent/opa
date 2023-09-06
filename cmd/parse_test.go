@@ -524,6 +524,11 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         },
         "ref": [
           {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 11
+            },
             "type": "var",
             "value": "allow"
           }
@@ -773,6 +778,11 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         },
         "ref": [
           {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 4,
+              "col": 5
+            },
             "type": "var",
             "value": "allow"
           }

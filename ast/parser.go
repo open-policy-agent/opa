@@ -867,7 +867,9 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 		// modify the code to add location to head ref, also need to set jsonOptions to include option
 		head = NewHead(x)
 		head.Reference[0].SetLocation(ref.Location)
-		head.Reference[0].setJSONOptions(*p.po.JSONOptions)
+		if (p.po.JSONOptions) != nil {
+			head.Reference[0].setJSONOptions(*p.po.JSONOptions)
+		}
 	case Ref:
 		head = RefHead(x)
 	case Call:
