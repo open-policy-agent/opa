@@ -1661,8 +1661,6 @@ func TestUnexpectedElseNoBrace(t *testing.T) {
 			p if false
 			else := 1 if false
 			else := 2`,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1688,8 +1686,6 @@ func TestUnexpectedElseBrace(t *testing.T) {
 			p if false
 			else := 1 if { false }
 			else := 2`,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
