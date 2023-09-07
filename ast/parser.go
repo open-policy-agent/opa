@@ -996,6 +996,7 @@ func (p *Parser) parseLiteral() (expr *Expr) {
 		return p.parseEvery()
 	default:
 		s := p.save()
+		// when error out, expr is nil since false is the tok, when { is the tok, expr is false
 		expr := p.parseExpr()
 		if expr != nil {
 			expr.Negated = negated
