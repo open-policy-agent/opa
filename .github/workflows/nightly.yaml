@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Test with Race Detector
         run: CGO_ENABLED=1 make ci-go-race-detector
@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - id: go_version
         name: Read go version
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Benchmark Test Golang
         run: make ci-go-perf
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Vendor without proxy
         run: make check-go-module
@@ -104,14 +104,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code # needed for .trivyignore file
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - run: "docker pull openpolicyagent/opa:edge-static"
 
       # Equivalent to:
       # $ trivy image openpolicyagent/opa:edge-static
       - name: Run Trivy scan on image
-        uses: aquasecurity/trivy-action@0.11.2
+        uses: aquasecurity/trivy-action@0.12.0
         with:
           image-ref: 'openpolicyagent/opa:edge-static'
           format: table
@@ -134,12 +134,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Equivalent to:
       # $ trivy fs .
       - name: Run Trivy scan on repo
-        uses: aquasecurity/trivy-action@0.11.2
+        uses: aquasecurity/trivy-action@0.12.0
         with:
           scan-type: fs
           format: table
@@ -161,7 +161,7 @@ jobs:
     name: Go vulnerability check
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: go_version
         name: Read go version
         run: echo "go_version=$(cat .go-version)" >> $GITHUB_OUTPUT
