@@ -305,6 +305,12 @@ jobs:
         with:
           version: edge
 
+      - name: shell experiment
+        run: |
+          package test
+          output := opa.runtime().env
+        shell: opa eval --data {0} data.test
+
       - name: Test policies
         run: opa test build/policy
 
