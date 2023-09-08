@@ -28,7 +28,8 @@ cases:
       - x:
           version: 2
           variant: "RFC4122"
-          nodeid: "local:unicast:325096b39f47"
+          nodeid: "32-50-96-b3-9f-47"
+          macvariables: "local:unicast"
           time: 1693566990121469600
           clocksequence: 12800
           domain: "Person"

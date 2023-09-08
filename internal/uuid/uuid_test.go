@@ -33,7 +33,8 @@ func TestParseTrue(t *testing.T) {
 			map[string]interface{}{
 				"version":       1,
 				"variant":       "RFC4122",
-				"nodeid":        "local:multicast:9f3619c7493f",
+				"nodeid":        "9f-36-19-c7-49-3f",
+				"macvariables":  "local:multicast",
 				"time":          int64(1693481847404333000),
 				"clocksequence": 13946},
 		},
@@ -43,7 +44,8 @@ func TestParseTrue(t *testing.T) {
 			map[string]interface{}{
 				"version":       2,
 				"variant":       "RFC4122",
-				"nodeid":        "local:unicast:325096b39f47",
+				"nodeid":        "32-50-96-b3-9f-47",
+				"macvariables":  "local:unicast",
 				"time":          int64(1693566990121469600),
 				"clocksequence": 12800,
 				"domain":        "Person",
@@ -85,7 +87,8 @@ func TestParseTrue(t *testing.T) {
 			map[string]interface{}{
 				"version":       1,
 				"variant":       "RFC4122",
-				"nodeid":        "local:multicast:9f3619c7493f",
+				"nodeid":        "9f-36-19-c7-49-3f",
+				"macvariables":  "local:multicast",
 				"time":          int64(1693481847404333000),
 				"clocksequence": 13946},
 		},
@@ -95,7 +98,8 @@ func TestParseTrue(t *testing.T) {
 			map[string]interface{}{
 				"version":       2,
 				"variant":       "RFC4122",
-				"nodeid":        "local:unicast:325096b39f47",
+				"nodeid":        "32-50-96-b3-9f-47",
+				"macvariables":  "local:unicast",
 				"time":          int64(1693566990121469600),
 				"clocksequence": 12800,
 				"domain":        "Person",

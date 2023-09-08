@@ -42,19 +42,12 @@ func builtinUUIDParse(_ BuiltinContext, operands []*ast.Term, iter func(term *as
 	if err != nil {
 		return nil
 	}
-
-	result := ast.NewObject()
-	for prop, val := range parsed {
-		switch val := val.(type) {
-		case string:
-			result.Insert(ast.StringTerm(prop), ast.StringTerm(val))
-		case int:
-			result.Insert(ast.StringTerm(prop), ast.IntNumberTerm(val))
-		case int64:
-			result.Insert(ast.StringTerm(prop), ast.NumberTerm(int64ToJSONNumber(val)))
-		}
+	val, err := ast.InterfaceToValue(parsed)
+	if err != nil {
+		return err
 	}
-	return iter(ast.NewTerm(result))
+
+	return iter(ast.NewTerm(val))
 }
 
 func init() {

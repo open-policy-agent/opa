@@ -1427,7 +1427,7 @@ var UUIDParse = &Builtin{
 		types.Args(
 			types.Named("uuid", types.S),
 		),
-		types.Named("result", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("properties of UUID if valid (version, variant, etc). Undefined otherwise "),
+		types.Named("result", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("Properties of UUID if valid (version, variant, etc). Undefined otherwise."),
 	),
 	Relation: false,
 }

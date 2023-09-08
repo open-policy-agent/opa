@@ -18487,7 +18487,7 @@
     "description": "Parses the string value as an UUID and returns an object with the well-defined fields of the UUID if valid.",
     "introduced": "edge",
     "result": {
-      "description": "properties of UUID if valid (version, variant, etc). Undefined otherwise ",
+      "description": "Properties of UUID if valid (version, variant, etc). Undefined otherwise.",
       "name": "result",
       "type": "object[string: any]"
     },
