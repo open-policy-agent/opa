@@ -286,6 +286,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// UUIDs
 	UUIDRFC4122,
+	UUIDParse,
 
 	// SemVers
 	SemVerIsValid,
@@ -1416,6 +1417,19 @@ var UUIDRFC4122 = &Builtin{
 		types.Named("output", types.S).Description("a version 4 UUID; for any given `k`, the output will be consistent throughout a query evaluation"),
 	),
 	Nondeterministic: true,
+}
+
+var UUIDParse = &Builtin{
+	Name:        "uuid.parse",
+	Description: "Parses the string value as an UUID and returns an object with the well-defined fields of the UUID if valid.",
+	Categories:  nil,
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("uuid", types.S),
+		),
+		types.Named("result", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))).Description("Properties of UUID if valid (version, variant, etc). Undefined otherwise."),
+	),
+	Relation: false,
 }
 
 /**
