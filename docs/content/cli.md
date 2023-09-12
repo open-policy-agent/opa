@@ -832,6 +832,10 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
+OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
+resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
+be expanded in the future. To disable this, use the --skip-known-schema-check flag.
+
 
 ```
 opa run [flags]
@@ -867,6 +871,7 @@ opa run [flags]
       --shutdown-grace-period int            set the time (in seconds) that the server will wait to gracefully shut down (default 10)
       --shutdown-wait-period int             set the time (in seconds) that the server will wait before initiating shutdown
       --signing-alg string                   name of the signing algorithm (default "RS256")
+      --skip-known-schema-check              disables type checking on known input schemas
       --skip-verify                          disables bundle signature verification
       --tls-ca-cert-file string              set path of TLS CA cert file
       --tls-cert-file string                 set path of TLS certificate file
