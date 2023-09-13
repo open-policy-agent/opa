@@ -1542,6 +1542,7 @@ func TestRule(t *testing.T) {
 				Value:     IntNumberTerm(2),
 				Assign:    true,
 			},
+			Body: NewBody(NewExpr(BooleanTerm(true))),
 		},
 	})
 
@@ -1662,6 +1663,7 @@ func TestRule(t *testing.T) {
 				},
 				Value: BooleanTerm(false),
 			},
+			Body: MustParseBody(`true`),
 		},
 	})
 
@@ -2392,6 +2394,7 @@ func TestRuleElseKeyword(t *testing.T) {
 						Reference: Ref{VarTerm("nobody")},
 						Value:     IntNumberTerm(7),
 					},
+					Body: MustParseBody("true"),
 				},
 			},
 			{
@@ -2409,6 +2412,7 @@ func TestRuleElseKeyword(t *testing.T) {
 						Args:      Args{VarTerm("x")},
 						Value:     IntNumberTerm(7),
 					},
+					Body: MustParseBody("true"),
 				},
 			},
 		},
@@ -2515,6 +2519,7 @@ else := 2
 						Value:     NumberTerm("2"),
 						Assign:    true,
 					},
+					Body: MustParseBody("true"),
 				},
 			},
 		},
@@ -2563,6 +2568,7 @@ else := 2
 						Value:     NumberTerm("2"),
 						Assign:    true,
 					},
+					Body: MustParseBody("true"),
 				},
 			},
 		},

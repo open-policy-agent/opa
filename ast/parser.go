@@ -798,6 +798,8 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	hasLBrace := p.s.tok == tokens.LBrace
 
 	if !hasIf && !hasLBrace {
+		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
@@ -818,6 +820,9 @@ func (p *Parser) parseElse(head *Head) *Rule {
 		}
 		rule.Body.Append(expr)
 		setLocRecursive(rule.Body, rule.Location)
+	} else {
+		p.illegal("unexpected end of input")
+		return nil
 	}
 
 	if p.s.tok == tokens.Else {

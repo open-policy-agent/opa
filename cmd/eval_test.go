@@ -1654,7 +1654,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 
 }
 
-func TestUnexpectedElseNoBrace(t *testing.T) {
+func TestIfElseIfElseNoBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
@@ -1679,7 +1679,7 @@ func TestUnexpectedElseNoBrace(t *testing.T) {
 	})
 }
 
-func TestUnexpectedElseBrace(t *testing.T) {
+func TestIfElseIfElseBrace(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
@@ -1704,14 +1704,12 @@ func TestUnexpectedElseBrace(t *testing.T) {
 	})
 }
 
-func TestUnexpectedElse(t *testing.T) {
+func TestIfElse(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
 			p if false
 			else := 1 `,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1730,7 +1728,7 @@ func TestUnexpectedElse(t *testing.T) {
 	})
 }
 
-func TestUnexpectedElseNoIf(t *testing.T) {
+func TestElseNoIf(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
@@ -1738,8 +1736,6 @@ func TestUnexpectedElseNoIf(t *testing.T) {
 			else = x {
 				x=2
 			} `,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1758,7 +1754,7 @@ func TestUnexpectedElseNoIf(t *testing.T) {
 	})
 }
 
-func TestUnexpectedElseIf(t *testing.T) {
+func TestElseIf(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
@@ -1766,8 +1762,6 @@ func TestUnexpectedElseIf(t *testing.T) {
 			else := x if {
 				x=2
 			} `,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1786,7 +1780,7 @@ func TestUnexpectedElseIf(t *testing.T) {
 	})
 }
 
-func TestUnexpectedElseIfElse(t *testing.T) {
+func TestElseIfElse(t *testing.T) {
 	files := map[string]string{
 		"bug.rego": `package bug
 			import future.keywords.if
@@ -1797,8 +1791,6 @@ func TestUnexpectedElseIfElse(t *testing.T) {
 			} else =x {
 				x=3
 			}`,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1828,8 +1820,6 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 			} else 
 				x=3
 			`,
-		"data.json": `
-			{"foo": 1}`,
 	}
 
 	test.WithTempFS(files, func(path string) {
@@ -1842,8 +1832,51 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 		var buf bytes.Buffer
 
 		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
 		if err == nil {
-			t.Fatalf("expect error: %v", err)
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "unexpected ident token: expected else value term or rule body"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
+		}
+	})
+}
+
+func TestUnexpectedElseIfErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			q := 1 if false
+			else := 2 if
+			`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
+		if err == nil {
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "unexpected end of input"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}
 	})
 }
