@@ -214,7 +214,7 @@ func (t *Array) String() string {
 	for _, tpe := range t.static {
 		buf = append(buf, Sprint(tpe))
 	}
-	var repr = prefix
+	repr := prefix
 	if len(buf) > 0 {
 		repr += "<" + strings.Join(buf, ", ") + ">"
 	}
@@ -355,7 +355,7 @@ func (t *Object) String() string {
 	for _, p := range t.static {
 		buf = append(buf, fmt.Sprintf("%v: %v", p.Key, Sprint(p.Value)))
 	}
-	var repr = prefix
+	repr := prefix
 	if len(buf) > 0 {
 		repr += "<" + strings.Join(buf, ", ") + ">"
 	}
@@ -412,7 +412,6 @@ func (t *Object) toMap() map[string]interface{} {
 
 // Select returns the type of the named property.
 func (t *Object) Select(name interface{}) Type {
-
 	pos := sort.Search(len(t.static), func(x int) bool {
 		return util.Compare(t.static[x].Key, name) >= 0
 	})
@@ -566,22 +565,73 @@ func (t Any) Merge(other Type) Any {
 }
 
 // Union returns a new Any type that is the union of the two Any types.
+// Note(philipc): The two Any slices MUST be sorted before running Union,
+// or else this method will fail to merge the two slices correctly.
 func (t Any) Union(other Any) Any {
-	if len(t) == 0 {
+	lenT := len(t)
+	lenOther := len(other)
+	// Return the more general (blank) Any type if present.
+	if lenT == 0 {
 		return t
 	}
-	if len(other) == 0 {
+	if lenOther == 0 {
 		return other
 	}
-	cpy := make(Any, len(t))
-	copy(cpy, t)
-	for i := range other {
-		if !cpy.Contains(other[i]) {
-			cpy = append(cpy, other[i])
+	// Prealloc the output list.
+	maxLen := lenT
+	if lenT < lenOther {
+		maxLen = lenOther
+	}
+	merged := make(Any, 0, maxLen)
+	// Note(philipc): Create a merged slice, doing the minimum number of
+	// comparisons along the way. We treat this as a problem of merging two
+	// sorted lists that might have duplicates. This specifically saves us
+	// from cases where one list might be *much* longer than the other.
+	// Algorithm:
+	//   Assume:
+	//   - List A
+	//   - List B
+	//   - List Output
+	//   - Idx_a, Idx_b
+	//   Procedure:
+	//   - While Idx_a < len(A) and Idx_b < len(B)
+	//     - Compare head(A) and head(B)
+	//     - Cases:
+	//       - A < B: Append head(A) to Output, advance Idx_a
+	//       - A == B: Append head(A) to Output, advance Idx_a, Idx_b
+	//       - A > B: Append head(B) to Output, advance Idx_b
+	//   - Return output
+	idxA := 0
+	idxB := 0
+	for idxA < lenT || idxB < lenOther {
+		// Early-exit cases:
+		if idxA == lenT {
+			// Ran out of elements in t. Copy over what's left from other.
+			merged = append(merged, other[idxB:]...)
+			break
+		} else if idxB == lenOther {
+			// Ran out of elements in other. Copy over what's left from t.
+			merged = append(merged, t[idxA:]...)
+			break
+		}
+		// Normal selection of next element to merge:
+		switch Compare(t[idxA], other[idxB]) {
+		// A < B:
+		case -1:
+			merged = append(merged, t[idxA])
+			idxA++
+		// A == B:
+		case 0:
+			merged = append(merged, t[idxA])
+			idxA++
+			idxB++
+		// A > B:
+		case 1:
+			merged = append(merged, other[idxB])
+			idxB++
 		}
 	}
-	sort.Sort(typeSlice(cpy))
-	return cpy
+	return merged
 }
 
 func (t Any) String() string {
@@ -706,7 +756,6 @@ func (t *Function) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes the JSON serialized function declaration.
 func (t *Function) UnmarshalJSON(bs []byte) error {
-
 	tpe, err := Unmarshal(bs)
 	if err != nil {
 		return err
