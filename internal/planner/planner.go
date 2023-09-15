@@ -147,13 +147,10 @@ func (p *Planner) buildFunctrie() error {
 		}
 
 		for _, rule := range module.Rules {
-			r := rule.Ref()
-			switch r[len(r)-1].Value.(type) {
-			case ast.String: // pass
-			default: // cut off
-				r = r[:len(r)-1]
-			}
+			r := rule.Ref().StringPrefix()
 			val := p.rules.LookupOrInsert(r)
+
+			val.rules = val.DescendantRules()
 			val.rules = append(val.rules, rule)
 		}
 	}
@@ -161,6 +158,7 @@ func (p *Planner) buildFunctrie() error {
 }
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
+	// We know the rules with closer to the root (shorter static path) are ordered first.
 	pathRef := rules[0].Ref()
 
 	// figure out what our rules' collective name/path is:
@@ -171,8 +169,10 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	pieces := len(pathRef)
 	for i := range rules {
 		r := rules[i].Ref()
-		if _, ok := r[len(r)-1].Value.(ast.String); !ok {
-			pieces = len(r) - 1
+		for j, t := range r {
+			if _, ok := t.Value.(ast.String); !ok && j > 0 && j < pieces {
+				pieces = j
+			}
 		}
 	}
 	// control if p.a = 1 is to return 1 directly; or insert 1 under key "a" into an object
@@ -320,18 +320,21 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 					switch rule.Head.RuleKind() {
 					case ast.SingleValue:
 						if buildObject {
-							ref := rule.Head.Ref()
-							last := ref[len(ref)-1]
-							return p.planTerm(last, func() error {
-								key := p.ltarget
-								return p.planTerm(rule.Head.Value, func() error {
-									value := p.ltarget
-									p.appendStmt(&ir.ObjectInsertOnceStmt{
-										Object: fn.Return,
-										Key:    key,
-										Value:  value,
-									})
-									return nil
+							ref := rule.Ref()
+							return p.planTerm(rule.Head.Value, func() error {
+								value := p.ltarget
+								return p.planNestedObject(ref[pieces:], value, func() error {
+									if obj, ok := p.ltarget.Value.(ir.Local); ok {
+										stmt := &ir.ObjectMergeStmt{
+											A:      obj,
+											B:      fn.Return,
+											Target: fn.Return,
+										}
+										p.appendStmt(stmt)
+										return nil
+									} else {
+										return fmt.Errorf("nested object construction didn't create object")
+									}
 								})
 							})
 						}
@@ -343,6 +346,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							return nil
 						})
 					case ast.MultiValue:
+						// TODO: Solve general refs for multi-value rules
 						return p.planTerm(rule.Head.Key, func() error {
 							p.appendStmt(&ir.SetAddStmt{
 								Set:   fn.Return,
@@ -420,6 +424,37 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	p.loc = ploc
 
 	return fn.Name, nil
+}
+
+func (p *Planner) planNestedObject(ref ast.Ref, val ir.Operand, iter planiter) error {
+	if len(ref) == 0 {
+		//return fmt.Errorf("can't construct nested object from empty ref")
+		p.ltarget = val
+		return iter()
+	}
+
+	// walk the ref backwards
+	t := ref[len(ref)-1]
+	return p.planTerm(t, func() error {
+		key := p.ltarget
+		ref := ref[:len(ref)-1]
+
+		obj := p.newLocal()
+		p.appendStmt(&ir.MakeObjectStmt{Target: obj})
+		p.appendStmt(&ir.ObjectInsertOnceStmt{
+			Object: obj,
+			Key:    key,
+			Value:  val,
+		})
+
+		val = op(obj)
+		if len(ref) > 0 {
+			return p.planNestedObject(ref, val, iter)
+		} else {
+			p.ltarget = val
+			return iter()
+		}
+	})
 }
 
 func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter planiter) error {
