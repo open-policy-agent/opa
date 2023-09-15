@@ -1840,7 +1840,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 
 		// Check the error message
 		errorMessage := err.Error()
-		expectedErrorMessage := "unexpected ident token: expected else value term or rule body"
+		expectedErrorMessage := "rego_parse_error: unexpected ident token: expected else value term or rule body"
 		if !strings.Contains(errorMessage, expectedErrorMessage) {
 			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}
@@ -1874,7 +1874,7 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 
 		// Check the error message
 		errorMessage := err.Error()
-		expectedErrorMessage := "unexpected end of input"
+		expectedErrorMessage := "rego_parse_error: unexpected eof token: rule body expected"
 		if !strings.Contains(errorMessage, expectedErrorMessage) {
 			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}

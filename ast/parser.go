@@ -821,7 +821,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 		rule.Body.Append(expr)
 		setLocRecursive(rule.Body, rule.Location)
 	} else {
-		p.illegal("unexpected end of input")
+		p.illegal("rule body expected")
 		return nil
 	}
 
