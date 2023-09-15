@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	iCompiler "github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/json/patch"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
@@ -291,14 +292,15 @@ func readEtagFromStore(ctx context.Context, store storage.Store, txn storage.Tra
 
 // ActivateOpts defines options for the Activate API call.
 type ActivateOpts struct {
-	Ctx          context.Context
-	Store        storage.Store
-	Txn          storage.Transaction
-	TxnCtx       *storage.Context
-	Compiler     *ast.Compiler
-	Metrics      metrics.Metrics
-	Bundles      map[string]*Bundle     // Optional
-	ExtraModules map[string]*ast.Module // Optional
+	Ctx                      context.Context
+	Store                    storage.Store
+	Txn                      storage.Transaction
+	TxnCtx                   *storage.Context
+	Compiler                 *ast.Compiler
+	Metrics                  metrics.Metrics
+	Bundles                  map[string]*Bundle     // Optional
+	ExtraModules             map[string]*ast.Module // Optional
+	AuthorizationDecisionRef ast.Ref
 
 	legacy bool
 }
@@ -450,7 +452,7 @@ func activateBundles(opts *ActivateOpts) error {
 		remainingAndExtra[name] = mod
 	}
 
-	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy)
+	err = compileModules(opts.Compiler, opts.Metrics, snapshotBundles, remainingAndExtra, opts.legacy, opts.AuthorizationDecisionRef)
 	if err != nil {
 		return err
 	}
@@ -755,7 +757,7 @@ func writeData(ctx context.Context, store storage.Store, txn storage.Transaction
 	return nil
 }
 
-func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {
+func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool, authorizationDecisionRef ast.Ref) error {
 
 	m.Timer(metrics.RegoModuleCompile).Start()
 	defer m.Timer(metrics.RegoModuleCompile).Stop()
@@ -789,7 +791,11 @@ func compileModules(compiler *ast.Compiler, m metrics.Metrics, bundles map[strin
 		return compiler.Errors
 	}
 
-	return nil
+	if authorizationDecisionRef.Equal(ast.EmptyRef()) {
+		return nil
+	}
+
+	return iCompiler.VerifyAuthorizationPolicySchema(compiler, authorizationDecisionRef)
 }
 
 func writeModules(ctx context.Context, store storage.Store, txn storage.Transaction, compiler *ast.Compiler, m metrics.Metrics, bundles map[string]*Bundle, extraModules map[string]*ast.Module, legacy bool) error {

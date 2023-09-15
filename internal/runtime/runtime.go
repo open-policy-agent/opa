@@ -16,7 +16,9 @@ import (
 
 // Params controls the types of runtime information to return.
 type Params struct {
-	Config []byte
+	Config                 []byte
+	IsAuthorizationEnabled bool
+	SkipKnownSchemaCheck   bool
 }
 
 // Term returns the runtime information as an ast.Term object.
@@ -53,6 +55,8 @@ func Term(params Params) (*ast.Term, error) {
 	obj.Insert(ast.StringTerm("env"), ast.NewTerm(env))
 	obj.Insert(ast.StringTerm("version"), ast.StringTerm(version.Version))
 	obj.Insert(ast.StringTerm("commit"), ast.StringTerm(version.Vcs))
+	obj.Insert(ast.StringTerm("authorization_enabled"), ast.BooleanTerm(params.IsAuthorizationEnabled))
+	obj.Insert(ast.StringTerm("skip_known_schema_check"), ast.BooleanTerm(params.SkipKnownSchemaCheck))
 
 	return ast.NewTerm(obj), nil
 }

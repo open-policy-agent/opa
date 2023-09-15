@@ -929,6 +929,77 @@ func TestPartialRule(t *testing.T) {
 			query:  `data = x`,
 			expErr: "eval_conflict_error: object keys must be unique",
 		},
+		{
+			note: "partial object rule with object value containing var",
+			module: `package test
+				p.foo.q[y] := {"x": z} { y := ["bar", "baz"][_]; z := 4 }
+			`,
+			query: `data = x`,
+			exp:   `[{"x": {"test": {"p": {"foo": {"q": {"bar": {"x": 4}, "baz": {"x": 4}}}}}}}]`,
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query up to partial object) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data = x.test.p.foo.q`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query into partial object) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query: `data.test.p.foo.q.bar = x`,
+			exp:   `[{"x": {"x": 7}}]`,
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query into key override) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data.test.p.foo.q.baz = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query into partial object, enumeration) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data.test.p.foo.q[z] = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query into partial object, enumeration #2) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data.test.p.foo.q[z].x = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
+		{
+			note: "partial object rule with object value and intersecting key override rule (query into key override, enumeration) (regression test #6211)",
+			module: `package test
+				p.foo.q[y] := {"x": 7} { y := ["bar", "baz"][_] }
+				p.foo.q.baz.y = 9 { true }
+			`,
+			query:  `data.test.p.foo.q.baz[z] = x`,
+			expErr: "eval_conflict_error: object keys must be unique",
+		},
 		// Deep queries
 		{
 			note: "deep query into partial object (ref head)",
@@ -1369,7 +1440,9 @@ func TestPartialRule(t *testing.T) {
 				}
 
 				var exp []map[string]interface{}
-				_ = json.Unmarshal([]byte(tc.exp), &exp)
+				if err := json.Unmarshal([]byte(tc.exp), &exp); err != nil {
+					t.Fatal("Failed to unmarshal exp")
+				}
 				if expLen, act := len(exp), len(qrs); expLen != act {
 					t.Fatalf("expected %d query result:\n\n%+v,\n\ngot %d query results:\n\n%+v", expLen, exp, act, qrs)
 				}

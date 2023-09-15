@@ -26,27 +26,28 @@ const (
 )
 
 type runCmdParams struct {
-	rt                 runtime.Params
-	tlsCertFile        string
-	tlsPrivateKeyFile  string
-	tlsCACertFile      string
-	tlsCertRefresh     time.Duration
-	ignore             []string
-	serverMode         bool
-	skipVersionCheck   bool // skipVersionCheck is deprecated. Use disableTelemetry instead
-	disableTelemetry   bool
-	authentication     *util.EnumFlag
-	authorization      *util.EnumFlag
-	minTLSVersion      *util.EnumFlag
-	logLevel           *util.EnumFlag
-	logFormat          *util.EnumFlag
-	logTimestampFormat string
-	algorithm          string
-	scope              string
-	pubKey             string
-	pubKeyID           string
-	skipBundleVerify   bool
-	excludeVerifyFiles []string
+	rt                   runtime.Params
+	tlsCertFile          string
+	tlsPrivateKeyFile    string
+	tlsCACertFile        string
+	tlsCertRefresh       time.Duration
+	ignore               []string
+	serverMode           bool
+	skipVersionCheck     bool // skipVersionCheck is deprecated. Use disableTelemetry instead
+	disableTelemetry     bool
+	authentication       *util.EnumFlag
+	authorization        *util.EnumFlag
+	minTLSVersion        *util.EnumFlag
+	logLevel             *util.EnumFlag
+	logFormat            *util.EnumFlag
+	logTimestampFormat   string
+	algorithm            string
+	scope                string
+	pubKey               string
+	pubKeyID             string
+	skipBundleVerify     bool
+	skipKnownSchemaCheck bool
+	excludeVerifyFiles   []string
 }
 
 func newRunParams() runCmdParams {
@@ -171,6 +172,10 @@ To skip bundle verification, use the --skip-verify flag.
 The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, the updated policy
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
+
+OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
+resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
+be expanded in the future. To disable this, use the --skip-known-schema-check flag.
 `,
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -209,6 +214,7 @@ updates might cause them to be dropped by OPA.
 	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
+	runCommand.Flags().BoolVar(&cmdParams.skipKnownSchemaCheck, "skip-known-schema-check", false, "disables type checking on known input schemas")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
@@ -316,6 +322,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	if params.rt.BundleVerificationConfig != nil && !params.rt.BundleMode {
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
+
+	params.rt.SkipKnownSchemaCheck = params.skipKnownSchemaCheck
 
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {

@@ -9227,6 +9227,139 @@ func TestCompilerPassesTypeCheck(t *testing.T) {
 	}
 }
 
+func TestCompilerPassesTypeCheckRules(t *testing.T) {
+	inputSchema := `{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "OPA Authorization Policy Schema",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "string"
+    },
+    "path": {
+      "type": "array",
+      "items": {}
+    },
+    "params": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "identity",
+    "path",
+    "params"
+  ]
+}`
+
+	ischema := util.MustUnmarshalJSON([]byte(inputSchema))
+
+	module1 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identity = "foo"
+}
+
+allow {
+    input.path = ["foo", "bar"]
+}
+
+allow {
+    input.params = {"foo": "bar"}
+}`
+
+	module2 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identty = "foo"
+}`
+
+	module3 := `
+package policy
+
+default allow := false
+
+allow {
+    input.path = "foo"
+}`
+
+	module4 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identty = "foo"
+}
+
+allow {
+    input.path = "foo"
+}`
+
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, ischema)
+
+	tests := []struct {
+		note    string
+		modules []string
+		errs    []string
+	}{
+		{note: "no error", modules: []string{module1}},
+		{note: "typo", modules: []string{module2}, errs: []string{"undefined ref: input.identty"}},
+		{note: "wrong type", modules: []string{module3}, errs: []string{"match error"}},
+		{note: "multiple errors", modules: []string{module4}, errs: []string{"match error", "undefined ref: input.identty"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var elems []*Rule
+
+			for i, module := range tc.modules {
+				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
+					ProcessAnnotation: true,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for _, rule := range mod.Rules {
+					elems = append(elems, rule)
+					for next := rule.Else; next != nil; next = next.Else {
+						elems = append(elems, next)
+					}
+				}
+			}
+
+			errors := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
+
+			if len(errors) > 0 {
+				if len(tc.errs) == 0 {
+					t.Fatalf("Unexpected error: %v", errors)
+				}
+
+				result := compilerErrsToStringSlice(errors)
+
+				if len(result) != len(tc.errs) {
+					t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(tc.errs), strings.Join(tc.errs, "\n"), len(result), strings.Join(result, "\n"))
+				}
+
+				for i := range result {
+					if !strings.Contains(result[i], tc.errs[i]) {
+						t.Errorf("Expected %v but got: %v", tc.errs[i], result[i])
+					}
+				}
+			} else if len(tc.errs) > 0 {
+				t.Fatalf("Expected error %q but got success", tc.errs)
+			}
+		})
+	}
+}
+
 func TestCompilerPassesTypeCheckNegative(t *testing.T) {
 	c := NewCompiler().
 		WithCapabilities(&Capabilities{Builtins: []*Builtin{Split, StartsWith}})

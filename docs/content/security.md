@@ -173,7 +173,9 @@ request is rejected immediately. The count of requests rejected by an OPA instan
 are surfaced via the performance metrics in the [Status](../management-status) information.
 
 OPA provides the following `input` document when executing the authorization
-policy:
+policy. Since the schema for the `input` document is known to OPA, it performs automatic type checking of this document
+and reports any errors resulting from the schema check. The `--skip-known-schema-check` flag can be passed to `opa run`
+to disable automatic type checking of this `input` document.
 
 <!-- TODO(sr): check if "jsonc" looks alright on netlify -->
 ```jsonc
