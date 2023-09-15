@@ -7,7 +7,7 @@ require (
 	github.com/agnivade/levenshtein v1.1.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
-	github.com/containerd/containerd v1.7.4
+	github.com/containerd/containerd v1.7.6
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/foxcpp/go-mockdns v1.0.0
@@ -17,6 +17,7 @@ require (
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.5.9
+	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/opencontainers/go-digest v1.0.0
@@ -39,7 +40,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/net v0.15.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
 	oras.land/oras-go/v2 v2.3.0
@@ -48,6 +49,7 @@ require (
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
+	github.com/Microsoft/hcsshim v0.11.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -88,10 +90,10 @@ require (
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230525234035-dd9d682886f9 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/genproto v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

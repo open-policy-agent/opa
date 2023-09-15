@@ -783,6 +783,60 @@ func (c *Compiler) PassesTypeCheck(body Body) bool {
 	return len(errs) == 0
 }
 
+// PassesTypeCheckRules determines whether the given rules passes type checking
+func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
+	elems := []util.T{}
+
+	for _, rule := range rules {
+		elems = append(elems, rule)
+	}
+
+	// Load the global input schema if one was provided.
+	if c.schemaSet != nil {
+		if schema := c.schemaSet.Get(SchemaRootRef); schema != nil {
+
+			var allowNet []string
+			if c.capabilities != nil {
+				allowNet = c.capabilities.AllowNet
+			}
+
+			tpe, err := loadSchema(schema, allowNet)
+			if err != nil {
+				return Errors{NewError(TypeErr, nil, err.Error())}
+			}
+			c.inputType = tpe
+		}
+	}
+
+	var as *AnnotationSet
+	if c.useTypeCheckAnnotations {
+		as = c.annotationSet
+	}
+
+	checker := newTypeChecker().WithSchemaSet(c.schemaSet).WithInputType(c.inputType)
+
+	if c.TypeEnv == nil {
+		if c.capabilities == nil {
+			c.capabilities = CapabilitiesForThisVersion()
+		}
+
+		c.builtins = make(map[string]*Builtin, len(c.capabilities.Builtins)+len(c.customBuiltins))
+
+		for _, bi := range c.capabilities.Builtins {
+			c.builtins[bi.Name] = bi
+		}
+
+		for name, bi := range c.customBuiltins {
+			c.builtins[name] = bi
+		}
+
+		c.TypeEnv = checker.Env(c.builtins)
+	}
+
+	_, errs := checker.CheckTypes(c.TypeEnv, elems, as)
+	return errs
+}
+
 // ModuleLoader defines the interface that callers can implement to enable lazy
 // loading of modules during compilation.
 type ModuleLoader func(resolved map[string]*Module) (parsed map[string]*Module, err error)
