@@ -1,8 +1,10 @@
 package location
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/open-policy-agent/opa/ast/marshal"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -83,5 +85,48 @@ func TestLocationCompare(t *testing.T) {
 		if tc.exp != result {
 			t.Fatalf("Expected %v but got %v for %v.Compare(%v)", tc.exp, result, locA, locB)
 		}
+	}
+}
+
+func TestLocationMarshal(t *testing.T) {
+	testCases := map[string]struct {
+		loc *Location
+		exp string
+	}{
+		"default json options": {
+			loc: &Location{
+				Text: []byte("text"),
+				File: "file",
+				Row:  1,
+				Col:  1,
+			},
+			exp: `{"file":"file","row":1,"col":1}`,
+		},
+		"including text": {
+			loc: &Location{
+				Text: []byte("text"),
+				File: "file",
+				Row:  1,
+				Col:  1,
+				JSONOptions: marshal.JSONOptions{
+					MarshalOptions: marshal.JSONMarshalOptions{
+						IncludeLocationText: true,
+					},
+				},
+			},
+			exp: `{"file":"file","row":1,"col":1,"text":"dGV4dA=="}`,
+		},
+	}
+
+	for id, tc := range testCases {
+		t.Run(id, func(t *testing.T) {
+			bs, err := json.Marshal(tc.loc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(bs) != tc.exp {
+				t.Fatalf("Expected %v but got %v", tc.exp, string(bs))
+			}
+		})
 	}
 }

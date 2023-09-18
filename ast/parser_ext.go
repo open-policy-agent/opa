@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/open-policy-agent/opa/ast/marshal"
 )
 
 // MustParseBody returns a parsed body.
@@ -713,7 +715,7 @@ func setRuleModule(rule *Rule, module *Module) {
 	}
 }
 
-func setJSONOptions(x interface{}, jsonOptions *JSONOptions) {
+func setJSONOptions(x interface{}, jsonOptions *marshal.JSONOptions) {
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		if x, ok := x.(customJSON); ok {
 			x.setJSONOptions(*jsonOptions)

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/marshal"
 	"github.com/open-policy-agent/opa/format"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/internal/merge"
@@ -391,7 +392,7 @@ type Reader struct {
 	verificationConfig    *VerificationConfig
 	skipVerify            bool
 	processAnnotations    bool
-	jsonOptions           *ast.JSONOptions
+	jsonOptions           *marshal.JSONOptions
 	capabilities          *ast.Capabilities
 	files                 map[string]FileInfo // files in the bundle signature payload
 	sizeLimitBytes        int64
@@ -463,7 +464,7 @@ func (r *Reader) WithCapabilities(caps *ast.Capabilities) *Reader {
 }
 
 // WithJSONOptions sets the JSONOptions to use when parsing policy files
-func (r *Reader) WithJSONOptions(opts *ast.JSONOptions) *Reader {
+func (r *Reader) WithJSONOptions(opts *marshal.JSONOptions) *Reader {
 	r.jsonOptions = opts
 	return r
 }

@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/marshal"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -655,9 +656,9 @@ func TestLoadWithJSONOptions(t *testing.T) {
 	}
 
 	// load the file with JSON options set to include location data
-	loaded, err := NewFileLoader().WithFS(fsys).WithJSONOptions(&ast.JSONOptions{
-		MarshalOptions: ast.JSONMarshalOptions{
-			IncludeLocation: ast.NodeToggle{
+	loaded, err := NewFileLoader().WithFS(fsys).WithJSONOptions(&marshal.JSONOptions{
+		MarshalOptions: marshal.JSONMarshalOptions{
+			IncludeLocation: marshal.NodeToggle{
 				Package: true,
 			},
 		},

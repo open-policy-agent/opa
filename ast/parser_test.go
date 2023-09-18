@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
+	"github.com/open-policy-agent/opa/ast/marshal"
 )
 
 const (
@@ -3315,9 +3316,9 @@ func TestRuleFromBodyJSONOptions(t *testing.T) {
 	}
 
 	parserOpts := ParserOptions{ProcessAnnotation: true}
-	parserOpts.JSONOptions = &JSONOptions{
-		MarshalOptions: JSONMarshalOptions{
-			IncludeLocation: NodeToggle{
+	parserOpts.JSONOptions = &marshal.JSONOptions{
+		MarshalOptions: marshal.JSONMarshalOptions{
+			IncludeLocation: marshal.NodeToggle{
 				Term:           true,
 				Package:        true,
 				Comment:        true,
