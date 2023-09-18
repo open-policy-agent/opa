@@ -795,42 +795,35 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	}
 
 	hasIf := p.s.tok == tokens.If
+	hasLBrace := p.s.tok == tokens.LBrace
 
-	if hasIf {
-		p.scan()
-		s := p.save()
-		if expr := p.parseLiteral(); expr != nil {
-			// NOTE(sr): set literals are never false or undefined, so parsing this as
-			//  p if false else if { true }
-			//                     ^^^^^^^^ set of one element, `true`
-			// isn't valid.
-			isSetLiteral := false
-			if t, ok := expr.Terms.(*Term); ok {
-				_, isSetLiteral = t.Value.(Set)
-			}
-			// expr.Term is []*Term or Every
-			if !isSetLiteral {
-				rule.Body.Append(expr)
-				setLocRecursive(rule.Body, rule.Location)
-				return &rule
-			}
-		}
-		p.restore(s)
-	}
-
-	if p.s.tok != tokens.LBrace {
+	if !hasIf && !hasLBrace {
 		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
 		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
-	p.scan()
-
-	if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
-		return nil
+	if hasIf {
+		p.scan()
 	}
 
-	p.scan()
+	if p.s.tok == tokens.LBrace {
+		p.scan()
+		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
+			return nil
+		}
+		p.scan()
+	} else if p.s.tok != tokens.EOF {
+		expr := p.parseLiteral()
+		if expr == nil {
+			return nil
+		}
+		rule.Body.Append(expr)
+		setLocRecursive(rule.Body, rule.Location)
+	} else {
+		p.illegal("rule body expected")
+		return nil
+	}
 
 	if p.s.tok == tokens.Else {
 		if rule.Else = p.parseElse(head); rule.Else == nil {
@@ -841,7 +834,6 @@ func (p *Parser) parseElse(head *Head) *Rule {
 }
 
 func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
-
 	head := &Head{}
 	loc := p.s.Loc()
 	defer func() {
