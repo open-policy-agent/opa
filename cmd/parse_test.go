@@ -206,6 +206,11 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
         },
         "ref": [
           {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 3
+            },
             "type": "var",
             "value": "p"
           }
@@ -231,6 +236,207 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
 	}
 }
 
+func TestParseRefsJSONOutput(t *testing.T) {
+
+	files := map[string]string{
+		"x.rego": `package x
+		
+    a.b.c := true
+		`,
+	}
+	errc, stdout, stderr, _ := testParse(t, files, &parseParams{
+		format: util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := `{
+  "package": {
+    "path": [
+      {
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "body": [
+        {
+          "index": 0,
+          "terms": {
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "head": {
+        "value": {
+          "type": "boolean",
+          "value": true
+        },
+        "assign": true,
+        "ref": [
+          {
+            "type": "var",
+            "value": "a"
+          },
+          {
+            "type": "string",
+            "value": "b"
+          },
+          {
+            "type": "string",
+            "value": "c"
+          }
+        ]
+      }
+    }
+  ]
+}
+`
+
+	if got, want := string(stdout), expectedOutput; got != want {
+		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	}
+}
+
+func TestParseRefsJSONOutputWithLocations(t *testing.T) {
+
+	files := map[string]string{
+		"x.rego": `package x
+		
+    a.b.c := true
+		`,
+	}
+	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
+		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
+		jsonInclude: "locations",
+	})
+	if errc != 0 {
+		t.Fatalf("Expected exit code 0, got %v", errc)
+	}
+	if len(stderr) > 0 {
+		t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+	}
+
+	expectedOutput := strings.Replace(`{
+  "package": {
+    "location": {
+      "file": "TEMPDIR/x.rego",
+      "row": 1,
+      "col": 1
+    },
+    "path": [
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9
+        },
+        "type": "var",
+        "value": "data"
+      },
+      {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 1,
+          "col": 9
+        },
+        "type": "string",
+        "value": "x"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "body": [
+        {
+          "index": 0,
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 14
+          },
+          "terms": {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 14
+            },
+            "type": "boolean",
+            "value": true
+          }
+        }
+      ],
+      "head": {
+        "value": {
+          "location": {
+            "file": "TEMPDIR/x.rego",
+            "row": 3,
+            "col": 14
+          },
+          "type": "boolean",
+          "value": true
+        },
+        "assign": true,
+        "ref": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 5
+            },
+            "type": "var",
+            "value": "a"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 7
+            },
+            "type": "string",
+            "value": "b"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 9
+            },
+            "type": "string",
+            "value": "c"
+          }
+        ],
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 3,
+          "col": 5
+        }
+      },
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 3,
+        "col": 5
+      }
+    }
+  ]
+}
+`, "TEMPDIR", tempDirPath, -1)
+
+	if got, want := string(stdout), expectedOutput; got != want {
+		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	}
+}
 func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
 
 	files := map[string]string{
@@ -318,6 +524,11 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         },
         "ref": [
           {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 3,
+              "col": 11
+            },
             "type": "var",
             "value": "allow"
           }
@@ -567,6 +778,11 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         },
         "ref": [
           {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 4,
+              "col": 5
+            },
             "type": "var",
             "value": "allow"
           }

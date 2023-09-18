@@ -769,6 +769,17 @@ func NewHead(name Var, args ...*Term) *Head {
 	return head
 }
 
+// VarHead creates a head object, initializes its Name, Location, and JSONOptions,
+// and returns the new head.
+func VarHead(name Var, location *Location, jsonOpts *JSONOptions) *Head {
+	h := NewHead(name)
+	h.Reference[0].Location = location
+	if jsonOpts != nil {
+		h.Reference[0].setJSONOptions(*jsonOpts)
+	}
+	return h
+}
+
 // RefHead returns a new Head object with the passed Ref. If args are provided,
 // the first will be used for the value.
 func RefHead(ref Ref, args ...*Term) *Head {
