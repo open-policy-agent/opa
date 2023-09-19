@@ -32,6 +32,7 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/open-policy-agent/opa/bundle"
+	opa_config "github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_tracing "github.com/open-policy-agent/opa/internal/distributedtracing"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
@@ -46,6 +47,7 @@ import (
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/discovery"
 	"github.com/open-policy-agent/opa/plugins/logs"
+	metrics_config "github.com/open-policy-agent/opa/plugins/server/metrics"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/storage"
@@ -347,7 +349,11 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		params.Router = mux.NewRouter()
 	}
 
-	metrics := prometheus.New(metrics.New(), errorLogger(logger))
+	metricsConfig, parseConfigErr := extractMetricsConfig(config, params)
+	if parseConfigErr != nil {
+		return nil, parseConfigErr
+	}
+	metrics := prometheus.New(metrics.New(), errorLogger(logger), metricsConfig.Prom.HTTPRequestDurationSeconds.Buckets)
 
 	var store storage.Store
 	if params.DiskStorage == nil {
@@ -425,6 +431,27 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 	}
 
 	return rt, nil
+}
+
+// extractMetricsConfig returns the configuration for server metrics and parsing errors if any
+func extractMetricsConfig(config []byte, params Params) (*metrics_config.Config, error) {
+	var opaParsedConfig, opaParsedConfigErr = opa_config.ParseConfig(config, params.ID)
+	if opaParsedConfigErr != nil {
+		return nil, opaParsedConfigErr
+	}
+
+	var serverMetricsData []byte
+	if opaParsedConfig.Server != nil {
+		serverMetricsData = opaParsedConfig.Server.Metrics
+	}
+
+	var configBuilder = metrics_config.NewConfigBuilder()
+	var metricsParsedConfig, metricsParsedConfigErr = configBuilder.WithBytes(serverMetricsData).Parse()
+	if metricsParsedConfigErr != nil {
+		return nil, fmt.Errorf("server metrics configuration parse error: %w", metricsParsedConfigErr)
+	}
+
+	return metricsParsedConfig, nil
 }
 
 // StartServer starts the runtime in server mode. This function will block the

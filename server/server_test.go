@@ -3415,7 +3415,7 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 		}
 	}(logging.NewNoOpLogger())
 
-	prom := prometheus.New(inner, logger)
+	prom := prometheus.New(inner, logger, []float64{1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1})
 	serverOpts := []func(s *Server){func(s *Server) { s.WithAuthorization(AuthorizationBasic) }, func(s *Server) { s.WithMetrics(prom) }}
 
 	f := newFixtureWithStore(t, store, serverOpts...)

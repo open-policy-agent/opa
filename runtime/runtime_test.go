@@ -603,3 +603,39 @@ func TestAddrWarningMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeWithExplicitMetricConfiguration(t *testing.T) {
+	fs := map[string]string{
+		"/config.yaml": `{"server": {"metrics": {"prom": {"http_request_duration_seconds": {"buckets": [0.1, 0.2, 0.3]}}}}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+
+		_, err := NewRuntime(context.Background(), params)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	})
+}
+
+func TestRuntimeWithExplicitBadMetricConfiguration(t *testing.T) {
+	fs := map[string]string{
+		"/config.yaml": `{"server": {"metrics": {"prom": {"http_request_duration_seconds": {"buckets": "would-not-work"}}}}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+
+		_, err := NewRuntime(context.Background(), params)
+		if err == nil {
+			t.Fatalf("Expected error to be thrown on malformed metrics config")
+		}
+
+		if !strings.HasPrefix(err.Error(), "server metrics configuration parse error") {
+			t.Fatalf("Expected specific error to be thrown on malformed metrics config")
+		}
+	})
+}

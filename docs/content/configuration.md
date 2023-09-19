@@ -991,10 +991,13 @@ See [the docs on disk storage](../misc-disk/) for details about the settings.
 
 ### Server
 
-The `server` configuration sets the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
+The `server` configuration sets:
+- the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
 The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
+- buckets for `http_request_duration_seconds` histogram
 
-| Field                                    | Type  | Required            | Description                                                                                                                                                                                                                                  |
-|------------------------------------------|-------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `server.encoding.gzip.min_length`        | `int` | No, (default: 1024) | Specifies the minimum length of the response to compress                                                                                                                                                                                     |
-| `server.encoding.gzip.compression_level` | `int` | No, (default: 9)    | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants |
+| Field                                                       | Type        | Required                                                                  | Description                                                                                                                                                                                                               |
+|-------------------------------------------------------------|-------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                       | Specifies the minimum length of the response to compress                                                                                                                                                                  |
+| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                          | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
+| `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1  ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |
