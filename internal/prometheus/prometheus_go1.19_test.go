@@ -25,7 +25,7 @@ func TestJSONSerialization(t *testing.T) {
 		}
 	}(logging.NewNoOpLogger())
 
-	prom := New(inner, logger)
+	prom := New(inner, logger, []float64{1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1})
 
 	m := prom.All()
 	bs, err := json.Marshal(m)

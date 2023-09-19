@@ -39,6 +39,7 @@ type Config struct {
 	DistributedTracing           json.RawMessage            `json:"distributed_tracing,omitempty"`
 	Server                       *struct {
 		Encoding json.RawMessage `json:"encoding,omitempty"`
+		Metrics  json.RawMessage `json:"metrics,omitempty"`
 	} `json:"server,omitempty"`
 	Storage *struct {
 		Disk json.RawMessage `json:"disk,omitempty"`
