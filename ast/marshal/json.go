@@ -9,7 +9,9 @@ type JSONOptions struct {
 // JSONMarshalOptions defines the options for JSON marshaling,
 // currently only toggling the marshaling of location information is supported
 type JSONMarshalOptions struct {
-	IncludeLocation     NodeToggle
+	// IncludeLocation toggles the marshaling of location information
+	IncludeLocation NodeToggle
+	// IncludeLocationText additionally/optionally includes the text of the location
 	IncludeLocationText bool
 }
 

@@ -18,6 +18,7 @@ type Location struct {
 	Col    int    `json:"col"`  // The column in the row.
 	Offset int    `json:"-"`    // The byte offset for the location in the source.
 
+	// JSONOptions specifies options for marshaling and unmarshaling of locations
 	JSONOptions marshal.JSONOptions
 }
 
