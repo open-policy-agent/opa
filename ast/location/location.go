@@ -96,30 +96,19 @@ func (loc *Location) Compare(other *Location) int {
 
 func (loc *Location) MarshalJSON() ([]byte, error) {
 	// structs are used here to preserve the field ordering of the original Location struct
-	var data interface{}
-	if loc.JSONOptions.MarshalOptions.IncludeLocationText {
-		data = struct {
-			File string `json:"file"`
-			Row  int    `json:"row"`
-			Col  int    `json:"col"`
-			Text []byte `json:"text"`
-		}{
-			File: loc.File,
-			Row:  loc.Row,
-			Col:  loc.Col,
-			Text: loc.Text,
-		}
-		return json.Marshal(data)
-	}
-
-	data = struct {
+	data := struct {
 		File string `json:"file"`
 		Row  int    `json:"row"`
 		Col  int    `json:"col"`
+		Text []byte `json:"text,omitempty"`
 	}{
 		File: loc.File,
 		Row:  loc.Row,
 		Col:  loc.Col,
+	}
+
+	if loc.JSONOptions.MarshalOptions.IncludeLocationText {
+		data.Text = loc.Text
 	}
 
 	return json.Marshal(data)
