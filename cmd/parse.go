@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
@@ -73,10 +73,10 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 
 	parserOpts := ast.ParserOptions{ProcessAnnotation: true}
 	if exposeLocation {
-		parserOpts.JSONOptions = &marshal.JSONOptions{
-			MarshalOptions: marshal.JSONMarshalOptions{
+		parserOpts.JSONOptions = &astJSON.Options{
+			MarshalOptions: astJSON.MarshalOptions{
 				IncludeLocationText: true,
-				IncludeLocation: marshal.NodeToggle{
+				IncludeLocation: astJSON.NodeToggle{
 					Term:           true,
 					Package:        true,
 					Comment:        true,

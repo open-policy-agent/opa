@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/internal/deepcopy"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -40,7 +40,7 @@ type (
 
 		comments    []*Comment
 		node        Node
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// SchemaAnnotation contains a schema declaration for the document identified by the path.
@@ -77,7 +77,7 @@ type (
 		Annotations *Annotations `json:"annotations,omitempty"`
 		Location    *Location    `json:"location,omitempty"` // The location of the node the annotations are applied to
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 
 		node Node // The node the annotations are applied to
 	}
@@ -181,7 +181,7 @@ func (a *Annotations) GetTargetPath() Ref {
 	}
 }
 
-func (a *Annotations) setJSONOptions(opts marshal.JSONOptions) {
+func (a *Annotations) setJSONOptions(opts astJSON.Options) {
 	a.jsonOptions = opts
 	if a.Location != nil {
 		a.Location.JSONOptions = opts

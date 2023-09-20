@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 
 // Location records a position in source code
@@ -19,7 +19,7 @@ type Location struct {
 	Offset int    `json:"-"`    // The byte offset for the location in the source.
 
 	// JSONOptions specifies options for marshaling and unmarshaling of locations
-	JSONOptions marshal.JSONOptions
+	JSONOptions astJSON.Options
 }
 
 // NewLocation returns a new Location object.

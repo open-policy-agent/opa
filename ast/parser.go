@@ -22,8 +22,8 @@ import (
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
-	"github.com/open-policy-agent/opa/ast/marshal"
 )
 
 // Note: This state is kept isolated from the parser so that we
@@ -103,7 +103,7 @@ type ParserOptions struct {
 	AllFutureKeywords      bool
 	FutureKeywords         []string
 	SkipRules              bool
-	JSONOptions            *marshal.JSONOptions
+	JSONOptions            *astJSON.Options
 	unreleasedKeywords     bool // TODO(sr): cleanup
 	generalRuleRefsEnabled bool
 }
@@ -182,9 +182,9 @@ func (p *Parser) WithSkipRules(skip bool) *Parser {
 	return p
 }
 
-// WithJSONOptions sets the JSONOptions which will be set on nodes to configure
+// WithJSONOptions sets the Options which will be set on nodes to configure
 // their JSON marshaling behavior.
-func (p *Parser) WithJSONOptions(jsonOptions *marshal.JSONOptions) *Parser {
+func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
 	p.po.JSONOptions = jsonOptions
 	return p
 }

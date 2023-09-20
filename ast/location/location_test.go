@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -108,8 +108,8 @@ func TestLocationMarshal(t *testing.T) {
 				File: "file",
 				Row:  1,
 				Col:  1,
-				JSONOptions: marshal.JSONOptions{
-					MarshalOptions: marshal.JSONMarshalOptions{
+				JSONOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
 						IncludeLocationText: true,
 					},
 				},

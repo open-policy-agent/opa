@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/util"
 )
 
@@ -154,7 +154,7 @@ type (
 		Text     []byte
 		Location *Location
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// Package represents the namespace of the documents produced
@@ -163,7 +163,7 @@ type (
 		Path     Ref       `json:"path"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// Import represents a dependency on a document outside of the policy
@@ -173,7 +173,7 @@ type (
 		Alias    Var       `json:"alias,omitempty"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// Rule represents a rule as defined in the language. Rules define the
@@ -191,7 +191,7 @@ type (
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// Head represents the head of a rule.
@@ -204,7 +204,7 @@ type (
 		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// Args represents zero or more arguments to a rule.
@@ -223,7 +223,7 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Location  *Location   `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
@@ -231,7 +231,7 @@ type (
 		Symbols  []*Term   `json:"symbols"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	Every struct {
@@ -241,7 +241,7 @@ type (
 		Body     Body      `json:"body"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 
 	// With represents a modifier on an expression.
@@ -250,7 +250,7 @@ type (
 		Value    *Term     `json:"value"`
 		Location *Location `json:"location,omitempty"`
 
-		jsonOptions marshal.JSONOptions
+		jsonOptions astJSON.Options
 	}
 )
 
@@ -429,7 +429,7 @@ func (c *Comment) Equal(other *Comment) bool {
 	return c.Location.Equal(other.Location) && bytes.Equal(c.Text, other.Text)
 }
 
-func (c *Comment) setJSONOptions(opts marshal.JSONOptions) {
+func (c *Comment) setJSONOptions(opts astJSON.Options) {
 	// Note: this is not used for location since Comments use default JSON marshaling
 	// behavior with struct field names in JSON.
 	c.jsonOptions = opts
@@ -482,7 +482,7 @@ func (pkg *Package) String() string {
 	return fmt.Sprintf("package %v", path)
 }
 
-func (pkg *Package) setJSONOptions(opts marshal.JSONOptions) {
+func (pkg *Package) setJSONOptions(opts astJSON.Options) {
 	pkg.jsonOptions = opts
 	if pkg.Location != nil {
 		pkg.Location.JSONOptions = opts
@@ -595,7 +595,7 @@ func (imp *Import) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (imp *Import) setJSONOptions(opts marshal.JSONOptions) {
+func (imp *Import) setJSONOptions(opts astJSON.Options) {
 	imp.jsonOptions = opts
 	if imp.Location != nil {
 		imp.Location.JSONOptions = opts
@@ -709,7 +709,7 @@ func (rule *Rule) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (rule *Rule) setJSONOptions(opts marshal.JSONOptions) {
+func (rule *Rule) setJSONOptions(opts astJSON.Options) {
 	rule.jsonOptions = opts
 	if rule.Location != nil {
 		rule.Location.JSONOptions = opts
@@ -782,9 +782,9 @@ func NewHead(name Var, args ...*Term) *Head {
 	return head
 }
 
-// VarHead creates a head object, initializes its Name, Location, and JSONOptions,
+// VarHead creates a head object, initializes its Name, Location, and Options,
 // and returns the new head.
-func VarHead(name Var, location *Location, jsonOpts *marshal.JSONOptions) *Head {
+func VarHead(name Var, location *Location, jsonOpts *astJSON.Options) *Head {
 	h := NewHead(name)
 	h.Reference[0].Location = location
 	if jsonOpts != nil {
@@ -939,7 +939,7 @@ func (head *Head) String() string {
 	return buf.String()
 }
 
-func (head *Head) setJSONOptions(opts marshal.JSONOptions) {
+func (head *Head) setJSONOptions(opts astJSON.Options) {
 	head.jsonOptions = opts
 	if head.Location != nil {
 		head.Location.JSONOptions = opts
@@ -1492,7 +1492,7 @@ func (expr *Expr) String() string {
 	return strings.Join(buf, " ")
 }
 
-func (expr *Expr) setJSONOptions(opts marshal.JSONOptions) {
+func (expr *Expr) setJSONOptions(opts astJSON.Options) {
 	expr.jsonOptions = opts
 	if expr.Location != nil {
 		expr.Location.JSONOptions = opts
@@ -1591,7 +1591,7 @@ func (d *SomeDecl) Hash() int {
 	return termSliceHash(d.Symbols)
 }
 
-func (d *SomeDecl) setJSONOptions(opts marshal.JSONOptions) {
+func (d *SomeDecl) setJSONOptions(opts astJSON.Options) {
 	d.jsonOptions = opts
 	if d.Location != nil {
 		d.Location.JSONOptions = opts
@@ -1668,7 +1668,7 @@ func (q *Every) KeyValueVars() VarSet {
 	return vis.vars
 }
 
-func (q *Every) setJSONOptions(opts marshal.JSONOptions) {
+func (q *Every) setJSONOptions(opts astJSON.Options) {
 	q.jsonOptions = opts
 	if q.Location != nil {
 		q.Location.JSONOptions = opts
@@ -1750,7 +1750,7 @@ func (w *With) SetLoc(loc *Location) {
 	w.Location = loc
 }
 
-func (w *With) setJSONOptions(opts marshal.JSONOptions) {
+func (w *With) setJSONOptions(opts astJSON.Options) {
 	w.jsonOptions = opts
 	if w.Location != nil {
 		w.Location.JSONOptions = opts

@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
-	"github.com/open-policy-agent/opa/ast/marshal"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 
 const (
@@ -3316,9 +3316,9 @@ func TestRuleFromBodyJSONOptions(t *testing.T) {
 	}
 
 	parserOpts := ParserOptions{ProcessAnnotation: true}
-	parserOpts.JSONOptions = &marshal.JSONOptions{
-		MarshalOptions: marshal.JSONMarshalOptions{
-			IncludeLocation: marshal.NodeToggle{
+	parserOpts.JSONOptions = &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
 				Term:           true,
 				Package:        true,
 				Comment:        true,
@@ -5137,33 +5137,33 @@ func assertParseModuleJSONOptions(t *testing.T, msg string, input string, opts .
 
 	rule := m.Rules[0]
 	if rule.Head.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Head JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Head Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
 	}
 	if rule.Body[0].jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Body JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Body Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
 	}
 	switch terms := rule.Body[0].Terms.(type) {
 	case []*Term:
 		for _, term := range terms {
 			if term.jsonOptions != *opt.JSONOptions {
-				t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
+				t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
 			}
 		}
 	case *SomeDecl:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	case *Every:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	case *Term:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	}
 	if rule.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
 	}
 }
 

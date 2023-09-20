@@ -1,14 +1,14 @@
-package marshal
+package json
 
-// JSONOptions defines the options for JSON operations,
+// Options defines the options for JSON operations,
 // currently only marshaling can be configured
-type JSONOptions struct {
-	MarshalOptions JSONMarshalOptions
+type Options struct {
+	MarshalOptions MarshalOptions
 }
 
-// JSONMarshalOptions defines the options for JSON marshaling,
+// MarshalOptions defines the options for JSON marshaling,
 // currently only toggling the marshaling of location information is supported
-type JSONMarshalOptions struct {
+type MarshalOptions struct {
 	// IncludeLocation toggles the marshaling of location information
 	IncludeLocation NodeToggle
 	// IncludeLocationText additionally/optionally includes the text of the location
