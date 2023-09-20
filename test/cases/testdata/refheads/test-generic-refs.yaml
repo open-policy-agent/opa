@@ -63,6 +63,39 @@ cases:
             r: 1
           c:
             r: 2
+  - note: 'refheads/general, overlapping rule, different dynamic depths, no conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r.s := i { q := ["a", "b", "c"][i] }
+        p.d.r := 3
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r:
+              s: 0
+          b:
+            r:
+              s: 1
+          c:
+            r:
+              s: 2
+          d:
+            r: 3
+  - note: 'refheads/general, self-conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r.s := i { q := ["a", "b", "c", "b"][i] }
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
   - note: 'refheads/general, overlapping rule, conflict'
     env:
       EXPERIMENTAL_GENERAL_RULE_REFS: "true"
@@ -70,10 +103,48 @@ cases:
       - |
         package test
         
-        p[q].r := i { q := ["a", "b", "c"][i] }
+        p[q].r.s := i { q := ["a", "b", "c"][i] }
         p.a.r := 42
     query: data.test.p = x
-    want_error: eval_conflict_error
+    want_error_code: eval_conflict_error
+  - note: 'refheads/general, overlapping rule, deep override inside other rule object value, conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r := v { 
+          q := "q";  
+          v := {
+            "s": {
+              "t" : 1
+            } 
+          }
+        }
+        
+        p.q.r.s.t := 42
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
+  - note: 'refheads/general, overlapping rule, deep injection into other rule object value, conflict'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        
+        p[q].r := v { 
+          q := "q";  
+          v := {
+            "s": {
+              "t" : 1
+            } 
+          }
+        }
+        
+        p.q.r.s.u := 42
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
   - note: 'refheads/general, set leaf'
     env:
       EXPERIMENTAL_GENERAL_RULE_REFS: "true"

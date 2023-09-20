@@ -152,6 +152,7 @@ func (p *Planner) buildFunctrie() error {
 
 			val.rules = val.DescendantRules()
 			val.rules = append(val.rules, rule)
+			val.children = nil
 		}
 	}
 	return nil
@@ -164,8 +165,6 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	// figure out what our rules' collective name/path is:
 	// if we're planning both p.q.r and p.q[s], we'll name
 	// the function p.q (for the mapping table)
-	// TODO(sr): this has to change when allowing `p[v].q.r[w]` ref rules
-	// including the mapping lookup structure and lookup functions
 	pieces := len(pathRef)
 	for i := range rules {
 		r := rules[i].Ref()
@@ -252,6 +251,12 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	var defaultRule *ast.Rule
 	var ruleLoc *location.Location
 
+	// We sort rules by ref length, to ensure that when merged, we can detect conflicts when one
+	// rule attempts to override values (deep and shallow) defined by another rule.
+	sort.Slice(rules, func(i, j int) bool {
+		return len(rules[i].Ref()) > len(rules[j].Ref())
+	})
+
 	// Generate function blocks for rules.
 	for i := range rules {
 
@@ -323,18 +328,9 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							ref := rule.Ref()
 							return p.planTerm(rule.Head.Value, func() error {
 								value := p.ltarget
-								return p.planNestedObject(ref[pieces:], value, func() error {
-									if obj, ok := p.ltarget.Value.(ir.Local); ok {
-										stmt := &ir.ObjectMergeStmt{
-											A:      obj,
-											B:      fn.Return,
-											Target: fn.Return,
-										}
-										p.appendStmt(stmt)
-										return nil
-									} else {
-										return fmt.Errorf("nested object construction didn't create object")
-									}
+								//p.ltarget = ir.Operand{Value: fn.Return}
+								return p.planNestedObjects(fn.Return, ref[pieces:], value, func() error {
+									return nil
 								})
 							})
 						}
@@ -426,34 +422,63 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	return fn.Name, nil
 }
 
-func (p *Planner) planNestedObject(ref ast.Ref, val ir.Operand, iter planiter) error {
+func (p *Planner) planNestedObjects(obj ir.Local, ref ast.Ref, val ir.Operand, iter planiter) error {
 	if len(ref) == 0 {
-		//return fmt.Errorf("can't construct nested object from empty ref")
-		p.ltarget = val
-		return iter()
+		return fmt.Errorf("nested object construction didn't create object")
 	}
 
-	// walk the ref backwards
-	t := ref[len(ref)-1]
+	t := ref[0]
+
+	// We're constructing the following plan:
+	//
+	// When len(ref) > 1:
+	// | block a
+	// | | block b
+	// | | | dot &{Source:Local<obj> Key:{Value:Local<ref[0]>} Target:Local<child_obj>}
+	// | | | break 1
+	// | | *ir.MakeObjectStmt &{Target:Local<child_obj>}
+	// | | *ir.ObjectInsertOnceStmt &{Key:{Value:Local<ref[0]>} Value:{Value:Local<child_obj>} Object:Local<obj>}
+	//
+	// When len(ref) == 1:
+	// | *ir.ObjectInsertOnceStmt &{Key:{Value:String<ref[0]>} Value:{Value:Local<val>} Object:Local<obj>}
+
 	return p.planTerm(t, func() error {
 		key := p.ltarget
-		ref := ref[:len(ref)-1]
 
-		obj := p.newLocal()
-		p.appendStmt(&ir.MakeObjectStmt{Target: obj})
-		p.appendStmt(&ir.ObjectInsertOnceStmt{
-			Object: obj,
-			Key:    key,
-			Value:  val,
-		})
-
-		val = op(obj)
-		if len(ref) > 0 {
-			return p.planNestedObject(ref, val, iter)
-		} else {
-			p.ltarget = val
+		if len(ref) == 1 {
+			//if o, ok := obj.Value.(ir.Local); ok {
+			p.appendStmt(&ir.ObjectInsertOnceStmt{
+				Object: obj,
+				Key:    key,
+				Value:  val,
+			})
 			return iter()
 		}
+
+		prev := p.curr
+		dotBlock := &ir.Block{} // b
+		p.curr = dotBlock
+
+		childObj := p.newLocal()
+		p.appendStmt(&ir.DotStmt{
+			Source: op(obj),
+			Key:    key,
+			Target: childObj,
+		})
+		p.appendStmt(&ir.BreakStmt{Index: 1})
+
+		outerBlock := &ir.Block{ // a
+			Stmts: []ir.Stmt{
+				&ir.BlockStmt{Blocks: []*ir.Block{dotBlock}}, // FIXME: Set Location
+				&ir.MakeObjectStmt{Target: childObj},
+				&ir.ObjectInsertOnceStmt{Key: key, Value: op(childObj), Object: obj},
+			},
+		}
+
+		p.curr = prev
+		p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
+
+		return p.planNestedObjects(childObj, ref[1:], val, iter)
 	})
 }
 

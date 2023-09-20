@@ -157,8 +157,19 @@ func TestPlannerHelloWorld(t *testing.T) {
 			queries: []string{`data.test.p.q = x`},
 			modules: []string{`
 				package test
+				p.q.r["a"] = 1
+				p.q[v] = 2 { v := "b" }
+			`},
+		},
+		{
+			note:    "partial object (ref-head) with var (shallow query)",
+			queries: []string{`data.test.p = x`},
+			modules: []string{`
+				package test
 				p.q["a"] = 1
 				p.q[v] = 2 { v := "b" }
+				p.r["c"] = 3
+				p.r[v] = 4 { v := "d" }
 			`},
 		},
 		{

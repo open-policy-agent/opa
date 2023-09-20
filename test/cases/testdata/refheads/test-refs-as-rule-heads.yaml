@@ -25,6 +25,18 @@ cases:
       q:
         r: 1
         s: 2
+- note: 'refheads/single-value, with var, conflict'
+  env:
+    EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+  modules:
+    - |
+      package test
+      
+      p.q.r = 1
+      p.q[s] = 2 { s := "r" }
+  query: data.test.p.q = x
+  want_error_code: eval_conflict_error
+  want_error: object keys must be unique
 - modules:
   - |
     package test
