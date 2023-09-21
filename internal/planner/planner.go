@@ -237,8 +237,7 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
 		}
 	case ast.MultiValue:
-		if buildObject && len(pathRef)-pieces > 1 {
-			buildObject = true
+		if buildObject {
 			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
 		} else {
 			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))

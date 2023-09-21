@@ -145,6 +145,46 @@ cases:
         p.q.r.s.u := 42
     query: data.test.p = x
     want_error_code: eval_conflict_error
+  - note: 'refheads/general, set leaf (shallow ref)'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        import future.keywords
+        
+        p[q] contains r { 
+          x := ["a", "b", "c"]
+          q := x[_] 
+          r := x[_]
+          q != r
+        }
+        
+        p.b contains "foo"
+    query: data.test.p = x
+    want_result:
+      - x:
+          a: [ "b", "c" ]
+          b: [ "a", "c", "foo" ]
+          c: [ "a", "b" ]
+  - note: 'refheads/general, set leaf (other rule defines dynamic ref portion)'
+    env:
+      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
+    modules:
+      - |
+        package test
+        import future.keywords
+        
+        p.q contains r { 
+          r := ["a", "b", "c"][_]
+        }
+        
+        p[q] := r { q := "foo"; r := "bar" }
+    query: data.test.p = x
+    want_result:
+      - x:
+          q: [ "a", "b", "c" ]
+          foo: bar
   - note: 'refheads/general, set leaf'
     env:
       EXPERIMENTAL_GENERAL_RULE_REFS: "true"
