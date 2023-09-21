@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/open-policy-agent/opa/ast"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
@@ -100,7 +101,7 @@ type FileLoader interface {
 	WithSkipBundleVerification(bool) FileLoader
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
-	WithJSONOptions(*ast.JSONOptions) FileLoader
+	WithJSONOptions(*astJSON.Options) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -175,7 +176,7 @@ func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
 }
 
 // WithJSONOptions sets the JSONOptions for use when parsing files
-func (fl *fileLoader) WithJSONOptions(opts *ast.JSONOptions) FileLoader {
+func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 	fl.opts.JSONOptions = opts
 	return fl
 }

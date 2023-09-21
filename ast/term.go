@@ -22,6 +22,7 @@ import (
 
 	"github.com/OneOfOne/xxhash"
 
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -294,7 +295,7 @@ type Term struct {
 	Value    Value     `json:"value"`              // the value of the Term as represented in Go
 	Location *Location `json:"location,omitempty"` // the location of the Term in the source
 
-	jsonOptions JSONOptions
+	jsonOptions astJSON.Options
 }
 
 // NewTerm returns a new Term object.
@@ -419,8 +420,11 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
-func (term *Term) setJSONOptions(opts JSONOptions) {
+func (term *Term) setJSONOptions(opts astJSON.Options) {
 	term.jsonOptions = opts
+	if term.Location != nil {
+		term.Location.JSONOptions = opts
+	}
 }
 
 // MarshalJSON returns the JSON encoding of the term.

@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 
 // MustParseBody returns a parsed body.
@@ -244,7 +246,9 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	var head *Head
 
 	if v, ok := lhs.Value.(Var); ok {
-		head = NewHead(v)
+		// Modify the code to add the location to the head ref
+		// and set the head ref's jsonOptions.
+		head = VarHead(v, lhs.Location, &lhs.jsonOptions)
 	} else if r, ok := lhs.Value.(Ref); ok { // groundness ?
 		if _, ok := r[0].Value.(Var); !ok {
 			return nil, fmt.Errorf("invalid rule head: %v", r)
@@ -350,7 +354,9 @@ func ParsePartialSetDocRuleFromTerm(module *Module, term *Term) (*Rule, error) {
 		if !ok {
 			return nil, fmt.Errorf("%vs cannot be used for rule head", TypeName(term.Value))
 		}
-		head = NewHead(v)
+		// Modify the code to add the location to the head ref
+		// and set the head ref's jsonOptions.
+		head = VarHead(v, ref[0].Location, &ref[0].jsonOptions)
 		head.Key = ref[1]
 	}
 	head.Location = term.Location
@@ -709,7 +715,7 @@ func setRuleModule(rule *Rule, module *Module) {
 	}
 }
 
-func setJSONOptions(x interface{}, jsonOptions *JSONOptions) {
+func setJSONOptions(x interface{}, jsonOptions *astJSON.Options) {
 	vis := NewGenericVisitor(func(x interface{}) bool {
 		if x, ok := x.(customJSON); ok {
 			x.setJSONOptions(*jsonOptions)
