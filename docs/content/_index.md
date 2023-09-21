@@ -60,7 +60,7 @@ There are three kinds of components in the system:
 * Networks connect servers and can be public or private. Public networks are connected to the Internet.
 * Ports attach servers to networks.
 
-All of the servers, networks, and ports are provisioned by a script. The script
+All the servers, networks, and ports are provisioned by a script. The script
 receives a JSON representation of the system as input:
 
 ```live:example:input
@@ -723,6 +723,11 @@ shell_accessible
 ```
 ```live:example/logical_or/partial_set:output
 ```
+
+{{< info >}}
+💡 there's a [blog post](https://www.styra.com/blog/how-to-express-or-in-rego/) that goes into much more detail
+on this topic showing different methods express OR in idiomatic Rego for different use cases.
+{{< /info >}}
 
 <!---TBD: explain conflicts --->
 ### Putting It Together
