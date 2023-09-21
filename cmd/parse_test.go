@@ -129,9 +129,9 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
 
 	files := map[string]string{
 		"x.rego": `package x
-		
-		p = 1
-		`,
+
+p = 1
+`,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
 		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
@@ -149,14 +149,16 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
     "location": {
       "file": "TEMPDIR/x.rego",
       "row": 1,
-      "col": 1
+      "col": 1,
+      "text": "cGFja2FnZQ=="
     },
     "path": [
       {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "var",
         "value": "data"
@@ -165,7 +167,8 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "string",
         "value": "x"
@@ -180,13 +183,15 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 7
+            "col": 5,
+            "text": "MQ=="
           },
           "terms": {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 7
+              "col": 5,
+              "text": "MQ=="
             },
             "type": "boolean",
             "value": true
@@ -199,7 +204,8 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 7
+            "col": 5,
+            "text": "MQ=="
           },
           "type": "number",
           "value": 1
@@ -209,7 +215,8 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 3
+              "col": 1,
+              "text": "cA=="
             },
             "type": "var",
             "value": "p"
@@ -218,21 +225,36 @@ func TestParseJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 3,
-          "col": 3
+          "col": 1,
+          "text": "cCA9IDE="
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
         "row": 3,
-        "col": 3
+        "col": 1,
+        "text": "cCA9IDE="
       }
     }
   ]
 }
 `, "TEMPDIR", tempDirPath, -1)
 
-	if got, want := string(stdout), expectedOutput; got != want {
-		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	gotLines := strings.Split(string(stdout), "\n")
+	wantLines := strings.Split(expectedOutput, "\n")
+	min := len(gotLines)
+	if len(wantLines) < min {
+		min = len(wantLines)
+	}
+
+	for i := 0; i < min; i++ {
+		if gotLines[i] != wantLines[i] {
+			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
+		}
+	}
+
+	if len(gotLines) != len(wantLines) {
+		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
 	}
 }
 
@@ -313,9 +335,9 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
 
 	files := map[string]string{
 		"x.rego": `package x
-		
-    a.b.c := true
-		`,
+
+a.b.c := true
+`,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
 		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
@@ -333,14 +355,16 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
     "location": {
       "file": "TEMPDIR/x.rego",
       "row": 1,
-      "col": 1
+      "col": 1,
+      "text": "cGFja2FnZQ=="
     },
     "path": [
       {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "var",
         "value": "data"
@@ -349,7 +373,8 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "string",
         "value": "x"
@@ -364,13 +389,15 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 14
+            "col": 10,
+            "text": "dHJ1ZQ=="
           },
           "terms": {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 14
+              "col": 10,
+              "text": "dHJ1ZQ=="
             },
             "type": "boolean",
             "value": true
@@ -382,7 +409,8 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 14
+            "col": 10,
+            "text": "dHJ1ZQ=="
           },
           "type": "boolean",
           "value": true
@@ -393,7 +421,8 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 5
+              "col": 1,
+              "text": "YQ=="
             },
             "type": "var",
             "value": "a"
@@ -402,7 +431,8 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 7
+              "col": 3,
+              "text": "Yg=="
             },
             "type": "string",
             "value": "b"
@@ -411,7 +441,8 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 9
+              "col": 5,
+              "text": "Yw=="
             },
             "type": "string",
             "value": "c"
@@ -420,21 +451,36 @@ func TestParseRefsJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 3,
-          "col": 5
+          "col": 1,
+          "text": "YS5iLmMgOj0gdHJ1ZQ=="
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
         "row": 3,
-        "col": 5
+        "col": 1,
+        "text": "YS5iLmMgOj0gdHJ1ZQ=="
       }
     }
   ]
 }
 `, "TEMPDIR", tempDirPath, -1)
 
-	if got, want := string(stdout), expectedOutput; got != want {
-		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	gotLines := strings.Split(string(stdout), "\n")
+	wantLines := strings.Split(expectedOutput, "\n")
+	min := len(gotLines)
+	if len(wantLines) < min {
+		min = len(wantLines)
+	}
+
+	for i := 0; i < min; i++ {
+		if gotLines[i] != wantLines[i] {
+			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
+		}
+	}
+
+	if len(gotLines) != len(wantLines) {
+		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
 	}
 }
 func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
@@ -442,13 +488,13 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
 	files := map[string]string{
 		"x.rego": `package x
 
-		default allow = false
-    allow = true {
-      input.method == "GET"
-      input.path = ["getUser", user]
-      input.user == user
-    }
-		`,
+default allow = false
+allow = true {
+  input.method == "GET"
+  input.path = ["getUser", user]
+  input.user == user
+}
+`,
 	}
 	errc, stdout, stderr, tempDirPath := testParse(t, files, &parseParams{
 		format:      util.NewEnumFlag(parseFormatJSON, []string{parseFormatPretty, parseFormatJSON}),
@@ -466,14 +512,16 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
     "location": {
       "file": "TEMPDIR/x.rego",
       "row": 1,
-      "col": 1
+      "col": 1,
+      "text": "cGFja2FnZQ=="
     },
     "path": [
       {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "var",
         "value": "data"
@@ -482,7 +530,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 1,
-          "col": 9
+          "col": 9,
+          "text": "eA=="
         },
         "type": "string",
         "value": "x"
@@ -497,13 +546,15 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 3
+            "col": 1,
+            "text": "ZGVmYXVsdA=="
           },
           "terms": {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 3
+              "col": 1,
+              "text": "ZGVmYXVsdA=="
             },
             "type": "boolean",
             "value": true
@@ -517,7 +568,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 3,
-            "col": 19
+            "col": 17,
+            "text": "ZmFsc2U="
           },
           "type": "boolean",
           "value": false
@@ -527,7 +579,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 3,
-              "col": 11
+              "col": 9,
+              "text": "YWxsb3c="
             },
             "type": "var",
             "value": "allow"
@@ -536,13 +589,15 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 3,
-          "col": 11
+          "col": 9,
+          "text": "YWxsb3cgPSBmYWxzZQ=="
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
         "row": 3,
-        "col": 3
+        "col": 1,
+        "text": "ZGVmYXVsdA=="
       }
     },
     {
@@ -552,14 +607,16 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 5,
-            "col": 7
+            "col": 3,
+            "text": "aW5wdXQubWV0aG9kID09ICJHRVQi"
           },
           "terms": [
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 5,
-                "col": 20
+                "col": 16,
+                "text": "PT0="
               },
               "type": "ref",
               "value": [
@@ -567,7 +624,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 5,
-                    "col": 20
+                    "col": 16,
+                    "text": "PT0="
                   },
                   "type": "var",
                   "value": "equal"
@@ -578,7 +636,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 5,
-                "col": 7
+                "col": 3,
+                "text": "aW5wdXQubWV0aG9k"
               },
               "type": "ref",
               "value": [
@@ -586,7 +645,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 5,
-                    "col": 7
+                    "col": 3,
+                    "text": "aW5wdXQ="
                   },
                   "type": "var",
                   "value": "input"
@@ -595,7 +655,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 5,
-                    "col": 13
+                    "col": 9,
+                    "text": "bWV0aG9k"
                   },
                   "type": "string",
                   "value": "method"
@@ -606,7 +667,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 5,
-                "col": 23
+                "col": 19,
+                "text": "IkdFVCI="
               },
               "type": "string",
               "value": "GET"
@@ -618,14 +680,16 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 6,
-            "col": 7
+            "col": 3,
+            "text": "aW5wdXQucGF0aCA9IFsiZ2V0VXNlciIsIHVzZXJd"
           },
           "terms": [
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 6,
-                "col": 18
+                "col": 14,
+                "text": "PQ=="
               },
               "type": "ref",
               "value": [
@@ -633,7 +697,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 6,
-                    "col": 18
+                    "col": 14,
+                    "text": "PQ=="
                   },
                   "type": "var",
                   "value": "eq"
@@ -644,7 +709,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 6,
-                "col": 7
+                "col": 3,
+                "text": "aW5wdXQucGF0aA=="
               },
               "type": "ref",
               "value": [
@@ -652,7 +718,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 6,
-                    "col": 7
+                    "col": 3,
+                    "text": "aW5wdXQ="
                   },
                   "type": "var",
                   "value": "input"
@@ -661,7 +728,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 6,
-                    "col": 13
+                    "col": 9,
+                    "text": "cGF0aA=="
                   },
                   "type": "string",
                   "value": "path"
@@ -672,7 +740,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 6,
-                "col": 20
+                "col": 16,
+                "text": "WyJnZXRVc2VyIiwgdXNlcl0="
               },
               "type": "array",
               "value": [
@@ -680,7 +749,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 6,
-                    "col": 21
+                    "col": 17,
+                    "text": "ImdldFVzZXIi"
                   },
                   "type": "string",
                   "value": "getUser"
@@ -689,7 +759,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 6,
-                    "col": 32
+                    "col": 28,
+                    "text": "dXNlcg=="
                   },
                   "type": "var",
                   "value": "user"
@@ -703,14 +774,16 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 7,
-            "col": 7
+            "col": 3,
+            "text": "aW5wdXQudXNlciA9PSB1c2Vy"
           },
           "terms": [
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 7,
-                "col": 18
+                "col": 14,
+                "text": "PT0="
               },
               "type": "ref",
               "value": [
@@ -718,7 +791,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 7,
-                    "col": 18
+                    "col": 14,
+                    "text": "PT0="
                   },
                   "type": "var",
                   "value": "equal"
@@ -729,7 +803,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 7,
-                "col": 7
+                "col": 3,
+                "text": "aW5wdXQudXNlcg=="
               },
               "type": "ref",
               "value": [
@@ -737,7 +812,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 7,
-                    "col": 7
+                    "col": 3,
+                    "text": "aW5wdXQ="
                   },
                   "type": "var",
                   "value": "input"
@@ -746,7 +822,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
                   "location": {
                     "file": "TEMPDIR/x.rego",
                     "row": 7,
-                    "col": 13
+                    "col": 9,
+                    "text": "dXNlcg=="
                   },
                   "type": "string",
                   "value": "user"
@@ -757,7 +834,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
               "location": {
                 "file": "TEMPDIR/x.rego",
                 "row": 7,
-                "col": 21
+                "col": 17,
+                "text": "dXNlcg=="
               },
               "type": "var",
               "value": "user"
@@ -771,7 +849,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
           "location": {
             "file": "TEMPDIR/x.rego",
             "row": 4,
-            "col": 13
+            "col": 9,
+            "text": "dHJ1ZQ=="
           },
           "type": "boolean",
           "value": true
@@ -781,7 +860,8 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
             "location": {
               "file": "TEMPDIR/x.rego",
               "row": 4,
-              "col": 5
+              "col": 1,
+              "text": "YWxsb3c="
             },
             "type": "var",
             "value": "allow"
@@ -790,21 +870,36 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
         "location": {
           "file": "TEMPDIR/x.rego",
           "row": 4,
-          "col": 5
+          "col": 1,
+          "text": "YWxsb3cgPSB0cnVl"
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
         "row": 4,
-        "col": 5
+        "col": 1,
+        "text": "YWxsb3cgPSB0cnVlIHsKICBpbnB1dC5tZXRob2QgPT0gIkdFVCIKICBpbnB1dC5wYXRoID0gWyJnZXRVc2VyIiwgdXNlcl0KICBpbnB1dC51c2VyID09IHVzZXIKfQ=="
       }
     }
   ]
 }
 `, "TEMPDIR", tempDirPath, -1)
 
-	if got, want := string(stdout), expectedOutput; got != want {
-		t.Fatalf("Expected output\n%v\n, got\n%v", want, got)
+	gotLines := strings.Split(string(stdout), "\n")
+	wantLines := strings.Split(expectedOutput, "\n")
+	min := len(gotLines)
+	if len(wantLines) < min {
+		min = len(wantLines)
+	}
+
+	for i := 0; i < min; i++ {
+		if gotLines[i] != wantLines[i] {
+			t.Fatalf("Expected line %d to be\n%v\n, got\n%v", i, wantLines[i], gotLines[i])
+		}
+	}
+
+	if len(gotLines) != len(wantLines) {
+		t.Fatalf("Expected %d lines, got %d", len(wantLines), len(gotLines))
 	}
 }
 

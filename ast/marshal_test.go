@@ -4,8 +4,78 @@ import (
 	"encoding/json"
 	"testing"
 
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/util"
 )
+
+func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
+	testCases := map[string]struct {
+		Term         *Term
+		ExpectedJSON string
+	}{
+		"base case, no location options set": {
+			Term: func() *Term {
+				v, _ := InterfaceToValue("example")
+				return &Term{
+					Value:    v,
+					Location: NewLocation([]byte{}, "example.rego", 1, 2),
+				}
+			}(),
+			ExpectedJSON: `{"type":"string","value":"example"}`,
+		},
+		"location included, location text excluded": {
+			Term: func() *Term {
+				v, _ := InterfaceToValue("example")
+				return &Term{
+					Value:    v,
+					Location: NewLocation([]byte{}, "example.rego", 1, 2),
+					jsonOptions: astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
+								Term: true,
+							},
+							IncludeLocationText: false,
+						},
+					},
+				}
+			}(),
+			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"type":"string","value":"example"}`,
+		},
+		"location included, location text also included": {
+			Term: func() *Term {
+				v, _ := InterfaceToValue("example")
+				t := &Term{
+					Value:    v,
+					Location: NewLocation([]byte("things"), "example.rego", 1, 2),
+				}
+				t.setJSONOptions(
+					astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
+								Term: true,
+							},
+							IncludeLocationText: true,
+						},
+					},
+				)
+				return t
+			}(),
+			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2,"text":"dGhpbmdz"},"type":"string","value":"example"}`,
+		},
+	}
+
+	for name, data := range testCases {
+		t.Run(name, func(t *testing.T) {
+			bs := util.MustMarshalJSON(data.Term)
+			got := string(bs)
+			exp := data.ExpectedJSON
+
+			if got != exp {
+				t.Fatalf("expected:\n%s got\n%s", exp, got)
+			}
+		})
+	}
+}
 
 func TestTerm_MarshalJSON(t *testing.T) {
 	testCases := map[string]struct {
@@ -28,9 +98,9 @@ func TestTerm_MarshalJSON(t *testing.T) {
 				return &Term{
 					Value:    v,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonOptions: JSONOptions{
-						MarshalOptions: JSONMarshalOptions{
-							IncludeLocation: NodeToggle{
+					jsonOptions: astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
 								Term: false,
 							},
 						},
@@ -45,9 +115,9 @@ func TestTerm_MarshalJSON(t *testing.T) {
 				return &Term{
 					Value:    v,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonOptions: JSONOptions{
-						MarshalOptions: JSONMarshalOptions{
-							IncludeLocation: NodeToggle{
+					jsonOptions: astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
 								Term: true,
 							},
 						},
@@ -132,9 +202,9 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			Package: &Package{
 				Path:     EmptyRef(),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Package: false,
 						},
 					},
@@ -146,9 +216,9 @@ func TestPackage_MarshalJSON(t *testing.T) {
 			Package: &Package{
 				Path:     EmptyRef(),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Package: true,
 						},
 					},
@@ -188,9 +258,9 @@ func TestComment_MarshalJSON(t *testing.T) {
 			Comment: &Comment{
 				Text:     []byte("comment"),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Comment: false, // ignored
 						},
 					},
@@ -202,9 +272,9 @@ func TestComment_MarshalJSON(t *testing.T) {
 			Comment: &Comment{
 				Text:     []byte("comment"),
 				Location: NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Comment: true, // ignored
 						},
 					},
@@ -253,9 +323,9 @@ func TestImport_MarshalJSON(t *testing.T) {
 				return &Import{
 					Path:     &term,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonOptions: JSONOptions{
-						MarshalOptions: JSONMarshalOptions{
-							IncludeLocation: NodeToggle{
+					jsonOptions: astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
 								Import: false,
 							},
 						},
@@ -274,9 +344,9 @@ func TestImport_MarshalJSON(t *testing.T) {
 				return &Import{
 					Path:     &term,
 					Location: NewLocation([]byte{}, "example.rego", 1, 2),
-					jsonOptions: JSONOptions{
-						MarshalOptions: JSONMarshalOptions{
-							IncludeLocation: NodeToggle{
+					jsonOptions: astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
 								Import: true,
 							},
 						},
@@ -327,9 +397,9 @@ func TestRule_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Rule: func() *Rule {
 				r := rule.Copy()
-				r.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				r.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Rule: false,
 						},
 					},
@@ -341,9 +411,9 @@ func TestRule_MarshalJSON(t *testing.T) {
 		"location included": {
 			Rule: func() *Rule {
 				r := rule.Copy()
-				r.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				r.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Rule: true,
 						},
 					},
@@ -394,9 +464,9 @@ func TestHead_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Head: func() *Head {
 				h := head.Copy()
-				h.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				h.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Head: false,
 						},
 					},
@@ -409,9 +479,9 @@ func TestHead_MarshalJSON(t *testing.T) {
 		"location included": {
 			Head: func() *Head {
 				h := head.Copy()
-				h.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				h.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Head: true,
 						},
 					},
@@ -462,9 +532,9 @@ func TestExpr_MarshalJSON(t *testing.T) {
 		"location excluded": {
 			Expr: func() *Expr {
 				e := expr.Copy()
-				e.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				e.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Expr: false,
 						},
 					},
@@ -477,9 +547,9 @@ func TestExpr_MarshalJSON(t *testing.T) {
 		"location included": {
 			Expr: func() *Expr {
 				e := expr.Copy()
-				e.jsonOptions = JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				e.jsonOptions = astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Expr: true,
 						},
 					},
@@ -581,7 +651,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 			SomeDecl: &SomeDecl{
 				Symbols:     []*Term{term},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{SomeDecl: false}}},
+				jsonOptions: astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{SomeDecl: false}}},
 			},
 			ExpectedJSON: `{"symbols":[{"type":"string","value":"example"}]}`,
 		},
@@ -589,7 +659,7 @@ func TestSomeDecl_MarshalJSON(t *testing.T) {
 			SomeDecl: &SomeDecl{
 				Symbols:     []*Term{term},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 2),
-				jsonOptions: JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{SomeDecl: true}}},
+				jsonOptions: astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{SomeDecl: true}}},
 			},
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2},"symbols":[{"type":"string","value":"example"}]}`,
 		},
@@ -643,7 +713,7 @@ allow {
 		"location excluded": {
 			Every: func() *Every {
 				e := every.Copy()
-				e.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{Every: false}}}
+				e.jsonOptions = astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Every: false}}}
 				return e
 			}(),
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"value":{"type":"var","value":"e"}}`,
@@ -651,7 +721,7 @@ allow {
 		"location included": {
 			Every: func() *Every {
 				e := every.Copy()
-				e.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{Every: true}}}
+				e.jsonOptions = astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{Every: true}}}
 				return e
 			}(),
 			ExpectedJSON: `{"body":[{"index":0,"terms":[{"type":"ref","value":[{"type":"var","value":"equal"}]},{"type":"var","value":"e"},{"type":"number","value":1}]}],"domain":{"type":"array","value":[{"type":"number","value":1},{"type":"number","value":2},{"type":"number","value":3}]},"key":null,"location":{"file":"example.rego","row":7,"col":2},"value":{"type":"var","value":"e"}}`,
@@ -701,7 +771,7 @@ b {
 		"location excluded": {
 			With: func() *With {
 				w := with.Copy()
-				w.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{With: false}}}
+				w.jsonOptions = astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{With: false}}}
 				return w
 			}(),
 			ExpectedJSON: `{"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
@@ -709,7 +779,7 @@ b {
 		"location included": {
 			With: func() *With {
 				w := with.Copy()
-				w.jsonOptions = JSONOptions{MarshalOptions: JSONMarshalOptions{IncludeLocation: NodeToggle{With: true}}}
+				w.jsonOptions = astJSON.Options{MarshalOptions: astJSON.MarshalOptions{IncludeLocation: astJSON.NodeToggle{With: true}}}
 				return w
 			}(),
 			ExpectedJSON: `{"location":{"file":"example.rego","row":7,"col":4},"target":{"type":"ref","value":[{"type":"var","value":"input"}]},"value":{"type":"number","value":1}}`,
@@ -761,9 +831,9 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{Annotations: false},
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{Annotations: false},
 					},
 				},
 			},
@@ -781,9 +851,9 @@ func TestAnnotations_MarshalJSON(t *testing.T) {
 				},
 				Location: NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{Annotations: true},
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{Annotations: true},
 					},
 				},
 			},
@@ -824,9 +894,9 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 				Path:        []*Term{},
 				Annotations: &Annotations{},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 4),
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{AnnotationsRef: false},
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{AnnotationsRef: false},
 					},
 				},
 			},
@@ -838,9 +908,9 @@ func TestAnnotationsRef_MarshalJSON(t *testing.T) {
 				Annotations: &Annotations{},
 				Location:    NewLocation([]byte{}, "example.rego", 1, 4),
 
-				jsonOptions: JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{AnnotationsRef: true},
+				jsonOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{AnnotationsRef: true},
 					},
 				},
 			},
@@ -916,9 +986,9 @@ package test
 p = 1`,
 			options: ParserOptions{
 				ProcessAnnotation: true,
-				JSONOptions: &JSONOptions{
-					MarshalOptions: JSONMarshalOptions{
-						IncludeLocation: NodeToggle{
+				JSONOptions: &astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						IncludeLocation: astJSON.NodeToggle{
 							Term:           true,
 							Package:        true,
 							Comment:        true,

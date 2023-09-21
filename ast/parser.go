@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
@@ -102,38 +103,9 @@ type ParserOptions struct {
 	AllFutureKeywords      bool
 	FutureKeywords         []string
 	SkipRules              bool
-	JSONOptions            *JSONOptions
+	JSONOptions            *astJSON.Options
 	unreleasedKeywords     bool // TODO(sr): cleanup
 	generalRuleRefsEnabled bool
-}
-
-// JSONOptions defines the options for JSON operations,
-// currently only marshaling can be configured
-type JSONOptions struct {
-	MarshalOptions JSONMarshalOptions
-}
-
-// JSONMarshalOptions defines the options for JSON marshaling,
-// currently only toggling the marshaling of location information is supported
-type JSONMarshalOptions struct {
-	IncludeLocation NodeToggle
-}
-
-// NodeToggle is a generic struct to allow the toggling of
-// settings for different ast node types
-type NodeToggle struct {
-	Term           bool
-	Package        bool
-	Comment        bool
-	Import         bool
-	Rule           bool
-	Head           bool
-	Expr           bool
-	SomeDecl       bool
-	Every          bool
-	With           bool
-	Annotations    bool
-	AnnotationsRef bool
 }
 
 // NewParser creates and initializes a Parser.
@@ -210,9 +182,9 @@ func (p *Parser) WithSkipRules(skip bool) *Parser {
 	return p
 }
 
-// WithJSONOptions sets the JSONOptions which will be set on nodes to configure
+// WithJSONOptions sets the Options which will be set on nodes to configure
 // their JSON marshaling behavior.
-func (p *Parser) WithJSONOptions(jsonOptions *JSONOptions) *Parser {
+func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
 	p.po.JSONOptions = jsonOptions
 	return p
 }
