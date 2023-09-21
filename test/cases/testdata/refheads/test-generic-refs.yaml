@@ -72,6 +72,7 @@ cases:
         
         p[q].r.s := i { q := ["a", "b", "c"][i] }
         p.d.r := 3
+        p.e := 4
     query: data.test.p = x
     want_result:
       - x:
@@ -86,6 +87,7 @@ cases:
               s: 2
           d:
             r: 3
+          e: 4
   - note: 'refheads/general, self-conflict'
     env:
       EXPERIMENTAL_GENERAL_RULE_REFS: "true"
