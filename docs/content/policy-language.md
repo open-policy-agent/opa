@@ -992,15 +992,11 @@ data.example
 ```live:eg/ref_heads:output
 ```
 
-#### General References
+#### Variables in Rule Head References
 
-Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects. 
+Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects.
 
-{{< danger >}}
-General refs in rule heads is an experimental feature, and can be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable.
-
-This feature is currently not supported for Wasm and IR.
-{{< /danger >}}
+##### Example
 
 Data:
 
@@ -1031,7 +1027,7 @@ Data:
 }
 ```
 
-Module: 
+Module:
 
 ```rego
 package example
@@ -1064,7 +1060,7 @@ Query:
 data.example
 ```
 
-Output: 
+Output:
 
 ```json
 {
@@ -1105,6 +1101,95 @@ Output:
   }
 }
 ```
+
+##### Conflicts
+
+The first variable declared in a rule head's reference divides the reference in a leading constant portion and a trailing dynamic portion. Other rules are allowed to overlap with the dynamic portion (dynamic extent) without causing a compile-time conflict.
+
+```rego
+package example
+
+# R1
+p[x].r := y {
+    x := "q"
+    y := 1
+}
+
+# R2
+p.q.r := 2
+```
+
+Error:
+
+```
+module.rego:10: eval_conflict_error: object keys must be unique
+```
+
+In the above example, rule `R2` overlaps with the dynamic portion of rule `R1`'s reference (`[x].r`), which is allowed at compile-time, as these rules aren't guaranteed to produce conflicting output.
+However, if `R1` defines `x` as `"q"` and `y` as, e.g. `0`, a conflict will be reported at evaluation-time.
+
+Conflicts are detected at compile-time, where possible, between rules even if they are within the dynamic extent of another rule.
+
+```rego
+package example
+
+# R1
+p[x].r := y {
+    x := "foo"
+    y := 1
+}
+
+# R2
+p.q.r := 2
+
+# R3
+p.q.r.s := 3
+```
+
+Error: 
+
+```
+module.rego:10: rego_type_error: rule data.example.p.q.r conflicts with [data.example.p.q.r.s]
+```
+
+Above, `R2` and `R3` are within the dynamic extent of `R1`, but are in conflict with each other, which is detected at compile-time.
+
+Rules are not allowed to overlap with object values of other rules.
+
+```rego
+package example
+
+# R1
+p.q.r := {"s": 1}
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+Error: 
+
+```
+module.rego:4: eval_conflict_error: object keys must be unique
+```
+
+In the above example, `R1` is within the dynamic extent of `R2` and a conflict cannot be detected at compile-time. However, at evaluation-time `R2` will attempt to inject a value under key `t` in an object value defined by `R1`. This is a conflict, as rules are not allowed to modify or replace values defined by other rules.
+We won't get a conflict if we update the policy to the following:
+
+```rego
+package example
+
+# R1
+p.q.r.s := 1
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+As `R1` is now instead defining a value within the dynamic extent of `R2`'s reference, which is allowed.
 
 ### Functions
 
