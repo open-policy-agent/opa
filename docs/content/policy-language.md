@@ -998,9 +998,9 @@ Any term, except the very first, in a rule head's reference can be a variable. T
 
 ##### Example
 
-Data:
+Input:
 
-```json
+```live:general_ref_head:input
 {
     "users": [
         {
@@ -1029,84 +1029,41 @@ Data:
 
 Module:
 
-```rego
+```live:general_ref_head:module
 package example
 
 import future.keywords
 
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
-    some user in data.users
+    some user in input.users
     id := user.id
     role := user.role
 }
 
 # Partial rule with an explicit "admin" key override
 users_by_role.admin[id] := user if {
-    some user in data.admins
+    some user in input.admins
     id := user.id
 }
 
 # Leaf entries can be partial sets
 users_by_country[country] contains user.id if {
-    some user in data.users
+    some user in input.users
     country := user.country
 }
 ```
 
-Query:
-
-```
-data.example
-```
-
 Output:
 
-```json
-{
-  "users_by_country": {
-    "Sweden": [
-      "dora"
-    ],
-    "USA": [
-      "alice",
-      "bob"
-    ]
-  },
-  "users_by_role": {
-    "admin": {
-      "charlie": {
-        "id": "charlie"
-      },
-      "dora": {
-        "country": "Sweden",
-        "id": "dora",
-        "role": "admin"
-      }
-    },
-    "customer": {
-      "bob": {
-        "country": "USA",
-        "id": "bob",
-        "role": "customer"
-      }
-    },
-    "employee": {
-      "alice": {
-        "country": "USA",
-        "id": "alice",
-        "role": "employee"
-      }
-    }
-  }
-}
+```live:general_ref_head:output
 ```
 
 ##### Conflicts
 
 The first variable declared in a rule head's reference divides the reference in a leading constant portion and a trailing dynamic portion. Other rules are allowed to overlap with the dynamic portion (dynamic extent) without causing a compile-time conflict.
 
-```rego
+```live:general_ref_head_conflict:module
 package example
 
 # R1
@@ -1121,8 +1078,7 @@ p.q.r := 2
 
 Error:
 
-```
-module.rego:10: eval_conflict_error: object keys must be unique
+```live:general_ref_head_conflict:output:expect_eval_error
 ```
 
 In the above example, rule `R2` overlaps with the dynamic portion of rule `R1`'s reference (`[x].r`), which is allowed at compile-time, as these rules aren't guaranteed to produce conflicting output.
@@ -1130,7 +1086,7 @@ However, if `R1` defines `x` as `"q"` and `y` as, e.g. `0`, a conflict will be r
 
 Conflicts are detected at compile-time, where possible, between rules even if they are within the dynamic extent of another rule.
 
-```rego
+```live:general_ref_head_conflict2:module
 package example
 
 # R1
@@ -1148,15 +1104,14 @@ p.q.r.s := 3
 
 Error: 
 
-```
-module.rego:10: rego_type_error: rule data.example.p.q.r conflicts with [data.example.p.q.r.s]
+```live:general_ref_head_conflict2:output:expect_rego_error
 ```
 
 Above, `R2` and `R3` are within the dynamic extent of `R1`, but are in conflict with each other, which is detected at compile-time.
 
 Rules are not allowed to overlap with object values of other rules.
 
-```rego
+```live:general_ref_head_conflict3:module
 package example
 
 # R1
@@ -1170,14 +1125,13 @@ p[x].r.t := 2 {
 
 Error: 
 
-```
-module.rego:4: eval_conflict_error: object keys must be unique
+```live:general_ref_head_conflict3:output:expect_eval_error
 ```
 
 In the above example, `R1` is within the dynamic extent of `R2` and a conflict cannot be detected at compile-time. However, at evaluation-time `R2` will attempt to inject a value under key `t` in an object value defined by `R1`. This is a conflict, as rules are not allowed to modify or replace values defined by other rules.
 We won't get a conflict if we update the policy to the following:
 
-```rego
+```live:general_ref_head_conflict4:module
 package example
 
 # R1
@@ -1189,7 +1143,10 @@ p[x].r.t := 2 {
 }
 ```
 
-As `R1` is now instead defining a value within the dynamic extent of `R2`'s reference, which is allowed.
+As `R1` is now instead defining a value within the dynamic extent of `R2`'s reference, which is allowed:
+
+```live:general_ref_head_conflict4:output
+```
 
 ### Functions
 
