@@ -4,7 +4,7 @@ software:
 - regopy
 - regorust
 inventors:
-- Microsoft
+- microsoft
 tutorials:
 - https://microsoft.github.io/rego-cpp/
 code:
