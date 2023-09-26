@@ -6861,6 +6861,8 @@ func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
 }
 
 func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
+	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
+
 	type testCase struct {
 		note           string
 		module         string
@@ -7277,6 +7279,29 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 			expectedErrors: Errors{
 				&Error{Message: "assigned var y unused"},
 			},
+		},
+		{
+			note: "general ref in rule head",
+			module: `package test
+						p[q].r[s] := 1 {
+							q := "foo"
+							s := "bar"
+							t := "baz"
+						}
+		`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var t unused"},
+			},
+		},
+		{
+			note: "general ref in rule head (no errors)",
+			module: `package test
+						p[q].r[s] := 1 {
+							q := "foo"
+							s := "bar"
+						}
+		`,
+			expectedErrors: Errors{},
 		},
 	}
 

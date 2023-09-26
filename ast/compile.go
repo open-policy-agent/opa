@@ -2385,8 +2385,9 @@ func (c *Compiler) rewriteLocalVarsInRule(rule *Rule, unusedArgs VarSet, argsSta
 	// Rewrite assignments in body.
 	used := NewVarSet()
 
-	last := rule.Head.Ref()[len(rule.Head.Ref())-1]
-	used.Update(last.Vars())
+	for _, t := range rule.Head.Ref()[1:] {
+		used.Update(t.Vars())
+	}
 
 	if rule.Head.Key != nil {
 		used.Update(rule.Head.Key.Vars())

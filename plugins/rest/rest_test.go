@@ -1789,6 +1789,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 		input   string
 		wantErr bool
 		env     map[string]string
+		errMsg  string
 	}{
 		{
 			name: "Fallback to Environment Credential",
@@ -1826,6 +1827,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 				}
 			}`,
 			wantErr: true,
+			errMsg:  "all AWS credential providers failed: 4 errors occurred",
 			env:     map[string]string{},
 		},
 	}
@@ -1859,10 +1861,19 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 			awsPlugin.logger = client.logger
 			err = awsPlugin.Prepare(req)
-			if err != nil && !tc.wantErr {
-				t.Fatalf("Unexpected error: %v", err)
-			} else if err == nil && tc.wantErr {
-				t.Fatalf("Expected error for input %v", tc.input)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("Expected error for input %v", tc.input)
+				}
+
+				if !strings.Contains(err.Error(), tc.errMsg) {
+					t.Fatalf("Expected error message %v but got %v", tc.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
 			}
 		})
 	}
