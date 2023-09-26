@@ -2451,6 +2451,43 @@ func TestDataGetExplainFull(t *testing.T) {
 	}
 }
 
+func TestDataPostWithActiveStoreWriteTxn(t *testing.T) {
+
+	f := newFixture(t)
+
+	err := f.v1(http.MethodPut, "/policies/test", `package test
+
+p = [1, 2, 3, 4] { true }`, 200, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// open write transaction on the store and execute a query.
+	// Then check the query is processed
+	ctx := context.Background()
+	_ = storage.NewTransactionOrDie(ctx, f.server.store, storage.WriteParams)
+
+	req := newReqV1(http.MethodPost, "/data/test/p", "")
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, req)
+
+	var result types.DataResponseV1
+
+	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&result); err != nil {
+		t.Fatalf("Unexpected JSON decode error: %v", err)
+	}
+
+	var expected interface{}
+
+	if err := util.UnmarshalJSON([]byte(`[1,2,3,4]`), &expected); err != nil {
+		panic(err)
+	}
+
+	if result.Result == nil || !reflect.DeepEqual(*result.Result, expected) {
+		t.Fatalf("Expected %v but got: %v", expected, result.Result)
+	}
+}
+
 func TestDataPostExplain(t *testing.T) {
 	f := newFixture(t)
 
