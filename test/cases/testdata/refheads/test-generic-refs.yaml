@@ -1,7 +1,5 @@
 cases:
   - note: 'refheads/general, single var'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -17,8 +15,6 @@ cases:
           c:
             r: 2
   - note: 'refheads/general, multiple vars'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -34,8 +30,6 @@ cases:
           c:
             2: true
   - note: 'refheads/general, deep query'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -46,8 +40,6 @@ cases:
       - x:
           1: true
   - note: 'refheads/general, overlapping rule, no conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -64,8 +56,6 @@ cases:
           c:
             r: 2
   - note: 'refheads/general, overlapping rule, different dynamic depths, no conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -89,8 +79,6 @@ cases:
             r: 3
           e: 4
   - note: 'refheads/general, self-conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -99,8 +87,6 @@ cases:
     query: data.test.p = x
     want_error_code: eval_conflict_error
   - note: 'refheads/general, overlapping rule, conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -110,8 +96,6 @@ cases:
     query: data.test.p = x
     want_error_code: eval_conflict_error
   - note: 'refheads/general, overlapping rule, deep override inside other rule object value, conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -129,8 +113,6 @@ cases:
     query: data.test.p = x
     want_error_code: eval_conflict_error
   - note: 'refheads/general, overlapping rule, deep injection into other rule object value, conflict'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -148,8 +130,6 @@ cases:
     query: data.test.p = x
     want_error_code: eval_conflict_error
   - note: 'refheads/general, set leaf (shallow ref)'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -170,8 +150,6 @@ cases:
           b: [ "a", "c", "foo" ]
           c: [ "a", "b" ]
   - note: 'refheads/general, set leaf (other rule defines dynamic ref portion)'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -188,8 +166,6 @@ cases:
           q: [ "a", "b", "c" ]
           foo: bar
   - note: 'refheads/general, set leaf'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -213,8 +189,6 @@ cases:
           c:
             r: [ "a", "b" ]
   - note: 'refheads/general, set leaf, deep query'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -232,8 +206,6 @@ cases:
     want_result:
       - x: "c"
   - note: 'refheads/general, input var'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -247,8 +219,6 @@ cases:
           bar:
             r: "foo"
   - note: 'refheads/general, external non-ground var'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
@@ -271,8 +241,6 @@ cases:
               bar: 1
               baz: 2
   - note: 'refheads/general, multiple result-set entries'
-    env:
-      EXPERIMENTAL_GENERAL_RULE_REFS: "true"
     modules:
       - |
         package test
