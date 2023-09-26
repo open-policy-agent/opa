@@ -1082,7 +1082,7 @@ Error:
 ```
 
 In the above example, rule `R2` overlaps with the dynamic portion of rule `R1`'s reference (`[x].r`), which is allowed at compile-time, as these rules aren't guaranteed to produce conflicting output.
-However, if `R1` defines `x` as `"q"` and `y` as, e.g. `0`, a conflict will be reported at evaluation-time.
+However, as `R1` defines `x` as `"q"` and `y` as `1`, a conflict will be reported at evaluation-time.
 
 Conflicts are detected at compile-time, where possible, between rules even if they are within the dynamic extent of another rule.
 
