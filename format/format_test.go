@@ -78,8 +78,6 @@ func TestFormatSourceError(t *testing.T) {
 }
 
 func TestFormatSource(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	regoFiles, err := filepath.Glob("testfiles/*.rego")
 	if err != nil {
 		panic(err)
