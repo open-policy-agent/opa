@@ -1032,6 +1032,20 @@ func (ref Ref) ConstantPrefix() Ref {
 	return ref[:i]
 }
 
+func (ref Ref) StringPrefix() Ref {
+	r := ref.Copy()
+
+	for i := 1; i < len(ref); i++ {
+		switch r[i].Value.(type) {
+		case String: // pass
+		default: // cut off
+			return r[:i]
+		}
+	}
+
+	return r
+}
+
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
