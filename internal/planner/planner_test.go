@@ -16,8 +16,6 @@ import (
 )
 
 func TestPlannerHelloWorld(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	// NOTE(tsandall): These tests are not meant to give comprehensive coverage
 	// of the planner. Currently we have a suite of end-to-end tests in the
 	// test/wasm/ directory that are specified in YAML, compiled into Wasm, and

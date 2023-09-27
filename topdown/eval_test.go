@@ -247,9 +247,6 @@ func TestContainsNestedRefOrCall(t *testing.T) {
 }
 
 func TestTopdownVirtualCache(t *testing.T) {
-	// TODO: break out into separate tests
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -604,8 +601,6 @@ func TestTopdownVirtualCache(t *testing.T) {
 }
 
 func TestPartialRule(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	ctx := context.Background()
 	store := inmem.New()
 
@@ -1449,29 +1444,5 @@ func TestPartialRule(t *testing.T) {
 				testAssertResultSet(t, exp, qrs, false)
 			}
 		})
-	}
-}
-
-// TODO: Remove when general rule refs are enabled by default.
-func TestGeneralRuleRefsFeatureFlag(t *testing.T) {
-	module := ast.MustParseModule(`package test
-		p[q].r { q := "q" }`)
-	mods := map[string]*ast.Module{
-		"": module,
-	}
-	c := ast.NewCompiler()
-	c.Compile(mods)
-
-	if !strings.Contains(c.Errors.Error(), "rego_type_error: rule head must only contain string terms (except for last)") {
-		t.Fatal("Expected error but got:", c.Errors)
-	}
-
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
-	c = ast.NewCompiler()
-	c.Compile(mods)
-
-	if c.Errors != nil {
-		t.Fatal("Unexpected error:", c.Errors)
 	}
 }

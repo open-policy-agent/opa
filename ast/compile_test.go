@@ -467,8 +467,6 @@ func toRef(s string) Ref {
 }
 
 func TestCompilerCheckRuleHeadRefs(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	tests := []struct {
 		note     string
 		modules  []*Module
@@ -581,64 +579,6 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				p.q.r[y.z] if y := {"z": "a"}`,
 			),
 			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			mods := make(map[string]*Module, len(tc.modules))
-			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
-			}
-			c := NewCompiler()
-			c.Modules = mods
-			compileStages(c, c.rewriteRuleHeadRefs)
-			if tc.err != "" {
-				assertCompilerErrorStrings(t, c, []string{tc.err})
-			} else {
-				if len(c.Errors) > 0 {
-					t.Fatalf("expected no errors, got %v", c.Errors)
-				}
-				if tc.expected != nil {
-					assertRulesEqual(t, tc.expected, mods["0"].Rules[0])
-				}
-			}
-		})
-	}
-}
-
-// TODO: Remove when general rule refs are enabled by default.
-func TestCompilerCheckRuleHeadRefsWithGeneralRuleRefsDisabled(t *testing.T) {
-
-	tests := []struct {
-		note     string
-		modules  []*Module
-		expected *Rule
-		err      string
-	}{
-		{
-			note: "ref contains var",
-			modules: modules(
-				`package x
-				p.q[i].r = 1 { i := 10 }`,
-			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): i",
-		},
-		{
-			note: "invalid: ref in ref",
-			modules: modules(
-				`package x
-				p.q[arr[0]].r { i := 10 }`,
-			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): arr[0]",
-		},
-		{
-			note: "invalid: non-string in ref (not last position)",
-			modules: modules(
-				`package x
-				p.q[10].r { true }`,
-			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
 		},
 	}
 
@@ -1940,8 +1880,6 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 }
 
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	tests := []struct {
 		note    string
 		modules []*Module
@@ -2167,70 +2105,6 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r { true }
 				`),
 			err: "rego_type_error: rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.note, func(t *testing.T) {
-			mods := make(map[string]*Module, len(tc.modules))
-			for i, m := range tc.modules {
-				mods[fmt.Sprint(i)] = m
-			}
-			c := NewCompiler()
-			c.Modules = mods
-			compileStages(c, c.checkRuleConflicts)
-			if tc.err != "" {
-				assertCompilerErrorStrings(t, c, []string{tc.err})
-			} else {
-				assertCompilerErrorStrings(t, c, []string{})
-			}
-		})
-	}
-}
-
-// TODO: Remove when general rule refs are enabled by default.
-func TestGeneralRuleRefsDisabled(t *testing.T) {
-	// EXPERIMENTAL_GENERAL_RULE_REFS env var not set
-
-	tests := []struct {
-		note    string
-		modules []*Module
-		err     string
-	}{
-		{
-			note: "single-value with other rule overlap, unknown key",
-			modules: modules(
-				`package pkg
-				p.q[r] = x { r = input.key; x = input.foo }
-				p.q.r.s = x { true }
-				`),
-			err: "rego_type_error: rule data.pkg.p.q[r] conflicts with [data.pkg.p.q.r.s]",
-		},
-		{
-			note: "single-value with other rule overlap, unknown ref var and key",
-			modules: modules(
-				`package pkg
-				p.q[r][s] = x { r = input.key1; s = input.key2; x = input.foo }
-				p.q.r.s.t = x { true }
-				`),
-			err: "rego_type_error: rule head must only contain string terms (except for last): r",
-		},
-		{
-			note: "single-value partial object with other partial object rule overlap, unknown keys (regression test for #5855; invalidated by multi-var refs)",
-			modules: modules(
-				`package pkg
-				p[r] := x { r = input.key; x = input.bar }
-				p.q[r] := x { r = input.key; x = input.bar }
-				`),
-			err: "rego_type_error: rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
-		},
-		{
-			note: "single-value partial object with other partial object (implicit 'true' value) rule overlap, unknown keys",
-			modules: modules(
-				`package pkg
-				p[r] := x { r = input.key; x = input.bar }
-				p.q[r] { r = input.key }
-				`),
-			err: "rego_type_error: rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
 		},
 	}
 	for _, tc := range tests {
@@ -6861,8 +6735,6 @@ func TestCompilerMockVirtualDocumentPartially(t *testing.T) {
 }
 
 func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
-	t.Setenv("EXPERIMENTAL_GENERAL_RULE_REFS", "true")
-
 	type testCase struct {
 		note           string
 		module         string

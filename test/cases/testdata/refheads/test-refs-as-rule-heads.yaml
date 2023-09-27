@@ -26,8 +26,6 @@ cases:
         r: 1
         s: 2
 - note: 'refheads/single-value, with var, conflict'
-  env:
-    EXPERIMENTAL_GENERAL_RULE_REFS: "true"
   modules:
     - |
       package test
