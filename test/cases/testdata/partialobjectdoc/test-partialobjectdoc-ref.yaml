@@ -8,7 +8,7 @@ cases:
       k := ["foo", "bar"][v]
     }
     
-    # p.baz := 2
+    p.baz := 2
     
     q {
       x := "bar"
