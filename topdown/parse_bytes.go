@@ -23,12 +23,13 @@ const (
 	pi
 	ei
 
-	kb uint64 = 1000
-	mb        = kb * 1000
-	gb        = mb * 1000
-	tb        = gb * 1000
-	pb        = tb * 1000
-	eb        = pb * 1000
+	m  float64 = (1 / 1000.0)
+	kb uint64  = 1000
+	mb         = kb * 1000
+	gb         = mb * 1000
+	tb         = gb * 1000
+	pb         = tb * 1000
+	eb         = pb * 1000
 )
 
 func parseNumBytesError(msg string) error {
@@ -46,7 +47,7 @@ var (
 )
 
 func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	var m big.Float
+	var numBytes big.Float
 
 	raw, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
@@ -66,31 +67,33 @@ func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 
 	switch unit {
 	case "":
-		m.SetUint64(none)
+		numBytes.SetUint64(none)
+	case "m":
+		numBytes.SetFloat64(m)
 	case "kb", "k":
-		m.SetUint64(kb)
+		numBytes.SetUint64(kb)
 	case "kib", "ki":
-		m.SetUint64(ki)
-	case "mb", "m":
-		m.SetUint64(mb)
+		numBytes.SetUint64(ki)
+	case "mb":
+		numBytes.SetUint64(mb)
 	case "mib", "mi":
-		m.SetUint64(mi)
+		numBytes.SetUint64(mi)
 	case "gb", "g":
-		m.SetUint64(gb)
+		numBytes.SetUint64(gb)
 	case "gib", "gi":
-		m.SetUint64(gi)
+		numBytes.SetUint64(gi)
 	case "tb", "t":
-		m.SetUint64(tb)
+		numBytes.SetUint64(tb)
 	case "tib", "ti":
-		m.SetUint64(ti)
+		numBytes.SetUint64(ti)
 	case "pb", "p":
-		m.SetUint64(pb)
+		numBytes.SetUint64(pb)
 	case "pib", "pi":
-		m.SetUint64(pi)
+		numBytes.SetUint64(pi)
 	case "eb", "e":
-		m.SetUint64(eb)
+		numBytes.SetUint64(eb)
 	case "eib", "ei":
-		m.SetUint64(ei)
+		numBytes.SetUint64(ei)
 	default:
 		return errBytesUnitNotRecognized(unit)
 	}
@@ -101,7 +104,7 @@ func builtinNumBytes(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	}
 
 	var total big.Int
-	numFloat.Mul(numFloat, &m).Int(&total)
+	numFloat.Mul(numFloat, &numBytes).Int(&total)
 	return iter(ast.NewTerm(builtins.IntToNumber(&total)))
 }
 

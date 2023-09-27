@@ -219,9 +219,9 @@ cases:
   - |
     package test
     p {
-        units.parse_bytes("100m") == 100000000
+        units.parse_bytes("1000m") == 1
     }
-  note: units_parse_bytes/100 megabytes as m
+  note: units_parse_bytes/1000 millibytes as m
   query: data.test.p = x
   want_result:
   - x: true
