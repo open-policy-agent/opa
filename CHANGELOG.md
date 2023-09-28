@@ -3,7 +3,74 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.57.0
+
+This release contains an updated Rego syntax to allow general references in rule heads, and a mix of new features and bugfixes.
+
+### Support for General References in Rule Heads
+
+In OPA `0.56.0`, we introduced support for general references in rule heads as an experimental feature. 
+It has now graduated to a fully supported feature, and is no longer experimental. 
+
+A general reference is a reference with variables at arbitrary locations. 
+In Rego, [partial rules](https://www.openpolicyagent.org/docs/latest/#partial-rules) are used for generating sets and objects.
+In previous versions of OPA, variables were only allowed in the very last position in the rule's reference. 
+Now, Rego has been expanded to allow rules to be declared with general references in their head, with variables at arbitrary locations. 
+This allows for generating nested dynamic object structures:
+
+```rego
+package example
+
+import future.keywords
+
+# Converting a flat list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in data.users
+    id := user.id
+    role := user.role
+}
+
+# Explicit "admin" key override to the above mapping.
+users_by_role.admin[id] := user if {
+    some user in data.admins
+    id := user.id
+}
+
+# Leaf entries can be multi-value.
+users_by_country[country] contains user.id if {
+    some user in data.users
+    country := user.country
+}
+```
+
+See the [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/#variables-in-rule-head-references) for more information.
+
+Authored by @johanfylling.
+
+### Runtime, Tooling, SDK
+
+- ast/runtime: Extend type checking for authz policies ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @ashutosh-narkar
+- server: Add test case for bundle update - query API handler scenario ([#4792](https://github.com/open-policy-agent/opa/issues/4792)) authored by @ashutosh-narkar
+
+### Topdown and Rego
+
+- ast: Accept short-form else bodies ([#6157](https://github.com/open-policy-agent/opa/issues/6157)) authored by @Ronnie-personal
+- plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
+- topdown: Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB
+
+### Miscellaneous
+
+- ast: Add location to single entry rule head ref ([#6199](https://github.com/open-policy-agent/opa/issues/6199)) authored by @Ronnie-personal
+- ast: Add option to marshal location text ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @charlieegan3
+- types: New algorithm for (Any).Union + new benchmarks ([#6228](https://github.com/open-policy-agent/opa/pull/6228)) authored by @philipaconrad
+- Updates to documentation and website authored by @charlieegan3
+  - docs: Link to expressing or post (#6236) (authored by @charlieegan3)
+  - docs: Use links on support page (#6249) (authored by @charlieegan3)
+- Dependency updates; notably:
+  - golang from 1.21 to 1.21.1
+  - golang.org/x/net from 0.14.0 to 0.15.0
+  - google.golang.org/grpc from 1.57.0 to 1.58.2
+  - github.com/containerd/containerd from 1.7.4 to 1.7.6
 
 ## 0.56.0
 
