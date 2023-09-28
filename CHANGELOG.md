@@ -3,7 +3,43 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.57.0
+
+### Fixes
+
+- Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB reported by @Od1nB
+- Removing EXPERIMENTAL_GENERAL_RULE_REFS feature flag (#6252) ([#6245](https://github.com/open-policy-agent/opa/issues/6245)) authored by @johanfylling
+- ast: Accept short-form else bodies (#6204) ([#6212](https://github.com/open-policy-agent/opa/issues/6212)) authored by @Ronnie-personal reported by @Ronnie-personal
+- ast: Add location to single entry rule head ref (#6212) ([#6199](https://github.com/open-policy-agent/opa/issues/6199)) authored by @Ronnie-personal
+- docs: Documenting general refs in rule heads (#6244) ([#5996](https://github.com/open-policy-agent/opa/issues/5996)) authored by @johanfylling
+- planner: Adding support for general ref rule heads (#6235) ([#5995](https://github.com/open-policy-agent/opa/issues/5995)) authored by @johanfylling
+- plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
+- server: Add test case for bundle update - query API handler scenario ([#4792](https://github.com/open-policy-agent/opa/issues/4792)) authored by @ashutosh-narkar
+- topdown: Fixing issue where key override rule is allowed to modify object value of partial object rule (#6221) ([#6211](https://github.com/open-policy-agent/opa/issues/6211)) authored by @johanfylling
+
+### Miscellaneous
+
+- Add option to marshal location text (#6234) (authored by @charlieegan3)
+- Add rego-cpp to OPA Ecosystem (authored by @matajoh)
+- Extend type checking for authz policies (authored by @ashutosh-narkar)
+- Prepare v0.57.0 development (authored by @johanfylling)
+- Updating all vars in rule ref (authored by @johanfylling)
+- [docs] Link to expressing or post (#6236) (authored by @charlieegan3)
+- [docs] Use links on support page (#6249) (authored by @charlieegan3)
+- build(deps): bump actions/checkout from 3 to 4 (#6210) (authored by @dependabot[bot])
+- build(deps): bump aquasecurity/trivy-action from 0.11.2 to 0.12.0 (#6207) (authored by @dependabot[bot])
+- build(deps): bump docker/setup-buildx-action from 2 to 3 (authored by @dependabot[bot])
+- build(deps): bump docker/setup-qemu-action from 2 to 3 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.4 to 1.7.6 (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.14.0 to 0.15.0 (#6214) (authored by @charlieegan3)
+- build(deps): bump google.golang.org/grpc from 1.57.0 to 1.58.0 (#6216) (authored by @charlieegan3)
+- build(deps): bump google.golang.org/grpc from 1.58.0 to 1.58.1 (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.58.1 to 1.58.2 (authored by @dependabot[bot])
+- docs: Update generated CLI docs (authored by @charlieegan3)
+- docs: add enterprise-contract to ecosystem (#6224) (authored by @lcarva)
+- golang: Update golang to 1.21.1 (authored by @ashutosh-narkar)
+- nightly: skip Fri/Sat night (#6242) (authored by @srenatus)
+- types: New algorithm for (Any).Union + new benchmarks (#6228) (authored by @philipaconrad)
 
 ## 0.56.0
 
