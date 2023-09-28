@@ -5,41 +5,72 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.57.0
 
-### Fixes
+This release contains an updated Rego syntax to allow general references in rule heads, and a mix of new features and bugfixes.
 
-- Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB reported by @Od1nB
-- Removing EXPERIMENTAL_GENERAL_RULE_REFS feature flag (#6252) ([#6245](https://github.com/open-policy-agent/opa/issues/6245)) authored by @johanfylling
-- ast: Accept short-form else bodies (#6204) ([#6212](https://github.com/open-policy-agent/opa/issues/6212)) authored by @Ronnie-personal reported by @Ronnie-personal
-- ast: Add location to single entry rule head ref (#6212) ([#6199](https://github.com/open-policy-agent/opa/issues/6199)) authored by @Ronnie-personal
-- docs: Documenting general refs in rule heads (#6244) ([#5996](https://github.com/open-policy-agent/opa/issues/5996)) authored by @johanfylling
-- planner: Adding support for general ref rule heads (#6235) ([#5995](https://github.com/open-policy-agent/opa/issues/5995)) authored by @johanfylling
-- plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
+### Support for General References in Rule Heads
+
+In OPA `0.56.0`, we introduced support for general references in rule heads as an experimental feature. 
+It has now graduated to a fully supported feature, and is no longer experimental. 
+
+A general reference is a reference with variables at arbitrary locations. 
+In Rego, [partial rules](https://www.openpolicyagent.org/docs/latest/#partial-rules) are used for generating sets and objects.
+In previous versions of OPA, variables were only allowed in the very last position in the rule's reference. 
+Now, Rego has been expanded to allow rules to be declared with general references in their head, with variables at arbitrary locations. 
+This allows for generating nested dynamic object structures:
+
+```rego
+package example
+
+import future.keywords
+
+# Converting a flat list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in data.users
+    id := user.id
+    role := user.role
+}
+
+# Explicit "admin" key override to the above mapping.
+users_by_role.admin[id] := user if {
+    some user in data.admins
+    id := user.id
+}
+
+# Leaf entries can be multi-value.
+users_by_country[country] contains user.id if {
+    some user in data.users
+    country := user.country
+}
+```
+
+See the [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/#variables-in-rule-head-references) for more information.
+
+Authored by @johanfylling.
+
+### Runtime, Tooling, SDK
+
+- ast/runtime: Extend type checking for authz policies ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @ashutosh-narkar
 - server: Add test case for bundle update - query API handler scenario ([#4792](https://github.com/open-policy-agent/opa/issues/4792)) authored by @ashutosh-narkar
-- topdown: Fixing issue where key override rule is allowed to modify object value of partial object rule (#6221) ([#6211](https://github.com/open-policy-agent/opa/issues/6211)) authored by @johanfylling
+
+### Topdown and Rego
+
+- ast: Accept short-form else bodies ([#6212](https://github.com/open-policy-agent/opa/issues/6212)) authored by @Ronnie-personal reported by @Ronnie-personal
+- plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
+- topdown: Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB
 
 ### Miscellaneous
 
-- Add option to marshal location text (#6234) (authored by @charlieegan3)
-- Add rego-cpp to OPA Ecosystem (authored by @matajoh)
-- Extend type checking for authz policies (authored by @ashutosh-narkar)
-- Prepare v0.57.0 development (authored by @johanfylling)
-- Updating all vars in rule ref (authored by @johanfylling)
-- [docs] Link to expressing or post (#6236) (authored by @charlieegan3)
-- [docs] Use links on support page (#6249) (authored by @charlieegan3)
-- build(deps): bump actions/checkout from 3 to 4 (#6210) (authored by @dependabot[bot])
-- build(deps): bump aquasecurity/trivy-action from 0.11.2 to 0.12.0 (#6207) (authored by @dependabot[bot])
-- build(deps): bump docker/setup-buildx-action from 2 to 3 (authored by @dependabot[bot])
-- build(deps): bump docker/setup-qemu-action from 2 to 3 (authored by @dependabot[bot])
-- build(deps): bump github.com/containerd/containerd from 1.7.4 to 1.7.6 (authored by @dependabot[bot])
-- build(deps): bump golang.org/x/net from 0.14.0 to 0.15.0 (#6214) (authored by @charlieegan3)
-- build(deps): bump google.golang.org/grpc from 1.57.0 to 1.58.0 (#6216) (authored by @charlieegan3)
-- build(deps): bump google.golang.org/grpc from 1.58.0 to 1.58.1 (authored by @dependabot[bot])
-- build(deps): bump google.golang.org/grpc from 1.58.1 to 1.58.2 (authored by @dependabot[bot])
-- docs: Update generated CLI docs (authored by @charlieegan3)
-- docs: add enterprise-contract to ecosystem (#6224) (authored by @lcarva)
-- golang: Update golang to 1.21.1 (authored by @ashutosh-narkar)
-- nightly: skip Fri/Sat night (#6242) (authored by @srenatus)
-- types: New algorithm for (Any).Union + new benchmarks (#6228) (authored by @philipaconrad)
+- ast: Add location to single entry rule head ref ([#6199](https://github.com/open-policy-agent/opa/issues/6199)) authored by @Ronnie-personal
+- ast: Add option to marshal location text ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @charlieegan3
+- types: New algorithm for (Any).Union + new benchmarks ([#6228](https://github.com/open-policy-agent/opa/pull/6228)) authored by @philipaconrad
+- Updates to documentation and website authored by @charlieegan3
+  - docs: Link to expressing or post (#6236) (authored by @charlieegan3)
+  - docs: Use links on support page (#6249) (authored by @charlieegan3)
+- Dependency updates; notably:
+  - golang from 1.21 to 1.21.1
+  - golang.org/x/net from 0.14.0 to 0.15.0
+  - google.golang.org/grpc from 1.57.0 to 1.58.2
+  - github.com/containerd/containerd from 1.7.4 to 1.7.6
 
 ## 0.56.0
 
