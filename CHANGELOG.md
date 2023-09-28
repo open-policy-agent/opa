@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.57.0
 
 This release contains an updated Rego syntax to allow general references in rule heads, and a mix of new features and bugfixes.
