@@ -54,7 +54,7 @@ Authored by @johanfylling.
 
 ### Topdown and Rego
 
-- ast: Accept short-form else bodies ([#6212](https://github.com/open-policy-agent/opa/issues/6212)) authored by @Ronnie-personal reported by @Ronnie-personal
+- ast: Accept short-form else bodies ([#6157](https://github.com/open-policy-agent/opa/issues/6157)) authored by @Ronnie-personal
 - plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
 - topdown: Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB
 
