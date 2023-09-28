@@ -992,19 +992,15 @@ data.example
 ```live:eg/ref_heads:output
 ```
 
-#### General References
+#### Variables in Rule Head References
 
-Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects. 
+Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects.
 
-{{< danger >}}
-General refs in rule heads is an experimental feature, and can be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable.
+##### Example
 
-This feature is currently not supported for Wasm and IR.
-{{< /danger >}}
+Input:
 
-Data:
-
-```json
+```live:general_ref_head:input
 {
     "users": [
         {
@@ -1031,79 +1027,125 @@ Data:
 }
 ```
 
-Module: 
+Module:
 
-```rego
+```live:general_ref_head:module
 package example
 
 import future.keywords
 
 # A partial object rule that converts a list of users to a mapping by "role" and then "id".
 users_by_role[role][id] := user if {
-    some user in data.users
+    some user in input.users
     id := user.id
     role := user.role
 }
 
 # Partial rule with an explicit "admin" key override
 users_by_role.admin[id] := user if {
-    some user in data.admins
+    some user in input.admins
     id := user.id
 }
 
 # Leaf entries can be partial sets
 users_by_country[country] contains user.id if {
-    some user in data.users
+    some user in input.users
     country := user.country
 }
 ```
 
-Query:
+Output:
 
+```live:general_ref_head:output
 ```
-data.example
-```
 
-Output: 
+##### Conflicts
 
-```json
-{
-  "users_by_country": {
-    "Sweden": [
-      "dora"
-    ],
-    "USA": [
-      "alice",
-      "bob"
-    ]
-  },
-  "users_by_role": {
-    "admin": {
-      "charlie": {
-        "id": "charlie"
-      },
-      "dora": {
-        "country": "Sweden",
-        "id": "dora",
-        "role": "admin"
-      }
-    },
-    "customer": {
-      "bob": {
-        "country": "USA",
-        "id": "bob",
-        "role": "customer"
-      }
-    },
-    "employee": {
-      "alice": {
-        "country": "USA",
-        "id": "alice",
-        "role": "employee"
-      }
-    }
-  }
+The first variable declared in a rule head's reference divides the reference in a leading constant portion and a trailing dynamic portion. Other rules are allowed to overlap with the dynamic portion (dynamic extent) without causing a compile-time conflict.
+
+```live:general_ref_head_conflict:module
+package example
+
+# R1
+p[x].r := y {
+    x := "q"
+    y := 1
 }
+
+# R2
+p.q.r := 2
+```
+
+Error:
+
+```live:general_ref_head_conflict:output:expect_eval_error
+```
+
+In the above example, rule `R2` overlaps with the dynamic portion of rule `R1`'s reference (`[x].r`), which is allowed at compile-time, as these rules aren't guaranteed to produce conflicting output.
+However, as `R1` defines `x` as `"q"` and `y` as `1`, a conflict will be reported at evaluation-time.
+
+Conflicts are detected at compile-time, where possible, between rules even if they are within the dynamic extent of another rule.
+
+```live:general_ref_head_conflict2:module
+package example
+
+# R1
+p[x].r := y {
+    x := "foo"
+    y := 1
+}
+
+# R2
+p.q.r := 2
+
+# R3
+p.q.r.s := 3
+```
+
+Error: 
+
+```live:general_ref_head_conflict2:output:expect_rego_error
+```
+
+Above, `R2` and `R3` are within the dynamic extent of `R1`, but are in conflict with each other, which is detected at compile-time.
+
+Rules are not allowed to overlap with object values of other rules.
+
+```live:general_ref_head_conflict3:module
+package example
+
+# R1
+p.q.r := {"s": 1}
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+Error: 
+
+```live:general_ref_head_conflict3:output:expect_eval_error
+```
+
+In the above example, `R1` is within the dynamic extent of `R2` and a conflict cannot be detected at compile-time. However, at evaluation-time `R2` will attempt to inject a value under key `t` in an object value defined by `R1`. This is a conflict, as rules are not allowed to modify or replace values defined by other rules.
+We won't get a conflict if we update the policy to the following:
+
+```live:general_ref_head_conflict4:module
+package example
+
+# R1
+p.q.r.s := 1
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+As `R1` is now instead defining a value within the dynamic extent of `R2`'s reference, which is allowed:
+
+```live:general_ref_head_conflict4:output
 ```
 
 ### Functions
