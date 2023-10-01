@@ -497,7 +497,7 @@ services:
 bundles:
   authz:
     service: gcp
-    resource: 'bundles/http/example/authz.tar.gz?alt=media'
+    resource: 'bundles%2fhttp%2fexample%2fauthz.tar.gz?alt=media'
 
 keys:
   jwt_signing_key:
@@ -631,12 +631,14 @@ services:
 bundles:
   authz:
     service: gcs
-    resource: 'bundle.tar.gz?alt=media'
+    resource: 'bundles%2fhttp%2fexample%2fbundle.tar.gz?alt=media'
     persist: true
     polling:
       min_delay_seconds: 60
       max_delay_seconds: 120
 ```
+
+When the given resource (the object in the GCS bucket) contains slashes (/) or other special characters, these need to be url-encoded here.
 
 #### Azure Managed Identities Token
 
