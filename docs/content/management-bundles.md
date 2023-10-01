@@ -941,6 +941,9 @@ bundles:
     resource: 'bundle.tar.gz?alt=media'
 ```
 
+If the resource (the object in the gcs bucket) contains slashes (/) or other special characters, these need to be url-encoded here, e.g.
+`bundles/bundle.tar.gz?alt=media` should be entered as `bundles%2fbundle.tar.gz?alt=media`.
+
 ##### Google Cloud Storage Bundle and JWT Bearer Authentication
 
 ```yaml
