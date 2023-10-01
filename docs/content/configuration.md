@@ -631,7 +631,7 @@ services:
 bundles:
   authz:
     service: gcs
-    resource: 'bundles%2fhttp%2fexampl%2fbundle.tar.gz?alt=media'
+    resource: 'bundles%2fhttp%2fexample%2fbundle.tar.gz?alt=media'
     persist: true
     polling:
       min_delay_seconds: 60
