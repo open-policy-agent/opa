@@ -2470,7 +2470,7 @@ var WalkBuiltin = &Builtin{
 				types.A,
 			},
 			nil,
-		)).Description("pairs of `path` and `value`: `path` is an array representing the pointer to `value` in `x`"),
+		)).Description("pairs of `path` and `value`: `path` is an array representing the pointer to `value` in `x`. If `path` is assigned a wildcard (`_`), the `walk` function will skip path creation entirely for faster evaluation."),
 	),
 	Categories: graphs,
 }
