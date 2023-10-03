@@ -18889,7 +18889,7 @@
     "introduced": "v0.17.0",
     "relation": true,
     "result": {
-      "description": "pairs of `path` and `value`: `path` is an array representing the pointer to `value` in `x`",
+      "description": "pairs of `path` and `value`: `path` is an array representing the pointer to `value` in `x`. If `path` is assigned a wildcard (`_`), the `walk` function will skip path creation entirely for faster evaluation.",
       "name": "output",
       "type": "array\u003carray[any], any\u003e"
     },
