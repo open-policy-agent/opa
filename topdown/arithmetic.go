@@ -66,11 +66,8 @@ func builtinPlus(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) er
 	x, ok1 := n1.Int()
 	y, ok2 := n2.Int()
 
-	if ok1 && ok2 && x < 256 && y < 256 {
-		z := x + y
-		if z < 256 {
-			return iter(ast.IntNumberTerm(z))
-		}
+	if ok1 && ok2 && inSmallIntRange(x) && inSmallIntRange(y) {
+		return iter(ast.IntNumberTerm(x + y))
 	}
 
 	f, err := arithPlus(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -93,12 +90,8 @@ func builtinMultiply(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	x, ok1 := n1.Int()
 	y, ok2 := n2.Int()
 
-	if ok1 && ok2 && x < 256 && y < 256 {
-		z := x * y
-		if z < 256 {
-			return iter(ast.IntNumberTerm(z))
-		}
-
+	if ok1 && ok2 && inSmallIntRange(x) && inSmallIntRange(y) {
+		return iter(ast.IntNumberTerm(x * y))
 	}
 
 	f, err := arithMultiply(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -177,11 +170,8 @@ func builtinMinus(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 		x, okx := n1.Int()
 		y, oky := n2.Int()
 
-		if okx && oky && x < 256 && y < 256 {
-			z := x - y
-			if z < 256 {
-				return iter(ast.IntNumberTerm(z))
-			}
+		if okx && oky && inSmallIntRange(x) && inSmallIntRange(y) {
+			return iter(ast.IntNumberTerm(x - y))
 		}
 
 		f, err := arithMinus(builtins.NumberToFloat(n1), builtins.NumberToFloat(n2))
@@ -218,15 +208,12 @@ func builtinRem(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 		x, okx := n1.Int()
 		y, oky := n2.Int()
 
-		if okx && oky && x < 256 && y < 256 {
+		if okx && oky && inSmallIntRange(x) && inSmallIntRange(y) {
 			if y == 0 {
 				return fmt.Errorf("modulo by zero")
 			}
 
-			z := x % y
-			if z < 256 {
-				return iter(ast.IntNumberTerm(z))
-			}
+			return iter(ast.IntNumberTerm(x % y))
 		}
 
 		op1, err1 := builtins.NumberToInt(n1)
@@ -248,6 +235,10 @@ func builtinRem(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	}
 
 	return builtins.NewOperandTypeErr(2, operands[1].Value, "number")
+}
+
+func inSmallIntRange(num int) bool {
+	return -1000 < num && num < 1000
 }
 
 func init() {
