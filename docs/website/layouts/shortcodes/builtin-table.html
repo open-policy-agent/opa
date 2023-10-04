@@ -12,12 +12,13 @@
 {{- end -}}
 
 <h3 id={{ $id }}>{{ $title | title }}</h3>
+
+{{- $bimd := index (index site.Data.versions $version) "builtin_metadata" }}
 <table class="table bi-cat is-hoverable">
     <tbody>
-    {{- range $name := index site.Data.builtin_metadata._categories $cat }}
+    {{- range $name := index $bimd._categories $cat }}
     {{- $anchor := anchorize (printf "builtin-%s-%s" $cat $name) }}
-    {{- $bi := index site.Data.builtin_metadata $name }}
-    {{- if in $bi.available $version }}
+    {{- $bi := index $bimd $name }}
     <tr id="{{ $anchor }}">
         <th>
             <a class="self-link" href="#{{ $anchor }}">
@@ -94,7 +95,6 @@
             </div>
         </td>
     </tr>
-    {{- end }}
     {{- end }}
     </tbody>
 </table>

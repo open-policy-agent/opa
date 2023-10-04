@@ -88,13 +88,18 @@ fi
 
 for release in "${RELEASES[@]}"; do
     version_docs_dir=${ROOT_DIR}/docs/website/generated/docs/${release}
+    version_builtin_metadata_dir=${ROOT_DIR}/docs/website/data/versions/${release}
     mkdir -p ${version_docs_dir}
+    mkdir -p ${version_builtin_metadata_dir}
 
     echo "Checking out release ${release}"
 
     # Don't error if the checkout fails
     set +e
     git archive --format=tar ${release} content | tar x -C ${version_docs_dir} --strip-components=1
+    cd ${ROOT_DIR}
+    git archive --format=tar ${release} builtin_metadata.json | tar x -C ${version_builtin_metadata_dir}
+    cd -
     errc=$?
     set -e
 
@@ -116,6 +121,11 @@ echo "- edge" >> ${RELEASES_YAML_FILE}
 # Use a relative link so it works in a container more easily.
 mkdir -p ${ROOT_DIR}/docs/website/generated/docs
 ln -s ../../../content ${ROOT_DIR}/docs/website/generated/docs/edge
+
+# this is a special case for the "edge" version, we must use the builtin_metadata.json from main here
+# otherwise there are no matches when building the tables.
+mkdir -p ${ROOT_DIR}/docs/website/data/versions/edge
+cp ${ROOT_DIR}/builtin_metadata.json ${ROOT_DIR}/docs/website/data/versions/edge/builtin_metadata.json
 
 # Create a "latest" version from the latest semver found
 if [[ ${DEV} == "" ]]; then
