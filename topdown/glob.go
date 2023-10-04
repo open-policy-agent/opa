@@ -23,7 +23,7 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	switch operands[1].Value.(type) {
 	case ast.Null:
 		delimiters = []rune{}
-	case *ast.Array:
+	case ast.Array:
 		delimiters, err = builtins.RuneSliceOperand(operands[1].Value, 2)
 		if err != nil {
 			return err

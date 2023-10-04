@@ -1809,7 +1809,7 @@ func Copy(x interface{}) interface{} {
 		return x.Copy()
 	case *object:
 		return x.Copy()
-	case *Array:
+	case *array:
 		return x.Copy()
 	case Ref:
 		return x.Copy()

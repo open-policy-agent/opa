@@ -168,7 +168,7 @@ func TestObjectSetOperations(t *testing.T) {
 
 	r2 := a.Intersect(b)
 	var expectedTerms []*Term
-	MustParseTerm(`["c", "d", "q"]`).Value.(*Array).Foreach(func(t *Term) {
+	MustParseTerm(`["c", "d", "q"]`).Value.(Array).Foreach(func(t *Term) {
 		expectedTerms = append(expectedTerms, t)
 	})
 	if len(r2) != 1 || !termSliceEqual(r2[0][:], expectedTerms) {
@@ -386,15 +386,15 @@ func TestHashArray(t *testing.T) {
 	stmt1 := MustParseStatement(doc)
 	stmt2 := MustParseStatement(doc)
 
-	arr1 := stmt1.(Body)[0].Terms.(*Term).Value.(*Array)
-	arr2 := stmt2.(Body)[0].Terms.(*Term).Value.(*Array)
+	arr1 := stmt1.(Body)[0].Terms.(*Term).Value.(Array)
+	arr2 := stmt2.(Body)[0].Terms.(*Term).Value.(Array)
 
 	if arr1.Hash() != arr2.Hash() {
 		t.Errorf("Expected hash codes to be equal")
 	}
 
 	// Calculate hash like we did before moving the caching to create/update:
-	exp := termSliceHash(arr1.elems)
+	exp := termSliceHash(arr1.elems())
 
 	if act := arr1.Hash(); exp != act {
 		t.Errorf("expected %v, got %v", exp, act)
@@ -403,7 +403,7 @@ func TestHashArray(t *testing.T) {
 	for j := 0; j < arr1.Len(); j++ {
 		for i := 0; i <= j; i++ {
 			slice := arr1.Slice(i, j)
-			exp := termSliceHash(slice.elems)
+			exp := termSliceHash(slice.elems())
 			if act := slice.Hash(); exp != act {
 				t.Errorf("arr1[%d:%d]: expected %v, got %v", i, j, exp, act)
 			}
@@ -943,7 +943,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 }
 
 func TestArrayOperations(t *testing.T) {
-	arr := MustParseTerm(`[1,2,3,4]`).Value.(*Array)
+	arr := MustParseTerm(`[1,2,3,4]`).Value.(Array)
 
 	getTests := []struct {
 		input    string
@@ -982,13 +982,13 @@ func TestArrayOperations(t *testing.T) {
 		note     string
 		input    string
 		expected []string
-		iterator func(arr *Array)
+		iterator func(arr Array)
 	}{
 		{
 			"for",
 			`[1, 2, 3, 4]`,
 			[]string{"1", "2", "3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				for i := 0; i < arr.Len(); i++ {
 					results = append(results, arr.Elem(i))
 				}
@@ -998,7 +998,7 @@ func TestArrayOperations(t *testing.T) {
 			"foreach",
 			"[1, 2, 3, 4]",
 			[]string{"1", "2", "3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1008,7 +1008,7 @@ func TestArrayOperations(t *testing.T) {
 			"until",
 			"[1, 2, 3, 4]",
 			[]string{"1"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Until(func(v *Term) bool {
 					results = append(results, v)
 					return len(results) == 1
@@ -1019,7 +1019,7 @@ func TestArrayOperations(t *testing.T) {
 			"append",
 			"[1, 2]",
 			[]string{"1", "2", "3"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Append(MustParseTerm("3")).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1029,7 +1029,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Slice(2, 4).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1039,7 +1039,7 @@ func TestArrayOperations(t *testing.T) {
 			"slice",
 			"[1, 2, 3, 4]",
 			[]string{"3", "4"},
-			func(arr *Array) {
+			func(arr Array) {
 				arr.Slice(2, -1).Foreach(func(v *Term) {
 					results = append(results, v)
 				})
@@ -1049,7 +1049,7 @@ func TestArrayOperations(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			arr := MustParseTerm(tc.input).Value.(*Array)
+			arr := MustParseTerm(tc.input).Value.(Array)
 
 			var expected []*Term
 			for _, e := range tc.expected {
@@ -1064,6 +1064,723 @@ func TestArrayOperations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLazyArrayCompare(t *testing.T) {
+	tests := []struct {
+		note   string
+		input  []interface{}
+		other  Value
+		exp    int
+		forced bool
+	}{
+		{
+			note:   "empty",
+			input:  []interface{}{"a", "b", "c"},
+			other:  NewArray(),
+			exp:    1,
+			forced: true,
+		},
+		{
+			note:   "equal",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`["a", "b", "c"]`).Value,
+			exp:    0,
+			forced: true,
+		},
+		{
+			note:   "same size, different values",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`["a", "x", "c"]`).Value,
+			exp:    -1,
+			forced: true,
+		},
+		{
+			note:   "different type",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`{"a": "b", "c": "d"}`).Value,
+			exp:    -1,
+			forced: false, // comparing a different type should not force realization into non-lazy array
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			x := LazyArray(tc.input)
+			if act := x.Compare(tc.other); tc.exp != act {
+				t.Errorf("Expected %v but got %v", tc.exp, act)
+			}
+			assertForced(t, x, tc.forced)
+		})
+	}
+}
+
+func TestLazyArrayFind(t *testing.T) {
+	tests := []struct {
+		note     string
+		input    []interface{}
+		ref      Ref
+		exp      interface{}
+		expCache map[int]*Term
+	}{
+		{
+			note:  "empty",
+			input: []interface{}{},
+			ref:   Ref{IntNumberTerm(1)},
+			exp:   errFindNotFound,
+		},
+		{
+			note:  "invalid index term",
+			input: []interface{}{"a", "b", "c"},
+			ref:   Ref{StringTerm("foo")},
+			exp:   errFindNotFound,
+		},
+		{
+			note:  "out of bounds",
+			input: []interface{}{"a", "b", "c"},
+			ref:   Ref{IntNumberTerm(7)},
+			exp:   errFindNotFound,
+		},
+		{
+			note:  "hit",
+			input: []interface{}{"a", "b", "c"},
+			ref:   Ref{IntNumberTerm(1)},
+			exp:   StringTerm("b"),
+			expCache: map[int]*Term{
+				1: NewTerm(String("b")),
+			},
+		},
+		{
+			note:  "hit first",
+			input: []interface{}{"a", "b", "c"},
+			ref:   Ref{IntNumberTerm(0)},
+			exp:   StringTerm("a"),
+			expCache: map[int]*Term{
+				0: NewTerm(String("a")),
+			},
+		},
+		{
+			note:  "hit last",
+			input: []interface{}{"a", "b", "c"},
+			ref:   Ref{IntNumberTerm(2)},
+			exp:   StringTerm("c"),
+			expCache: map[int]*Term{
+				2: NewTerm(String("c")),
+			},
+		},
+		{
+			note: "nested array, deep hit",
+			input: []interface{}{
+				[]interface{}{"a", "b", "c"},
+			},
+			ref: Ref{IntNumberTerm(0), IntNumberTerm(1)},
+			exp: StringTerm("b"),
+			expCache: map[int]*Term{
+				0: NewTerm(LazyArray([]interface{}{"a", "b", "c"})),
+			},
+		},
+		{
+			note: "nested array, no hit",
+			input: []interface{}{
+				[]interface{}{"a", "b", "c"},
+			},
+			ref: Ref{IntNumberTerm(0), IntNumberTerm(9)},
+			exp: errFindNotFound,
+			expCache: map[int]*Term{
+				0: NewTerm(LazyArray([]interface{}{"a", "b", "c"})),
+			},
+		},
+		{
+			note: "nested object, deep hit",
+			input: []interface{}{
+				map[string]interface{}{"a": "b", "c": "d"},
+			},
+			ref: Ref{IntNumberTerm(0), StringTerm("c")},
+			exp: StringTerm("d"),
+			expCache: map[int]*Term{
+				0: NewTerm(LazyObject(map[string]interface{}{"a": "b", "c": "d"})),
+			},
+		},
+		{
+			note: "nested object, no hit",
+			input: []interface{}{
+				map[string]interface{}{"a": "b", "c": "d"},
+			},
+			ref: Ref{IntNumberTerm(0), StringTerm("x")},
+			exp: errFindNotFound,
+			expCache: map[int]*Term{
+				0: NewTerm(LazyObject(map[string]interface{}{"a": "b", "c": "d"})),
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			arr := LazyArray(tc.input).(*lazyArray)
+			v, err := arr.Find(tc.ref)
+			switch exp := tc.exp.(type) {
+			case Value:
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				if Compare(v, exp) != 0 {
+					t.Fatalf("Expected %v, got %v", exp, v)
+				}
+			case error:
+				if err != exp {
+					t.Fatalf("Expected error %v, got error: %v, and value: %v", exp, err, v)
+				}
+			case nil:
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+				if v != nil {
+					t.Fatalf("Unexpected value %v", v)
+				}
+			}
+
+			if len(tc.expCache) != len(arr.cache) {
+				t.Fatalf("Expected cache %v, got %v", tc.expCache, arr.cache)
+			}
+			for i, exp := range tc.expCache {
+				if act, ok := arr.cache[i]; !ok {
+					t.Fatalf("Expected cached value %v at %d, got nothing", exp, i)
+				} else if Compare(act.Value, exp.Value) != 0 {
+					t.Fatalf("Expected cached value %v at %d, got %v", exp, i, act)
+				}
+			}
+		})
+	}
+}
+
+func TestLazyArrayHash(t *testing.T) {
+	arr := LazyArray([]interface{}{1, "b", true})
+	nonLazy := MustParseTerm(`[1, "b", true]`)
+	if arr.Hash() != nonLazy.Hash() {
+		t.Errorf("Expected hash codes to be equal")
+	}
+	assertForced(t, arr, true)
+}
+
+func TestLazyArrayIsGround(t *testing.T) {
+	x := LazyArray([]interface{}{1, 2, 3})
+	// lazy data structures are always ground
+	if !x.IsGround() {
+		t.Errorf("Expected %v to be ground", x)
+	}
+}
+
+func TestLazyArrayString(t *testing.T) {
+	x := LazyArray([]interface{}{1, 2, 3})
+	expected := "[1, 2, 3]"
+	if s := x.String(); s != expected {
+		t.Errorf("Expected %v to be %s", s, expected)
+	}
+	assertForced(t, x, true)
+}
+
+func TestLazyArrayCopy(t *testing.T) {
+	x := LazyArray([]interface{}{1, 2, 3}).(*lazyArray)
+	cpy := x.Copy()
+	y, ok := cpy.(*lazyArray)
+	if !ok {
+		t.Errorf("Expected copy to be lazy")
+	}
+	if util.Compare(x.native, y.native) != 0 {
+		t.Errorf("Expected %v to be %v", x.native, y.native)
+	}
+	assertForced(t, x, false)
+	assertForced(t, y, false)
+}
+
+func TestLazyArrayCopy_Forced(t *testing.T) {
+	x := LazyArray([]interface{}{1, 2, 3}).(*lazyArray)
+	x.force()
+	cpy := x.Copy()
+	y, ok := cpy.(*lazyArray)
+	if !ok {
+		t.Errorf("Expected copy to be lazy")
+	}
+	if util.Compare(x.native, y.native) != 0 {
+		t.Errorf("Expected %v to be %v", x.native, y.native)
+	}
+	assertForced(t, x, true)
+	assertForced(t, y, true)
+}
+
+func TestLazyArrayCopy_Cache(t *testing.T) {
+	x := LazyArray([]interface{}{"a", "b", "c"}).(*lazyArray)
+
+	v := x.Get(IntNumberTerm(1))
+	if v.Value.Compare(String("b")) != 0 {
+		t.Errorf("Expected %v to be %v", v, String("b"))
+	}
+	if len(x.cache) != 1 {
+		t.Errorf("Expected cache to have 1 entry but got: %v", x.cache)
+	}
+
+	cpy := x.Copy()
+	y, ok := cpy.(*lazyArray)
+	if !ok {
+		t.Errorf("Expected copy to be lazy")
+	}
+	if util.Compare(x.native, y.native) != 0 {
+		t.Errorf("Expected native %v to be %v", x.native, y.native)
+	}
+	if !equalCache(x.cache, y.cache) {
+		t.Errorf("Expected cache %v to be %v", x.cache, y.cache)
+	}
+	assertForced(t, x, false)
+	assertForced(t, y, false)
+}
+
+func equalCache(a, b map[int]*Term) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if v2, ok := b[k]; !ok || v.Value.Compare(v2.Value) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func TestLazyArrayEqual(t *testing.T) {
+	tests := []struct {
+		note   string
+		input  []interface{}
+		other  Value
+		exp    bool
+		forced bool
+	}{
+		{
+			note:   "empty",
+			input:  []interface{}{"a", "b", "c"},
+			other:  NewArray(),
+			exp:    false,
+			forced: true,
+		},
+		{
+			note:   "equal",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`["a", "b", "c"]`).Value,
+			exp:    true,
+			forced: true,
+		},
+		{
+			note:   "same size, different values",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`["a", "x", "c"]`).Value,
+			exp:    false,
+			forced: true,
+		},
+		{
+			note:   "different type",
+			input:  []interface{}{"a", "b", "c"},
+			other:  MustParseTerm(`{"a": "b", "c": "d"}`).Value,
+			exp:    false,
+			forced: false, // comparing a different type should not force realization into non-lazy array
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			x := LazyArray(tc.input)
+			if act := x.Equal(tc.other); tc.exp != act {
+				t.Errorf("Expected %v but got %v", tc.exp, act)
+			}
+			assertForced(t, x, tc.forced)
+		})
+	}
+}
+
+func TestLazyArrayGet(t *testing.T) {
+	tests := []struct {
+		note    string
+		input   []interface{}
+		term    *Term
+		exp     *Term
+		expLazy bool
+	}{
+		{
+			note:  "empty",
+			input: []interface{}{},
+			term:  IntNumberTerm(0),
+			exp:   nil,
+		},
+		{
+			note:  "hit",
+			input: []interface{}{"a", "b", "c"},
+			term:  IntNumberTerm(1),
+			exp:   StringTerm("b"),
+		},
+		{
+			note:  "hit first",
+			input: []interface{}{"a", "b", "c"},
+			term:  IntNumberTerm(0),
+			exp:   StringTerm("a"),
+		},
+		{
+			note:  "hit last",
+			input: []interface{}{"a", "b", "c"},
+			term:  IntNumberTerm(2),
+			exp:   StringTerm("c"),
+		},
+		{
+			note:  "invalid index term",
+			input: []interface{}{"a", "b", "c"},
+			term:  StringTerm("foo"),
+			exp:   nil,
+		},
+		{
+			note:  "out of bounds",
+			input: []interface{}{"a", "b", "c"},
+			term:  IntNumberTerm(3),
+			exp:   nil,
+		},
+		{
+			note: "nested array",
+			input: []interface{}{
+				"foo",
+				[]interface{}{"a", "b", "c"},
+				"bar",
+			},
+			term:    IntNumberTerm(1),
+			exp:     MustParseTerm(`["a", "b", "c"]`),
+			expLazy: true,
+		},
+		{
+			note: "nested object",
+			input: []interface{}{
+				"foo",
+				map[string]interface{}{"a": "b", "c": "d"},
+				"bar",
+			},
+			term:    IntNumberTerm(1),
+			exp:     MustParseTerm(`{"a": "b", "c": "d"}`),
+			expLazy: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			arr := LazyArray(tc.input)
+
+			act := arr.Get(tc.term)
+
+			if tc.exp == nil {
+				if act != nil {
+					t.Errorf("Expected nil but got %v", act)
+				}
+				if len(arr.(*lazyArray).cache) != 0 {
+					t.Errorf("Expected cache to be empty but got %v", arr.(*lazyArray).cache)
+				}
+			} else {
+				if tc.exp.Value.Compare(act.Value) != 0 {
+					t.Errorf("Expected %v but got %v", tc.exp, act)
+				}
+
+				if _, isLazy := act.Value.(lazy); isLazy != tc.expLazy {
+					t.Errorf("Expected lazy value=%v but got %v", tc.expLazy, isLazy)
+				}
+
+				i, _ := tc.term.Value.(Number).Int()
+				if Compare(arr.(*lazyArray).cache[i], tc.exp) != 0 {
+					t.Errorf("Expected cached value to be %v but got %v", tc.exp, arr.(*lazyArray).cache[i])
+				}
+			}
+
+			assertForced(t, arr, false)
+		})
+	}
+}
+
+func TestLazyArraySorted(t *testing.T) {
+	arr := LazyArray([]interface{}{3, 1, 2, 4})
+	sorted := arr.Sorted()
+	exp := MustParseTerm(`[1, 2, 3, 4]`)
+	if Compare(sorted, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, sorted)
+	}
+	assertForced(t, arr, true)
+}
+
+func TestLazyArrayLen(t *testing.T) {
+	arr := LazyArray([]interface{}{1, 2, 3})
+	if arr.Len() != 3 {
+		t.Fatalf("Expected 3 but got %v", arr.Len())
+	}
+	assertForced(t, arr, false)
+}
+
+func TestLazyArrayElem(t *testing.T) {
+	tests := []struct {
+		note    string
+		input   []interface{}
+		i       int
+		exp     *Term
+		expLazy bool
+	}{
+		{
+			note:  "empty",
+			input: []interface{}{},
+			i:     0,
+			exp:   nil,
+		},
+		{
+			note:  "hit",
+			input: []interface{}{"a", "b", "c"},
+			i:     1,
+			exp:   StringTerm("b"),
+		},
+		{
+			note:  "hit first",
+			input: []interface{}{"a", "b", "c"},
+			i:     0,
+			exp:   StringTerm("a"),
+		},
+		{
+			note:  "hit last",
+			input: []interface{}{"a", "b", "c"},
+			i:     2,
+			exp:   StringTerm("c"),
+		},
+		{
+			note:  "out of bounds",
+			input: []interface{}{"a", "b", "c"},
+			i:     3,
+			exp:   nil,
+		},
+		{
+			note: "nested array",
+			input: []interface{}{
+				"foo",
+				[]interface{}{"a", "b", "c"},
+				"bar",
+			},
+			i:       1,
+			exp:     MustParseTerm(`["a", "b", "c"]`),
+			expLazy: true,
+		},
+		{
+			note: "nested object",
+			input: []interface{}{
+				"foo",
+				map[string]interface{}{"a": "b", "c": "d"},
+				"bar",
+			},
+			i:       1,
+			exp:     MustParseTerm(`{"a": "b", "c": "d"}`),
+			expLazy: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			arr := LazyArray(tc.input)
+
+			act := arr.Elem(tc.i)
+
+			if tc.exp == nil {
+				if act != nil {
+					t.Errorf("Expected nil but got %v", act)
+				}
+				if len(arr.(*lazyArray).cache) != 0 {
+					t.Errorf("Expected cache to be empty but got %v", arr.(*lazyArray).cache)
+				}
+			} else {
+				if tc.exp.Value.Compare(act.Value) != 0 {
+					t.Errorf("Expected %v but got %v", tc.exp, act)
+				}
+
+				if _, isLazy := act.Value.(lazy); isLazy != tc.expLazy {
+					t.Errorf("Expected lazy value=%v but got %v", tc.expLazy, isLazy)
+				}
+
+				if Compare(arr.(*lazyArray).cache[tc.i], tc.exp) != 0 {
+					t.Errorf("Expected cached value to be %v but got %v", tc.exp, arr.(*lazyArray).cache[tc.i])
+				}
+			}
+
+			assertForced(t, arr, false)
+		})
+	}
+}
+
+func TestLazyArraySlice(t *testing.T) {
+	arr := LazyArray([]interface{}{"a", "b", "c", "d", "e"})
+	slice := arr.Slice(1, 3)
+	exp := MustParseTerm(`["b", "c"]`)
+	if Compare(slice, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, slice)
+	}
+	assertForced(t, arr, true)
+}
+
+func TestLazyArrayUntil(t *testing.T) {
+	data := []interface{}{"a", "b", "c"}
+	arr := LazyArray(data)
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	i := 0
+	ret := arr.Until(func(value *Term) bool {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+		return false
+	})
+	if ret {
+		t.Fatalf("Expected false to be returned, got %v", ret)
+	}
+
+	assertForced(t, arr, false)
+
+	// Assert cached values are picked up
+
+	_ = arr.Elem(1) // puts term at 1 in cache
+	data[1] = "foo" // change underlying data, to verify we pull from cache
+	i = 0
+	ret = arr.Until(func(value *Term) bool {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+		return false
+	})
+	if ret {
+		t.Fatalf("Expected false to be returned, got %v", ret)
+	}
+
+	assertForced(t, arr, false)
+
+	// Assert iteration can be aborted
+
+	i = 0
+	ret = arr.Until(func(value *Term) bool {
+		if i == 1 {
+			return true
+		}
+		i++
+		return false
+	})
+	if !ret {
+		t.Fatalf("Expected true to be returned, got %v", ret)
+	}
+	if i != 1 {
+		t.Fatalf("Expected itaration to stop at 1, stopped at %d", i)
+	}
+}
+
+func TestLazyArrayIter(t *testing.T) {
+	data := []interface{}{"a", "b", "c"}
+	arr := LazyArray(data)
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	i := 0
+	_ = arr.Iter(func(value *Term) error {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+		return nil
+	})
+
+	assertForced(t, arr, false)
+
+	// Assert cached values are picked up
+
+	_ = arr.Elem(1) // puts term at 1 in cache
+	data[1] = "foo" // change underlying data, to verify we pull from cache
+	i = 0
+	_ = arr.Iter(func(value *Term) error {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+		return nil
+	})
+
+	assertForced(t, arr, false)
+
+	// Assert error aborts iteration
+
+	expErr := fmt.Errorf("foobar")
+	i = 0
+	err := arr.Iter(func(value *Term) error {
+		if i == 1 {
+			return expErr
+		}
+		i++
+		return nil
+	})
+	if err != expErr {
+		t.Fatalf("Expected error %v, got %v", expErr, err)
+	}
+	if i != 1 {
+		t.Fatalf("Expected itaration to stop at 1, stopped at %d", i)
+	}
+}
+
+func TestLazyArrayForeach(t *testing.T) {
+	data := []interface{}{"a", "b", "c"}
+	arr := LazyArray(data)
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	i := 0
+	arr.Foreach(func(value *Term) {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+	})
+
+	assertForced(t, arr, false)
+
+	// Assert cached values are picked up
+
+	_ = arr.Elem(1) // puts term at 1 in cache
+	data[1] = "foo" // change underlying data, to verify we pull from cache
+	i = 0
+	arr.Foreach(func(value *Term) {
+		if Compare(value, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, value)
+		}
+		i++
+	})
+
+	assertForced(t, arr, false)
+}
+
+func TestLazyArrayAppend(t *testing.T) {
+	arr := LazyArray([]interface{}{"a", "b", "c"})
+	res := arr.Append(StringTerm("d"))
+	if _, ok := res.(*array); !ok {
+		t.Fatalf("Expected non-lazy array result")
+	}
+	exp := MustParseTerm(`["a", "b", "c", "d"]`)
+	if Compare(res, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, res)
+	}
+	assertForced(t, arr, true)
+}
+
+func TestLazyArray_set(t *testing.T) {
+	arr := LazyArray([]interface{}{"a", "b", "c"})
+	arr.set(1, StringTerm("foo"))
+	exp := MustParseTerm(`["a", "foo", "c"]`)
+	if Compare(arr, exp) != 0 {
+		t.Fatalf("Expected %v but got %v", exp, arr)
+	}
+	assertForced(t, arr, true)
+}
+
+func TestLazyArray_elems(t *testing.T) {
+	arr := LazyArray([]interface{}{"a", "b", "c"})
+	elems := arr.elems()
+	exp := []*Term{StringTerm("a"), StringTerm("b"), StringTerm("c")}
+	for i, elem := range elems {
+		if Compare(elem, exp[i]) != 0 {
+			t.Fatalf("Expected %v at %d but got %v", exp[i], i, elem)
+		}
+	}
+	assertForced(t, arr, true)
 }
 
 func TestValueToInterface(t *testing.T) {
@@ -1287,7 +2004,7 @@ func TestLazyObjectFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok = z.(*Array)
+	_, ok = z.(Array)
 	if !ok {
 		t.Errorf("expected Find() to return array, got %v %[1]T", z)
 	}
@@ -1455,15 +2172,15 @@ func TestLazyObjectCompare(t *testing.T) {
 	assertForced(t, x, true)
 }
 
-func assertForced(t *testing.T, x Object, forced bool) {
+func assertForced(t *testing.T, x Value, forced bool) {
 	t.Helper()
-	l, ok := x.(*lazyObj)
+	l, ok := x.(lazy)
 	switch {
 	case !ok:
 		t.Errorf("expected lazy object, got %v %[1]T", x)
-	case !forced && l.strict != nil:
+	case !forced && l.forced() != nil:
 		t.Errorf("expected %v to not be forced", l)
-	case forced && l.strict == nil:
+	case forced && l.forced() == nil:
 		t.Errorf("expected %v to be forced", l)
 	}
 }

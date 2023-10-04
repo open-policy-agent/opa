@@ -155,7 +155,7 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 	// so this is much less ugly than what we'd need for supporting every
 	// extant ast type!
 	switch x := value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		result := ast.NewArray()
 		// Iterate over the array's elements, and do the following:
 		// - Drop any Nulls
@@ -165,9 +165,9 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 			switch v := vTerm.Value.(type) {
 			case ast.Null:
 				continue
-			case *ast.Array:
+			case ast.Array:
 				// Safe, because we knew the type before going to prune it.
-				va := pruneIrrelevantGraphQLASTNodes(v).(*ast.Array)
+				va := pruneIrrelevantGraphQLASTNodes(v).(ast.Array)
 				if va.Len() > 0 {
 					result = result.Append(ast.NewTerm(va))
 				}
@@ -200,9 +200,9 @@ func pruneIrrelevantGraphQLASTNodes(value ast.Value) ast.Value {
 			switch v := vTerm.Value.(type) {
 			case ast.Null:
 				continue
-			case *ast.Array:
+			case ast.Array:
 				// Safe, because we knew the type before going to prune it.
-				va := pruneIrrelevantGraphQLASTNodes(v).(*ast.Array)
+				va := pruneIrrelevantGraphQLASTNodes(v).(ast.Array)
 				if va.Len() > 0 {
 					result.Insert(k, ast.NewTerm(va))
 				}

@@ -14,7 +14,7 @@ func foreachVertex(collection *ast.Term, f func(*ast.Term)) {
 	switch v := collection.Value.(type) {
 	case ast.Set:
 		v.Foreach(f)
-	case *ast.Array:
+	case ast.Array:
 		v.Foreach(f)
 	}
 }
@@ -24,7 +24,7 @@ func numberOfEdges(collection *ast.Term) int {
 	switch v := collection.Value.(type) {
 	case ast.Set:
 		return v.Len()
-	case *ast.Array:
+	case ast.Array:
 		return v.Len()
 	}
 
@@ -40,7 +40,7 @@ func builtinReachable(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 
 	var queue []*ast.Term
 	switch initial := operands[1].Value.(type) {
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)
 		})
@@ -121,7 +121,7 @@ func builtinReachablePaths(bctx BuiltinContext, operands []*ast.Term, iter func(
 	// initialised to the initial set of nodes we start out with.
 	var queue []*ast.Term
 	switch initial := operands[1].Value.(type) {
-	case *ast.Array, ast.Set:
+	case ast.Array, ast.Set:
 		foreachVertex(ast.NewTerm(initial), func(t *ast.Term) {
 			queue = append(queue, t)
 		})

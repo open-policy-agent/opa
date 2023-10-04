@@ -35,7 +35,7 @@ func builtinToNumber(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 // Deprecated in v0.13.0.
 func builtinToArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		return iter(ast.NewTerm(val))
 	case ast.Set:
 		arr := make([]*ast.Term, val.Len())
@@ -53,7 +53,7 @@ func builtinToArray(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 // Deprecated in v0.13.0.
 func builtinToSet(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch val := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		s := ast.NewSet()
 		val.Foreach(func(v *ast.Term) {
 			s.Add(v)

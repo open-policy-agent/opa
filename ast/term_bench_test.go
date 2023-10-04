@@ -131,6 +131,57 @@ func BenchmarkLazyObjectFind(b *testing.B) {
 	}
 }
 
+func BenchmarkLazyArrayLookup(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			data := make([]interface{}, n)
+			for i := 0; i < n; i++ {
+				data = append(data, i)
+			}
+			arr := LazyArray(data)
+			key := IntNumberTerm(n - 1)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				value := arr.Get(key)
+				if value == nil {
+					b.Fatal("expected hit")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkLazyArrayFind(b *testing.B) {
+	sizes := []int{5, 50, 500, 5000}
+	for _, n := range sizes {
+		for _, m := range sizes {
+			b.Run(fmt.Sprintf("%d_%d", n, m), func(b *testing.B) {
+				data := make([]interface{}, 0, n)
+				for i := 0; i < n; i++ {
+					arr := make([]string, 0, m)
+					for j := 0; j < m; j++ {
+						arr = append(arr, fmt.Sprint(j))
+					}
+					data = append(data, arr)
+				}
+				arr := LazyArray(data)
+				key := Ref{IntNumberTerm(n - 1), IntNumberTerm(m - 1)}
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					value, err := arr.Find(key)
+					if err != nil {
+						b.Fatal(err)
+					}
+					if value == nil {
+						b.Fatal("expected hit")
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkSetCreationAndLookup(b *testing.B) {
 	sizes := []int{5, 50, 500, 5000, 50000, 500000}
 	for _, n := range sizes {

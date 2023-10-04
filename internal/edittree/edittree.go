@@ -181,7 +181,7 @@ func NewEditTree(term *ast.Term) *EditTree {
 			childScalarValues:    map[int]*ast.Term{},
 			childCompositeValues: map[int]*EditTree{},
 		}
-	case *ast.Array:
+	case ast.Array:
 		tree = EditTree{
 			value:                term,
 			childScalarValues:    map[int]*ast.Term{},
@@ -301,7 +301,7 @@ func (e *EditTree) getKeyHash(key *ast.Term) (int, bool) {
 //gcassert:inline
 func isComposite(t *ast.Term) bool {
 	switch t.Value.(type) {
-	case ast.Object, ast.Set, *ast.Array:
+	case ast.Object, ast.Set, ast.Array:
 		return true
 	default:
 		return false
@@ -362,7 +362,7 @@ func (e *EditTree) Insert(key, value *ast.Term) (*EditTree, error) {
 			e.childCompositeValues = map[int]*EditTree{}
 		}
 		return e.unsafeInsertSet(key, value), nil
-	case *ast.Array:
+	case ast.Array:
 		idx, err := toIndex(e.insertions.Length(), key)
 		if err != nil {
 			return nil, err
@@ -526,7 +526,7 @@ func (e *EditTree) Delete(key *ast.Term) (*EditTree, error) {
 		// No child, lookup the key in e.value, and put in a delete if present.
 		// Error if key does not exist in e.value.
 		return e.fallbackDelete(key)
-	case *ast.Array:
+	case ast.Array:
 		idx, err := toIndex(e.insertions.Length(), key)
 		if err != nil {
 			return nil, err
@@ -710,7 +710,7 @@ func (e *EditTree) Unfold(path ast.Ref) (*EditTree, error) {
 			return child.Unfold(path[1:])
 		}
 		return nil, fmt.Errorf("path %v does not exist in set term %v", ast.Ref{path[0]}, e.value.Value)
-	case *ast.Array:
+	case ast.Array:
 		idx, err := toIndex(e.insertions.Length(), path[0])
 		if err != nil {
 			return nil, err
@@ -827,7 +827,7 @@ func (e *EditTree) Render() *ast.Term {
 			out = append(out, key)
 		})
 		return ast.SetTerm(out...)
-	case *ast.Array:
+	case ast.Array:
 		// No early exit here, because we might have just deletes on the
 		// original array. We build a new Array with modified/deleted keys.
 		out := make([]*ast.Term, 0, e.insertions.Length())
@@ -888,7 +888,7 @@ func (e *EditTree) InsertAtPath(path ast.Ref, value *ast.Term) (*EditTree, error
 		e.childKeys = map[int]*ast.Term{}
 		e.childScalarValues = map[int]*ast.Term{}
 		e.childCompositeValues = map[int]*EditTree{}
-		if v, ok := value.Value.(*ast.Array); ok {
+		if v, ok := value.Value.(ast.Array); ok {
 			bytesLength := ((v.Len() - 1) / 8) + 1 // How many bytes to use for the bit-vectors.
 			e.eliminated = bitvector.NewBitVector(make([]byte, bytesLength), v.Len())
 			e.insertions = bitvector.NewBitVector(make([]byte, bytesLength), v.Len())
@@ -1012,7 +1012,7 @@ func (e *EditTree) Exists(path ast.Ref) bool {
 			// Fallback if child lookup failed.
 			_, err := e.value.Value.Find(path)
 			return err == nil
-		case *ast.Array:
+		case ast.Array:
 			var idx int
 			idx, err := toIndex(e.insertions.Length(), path[0])
 			if err != nil {
@@ -1145,7 +1145,7 @@ func (e *EditTree) Filter(paths []ast.Ref) *ast.Term {
 			}
 		}
 		return ast.SetTerm(out...)
-	case *ast.Array:
+	case ast.Array:
 		// No early exit here, because we might have just deletes on the
 		// original array. We build a new Array with modified/deleted keys.
 		out := make([]*ast.Term, 0, renderNow.Len()+len(pathMap))

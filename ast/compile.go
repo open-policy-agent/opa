@@ -4009,7 +4009,7 @@ func resolveRef(globals map[Var]*usedRef, ignore *declaredVarStack, ref Ref) Ref
 			} else {
 				r = append(r, x)
 			}
-		case Ref, *Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
+		case Ref, Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
 			r = append(r, resolveRefsInTerm(globals, ignore, x))
 		default:
 			r = append(r, x)
@@ -4161,7 +4161,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 			return k, v, nil
 		})
 		return &cpy
-	case *Array:
+	case Array:
 		cpy := *term
 		cpy.Value = NewArray(resolveRefsInTermArray(globals, ignore, v)...)
 		return &cpy
@@ -4209,7 +4209,7 @@ func resolveRefsInTerm(globals map[Var]*usedRef, ignore *declaredVarStack, term 
 	}
 }
 
-func resolveRefsInTermArray(globals map[Var]*usedRef, ignore *declaredVarStack, terms *Array) []*Term {
+func resolveRefsInTermArray(globals map[Var]*usedRef, ignore *declaredVarStack, terms Array) []*Term {
 	cpy := make([]*Term, terms.Len())
 	for i := 0; i < terms.Len(); i++ {
 		cpy[i] = resolveRefsInTerm(globals, ignore, terms.Elem(i))
@@ -4454,7 +4454,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		generated.With = original.With
 		result.Append(generated)
 		return result, result[len(result)-1].Operand(0)
-	case *Array:
+	case Array:
 		for i := 0; i < v.Len(); i++ {
 			var t *Term
 			result, t = rewriteDynamicsOne(original, f, v.Elem(i), result)
@@ -4600,7 +4600,7 @@ func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output
 		support = append(support, expr)
 	case Ref:
 		support = expandExprRef(gen, v)
-	case *Array:
+	case Array:
 		support = expandExprTermArray(gen, v)
 	case *object:
 		cpy, _ := v.Map(func(k, v *Term) (*Term, *Term, error) {
@@ -4666,7 +4666,7 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	// first item in the slice.
 	var subject = v[0]
 	switch subject.Value.(type) {
-	case *Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
+	case Array, Object, Set, *ArrayComprehension, *SetComprehension, *ObjectComprehension, Call:
 		f := newEqualityFactory(gen)
 		assignToLocal := f.Generate(subject)
 		support = append(support, assignToLocal)
@@ -4675,7 +4675,7 @@ func expandExprRef(gen *localVarGenerator, v []*Term) (support []*Expr) {
 	return
 }
 
-func expandExprTermArray(gen *localVarGenerator, arr *Array) (support []*Expr) {
+func expandExprTermArray(gen *localVarGenerator, arr Array) (support []*Expr) {
 	for i := 0; i < arr.Len(); i++ {
 		extras, v := expandExprTerm(gen, arr.Elem(i))
 		arr.set(i, v)
@@ -5126,7 +5126,7 @@ func rewriteDeclaredAssignment(g *localVarGenerator, stack *localDeclaredVars, e
 				t.Value = gv
 			}
 			return true
-		case *Array:
+		case Array:
 			return false
 		case *object:
 			v.Foreach(func(_, v *Term) {

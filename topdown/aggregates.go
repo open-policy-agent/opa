@@ -13,7 +13,7 @@ import (
 
 func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		return iter(ast.IntNumberTerm(a.Len()))
 	case ast.Object:
 		return iter(ast.IntNumberTerm(a.Len()))
@@ -27,7 +27,7 @@ func builtinCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) e
 
 func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		sum := big.NewFloat(0)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
@@ -61,7 +61,7 @@ func builtinSum(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 
 func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		product := big.NewFloat(1)
 		err := a.Iter(func(x *ast.Term) error {
 			n, ok := x.Value.(ast.Number)
@@ -95,7 +95,7 @@ func builtinProduct(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 
 func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		if a.Len() == 0 {
 			return nil
 		}
@@ -127,7 +127,7 @@ func builtinMax(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 
 func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		if a.Len() == 0 {
 			return nil
 		}
@@ -166,7 +166,7 @@ func builtinMin(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 
 func builtinSort(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	switch a := operands[0].Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		return iter(ast.NewTerm(a.Sorted()))
 	case ast.Set:
 		return iter(ast.NewTerm(a.Sorted()))
@@ -187,7 +187,7 @@ func builtinAll(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 			return false
 		})
 		return iter(ast.BooleanTerm(res))
-	case *ast.Array:
+	case ast.Array:
 		res := true
 		match := ast.BooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
@@ -208,7 +208,7 @@ func builtinAny(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) err
 	case ast.Set:
 		res := val.Len() > 0 && val.Contains(ast.BooleanTerm(true))
 		return iter(ast.BooleanTerm(res))
-	case *ast.Array:
+	case ast.Array:
 		res := false
 		match := ast.BooleanTerm(true)
 		val.Until(func(term *ast.Term) bool {
@@ -229,7 +229,7 @@ func builtinMember(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) 
 	switch c := operands[1].Value.(type) {
 	case ast.Set:
 		return iter(ast.BooleanTerm(c.Contains(containee)))
-	case *ast.Array:
+	case ast.Array:
 		ret := false
 		c.Until(func(v *ast.Term) bool {
 			if v.Value.Compare(containee.Value) == 0 {

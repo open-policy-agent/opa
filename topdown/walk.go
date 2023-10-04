@@ -23,7 +23,7 @@ func evalWalk(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error
 	return walk(filter, nil, input, iter)
 }
 
-func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
+func walk(filter, path ast.Array, input *ast.Term, iter func(*ast.Term) error) error {
 
 	if filter == nil || filter.Len() == 0 {
 		if path == nil {
@@ -48,7 +48,7 @@ func walk(filter, path *ast.Array, input *ast.Term, iter func(*ast.Term) error) 
 	}
 
 	switch v := input.Value.(type) {
-	case *ast.Array:
+	case ast.Array:
 		for i := 0; i < v.Len(); i++ {
 			path = pathAppend(path, ast.IntNumberTerm(i))
 			if err := walk(filter, path, v.Elem(i), iter); err != nil {
@@ -91,7 +91,7 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 		return v.Iter(func(_, v *ast.Term) error {
 			return walkNoPath(v, iter)
 		})
-	case *ast.Array:
+	case ast.Array:
 		for i := 0; i < v.Len(); i++ {
 			if err := walkNoPath(v.Elem(i), iter); err != nil {
 				return err
@@ -106,7 +106,7 @@ func walkNoPath(input *ast.Term, iter func(*ast.Term) error) error {
 	return nil
 }
 
-func pathAppend(path *ast.Array, key *ast.Term) *ast.Array {
+func pathAppend(path ast.Array, key *ast.Term) ast.Array {
 	if path == nil {
 		return ast.NewArray(key)
 	}
@@ -114,10 +114,10 @@ func pathAppend(path *ast.Array, key *ast.Term) *ast.Array {
 	return path.Append(key)
 }
 
-func getOutputPath(operands []*ast.Term) *ast.Array {
+func getOutputPath(operands []*ast.Term) ast.Array {
 	if len(operands) == 2 {
-		if arr, ok := operands[1].Value.(*ast.Array); ok && arr.Len() == 2 {
-			if path, ok := arr.Elem(0).Value.(*ast.Array); ok {
+		if arr, ok := operands[1].Value.(ast.Array); ok && arr.Len() == 2 {
+			if path, ok := arr.Elem(0).Value.(ast.Array); ok {
 				return path
 			}
 		}
@@ -127,7 +127,7 @@ func getOutputPath(operands []*ast.Term) *ast.Array {
 
 func pathIsWildcard(operands []*ast.Term) bool {
 	if len(operands) == 2 {
-		if arr, ok := operands[1].Value.(*ast.Array); ok && arr.Len() == 2 {
+		if arr, ok := operands[1].Value.(ast.Array); ok && arr.Len() == 2 {
 			if v, ok := arr.Elem(0).Value.(ast.Var); ok {
 				return v.IsWildcard()
 			}

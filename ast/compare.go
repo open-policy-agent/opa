@@ -162,9 +162,14 @@ func Compare(a, b interface{}) int {
 	case Ref:
 		b := b.(Ref)
 		return termSliceCompare(a, b)
-	case *Array:
-		b := b.(*Array)
-		return termSliceCompare(a.elems, b.elems)
+	case *lazyArray:
+		return Compare(a.force(), b)
+	case *array:
+		if x, ok := b.(*lazyArray); ok {
+			b = x.force()
+		}
+		b := b.(*array)
+		return termSliceCompare(a.elems(), b.elems())
 	case *lazyObj:
 		return Compare(a.force(), b)
 	case *object:
@@ -260,7 +265,7 @@ func sortOrder(x interface{}) int {
 		return 4
 	case Ref:
 		return 5
-	case *Array:
+	case Array:
 		return 6
 	case Object:
 		return 7

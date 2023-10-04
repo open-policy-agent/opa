@@ -180,7 +180,7 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 		return json.Number(v), nil
 	case String:
 		return string(v), nil
-	case *Array:
+	case *array:
 		buf := []interface{}{}
 		for i := 0; i < v.Len(); i++ {
 			x1, err := valueToInterface(v.Elem(i).Value, resolver, opt)
@@ -190,6 +190,12 @@ func valueToInterface(v Value, resolver Resolver, opt JSONOpt) (interface{}, err
 			buf = append(buf, x1)
 		}
 		return buf, nil
+	case *lazyArray:
+		// TODO: add opt.CopyArrays?
+		//if opt.CopyMaps {
+		//	return valueToInterface(v.force(), resolver, opt)
+		//}
+		return v.native, nil
 	case *object:
 		buf := make(map[string]interface{}, v.Len())
 		err := v.Iter(func(k, v *Term) error {
@@ -338,7 +344,7 @@ func (term *Term) Copy() *Term {
 		cpy.Value = v
 	case Ref:
 		cpy.Value = v.Copy()
-	case *Array:
+	case *array:
 		cpy.Value = v.Copy()
 	case Set:
 		cpy.Value = v.Copy()
@@ -395,7 +401,7 @@ func (term *Term) Get(name *Term) *Term {
 	switch v := term.Value.(type) {
 	case *object:
 		return v.Get(name)
-	case *Array:
+	case *array:
 		return v.Get(name)
 	case interface {
 		Get(*Term) *Term
@@ -1134,7 +1140,7 @@ func (ref Ref) OutputVars() VarSet {
 	return vis.Vars()
 }
 
-func (ref Ref) toArray() *Array {
+func (ref Ref) toArray() Array {
 	a := NewArray()
 	for _, term := range ref {
 		if _, ok := term.Value.(String); ok {
@@ -1154,52 +1160,73 @@ func ArrayTerm(a ...*Term) *Term {
 	return NewTerm(NewArray(a...))
 }
 
+// Array represents an array as defined by the language. Arrays are similar to the
+// same types as defined by JSON with the exception that they can contain Vars
+// and References.
+type Array interface {
+	Value
+	Copy() Array
+	Equal(other Value) bool
+	Get(pos *Term) *Term
+	Sorted() Array
+	Len() int
+	Elem(i int) *Term
+	Slice(i, j int) Array
+	Until(f func(*Term) bool) bool
+	Iter(f func(*Term) error) error
+	Foreach(f func(*Term))
+	Append(v *Term) Array
+	set(i int, v *Term)
+	elems() []*Term
+}
+
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
-func NewArray(a ...*Term) *Array {
+func NewArray(a ...*Term) Array {
 	hs := make([]int, len(a))
 	for i, e := range a {
 		hs[i] = e.Value.Hash()
 	}
-	arr := &Array{elems: a, hashs: hs, ground: termSliceIsGround(a)}
+	arr := &array{elements: a, hashs: hs, ground: termSliceIsGround(a)}
 	arr.rehash()
 	return arr
 }
 
-// Array represents an array as defined by the language. Arrays are similar to the
-// same types as defined by JSON with the exception that they can contain Vars
-// and References.
-type Array struct {
-	elems  []*Term
-	hashs  []int // element hashes
-	hash   int
-	ground bool
+type array struct {
+	elements []*Term
+	hashs    []int // element hashes
+	hash     int
+	ground   bool
+}
+
+func (arr *array) elems() []*Term {
+	return arr.elements
 }
 
 // Copy returns a deep copy of arr.
-func (arr *Array) Copy() *Array {
-	cpy := make([]int, len(arr.elems))
+func (arr *array) Copy() Array {
+	cpy := make([]int, len(arr.elements))
 	copy(cpy, arr.hashs)
-	return &Array{
-		elems:  termSliceCopy(arr.elems),
-		hashs:  cpy,
-		hash:   arr.hash,
-		ground: arr.IsGround()}
+	return &array{
+		elements: termSliceCopy(arr.elements),
+		hashs:    cpy,
+		hash:     arr.hash,
+		ground:   arr.IsGround()}
 }
 
 // Equal returns true if arr is equal to other.
-func (arr *Array) Equal(other Value) bool {
+func (arr *array) Equal(other Value) bool {
 	return Compare(arr, other) == 0
 }
 
 // Compare compares arr to other, return <0, 0, or >0 if it is less than, equal to,
 // or greater than other.
-func (arr *Array) Compare(other Value) int {
+func (arr *array) Compare(other Value) int {
 	return Compare(arr, other)
 }
 
 // Find returns the value at the index or an out-of-range error.
-func (arr *Array) Find(path Ref) (Value, error) {
+func (arr *array) Find(path Ref) (Value, error) {
 	if len(path) == 0 {
 		return arr, nil
 	}
@@ -1218,7 +1245,7 @@ func (arr *Array) Find(path Ref) (Value, error) {
 }
 
 // Get returns the element at pos or nil if not possible.
-func (arr *Array) Get(pos *Term) *Term {
+func (arr *array) Get(pos *Term) *Term {
 	num, ok := pos.Value.(Number)
 	if !ok {
 		return nil
@@ -1229,47 +1256,47 @@ func (arr *Array) Get(pos *Term) *Term {
 		return nil
 	}
 
-	if i >= 0 && i < len(arr.elems) {
-		return arr.elems[i]
+	if i >= 0 && i < len(arr.elements) {
+		return arr.elements[i]
 	}
 
 	return nil
 }
 
 // Sorted returns a new Array that contains the sorted elements of arr.
-func (arr *Array) Sorted() *Array {
-	cpy := make([]*Term, len(arr.elems))
+func (arr *array) Sorted() Array {
+	cpy := make([]*Term, len(arr.elements))
 	for i := range cpy {
-		cpy[i] = arr.elems[i]
+		cpy[i] = arr.elements[i]
 	}
 	sort.Sort(termSlice(cpy))
 	a := NewArray(cpy...)
-	a.hashs = arr.hashs
+	a.(*array).hashs = arr.hashs
 	return a
 }
 
 // Hash returns the hash code for the Value.
-func (arr *Array) Hash() int {
+func (arr *array) Hash() int {
 	return arr.hash
 }
 
 // IsGround returns true if all of the Array elements are ground.
-func (arr *Array) IsGround() bool {
+func (arr *array) IsGround() bool {
 	return arr.ground
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
-func (arr *Array) MarshalJSON() ([]byte, error) {
-	if len(arr.elems) == 0 {
+func (arr *array) MarshalJSON() ([]byte, error) {
+	if len(arr.elements) == 0 {
 		return []byte(`[]`), nil
 	}
-	return json.Marshal(arr.elems)
+	return json.Marshal(arr.elements)
 }
 
-func (arr *Array) String() string {
+func (arr *array) String() string {
 	var b strings.Builder
 	b.WriteRune('[')
-	for i, e := range arr.elems {
+	for i, e := range arr.elements {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -1280,17 +1307,17 @@ func (arr *Array) String() string {
 }
 
 // Len returns the number of elements in the array.
-func (arr *Array) Len() int {
-	return len(arr.elems)
+func (arr *array) Len() int {
+	return len(arr.elements)
 }
 
 // Elem returns the element i of arr.
-func (arr *Array) Elem(i int) *Term {
-	return arr.elems[i]
+func (arr *array) Elem(i int) *Term {
+	return arr.elements[i]
 }
 
 // rehash updates the cached hash of arr.
-func (arr *Array) rehash() {
+func (arr *array) rehash() {
 	arr.hash = 0
 	for _, h := range arr.hashs {
 		arr.hash += h
@@ -1298,9 +1325,9 @@ func (arr *Array) rehash() {
 }
 
 // set sets the element i of arr.
-func (arr *Array) set(i int, v *Term) {
+func (arr *array) set(i int, v *Term) {
 	arr.ground = arr.ground && v.IsGround()
-	arr.elems[i] = v
+	arr.elements[i] = v
 	arr.hashs[i] = v.Value.Hash()
 }
 
@@ -1308,30 +1335,30 @@ func (arr *Array) set(i int, v *Term) {
 // indicates the end of the array. The returned value array is not a
 // copy and any modifications to either of arrays may be reflected to
 // the other.
-func (arr *Array) Slice(i, j int) *Array {
+func (arr *array) Slice(i, j int) Array {
 	var elems []*Term
 	var hashs []int
 	if j == -1 {
-		elems = arr.elems[i:]
+		elems = arr.elements[i:]
 		hashs = arr.hashs[i:]
 	} else {
-		elems = arr.elems[i:j]
+		elems = arr.elements[i:j]
 		hashs = arr.hashs[i:j]
 	}
 	// If arr is ground, the slice is, too.
 	// If it's not, the slice could still be.
 	gr := arr.ground || termSliceIsGround(elems)
 
-	s := &Array{elems: elems, hashs: hashs, ground: gr}
+	s := &array{elements: elems, hashs: hashs, ground: gr}
 	s.rehash()
 	return s
 }
 
 // Iter calls f on each element in arr. If f returns an error,
 // iteration stops and the return value is the error.
-func (arr *Array) Iter(f func(*Term) error) error {
-	for i := range arr.elems {
-		if err := f(arr.elems[i]); err != nil {
+func (arr *array) Iter(f func(*Term) error) error {
+	for i := range arr.elements {
+		if err := f(arr.elements[i]); err != nil {
 			return err
 		}
 	}
@@ -1339,7 +1366,7 @@ func (arr *Array) Iter(f func(*Term) error) error {
 }
 
 // Until calls f on each element in arr. If f returns true, iteration stops.
-func (arr *Array) Until(f func(*Term) bool) bool {
+func (arr *array) Until(f func(*Term) bool) bool {
 	err := arr.Iter(func(t *Term) error {
 		if f(t) {
 			return errStop
@@ -1350,7 +1377,7 @@ func (arr *Array) Until(f func(*Term) bool) bool {
 }
 
 // Foreach calls f on each element in arr.
-func (arr *Array) Foreach(f func(*Term)) {
+func (arr *array) Foreach(f func(*Term)) {
 	_ = arr.Iter(func(t *Term) error {
 		f(t)
 		return nil
@@ -1358,13 +1385,202 @@ func (arr *Array) Foreach(f func(*Term)) {
 }
 
 // Append appends a term to arr, returning the appended array.
-func (arr *Array) Append(v *Term) *Array {
+func (arr *array) Append(v *Term) Array {
 	cpy := *arr
-	cpy.elems = append(arr.elems, v)
+	cpy.elements = append(arr.elements, v)
 	cpy.hashs = append(arr.hashs, v.Value.Hash())
 	cpy.hash = arr.hash + v.Value.Hash()
 	cpy.ground = arr.ground && v.IsGround()
 	return &cpy
+}
+
+type lazy interface {
+	force() Value
+	forced() Value
+}
+
+type lazyArray struct {
+	strict Array
+	cache  map[int]*Term // Make a map of index->term?
+	native []interface{}
+}
+
+func (l *lazyArray) force() Value {
+	if l.strict == nil {
+		l.strict = MustInterfaceToValue(l.native).(Array)
+		// NOTE(jf): a possible performance improvement here would be to check how many
+		// entries have been realized to AST in the cache, and if some threshold compared to the
+		// total number of keys is exceeded, realize the remaining entries and set l.strict to l.cache.
+		l.cache = map[int]*Term{} // We don't need the cache anymore; drop it to free up memory.
+	}
+	return l.strict
+}
+
+func (l *lazyArray) forced() Value {
+	return l.strict
+}
+
+func LazyArray(blob []interface{}) Array {
+	return &lazyArray{native: blob, cache: map[int]*Term{}}
+}
+
+func (l *lazyArray) Compare(other Value) int {
+	if c := compareSortOrder(l, other); c != 0 {
+		return c
+	}
+	return l.force().Compare(other)
+}
+
+func (l *lazyArray) Find(path Ref) (Value, error) {
+	if l.strict != nil {
+		return l.strict.Find(path)
+	}
+
+	if len(path) == 0 {
+		return l, nil
+	}
+	num, ok := path[0].Value.(Number)
+	if !ok {
+		return nil, errFindNotFound
+	}
+	i, ok := num.Int()
+	if !ok {
+		return nil, errFindNotFound
+	}
+	if i < 0 || i >= l.Len() {
+		return nil, errFindNotFound
+	}
+	return l.Elem(i).Value.Find(path[1:])
+}
+
+func (l *lazyArray) Hash() int {
+	return l.force().Hash()
+}
+
+func (l *lazyArray) IsGround() bool {
+	return true
+}
+
+func (l *lazyArray) String() string {
+	return l.force().String()
+}
+
+func (l *lazyArray) Copy() Array {
+	return l
+}
+
+func (l *lazyArray) Equal(other Value) bool {
+	return l.Compare(other) == 0
+}
+
+func (l *lazyArray) Get(pos *Term) *Term {
+	if l.strict != nil {
+		return l.strict.Get(pos)
+	}
+
+	num, ok := pos.Value.(Number)
+	if !ok {
+		return nil
+	}
+
+	i, ok := num.Int()
+	if !ok {
+		return nil
+	}
+
+	return l.Elem(i)
+}
+
+func (l *lazyArray) Sorted() Array {
+	return l.force().(Array).Sorted()
+}
+
+func (l *lazyArray) Len() int {
+	return len(l.native)
+}
+
+func (l *lazyArray) Elem(i int) *Term {
+	if l.strict != nil {
+		return l.strict.Elem(i)
+	}
+	if t, ok := l.cache[i]; ok {
+		return t
+	}
+
+	if i >= 0 && i < len(l.native) {
+		v := l.native[i]
+		var converted Value
+
+		switch x := v.(type) {
+		case []interface{}:
+			converted = LazyArray(x)
+		case map[string]interface{}:
+			converted = LazyObject(x)
+		default:
+			converted = MustInterfaceToValue(x)
+		}
+
+		t := &Term{Value: converted}
+		l.cache[i] = t
+		return t
+	}
+
+	return nil
+}
+
+func (l *lazyArray) Slice(i, j int) Array {
+	return l.force().(Array).Slice(i, j)
+}
+
+func (l *lazyArray) Until(f func(*Term) bool) bool {
+	err := l.Iter(func(t *Term) error {
+		if f(t) {
+			return errStop
+		}
+		return nil
+	})
+	return err != nil
+}
+
+func (l *lazyArray) Iter(f func(*Term) error) error {
+	if l.strict != nil {
+		return l.strict.Iter(f)
+	}
+
+	for i, v := range l.native {
+		if c, ok := l.cache[i]; ok {
+			err := f(c)
+			if err != nil {
+				return err
+			}
+		} else {
+			term := NewTerm(MustInterfaceToValue(v))
+			l.cache[i] = term
+			if err := f(term); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (l *lazyArray) Foreach(f func(*Term)) {
+	_ = l.Iter(func(t *Term) error {
+		f(t)
+		return nil
+	}) // ignore error
+}
+
+func (l *lazyArray) Append(v *Term) Array {
+	return l.force().(Array).Append(v)
+}
+
+func (l *lazyArray) set(i int, v *Term) {
+	l.force().(Array).set(i, v)
+}
+
+func (l *lazyArray) elems() []*Term {
+	return l.force().(Array).elems()
 }
 
 // Set represents a set as defined by the language.
@@ -1382,7 +1598,7 @@ type Set interface {
 	Contains(*Term) bool
 	Map(func(*Term) (*Term, error)) (Set, error)
 	Reduce(*Term, func(*Term, *Term) (*Term, error)) (*Term, error)
-	Sorted() *Array
+	Sorted() Array
 	Slice() []*Term
 }
 
@@ -1626,7 +1842,7 @@ func (s *set) MarshalJSON() ([]byte, error) {
 }
 
 // Sorted returns an Array that contains the sorted elements of s.
-func (s *set) Sorted() *Array {
+func (s *set) Sorted() Array {
 	cpy := make([]*Term, len(s.keys))
 	copy(cpy, s.sortedKeys())
 	return NewArray(cpy...)
@@ -1875,7 +2091,7 @@ type lazyObj struct {
 	native map[string]interface{}
 }
 
-func (l *lazyObj) force() Object {
+func (l *lazyObj) force() Value {
 	if l.strict == nil {
 		l.strict = MustInterfaceToValue(l.native).(Object)
 		// NOTE(jf): a possible performance improvement here would be to check how many
@@ -1886,13 +2102,13 @@ func (l *lazyObj) force() Object {
 	return l.strict
 }
 
+func (l *lazyObj) forced() Value {
+	return l.strict
+}
+
 func (l *lazyObj) Compare(other Value) int {
-	o1 := sortOrder(l)
-	o2 := sortOrder(other)
-	if o1 < o2 {
-		return -1
-	} else if o2 < o1 {
-		return 1
+	if c := compareSortOrder(l, other); c != 0 {
+		return c
 	}
 	return l.force().Compare(other)
 }
@@ -1902,33 +2118,33 @@ func (l *lazyObj) Copy() Object {
 }
 
 func (l *lazyObj) Diff(other Object) Object {
-	return l.force().Diff(other)
+	return l.force().(Object).Diff(other)
 }
 
 func (l *lazyObj) Intersect(other Object) [][3]*Term {
-	return l.force().Intersect(other)
+	return l.force().(Object).Intersect(other)
 }
 
 func (l *lazyObj) Iter(f func(*Term, *Term) error) error {
-	return l.force().Iter(f)
+	return l.force().(Object).Iter(f)
 }
 
 func (l *lazyObj) Until(f func(*Term, *Term) bool) bool {
 	// NOTE(sr): there could be benefits in not forcing here -- if we abort because
 	// `f` returns true, we could save us from converting the rest of the object.
-	return l.force().Until(f)
+	return l.force().(Object).Until(f)
 }
 
 func (l *lazyObj) Foreach(f func(*Term, *Term)) {
-	l.force().Foreach(f)
+	l.force().(Object).Foreach(f)
 }
 
 func (l *lazyObj) Filter(filter Object) (Object, error) {
-	return l.force().Filter(filter)
+	return l.force().(Object).Filter(filter)
 }
 
 func (l *lazyObj) Map(f func(*Term, *Term) (*Term, *Term, error)) (Object, error) {
-	return l.force().Map(f)
+	return l.force().(Object).Map(f)
 }
 
 func (l *lazyObj) MarshalJSON() ([]byte, error) {
@@ -1936,11 +2152,11 @@ func (l *lazyObj) MarshalJSON() ([]byte, error) {
 }
 
 func (l *lazyObj) Merge(other Object) (Object, bool) {
-	return l.force().Merge(other)
+	return l.force().(Object).Merge(other)
 }
 
 func (l *lazyObj) MergeWith(other Object, conflictResolver func(v1, v2 *Term) (*Term, bool)) (Object, bool) {
-	return l.force().MergeWith(other, conflictResolver)
+	return l.force().(Object).MergeWith(other, conflictResolver)
 }
 
 func (l *lazyObj) Len() int {
@@ -1971,6 +2187,8 @@ func (l *lazyObj) Get(k *Term) *Term {
 			switch val := val.(type) {
 			case map[string]interface{}:
 				converted = LazyObject(val)
+			case []interface{}:
+				converted = LazyArray(val)
 			default:
 				converted = MustInterfaceToValue(val)
 			}
@@ -1982,7 +2200,7 @@ func (l *lazyObj) Get(k *Term) *Term {
 }
 
 func (l *lazyObj) Insert(k, v *Term) {
-	l.force().Insert(k, v)
+	l.force().(Object).Insert(k, v)
 }
 
 func (*lazyObj) IsGround() bool {
@@ -2039,6 +2257,8 @@ func (l *lazyObj) Find(path Ref) (Value, error) {
 			switch v := v.(type) {
 			case map[string]interface{}:
 				converted = LazyObject(v)
+			case []interface{}:
+				converted = LazyArray(v)
 			default:
 				converted = MustInterfaceToValue(v)
 			}
@@ -2593,7 +2813,7 @@ func filterObject(o Value, filter Value) (Value, error) {
 	switch v := o.(type) {
 	case String, Number, Boolean, Null:
 		return o, nil
-	case *Array:
+	case *array:
 		values := NewArray()
 		for i := 0; i < v.Len(); i++ {
 			subFilter := filteredObj.Get(StringTerm(strconv.Itoa(i)))
@@ -3246,4 +3466,15 @@ func unmarshalValue(d map[string]interface{}) (Value, error) {
 	}
 unmarshal_error:
 	return nil, fmt.Errorf("ast: unable to unmarshal term")
+}
+
+func compareSortOrder(a, b Value) int {
+	o1 := sortOrder(a)
+	o2 := sortOrder(b)
+	if o1 < o2 {
+		return -1
+	} else if o2 < o1 {
+		return 1
+	}
+	return 0
 }

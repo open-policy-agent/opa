@@ -20,7 +20,7 @@ func builtinTypeName(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 		return iter(ast.StringTerm("number"))
 	case ast.String:
 		return iter(ast.StringTerm("string"))
-	case *ast.Array:
+	case ast.Array:
 		return iter(ast.StringTerm("array"))
 	case ast.Object:
 		return iter(ast.StringTerm("object"))

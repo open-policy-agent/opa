@@ -93,7 +93,7 @@ func TestUnify(t *testing.T) {
 
 			expr := MustParseBody(tc.expr)[0]
 			safe := VarSet{}
-			MustParseTerm(tc.safe).Value.(*Array).Foreach(func(x *Term) {
+			MustParseTerm(tc.safe).Value.(Array).Foreach(func(x *Term) {
 				safe.Add(x.Value.(Var))
 			})
 
@@ -110,7 +110,7 @@ func TestUnify(t *testing.T) {
 			}
 
 			expected := VarSet{}
-			MustParseTerm(tc.expected).Value.(*Array).Foreach(func(x *Term) {
+			MustParseTerm(tc.expected).Value.(Array).Foreach(func(x *Term) {
 				expected.Add(x.Value.(Var))
 			})
 

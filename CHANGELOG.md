@@ -5,7 +5,11 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-## Unreleased
+### Breaking changes
+
+#### Go SDK
+
+- The `ast.Array` type is now an interface instead of a struct.
 
 ## 0.57.0
 

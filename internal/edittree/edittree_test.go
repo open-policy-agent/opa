@@ -880,7 +880,7 @@ func parsePath(path *ast.Term) (ast.Ref, error) {
 			part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
 			pathSegments = append(pathSegments, ast.StringTerm(part))
 		}
-	case *ast.Array:
+	case ast.Array:
 		p.Foreach(func(term *ast.Term) {
 			pathSegments = append(pathSegments, term)
 		})
