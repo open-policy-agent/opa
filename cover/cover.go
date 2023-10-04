@@ -276,7 +276,7 @@ func (e *CoverageThresholdError) Error() string {
 		}
 	}
 
-	return fmt.Sprintf(buffer.String())
+	return fmt.Sprint(buffer.String())
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
