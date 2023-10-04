@@ -5,6 +5,12 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Breaking changes
+
+#### Go SDK
+
+- The `ast.Array` type is now an interface instead of a struct.
+
 ## 0.57.0
 
 This release contains an updated Rego syntax to allow general references in rule heads, and a mix of new features and bugfixes.
