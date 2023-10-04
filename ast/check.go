@@ -177,27 +177,26 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 	env = env.wrap()
 
-	if schemaAnnots := getRuleAnnotation(as, rule); schemaAnnots != nil {
-		for _, schemaAnnot := range schemaAnnots {
-			ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.allowNet)
+	schemaAnnots := getRuleAnnotation(as, rule)
+	for _, schemaAnnot := range schemaAnnots {
+		ref, refType, err := processAnnotation(tc.ss, schemaAnnot, rule, tc.allowNet)
+		if err != nil {
+			tc.err([]*Error{err})
+			continue
+		}
+		if ref == nil && refType == nil {
+			continue
+		}
+		prefixRef, t := getPrefix(env, ref)
+		if t == nil || len(prefixRef) == len(ref) {
+			env.tree.Put(ref, refType)
+		} else {
+			newType, err := override(ref[len(prefixRef):], t, refType, rule)
 			if err != nil {
 				tc.err([]*Error{err})
 				continue
 			}
-			if ref == nil && refType == nil {
-				continue
-			}
-			prefixRef, t := getPrefix(env, ref)
-			if t == nil || len(prefixRef) == len(ref) {
-				env.tree.Put(ref, refType)
-			} else {
-				newType, err := override(ref[len(prefixRef):], t, refType, rule)
-				if err != nil {
-					tc.err([]*Error{err})
-					continue
-				}
-				env.tree.Put(prefixRef, newType)
-			}
+			env.tree.Put(prefixRef, newType)
 		}
 	}
 
@@ -232,45 +231,64 @@ func (tc *typeChecker) checkRule(env *TypeEnv, as *AnnotationSet, rule *Rule) {
 
 		f := types.NewFunction(args, cpy.Get(rule.Head.Value))
 
-		// Union with existing.
-		exist := env.tree.Get(path)
-		tpe = types.Or(exist, f)
-
+		tpe = f
 	} else {
 		switch rule.Head.RuleKind() {
 		case SingleValue:
 			typeV := cpy.Get(rule.Head.Value)
-			if last := path[len(path)-1]; !last.IsGround() {
-
-				// e.g. store object[string: whatever] at data.p.q.r, not data.p.q.r[x]
+			if !path.IsGround() {
+				// e.g. store object[string: whatever] at data.p.q.r, not data.p.q.r[x] or data.p.q.r[x].y[z]
+				objPath := path.DynamicSuffix()
 				path = path.GroundPrefix()
 
-				typeK := cpy.Get(last)
-				if typeK != nil && typeV != nil {
-					exist := env.tree.Get(path)
-					typeV = types.Or(types.Values(exist), typeV)
-					typeK = types.Or(types.Keys(exist), typeK)
-					tpe = types.NewObject(nil, types.NewDynamicProperty(typeK, typeV))
+				var err error
+				tpe, err = nestedObject(cpy, objPath, typeV)
+				if err != nil {
+					tc.err([]*Error{NewError(TypeErr, rule.Head.Location, err.Error())})
+					tpe = nil
 				}
 			} else {
 				if typeV != nil {
-					exist := env.tree.Get(path)
-					tpe = types.Or(typeV, exist)
+					tpe = typeV
 				}
 			}
 		case MultiValue:
 			typeK := cpy.Get(rule.Head.Key)
 			if typeK != nil {
-				exist := env.tree.Get(path)
-				typeK = types.Or(types.Keys(exist), typeK)
 				tpe = types.NewSet(typeK)
 			}
 		}
 	}
 
 	if tpe != nil {
-		env.tree.Put(path, tpe)
+		env.tree.Insert(path, tpe, env)
 	}
+}
+
+// nestedObject creates a nested structure of object types, where each term on path corresponds to a level in the
+// nesting. Each term in the path only contributes to the dynamic portion of its corresponding object.
+func nestedObject(env *TypeEnv, path Ref, tpe types.Type) (types.Type, error) {
+	if len(path) == 0 {
+		return tpe, nil
+	}
+
+	k := path[0]
+	typeV, err := nestedObject(env, path[1:], tpe)
+	if err != nil {
+		return nil, err
+	}
+	if typeV == nil {
+		return nil, nil
+	}
+
+	var dynamicProperty *types.DynamicProperty
+	typeK := env.Get(k)
+	if typeK == nil {
+		return nil, nil
+	}
+	dynamicProperty = types.NewDynamicProperty(typeK, typeV)
+
+	return types.NewObject(nil, dynamicProperty), nil
 }
 
 func (tc *typeChecker) checkExpr(env *TypeEnv, expr *Expr) *Error {

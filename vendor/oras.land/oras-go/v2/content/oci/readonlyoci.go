@@ -36,7 +36,7 @@ import (
 
 // ReadOnlyStore implements `oras.ReadonlyTarget`, and represents a read-only
 // content store based on file system with the OCI-Image layout.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/image-layout.md
 type ReadOnlyStore struct {
 	fsys        fs.FS
 	storage     content.ReadOnlyStorage
@@ -57,7 +57,7 @@ func NewFromFS(ctx context.Context, fsys fs.FS) (*ReadOnlyStore, error) {
 		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
 	}
 	if err := store.loadIndexFile(ctx); err != nil {
-		return nil, fmt.Errorf("invalid OCI Image Layout: %w", err)
+		return nil, fmt.Errorf("invalid OCI Image Index: %w", err)
 	}
 
 	return store, nil

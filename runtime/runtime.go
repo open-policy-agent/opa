@@ -23,7 +23,9 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/mux"
+	"github.com/open-policy-agent/opa/internal/compiler"
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
+	"github.com/open-policy-agent/opa/internal/ref"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/propagation"
@@ -195,6 +197,9 @@ type Params struct {
 	// SkipBundleVerification flag controls whether OPA will verify a signed bundle
 	SkipBundleVerification bool
 
+	// SkipKnownSchemaCheck flag controls whether OPA will perform type checking on known input schemas
+	SkipKnownSchemaCheck bool
+
 	// ReadyTimeout flag controls if and for how long OPA server will wait (in seconds) for
 	// configured bundles and plugins to be activated/ready before listening for traffic.
 	// A value of 0 or less means no wait is exercised.
@@ -324,7 +329,9 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
 
-	info, err := runtime.Term(runtime.Params{Config: config})
+	isAuthorizationEnabled := params.Authorization != server.AuthorizationOff
+
+	info, err := runtime.Term(runtime.Params{Config: config, IsAuthorizationEnabled: isAuthorizationEnabled, SkipKnownSchemaCheck: params.SkipKnownSchemaCheck})
 	if err != nil {
 		return nil, err
 	}
@@ -391,6 +398,12 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 
 	if err := manager.Init(ctx); err != nil {
 		return nil, fmt.Errorf("initialization error: %w", err)
+	}
+
+	if isAuthorizationEnabled && !params.SkipKnownSchemaCheck {
+		if err := verifyAuthorizationPolicySchema(manager); err != nil {
+			return nil, fmt.Errorf("initialization error: %w", err)
+		}
 	}
 
 	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
@@ -865,6 +878,15 @@ func generateDecisionID() string {
 		return ""
 	}
 	return id
+}
+
+func verifyAuthorizationPolicySchema(m *plugins.Manager) error {
+	authorizationDecisionRef, err := ref.ParseDataPath(*m.Config.DefaultAuthorizationDecision)
+	if err != nil {
+		return err
+	}
+
+	return compiler.VerifyAuthorizationPolicySchema(m.GetCompiler(), authorizationDecisionRef)
 }
 
 func init() {

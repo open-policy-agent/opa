@@ -21,6 +21,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
@@ -101,37 +102,8 @@ type ParserOptions struct {
 	AllFutureKeywords  bool
 	FutureKeywords     []string
 	SkipRules          bool
-	JSONOptions        *JSONOptions
+	JSONOptions        *astJSON.Options
 	unreleasedKeywords bool // TODO(sr): cleanup
-}
-
-// JSONOptions defines the options for JSON operations,
-// currently only marshaling can be configured
-type JSONOptions struct {
-	MarshalOptions JSONMarshalOptions
-}
-
-// JSONMarshalOptions defines the options for JSON marshaling,
-// currently only toggling the marshaling of location information is supported
-type JSONMarshalOptions struct {
-	IncludeLocation NodeToggle
-}
-
-// NodeToggle is a generic struct to allow the toggling of
-// settings for different ast node types
-type NodeToggle struct {
-	Term           bool
-	Package        bool
-	Comment        bool
-	Import         bool
-	Rule           bool
-	Head           bool
-	Expr           bool
-	SomeDecl       bool
-	Every          bool
-	With           bool
-	Annotations    bool
-	AnnotationsRef bool
 }
 
 // NewParser creates and initializes a Parser.
@@ -207,9 +179,9 @@ func (p *Parser) WithSkipRules(skip bool) *Parser {
 	return p
 }
 
-// WithJSONOptions sets the JSONOptions which will be set on nodes to configure
+// WithJSONOptions sets the Options which will be set on nodes to configure
 // their JSON marshaling behavior.
-func (p *Parser) WithJSONOptions(jsonOptions *JSONOptions) *Parser {
+func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
 	p.po.JSONOptions = jsonOptions
 	return p
 }
@@ -614,13 +586,14 @@ func (p *Parser) parseRules() []*Rule {
 			return nil
 		}
 
+		if len(rule.Head.Args) > 0 {
+			if !p.validateDefaultRuleArgs(&rule) {
+				return nil
+			}
+		}
+
 		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
 		return []*Rule{&rule}
-	}
-
-	if usesContains && !rule.Head.Reference.IsGround() {
-		p.error(p.s.Loc(), "multi-value rules need ground refs")
-		return nil
 	}
 
 	// back-compat with `p[x] { ... }``
@@ -695,7 +668,7 @@ func (p *Parser) parseRules() []*Rule {
 	}
 
 	if p.s.tok == tokens.Else {
-		if r := rule.Head.Ref(); len(r) > 1 && !r[len(r)-1].Value.IsGround() {
+		if r := rule.Head.Ref(); len(r) > 1 && !r.IsGround() {
 			p.error(p.s.Loc(), "else keyword cannot be used on rules with variables in head")
 			return nil
 		}
@@ -786,42 +759,35 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	}
 
 	hasIf := p.s.tok == tokens.If
+	hasLBrace := p.s.tok == tokens.LBrace
 
-	if hasIf {
-		p.scan()
-		s := p.save()
-		if expr := p.parseLiteral(); expr != nil {
-			// NOTE(sr): set literals are never false or undefined, so parsing this as
-			//  p if false else if { true }
-			//                     ^^^^^^^^ set of one element, `true`
-			// isn't valid.
-			isSetLiteral := false
-			if t, ok := expr.Terms.(*Term); ok {
-				_, isSetLiteral = t.Value.(Set)
-			}
-			// expr.Term is []*Term or Every
-			if !isSetLiteral {
-				rule.Body.Append(expr)
-				setLocRecursive(rule.Body, rule.Location)
-				return &rule
-			}
-		}
-		p.restore(s)
-	}
-
-	if p.s.tok != tokens.LBrace {
+	if !hasIf && !hasLBrace {
 		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
 		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
-	p.scan()
-
-	if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
-		return nil
+	if hasIf {
+		p.scan()
 	}
 
-	p.scan()
+	if p.s.tok == tokens.LBrace {
+		p.scan()
+		if rule.Body = p.parseBody(tokens.RBrace); rule.Body == nil {
+			return nil
+		}
+		p.scan()
+	} else if p.s.tok != tokens.EOF {
+		expr := p.parseLiteral()
+		if expr == nil {
+			return nil
+		}
+		rule.Body.Append(expr)
+		setLocRecursive(rule.Body, rule.Location)
+	} else {
+		p.illegal("rule body expected")
+		return nil
+	}
 
 	if p.s.tok == tokens.Else {
 		if rule.Else = p.parseElse(head); rule.Else == nil {
@@ -832,7 +798,6 @@ func (p *Parser) parseElse(head *Head) *Rule {
 }
 
 func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
-
 	head := &Head{}
 	loc := p.s.Loc()
 	defer func() {
@@ -855,7 +820,9 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	switch x := ref.Value.(type) {
 	case Var:
-		head = NewHead(x)
+		// Modify the code to add the location to the head ref
+		// and set the head ref's jsonOptions.
+		head = VarHead(x, ref.Location, p.po.JSONOptions)
 	case Ref:
 		head = RefHead(x)
 	case Call:
@@ -2173,6 +2140,38 @@ func (p *Parser) validateDefaultRuleValue(rule *Rule) bool {
 	})
 
 	vis.Walk(rule.Head.Value.Value)
+	return valid
+}
+
+func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
+
+	valid := true
+	vars := NewVarSet()
+
+	vis := NewGenericVisitor(func(x interface{}) bool {
+		switch x := x.(type) {
+		case Var:
+			if vars.Contains(x) {
+				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot be repeated %v)", x))
+				valid = false
+				return true
+			}
+			vars.Add(x)
+
+		case *Term:
+			switch v := x.Value.(type) {
+			case Var: // do nothing
+			default:
+				p.error(rule.Loc(), fmt.Sprintf("illegal default rule (arguments cannot contain %v)", TypeName(v)))
+				valid = false
+				return true
+			}
+		}
+
+		return false
+	})
+
+	vis.Walk(rule.Head.Args)
 	return valid
 }
 

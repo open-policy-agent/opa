@@ -65,6 +65,10 @@ func TestWasmE2E(t *testing.T) {
 				t.SkipNow()
 			}
 
+			for k, v := range tc.Env {
+				t.Setenv(k, v)
+			}
+
 			opts := []func(*rego.Rego){
 				rego.Query(tc.Query),
 			}

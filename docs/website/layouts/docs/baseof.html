@@ -8,9 +8,6 @@
       {{ block "title" . }}{{ site.Title }}{{ end }}
     </title>
 
-    {{ block "head" . }}{{ end }}
-    {{ define "head" }}{{ end }}
-
     {{ partial "css.html" . }}
   </head>
   <body>
@@ -40,14 +37,14 @@
     {{ $isNotLatest := (and (ne $version $latest) (ne $version $latestVersionString)) }}
 
     <div class="dashboard-wrapper {{ if (or $isEdge $isNotLatest) }}showing-banner-version-warning{{ end }}">
-      {{- if $isEdge }}
+    {{- if $isEdge }}
       <div class="message is-info banner-version-warning">
         <div class="message-body">
           This version is still under development! Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
           <button class="delete" aria-label="delete"></button>
         </div>
       </div>
-      {{- else if $isNotLatest }}
+    {{- else if $isNotLatest }}
       <div class="message {{ cond $ancient "is-danger" "is-warning"}} banner-version-warning">
       <div class="message-body">
         These are the docs for an older version of OPA ({{ $version }}). Latest stable release is <a href="/docs/latest">{{ $latestVersionString }}</a>
@@ -64,20 +61,22 @@
       <div class="dashboard-main is-scrollable">
         {{ partial "docs/navbar.html" . }}
 
-        <article class="article {{ block "content-classes" . }}{{end}}{{define "content-classes"}}{{end}}">
+        <article class="article">
           <div class="container">
             <section class="hero">
               <div class="hero-body">
-              <span class="title is-size-1 is-size-2-mobile">
-                {{ block "page_title" . }}{{ end }}
-                {{ define "page_title" }}{{ .Title }}{{ end }}
-              </span>
+                <span class="title is-size-1 is-size-2-mobile">
+                  {{ block "page_title" . }}{{ end }}
+                  {{ define "page_title" }}{{ .Title }}{{ end }}
+                </span>
                 <span class="icon has-text-white-bis is-size-4 is-size-5-mobile icon-edit">
-                <a href="{{ block "edit-link" . }}{{end}}{{define "edit-link"}}{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}{{end}}" target="_blank">
-                  <i class="fab fa-github"></i>
-                  <span>Edit</span>
-                </a>
-              </span>
+                  <a href="{{ .Site.Params.GithubEdit }}{{ .File.LogicalName }}" target="_blank">
+                    <i class="fab fa-github"></i>
+                    <span>Edit</span>
+                  </a>
+                </span>
+                {{ block "breadcrumbs" . }}{{ end }}
+                {{ define "breadcrumbs" }}{{ end }}
                 <hr>
               </div>
             </section>

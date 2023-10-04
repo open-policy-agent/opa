@@ -45,6 +45,25 @@ concise than the equivalent in an imperative language.
 Like other applications which support declarative query languages, OPA is able
 to optimize queries to improve performance.
 
+## Learning Rego
+
+In while reviewing the examples below, you might find it helpful to follow along
+using the online [OPA playground](http://play.openpolicyagent.org). The
+playground also allows sharing of examples via URL which can be helpful when 
+asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
+In addition to these official resources, you may also be interested to check
+out the community learning materials and tools.
+{{<
+  ecosystem_feature_link
+  key="learning-rego"
+  singular_intro="There is currently 1 project"
+  singular_link="listed in the OPA Ecosystem"
+  singular_outro="which can help you learn Rego."
+  plural_intro="These "
+  plural_link="COUNT projects"
+  plural_outro="are listed on the OPA Ecosystem page as related to learning Rego."
+>}}
+
 ## The Basics
 
 This section introduces the main aspects of Rego.
@@ -971,6 +990,162 @@ data.example
 ```
 
 ```live:eg/ref_heads:output
+```
+
+#### Variables in Rule Head References
+
+Any term, except the very first, in a rule head's reference can be a variable. These variables can be assigned within the rule, just as for any other partial rule, to dynamically construct a nested collection of objects.
+
+##### Example
+
+Input:
+
+```live:general_ref_head:input
+{
+    "users": [
+        {
+            "id": "alice",
+            "role": "employee",
+            "country": "USA"
+        },
+        {
+            "id": "bob",
+            "role": "customer",
+            "country": "USA"
+        },
+        {
+            "id": "dora",
+            "role": "admin",
+            "country": "Sweden"
+        }
+    ],
+    "admins": [
+        {
+            "id": "charlie"
+        }
+    ]
+}
+```
+
+Module:
+
+```live:general_ref_head:module
+package example
+
+import future.keywords
+
+# A partial object rule that converts a list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in input.users
+    id := user.id
+    role := user.role
+}
+
+# Partial rule with an explicit "admin" key override
+users_by_role.admin[id] := user if {
+    some user in input.admins
+    id := user.id
+}
+
+# Leaf entries can be partial sets
+users_by_country[country] contains user.id if {
+    some user in input.users
+    country := user.country
+}
+```
+
+Output:
+
+```live:general_ref_head:output
+```
+
+##### Conflicts
+
+The first variable declared in a rule head's reference divides the reference in a leading constant portion and a trailing dynamic portion. Other rules are allowed to overlap with the dynamic portion (dynamic extent) without causing a compile-time conflict.
+
+```live:general_ref_head_conflict:module
+package example
+
+# R1
+p[x].r := y {
+    x := "q"
+    y := 1
+}
+
+# R2
+p.q.r := 2
+```
+
+Error:
+
+```live:general_ref_head_conflict:output:expect_eval_error
+```
+
+In the above example, rule `R2` overlaps with the dynamic portion of rule `R1`'s reference (`[x].r`), which is allowed at compile-time, as these rules aren't guaranteed to produce conflicting output.
+However, as `R1` defines `x` as `"q"` and `y` as `1`, a conflict will be reported at evaluation-time.
+
+Conflicts are detected at compile-time, where possible, between rules even if they are within the dynamic extent of another rule.
+
+```live:general_ref_head_conflict2:module
+package example
+
+# R1
+p[x].r := y {
+    x := "foo"
+    y := 1
+}
+
+# R2
+p.q.r := 2
+
+# R3
+p.q.r.s := 3
+```
+
+Error: 
+
+```live:general_ref_head_conflict2:output:expect_rego_error
+```
+
+Above, `R2` and `R3` are within the dynamic extent of `R1`, but are in conflict with each other, which is detected at compile-time.
+
+Rules are not allowed to overlap with object values of other rules.
+
+```live:general_ref_head_conflict3:module
+package example
+
+# R1
+p.q.r := {"s": 1}
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+Error: 
+
+```live:general_ref_head_conflict3:output:expect_eval_error
+```
+
+In the above example, `R1` is within the dynamic extent of `R2` and a conflict cannot be detected at compile-time. However, at evaluation-time `R2` will attempt to inject a value under key `t` in an object value defined by `R1`. This is a conflict, as rules are not allowed to modify or replace values defined by other rules.
+We won't get a conflict if we update the policy to the following:
+
+```live:general_ref_head_conflict4:module
+package example
+
+# R1
+p.q.r.s := 1
+
+# R2
+p[x].r.t := 2 {
+    x := "q"
+}
+```
+
+As `R1` is now instead defining a value within the dynamic extent of `R2`'s reference, which is allowed:
+
+```live:general_ref_head_conflict4:output
 ```
 
 ### Functions
@@ -1940,6 +2115,27 @@ The term may be any scalar, composite, or comprehension value but it may not be
 a variable or reference. If the value is a composite then it may not contain
 variables or references. Comprehensions however may, as the result of a
 comprehension is never undefined.
+
+Similar to rules, the `default` keyword can be applied to functions as well.
+
+For example:
+
+```live:eg/defaultfunc:module:read_only
+default clamp_positive(_) := 0
+
+clamp_positive(x) = x {
+    x > 0
+}
+```
+
+When `clamp_positive` is queried, the return value will be either the argument provided to the function or `0`.
+
+The value of a `default` function follows the same conditions as that of a `default` rule. In addition, a `default`
+function satisfies the following properties:
+
+* same arity as other functions with the same name
+* arguments should only be plain variables ie. no composite values
+* argument names should not be repeated
 
 ## Else Keyword
 
@@ -3605,6 +3801,6 @@ Unused imports | Unused [imports](../policy-language/#imports) are prohibited.  
 `input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
 Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
 
-# Ecosystem Language Tooling
+## Ecosystem Projects
 
-[View ecosystem projects](../ecosystem/language-tooling) which can help you write, test OPA policies in Rego.
+{{< ecosystem_feature_embed key="learning-rego" topic="learning Rego" >}}

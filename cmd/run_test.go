@@ -8,12 +8,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/test/e2e"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +52,7 @@ func TestRunServerBase(t *testing.T) {
 
 func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params := newTestRunParams()
-	params.rt.DiagnosticAddrs = &[]string{":0"}
+	params.rt.DiagnosticAddrs = &[]string{"localhost:0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rt, err := initRuntime(ctx, params, nil, false)
@@ -103,6 +105,45 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	if err.Error() != exp {
 		t.Fatalf("expected error message %v but got %v", exp, err.Error())
 	}
+}
+
+func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
+
+	fs := map[string]string{
+		"test/authz.rego": `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identty = "foo"        # this is a typo
+		}`,
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		rootDir = filepath.Join(rootDir, "test")
+
+		params := newTestRunParams()
+		err := params.authorization.Set("basic")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+
+		if !strings.Contains(err.Error(), "undefined ref: input.identty") {
+			t.Errorf("Expected error \"%v\" not found", "undefined ref: input.identty")
+		}
+
+		// skip type checking for known input schemas
+		params.skipKnownSchemaCheck = true
+		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestRunServerCheckLogTimestampFormat(t *testing.T) {
@@ -194,7 +235,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 			}
 
 			params := newTestRunParams()
-			params.rt.Addrs = &[]string{":0"}
+			params.rt.Addrs = &[]string{"localhost:0"}
 			ctx, cancel := context.WithCancel(context.Background())
 
 			rt, err := initRuntime(ctx, params, []string{}, cmd.Flags().Changed("addr"))
@@ -214,7 +255,7 @@ func TestInitRuntimeAddrSetByUser(t *testing.T) {
 func newTestRunParams() runCmdParams {
 	params := newRunParams()
 	params.rt.GracefulShutdownPeriod = 1
-	params.rt.Addrs = &[]string{":0"}
+	params.rt.Addrs = &[]string{"localhost:0"}
 	params.rt.DiagnosticAddrs = &[]string{}
 	params.serverMode = true
 	return params

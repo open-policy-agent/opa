@@ -300,5 +300,16 @@ the discovery bundle itself is persisted. The discovered configuration that is g
 policies contained in the discovery bundle will **NOT** be persisted.
 
 {{< info >}}
-By default, the discovery bundle is persisted under the current working directory of the OPA process (e.g., `./.opa/bundles/<discovery.name>/bundle.tar.gz`).
+The discovery bundle is persisted at
+`<persistence_directory>/bundles/<discovery.name>/bundle.tar.gz`. By default
+`persistence_directory` is `.opa` in the working directory of the OPA process.
+If `persistence_directory` is changed through discovery this will not affect
+where the discovery plugin will store the discovery bundles, the boot
+configuration will always be used.
 {{< /info >}}
+
+## Ecosystem Projects
+
+Configuring OPA using Discovery Bundles is a powerful production feature.
+
+{{< ecosystem_feature_embed key="opa-bundles-discovery" topic="or support distributing discovery bundles" >}}

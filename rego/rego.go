@@ -1502,6 +1502,7 @@ type PrepareOption func(*PrepareConfig)
 type PrepareConfig struct {
 	doPartialEval   bool
 	disableInlining *[]string
+	builtinFuncs    map[string]*topdown.Builtin
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -1518,6 +1519,25 @@ func WithNoInline(paths []string) PrepareOption {
 	return func(p *PrepareConfig) {
 		p.disableInlining = &paths
 	}
+}
+
+// WithBuiltinFuncs carries the rego.Function{1,2,3} per-query function definitions
+// to the target plugins.
+func WithBuiltinFuncs(bis map[string]*topdown.Builtin) PrepareOption {
+	return func(p *PrepareConfig) {
+		if p.builtinFuncs == nil {
+			p.builtinFuncs = make(map[string]*topdown.Builtin, len(bis))
+		}
+		for k, v := range bis {
+			p.builtinFuncs[k] = v
+		}
+	}
+}
+
+// BuiltinFuncs allows retrieving the builtin funcs set via PrepareOption
+// WithBuiltinFuncs.
+func (p *PrepareConfig) BuiltinFuncs() map[string]*topdown.Builtin {
+	return p.builtinFuncs
 }
 
 // PrepareForEval will parse inputs, modules, and query arguments in preparation
@@ -1622,6 +1642,8 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			if err != nil {
 				return PreparedEvalQuery{}, err
 			}
+			// always add the builtins provided via rego.FunctionN options
+			opts = append(opts, WithBuiltinFuncs(r.builtinFuncs))
 			r.targetPrepState, err = tgt.PrepareForEval(ctx, pol, opts...)
 			if err != nil {
 				return PreparedEvalQuery{}, err
@@ -1736,22 +1758,20 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 }
 
 func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+	if len(r.modules) == 0 {
+		return nil
+	}
+
 	ids, err := r.store.ListPolicies(ctx, txn)
 	if err != nil {
 		return err
-	}
-
-	// if there are no raw modules, nor modules in the store, then there
-	// is nothing to do.
-	if len(r.modules) == 0 && len(ids) == 0 {
-		return nil
 	}
 
 	m.Timer(metrics.RegoModuleParse).Start()
 	defer m.Timer(metrics.RegoModuleParse).Stop()
 	var errs Errors
 
-	// Parse any modules in the are saved to the store, but only if
+	// Parse any modules that are saved to the store, but only if
 	// another compile step is going to occur (ie. we have parsed modules
 	// that need to be compiled).
 	for _, id := range ids {

@@ -1,3 +1,5 @@
+//go:build !opa_no_oci
+
 package download
 
 import (
@@ -11,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
@@ -19,7 +20,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2"
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/oci"
 
@@ -31,26 +31,7 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
-type OCIDownloader struct {
-	config         Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client         rest.Client                   // HTTP client to use for bundle downloading
-	path           string                        // path for OCI image as <registry>/<org>/<repo>:<tag>
-	localStorePath string                        // path for the local OCI storage
-	trigger        chan chan struct{}            // channel to signal downloads when manual triggering is enabled
-	stop           chan chan struct{}            // used to signal plugin to stop running
-	f              func(context.Context, Update) // callback function invoked when download updates occur
-	sizeLimitBytes *int64                        // max bundle file size in bytes (passed to reader)
-	bvc            *bundle.VerificationConfig
-	wg             sync.WaitGroup
-	logger         logging.Logger
-	mtx            sync.Mutex
-	stopped        bool
-	persist        bool
-	store          *oci.Store
-	etag           string
-}
-
-// New returns a new Downloader that can be started.
+// NewOCI returns a new Downloader that can be started.
 func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownloader {
 	localstore, err := oci.New(storePath)
 	if err != nil {
@@ -99,7 +80,7 @@ func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	return d
 }
 
-// TODO: remove method ClearCache is deprecated. Use SetCache instead.
+// ClearCache is deprecated. Use SetCache instead.
 func (d *OCIDownloader) ClearCache() {
 }
 
@@ -272,7 +253,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		return nil, err
 	}
 	loader := bundle.NewTarballLoaderWithBaseURL(fileReader, d.localStorePath)
-	reader := bundle.NewCustomReader(loader).WithBaseDir(d.localStorePath).
+	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
 		WithBundleEtag(etag)
@@ -332,9 +313,7 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 
 	authorizer := pluginAuthorizer{
 		plugin: plugin,
-		authorizer: docker.NewDockerAuthorizer(
-			docker.WithAuthClient(client),
-		),
+		client: client,
 		logger: logger,
 	}
 
@@ -357,7 +336,11 @@ func dockerResolver(plugin rest.HTTPAuthPlugin, config *rest.Config, logger logg
 }
 
 type pluginAuthorizer struct {
-	plugin     rest.HTTPAuthPlugin
+	plugin rest.HTTPAuthPlugin
+	client *http.Client
+
+	// authorizer will be populated by the first call to pluginAuthorizer.Prepare
+	// since it requires a first pass through the plugin.Prepare method.
 	authorizer docker.Authorizer
 
 	logger logging.Logger
@@ -381,10 +364,29 @@ func (a *pluginAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 		return err
 	}
 
+	if a.authorizer == nil {
+		// Some registry authentication implementations require a token fetch from
+		// a separate authenticated token server. This flow is described in the
+		// docker token auth spec:
+		// https://docs.docker.com/registry/spec/auth/token/#requesting-a-token
+		//
+		// Unfortunately, the containerd implementation does not use the Prepare
+		// mechanism to authenticate these token requests and we need to add
+		// auth information in form of a static docker.WithAuthHeader.
+		//
+		// Since rest.HTTPAuthPlugins will set the auth header on the request
+		// passed to HTTPAuthPlugin.Prepare, we can use it afterwards to build
+		// our docker.Authorizer.
+		a.authorizer = docker.NewDockerAuthorizer(
+			docker.WithAuthHeader(req.Header),
+			docker.WithAuthClient(a.client),
+		)
+	}
+
 	return a.authorizer.Authorize(ctx, req)
 }
 
-func manifestFromDesc(ctx context.Context, target oras.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
+func manifestFromDesc(ctx context.Context, target oraslib.Target, desc *ocispec.Descriptor) (*ocispec.Manifest, error) {
 	var manifest ocispec.Manifest
 
 	descReader, err := target.Fetch(ctx, *desc)

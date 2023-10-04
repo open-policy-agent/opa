@@ -1,0 +1,47 @@
+{{ $selectedIntegrations := (index . "selectedIntegrations") }}
+{{ $organizations := (index . "organizations") }}
+{{ $integrations := (index . "integrations") }}
+{{ $feature := (index . "feature") }}
+
+<div class="ecosystem-list">
+{{ range $id := $selectedIntegrations }}
+{{ $integration := index (where $integrations ".RelPermalink" $id) 0 }}
+<div class="ecosystem-list-item">
+  <div class="ecosystem-list-item-header">
+    <figure class="image is-64x64">
+      {{ partial "docs/integration-logo.html" (dict "id" $id) }}
+    </figure>
+    <div class="ecosystem-list-item-header-title">
+      <p class="title is-4">{{ $integration.Title }}</p>
+      <p class="is-6">
+        {{ if $integration.Params.subtitle }}
+        {{ $integration.Params.subtitle }}
+        {{ end }}
+        {{ if and ($integration.Params.subtitle) ($integration.Params.inventors) }}
+        by&nbsp
+        {{- end -}}
+        {{- range $i, $id := $integration.Params.inventors -}}
+        {{- $inventor := index (where $organizations ".RelPermalink" (printf "/organizations/%s/" $id)) 0 -}}
+        <a href="{{ $inventor.Params.link }}">{{ $inventor.Title }}</a>
+        {{- if eq (add $i 1) (sub (len $integration.Params.inventors) 1) }}
+        and
+        {{ else if lt (add $i 1) (len $integration.Params.inventors) -}}
+        ,
+        {{- end }}
+        {{ end }}
+      </p>
+    </div>
+  </div>
+  <div class="ecosystem-list-item-content">
+    {{ (index (index $integration.Params.docs_features $feature) "note") | markdownify }}
+  </div>
+  <a class="ecosystem-list-item-footer" href="{{ $id }}">
+    {{ if lt (len $integration.Title) 30 }}
+      View {{ $integration.Title }} Details
+    {{ else }}
+      View Details
+    {{ end }}
+  </a>
+</div>
+{{ end }}
+</div>

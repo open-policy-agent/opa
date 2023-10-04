@@ -6,9 +6,11 @@ package download
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -112,13 +114,70 @@ func withPublicRegistryAuth() fixtureOpt {
 	}
 }
 
+// withAuthenticatedTokenAuth sets up a token auth flow according to
+// the spec https://docs.docker.com/registry/spec/auth/token/.
+//
+// The flow is the same as for public registries but additionally
+// the request for fetching the token also has to be authenticated.
+// Used for example with gitlab registries.
+//
+// The token issuing and validation differs between providers,
+// and we only use a minimal version for testing.
+func withAuthenticatedTokenAuth() fixtureOpt {
+	const token = "some-test-token"
+	tokenServer := httptest.NewServer(tokenHandlerAuth("c2VjcmV0", token))
+
+	const wwwAuthenticateFmt = "Bearer realm=%q service=%q scope=%q"
+	tokenServiceURL := tokenServer.URL + "/token"
+	wwwAuthenticate := fmt.Sprintf(wwwAuthenticateFmt,
+		tokenServiceURL,
+		"testRegistry.io",
+		"[pull]")
+
+	return func(tf *testFixture) error {
+		tf.server.customAuth = func(w http.ResponseWriter, r *http.Request) error {
+
+			authHeader := r.Header.Get("Authorization")
+
+			if authHeader == "" {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("no authorization header: %w", errUnauthorized)
+			}
+
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("expects bearer scheme: %w", errUnauthorized)
+			}
+
+			bearerToken := strings.TrimPrefix(authHeader, "Bearer ")
+			if bearerToken != token {
+				w.Header().Set("WWW-Authenticate", wwwAuthenticate)
+				return fmt.Errorf("token %q doesn't match %q: %w", bearerToken, token, errUnauthorized)
+			}
+
+			return nil
+		}
+
+		return nil
+	}
+}
+
 // tokenHandler returns an http.Handler that responds with the
 // specified token to GET /token requests.
-func tokenHandler(token string) http.HandlerFunc {
+func tokenHandler(issuedToken string) http.HandlerFunc {
+	return tokenHandlerAuth("", issuedToken)
+}
+
+// tokenHandlerAuth returns an http.Handler that responds with the
+// specified token to GET /token requests.
+//
+// If expectedToken is not empty, the handler will check that the
+// Authorization header matches the expected token.
+func tokenHandlerAuth(expectedToken, issuedToken string) http.HandlerFunc {
 	tokenResponse := struct {
 		Token string `json:"token"`
 	}{
-		Token: token,
+		Token: issuedToken,
 	}
 
 	responseBody, err := json.Marshal(tokenResponse)
@@ -137,7 +196,30 @@ func tokenHandler(token string) http.HandlerFunc {
 			return
 		}
 
-		w.Write(responseBody)
+		// If no expected token is set, we don't check the Authorization header.
+		if expectedToken == "" {
+			_, _ = w.Write(responseBody)
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		bearerToken := strings.TrimPrefix(authHeader, "Bearer ")
+		if bearerToken != expectedToken {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		_, _ = w.Write(responseBody)
 	}
 }
 
@@ -166,6 +248,11 @@ func (t *testFixture) oneShot(ctx context.Context, u Update) {
 	t.etags["test/bundle1"] = u.ETag
 }
 
+type fileInfo struct {
+	name   string
+	length int64
+}
+
 type testServer struct {
 	t              *testing.T
 	customAuth     func(http.ResponseWriter, *http.Request) error
@@ -176,6 +263,7 @@ type testServer struct {
 	server         *httptest.Server
 	etagInResponse bool
 	longPoll       bool
+	testdataHashes map[string]fileInfo
 }
 
 func newTestServer(t *testing.T) *testServer {
@@ -259,68 +347,58 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	var buf bytes.Buffer
 
-	if r.URL.Path == "/v2/org/repo/manifests/latest" {
-		w.Header().Add("Content-Length", "596")
-		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-		w.Header().Add("Docker-Content-Digest", "sha256:fe9c2930b6d8cc1bf3fa0c560996a95c75f0d0668bee71138355d9784c8c99b8")
-		w.WriteHeader(200)
-		return
-	}
-	if r.URL.Path == "/v2/org/repo/manifests/sha256:fe9c2930b6d8cc1bf3fa0c560996a95c75f0d0668bee71138355d9784c8c99b8" {
-		w.Header().Add("Content-Length", "596")
-		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-		w.Header().Add("Docker-Content-Digest", "sha256:fe9c2930b6d8cc1bf3fa0c560996a95c75f0d0668bee71138355d9784c8c99b8")
-		w.WriteHeader(200)
-		bs, err := os.ReadFile("testdata/manifest.layer")
-		if err != nil {
-			w.WriteHeader(404)
-			return
+	if strings.HasPrefix(r.URL.Path, "/v2/org/repo/") {
+		// build test data to hash map to serve testdata files by hash
+		if t.testdataHashes == nil {
+			t.testdataHashes = make(map[string]fileInfo)
+			files, err := os.ReadDir("testdata")
+			if err != nil {
+				t.t.Fatalf("failed to read testdata directory: %s", err)
+			}
+			for _, file := range files {
+				if file.IsDir() {
+					continue
+				}
+				hash, length, err := getFileSHAandSize("testdata/" + file.Name())
+				if err != nil {
+					t.t.Fatalf("failed to read testdata file: %s", err)
+				}
+				t.testdataHashes[fmt.Sprintf("%x", hash)] = fileInfo{name: file.Name(), length: length}
+			}
 		}
-		buf.WriteString(string(bs))
-		w.Write(buf.Bytes())
-		return
 	}
-	if r.URL.Path == "/v2/org/repo/blobs/sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff" {
-		w.Header().Add("Content-Length", "464")
-		w.Header().Add("Content-Type", "application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.oci.image.config.v1+json")
-		w.Header().Add("Docker-Content-Digest", "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff")
-		w.WriteHeader(200)
-		bs, err := os.ReadFile("testdata/manifest.layer")
-		if err != nil {
-			w.WriteHeader(404)
-			return
-		}
-		buf.WriteString(string(bs))
-		buf.WriteTo(w)
 
+	if strings.HasPrefix(r.URL.Path, "/v2/org/repo/blobs/sha256:") || strings.HasPrefix(r.URL.Path, "/v2/org/repo/manifests/sha256:") {
+		sha := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/v2/org/repo/blobs/sha256:"), "/v2/org/repo/manifests/sha256:")
+		if fileInfo, ok := t.testdataHashes[sha]; ok {
+			w.Header().Add("Content-Length", strconv.Itoa(int(fileInfo.length)))
+			w.Header().Add("Content-Type", "application/gzip")
+			w.Header().Add("Docker-Content-Digest", "sha256:"+sha)
+			w.WriteHeader(200)
+			bs, err := os.ReadFile("testdata/" + fileInfo.name)
+			if err != nil {
+				w.WriteHeader(404)
+				return
+			}
+			buf.WriteString(string(bs))
+			w.Write(buf.Bytes())
+			return
+		}
+		w.WriteHeader(404)
 		return
 	}
-	if r.URL.Path == "/v2/org/repo/blobs/sha256:b206ac766b0f3f880f6a62c4bb5ba5192d29deaefd989a1961603346a7555bdd" {
-		w.Header().Add("Content-Length", "568")
-		w.Header().Add("Content-Type", "application/vnd.oci.image.layer.v1.tar+gzip")
-		w.Header().Add("Docker-Content-Digest", "sha256:b206ac766b0f3f880f6a62c4bb5ba5192d29deaefd989a1961603346a7555bdd")
-		w.WriteHeader(200)
-		bs, err := os.ReadFile("testdata/tar.layer")
+
+	if strings.HasPrefix(r.URL.Path, "/v2/org/repo/manifests/") {
+		sha, size, err := getFileSHAandSize("testdata/" + strings.TrimPrefix(r.URL.Path, "/v2/org/repo/manifests/") + ".manifest")
 		if err != nil {
 			w.WriteHeader(404)
 			return
 		}
-		buf.WriteString(string(bs))
-		w.Write(buf.Bytes())
-		return
-	}
-	if r.URL.Path == "/v2/org/repo/blobs/sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a" {
-		w.Header().Add("Content-Length", "2")
-		w.Header().Add("Content-Type", "application/vnd.oci.image.config.v1+json")
-		w.Header().Add("Docker-Content-Digest", "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+
+		w.Header().Add("Content-Length", strconv.Itoa(int(size)))
+		w.Header().Add("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+		w.Header().Add("Docker-Content-Digest", "sha256:"+fmt.Sprintf("%x", sha))
 		w.WriteHeader(200)
-		bs, err := os.ReadFile("testdata/config.layer")
-		if err != nil {
-			w.WriteHeader(404)
-			return
-		}
-		buf.WriteString(string(bs))
-		w.Write(buf.Bytes())
 		return
 	}
 	name := strings.TrimPrefix(r.URL.Path, "/bundles/")
@@ -406,4 +484,18 @@ func getPreferHeaderField(r *http.Request, field string) string {
 		}
 	}
 	return ""
+}
+
+func getFileSHAandSize(filePath string) ([]byte, int64, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer f.Close()
+	hash := sha256.New()
+	w, err := io.Copy(hash, f)
+	if err != nil {
+		return nil, w, err
+	}
+	return hash.Sum(nil), w, nil
 }

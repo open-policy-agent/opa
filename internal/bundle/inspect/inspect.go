@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/bundle"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/loader"
@@ -32,9 +33,9 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 	b, err := loader.NewFileLoader().
 		WithSkipBundleVerification(true).
 		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
-		WithJSONOptions(&ast.JSONOptions{
-			MarshalOptions: ast.JSONMarshalOptions{
-				IncludeLocation: ast.NodeToggle{
+		WithJSONOptions(&json.Options{
+			MarshalOptions: json.MarshalOptions{
+				IncludeLocation: json.NodeToggle{
 					// Annotation location data is only included if includeAnnotations is set
 					AnnotationsRef: includeAnnotations,
 				},

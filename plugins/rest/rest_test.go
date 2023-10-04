@@ -34,6 +34,7 @@ import (
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/jwx/jwa"
 	"github.com/open-policy-agent/opa/internal/jwx/jws"
+	"github.com/open-policy-agent/opa/internal/providers/aws"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/tracing"
@@ -542,6 +543,55 @@ func TestNew(t *testing.T) {
 					}
 				}
 			}`, grantTypeClientCredentials),
+		},
+		{
+			name: "Oauth2ClientCredentialsJWTAuthentication_with_AWS_KMS",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"aws_kms": {
+							"name": "arn:aws:kms:eu-west-1:account_no:key/key_id",
+							"algorithm": "ECDSA_SHA_256"
+						},
+						"aws_signing": {
+							"service": "kms",
+							"environment_credentials": {
+								"aws_default_region": "eu-west-1"
+							}
+						},
+						"token_url": "https://localhost",
+						"scopes": ["profile", "opa"],
+						"additional_claims": {
+							"aud": "some audience"
+						}
+					}
+				}
+			}`, grantTypeClientCredentials),
+		},
+		{
+			name: "Oauth2ClientCredentialsJWTAuthentication_with_AWS_KMS_missing_credentials",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"aws_kms": {
+							"name": "arn:aws:kms:eu-west-1:account_no:key/key_id",
+							"algorithm": "ECDSA_SHA_256"
+						},
+						"token_url": "https://localhost",
+						"scopes": ["profile", "opa"],
+						"additional_claims": {
+							"aud": "some audience"
+						}
+					}
+				}
+			}`, grantTypeClientCredentials),
+			wantErr: true,
 		},
 		{
 			name: "S3WebIdentityMissingEnvVars",
@@ -1224,9 +1274,17 @@ func TestClientCert(t *testing.T) {
 		// Ensure the keys don't work anymore, make a new client as the url will have changed
 		client = newTestClient(t, &ts, certPath, keyPath)
 		_, err := client.Do(ctx, "GET", "test")
-		expectedErrMsg := "tls: bad certificate"
-		if err == nil || !strings.Contains(err.Error(), expectedErrMsg) {
-			t.Fatalf("Expected '%s' error but request succeeded", expectedErrMsg)
+		expectedErrMsg := func(s string) bool {
+			switch {
+			case strings.Contains(s, "tls: unknown certificate authority"):
+			case strings.Contains(s, "tls: bad certificate"):
+			default:
+				return false
+			}
+			return true
+		}
+		if err == nil || !expectedErrMsg(err.Error()) {
+			t.Fatalf("Unexpected error %v", err)
 		}
 
 		// Update the key files and try again..
@@ -1731,6 +1789,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 		input   string
 		wantErr bool
 		env     map[string]string
+		errMsg  string
 	}{
 		{
 			name: "Fallback to Environment Credential",
@@ -1768,6 +1827,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 				}
 			}`,
 			wantErr: true,
+			errMsg:  "all AWS credential providers failed: 4 errors occurred",
 			env:     map[string]string{},
 		},
 	}
@@ -1801,10 +1861,19 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 			awsPlugin.logger = client.logger
 			err = awsPlugin.Prepare(req)
-			if err != nil && !tc.wantErr {
-				t.Fatalf("Unexpected error: %v", err)
-			} else if err == nil && tc.wantErr {
-				t.Fatalf("Expected error for input %v", tc.input)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("Expected error for input %v", tc.input)
+				}
+
+				if !strings.Contains(err.Error(), tc.errMsg) {
+					t.Fatalf("Expected error message %v but got %v", tc.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
 			}
 		})
 	}
@@ -1915,6 +1984,7 @@ type oauth2TestServer struct {
 	expScope         *[]string
 	expAlgorithm     jwa.SignatureAlgorithm
 	expX5t           string
+	expSignature     string
 	tokenType        string
 	tokenTTL         int64
 	invocations      int32
@@ -2110,11 +2180,17 @@ func (t *oauth2TestServer) handle(w http.ResponseWriter, r *http.Request) {
 		} else {
 			token = r.Form["client_assertion"][0]
 		}
-		_, err := jws.Verify([]byte(token), t.expAlgorithm, t.verificationKey)
-		if err != nil {
-			t.t.Fatalf("Unexpected signature verification error %v", err)
+		if t.expSignature != "" {
+			signature := strings.Split(token, ".")[2]
+			if t.expSignature != signature {
+				t.t.Errorf("Expected expSignature %v, got %v", t.expSignature, signature)
+			}
+		} else {
+			_, err := jws.Verify([]byte(token), t.expAlgorithm, t.verificationKey)
+			if err != nil {
+				t.t.Fatalf("Unexpected signature verification error %v", err)
+			}
 		}
-
 		if t.expX5t != "" {
 			headerRaw, _ := base64.RawURLEncoding.DecodeString(strings.Split(token, ".")[0])
 			var headers map[string]string
@@ -2343,4 +2419,118 @@ func (m *myPluginMock) NewClient(c Config) (*http.Client, error) {
 }
 func (*myPluginMock) Prepare(*http.Request) error {
 	return nil
+}
+
+func TestOauth2ClientCredentialsGrantTypeWithKms(t *testing.T) {
+
+	// DER-encoded object from KMS as explained here: https://docs.aws.amazon.com/kms/latest/APIReference/API_Sign.html#API_Sign_ResponseSyntax
+	derEncodeSignature := []byte{48, 68, 2, 32, 84, 124, 17, 255, 68, 181, 189, 159, 77, 235, 242, 88, 85, 139, 84, 111, 204, 108, 235, 90, 128, 220, 247, 176, 215, 28, 188, 110, 19, 158, 137, 30, 2, 32, 88, 17, 176, 72, 157, 42, 1, 223, 69, 41, 225, 77, 121, 13, 117, 132, 146, 243, 45, 208, 207, 119, 233, 156, 96, 94, 192, 174, 136, 218, 206, 84}
+	// The signature representing the above object
+	jwtSignature := "VHwR_0S1vZ9N6_JYVYtUb8xs61qA3Pew1xy8bhOeiR5YEbBInSoB30Up4U15DXWEkvMt0M936ZxgXsCuiNrOVA"
+
+	ts := testServer{t: t, expBearerToken: "token_1"}
+	ts.start()
+	defer ts.stop()
+
+	ots := oauth2TestServer{
+		t:                t,
+		tokenTTL:         300,
+		expScope:         &[]string{"scope1", "scope2"},
+		expJwtCredential: true,
+		expAlgorithm:     jwa.ES256,
+		expGrantType:     grantTypeClientCredentials,
+		expSignature:     jwtSignature,
+	}
+	ots.start()
+	defer ots.stop()
+
+	kmsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var signRequest = &aws.KMSSignRequest{}
+		if r.Body != nil {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("failed to read kms sign request = %v", err)
+			}
+			defer r.Body.Close()
+			err = json.Unmarshal(bodyBytes, signRequest)
+			if err != nil {
+				t.Fatalf("failed to unmarshall kms sign request = %v", err)
+			}
+		}
+		responseFmt := `{"KeyId": "%s", "Signature": "%s", "SigningAlgorithm": "%s"}`
+		responsePayload := fmt.Sprintf(responseFmt, signRequest.KeyID, base64.StdEncoding.EncodeToString(derEncodeSignature), signRequest.SigningAlgorithm)
+		if _, err := io.WriteString(w, responsePayload); err != nil {
+			t.Fatalf("io.WriteString(w, payload) = %v", err)
+		}
+	}))
+	defer kmsServer.Close()
+
+	logger := logging.New()
+	logger.SetLevel(logging.Debug)
+
+	kms := aws.NewKMSWithURLClient(kmsServer.URL, kmsServer.Client(), logger)
+	client := newOauth2KmsClientCredentialsTestClient(t, &ts, &ots, kms)
+	ctx := context.Background()
+	_, err := client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	_, err = client.Do(ctx, "GET", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+}
+
+// Create client to test ClientCredentials grant using KMS
+func newOauth2KmsClientCredentialsTestClient(t *testing.T, ts *testServer, ots *oauth2TestServer, kms *aws.KMS) *Client {
+	config := fmt.Sprintf(`{
+			"name": "foo",
+			"url": %q,
+			"allow_insecure_tls": true,
+			"credentials": {
+				"oauth2": {
+					"token_url": "%v/token",
+					"grant_type": %q,
+					"scopes": ["scope1", "scope2"],
+					"additional_claims": {
+						"aud": "test-audience",
+						"iss": "client-one"
+					},
+					"aws_kms": {
+						"name": "arn:aws:kms:eu-west-1:account_no:key/key_id",
+						"algorithm": "ECDSA_SHA_256"
+					},
+					"aws_signing": {
+						"service": "kms",
+						"environment_credentials": {
+							"aws_default_region": "eu-west-1"
+						}
+					}
+				}
+			}
+		}`, ts.server.URL, ots.server.URL, grantTypeClientCredentials)
+
+	// Setup variables for environment_credentials{}
+	t.Setenv(accessKeyEnvVar, accessKeyEnvVar)
+	t.Setenv(secretKeyEnvVar, secretKeyEnvVar)
+	t.Setenv(awsRegionEnvVar, awsRegionEnvVar)
+
+	client, err := New([]byte(config), map[string]*keys.Config{})
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.AWSSigningPlugin.kmsSignPlugin == nil {
+		t.Errorf("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
+	}
+
+	// setup fake KMS signer
+	client.config.Credentials.OAuth2.AWSSigningPlugin.kmsSignPlugin.kms = kms
+	return &client
 }

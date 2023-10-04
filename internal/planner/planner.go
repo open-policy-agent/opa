@@ -25,6 +25,8 @@ type QuerySet struct {
 }
 
 type planiter func() error
+type planLocalIter func(ir.Local) error
+type stmtFactory func(ir.Local) ir.Stmt
 
 // Planner implements a query planner for Rego queries.
 type Planner struct {
@@ -147,32 +149,31 @@ func (p *Planner) buildFunctrie() error {
 		}
 
 		for _, rule := range module.Rules {
-			r := rule.Ref()
-			switch r[len(r)-1].Value.(type) {
-			case ast.String: // pass
-			default: // cut off
-				r = r[:len(r)-1]
-			}
+			r := rule.Ref().StringPrefix()
 			val := p.rules.LookupOrInsert(r)
+
+			val.rules = val.DescendantRules()
 			val.rules = append(val.rules, rule)
+			val.children = nil
 		}
 	}
 	return nil
 }
 
 func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
+	// We know the rules with closer to the root (shorter static path) are ordered first.
 	pathRef := rules[0].Ref()
 
 	// figure out what our rules' collective name/path is:
 	// if we're planning both p.q.r and p.q[s], we'll name
 	// the function p.q (for the mapping table)
-	// TODO(sr): this has to change when allowing `p[v].q.r[w]` ref rules
-	// including the mapping lookup structure and lookup functions
 	pieces := len(pathRef)
 	for i := range rules {
 		r := rules[i].Ref()
-		if _, ok := r[len(r)-1].Value.(ast.String); !ok {
-			pieces = len(r) - 1
+		for j, t := range r {
+			if _, ok := t.Value.(ast.String); !ok && j > 0 && j < pieces {
+				pieces = j
+			}
 		}
 	}
 	// control if p.a = 1 is to return 1 directly; or insert 1 under key "a" into an object
@@ -236,7 +237,11 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
 		}
 	case ast.MultiValue:
-		fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))
+		if buildObject {
+			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeObjectStmt{Target: fn.Return}))
+		} else {
+			fn.Blocks = append(fn.Blocks, p.blockWithStmt(&ir.MakeSetStmt{Target: fn.Return}))
+		}
 	}
 
 	// For complete document rules, allocate one local variable for output
@@ -251,6 +256,12 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 
 	var defaultRule *ast.Rule
 	var ruleLoc *location.Location
+
+	// We sort rules by ref length, to ensure that when merged, we can detect conflicts when one
+	// rule attempts to override values (deep and shallow) defined by another rule.
+	sort.Slice(rules, func(i, j int) bool {
+		return len(rules[i].Ref()) > len(rules[j].Ref())
+	})
 
 	// Generate function blocks for rules.
 	for i := range rules {
@@ -320,18 +331,19 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 					switch rule.Head.RuleKind() {
 					case ast.SingleValue:
 						if buildObject {
-							ref := rule.Head.Ref()
-							last := ref[len(ref)-1]
-							return p.planTerm(last, func() error {
-								key := p.ltarget
-								return p.planTerm(rule.Head.Value, func() error {
-									value := p.ltarget
-									p.appendStmt(&ir.ObjectInsertOnceStmt{
-										Object: fn.Return,
-										Key:    key,
-										Value:  value,
+							ref := rule.Ref()
+							return p.planTerm(rule.Head.Value, func() error {
+								value := p.ltarget
+								return p.planNestedObjects(fn.Return, ref[pieces:len(ref)-1], func(obj ir.Local) error {
+									return p.planTerm(ref[len(ref)-1], func() error {
+										key := p.ltarget
+										p.appendStmt(&ir.ObjectInsertOnceStmt{
+											Object: obj,
+											Key:    key,
+											Value:  value,
+										})
+										return nil
 									})
-									return nil
 								})
 							})
 						}
@@ -343,6 +355,28 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 							return nil
 						})
 					case ast.MultiValue:
+						if buildObject {
+							ref := rule.Ref()
+							// we drop the trailing set key from the ref
+							return p.planNestedObjects(fn.Return, ref[pieces:len(ref)-1], func(obj ir.Local) error {
+								// Last term on rule ref is the key an which the set is assigned in the deepest nested object
+								return p.planTerm(ref[len(ref)-1], func() error {
+									key := p.ltarget
+									return p.planTerm(rule.Head.Key, func() error {
+										value := p.ltarget
+										factory := func(v ir.Local) ir.Stmt { return &ir.MakeSetStmt{Target: v} }
+										return p.planDotOr(obj, key, factory, func(set ir.Local) error {
+											p.appendStmt(&ir.SetAddStmt{
+												Set:   set,
+												Value: value,
+											})
+											p.appendStmt(&ir.ObjectInsertStmt{Key: key, Value: op(set), Object: obj})
+											return nil
+										})
+									})
+								})
+							})
+						}
 						return p.planTerm(rule.Head.Key, func() error {
 							p.appendStmt(&ir.SetAddStmt{
 								Set:   fn.Return,
@@ -420,6 +454,59 @@ func (p *Planner) planRules(rules []*ast.Rule) (string, error) {
 	p.loc = ploc
 
 	return fn.Name, nil
+}
+
+func (p *Planner) planDotOr(obj ir.Local, key ir.Operand, or stmtFactory, iter planLocalIter) error {
+	// We're constructing the following plan:
+	//
+	// | block a
+	// | | block b
+	// | | | dot &{Source:Local<obj> Key:{Value:Local<key>} Target:Local<val>}
+	// | | | break 1
+	// | | or &{Target:Local<val>}
+	// | | *ir.ObjectInsertOnceStmt &{Key:{Value:Local<key>} Value:{Value:Local<val>} Object:Local<obj>}
+
+	prev := p.curr
+	dotBlock := &ir.Block{}
+	p.curr = dotBlock
+
+	val := p.newLocal()
+	p.appendStmt(&ir.DotStmt{
+		Source: op(obj),
+		Key:    key,
+		Target: val,
+	})
+	p.appendStmt(&ir.BreakStmt{Index: 1})
+
+	outerBlock := &ir.Block{
+		Stmts: []ir.Stmt{
+			&ir.BlockStmt{Blocks: []*ir.Block{dotBlock}}, // FIXME: Set Location
+			or(val),
+			&ir.ObjectInsertOnceStmt{Key: key, Value: op(val), Object: obj},
+		},
+	}
+
+	p.curr = prev
+	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
+	return iter(val)
+}
+
+func (p *Planner) planNestedObjects(obj ir.Local, ref ast.Ref, iter planLocalIter) error {
+	if len(ref) == 0 {
+		//return fmt.Errorf("nested object construction didn't create object")
+		return iter(obj)
+	}
+
+	t := ref[0]
+
+	return p.planTerm(t, func() error {
+		key := p.ltarget
+
+		factory := func(v ir.Local) ir.Stmt { return &ir.MakeObjectStmt{Target: v} }
+		return p.planDotOr(obj, key, factory, func(childObj ir.Local) error {
+			return p.planNestedObjects(childObj, ref[1:], iter)
+		})
+	})
 }
 
 func (p *Planner) planFuncParams(params []ir.Local, args ast.Args, idx int, iter planiter) error {

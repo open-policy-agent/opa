@@ -258,34 +258,40 @@ to track **remove** vs **upsert** mask operations.
 
 ### Drop Decision Logs
 
-Drop rules filters all decisions, which evaluate to `true`, before logging them.
+Drop rules filters all decisions from logging where the rule evaluates to `true`. 
 
 This rule will drop all requests to the _allow_ rule in the _kafka_ package, that returned _true_:
 ```live:drop_rule_example/kafka_allow_rule:module:read_only
 package system.log
 
-drop {
-  input.path == "kafka/allow"
-  input.result == true
+import future.keywords.if
+
+drop if {
+    input.path == "kafka/allow"
+    input.result == true
 }
 ```
 
-Log only requests for _delete_ and _alter_ operations (Kafka with opa-kafka-authorizer):
+Log only requests for _delete_ and _alter_ operations
+(Kafka with the [opa-kafka-plugin](https://github.com/StyraInc/opa-kafka-plugin)):
 
 ```live:drop_rule_example/log_only_delete_alter_operations:module:read_only
 package system.log
 
+import future.keywords.if
 import future.keywords.in
 
-drop {
-  input.path == "kafka/allow"
-  not input.input.action.operation in {"DELETE", "ALTER"}
+drop if {
+    input.path == "kafka/allow"
+    not input.input.action.operation in {"DELETE", "ALTER"}
+}
 ```
 
-The name of the drop rules by default is `drop` in the package `system.log`. It can be changed with the configuration property `decision_logs.drop_decision`.
+The name of the drop rules by default is `drop` in the package `system.log`. It can be changed with the configuration
+property `decision_logs.drop_decision`.
 ```yaml
 decision_logs:
-    drop_decision: /system/log/drop
+  drop_decision: /system/log/drop
 ```
 
 ### Rate Limiting Decision Logs
@@ -296,3 +302,10 @@ allow the service to consume logs without being overwhelmed. The `max_decisions_
 to set the maximum number of decision log events to buffer per second. OPA will drop events if the rate limit is exceeded.
 This option provides users more control over how OPA buffers log events and is an effective mechanism to make sure the
 service can successfully process incoming log events.
+
+## Ecosystem Projects
+
+Decision Logging is an important feature of OPA which supports, in particular, auditing and debugging. The following OPA
+ecosystem projects implement functionality related to Decision Logging:
+
+{{< ecosystem_feature_embed key="decision-logging" topic="Decision Logging" >}}

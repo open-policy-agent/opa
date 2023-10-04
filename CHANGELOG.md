@@ -5,6 +5,314 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.57.0
+
+This release contains an updated Rego syntax to allow general references in rule heads, and a mix of new features and bugfixes.
+
+### Support for General References in Rule Heads
+
+In OPA `0.56.0`, we introduced support for general references in rule heads as an experimental feature. 
+It has now graduated to a fully supported feature, and is no longer experimental. 
+
+A general reference is a reference with variables at arbitrary locations. 
+In Rego, [partial rules](https://www.openpolicyagent.org/docs/latest/#partial-rules) are used for generating sets and objects.
+In previous versions of OPA, variables were only allowed in the very last position in the rule's reference. 
+Now, Rego has been expanded to allow rules to be declared with general references in their head, with variables at arbitrary locations. 
+This allows for generating nested dynamic object structures:
+
+```rego
+package example
+
+import future.keywords
+
+# Converting a flat list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in data.users
+    id := user.id
+    role := user.role
+}
+
+# Explicit "admin" key override to the above mapping.
+users_by_role.admin[id] := user if {
+    some user in data.admins
+    id := user.id
+}
+
+# Leaf entries can be multi-value.
+users_by_country[country] contains user.id if {
+    some user in data.users
+    country := user.country
+}
+```
+
+See the [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/#variables-in-rule-head-references) for more information.
+
+Authored by @johanfylling.
+
+### Runtime, Tooling, SDK
+
+- ast/runtime: Extend type checking for authz policies ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @ashutosh-narkar
+- server: Add test case for bundle update - query API handler scenario ([#4792](https://github.com/open-policy-agent/opa/issues/4792)) authored by @ashutosh-narkar
+
+### Topdown and Rego
+
+- ast: Accept short-form else bodies ([#6157](https://github.com/open-policy-agent/opa/issues/6157)) authored by @Ronnie-personal
+- plugins: Surface AWS authentication error details ([#6232](https://github.com/open-policy-agent/opa/issues/6232)) authored by @ashutosh-narkar
+- topdown: Builtin function to parse uuid with google/uuid library ([#6173](https://github.com/open-policy-agent/opa/issues/6173)) authored by @Od1nB
+
+### Miscellaneous
+
+- ast: Add location to single entry rule head ref ([#6199](https://github.com/open-policy-agent/opa/issues/6199)) authored by @Ronnie-personal
+- ast: Add option to marshal location text ([#6213](https://github.com/open-policy-agent/opa/issues/6213)) authored by @charlieegan3
+- types: New algorithm for (Any).Union + new benchmarks ([#6228](https://github.com/open-policy-agent/opa/pull/6228)) authored by @philipaconrad
+- Updates to documentation and website authored by @charlieegan3
+  - docs: Link to expressing or post (#6236) (authored by @charlieegan3)
+  - docs: Use links on support page (#6249) (authored by @charlieegan3)
+- Dependency updates; notably:
+  - golang from 1.21 to 1.21.1
+  - golang.org/x/net from 0.14.0 to 0.15.0
+  - google.golang.org/grpc from 1.57.0 to 1.58.2
+  - github.com/containerd/containerd from 1.7.4 to 1.7.6
+
+## 0.56.0
+
+This release contains a mix of new features, bugfixes and a new builtin function.
+
+### Support for General References in Rule Heads (Experimental)
+
+A new experimental feature in OPA is support for general refs in rule heads. Where a general ref is a reference with variables at arbitrary locations.
+
+```rego
+package example
+
+import future.keywords
+
+# Converting a flat list of users to a mapping by "role" and then "id".
+users_by_role[role][id] := user if {
+    some user in data.users
+    id := user.id
+    role := user.role
+}
+
+# Explicit "admin" key override to the above mapping.
+users_by_role.admin[id] := user if {
+    some user in data.admins
+    id := user.id
+}
+
+# Leaf entries can be multi-value.
+users_by_country[country] contains user.id if {
+    some user in data.users
+    country := user.country
+}
+```
+
+General refs are currently not supported by the OPA planner, making this feature unsupported for Wasm and IR.
+
+Note: this feature is disabled by default, and needs to be enabled by setting the `EXPERIMENTAL_GENERAL_RULE_REFS` environment variable (once the feature is complete - supports Wasm and IR - this requirement will be dropped).
+
+Authored by @johanfylling.
+
+### New Built-In Function: `numbers.range_step`
+
+Similar to the `numbers.range` built-in function, `numbers.range_step` returns an array of numbers in a given range. The new built-in function also allows you to control the _step between each entry_.
+
+See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.56.0/policy-reference/#builtin-numbers-numbersrange_step)
+for all the details.
+
+Authored by @sspaink.
+
+### New Ecosystem page on The Website
+
+The OPA Ecosystem of related integrations has been refreshed and moved to a more prominent location on [the website](https://www.openpolicyagent.org/ecosystem/). 
+
+If you're interested to add any new integrations you've been working on, please see the [docs here](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem) (updates to existing integrations are very welcome too!).
+
+### Runtime, Tooling, SDK
+
+- ast: Update strict error check message for unused args ([#6125](https://github.com/open-policy-agent/opa/pull/6125)) authored by @ashutosh-narkar
+- ast: Remove unnecessary nil check ([#6155](https://github.com/open-policy-agent/opa/pull/6155)) authored by @Juneezee
+- cmd: Make `opa test -z` fail with failing tests ([#6126](https://github.com/open-policy-agent/opa/issues/6126)) authored by @fdaguin
+- cmd: Fix `opa test` `--ignore` when used together with `--bundle` ([#6185](https://github.com/open-policy-agent/opa/pull/6185)) authored by @joaobrandt
+- cmd: Adding `--fail-non-empty` flag to `opa exec` ([#6153](https://github.com/open-policy-agent/opa/pull/6153)) authored by @Ronnie-personal
+- download: Add `opa_no_oci` flag to build without containerd ([#6159](https://github.com/open-policy-agent/opa/pull/6159)) authored by @slonka
+- download: Remove not required basedir for oci bundles & add test to verify signature verification ([#6145](https://github.com/open-policy-agent/opa/pull/6145)) authored by @gitu
+- fmt: Trim trailing whitespace in comments ([#6161](https://github.com/open-policy-agent/opa/issues/6161)) authored by @anderseknert
+- fmt: Remove dedup comment function in opa fmt ([#6165](https://github.com/open-policy-agent/opa/pull/6165)) authored by @anderseknert
+- runtime: Always read .tar.gz file provided in argument as a bundle ([#5879](https://github.com/open-policy-agent/opa/issues/5879)) authored by @yogisinha
+- server/authorizer: Inline readBody ([#6156](https://github.com/open-policy-agent/opa/pull/6156)) authored by @srenatus
+- test: Bind test server to localhost interface ([#6162](https://github.com/open-policy-agent/opa/issues/6162)) authored by @anderseknert
+
+### Topdown and Rego
+
+- ast: Including "child" rules when fetching rules by ref ([#6182](https://github.com/open-policy-agent/opa/issues/6182)) authored by @johanfylling
+- ast: Making partial object key rules contribute to dynamic portion of object type ([#6138](https://github.com/open-policy-agent/opa/issues/6138)) authored by @johanfylling
+- rego: Expose PrepareOption, add BuiltinFuncs ([#6188](https://github.com/open-policy-agent/opa/pull/6188)) authored by @srenatus
+- topdown: Support force cache even when server doesn't set the Date header ([#6175](https://github.com/open-policy-agent/opa/pull/6175)) authored by @c2zwdjnlcg
+- topdown: Partial-eval for partial object/set ref head rules ([#6094](https://github.com/open-policy-agent/opa/issues/6094)) authored by @johanfylling
+
+### Miscellaneous
+
+- Updates to Documentation and Website (authored by: @anderseknert, @ashutosh-narkar, @atkrad, @charlieegan3, @hmoazzem, @johndbro1, @Pushkarm029, @srenatus and @testwill)
+- Dependency updates; notably:
+  - golang: from 1.20.6 to 1.21 (authored by @ashutosh-narkar amd @srenatus)
+  - golang.org/x/net from 0.12.0 to 0.14.0
+  - google.golang.org/grpc from 1.56.2 to 1.57.0
+  - oras.land/oras-go/v2 from 2.2.1 to 2.3.0
+  - Replace ghodss/yaml with sigs.k8s.io/yaml ([#6195](https://github.com/open-policy-agent/opa/pull/6195)) authored by @mrueg
+
+### Breaking changes
+
+Since its introduction in 0.34.0, the `--exit-zero-on-skipped` option always made the `opa test` command return an exit code 0. When used, it now returns the exit code 0 only if no failed tests were found.
+
+Test runs on existing projects using `--exit-zero-on-skipped` will fail if any failed tests were inhibited by this behavior.
+
+## 0.55.0
+
+> **_NOTES:_**
+>
+> * All published OPA images now run with a non-root uid/gid. The `uid:gid` is set to `1000:1000` for all images. As a result
+> there is no longer a need for the `-rootless` image variant and hence it will be not be published as part of future releases.
+> This change is in line with container security best practices. OPA can still be run with root privileges by explicitly setting the user,
+> either with the `--user` argument for `docker run`, or by specifying the `securityContext` in the Kubernetes Pod specification.
+>
+> * The minimum version of Go required to build the OPA module is **1.19**
+
+This release contains a mix of new features, bugfixes and a new builtin function.
+
+### Honor `default` keyword on functions
+
+Previously if a function was defined with a `default` value, OPA would ignore it. Now the `default` function is honored
+if all functions with the same name are undefined. For example,
+
+```rego
+package example
+
+default clamp_positive(x) := 0
+
+clamp_positive(x) = x {
+    x > 0
+}
+```
+
+```
+$ opa eval -d example.rego 'data.example.clamp_positive(1)' -f pretty
+1
+```
+
+```
+$ opa eval -d example.rego 'data.example.clamp_positive(-1)' -f pretty
+0
+```
+
+The value of a `default` function follows the same conditions as that of a `default` rule. In addition, a `default`
+function satisfies the following properties:
+
+- same arity as other functions with the same name
+- arguments should only be plain variables ie. no composite values
+- argument names should not be repeated
+
+> **_NOTE:_**  
+> 
+> `default` functions used to be previously ignored. If existing policies contain `default` functions, ensure that they conform
+> to the properties mentioned above. Otherwise, those policies will fail to evaluate.
+
+Authored by @ashutosh-narkar.
+
+### New Built-In Function: crypto.parse_private_keys
+
+`crypto.parse_private_keys` returns zero or more private keys from the given encoded string containing DER certificate data.
+If the input contains a list of one or more concatenated PEM blocks, then the built-in will output the parsed private keys
+represented as objects.
+
+See [the documentation on the new built-in](https://www.openpolicyagent.org/docs/v0.55.0/policy-reference/#builtin-crypto-cryptoparse_private_keys)
+for all the details.
+
+Authored by @volck.
+
+### Runtime, Tooling, SDK
+
+- plugins/rest: Add AWS KMS support for OAuth2 Client Credentials JWT authentication ([#5942](https://github.com/open-policy-agent/opa/pull/5942)) authored by @prasanthu
+- sdk: Update input object to conform to the format expected by decision log masking ([#6090](https://github.com/open-policy-agent/opa/pull/6090)) authored by @epaulson10
+- sdk: Add option for specifying decision ID to SDK. Users can use this to control the ID that gets included in the decision logs ([#6101](https://github.com/open-policy-agent/opa/pull/6101)) authored by @brianchhun-chime
+- cmd: Add `discard` output format to `opa eval` which discards the result while still showing the output of eval flags like `--profile` ([#6103](https://github.com/open-policy-agent/opa/pull/6103)) authored by @26tanishabanik
+- Make rootless deprecation messages more explicit as all published OPA images now run with non-root uid/gid ([#6091](https://github.com/open-policy-agent/opa/pull/6091)) authored by @charlieegan3
+- download/oci: Add support for Docker Registry v2 authentication scheme ([#6045](https://github.com/open-policy-agent/opa/pull/6045)) authored by @gitu and @DerGut
+- plugins/discovery: Ensure discovery plugin doesn't erase its own config on the plugin manager ([#6070](https://github.com/open-policy-agent/opa/pull/6070)) authored by @blacksails
+
+### Topdown and Rego
+
+- ast: Add `WithRoots` compiler option that allows callers to set the roots to include in the output bundle manifest ([#6088](https://github.com/open-policy-agent/opa/pull/6088)) authored by @kubaj
+- rego: Parse store modules iff modules set on the Rego object. This change assumes that while using the Rego package, the compiler and store are kept in-sync, and thereby attempts to avoid a race during the compilation process ([#6081](https://github.com/open-policy-agent/opa/pull/6081)) authored by @ashutosh-narkar
+
+### Docs
+
+- docs/envoy: Update the standalone Envoy tutorial to use [kind](https://kind.sigs.k8s.io/), updated Envoy version etc. ([#6105](https://github.com/open-policy-agent/opa/pull/6105)) authored by @charlieegan3
+
+### Website + Ecosystem
+
+- Ecosystem:
+  - Carbonetes BrainIAC ([#6073](https://github.com/open-policy-agent/opa/pull/6073)) authored by @jaysonsantos05
+
+- Website:
+  - Reorganize relevant doc sections and OPA Ecosystem projects to have a closer integration between them ([#6064](https://github.com/open-policy-agent/opa/issues/6064)) authored by @charlieegan3
+
+### Miscellaneous
+- chore: Update comments on some exported functions and clean up instances where the same package was imported multiple times (authored by @testwill)
+- Fix issue in the OPA release patch scripts related to `CRLF` line terminations in the patch output ([#6069](https://github.com/open-policy-agent/opa/pull/6069)) authored by @johanfylling
+- Dependency bumps, notably:
+  - golang from 1.20.5 to 1.20.6
+  - oras.land/oras-go/v2 from 2.2.0 to 2.2.1
+  - google.golang.org/grpc from 1.56.1 to 1.56.2
+  - github.com/containerd/containerd from 1.6.19 to 1.7.2
+  - golang.org/x/net from 0.11.0 to 0.12.0
+  - go.uber.org/automaxprocs from 1.5.2 to 1.5.3
+  - go.opentelemetry.io/otel from v1.14.0 to v1.16.0 ([#6062](https://github.com/open-policy-agent/opa/pull/6062)) authored by @srenatus with feedback from @ghaskins and @zregvart
+
+## 0.54.0
+
+This release focuses on bug fixes, but also includes some improvements to the SDK and commandline.
+
+Note: This will be the last OPA release to support building with Golang 1.18. (Golang 1.21 is expected to be released in August. Keeping the support for 1.18 is blocking OPA from upgrading OpenTelemetry.)
+
+### Topdown and Rego
+
+- Add unwrap functionality to topdown.Error ([#5890](https://github.com/open-policy-agent/opa/issues/5890)) authored by @ajith-sub reported by @ajith-sub
+- Lazy obj performance ([#6009](https://github.com/open-policy-agent/opa/issues/6009)) authored by @johanfylling reported by @kubaj
+- ast: Only realizing `lazyObj` when compared against other object type ([6060](https://github.com/open-policy-agent/opa/pull/6060)) (authored by @johanfylling)
+- ast: Fixing issue in type-checker where partial objects couldn't have key overrides of divergent type ([#5972](https://github.com/open-policy-agent/opa/issues/5972)) authored by @johanfylling
+- planner: CallDynamic regression fix ([#5964](https://github.com/open-policy-agent/opa/issues/5964)) authored by @srenatus
+- fmt: Fix `fmt` panic in comprehension with comments ([#5798](https://github.com/open-policy-agent/opa/issues/5798)) authored by @Trolloldem reported by @Djoust
+- topdown: Format integer numbers without exponent ([#6013](https://github.com/open-policy-agent/opa/issues/6013)) authored by @kenjenkins reported by @kenjenkins
+- topdown: Fix panic in partial eval with ref head rule ([#6027](https://github.com/open-policy-agent/opa/issues/6027)) authored by @srenatus
+- Fixed a bug in `object.union_n` where nested objects were mutated ([#5975](https://github.com/open-policy-agent/opa/issues/5975)) authored by @qshu-splunk
+- Fixed the issue of the `object.subset` method failing to correctly compare array relationships ([5968](https://github.com/open-policy-agent/opa/issues/5968)) authored by @DCRUNNN
+- topdown: Fixed caching race condition issue in `http.send` ([#5997](https://github.com/open-policy-agent/opa/pull/5997)) authored by @ashutosh-narkar
+- Allow time formatting constants in rego `time.format` and `time.parse_ns` ([#5945](https://github.com/open-policy-agent/opa/issues/5945)) authored by @tjons
+
+### Runtime, Tooling, SDK
+
+- Add `--schema` flag to `opa test` ([#5923](https://github.com/open-policy-agent/opa/issues/5923)) authored by @renatosc
+- Add ability to specify namespace for optimized files ([#5933](https://github.com/open-policy-agent/opa/issues/5933)) authored by @ashutosh-narkar reported by @deezkay
+- Fix for the issue when OPA throws misleading error (storage_not_found_error) message while loading the delta bundle when persist property in config is true. ([#5959](https://github.com/open-policy-agent/opa/issues/5959)) authored by @yogisinha reported by @jnethery
+- cmd: Update storage when a file remove op is detected ([#5986](https://github.com/open-policy-agent/opa/issues/5986)) authored by @boranx
+- cmd: Add support for watch mode in opa test ([#1719](https://github.com/open-policy-agent/opa/issues/1719)) authored by @ashutosh-narkar reported by @Fox32
+- download: Pass request to docker.Authorizer ([#5902](https://github.com/open-policy-agent/opa/issues/5902)) authored by @DerGut reported by @carabasdaniel
+- plugins/discovery: Fix discovery erasing `persistence_directory` config ([#6042](https://github.com/open-policy-agent/opa/pull/6042)) authored by @blacksails
+- plugins/discovery: Fix persistence of discovery bundle ([#6048](https://github.com/open-policy-agent/opa/pull/6048)) (authored by @bdjgs)
+- Add tracing to bundle/discovery download ([#5967](https://github.com/open-policy-agent/opa/issues/5967)) authored by @mjungsbluth
+- Fallback on embedded timezone database if `tzdata` is not found on filesystem ([6038](https://github.com/open-policy-agent/opa/pull/6038)) authored by @charlieegan3
+- extensibility: Adding hooks (plugins, discovery, sdk) ([#6053](https://github.com/open-policy-agent/opa/pull/6053)) authored by @srenatus
+- sdk: allow passing in a separate `Store` implementation in SDK ([5962](https://github.com/open-policy-agent/opa/pull/5962)) authored by @srenatus
+- config: Show "extra", unknown fields in `/v1/config` API result ([6056](https://github.com/open-policy-agent/opa/pull/6056)) authored by @srenatus
+
+### Miscellaneous
+- Disable provenance attestations in buildx ([#5877](https://github.com/open-policy-agent/opa/issues/5877)) authored by @ashutosh-narkar reported by @JasonMan34
+- build: configure SELinux labels for Docker volumes ([#6054](https://github.com/open-policy-agent/opa/issues/6054)) authored by @zregvart reported by @zregvart
+- Dependency bumps, notably:
+  - golang from 1.20.4 to 1.20.5
+  - github.com/prometheus/client_golang from from 1.15.1 to v1.16.0
+
 ## 0.53.1
 
 This is a bug fix release addressing the following issues:

@@ -27,8 +27,9 @@ type Params struct {
 	LogTimestampFormat  string         // log timestamp format for plugins
 	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
 	Decision            string         // decision to evaluate (overrides default decision set by configuration)
-	Fail                bool           // exits with non-zero exit code on undefined/empty result and errors
-	FailDefined         bool           // exits with non-zero exit code on defined/non-empty result and errors
+	Fail                bool           // exits with non-zero exit code on undefined policy decision or empty policy decision result or other errors
+	FailDefined         bool           // exits with non-zero exit code on 'not undefined policy decisiondefined' or 'not empty policy decision result' or other errors
+	FailNonEmpty        bool           // exits with non-zero exit code on non-empty set (array) results
 }
 
 func NewParams(w io.Writer) *Params {
@@ -43,6 +44,12 @@ func NewParams(w io.Writer) *Params {
 func (p *Params) validateParams() error {
 	if p.Fail && p.FailDefined {
 		return errors.New("specify --fail or --fail-defined but not both")
+	}
+	if p.FailNonEmpty && p.Fail {
+		return errors.New("specify --fail-non-empty or --fail but not both")
+	}
+	if p.FailNonEmpty && p.FailDefined {
+		return errors.New("specify --fail-non-empty or --fail-defined but not both")
 	}
 	return nil
 }
@@ -79,7 +86,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
-			if params.FailDefined || params.Fail {
+			if params.FailDefined || params.Fail || params.FailNonEmpty {
 				errorCount++
 			}
 			continue
@@ -96,7 +103,7 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
 				return err2
 			}
-			if (params.FailDefined && !sdk.IsUndefinedErr(err)) || (params.Fail && sdk.IsUndefinedErr(err)) {
+			if (params.FailDefined && !sdk.IsUndefinedErr(err)) || (params.Fail && sdk.IsUndefinedErr(err)) || (params.FailNonEmpty && !sdk.IsUndefinedErr(err)) {
 				errorCount++
 			}
 			continue
@@ -109,17 +116,27 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		if (params.FailDefined && rs.Result != nil) || (params.Fail && rs.Result == nil) {
 			failCount++
 		}
-	}
 
+		if params.FailNonEmpty && rs.Result != nil {
+			// Check if rs.Result is an array and has one or more members
+			resultArray, isArray := rs.Result.([]interface{})
+			if (!isArray) || (isArray && (len(resultArray) > 0)) {
+				failCount++
+			}
+		}
+	}
 	if err := r.Close(); err != nil {
 		return err
 	}
 
-	if (params.Fail || params.FailDefined) && (failCount > 0 || errorCount > 0) {
+	if (params.Fail || params.FailDefined || params.FailNonEmpty) && (failCount > 0 || errorCount > 0) {
 		if params.Fail {
 			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail is set", failCount, errorCount)
 		}
-		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
+		if params.FailDefined {
+			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
+		}
+		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-non-empty is set", failCount, errorCount)
 	}
 
 	return nil

@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/open-policy-agent/opa/metrics"
@@ -978,7 +977,7 @@ func newTestFixture(t *testing.T, m metrics.Metrics, options ...testPluginCustom
 			]}`, ts.server.URL))
 
 	registerMock := &prometheusRegisterMock{
-		Collectors: map[prom.Collector]bool{},
+		Collectors: map[prometheus.Collector]bool{},
 	}
 	manager, err := plugins.New(managerConfig, "test-instance-id", inmem.New(), plugins.WithPrometheusRegister(registerMock))
 	if err != nil {
@@ -1105,21 +1104,21 @@ func TestPluginCustomBackend(t *testing.T) {
 }
 
 type prometheusRegisterMock struct {
-	Collectors map[prom.Collector]bool
+	Collectors map[prometheus.Collector]bool
 }
 
-func (p prometheusRegisterMock) Register(collector prom.Collector) error {
+func (p prometheusRegisterMock) Register(collector prometheus.Collector) error {
 	p.Collectors[collector] = true
 	return nil
 }
 
-func (p prometheusRegisterMock) MustRegister(collector ...prom.Collector) {
+func (p prometheusRegisterMock) MustRegister(collector ...prometheus.Collector) {
 	for _, c := range collector {
 		p.Collectors[c] = true
 	}
 }
 
-func (p prometheusRegisterMock) Unregister(collector prom.Collector) bool {
+func (p prometheusRegisterMock) Unregister(collector prometheus.Collector) bool {
 	delete(p.Collectors, collector)
 	return true
 }

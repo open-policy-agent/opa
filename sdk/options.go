@@ -5,10 +5,12 @@
 package sdk
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/open-policy-agent/opa/hooks"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/storage"
@@ -50,6 +52,9 @@ type Options struct {
 	// inmem store.
 	Store storage.Store
 
+	// Hooks allows hooking into the internals of SDK operations (TODO(sr): find better words)
+	Hooks hooks.Hooks
+
 	config []byte
 	block  bool
 }
@@ -83,6 +88,10 @@ func (o *Options) init() error {
 
 	if o.Store == nil {
 		o.Store = inmem.New()
+	}
+
+	if err := o.Hooks.Validate(); err != nil {
+		return fmt.Errorf("hooks: %w", err)
 	}
 
 	return nil

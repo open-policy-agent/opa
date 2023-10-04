@@ -1,5 +1,3 @@
-# NOTE(sr): default functions are not supported, but they had sneaked into
-# the full extent of a package. These cases assert that this won't happen.
 cases:
 - note: defaultkeyword/function with var arg
   modules:
@@ -10,24 +8,32 @@ cases:
   query: data.test = x
   want_result:
   - x: {}
-- note: defaultkeyword/function with ground arg
+- note: defaultkeyword/function with var arg, ref head
   modules:
   - |
     package test
 
-    default f(10) := 100
-  query: data.test = x
-  want_result:
-  - x: {}
-- note: defaultkeyword/function with ground arg, ref head
-  modules:
-  - |
-    package test
-
-    default p.q.r.f(10) := 100
+    default p.q.r.f(x) := 100
   query: data.test = x
   want_result:
   - x:
       p:
         q:
           r: {}
+- note: defaultkeyword/function with var arg, ref head query
+  modules:
+    - |
+      package test
+
+      default p.q.r.f(x) := 100
+
+      p.q.r.f(x) = x {
+        x == 2
+      }
+
+      foo {
+        p.q.r.f(3) == 100
+      }
+  query: data.test.foo = x
+  want_result:
+    - x: true

@@ -194,3 +194,70 @@ $panel-header-logo-width: 85%
     border-image: 50 repeating-linear-gradient(75deg, #946c00 0, #946c00 1rem, transparent 0, transparent 2rem)
   &.is-info
     border-image: 50 repeating-linear-gradient(75deg, #296fa8 0, #296fa8 1rem, transparent 0, transparent 2rem)
+
+.ecosystem-table
+  border: 1px solid silver
+  border-collapse: collapse
+  td, th
+    border: 1px solid silver
+    padding: 1rem
+  th
+    font-weight: bold
+
+.ecosystem-breadcrumbs
+  color: white
+  margin-bottom: 1rem
+  a
+    color: white
+    text-decoration: underline
+
+.ecosystem-note
+  color: white
+  margin-top: 0.5rem
+  p
+    color: white
+
+.ecosystem-list
+  display: grid
+  gap: 2rem 1rem
+  width: 100%
+  margin: 0 auto
+  grid-template-columns: repeat(auto-fit, minmax(28rem, 1fr))
+  +mobile
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr))
+
+  .ecosystem-list-item
+    background-color: white
+    padding: 2rem 2rem 1rem
+    border-radius: 1rem
+    box-shadow: 0px 1px 2px rgba(3, 7, 18, 0.03), 0px 5px 7px rgba(3, 7, 18, 0.05), 0px 12px 15px rgba(3, 7, 18, 0.08)
+    display: flex
+    flex-direction: column
+
+    .ecosystem-list-item-header
+      display: flex
+      align-items: center
+      margin-bottom: 1rem
+      p.title
+        margin-bottom: 0.3rem
+      figure
+        margin: 0 1rem 0 0
+        border: 1px solid #e5e5e5
+        border-radius: 0.5rem
+        padding: 0.2rem
+
+    .ecosystem-list-item-content
+      flex-grow: 1
+
+    .ecosystem-list-item-footer
+      display: block
+      background-color: rgb(0, 141, 156)
+      color: white
+      font-weight: bold
+      font-size: 0.8em
+      padding: 0.5rem 0.7rem
+      margin: 0.5rem -2rem -1rem 0
+      border-radius: 0.7rem 0 1rem 0
+      align-self: flex-end
+      &:hover
+        background-color: rgba(0, 141, 156, 0.8)

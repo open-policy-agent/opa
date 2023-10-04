@@ -42,7 +42,7 @@ var bufPool = sync.Pool{
 }
 
 // Storage is a CAS based on file system with the OCI-Image layout.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/image-layout.md
 type Storage struct {
 	*ReadOnlyStorage
 	// root is the root directory of the OCI layout.

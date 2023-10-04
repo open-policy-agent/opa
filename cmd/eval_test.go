@@ -1312,6 +1312,116 @@ time.clock(input.y, time.clock(input.x))
 	}
 }
 
+func TestEvalDiscardOutput(t *testing.T) {
+	tests := map[string]struct {
+		query, format, expected string
+		params                  evalCommandParams
+	}{
+		"success example": {
+			query: "1*2+3",
+			params: func() evalCommandParams {
+				params := newEvalCommandParams()
+				err := params.outputFormat.Set(evalDiscardOutput)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				return params
+			}(),
+			expected: `{
+  "result": "discarded"
+}
+`},
+		"error example": {
+			query: "1/0",
+			params: func() evalCommandParams {
+				params := newEvalCommandParams()
+				err := params.outputFormat.Set(evalDiscardOutput)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				return params
+			}(),
+			expected: `{}
+`},
+		"error example show built-in-errors": {
+			query: "1/0",
+			params: func() evalCommandParams {
+				params := newEvalCommandParams()
+				err := params.outputFormat.Set(evalDiscardOutput)
+				if err != nil {
+					t.Fatalf("unexpected error: %s", err)
+				}
+				params.showBuiltinErrors = true
+				return params
+			}(),
+			expected: `{
+  "errors": [
+    {
+      "code": "eval_builtin_error",
+      "location": {
+        "col": 1,
+        "file": "",
+        "row": 1
+      },
+      "message": "div: divide by zero"
+    }
+  ]
+}
+`},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			_, err := eval([]string{tc.query}, tc.params, &buf)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if actual := buf.String(); actual != tc.expected {
+				t.Errorf("expected output %q\ngot %q", tc.expected, actual)
+			}
+		})
+	}
+}
+
+func TestEvalDiscardProfilerOutput(t *testing.T) {
+	params := newEvalCommandParams()
+	err := params.outputFormat.Set(evalDiscardOutput)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	params.profile = true
+
+	query := "1*2+3"
+
+	var buf bytes.Buffer
+	_, err = eval([]string{query}, params, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	var output map[string]interface{}
+	if err := util.NewJSONDecoder(&buf).Decode(&output); err != nil {
+		t.Fatal(err)
+	}
+
+	// assert that the result is set to discarded
+	result, ok := output["result"].(string)
+	if !ok {
+		t.Fatal("error extracting result as string from output")
+	}
+
+	if result != "discarded" {
+		t.Fatal("Expected result field to be set to 'discarded'")
+	}
+
+	// assert that profile is still set
+	_, ok = output["profile"]
+	if !ok {
+		t.Fatal("error in parsing profile output")
+	}
+}
+
 func TestPolicyWithStrictFlag(t *testing.T) {
 	testsShouldError := []struct {
 		note            string
@@ -1542,4 +1652,231 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		})
 	}
 
+}
+
+func TestIfElseIfElseNoBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if false
+			else := 2`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestIfElseIfElseBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if { false }
+			else := 2`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestIfElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseNoIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else = x {
+				x=2
+			} `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+			} `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseIfElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else =x {
+				x=3
+			}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseIfElseErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else 
+				x=3
+			`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
+		if err == nil {
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "rego_parse_error: unexpected ident token: expected else value term or rule body"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
+		}
+	})
+}
+
+func TestUnexpectedElseIfErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			q := 1 if false
+			else := 2 if
+			`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
+		if err == nil {
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "rego_parse_error: unexpected eof token: rule body expected"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
+		}
+	})
 }

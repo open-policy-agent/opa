@@ -517,3 +517,41 @@ func (ap *ecrAuthPlugin) refreshAuthorizationToken(ctx context.Context) error {
 	ap.token = token
 	return nil
 }
+
+// awsKMSSignPlugin signs digests using AWS KMS.
+type awsKMSSignPlugin struct {
+
+	// awsAuthPlugin is used to sign kms sign requests.
+	awsAuthPlugin *awsSigningAuthPlugin
+
+	// kms represents the service for signing digests.
+	kms awskms
+
+	logger logging.Logger
+}
+
+type awskms interface {
+	SignDigest(ctx context.Context, digest []byte, keyID string, signingAlgorithm string, creds aws.Credentials, signatureVersion string) (string, error)
+}
+
+func newKMSSignPlugin(ap *awsSigningAuthPlugin) *awsKMSSignPlugin {
+	return &awsKMSSignPlugin{
+		awsAuthPlugin: ap,
+		kms:           aws.NewKMS(ap.logger),
+		logger:        ap.logger,
+	}
+}
+
+func (ap *awsKMSSignPlugin) SignDigest(ctx context.Context, digest []byte, keyID string, signingAlgorithm string) (string, error) {
+	creds, err := ap.awsAuthPlugin.awsCredentialService().credentials(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get aws credentials: %w", err)
+	}
+
+	signature, err := ap.kms.SignDigest(ctx, digest, keyID, signingAlgorithm, creds, ap.awsAuthPlugin.AWSSignatureVersion)
+	if err != nil {
+		return "", fmt.Errorf("kms: failed to sign digest: %w", err)
+	}
+
+	return signature, nil
+}

@@ -65,10 +65,8 @@ func (e *ErrorV1) WithASTErrors(errors []*ast.Error) *ErrorV1 {
 
 // Bytes marshals e with indentation for readability.
 func (e *ErrorV1) Bytes() []byte {
-	if bs, err := json.MarshalIndent(e, "", "  "); err == nil {
-		return bs
-	}
-	return nil
+	bs, _ := json.MarshalIndent(e, "", "  ")
+	return bs
 }
 
 // Messages included in error responses.

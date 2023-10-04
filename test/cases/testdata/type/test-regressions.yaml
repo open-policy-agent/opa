@@ -1,0 +1,88 @@
+cases:
+- note: regression/partial-object override, different key type, query
+  modules:
+  - |
+    package test
+    
+    p[k] := v {
+      v := ["a", "b", "c"][k]
+    }
+    
+    p.foo := "bar"
+  query: data.test.p.foo = x
+  want_result:
+  - x: "bar"
+- note: regression/partial-object override, different key type, referenced in other rule
+  modules:
+    - |
+      package test
+      
+      p[k] := v {
+        v := ["a", "b", "c"][k]
+      }
+      
+      p.foo := "bar"
+      
+      q[x] {
+        x := p[_]
+        x == "bar"
+      }
+  query: data.test.q = x
+  want_result:
+    - x: ["bar"]
+- note: regression/dynamic object to static object comparison (https://github.com/open-policy-agent/opa/issues/6138)
+  modules:
+    - |
+      package test
+      
+      import future.keywords
+      
+      l := ["a", "b", "c"]
+      
+      obj[k] := v {
+        v := ["a", "b", "c"][k]
+        k < 3
+      }
+      
+      obj[k] := v {
+        v := input.m[k]
+      }
+
+      obj.foo := "bar" { input.foo }
+      
+      obj.baz := true { input.baz }
+      
+      compare {
+        # Comparison with static object that doesn't contain "optional" key.
+        obj == {
+          0: "a",
+          1: "b",
+          2: "c",
+        }
+      
+        obj == {
+          0: "a",
+          1: "b",
+          2: "c",
+          "foo": "bar"
+        } with input.foo as true
+      
+        obj == {
+          0: "a",
+          1: "b",
+          2: "c",
+          "baz": true
+        } with input.baz as true
+      
+        obj == {
+          0: "a",
+          1: "b",
+          2: "c",
+          3: "d",
+          4: "e",
+          100: "f"
+        } with input.m as {3: "d", 4: "e", 100: "f"}
+      }
+  query: data.test.compare = x
+  want_result:
+    - x: true

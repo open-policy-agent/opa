@@ -280,6 +280,105 @@ func TestCheckOPAUpdateLoopWithNewUpdate(t *testing.T) {
 	testCheckOPAUpdateLoop(t, baseURL, "OPA is out of date.")
 }
 
+func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
+	ctx := context.Background()
+
+	fs := map[string]string{
+		"test/authz.rego": `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identity = "foo"
+		}`,
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		rootDir = filepath.Join(rootDir, "test")
+
+		params := NewParams()
+		params.Paths = []string{rootDir}
+		params.Authorization = server.AuthorizationBasic
+
+		_, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		badModule := []byte(`package system.authz
+
+		default allow := false
+
+		allow {
+           input.identty = "foo"
+		}`)
+
+		if err := os.WriteFile(path.Join(rootDir, "authz.rego"), badModule, 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = NewRuntime(ctx, params)
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+
+		if !strings.Contains(err.Error(), "undefined ref: input.identty") {
+			t.Errorf("Expected error \"%v\" not found", "undefined ref: input.identty")
+		}
+
+		// no verification checks
+		params.Authorization = server.AuthorizationOff
+		_, err = NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
+	ctx := context.Background()
+
+	fs := map[string]string{
+		"test/authz.rego": `package system.authz
+
+		default allow := false
+
+        is_secret :=  input.identty == "secret"
+
+        # even though "is_secret" is called via 2 paths, there should be only one resulting error
+        # 1-step dependency
+        allow {
+          is_secret
+        }
+
+        # 2-step dependency
+        allow {
+          allow2
+        }
+
+        allow2 {
+          is_secret
+        }`,
+	}
+
+	test.WithTempFS(fs, func(rootDir string) {
+		rootDir = filepath.Join(rootDir, "test")
+
+		params := NewParams()
+		params.Paths = []string{rootDir}
+		params.Authorization = server.AuthorizationBasic
+
+		_, err := NewRuntime(ctx, params)
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+
+		if !strings.Contains(err.Error(), "undefined ref: input.identty") {
+			t.Errorf("Expected error \"%v\" not found", "undefined ref: input.identty")
+		}
+	})
+}
+
 func TestCheckAuthIneffective(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
 	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
@@ -293,7 +392,7 @@ func TestCheckAuthIneffective(t *testing.T) {
 	logger.SetOutput(stdout)
 
 	params.Logger = logger
-	params.Addrs = &[]string{":0"}
+	params.Addrs = &[]string{"localhost:0"}
 	params.GracefulShutdownPeriod = 1
 	rt, err := NewRuntime(ctx, params)
 	if err != nil {
@@ -321,7 +420,7 @@ func TestServerInitialized(t *testing.T) {
 
 	params := NewParams()
 	params.Output = &output
-	params.Addrs = &[]string{":0"}
+	params.Addrs = &[]string{"localhost:0"}
 	params.GracefulShutdownPeriod = 1
 	params.Logger = logging.NewNoOpLogger()
 
@@ -476,7 +575,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			logLevel := logging.Info
 
 			params.Logger = logger
-			params.Addrs = &[]string{":8181"}
+			params.Addrs = &[]string{"localhost:8181"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
 			rt, err := NewRuntime(ctx, params)

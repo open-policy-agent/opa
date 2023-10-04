@@ -3,6 +3,7 @@ title: Policy Testing
 kind: documentation
 weight: 4
 restrictedtoc: true
+has_side_notes: true
 ---
 
 OPA gives you a high-level declarative language
@@ -509,3 +510,7 @@ opa test --coverage --format=json example.rego example_test.rego
   }
 }
 ```
+
+## Ecosystem Projects
+
+{{< ecosystem_feature_embed key="policy-testing" topic="Policy Testing" >}}

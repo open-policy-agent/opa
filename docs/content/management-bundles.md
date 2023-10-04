@@ -941,6 +941,9 @@ bundles:
     resource: 'bundle.tar.gz?alt=media'
 ```
 
+If the resource (the object in the gcs bucket) contains slashes (/) or other special characters, these need to be url-encoded here, e.g.
+`bundles/bundle.tar.gz?alt=media` should be entered as `bundles%2fbundle.tar.gz?alt=media`. Please refer to the [official documentation](https://cloud.google.com/storage/docs/request-endpoints#encoding) for more information.
+
 ##### Google Cloud Storage Bundle and JWT Bearer Authentication
 
 ```yaml
@@ -1321,3 +1324,9 @@ Content-Length: 24
 
 {"play":{"hello":false}}
 ```
+
+## Ecosystem Projects
+
+The Bundle API is a great way to integrate with and update OPA.
+
+{{< ecosystem_feature_embed key="opa-bundles" topic="or built using Bundles" >}}

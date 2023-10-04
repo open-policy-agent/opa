@@ -166,20 +166,20 @@ func stringToHeader(value string) map[string]string {
 	headers := make(map[string]string)
 
 	for _, header := range headersPairs {
-		nameValue := strings.SplitN(header, "=", 2)
-		if len(nameValue) < 2 {
-			global.Error(errors.New("missing '="), "parse headers", "input", nameValue)
+		n, v, found := strings.Cut(header, "=")
+		if !found {
+			global.Error(errors.New("missing '="), "parse headers", "input", header)
 			continue
 		}
-		name, err := url.QueryUnescape(nameValue[0])
+		name, err := url.QueryUnescape(n)
 		if err != nil {
-			global.Error(err, "escape header key", "key", nameValue[0])
+			global.Error(err, "escape header key", "key", n)
 			continue
 		}
 		trimmedName := strings.TrimSpace(name)
-		value, err := url.QueryUnescape(nameValue[1])
+		value, err := url.QueryUnescape(v)
 		if err != nil {
-			global.Error(err, "escape header value", "value", nameValue[1])
+			global.Error(err, "escape header value", "value", v)
 			continue
 		}
 		trimmedValue := strings.TrimSpace(value)

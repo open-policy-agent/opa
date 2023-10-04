@@ -187,6 +187,7 @@ not any_not_match
 ```
 
 ```live:iteration/forall:module:read_only
+# with `import future.keywords.in` and `import future.keywords.if`
 any_match if {
     some x in set
     f(x)
@@ -222,6 +223,7 @@ c := a | b
 p := true { ... }
 
 # OR
+# with `import future.keywords.if`
 p if { ... }
 
 # OR
@@ -231,6 +233,7 @@ p { ... }
 ### Conditionals
 
 ```live:rules/cond:module:read_only
+# with `import future.keywords.if`
 default a := 1
 a := 5   if { ... }
 a := 100 if { ... }
@@ -243,7 +246,7 @@ a := 100 if { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
-# alternatively, with future.keywords.contains and future.keywords.if
+# alternatively, with `import future.keywords.contains` and `import future.keywords.if`
 a_set contains x if { ... }
 a_set contains y if { ... }
 
@@ -255,6 +258,7 @@ a_map[w] := z if { ... }
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
+# with `import future.keywords.if`
 default a := 1
 a := 5 if { ... }
 else := 10 if { ... }
@@ -263,6 +267,7 @@ else := 10 if { ... }
 ### Functions (Boolean)
 
 ```live:rules/funcs:module:read_only
+# with `import future.keywords.if`
 f(x, y) if {
     ...
 }
@@ -277,6 +282,7 @@ f(x, y) := true if {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
+# with `import future.keywords.if`
 f(x) := "A" if { x >= 90 }
 f(x) := "B" if { x >= 80; x < 90 }
 f(x) := "C" if { x >= 70; x < 80 }
@@ -285,6 +291,7 @@ f(x) := "C" if { x >= 70; x < 80 }
 ### Reference Heads
 
 ```live:rules/ref_heads:module:read_only
+# with `import future.keywords.contains` and `import future.keywords.if`
 fruit.apple.seeds = 12 if input == "apple"             # complete document (single value rule)
 
 fruit.pineapple.colors contains x if x := "yellow"     # multi-value rule

@@ -351,6 +351,22 @@ func TestCheckInferenceRules(t *testing.T) {
 		{`ref_rule_single_with_number_key`, `p.q[3] { true }`},
 		{`ref_regression_array_key`,
 			`walker[[p, v]] = o { l = input; walk(l, k); [p, v] = k; o = {} }`},
+		{`overlap`, `p.q[r] = y { x = ["a", "b"]; y = x[r] }`},
+		{`overlap`, `p.q.r = false { true }`},
+		{`overlap`, `p.q.r = "false" { true }`},
+		{`overlap`, `p.q[42] = 1337 { true }`},
+		{`overlap`, `p.q2.a = input.a { true }`},
+		{`overlap`, `p.q2[56] = input.a { true }`},
+	}
+	ruleset3 := [][2]string{
+		{`simple`, `p.q[r][s] = 42 { x = ["a", "b"]; r = x[s] }`},
+		{`mixed`, `p.q[r].s[t] = 42 { x = ["a", "b"]; r = x[t] }`},
+		{`overrides`, `p.q[r] = "foo" { x = ["a", "b"]; r = x[_] }`},
+		{`overrides`, `p.q.r[s] = 42 { x = ["a", "b"]; x[s] }`},
+		{`overrides`, `p.q[r].s = true { x = [true, false]; r = x[_] }`},
+		{`overrides_static`, `p.q[r].a = "foo" { r = "bar"; s = "baz" }`},
+		{`overrides_static`, `p.q[r].b = 42 { r = "bar" }`},
+		{`overrides_static`, `p.q[r].c = true { r = "bar" }`},
 	}
 
 	tests := []struct {
@@ -504,6 +520,143 @@ func TestCheckInferenceRules(t *testing.T) {
 				types.NewDynamicProperty(types.NewArray([]types.Type{types.NewArray(types.A, types.A), types.A}, nil),
 					types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
 			)},
+		{
+			note:     "ref-rules single value, full ref to known leaf",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q.r",
+			expected: types.NewAny(types.B, types.S),
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (same key type as dynamic, different value type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q[42]",
+			expected: types.N,
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (any type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q2.a",
+			expected: types.A,
+		},
+		{
+			note:     "ref-rules single value, full ref to known leaf (same key type as dynamic, any type)",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q2[56]",
+			expected: types.A,
+		},
+		{
+			note:     "ref-rules single value, full ref to dynamic leaf",
+			rules:    ruleset2,
+			ref:      "data.overlap.p.q[1]",
+			expected: types.Any{types.B, types.N, types.S}, // key type cannot be tied to specific dynamic value type, so we get all of them
+		},
+		{
+			note:  "ref-rules single value, prefix ref to partial object root",
+			rules: ruleset2,
+			ref:   "data.overlap.p.q",
+			expected: types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.Any{types.N, types.S}, types.Any{types.B, types.N, types.S}),
+			),
+		},
+		{
+			note:  "general ref-rules, only vars in obj-path, complete obj access",
+			rules: ruleset3,
+			ref:   "data.simple.p.q",
+			expected: types.NewObject(
+				[]*types.StaticProperty{},
+				types.NewDynamicProperty(types.S,
+					types.NewObject(
+						[]*types.StaticProperty{},
+						types.NewDynamicProperty(types.N, types.N),
+					),
+				),
+			),
+		},
+		{
+			note:  "general ref-rules, only vars in obj-path, intermediate obj access",
+			rules: ruleset3,
+			ref:   "data.simple.p.q.b",
+			expected: types.NewObject(
+				[]*types.StaticProperty{},
+				types.NewDynamicProperty(types.N, types.N),
+			),
+		},
+		{
+			note:     "general ref-rules, only vars in obj-path, leaf access",
+			rules:    ruleset3,
+			ref:      "data.simple.p.q.b[1]",
+			expected: types.N,
+		},
+		{
+			note:  "general ref-rules, vars and constants in obj-path, complete obj access",
+			rules: ruleset3,
+			ref:   "data.mixed.p.q",
+			expected: types.NewObject(
+				[]*types.StaticProperty{},
+				types.NewDynamicProperty(types.S,
+					types.NewObject(nil,
+						types.NewDynamicProperty(types.S, types.NewObject(nil,
+							types.NewDynamicProperty(types.N, types.N))),
+					),
+				),
+			),
+		},
+		{
+			note:  "general ref-rules, key overrides, complete obj access",
+			rules: ruleset3,
+			ref:   "data.overrides.p.q",
+			expected: types.NewObject(nil, types.NewDynamicProperty(
+				types.Or(types.B, types.S),
+				types.Any{
+					types.S,
+					types.NewObject(nil, types.NewDynamicProperty(
+						types.Any{types.N, types.S},
+						types.Any{types.B, types.N})),
+				},
+			),
+			),
+		},
+		{
+			note:  "general ref-rules, multiple static key overrides, complete obj access",
+			rules: ruleset3,
+			ref:   "data.overrides_static.p.q",
+			expected: types.NewObject(
+				[]*types.StaticProperty{},
+				types.NewDynamicProperty(types.S,
+					types.NewObject(
+						nil,
+						types.NewDynamicProperty(types.S, types.Any{types.B, types.N, types.S}),
+					),
+				),
+			),
+		},
+		{
+			note:  "general ref-rules, multiple static key overrides, intermediate obj access",
+			rules: ruleset3,
+			ref:   "data.overrides_static.p.q.foo",
+			expected: types.NewObject(nil,
+				types.NewDynamicProperty(types.S, types.Any{types.B, types.N, types.S}),
+			),
+		},
+		{
+			note:     "general ref-rules, multiple static key overrides, leaf access (a)",
+			rules:    ruleset3,
+			ref:      "data.overrides_static.p.q.foo.a",
+			expected: types.Any{types.B, types.N, types.S}, // Dynamically build object types don't have static properties, so even though we "know" the 'a' key has a string value, we've lost this information.
+		},
+		{
+			note:     "general ref-rules, multiple static key overrides, leaf access (b)",
+			rules:    ruleset3,
+			ref:      "data.overrides_static.p.q.bar.b",
+			expected: types.Any{types.B, types.N, types.S},
+		},
+		{
+			note:     "general ref-rules, multiple static key overrides, leaf access (c)",
+			rules:    ruleset3,
+			ref:      "data.overrides_static.p.q.baz.c",
+			expected: types.Any{types.B, types.N, types.S},
+		},
 	}
 
 	for _, tc := range tests {

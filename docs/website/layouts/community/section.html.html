@@ -1,0 +1,75 @@
+{{ define "title" }}
+{{ site.Title }} | Community
+{{ end }}
+
+{{ define "content" }}
+  <div class="support-bg">
+    {{ partial "nav.html" . }}
+
+    <main>
+
+      <section class="background">
+
+        <h1 class="banner-content">
+          {{ .Title }}
+        </h1>
+
+        <div class="banner-subcontent">
+          {{ .Params.intro }}
+        </div>
+
+        <div class="page-content">
+          {{ range $section := .Params.sections }}
+            <h2>{{ $section.title }}</h2>
+
+            <div class="grid-container">
+              {{ range $item := $section.items }}
+                <div class="card">
+                  <div class="card-body">
+                    <div class="support-card-content d-flex flex-column align-items-start">
+                      <img title="{{ $item.title }}" class="card-img align-middle" src="{{ $item.icon }}"/>
+                      <div class="card-text">
+                        <div class="header">{{ $item.title }}</div>
+                        <div class="subheader">
+                          {{ $item.note }}
+
+                          {{ if $item.links }}
+                          {{ range $link := $item.links }}
+                          <a href="{{ $link.url }}" alt="{{ $item.title }} {{ $link.description }}">
+                            <i class="fab fa-{{ $link.icon }}"></i>
+                            {{ $link.text }}
+                          </a>
+                          <br/>
+                          {{ end }}
+                          {{ end }}
+                        </div>
+
+
+                        {{ if $item.link }}
+                          <a href="{{ $item.link }}" class="btn btn-primary btn-lg" role="button">
+                            {{ $item.link_text }}
+                          </a>
+                        {{ end }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {{ end }}
+            </div>
+          {{ end }}
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+          integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+          integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+          crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+          integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+          crossorigin="anonymous"></script>
+{{ end }}

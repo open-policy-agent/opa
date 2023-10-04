@@ -16,7 +16,6 @@ import (
 )
 
 func TestPlannerHelloWorld(t *testing.T) {
-
 	// NOTE(tsandall): These tests are not meant to give comprehensive coverage
 	// of the planner. Currently we have a suite of end-to-end tests in the
 	// test/wasm/ directory that are specified in YAML, compiled into Wasm, and
@@ -149,6 +148,46 @@ func TestPlannerHelloWorld(t *testing.T) {
 				package test
 				p["a"] = 1
 				p[v] = 2 { v := "b" }
+			`},
+		},
+		{
+			note:    "partial object (ref-head) with var",
+			queries: []string{`data.test.p.q = x`},
+			modules: []string{`
+				package test
+				p.q.r["a"] = 1
+				p.q[v] = 2 { v := "b" }
+			`},
+		},
+		{
+			note:    "partial object (ref-head) with var (shallow query)",
+			queries: []string{`data.test.p = x`},
+			modules: []string{`
+				package test
+				p.q["a"] = 1
+				p.q[v] = 2 { v := "b" }
+				p.r["c"] = 3
+				p.r[v] = 4 { v := "d" }
+			`},
+		},
+		{
+			note:    "partial object (ref-head) with var (multiple)",
+			queries: []string{`data.test.p.q = x`},
+			modules: []string{`
+				package test
+				p.q["a"] = 1
+				p.q[v] = x { l1 := ["b", "c", "d"]; l2 := ["foo", "bar"]; l3 := [2, 3]; v := l1[_]; x := l2[_]; z := l3[_] }
+			`},
+		},
+		{
+			note:    "partial object (general ref-head) with var",
+			queries: []string{`data.test.p.q = x`},
+			modules: []string{`
+				package test
+				p.q["a"] = 1
+				p.q.b.s.baz = 2
+				p.q.b.s.foo.c = 3
+				p.q[r].s[t].u = v { x := ["foo", "bar"]; r := "b"; t := x[v]}
 			`},
 		},
 		{

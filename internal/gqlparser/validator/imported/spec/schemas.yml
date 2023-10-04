@@ -97,7 +97,7 @@
     catOrDog: CatOrDog
     complicatedArgs: ComplicatedArgs
   }
-  # injected becuase upstream spec is missing some types
+  # injected because upstream spec is missing some types
   extend type QueryRoot {
       field: T
       f1: Type

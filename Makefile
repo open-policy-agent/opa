@@ -62,7 +62,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -142,7 +142,7 @@ wasm-sdk-e2e-test: generate
 .PHONY: check
 check:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
+	docker run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -150,7 +150,7 @@ endif
 .PHONY: fmt
 fmt:
 ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/app -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
+	docker run --rm -v $(shell pwd):/app:Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v --fix
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
@@ -249,7 +249,7 @@ CI_GOLANG_DOCKER_MAKE := $(DOCKER) run \
 	-e WASM_ENABLED=$(WASM_ENABLED) \
 	-e FUZZ_TIME=$(FUZZ_TIME) \
 	-e TELEMETRY_URL=$(TELEMETRY_URL) \
-	golang:$(GOVERSION)
+	$(RELEASE_BUILD_IMAGE)
 
 .PHONY: ci-go-%
 ci-go-%: generate
@@ -331,20 +331,20 @@ image-quick-%: ensure-executable-bin
 ifneq ($(GOARCH),arm64) # build only static images for arm64
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION) \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-debug \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest-dev \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
 	$(DOCKER) build \
 		-t $(DOCKER_IMAGE):$(VERSION)-rootless \
 		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform linux/$* \
 		.
@@ -370,25 +370,27 @@ endif
 push-manifest-list-%: ensure-executable-bin
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$* \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
-	# TODO: update busybox shell debug images to image without openssl
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-debug \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest-dev \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest-dev \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
 	$(DOCKER) buildx build \
 		--tag $(DOCKER_IMAGE):$*-rootless \
 		--build-arg OPA_DOCKER_IMAGE_TAG=rootless \
-		--build-arg BASE=cgr.dev/chainguard/cc-dynamic:latest \
+		--build-arg BASE=cgr.dev/chainguard/glibc-dynamic:latest \
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--platform $(DOCKER_PLATFORMS) \
+		--provenance=false \
 		--push \
 		.
 
@@ -398,6 +400,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--provenance=false \
 		--push \
 		.
 
@@ -407,6 +410,7 @@ push-manifest-list-%: ensure-executable-bin
 		--build-arg BIN_DIR=$(RELEASE_DIR) \
 		--build-arg BIN_SUFFIX=_static \
 		--platform $(DOCKER_PLATFORMS_STATIC) \
+		--provenance=false \
 		--push \
 		.
 
@@ -479,10 +483,10 @@ check-go-module:
 	docker run \
 	  $(DOCKER_FLAGS) \
 	  -w /src \
-	  -v $(PWD):/src \
+	  -v $(PWD):/src:Z \
 	  -e 'GOPRIVATE=*' \
 	  --tmpfs /src/.go \
-	  golang:$(GOVERSION) \
+	  $(RELEASE_BUILD_IMAGE) \
 	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
 
 ######################################################
@@ -499,15 +503,15 @@ endif
 	@$(DOCKER) run $(DOCKER_FLAGS) \
 		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
 		-e LAST_VERSION=$(LAST_VERSION) \
-		-v $(PWD):/_src \
-		cmd.cat/make/git/go/python3/perl \
+		-v $(PWD):/_src:Z \
+		ashtalk/python-go-perl:v1 \
 		/_src/build/gen-release-patch.sh --version=$(VERSION) --source-url=/_src
 
 .PHONY: dev-patch
 dev-patch:
 	@$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD):/_src \
-		cmd.cat/make/git/go/python3/perl \
+		-v $(PWD):/_src:Z \
+		ashtalk/python-go-perl:v1 \
 		/_src/build/gen-dev-patch.sh --version=$(VERSION) --source-url=/_src
 
 # Deprecated targets. To be removed.
@@ -542,16 +546,16 @@ depr-build-windows: ensure-release-dir
 
 depr-release:
 	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
+		-v $(PWD):/_src:Z \
 		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --version=$(VERSION) --output-dir=/$(RELEASE_DIR) --source-url=/_src
 
 depr-release-local:
 	$(DOCKER) run $(DOCKER_FLAGS) \
-		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR) \
-		-v $(PWD):/_src \
+		-v $(PWD)/$(RELEASE_DIR):/$(RELEASE_DIR):Z \
+		-v $(PWD):/_src:Z \
 		-e TELEMETRY_URL=$(TELEMETRY_URL) \
 		$(RELEASE_BUILD_IMAGE) \
 		/_src/build/build-release.sh --output-dir=/$(RELEASE_DIR) --source-url=/_src

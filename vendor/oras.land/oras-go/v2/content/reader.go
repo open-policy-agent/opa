@@ -70,7 +70,7 @@ func (vr *VerifyReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-// Verify verifies the read content against the size and the digest.
+// Verify checks for remaining unread content and verifies the read content against the digest
 func (vr *VerifyReader) Verify() error {
 	if vr.verified {
 		return nil
@@ -120,7 +120,10 @@ func ReadAll(r io.Reader, desc ocispec.Descriptor) ([]byte, error) {
 	buf := make([]byte, desc.Size)
 
 	vr := NewVerifyReader(r, desc)
-	if _, err := io.ReadFull(vr, buf); err != nil {
+	if n, err := io.ReadFull(vr, buf); err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, fmt.Errorf("read failed: expected content size of %d, got %d, for digest %s: %w", desc.Size, n, desc.Digest.String(), err)
+		}
 		return nil, fmt.Errorf("read failed: %w", err)
 	}
 	if err := vr.Verify(); err != nil {

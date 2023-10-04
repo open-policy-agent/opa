@@ -1,0 +1,25 @@
+{{ $feature := .Get "key" }}
+{{ $integrations := where $.Site.RegularPages "Section" "integrations" }}
+{{ $organizations := where $.Site.RegularPages "Section" "organizations" }}
+{{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
+
+{{ if (gt (len $selectedIntegrations) 6) }}
+  <p>
+    The {{ len $selectedIntegrations }} ecosystem projects related to this page
+    can be found in the corresponding <a href="/ecosystem/{{ $feature }}">OPA Ecosystem section</a>.
+  </p>
+{{ else if (gt (len $selectedIntegrations) 0) }}
+  <p>
+    Below are ecosystem projects related to {{ .Get "topic" }}.
+    Integrations are ordered by the amount of linked content.
+  </p>
+
+  {{ $sortedIntegrations := partial "functions/sort-integrations" (dict "integrations" $selectedIntegrations) }}
+  {{ partial "ecosystem-project-list-for-feature" (dict "selectedIntegrations" $sortedIntegrations "integrations" $integrations "organizations" $organizations "feature" $feature) }}
+
+  <p class="mt-4">
+    View these projects in the <a href="/ecosystem/{{ $feature }}">OPA Ecosystem</a>.
+  </p>
+{{ else }}
+  <p>There are no integrations for this category.</p>
+{{ end }}

@@ -1,0 +1,19 @@
+{{- $integrations := where $.Site.RegularPages "Section" "integrations" -}}
+{{- $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" (.Get "key")) -}}
+{{- $count := len $selectedIntegrations -}}
+
+{{- if ne (len $selectedIntegrations) 0 -}}
+  {{ if gt (len $selectedIntegrations) 1 }}
+    {{ replace (.Get "plural_intro") "COUNT" $count }}
+    <a href="/ecosystem/{{ .Get "key" }}">
+      {{ replace (.Get "plural_link") "COUNT" $count }}
+    </a>
+    {{ replace (.Get "plural_outro") "COUNT" $count }}
+  {{ else }}
+    {{ .Get "singular_intro" }}
+    <a href="/ecosystem/{{ .Get "key" }}">
+      {{ .Get "singular_link" }}
+    </a>
+    {{ .Get "singular_outro" }}
+  {{ end }}
+{{- end -}}

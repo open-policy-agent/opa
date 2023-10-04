@@ -9,27 +9,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/server/types"
+	"github.com/fortytw2/leaktest"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/config"
+	"github.com/open-policy-agent/opa/hooks"
 	"github.com/open-policy-agent/opa/logging"
+	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/profiler"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/sdk"
+	sdktest "github.com/open-policy-agent/opa/sdk/test"
+	"github.com/open-policy-agent/opa/server/types"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/lineage"
-
-	"github.com/fortytw2/leaktest"
-	loggingtest "github.com/open-policy-agent/opa/logging/test"
-	"github.com/open-policy-agent/opa/plugins"
-	"github.com/open-policy-agent/opa/sdk"
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -58,7 +63,7 @@ func (p *plugin) Stop(ctx context.Context) {
 func (*plugin) Reconfigure(context.Context, interface{}) {
 }
 
-func (f factory) New(manager *plugins.Manager, config interface{}) plugins.Plugin {
+func (f factory) New(manager *plugins.Manager, _ interface{}) plugins.Plugin {
 	return &plugin{
 		manager:  manager,
 		shutdown: f.shutdown,
@@ -70,9 +75,7 @@ func (factory) Validate(*plugins.Manager, []byte) (interface{}, error) {
 }
 
 func TestPlugins(t *testing.T) {
-
 	ctx := context.Background()
-
 	config := `{
         "plugins": {
             "test_plugin": {}
@@ -85,23 +88,112 @@ func TestPlugins(t *testing.T) {
 			"test_plugin": factory{},
 		},
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
+	opa.Stop(ctx)
+}
 
+func TestHookOnConfig(t *testing.T) {
+	ctx := context.Background()
+
+	// We're setting up two hooks that smuggle in some new labels, and hold on
+	// to their config.
+	// NOTE: Hook ordering isn't guaranteed, so we cannot rely on their invocation
+	// in sequence.
+	th0 := &testhook{k: "foo", v: "baz"}
+	th1 := &testhook{k: "fox", v: "quz"}
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID:     "sdk-id-0",
+		Config: strings.NewReader(`{}`),
+		Hooks:  hooks.New(th0, th1),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer opa.Stop(ctx)
+
+	exp := &config.Config{
+		Labels: map[string]string{
+			"id":      "sdk-id-0",
+			"version": version.Version,
+			"foo":     "baz",
+			"fox":     "quz",
+		},
+	}
+	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
+	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
+		t.Errorf("unexpected config: (-want, +got):\n%s", diff)
+	}
+}
+
+func TestHookOnConfigDiscovery(t *testing.T) {
+	ctx := context.Background()
+	th0 := &testhook{k: "foo", v: "baz"}
+	th1 := &testhook{k: "fox", v: "quz"}
+	disco := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			return // ignore status plugin POSTs
+		}
+		http.FileServer(http.Dir("testdata")).ServeHTTP(w, r)
+	}))
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID: "sdk-id-0",
+		Config: strings.NewReader(fmt.Sprintf(`{
+"discovery": {"service":"disco", "resource": "disco.tar.gz"},
+"services": [{"name":"disco", "url": "%[1]s"}]
+		}`, disco.URL)),
+		Hooks:  hooks.New(th0, th1),
+		Logger: logging.New(),
+		Plugins: map[string]plugins.Factory{
+			"test_plugin": factory{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opa.Stop(ctx)
+
+	exp := &config.Config{
+		Labels: map[string]string{
+			"id":      "sdk-id-0",
+			"version": version.Version,
+			"foo":     "baz",
+			"fox":     "quz",
+		},
+		Plugins:   map[string]json.RawMessage{"test_plugin": json.RawMessage("{}")},
+		Discovery: json.RawMessage(`{"service":"disco", "resource": "disco.tar.gz"}`),
+	}
+	act := th1.c // doesn't matter which hook, they only mutate the config via its pointer
+	if diff := cmp.Diff(exp, act, cmpopts.IgnoreFields(config.Config{}, "DefaultDecision", "DefaultAuthorizationDecision")); diff != "" {
+		t.Errorf("unexpected config: (-want, +got):\n%s", diff)
+	}
+}
+
+type testhook struct {
+	k, v string
+	c    *config.Config
+}
+
+func (h *testhook) OnConfig(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.k] = h.v
+	h.c = c
+	return c, nil
+}
+
+func (h *testhook) OnConfigDiscovery(_ context.Context, c *config.Config) (*config.Config, error) {
+	c.Labels[h.k] = h.v
+	h.c = c
+	return c, nil
 }
 
 func TestPluginPanic(t *testing.T) {
 	ctx := context.Background()
 
 	opa, err := sdk.New(ctx, sdk.Options{})
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	opa.Stop(ctx)
 }
 
@@ -408,7 +500,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 5, len(m.All()); exp != act {
+	if exp, act := 4, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -484,7 +576,7 @@ main = true
 		t.Fatal("expected true but got:", decision, ok)
 	}
 
-	if exp, act := 26, len(m.All()); exp != act {
+	if exp, act := 25, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -641,6 +733,76 @@ main = data.foo
 		t.Fatalf("expected %s but got %s", exp, act)
 	}
 
+}
+
+func TestDecisionWithConfigurableID(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = time.now_ns()
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Now: time.Unix(0, 1619868194450288000).UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Now:        time.Unix(0, 1619868194450288000).UTC(),
+		DecisionID: "164031de-e511-11ec-8fea-0242ac120002",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+
+	if exp, act := 2, len(entries); exp != act {
+		t.Fatalf("expected %d entries, got %d", exp, act)
+	}
+
+	if entries[0].Fields["decision_id"] == "" {
+		t.Fatalf("expected not empty decision_id")
+	}
+
+	if entries[1].Fields["decision_id"] != "164031de-e511-11ec-8fea-0242ac120002" {
+		t.Fatalf("expected %v but got %v", "164031de-e511-11ec-8fea-0242ac120002", entries[1].Fields["decision_id"])
+	}
 }
 
 func TestPartial(t *testing.T) {
@@ -932,7 +1094,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 6, len(m.All()); exp != act {
+	if exp, act := 5, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1019,7 +1181,7 @@ allow {
 		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
 	}
 
-	if exp, act := 33, len(m.All()); exp != act {
+	if exp, act := 32, len(m.All()); exp != act {
 		t.Fatalf("expected %d metrics, got %d", exp, act)
 	}
 
@@ -1138,6 +1300,91 @@ allow {
 
 }
 
+func TestPartialWithConfigurableID(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package test
+
+allow {
+	data.junk.x = input.y
+}
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if result, err := opa.Partial(ctx, sdk.PartialOptions{
+		Input:    map[string]int{"y": 2},
+		Query:    "data.test.allow = true",
+		Unknowns: []string{"data.junk.x"},
+		Mapper:   &sdk.RawMapper{},
+		Now:      time.Unix(0, 1619868194450288000).UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(*rego.PartialQueries); !ok || decision.Queries[0].String() != "2 = data.junk.x" {
+		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
+	}
+
+	if result, err := opa.Partial(ctx, sdk.PartialOptions{
+		Input:      map[string]int{"y": 2},
+		Query:      "data.test.allow = true",
+		Unknowns:   []string{"data.junk.x"},
+		Mapper:     &sdk.RawMapper{},
+		Now:        time.Unix(0, 1619868194450288000).UTC(),
+		DecisionID: "164031de-e511-11ec-8fea-0242ac120002",
+	}); err != nil {
+		t.Fatal(err)
+	} else if decision, ok := result.Result.(*rego.PartialQueries); !ok || decision.Queries[0].String() != "2 = data.junk.x" {
+		t.Fatal("expected &{[2 = data.junk.x] []} true but got:", decision, ok)
+	}
+
+	entries := testLogger.Entries()
+
+	if exp, act := 2, len(entries); exp != act {
+		t.Fatalf("expected %d entries, got %d", exp, act)
+	}
+
+	if entries[0].Fields["decision_id"] == "" {
+		t.Fatalf("expected not empty decision_id")
+	}
+
+	if entries[1].Fields["decision_id"] != "164031de-e511-11ec-8fea-0242ac120002" {
+		t.Fatalf("expected %v but got %v", "164031de-e511-11ec-8fea-0242ac120002", entries[1].Fields["decision_id"])
+	}
+}
+
 func TestUndefinedError(t *testing.T) {
 
 	ctx := context.Background()
@@ -1245,6 +1492,113 @@ main = time.now_ns()
 		Now: time.Unix(0, 1619868194450288000).UTC(),
 	}); err != nil {
 		t.Fatal(err)
+	}
+
+}
+
+func TestDecisionLoggingWithMasking(t *testing.T) {
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = true
+
+str = "foo"
+
+loopback = input
+`,
+			"log.rego": `
+package system.log
+
+mask["/input/secret"]
+mask["/input/top/secret"]
+mask["/input/dossier/1/highly"]
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": true
+		}
+	}`, server.URL())
+
+	testLogger := loggingtest.New()
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config:        strings.NewReader(config),
+		ConsoleLogger: testLogger,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
+		Input: map[string]interface{}{
+			"secret": "foo",
+			"top": map[string]string{
+				"secret": "bar",
+			},
+			"dossier": []map[string]interface{}{
+				{
+					"very": "private",
+				},
+				{
+					"highly": "classified",
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := testLogger.Entries()
+
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry but got %d", len(entries))
+	}
+
+	expectedErased := []interface{}{
+		"/input/dossier/1/highly",
+		"/input/secret",
+		"/input/top/secret",
+	}
+	erased := entries[0].Fields["erased"].([]interface{})
+	stringLess := func(a, b string) bool {
+		return a < b
+	}
+	if !cmp.Equal(expectedErased, erased, cmpopts.SortSlices(stringLess)) {
+		t.Errorf("Did not get expected result for erased field in decision log:\n%s", cmp.Diff(expectedErased, erased, cmpopts.SortSlices(stringLess)))
+	}
+	errMsg := `Expected masked field "%s" to be removed, but it was present.`
+	input := entries[0].Fields["input"].(map[string]interface{})
+	if _, ok := input["secret"]; ok {
+		t.Errorf(errMsg, "/input/secret")
+	}
+
+	if _, ok := input["top"].(map[string]interface{})["secret"]; ok {
+		t.Errorf(errMsg, "/input/top/secret")
+	}
+
+	if _, ok := input["dossier"].([]interface{})[1].(map[string]interface{})["highly"]; ok {
+		t.Errorf(errMsg, "/input/dossier/1/highly")
 	}
 
 }

@@ -31,7 +31,7 @@ import (
 
 // ReadOnlyStorage is a read-only CAS based on file system with the OCI-Image
 // layout.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/image-layout.md
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/image-layout.md
 type ReadOnlyStorage struct {
 	fsys fs.FS
 }
@@ -95,5 +95,5 @@ func blobPath(dgst digest.Digest) (string, error) {
 		return "", fmt.Errorf("cannot calculate blob path from invalid digest %s: %w: %v",
 			dgst.String(), errdef.ErrInvalidDigest, err)
 	}
-	return path.Join("blobs", dgst.Algorithm().String(), dgst.Encoded()), nil
+	return path.Join(ociBlobsDir, dgst.Algorithm().String(), dgst.Encoded()), nil
 }

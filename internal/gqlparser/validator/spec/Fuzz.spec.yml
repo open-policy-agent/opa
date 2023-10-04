@@ -4,7 +4,7 @@
   errors:
     - message: Cannot query field "r" on type "QueryRoot".
 
-- name: 02 - infinit loop occured in OverlappingFieldsCanBeMerged rule
+- name: 02 - infinite loop occurred in OverlappingFieldsCanBeMerged rule
   schema: |
     type Query {
       fieldA: A

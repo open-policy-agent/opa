@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	defaultAddr = ":0" // default listening address for server, use a random open port
+	defaultAddr = "localhost:0" // default listening address for server, use a random open port
 )
 
 // NewAPIServerTestParams creates a new set of runtime.Params with enough

@@ -621,6 +621,7 @@ func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle
 		b, err := loader.NewFileLoader().
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(true).
+			WithFilter(filter).
 			AsBundle(bundleDir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load bundle %s: %s", bundleDir, err)

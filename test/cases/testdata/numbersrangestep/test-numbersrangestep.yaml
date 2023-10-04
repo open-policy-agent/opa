@@ -1,0 +1,87 @@
+cases:
+- note: numbersrangestep/ascending
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(0, 10, 2)
+    }
+  want_result:
+  - x:
+    - 0
+    - 2
+    - 4
+    - 6
+    - 8
+    - 10
+- note: numbersrangestep/descending
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(0, -10, 2)
+    }
+  want_result:
+  - x:
+    - 0
+    - -2
+    - -4
+    - -6
+    - -8
+    - -10
+- note: numbersrangestep/negative
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(0, 10, -2)
+    }
+  want_error: 'numbers.range_step: step must be a positive number above zero'
+  want_error_code: eval_builtin_error
+  strict_error: true
+- note: numbersrangestep/memoryexample
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(1024, 4096, 1024)
+    }
+  want_result:
+  - x:
+    - 1024
+    - 2048
+    - 3072
+    - 4096
+- note: numbersrangestep/equal
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(2, 2, 2)
+    }
+  want_result:
+  - x:
+    - 2
+- note: numbersrangestep/notinrange
+  query: data.test.p = x
+  modules:
+  - |
+    package test
+
+    p = num {
+      num := numbers.range_step(2, 5, 2)
+    }
+  want_result:
+  - x:
+    - 2
+    - 4
