@@ -181,6 +181,7 @@ type JSONCoverageReporter struct {
 	Modules   map[string]*ast.Module
 	Output    io.Writer
 	Threshold float64
+	Verbose   bool
 }
 
 // Report prints the test report to the reporter's output. If any tests fail or
@@ -197,10 +198,16 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 	report := r.Cover.Report(r.Modules)
 
 	if report.Coverage < r.Threshold {
-		return &cover.CoverageThresholdError{
+		err := cover.CoverageThresholdError{
 			Coverage:  report.Coverage,
 			Threshold: r.Threshold,
 		}
+
+		if r.Verbose {
+			err.Report = &report
+		}
+
+		return &err
 	}
 
 	encoder := json.NewEncoder(r.Output)

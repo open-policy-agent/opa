@@ -6,6 +6,7 @@
 package cover
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"sort"
@@ -244,13 +245,38 @@ func (r Report) IsCovered(file string, row int) bool {
 type CoverageThresholdError struct {
 	Coverage  float64
 	Threshold float64
+	Report    *Report
 }
 
 func (e *CoverageThresholdError) Error() string {
-	return fmt.Sprintf(
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf(
 		"Code coverage threshold not met: got %.2f instead of %.2f",
 		e.Coverage,
-		e.Threshold)
+		e.Threshold))
+
+	if e.Report != nil && len(e.Report.Files) > 0 {
+		buffer.WriteString("\nLines not covered:")
+
+		sorted := make([]string, 0, len(e.Report.Files))
+		for file := range e.Report.Files {
+			sorted = append(sorted, file)
+		}
+		sort.Strings(sorted)
+
+		for _, file := range sorted {
+			report := e.Report.Files[file]
+			for _, r := range report.NotCovered {
+				if r.Start.Row == r.End.Row {
+					buffer.WriteString(fmt.Sprintf("\n\t%s:%d", file, r.Start.Row))
+				} else {
+					buffer.WriteString(fmt.Sprintf("\n\t%s:%d-%d", file, r.Start.Row, r.End.Row))
+				}
+			}
+		}
+	}
+
+	return fmt.Sprint(buffer.String())
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
