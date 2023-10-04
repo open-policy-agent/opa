@@ -892,6 +892,122 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
+func TestCoverageThreshold(t *testing.T) {
+	testCases := []struct {
+		note              string
+		modules           map[string]string
+		threshold         float64
+		verbose           bool
+		expectedErrOutput string
+		expectedExitCode  int
+	}{
+		{
+			note: "coverage threshold met",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1
+					test_p { p == 1 }`,
+			},
+			expectedExitCode: 0,
+		},
+		{
+			note: "coverage threshold not met",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3
+					test_q { q == 2 }`,
+			},
+			threshold:         100,
+			expectedExitCode:  2,
+			expectedErrOutput: "Code coverage threshold not met: got 40.00 instead of 100.00\n",
+		},
+		{
+			note: "coverage threshold not met (verbose)",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3
+					test_q { q == 2 }`,
+			},
+			threshold:        100,
+			expectedExitCode: 2,
+			verbose:          true,
+			expectedErrOutput: `Code coverage threshold not met: got 40.00 instead of 100.00
+Lines not covered:
+	%ROOT%/test.rego:2-3
+	%ROOT%/test.rego:6
+`,
+		},
+		{
+			note: "coverage threshold not met (verbose, multiple files)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3`,
+				"policy2.rego": `package test
+					s := 4 {
+						1 == 1
+						2 == 2
+					}
+					t := 5
+					u := 6
+					v := 7`,
+				"test.rego": `package test
+					test_q { q == 2 }
+					test_t { t == 5 }`,
+			},
+			threshold:        100,
+			expectedExitCode: 2,
+			verbose:          true,
+			expectedErrOutput: `Code coverage threshold not met: got 33.35 instead of 100.00
+Lines not covered:
+	%ROOT%/policy1.rego:2-3
+	%ROOT%/policy1.rego:6
+	%ROOT%/policy2.rego:2-4
+	%ROOT%/policy2.rego:7-8
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.modules, func(root string) {
+				var buf bytes.Buffer
+
+				testParams := newTestCommandParams()
+				testParams.threshold = tc.threshold
+				testParams.verbose = tc.verbose
+				testParams.count = 1
+				testParams.errOutput = &buf
+
+				exitCode, _ := opaTest([]string{root}, testParams)
+				if exitCode != tc.expectedExitCode {
+					t.Fatalf("unexpected exit code: %d", exitCode)
+				}
+
+				if len(tc.expectedErrOutput) == 0 && buf.Len() > 0 {
+					t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+				}
+
+				expectedErrOutput := strings.ReplaceAll(tc.expectedErrOutput, "%ROOT%", root)
+				if buf.String() != expectedErrOutput {
+					t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", expectedErrOutput, buf.String())
+				}
+			})
+		})
+	}
+}
+
 type blockingWriter struct {
 	m   sync.Mutex
 	buf bytes.Buffer

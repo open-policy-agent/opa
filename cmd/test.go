@@ -412,6 +412,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 			Modules:   modules,
 			Output:    testParams.output,
 			Threshold: testParams.threshold,
+			Verbose:   testParams.verbose,
 		}
 	}
 
