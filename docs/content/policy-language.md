@@ -1383,7 +1383,8 @@ t
 ```live:eg/simple_negation:output
 ```
 
-Negation is required to check whether some value _does not_ exist in a collection. That is, complementing the operator in an expression such as `p[_] == "foo"` yields `p[_] != "foo"`. However, this is not equivalent to `not p["foo"]`.
+Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"` 
+which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](https://docs.styra.com/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of apps not deployed on the `"prod"` site:
 
