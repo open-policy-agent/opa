@@ -7,6 +7,9 @@ package pathwatcher
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"sort"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/open-policy-agent/opa/ast"
@@ -95,7 +98,29 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 			return nil, err
 		}
 
-		paths = append(paths, loader.Dirs(result)...)
+		unique := map[string]struct{}{}
+
+		for _, r := range result {
+			fi, err := os.Lstat(r)
+			if err != nil {
+				return nil, err
+			}
+
+			if fi.IsDir() {
+				unique[r] = struct{}{}
+			} else {
+				dir := filepath.Dir(r)
+				unique[dir] = struct{}{}
+			}
+		}
+
+		u := make([]string, 0, len(unique))
+		for k := range unique {
+			u = append(u, k)
+		}
+		sort.Strings(u)
+
+		paths = append(paths, u...)
 	}
 
 	return paths, nil
