@@ -277,6 +277,7 @@ func testSchemasAnnotation(rego string) (int, error) {
 
 		testParams := newTestCommandParams()
 		testParams.count = 1
+		testParams.errOutput = io.Discard
 
 		exitCode, err = opaTest([]string{regoFilePath}, testParams)
 	})
@@ -740,6 +741,7 @@ Watching for changes ...`,
 				testParams.output = &buf
 				testParams.watch = true
 				testParams.count = 1
+				testParams.errOutput = io.Discard
 
 				done := make(chan struct{})
 				go func() {
@@ -810,6 +812,8 @@ func testExitCode(rego string, skipExitZero bool) (int, error) {
 		testParams := newTestCommandParams()
 		testParams.count = 1
 		testParams.skipExitZero = skipExitZero
+		testParams.errOutput = io.Discard
+		testParams.output = io.Discard
 
 		exitCode, err = opaTest([]string{regoFilePath}, testParams)
 	})
