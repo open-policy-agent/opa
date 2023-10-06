@@ -193,7 +193,8 @@ type (
 		// on the rule (e.g., printing, comparison, visiting, etc.)
 		Module *Module `json:"-"`
 
-		jsonOptions astJSON.Options
+		generatedBody bool
+		jsonOptions   astJSON.Options
 	}
 
 	// Head represents the head of a rule.

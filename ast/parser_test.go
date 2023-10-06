@@ -1373,7 +1373,7 @@ p {
 			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
 		},
 		{
-			note: "`if` keyword not used on constant definition",
+			note: "constant definition",
 			module: `package test
 import future.strict
 p := 1`,
@@ -1392,6 +1392,12 @@ p contains "q"`,
 import future.strict
 p.q`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
+		},
+		{
+			note: "object definition (ref-head with implicit `true` value",
+			module: `package test
+import future.strict
+p.q.r`,
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key, no body)",
@@ -1433,12 +1439,18 @@ p[x] { x = input.x}`,
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			parser := NewParser().WithFilename("").WithReader(bytes.NewBufferString(tc.module))
-			_, _, errs := parser.Parse()
-			if len(tc.expectedErrors) == 0 && len(errs) > 0 {
+			_, errs := ParseModuleWithOpts("", tc.module, ParserOptions{})
+			//parser := NewParser().WithFilename("").WithReader(bytes.NewBufferString(tc.module))
+			//_, _, errs := parser.Parse()
+			if len(tc.expectedErrors) == 0 && errs != nil {
 				t.Fatalf("expected no errors, got:\n\n%v", errs)
 			}
-			actual := errs.Error()
+
+			actual := ""
+			if errs != nil {
+				actual = errs.Error()
+			}
+
 			for _, expected := range tc.expectedErrors {
 				if !strings.Contains(actual, expected) {
 					t.Errorf("expected error:\n\n%q\n\ngot:\n\n%v", expected, actual)

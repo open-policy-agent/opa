@@ -362,21 +362,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
-	// Strict check
-	if p.s.s.Strict() {
-		for _, stmt := range stmts {
-			// TODO: Deal with "naked" ast.Body
-			if rule, ok := stmt.(*Rule); ok {
-				if rule.Body != nil && !ruleComposedWithKeyword(rule, tokens.If) {
-					p.error(rule.Location, "`if` keyword is required before rule body")
-				}
-				if rule.Head.RuleKind() == MultiValue && !ruleComposedWithKeyword(rule, tokens.Contains) {
-					p.error(rule.Location, "`contains` keyword is required for partial set rules")
-				}
-			}
-		}
-	}
-
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
 	}
@@ -395,15 +380,6 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	return stmts, p.s.comments, p.s.errors
-}
-
-func ruleComposedWithKeyword(rule *Rule, keyword tokens.Token) bool {
-	for _, kw := range rule.Head.keywords {
-		if kw == keyword {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
@@ -692,7 +668,8 @@ func (p *Parser) parseRules() []*Rule {
 		p.scan()
 
 	case usesContains:
-		//rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.generatedBody = true
 		return []*Rule{&rule}
 
 	default:

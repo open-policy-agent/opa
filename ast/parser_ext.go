@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	"strings"
 	"unicode"
 
@@ -676,6 +677,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 				errs = append(errs, NewError(ParseErr, stmt[0].Location, err.Error()))
 				continue
 			}
+			rule.generatedBody = true
 			mod.Rules = append(mod.Rules, rule)
 
 			// NOTE(tsandall): the statement should now be interpreted as a
@@ -693,6 +695,17 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		}
 	}
 
+	if mod.strict {
+		for _, rule := range mod.Rules {
+			if rule.Body != nil && !rule.generatedBody && !ruleDeclarationHasKeyword(rule, tokens.If) {
+				errs = append(errs, NewError(ParseErr, rule.Location, "`if` keyword is required before rule body"))
+			}
+			if rule.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(rule, tokens.Contains) {
+				errs = append(errs, NewError(ParseErr, rule.Location, "`contains` keyword is required for partial set rules"))
+			}
+		}
+	}
+
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -704,6 +717,15 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	}
 
 	return mod, nil
+}
+
+func ruleDeclarationHasKeyword(rule *Rule, keyword tokens.Token) bool {
+	for _, kw := range rule.Head.keywords {
+		if kw == keyword {
+			return true
+		}
+	}
+	return false
 }
 
 func newScopeAttachmentErr(a *Annotations, want string) *Error {
