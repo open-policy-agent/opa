@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	"math/rand"
 	"strings"
 	"time"
@@ -146,6 +147,7 @@ type (
 		Rules       []*Rule        `json:"rules,omitempty"`
 		Comments    []*Comment     `json:"comments,omitempty"`
 		stmts       []Statement
+		strict      bool
 	}
 
 	// Comment contains the raw text from the comment in the definition.
@@ -203,6 +205,8 @@ type (
 		Value     *Term     `json:"value,omitempty"`
 		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
+		// FIXME: add Keyword type?
+		keywords []tokens.Token // TODO: add to JSON serialization?
 
 		jsonOptions astJSON.Options
 	}

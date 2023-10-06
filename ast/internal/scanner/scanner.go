@@ -26,6 +26,7 @@ type Scanner struct {
 	width    int
 	errors   []Error
 	keywords map[string]tokens.Token
+	strict   bool
 }
 
 // Error represents a scanner error.
@@ -100,6 +101,23 @@ func (s *Scanner) AddKeyword(kw string, tok tokens.Token) {
 	case tokens.Every: // importing 'every' means also importing 'in'
 		s.keywords["in"] = tokens.In
 	}
+}
+
+func (s *Scanner) HasKeyword(keywords map[string]tokens.Token) bool {
+	for kw := range s.keywords {
+		if _, ok := keywords[kw]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Scanner) SetStrict() {
+	s.strict = true
+}
+
+func (s *Scanner) Strict() bool {
+	return s.strict
 }
 
 // WithKeywords returns a new copy of the Scanner struct `s`, with the set

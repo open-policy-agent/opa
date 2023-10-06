@@ -635,6 +635,9 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 	return stmts, comments, nil
 }
 
+// TODO: Put this somewhere appropriate
+var FutureStrictRef = MustParseRef("future.strict")
+
 func parseModule(filename string, stmts []Statement, comments []*Comment) (*Module, error) {
 
 	if len(stmts) == 0 {
@@ -661,6 +664,9 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
+			if Compare(stmt.Path.Value, FutureStrictRef) == 0 {
+				mod.strict = true
+			}
 		case *Rule:
 			setRuleModule(stmt, mod)
 			mod.Rules = append(mod.Rules, stmt)

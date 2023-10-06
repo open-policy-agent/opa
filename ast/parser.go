@@ -362,6 +362,21 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		break
 	}
 
+	// Strict check
+	if p.s.s.Strict() {
+		for _, stmt := range stmts {
+			// TODO: Deal with "naked" ast.Body
+			if rule, ok := stmt.(*Rule); ok {
+				if rule.Body != nil && !ruleComposedWithKeyword(rule, tokens.If) {
+					p.error(rule.Location, "`if` keyword is required before rule body")
+				}
+				if rule.Head.RuleKind() == MultiValue && !ruleComposedWithKeyword(rule, tokens.Contains) {
+					p.error(rule.Location, "`contains` keyword is required for partial set rules")
+				}
+			}
+		}
+	}
+
 	if p.po.ProcessAnnotation {
 		stmts = p.parseAnnotations(stmts)
 	}
@@ -380,6 +395,15 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	return stmts, p.s.comments, p.s.errors
+}
+
+func ruleComposedWithKeyword(rule *Rule, keyword tokens.Token) bool {
+	for _, kw := range rule.Head.keywords {
+		if kw == keyword {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
@@ -581,6 +605,10 @@ func (p *Parser) parseRules() []*Rule {
 		return nil
 	}
 
+	if usesContains {
+		rule.Head.keywords = append(rule.Head.keywords, tokens.Contains)
+	}
+
 	if rule.Default {
 		if !p.validateDefaultRuleValue(&rule) {
 			return nil
@@ -598,6 +626,10 @@ func (p *Parser) parseRules() []*Rule {
 
 	// back-compat with `p[x] { ... }``
 	hasIf := p.s.tok == tokens.If
+
+	if hasIf {
+		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
+	}
 
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
@@ -660,7 +692,7 @@ func (p *Parser) parseRules() []*Rule {
 		p.scan()
 
 	case usesContains:
-		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		//rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
 		return []*Rule{&rule}
 
 	default:
@@ -2497,8 +2529,8 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
+	if len(path) == 1 || (!path[1].Equal(StringTerm("keywords")) && !path[1].Equal(StringTerm("strict"))) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `future.strict`")
 		return
 	}
 
@@ -2510,6 +2542,28 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	kwds := make([]string, 0, len(allowedFutureKeywords))
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
+	}
+
+	if path[1].Equal(StringTerm("strict")) {
+		if len(path) > 2 {
+			p.errorf(imp.Path.Location, "invalid import, must be `future.strict`")
+			return
+		}
+		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.Strict() {
+			// We have imported future keywords, but they didn't come from another `future.strict` import.
+			p.errorf(imp.Path.Location, "the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive")
+			return
+		}
+		p.s.s.SetStrict()
+		for _, kw := range kwds {
+			p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
+		}
+		return
+	}
+
+	if p.s.s.Strict() {
+		p.errorf(imp.Path.Location, "the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive")
+		return
 	}
 
 	switch len(path) {
