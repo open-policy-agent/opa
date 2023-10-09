@@ -206,9 +206,8 @@ type (
 		Value     *Term     `json:"value,omitempty"`
 		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
-		// FIXME: add Keyword type?
-		keywords []tokens.Token // TODO: add to JSON serialization?
 
+		keywords    []tokens.Token
 		jsonOptions astJSON.Options
 	}
 
