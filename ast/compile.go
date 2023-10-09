@@ -1436,7 +1436,8 @@ func (c *Compiler) checkUnsafeBuiltins() {
 
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
-		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, c.Modules[name], c.strict)
+		mod := c.Modules[name]
+		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.strict)
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1495,7 +1496,7 @@ func (c *Compiler) init() {
 
 	for _, bi := range c.capabilities.Builtins {
 		c.builtins[bi.Name] = bi
-		if c.strict && bi.IsDeprecated() {
+		if bi.IsDeprecated() {
 			c.deprecatedBuiltinsMap[bi.Name] = struct{}{}
 		}
 	}
@@ -1570,12 +1571,12 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 }
 
 func (c *Compiler) checkDuplicateImports() {
-	if !c.strict {
-		return
-	}
-
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
+		if !c.strict && !mod.strict {
+			continue
+		}
+
 		processedImports := map[Var]*Import{}
 
 		for _, imp := range mod.Imports {
@@ -1593,7 +1594,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkKeywordOverrides(mod, c.strict)
+		errs := checkKeywordOverrides(mod, c.strict || mod.strict)
 		for _, err := range errs {
 			c.err(err)
 		}
