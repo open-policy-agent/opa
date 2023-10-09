@@ -603,10 +603,6 @@ func (p *Parser) parseRules() []*Rule {
 	// back-compat with `p[x] { ... }``
 	hasIf := p.s.tok == tokens.If
 
-	if hasIf {
-		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
-	}
-
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
 		if rule.Head.Value == nil {
@@ -638,6 +634,7 @@ func (p *Parser) parseRules() []*Rule {
 
 	switch {
 	case hasIf:
+		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 		s := p.save()
 		if expr := p.parseLiteral(); expr != nil {
@@ -772,11 +769,13 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	if !hasIf && !hasLBrace {
 		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		rule.generatedBody = true
 		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
 	if hasIf {
+		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 	}
 

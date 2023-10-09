@@ -910,6 +910,7 @@ func (head *Head) Copy() *Head {
 	cpy.Args = head.Args.Copy()
 	cpy.Key = head.Key.Copy()
 	cpy.Value = head.Value.Copy()
+	cpy.keywords = nil
 	return &cpy
 }
 

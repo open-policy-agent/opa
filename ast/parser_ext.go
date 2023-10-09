@@ -697,11 +697,13 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 
 	if mod.strict {
 		for _, rule := range mod.Rules {
-			if rule.Body != nil && !rule.generatedBody && !ruleDeclarationHasKeyword(rule, tokens.If) {
-				errs = append(errs, NewError(ParseErr, rule.Location, "`if` keyword is required before rule body"))
-			}
-			if rule.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(rule, tokens.Contains) {
-				errs = append(errs, NewError(ParseErr, rule.Location, "`contains` keyword is required for partial set rules"))
+			for r := rule; r != nil; r = r.Else {
+				if r.Body != nil && !r.generatedBody && !ruleDeclarationHasKeyword(r, tokens.If) {
+					errs = append(errs, NewError(ParseErr, r.Location, "`if` keyword is required before rule body"))
+				}
+				if r.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(r, tokens.Contains) {
+					errs = append(errs, NewError(ParseErr, r.Location, "`contains` keyword is required for partial set rules"))
+				}
 			}
 		}
 	}

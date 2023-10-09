@@ -1378,15 +1378,56 @@ p {
 import future.strict
 p := 1`,
 		},
-		// TODO: "`if` keyword used before else body"
-		// TODO: "`if` keyword not used before else body"
+		{
+			note: "`if` keyword used before else body",
+			module: `package test
+import future.strict
+p if {
+	input.x == 1
+} else if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment)",
+			module: `package test
+import future.strict
+p := "foo" if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword not used before else body",
+			module: `package test
+import future.strict
+p if {
+	input.x == 1
+} else {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "`if` keyword not used before else body (value assignment)",
+			module: `package test
+import future.strict
+p := "foo" if {
+	input.x == 1
+} else := "bar" {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
 		{
 			note: "`contains` keyword used on partial set rule (const key)",
 			module: `package test
 import future.strict
 p contains "q"`,
 		},
-		{ // FIXME: need to deal with "naked" statements in the parser
+		{
 			note: "`contains` keyword not used on partial set rule (const key)",
 			module: `package test
 import future.strict
