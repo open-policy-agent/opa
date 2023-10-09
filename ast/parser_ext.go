@@ -14,10 +14,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	"strings"
 	"unicode"
 
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 

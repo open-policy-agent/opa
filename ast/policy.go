@@ -8,11 +8,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	"math/rand"
 	"strings"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/util"
 )
