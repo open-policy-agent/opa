@@ -438,11 +438,6 @@ const (
 	// diagnosing performance issues.
 	ParamInstrumentV1 = "instrument"
 
-	// ParamPartialV1 defines the name of the HTTP URL parameter that indicates
-	// the client wants the partial evaluation optimization to be used during
-	// query evaluation. This parameter is DEPRECATED.
-	ParamPartialV1 = "partial"
-
 	// ParamProvenanceV1 defines the name of the HTTP URL parameter that indicates
 	// the client wants build and version information in addition to the result.
 	ParamProvenanceV1 = "provenance"
