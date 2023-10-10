@@ -1489,7 +1489,7 @@ p[x] { x = input.x}`,
 			},
 		},
 		{
-			note: "`contains` and `if` keyword not used on partial object rule (ref-head)",
+			note: "`if` keyword not used on partial object rule (ref-head)",
 			module: `package test
 import future.strict
 p.q[x] { x = input.x}`,

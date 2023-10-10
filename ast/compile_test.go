@@ -3182,6 +3182,42 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			},
 		},
 		{
+			note: "duplicate imports (alias, different order)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.strict
+					import data.bar as foo
+					import data.foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.bar as foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (repeat)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.strict
+					import data.foo
+					import data.foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
 			note: "duplicate imports (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
@@ -3485,6 +3521,25 @@ func TestCompileFutureStrictImport(t *testing.T) {
 				&Error{
 					Message:  "deprecated built-in function calls in expression: all",
 					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.strict
+					p := all([true, false])
+					q := any([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+				&Error{
+					Message:  "deprecated built-in function calls in expression: any",
+					Location: &Location{Text: []byte("any([true, false])"), File: "policy.rego", Row: 4, Col: 11},
 				},
 			},
 		},
