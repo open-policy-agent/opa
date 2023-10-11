@@ -1441,10 +1441,11 @@ p.q`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
 		},
 		{
-			note: "object definition (ref-head with implicit `true` value",
+			note: "object definition (naked ref-head with implicit `true` value)",
 			module: `package test
 import future.strict
 p.q.r`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key, no body)",
@@ -1464,6 +1465,7 @@ p[input.x]`,
 			module: `package test
 import future.strict
 p.q[input.x]`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key)",

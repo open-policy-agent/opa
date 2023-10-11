@@ -207,8 +207,9 @@ type (
 		Assign    bool      `json:"assign,omitempty"`
 		Location  *Location `json:"location,omitempty"`
 
-		keywords    []tokens.Token
-		jsonOptions astJSON.Options
+		keywords       []tokens.Token
+		generatedValue bool
+		jsonOptions    astJSON.Options
 	}
 
 	// Args represents zero or more arguments to a rule.

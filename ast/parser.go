@@ -606,6 +606,7 @@ func (p *Parser) parseRules() []*Rule {
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
 		if rule.Head.Value == nil {
+			rule.Head.generatedValue = true
 			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
 		} else {
 			// p[x] = y if  becomes a single-value rule p[x] with value y, but needs name for compat
@@ -750,6 +751,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	switch p.s.tok {
 	case tokens.LBrace, tokens.If: // no value, but a body follows directly
+		rule.Head.generatedValue = true
 		rule.Head.Value = BooleanTerm(true)
 	case tokens.Assign, tokens.Unify:
 		rule.Head.Assign = tokens.Assign == p.s.tok
@@ -897,6 +899,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	if head.Value == nil && head.Key == nil {
 		if len(head.Ref()) != 2 || len(head.Args) > 0 {
+			head.generatedValue = true
 			head.Value = BooleanTerm(true).SetLocation(head.Location)
 		}
 	}

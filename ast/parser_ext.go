@@ -287,6 +287,7 @@ func ParseCompleteDocRuleWithDotsFromTerm(module *Module, term *Term) (*Rule, er
 		return nil, fmt.Errorf("invalid rule head: %v", ref)
 	}
 	head := RefHead(ref, BooleanTerm(true).SetLocation(term.Location))
+	head.generatedValue = true
 	head.Location = term.Location
 	head.jsonOptions = term.jsonOptions
 
@@ -697,6 +698,9 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	if mod.strict {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
+				if r.generatedBody && r.Head.generatedValue {
+					errs = append(errs, NewError(ParseErr, r.Location, "rule must have value assignment and/or body declaration"))
+				}
 				if r.Body != nil && !r.generatedBody && !ruleDeclarationHasKeyword(r, tokens.If) {
 					errs = append(errs, NewError(ParseErr, r.Location, "`if` keyword is required before rule body"))
 				}
