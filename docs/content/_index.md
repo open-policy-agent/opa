@@ -1020,7 +1020,7 @@ You can start OPA as a server with `-s` or `--server`:
 ./opa run --server ./example.rego
 ```
 
-By default OPA listens for HTTP connections on `0.0.0.0:8181`. See `opa run
+By default OPA listens for HTTP connections on `localhost:8181`. See `opa run
 --help` for a list of options to change the listening address, enable TLS, and
 more.
 
