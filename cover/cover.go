@@ -8,7 +8,6 @@ package cover
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -99,7 +98,7 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 	}
 	report.CoveredLines = coveredLoc
 	report.NotCoveredLines = notCoveredLoc
-	report.Coverage = round(overallCoverage, 2)
+	report.Coverage = overallCoverage
 
 	return
 }
@@ -224,7 +223,7 @@ func (fr *FileReport) computeCoveragePercentage() float64 {
 		return 0.0
 	}
 
-	return round(100.0*float64(coveredLoc)/float64(totalLoc), 2)
+	return 100.0 * float64(coveredLoc) / float64(totalLoc)
 }
 
 // Report represents a coverage report for a set of files.
@@ -301,11 +300,6 @@ func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
 
 func hasFileLocation(loc *ast.Location) bool {
 	return loc != nil && loc.File != ""
-}
-
-// round returns the number with the specified precision.
-func round(number float64, precision int) float64 {
-	return math.Round(number*10*float64(precision)) / (10.0 * float64(precision))
 }
 
 // Check the expression and return true if it should be included in the coverage report
