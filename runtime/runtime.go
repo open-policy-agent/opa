@@ -219,9 +219,6 @@ type Params struct {
 
 	DistributedTracingOpts tracing.Options
 
-	// Check if default Addr is set or the user has changed it.
-	AddrSetByUser bool
-
 	// UnixSocketPerm specifies the permission for the Unix domain socket if used to listen for connections
 	UnixSocketPerm *string
 }
@@ -471,11 +468,6 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		return fmt.Errorf("at least one address must be configured in runtime parameters")
 	}
 
-	serverInitializingMessage := "Initializing server."
-	if !rt.Params.AddrSetByUser {
-		serverInitializingMessage += " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
-	}
-
 	if rt.Params.DiagnosticAddrs == nil {
 		rt.Params.DiagnosticAddrs = &[]string{}
 	}
@@ -483,7 +475,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	rt.logger.WithFields(map[string]interface{}{
 		"addrs":            *rt.Params.Addrs,
 		"diagnostic-addrs": *rt.Params.DiagnosticAddrs,
-	}).Info(serverInitializingMessage)
+	}).Info("Initializing server.")
 
 	if rt.Params.Authorization == server.AuthorizationOff && rt.Params.Authentication == server.AuthenticationToken {
 		rt.logger.Error("Token authentication enabled without authorization. Authentication will be ineffective. See https://www.openpolicyagent.org/docs/latest/security/#authentication-and-authorization for more information.")

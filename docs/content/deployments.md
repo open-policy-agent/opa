@@ -30,11 +30,11 @@ The `run` command accepts a `--server` (or `-s`) flag that starts OPA as a
 server. See `--help` for more information on other arguments. The most important
 command line arguments for OPA's server mode are:
 
-* `--addr` to set the listening address (default: `0.0.0.0:8181`).
+* `--addr` to set the listening address (default: `localhost:8181`).
 * `--log-level` (or `-l`) to set the log level (default: `"info"`).
 * `--log-format` to set the log format (default: `"json"`).
 
-By default, OPA listens for normal HTTP connections on `0.0.0.0:8181`. To make
+By default, OPA listens for normal HTTP connections on `localhost:8181`. To make
 OPA listen for HTTPS connections, see [Security](../security).
 
 We can run OPA as a server using Docker:

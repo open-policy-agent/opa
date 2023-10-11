@@ -16,14 +16,13 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/test/e2e"
 	"github.com/open-policy-agent/opa/util/test"
-	"github.com/spf13/cobra"
 )
 
 func TestRunServerBase(t *testing.T) {
 	params := newTestRunParams()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil, false)
+	rt, err := initRuntime(ctx, params, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -55,7 +54,7 @@ func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params.rt.DiagnosticAddrs = &[]string{"localhost:0"}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil, false)
+	rt, err := initRuntime(ctx, params, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -96,7 +95,7 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	params.pubKey = "secret"
 	params.serverMode = false
 
-	_, err := initRuntime(context.Background(), params, nil, false)
+	_, err := initRuntime(context.Background(), params, nil)
 	if err == nil {
 		t.Fatal("Expected error but got nil")
 	}
@@ -128,7 +127,7 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		_, err = initRuntime(context.Background(), params, []string{rootDir})
 		if err == nil {
 			t.Fatal("Expected error but got nil")
 		}
@@ -139,7 +138,7 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 
 		// skip type checking for known input schemas
 		params.skipKnownSchemaCheck = true
-		_, err = initRuntime(context.Background(), params, []string{rootDir}, false)
+		_, err = initRuntime(context.Background(), params, []string{rootDir})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -166,7 +165,7 @@ func TestRunServerCheckLogTimestampFormat(t *testing.T) {
 func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rt, err := initRuntime(ctx, params, nil, false)
+	rt, err := initRuntime(ctx, params, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -211,44 +210,6 @@ func checkLogTimeStampFormat(t *testing.T, params runCmdParams, format string) {
 		if _, err := time.Parse(format, rec.Time); err != nil {
 			t.Fatalf("incorrect timestamp format %q: %v", rec.Time, err)
 		}
-	}
-}
-
-func TestInitRuntimeAddrSetByUser(t *testing.T) {
-	testCases := []struct {
-		name        string
-		addrValue   string
-		addrFlagSet bool
-	}{
-		{"AddrSetByUser_True", "localhost:8181", true},
-		{"AddrSetByUser_False", "", false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cmd := &cobra.Command{}
-			cmd.Flags().String("addr", "", "set address")
-			if tc.addrFlagSet {
-				if err := cmd.Flags().Set("addr", tc.addrValue); err != nil {
-					t.Fatalf("Failed to set addr flag: %v", err)
-				}
-			}
-
-			params := newTestRunParams()
-			params.rt.Addrs = &[]string{"localhost:0"}
-			ctx, cancel := context.WithCancel(context.Background())
-
-			rt, err := initRuntime(ctx, params, []string{}, cmd.Flags().Changed("addr"))
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if rt.Params.AddrSetByUser != tc.addrFlagSet {
-				t.Errorf("Expected AddrSetByUser to be %v, but got %v", tc.addrFlagSet, rt.Params.AddrSetByUser)
-			}
-
-			cancel()
-		})
 	}
 }
 
