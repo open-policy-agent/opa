@@ -12,23 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package internal contains common functionality for all OTLP exporters.
-package internal // import "go.opentelemetry.io/otel/exporters/otlp/internal"
-
-import (
-	"fmt"
-	"path"
-	"strings"
-)
-
-// CleanPath returns a path with all spaces trimmed and all redundancies removed. If urlPath is empty or cleaning it results in an empty string, defaultPath is returned instead.
-func CleanPath(urlPath string, defaultPath string) string {
-	tmp := path.Clean(strings.TrimSpace(urlPath))
-	if tmp == "." {
-		return defaultPath
-	}
-	if !path.IsAbs(tmp) {
-		tmp = fmt.Sprintf("/%s", tmp)
-	}
-	return tmp
-}
+// Package semconv implements OpenTelemetry semantic conventions.
+//
+// OpenTelemetry semantic conventions are agreed standardized naming
+// patterns for OpenTelemetry things. This package represents the conventions
+// as of the v1.21.0 version of the OpenTelemetry specification.
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.21.0"
