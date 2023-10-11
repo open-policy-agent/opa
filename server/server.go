@@ -1033,8 +1033,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			}
 		}
 
-		partial, strictBuiltinErrors, instrument := false, false, false
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, instrument, nil, opts)
+		rego, err := s.makeRego(ctx, false, txn, input, urlPath, m, false, nil, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -1462,8 +1461,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		partial := false
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
+		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -1622,7 +1620,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	urlPath := vars["path"]
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 
@@ -1674,9 +1671,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pqID := "v1DataPost::"
-	if partial {
-		pqID += "partial::"
-	}
 	if strictBuiltinErrors {
 		pqID += "strict-builtin-errors::"
 	}
@@ -1696,7 +1690,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
+		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -2486,7 +2480,6 @@ func (s *Server) getCompiler() *ast.Compiler {
 }
 
 func (s *Server) makeRego(ctx context.Context,
-	partial bool,
 	strictBuiltinErrors bool,
 	txn storage.Transaction,
 	input ast.Value,
@@ -2512,29 +2505,6 @@ func (s *Server) makeRego(ctx context.Context,
 		rego.PrintHook(s.manager.PrintHook()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
 	)
-
-	if partial {
-		// pick a namespace for the query (path), doesn't really matter what it is
-		// as long as it is unique for each path.
-		namespace := fmt.Sprintf("partial[`%s`]", urlPath)
-		s.mtx.Lock()
-		defer s.mtx.Unlock()
-		pr, ok := s.partials[queryPath]
-		if !ok {
-			peopts := append(opts, rego.PartialNamespace(namespace))
-			r := rego.New(peopts...)
-			var err error
-			pr, err = r.PartialResult(ctx)
-			if err != nil {
-				if !rego.IsPartialEvaluationNotEffectiveErr(err) {
-					return nil, err
-				}
-				return rego.New(opts...), nil
-			}
-			s.partials[queryPath] = pr
-		}
-		return pr.Rego(opts...), nil
-	}
 
 	return rego.New(opts...), nil
 }
