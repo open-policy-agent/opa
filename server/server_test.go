@@ -1135,33 +1135,6 @@ p = false { true }`
 
 p = true { false }`
 
-	testMod7 := `package testmod
-
-	default p = false
-
-	p { q[x]; not r[x] }
-
-	q[1] { input.x = 1 }
-	q[2] { input.y = 2 }
-	r[1] { input.z = 3 }`
-
-	testMod7Modified := `package testmod
-
-	default p = false
-
-	p { q[x]; not r[x] }
-
-	q[1] { input.x = 1 }
-	q[2] { input.y = 2 }
-	r[1] { input.z = 3 }
-	r[2] { input.z = 3 }`
-
-	testMod8 := `package testmod
-
-	p {
-		data.x = 1
-	}`
-
 	tests := []struct {
 		note string
 		reqs []tr
@@ -1377,71 +1350,6 @@ p = true { false }`
 		{"post empty object", []tr{
 			{http.MethodPost, "/data", `{}`, 200, `{
 				"result": {},
-				"warning": {
-					"code": "api_usage_warning",
-					"message": "'input' key missing from the request"
-				}
-			}`},
-		}},
-		{"post partial", []tr{
-			{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
-			{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-			{http.MethodPost, "/data/testmod/p", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": false}`},
-		}},
-		{"post partial idempotent", []tr{
-			{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-			{http.MethodPost, "/data/testmod/q?partial", `{"input": {"x": 1, "z": 3}}`, 200, `{"result": [1]}`},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 9999}}`, 200, `{"result": true}`},
-		}},
-		{"partial invalidate policy", []tr{
-			{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": true}`},
-			{http.MethodPut, "/policies/test", testMod7Modified, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", `{"input": {"x": 1, "y": 2, "z": 3}}`, 200, `{"result": false}`},
-		}},
-		{"partial invalidate data", []tr{
-			{http.MethodPut, "/policies/test", testMod8, 200, ""},
-			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{
-				"warning": {
-					"code": "api_usage_warning",
-					"message": "'input' key missing from the request"
-				}
-			}`},
-			{http.MethodPut, "/data/x", `1`, 204, ""},
-			{http.MethodPost, "/data/testmod/p?partial", "", 200, `{
-				"result": true,
-				"warning": {
-					"code": "api_usage_warning",
-					"message": "'input' key missing from the request"
-				}
-			}`},
-		}},
-		{"partial ineffective fallback to normal", []tr{
-			{http.MethodPut, "/policies/test", testMod7, 200, ""},
-			{http.MethodPost, "/data?partial", "", 200, `{
-				"result": {
-					"testmod": {
-					"p": false,
-					"q": [],
-					"r": []
-					}
-				},
-				"warning": {
-					"code": "api_usage_warning",
-					"message": "'input' key missing from the request"
-				}
-			}`},
-			{http.MethodPost, "/data", "", 200, `{
-				"result": {
-					"testmod": {
-					"p": false,
-					"q": [],
-					"r": []
-					}
-				},
 				"warning": {
 					"code": "api_usage_warning",
 					"message": "'input' key missing from the request"
@@ -2840,35 +2748,6 @@ func TestDataMetricsEval(t *testing.T) {
 			"timer_disk_read_ns",
 			"timer_rego_external_resolve_ns",
 		})
-
-		// Make a request to evaluate `data` and use partial evaluation,
-		// this should not hit the same query cache result as the previous
-		// request.
-		testDataMetrics(t, f, "/data?metrics&partial", []string{
-			"counter_server_query_cache_hit",
-			"counter_disk_read_keys",
-			"counter_disk_read_bytes",
-			"timer_rego_input_parse_ns",
-			"timer_rego_module_compile_ns",
-			"timer_rego_query_parse_ns",
-			"timer_rego_query_compile_ns",
-			"timer_rego_query_eval_ns",
-			"timer_rego_partial_eval_ns",
-			"timer_server_handler_ns",
-			"timer_disk_read_ns",
-			"timer_rego_external_resolve_ns",
-		})
-
-		// Repeat previous partial eval request, this time it should
-		// be cached
-		testDataMetrics(t, f, "/data?metrics&partial", []string{
-			"counter_server_query_cache_hit",
-			"counter_disk_read_keys",
-			"timer_rego_input_parse_ns",
-			"timer_rego_query_eval_ns",
-			"timer_server_handler_ns",
-			"timer_disk_read_ns",
-		})
 	})
 }
 
@@ -3112,37 +2991,6 @@ func TestPoliciesListV1(t *testing.T) {
 		newPolicy("1", testMod),
 	}
 
-	assertListPolicy(t, f, expected)
-}
-
-func TestPoliciesListV1AfterPartialEval(t *testing.T) {
-	f := newFixture(t)
-	putPolicy(t, f, testMod)
-
-	expected := []types.PolicyV1{
-		newPolicy("1", testMod),
-	}
-
-	assertListPolicy(t, f, expected)
-
-	eval := newReqV1("POST", "/data?partial", "{}")
-	f.server.Handler.ServeHTTP(f.recorder, eval)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-	f.reset()
-
-	eval = newReqV1("POST", "/data/a/b?partial", "{}")
-	f.server.Handler.ServeHTTP(f.recorder, eval)
-
-	if f.recorder.Code != 200 {
-		t.Fatalf("Expected success but got %v", f.recorder)
-	}
-	f.reset()
-
-	// Doesn't matter what the results of eval w/ partial were
-	// We do expect that the partially evaluated policy is _not_ in the listed policies
 	assertListPolicy(t, f, expected)
 }
 
@@ -4332,12 +4180,6 @@ func TestServerClearsCompilerConflictCheck(t *testing.T) {
 	// internal helpers should now give the new compiler back
 	if f.server.getCompiler() != c {
 		t.Fatalf("Expected to get the updated compiler")
-	}
-
-	// If we request for partial evaluation it will end up using the compiler set from the manager. Ensure it
-	// is using a correct conflict checker.
-	if err := f.v1(http.MethodGet, "/data/test?partial", "", 200, `{"result": {"p": 1}}`); err != nil {
-		t.Fatalf("Unexpected error from server: %v", err)
 	}
 }
 
