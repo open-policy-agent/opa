@@ -117,9 +117,9 @@ p {
 			fr.locNotCovered())
 	}
 
-	expectedCoveragePercentage := round(100.0*float64(len(expectedCovered))/float64(len(expectedCovered)+len(expectedNotCovered)), 2)
+	expectedCoveragePercentage := 100.0 * float64(len(expectedCovered)) / float64(len(expectedCovered)+len(expectedNotCovered))
 	if expectedCoveragePercentage != fr.Coverage {
-		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
+		t.Errorf("Expected coverage %v != %v", expectedCoveragePercentage, fr.Coverage)
 	}
 
 	// there's just one file, hence the overall coverage is equal to the
@@ -212,7 +212,7 @@ allow { true }
 			fr.locNotCovered())
 	}
 
-	expectedCoveragePercentage := round(100.0*float64(len(expectedCovered))/float64(len(expectedCovered)+len(expectedNotCovered)), 2)
+	expectedCoveragePercentage := 100.0 * float64(len(expectedCovered)) / float64(len(expectedCovered)+len(expectedNotCovered))
 	if expectedCoveragePercentage != fr.Coverage {
 		t.Errorf("Expected coverage %f != %f", expectedCoveragePercentage, fr.Coverage)
 	}

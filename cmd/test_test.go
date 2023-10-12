@@ -973,7 +973,7 @@ Lines not covered:
 			threshold:        100,
 			expectedExitCode: 2,
 			verbose:          true,
-			expectedErrOutput: `Code coverage threshold not met: got 33.35 instead of 100.00
+			expectedErrOutput: `Code coverage threshold not met: got 33.33 instead of 100.00
 Lines not covered:
 	%ROOT%/policy1.rego:2-3
 	%ROOT%/policy1.rego:6
