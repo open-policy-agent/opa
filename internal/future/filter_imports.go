@@ -35,3 +35,11 @@ func IsFutureKeyword(imp *ast.Import, kw string) bool {
 		path[1].Equal(ast.StringTerm("keywords")) &&
 		path[2].Equal(ast.StringTerm(kw))
 }
+
+// IsFutureStrict returns true if the passed *ast.Import is `future.strict`
+func IsFutureStrict(imp *ast.Import) bool {
+	path := imp.Path.Value.(ast.Ref)
+	return len(path) == 2 &&
+		ast.FutureRootDocument.Equal(path[0]) &&
+		path[1].Equal(ast.StringTerm("strict"))
+}
