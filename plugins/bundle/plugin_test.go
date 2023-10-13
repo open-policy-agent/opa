@@ -3107,12 +3107,18 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 		plugin.Reconfigure(ctx, cfg)
 
+		// Reconfigure should mark the state as not ready
+		ensurePluginState(t, plugin, plugins.StateNotReady)
+
 		// manually trigger bundle download
 		go func() {
 			_ = plugin.Loaders()["test"].Trigger(ctx)
 		}()
 
 		<-statusCh
+
+		// on bundle download with 304 the state should be OK
+		ensurePluginState(t, plugin, plugins.StateOK)
 
 		if notModifiedCount != 2 {
 			t.Fatalf("Expected two bundle responses with HTTP status 304 but got %v", notModifiedCount)
