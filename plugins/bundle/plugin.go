@@ -540,8 +540,9 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 	if etag, ok := p.etags[name]; ok && u.ETag == etag {
 		p.log(name).Debug("Bundle load skipped, server replied with not modified.")
 		p.status[name].SetError(nil)
-		// proposed fix to check plugin readiness on 304
-		// p.checkPluginReadiness()
+
+		// The downloader received a 304 (same etag as saved in local state), update plugin readiness
+		p.checkPluginReadiness()
 		return
 	}
 }
