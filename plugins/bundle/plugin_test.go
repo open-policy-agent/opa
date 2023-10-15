@@ -3107,18 +3107,12 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 
 		plugin.Reconfigure(ctx, cfg)
 
-		// Reconfigure should mark the state as not ready
-		ensurePluginState(t, plugin, plugins.StateNotReady)
-
 		// manually trigger bundle download
 		go func() {
 			_ = plugin.Loaders()["test"].Trigger(ctx)
 		}()
 
 		<-statusCh
-
-		// on bundle download with 304 the state should be OK
-		ensurePluginState(t, plugin, plugins.StateOK)
 
 		if notModifiedCount != 2 {
 			t.Fatalf("Expected two bundle responses with HTTP status 304 but got %v", notModifiedCount)
@@ -3133,6 +3127,199 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 			t.Fatalf("Expected etag foo but got %v", val)
 		}
 	})
+}
+
+func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
+	// setup fake http server with mock bundle
+	mockBundles := map[string]bundle.Bundle{
+		"b1": {
+			Data:    map[string]interface{}{"b1": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b1"},
+			},
+		},
+		"b2": {
+			Data:    map[string]interface{}{"b2": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b2"},
+			},
+		},
+		"b3_frequently_changing": {
+			Data:    map[string]interface{}{"b3": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b3"},
+			},
+		},
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		etag := r.Header.Get("If-None-Match")
+		if etag == name && name != "b3_frequently_changing" {
+			w.WriteHeader(304)
+			return
+		}
+
+		if name != "b3_frequently_changing" {
+			w.Header().Add("Etag", name)
+		}
+		w.WriteHeader(200)
+
+		err := bundle.NewWriter(w).Write(mockBundles[name])
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		"services": {
+				"default": {
+					"url": %q
+				}
+			}
+		}`, s.URL)))
+
+	// setup manual trigger mode to simulate the downloader
+	var mode plugins.TriggerMode = "manual"
+	var delay int64 = 10
+	polling := download.PollingConfig{MinDelaySeconds: &delay, MaxDelaySeconds: &delay}
+	serviceName := "default"
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"b1": {
+				Service:        serviceName,
+				Config:         download.Config{Trigger: &mode},
+				Resource:       "/b1",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+			},
+		},
+	}, manager)
+
+	statusCh := make(chan map[string]*Status)
+
+	// register for bundle updates to observe changes
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
+	})
+
+	ctx := context.Background()
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// manually trigger bundle download
+	go func() { _ = plugin.Loaders()["b1"].Trigger(ctx) }()
+	<-statusCh
+
+	// validate plugin started as expected
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// change the plugin state with multiple stages
+	stages := []struct {
+		name             string
+		cfg              *Config
+		noChangeDetected bool
+	}{
+		{
+			name: "Add a bundle", // b1 is NOT Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "change download config", // both bundles are Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "pass the same config", // should be no change detected
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+			noChangeDetected: true,
+		},
+		{
+			name: "revert download config for one bundle", // both bundles are Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "remove a bundle", // b1 is Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+			noChangeDetected: true,
+		},
+		{
+			name: "change download config again", // b1 is Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "add frequently changing bundle",
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1":                     {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b3_frequently_changing": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b3_frequently_changing", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "revert download config for Not Modified bundle", // b1 is Not Modified while b3_frequently_changing is modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1":                     {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b3_frequently_changing": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b3_frequently_changing", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+	}
+
+	for _, stage := range stages {
+		t.Run(stage.name, func(t *testing.T) {
+			plugin.Reconfigure(ctx, stage.cfg)
+
+			if stage.noChangeDetected {
+				ensurePluginState(t, plugin, plugins.StateOK)
+				return
+			}
+
+			ensurePluginState(t, plugin, plugins.StateNotReady)
+
+			for name := range stage.cfg.Bundles {
+				go func() {
+					_ = plugin.Loaders()[name].Trigger(ctx)
+				}()
+				<-statusCh
+			}
+
+			ensurePluginState(t, plugin, plugins.StateOK)
+		})
+	}
 }
 
 func TestPluginManualTrigger(t *testing.T) {
