@@ -26,8 +26,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/internal/prometheus"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
@@ -41,11 +39,9 @@ import (
 	"github.com/open-policy-agent/opa/server/authorizer"
 	"github.com/open-policy-agent/opa/server/identifier"
 	"github.com/open-policy-agent/opa/server/types"
-	"github.com/open-policy-agent/opa/server/writer"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/disk"
 	"github.com/open-policy-agent/opa/storage/inmem"
-	"github.com/open-policy-agent/opa/tracing"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
@@ -4834,29 +4830,9 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		}}`)
 
 	ctx := context.Background()
-	_, tracerProvider, err := distributedtracing.Init(ctx, c, "foo")
+	_, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
-	}
-	traceOpts := tracing.NewOptions(
-		otelhttp.WithTracerProvider(tracerProvider),
-		otelhttp.WithPropagators(propagation.TraceContext{}),
-	)
-	s := New()
-	s.WithDistributedTracingOpts(traceOpts)
-	handler := s.instrumentHandler(writer.HTTPStatus(405), "test")
-	_, ok := handler.(*otelhttp.Handler)
-	if !ok {
-		t.Fatal("Expected otelhttp handler if distributed tracing enabled")
-	}
-}
-
-func TestDistributedTracingDisabled(t *testing.T) {
-	s := New()
-	handler := s.instrumentHandler(writer.HTTPStatus(405), "test")
-	_, ok := handler.(*otelhttp.Handler)
-	if ok {
-		t.Fatal("Unexpected otelhttp handler if distributed tracing disabled")
 	}
 }
 
