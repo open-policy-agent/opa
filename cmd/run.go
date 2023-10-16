@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	defaultAddr        = ":8181"        // default listening address for server
-	defaultHistoryFile = ".opa_history" // default filename for shell history
+	defaultAddr        = ":8181"          // default listening address for server
+	defaultLocalAddr   = "localhost:8181" // default listening address for server bound to localhost
+	defaultHistoryFile = ".opa_history"   // default filename for shell history
 )
 
 type runCmdParams struct {
@@ -176,6 +177,10 @@ updates might cause them to be dropped by OPA.
 OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
+
+The --future-compat flag can be used to opt-in to OPA features and behaviors that will be enabled by default in future OPA releases.
+Current behaviors enabled by this flag include:
+- setting OPA's listening address to "localhost:8181" by default.
 `,
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -200,6 +205,7 @@ be expanded in the future. To disable this, use the --skip-known-schema-check fl
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	runCommand.Flags().BoolVar(&cmdParams.rt.FutureCompatibility, "future-compat", false, "opt-in to OPA features and behaviors that will be enabled by default in future OPA releases")
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
 	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")
@@ -332,6 +338,10 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 
 	rt.SetDistributedTracingLogging()
 	rt.Params.AddrSetByUser = addrSetByUser
+
+	if !addrSetByUser && rt.Params.FutureCompatibility {
+		rt.Params.Addrs = &[]string{defaultLocalAddr}
+	}
 
 	return rt, nil
 }
