@@ -3308,15 +3308,19 @@ func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
 				return
 			}
 
+			// if there is a change in config
+			// Reconfigure sets the plugin state as StateNotReady
 			ensurePluginState(t, plugin, plugins.StateNotReady)
 
 			for name := range stage.cfg.Bundles {
-				go func() {
+				go func(name string) {
 					_ = plugin.Loaders()[name].Trigger(ctx)
-				}()
+				}(name)
 				<-statusCh
 			}
 
+			// after all downloaders are processed the state should
+			// reconcile to StateOK, if there are no errors
 			ensurePluginState(t, plugin, plugins.StateOK)
 		})
 	}
