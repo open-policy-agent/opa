@@ -1022,7 +1022,8 @@ You can start OPA as a server with `-s` or `--server`:
 
 By default OPA listens for HTTP connections on `0.0.0.0:8181`. See `opa run
 --help` for a list of options to change the listening address, enable TLS, and
-more.
+more. For example, if the `--future-compat` flag is set, OPA will listen
+for HTTP connections on `localhost:8181` by default.
 
 Inside of another terminal use `curl` (or a similar tool) to access OPA's HTTP
 API. When you query the `/v1/data` HTTP API you must wrap input data inside of a

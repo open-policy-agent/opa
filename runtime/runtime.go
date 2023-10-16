@@ -224,6 +224,11 @@ type Params struct {
 
 	// UnixSocketPerm specifies the permission for the Unix domain socket if used to listen for connections
 	UnixSocketPerm *string
+
+	// FutureCompatibility will enable OPA features and behaviors that will be enabled by default in future OPA releases.
+	// This flag allows users to opt-in to the new behavior and helps transition to a future release upon which
+	// the new behavior will be enabled by default.
+	FutureCompatibility bool
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -472,7 +477,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	serverInitializingMessage := "Initializing server."
-	if !rt.Params.AddrSetByUser {
+	if !rt.Params.AddrSetByUser && !rt.Params.FutureCompatibility {
 		serverInitializingMessage += " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
 	}
 
