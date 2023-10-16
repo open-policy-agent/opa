@@ -7579,6 +7579,38 @@ foo {
 	}
 }
 
+// This is a regression test for a scenario that could make recursion checking miss a recursion scenario in OPA versions older than 0.56.0.
+func TestCompilerCheckPartialRuleRecursion(t *testing.T) {
+	// In the below policy, R2 and R3 has a recursion cycle. In OPA < 0.56.0, R1 hides this cycle from the recursion checker,
+	// and no error is reported.
+	policy := `package test
+
+# R1
+results[id] := 1 {
+  id := "bar"
+}
+
+# R2
+results.foo := 2 {
+  final_allow
+}
+
+# R3
+final_allow {
+  results.foo == 3
+}`
+	c := NewCompiler()
+	c.Modules = map[string]*Module{"test": MustParseModule(policy)}
+	compileStages(c, c.checkRecursion)
+
+	expected := Errors{
+		&Error{Code: "rego_recursion_error", Message: "rule data.test.results.foo is recursive: data.test.results.foo -> data.test.final_allow -> data.test.results.foo"},
+		&Error{Code: "rego_recursion_error", Message: "rule data.test.final_allow is recursive: data.test.final_allow -> data.test.results.foo -> data.test.final_allow"},
+	}
+
+	assertErrors(t, c.Errors, expected, false)
+}
+
 func TestCompilerCheckVoidCalls(t *testing.T) {
 	c := NewCompiler().WithCapabilities(&Capabilities{Builtins: []*Builtin{
 		{
