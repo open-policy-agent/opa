@@ -492,7 +492,17 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fm
 			w.write("]")
 		}
 	}
-	if head.Value != nil && (head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
+
+	if head.Value != nil &&
+		(head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
+
+		if head.Location == head.Value.Location && head.Name != "else" {
+			// If the value location is the same as the location of the head,
+			// we know that the value is generated, i.e. f(1)
+			// Don't print the value (` = true`) as it is implied.
+			return comments
+		}
+
 		if head.Assign {
 			w.write(" := ")
 		} else {
@@ -820,6 +830,7 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 }
 
 func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*ast.Comment, loc *ast.Location, f *types.Function) []*ast.Comment {
+
 	if len(operands) != len(f.Args()) {
 		// The number of operands does not math the arity of the `in` operator
 		operator := ast.Member.Name
