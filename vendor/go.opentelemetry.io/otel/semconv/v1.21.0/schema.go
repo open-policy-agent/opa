@@ -12,14 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.21.0"
 
-import (
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-)
-
-// GetUserAgentHeader returns an OTLP header value form "OTel OTLP Exporter Go/{{ .Version }}"
-// https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/protocol/exporter.md#user-agent
-func GetUserAgentHeader() string {
-	return "OTel OTLP Exporter Go/" + otlptrace.Version()
-}
+// SchemaURL is the schema URL that matches the version of the semantic conventions
+// that this package defines. Semconv packages starting from v1.4.0 must declare
+// non-empty schema URL in the form https://opentelemetry.io/schemas/<version>
+const SchemaURL = "https://opentelemetry.io/schemas/1.21.0"
