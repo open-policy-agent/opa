@@ -836,6 +836,10 @@ OPA will automatically perform type checking based on a schema inferred from kno
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
 
+The --future-compat flag can be used to opt-in to OPA features and behaviors that will be enabled by default in future OPA releases.
+Current behaviors enabled by this flag include:
+- setting OPA's listening address to "localhost:8181" by default.
+
 
 ```
 opa run [flags]
@@ -853,6 +857,7 @@ opa run [flags]
       --disable-telemetry                    disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
       --exclude-files-verify strings         set file names to exclude during bundle verification
   -f, --format string                        set shell output format, i.e, pretty, json (default "pretty")
+      --future-compat                        opt-in to OPA features and behaviors that will be enabled by default in future OPA releases
       --h2c                                  enable H2C for HTTP listeners
   -h, --help                                 help for run
   -H, --history string                       set path of history file (default "$HOME/.opa_history")
