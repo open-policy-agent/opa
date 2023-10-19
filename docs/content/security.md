@@ -102,6 +102,10 @@ By default, OPA binds to the 0.0.0.0 interface, which allows the OPA server to b
 
 In situations where OPA is not intended to be exposed to remote services, it is recommended to bind OPA to the localhost interface, which only allows connections from the same machine. If it is necessary to expose OPA to remote services, ensure to follow the security recommendations on this page, such as requiring authentication.
 
+{{< info >}}
+The `--future-compat` flag can be set on `opa run` to opt-in to OPA features and behaviors that will be enabled by default in future OPA releases. For example, if the `--future-compat` flag is set, OPA will listen
+for HTTP connections on `localhost:8181` by default.
+{{< /info >}}
 
 ## Authentication and Authorization
 

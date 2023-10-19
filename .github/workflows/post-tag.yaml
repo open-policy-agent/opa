@@ -109,6 +109,6 @@ jobs:
 
       - name: Create or Update Release
         env:
-          # Required for the `hub` CLI
+          # Required for the GitHub CLI
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./build/github-release.sh --asset-dir=$(make release-dir) --tag=${TAG_NAME}

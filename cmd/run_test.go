@@ -50,6 +50,48 @@ func TestRunServerBase(t *testing.T) {
 	<-done
 }
 
+func TestRunServerBaseListenOnLocalhost(t *testing.T) {
+	params := newTestRunParams()
+	params.rt.FutureCompatibility = true
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	rt, err := initRuntime(ctx, params, nil, false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	testRuntime := e2e.WrapRuntime(ctx, cancel, rt)
+
+	done := make(chan bool)
+	go func() {
+		err := rt.Serve(ctx)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		done <- true
+	}()
+
+	err = testRuntime.WaitForServer()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	validateBasicServe(t, testRuntime)
+
+	if len(rt.Addrs()) != 1 {
+		t.Fatalf("Expected 1 listening address but got %v", len(rt.Addrs()))
+	}
+
+	expected := "127.0.0.1:8181"
+	if rt.Addrs()[0] != expected {
+		t.Fatalf("Expected listening address %v but got %v", expected, rt.Addrs()[0])
+	}
+
+	cancel()
+	<-done
+}
+
 func TestRunServerWithDiagnosticAddr(t *testing.T) {
 	params := newTestRunParams()
 	params.rt.DiagnosticAddrs = &[]string{"localhost:0"}
