@@ -1437,7 +1437,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.strict)
+		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.futureCompatible)
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1573,7 +1573,7 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 func (c *Compiler) checkDuplicateImports() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if !c.strict && !mod.strict {
+		if !c.strict && !mod.futureCompatible {
 			continue
 		}
 
@@ -1594,7 +1594,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkKeywordOverrides(mod, c.strict || mod.strict)
+		errs := checkKeywordOverrides(mod, c.strict || mod.futureCompatible)
 		for _, err := range errs {
 			c.err(err)
 		}

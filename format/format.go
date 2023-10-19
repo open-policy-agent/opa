@@ -120,7 +120,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 		case *ast.Import:
 			switch {
-			case future.IsFutureStrict(n):
+			case future.IsFutureCompatible(n):
 				o.contains = true
 				o.ifs = true
 			case future.IsAllFutureKeywords(n):

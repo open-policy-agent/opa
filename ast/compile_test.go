@@ -3138,7 +3138,7 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
-func TestCompileFutureStrictImport(t *testing.T) {
+func TestCompileFutureCompatImport(t *testing.T) {
 	cases := []struct {
 		note           string
 		modules        map[string]string
@@ -3149,7 +3149,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "duplicate imports",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.bar.foo
 					p if { 
@@ -3167,7 +3167,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "duplicate imports (alias)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.bar as foo
 					p if { 
@@ -3185,7 +3185,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "duplicate imports (alias, different order)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					import data.bar as foo
 					import data.foo
 					p if { 
@@ -3203,7 +3203,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "duplicate imports (repeat)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.foo
 					p if { 
@@ -3221,14 +3221,14 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "duplicate imports (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.bar.foo
 					p if { 
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.bar.foo
 					q if { 
@@ -3257,7 +3257,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					import data.foo
 					import data.bar.foo
 					q if { 
@@ -3276,7 +3276,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "var shadows input",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					p if {
 						input := 1
 						input == 1
@@ -3293,13 +3293,13 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "var shadows input (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					p if {
 						input := 1
 						input == 1
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q if {
 						input := 1
 						input == 1
@@ -3326,7 +3326,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 						input == 1
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q if {
 						input := 1
 						input == 1
@@ -3343,7 +3343,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "var shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					p if {
 						data := 1
 						data == 1
@@ -3360,13 +3360,13 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "var shadows data (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					p if {
 						data := 1
 						data == 1
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q if {
 						data := 1
 						data == 1
@@ -3393,7 +3393,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 						data == 1
 					}`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q if {
 						data := 1
 						data == 1
@@ -3411,7 +3411,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "rule shadows input",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					input := 1`,
 			},
 			expectedErrors: Errors{
@@ -3425,10 +3425,10 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "rule shadows input (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					input := 1`,
 				"policy2.rego": `package test2
-					import future.strict
+					import future.compat
 					input := 2`,
 			},
 			expectedErrors: Errors{
@@ -3448,7 +3448,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 				"policy1.rego": `package test
 					input := 1`,
 				"policy2.rego": `package test2
-					import future.strict
+					import future.compat
 					input := 2`,
 			},
 			expectedErrors: Errors{
@@ -3462,7 +3462,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "rule shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					data := 1`,
 			},
 			expectedErrors: Errors{
@@ -3476,10 +3476,10 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "rule shadows data (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					data := 1`,
 				"policy2.rego": `package test2
-					import future.strict
+					import future.compat
 					data := 2`,
 			},
 			expectedErrors: Errors{
@@ -3499,7 +3499,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 				"policy1.rego": `package test
 					data := 1`,
 				"policy2.rego": `package test2
-					import future.strict
+					import future.compat
 					data := 2`,
 			},
 			expectedErrors: Errors{
@@ -3514,7 +3514,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "deprecated built-in",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					p := all([true, false])`,
 			},
 			expectedErrors: Errors{
@@ -3528,7 +3528,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "deprecated built-in (multiple)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.strict
+					import future.compat
 					p := all([true, false])
 					q := any([true, false])`,
 			},
@@ -3547,10 +3547,10 @@ func TestCompileFutureStrictImport(t *testing.T) {
 			note: "deprecated built-in (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.strict
+					import future.compat
 					p := all([true, false])`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q := all([true, false])`,
 			},
 			expectedErrors: Errors{
@@ -3570,7 +3570,7 @@ func TestCompileFutureStrictImport(t *testing.T) {
 				"policy1.rego": `package test
 					p := all([true, false])`,
 				"policy2.rego": `package test
-					import future.strict
+					import future.compat
 					q := all([true, false])`,
 			},
 			expectedErrors: Errors{

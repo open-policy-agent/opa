@@ -25,6 +25,8 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
+var futureCompatibleRef = Ref{VarTerm("future"), StringTerm("compat")}
+
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
@@ -2508,8 +2510,8 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || (!path[1].Equal(StringTerm("keywords")) && !path[1].Equal(StringTerm("strict"))) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `future.strict`")
+	if len(path) == 1 || (!path[1].Equal(StringTerm("keywords")) && !path[1].Equal(futureCompatibleRef[1])) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `%s`", futureCompatibleRef)
 		return
 	}
 
@@ -2523,25 +2525,25 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		kwds = append(kwds, k)
 	}
 
-	if path[1].Equal(StringTerm("strict")) {
+	if path[1].Equal(futureCompatibleRef[1]) {
 		if len(path) > 2 {
-			p.errorf(imp.Path.Location, "invalid import, must be `future.strict`")
+			p.errorf(imp.Path.Location, "invalid import, must be `%s`", futureCompatibleRef)
 			return
 		}
-		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.Strict() {
+		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.FutureCompatible() {
 			// We have imported future keywords, but they didn't come from another `future.strict` import.
-			p.errorf(imp.Path.Location, "the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive")
+			p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
 			return
 		}
-		p.s.s.SetStrict()
+		p.s.s.SetFutureCompatible()
 		for _, kw := range kwds {
 			p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
 		}
 		return
 	}
 
-	if p.s.s.Strict() {
-		p.errorf(imp.Path.Location, "the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive")
+	if p.s.s.FutureCompatible() {
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
 		return
 	}
 

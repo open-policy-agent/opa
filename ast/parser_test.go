@@ -1236,7 +1236,7 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
-	assertParseErrorContains(t, "future.strict.abc", "import future.strict.abc", "invalid import, must be `future.strict`")
+	assertParseErrorContains(t, "future.compat.abc", "import future.compat.abc", "invalid import, must be `future.compat`")
 
 	assertParseImport(t, "import kw with kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
@@ -1244,8 +1244,8 @@ func TestFutureImports(t *testing.T) {
 	assertParseImport(t, "import kw with all kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
 		ParserOptions{AllFutureKeywords: true})
-	assertParseImport(t, "import strict",
-		"import future.strict", &Import{Path: RefTerm(VarTerm("future"), StringTerm("strict"))},
+	assertParseImport(t, "import compat",
+		"import future.compat", &Import{Path: RefTerm(VarTerm("future"), StringTerm("compat"))},
 		ParserOptions{})
 
 	mod := `
@@ -1265,10 +1265,10 @@ func TestFutureImports(t *testing.T) {
 
 	mod = `
 		package p
-		import future.strict
+		import future.compat
 		import future.keywords.in
 	`
-	assertParseModuleErrorMatch(t, "strict and keywords imported", mod, "rego_parse_error: the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive")
+	assertParseModuleErrorMatch(t, "compat and keywords imported", mod, "rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive")
 }
 
 func TestFutureImportsExtraction(t *testing.T) {
@@ -1307,7 +1307,7 @@ func TestFutureImportsExtraction(t *testing.T) {
 		},
 		{
 			note: "future.strict imported",
-			imp:  "import future.strict",
+			imp:  "import future.compat",
 			exp: map[string]tokens.Token{
 				"in":       tokens.In,
 				"every":    tokens.Every,
@@ -1333,32 +1333,32 @@ func TestFutureImportsExtraction(t *testing.T) {
 	}
 }
 
-func TestFutureStrictImport(t *testing.T) {
+func TestFutureCompatImport(t *testing.T) {
 	tests := []struct {
 		note           string
 		module         string
 		expectedErrors []string
 	}{
 		{
-			note: "only future.strict imported",
+			note: "only future.compat imported",
 			module: `package test
-import future.strict
+import future.compat
 p contains 1 if 1 == 1`,
 		},
 		{
-			note: "future.strict and future.keywords imported",
+			note: "future.compat and future.keywords imported",
 			module: `package test
-import future.strict
+import future.compat
 import future.keywords
 p contains 1 if {
 	input.x == 1
 }`,
-			expectedErrors: []string{"rego_parse_error: the `future.strict` import implies `future.keywords`, these are therefore mutually exclusive"},
+			expectedErrors: []string{"rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive"},
 		},
 		{
 			note: "`if` keyword used on rule",
 			module: `package test
-import future.strict
+import future.compat
 p if {
 	input.x == 1
 }`,
@@ -1366,7 +1366,7 @@ p if {
 		{
 			note: "`if` keyword not used on rule",
 			module: `package test
-import future.strict
+import future.compat
 p {
 	input.x == 1
 }`,
@@ -1375,13 +1375,13 @@ p {
 		{
 			note: "constant definition",
 			module: `package test
-import future.strict
+import future.compat
 p := 1`,
 		},
 		{
 			note: "`if` keyword used before else body",
 			module: `package test
-import future.strict
+import future.compat
 p if {
 	input.x == 1
 } else if {
@@ -1391,7 +1391,7 @@ p if {
 		{
 			note: "`if` keyword used before else body (value assignment)",
 			module: `package test
-import future.strict
+import future.compat
 p := "foo" if {
 	input.x == 1
 } else := "bar" if {
@@ -1402,7 +1402,7 @@ else := "qux"`,
 		{
 			note: "`if` keyword not used before else body",
 			module: `package test
-import future.strict
+import future.compat
 p if {
 	input.x == 1
 } else {
@@ -1413,7 +1413,7 @@ p if {
 		{
 			note: "`if` keyword not used before else body (value assignment)",
 			module: `package test
-import future.strict
+import future.compat
 p := "foo" if {
 	input.x == 1
 } else := "bar" {
@@ -1424,65 +1424,65 @@ p := "foo" if {
 		{
 			note: "`contains` keyword used on partial set rule (const key)",
 			module: `package test
-import future.strict
+import future.compat
 p contains "q"`,
 		},
 		{
 			note: "`contains` keyword used on partial set rule (ref-head, const key)",
 			module: `package test
-import future.strict
+import future.compat
 p.q contains "r"`,
 		},
 		{
 			note: "`contains` keyword not used on partial set rule (const key)",
 			module: `package test
-import future.strict
+import future.compat
 p.q`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
 		},
 		{
 			note: "object definition (naked ref-head with implicit `true` value)",
 			module: `package test
-import future.strict
+import future.compat
 p.q.r`,
 			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key, no body)",
 			module: `package test
-import future.strict
+import future.compat
 p contains input.x`,
 		},
 		{
 			note: "`contains` keyword not used on partial set rule (var key, no body)",
 			module: `package test
-import future.strict
+import future.compat
 p[input.x]`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
 		},
 		{
 			note: "`if` keyword not used on partial object rule (ref-head, var key, implicit `true` value, no body)",
 			module: `package test
-import future.strict
+import future.compat
 p.q[input.x]`,
 			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key)",
 			module: `package test
-import future.strict
+import future.compat
 p contains x if { x = input.x}`,
 		},
 		{
 			note: "`if` keyword used on partial map rule (would be multi-value without `if`)",
 			module: `package test
-import future.strict
+import future.compat
 p[x] if { x = input.x}`,
 		},
 		{
 			note: "`contains` and `if` keyword not used on partial rule",
 			module: `package test
-import future.strict
+import future.compat
 p[x] { x = input.x}`,
 			// The developer likely intended a partial set.
 			expectedErrors: []string{
@@ -1493,7 +1493,7 @@ p[x] { x = input.x}`,
 		{
 			note: "`if` keyword not used on partial object rule (ref-head)",
 			module: `package test
-import future.strict
+import future.compat
 p.q[x] { x = input.x}`,
 			expectedErrors: []string{
 				"rego_parse_error: `if` keyword is required before rule body",

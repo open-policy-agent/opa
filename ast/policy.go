@@ -141,13 +141,13 @@ type (
 	// within a namespace (defined by the package) and optional
 	// dependencies on external documents (defined by imports).
 	Module struct {
-		Package     *Package       `json:"package"`
-		Imports     []*Import      `json:"imports,omitempty"`
-		Annotations []*Annotations `json:"annotations,omitempty"`
-		Rules       []*Rule        `json:"rules,omitempty"`
-		Comments    []*Comment     `json:"comments,omitempty"`
-		stmts       []Statement
-		strict      bool
+		Package          *Package       `json:"package"`
+		Imports          []*Import      `json:"imports,omitempty"`
+		Annotations      []*Annotations `json:"annotations,omitempty"`
+		Rules            []*Rule        `json:"rules,omitempty"`
+		Comments         []*Comment     `json:"comments,omitempty"`
+		stmts            []Statement
+		futureCompatible bool
 	}
 
 	// Comment contains the raw text from the comment in the definition.

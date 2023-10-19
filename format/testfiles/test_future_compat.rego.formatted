@@ -1,6 +1,6 @@
 package example
 
-import future.strict
+import future.compat
 
 # R1: constant
 a := 1
