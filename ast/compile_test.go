@@ -3138,6 +3138,467 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
+func TestCompileFutureCompatImport(t *testing.T) {
+	cases := []struct {
+		note           string
+		modules        map[string]string
+		expectedErrors Errors
+	}{
+		// Duplicate imports
+		{
+			note: "duplicate imports",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					import data.foo
+					import data.bar.foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (alias)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					import data.foo
+					import data.bar as foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (alias, different order)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					import data.bar as foo
+					import data.foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.bar as foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (repeat)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					import data.foo
+					import data.foo
+					p if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					import data.foo
+					import data.bar.foo
+					p if { 
+						foo == "bar"
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					import data.foo
+					import data.bar.foo
+					q if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy1.rego", Row: 4, Col: 6},
+				},
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy2.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					import data.foo
+					import data.bar.foo
+					p if { 
+						foo == "bar"
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					import data.foo
+					import data.bar.foo
+					q if { 
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy2.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		// var shadowing
+		{
+			note: "var shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					p if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows input (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					p if {
+						input := 1
+						input == 1
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					q if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy1.rego", Row: 4, Col: 7},
+				},
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows input (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					p if {
+						input := 1
+						input == 1
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					q if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					p if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					p if {
+						data := 1
+						data == 1
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					q if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy1.rego", Row: 4, Col: 7},
+				},
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					p if {
+						data := 1
+						data == 1
+					}`,
+				"policy2.rego": `package test
+					import future.compat
+					q if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		// rule shadowing
+		{
+			note: "rule shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					input := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows input (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					input := 1`,
+				"policy2.rego": `package test2
+					import future.compat
+					input := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy1.rego", Row: 3, Col: 6},
+				},
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows input (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					input := 1`,
+				"policy2.rego": `package test2
+					import future.compat
+					input := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					data := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					data := 1`,
+				"policy2.rego": `package test2
+					import future.compat
+					data := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy1.rego", Row: 3, Col: 6},
+				},
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					data := 1`,
+				"policy2.rego": `package test2
+					import future.compat
+					data := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		// deprecated built-ins
+		{
+			note: "deprecated built-in",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					p := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import future.compat
+					p := all([true, false])
+					q := any([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+				&Error{
+					Message:  "deprecated built-in function calls in expression: any",
+					Location: &Location{Text: []byte("any([true, false])"), File: "policy.rego", Row: 4, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.compat
+					p := all([true, false])`,
+				"policy2.rego": `package test
+					import future.compat
+					q := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy1.rego", Row: 3, Col: 11},
+				},
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy2.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					p := all([true, false])`,
+				"policy2.rego": `package test
+					import future.compat
+					q := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy2.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.Modules = map[string]*Module{}
+			for name, mod := range tc.modules {
+				if parsed, err := ParseModuleWithOpts(name, mod, ParserOptions{}); err != nil {
+					t.Fatal(err)
+				} else {
+					compiler.Modules[name] = parsed
+				}
+			}
+			compileStages(compiler, nil)
+			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+		})
+	}
+}
+
 // NOTE(sr): the tests below this function are unwieldy, let's keep adding new ones to this one
 func TestCompilerResolveAllRefsNewTests(t *testing.T) {
 	tests := []struct {

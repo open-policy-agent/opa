@@ -1236,6 +1236,7 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
+	assertParseErrorContains(t, "future.compat.abc", "import future.compat.abc", "invalid import, must be `future.compat`")
 
 	assertParseImport(t, "import kw with kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
@@ -1243,6 +1244,9 @@ func TestFutureImports(t *testing.T) {
 	assertParseImport(t, "import kw with all kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
 		ParserOptions{AllFutureKeywords: true})
+	assertParseImport(t, "import compat",
+		"import future.compat", &Import{Path: RefTerm(VarTerm("future"), StringTerm("compat"))},
+		ParserOptions{})
 
 	mod := `
 		package p
@@ -1258,6 +1262,13 @@ func TestFutureImports(t *testing.T) {
 	}
 	assertParseModule(t, "multiple imports, all kw in options", mod, &parsed, ParserOptions{AllFutureKeywords: true})
 	assertParseModule(t, "multiple imports, single in options", mod, &parsed, ParserOptions{FutureKeywords: []string{"in"}})
+
+	mod = `
+		package p
+		import future.compat
+		import future.keywords.in
+	`
+	assertParseModuleErrorMatch(t, "compat and keywords imported", mod, "rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive")
 }
 
 func TestFutureImportsExtraction(t *testing.T) {
@@ -1275,14 +1286,34 @@ func TestFutureImportsExtraction(t *testing.T) {
 		{
 			note: "all keywords imported",
 			imp:  "import future.keywords",
-			exp:  map[string]tokens.Token{"in": tokens.In},
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
 		},
 		{
 			note: "all keywords + single keyword imported",
 			imp: `
 				import future.keywords
 				import future.keywords.in`,
-			exp: map[string]tokens.Token{"in": tokens.In},
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
+		},
+		{
+			note: "future.compat imported",
+			imp:  "import future.compat",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
 		},
 	}
 	for _, tc := range tests {
@@ -1296,6 +1327,196 @@ func TestFutureImportsExtraction(t *testing.T) {
 				act := parser.s.s.Keyword(kw)
 				if act != exp {
 					t.Errorf("expected keyword %q to yield token %v, got %v", kw, exp, act)
+				}
+			}
+		})
+	}
+}
+
+func TestFutureCompatImport(t *testing.T) {
+	tests := []struct {
+		note           string
+		module         string
+		expectedErrors []string
+	}{
+		{
+			note: "only future.compat imported",
+			module: `package test
+import future.compat
+p contains 1 if 1 == 1`,
+		},
+		{
+			note: "future.compat and future.keywords imported",
+			module: `package test
+import future.compat
+import future.keywords
+p contains 1 if {
+	input.x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive"},
+		},
+		{
+			note: "`if` keyword used on rule",
+			module: `package test
+import future.compat
+p if {
+	input.x == 1
+}`,
+		},
+		{
+			note: "`if` keyword not used on rule",
+			module: `package test
+import future.compat
+p {
+	input.x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "constant definition",
+			module: `package test
+import future.compat
+p := 1`,
+		},
+		{
+			note: "`if` keyword used before else body",
+			module: `package test
+import future.compat
+p if {
+	input.x == 1
+} else if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment)",
+			module: `package test
+import future.compat
+p := "foo" if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword not used before else body",
+			module: `package test
+import future.compat
+p if {
+	input.x == 1
+} else {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "`if` keyword not used before else body (value assignment)",
+			module: `package test
+import future.compat
+p := "foo" if {
+	input.x == 1
+} else := "bar" {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (const key)",
+			module: `package test
+import future.compat
+p contains "q"`,
+		},
+		{
+			note: "`contains` keyword used on partial set rule (ref-head, const key)",
+			module: `package test
+import future.compat
+p.q contains "r"`,
+		},
+		{
+			note: "`contains` keyword not used on partial set rule (const key)",
+			module: `package test
+import future.compat
+p.q`,
+			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
+		},
+		{
+			note: "object definition (naked ref-head with implicit `true` value)",
+			module: `package test
+import future.compat
+p.q.r`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (var key, no body)",
+			module: `package test
+import future.compat
+p contains input.x`,
+		},
+		{
+			note: "`contains` keyword not used on partial set rule (var key, no body)",
+			module: `package test
+import future.compat
+p[input.x]`,
+			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
+		},
+		{
+			note: "`if` keyword not used on partial object rule (ref-head, var key, implicit `true` value, no body)",
+			module: `package test
+import future.compat
+p.q[input.x]`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (var key)",
+			module: `package test
+import future.compat
+p contains x if { x = input.x}`,
+		},
+		{
+			note: "`if` keyword used on partial map rule (would be multi-value without `if`)",
+			module: `package test
+import future.compat
+p[x] if { x = input.x}`,
+		},
+		{
+			note: "`contains` and `if` keyword not used on partial rule",
+			module: `package test
+import future.compat
+p[x] { x = input.x}`,
+			// The developer likely intended a partial set.
+			expectedErrors: []string{
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+				"rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note: "`if` keyword not used on partial object rule (ref-head)",
+			module: `package test
+import future.compat
+p.q[x] { x = input.x}`,
+			expectedErrors: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, errs := ParseModuleWithOpts("", tc.module, ParserOptions{})
+
+			if len(tc.expectedErrors) == 0 && errs != nil {
+				t.Fatalf("expected no errors, got:\n\n%v", errs)
+			}
+
+			actual := ""
+			if errs != nil {
+				actual = errs.Error()
+			}
+
+			for _, expected := range tc.expectedErrors {
+				if !strings.Contains(actual, expected) {
+					t.Errorf("expected error:\n\n%q\n\ngot:\n\n%v", expected, actual)
 				}
 			}
 		})
@@ -5171,6 +5392,17 @@ func assertParseModuleError(t *testing.T, msg, input string) {
 	m, err := ParseModule("", input)
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
+	}
+}
+
+func assertParseModuleErrorMatch(t *testing.T, msg, input string, expected string) {
+	t.Helper()
+	m, err := ParseModule("", input)
+	if err == nil {
+		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
+	}
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("Error on test \"%s\"; expected:\n\n%v\n\ngot:\n\n%v", msg, expected, err)
 	}
 }
 

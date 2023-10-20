@@ -25,6 +25,8 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
+var futureCompatibleRef = Ref{VarTerm("future"), StringTerm("compat")}
+
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
@@ -581,6 +583,10 @@ func (p *Parser) parseRules() []*Rule {
 		return nil
 	}
 
+	if usesContains {
+		rule.Head.keywords = append(rule.Head.keywords, tokens.Contains)
+	}
+
 	if rule.Default {
 		if !p.validateDefaultRuleValue(&rule) {
 			return nil
@@ -602,6 +608,7 @@ func (p *Parser) parseRules() []*Rule {
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
 		if rule.Head.Value == nil {
+			rule.Head.generatedValue = true
 			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
 		} else {
 			// p[x] = y if  becomes a single-value rule p[x] with value y, but needs name for compat
@@ -630,6 +637,7 @@ func (p *Parser) parseRules() []*Rule {
 
 	switch {
 	case hasIf:
+		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 		s := p.save()
 		if expr := p.parseLiteral(); expr != nil {
@@ -661,6 +669,7 @@ func (p *Parser) parseRules() []*Rule {
 
 	case usesContains:
 		rule.Body = NewBody(NewExpr(BooleanTerm(true).SetLocation(rule.Location)).SetLocation(rule.Location))
+		rule.generatedBody = true
 		return []*Rule{&rule}
 
 	default:
@@ -744,6 +753,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	switch p.s.tok {
 	case tokens.LBrace, tokens.If: // no value, but a body follows directly
+		rule.Head.generatedValue = true
 		rule.Head.Value = BooleanTerm(true)
 	case tokens.Assign, tokens.Unify:
 		rule.Head.Assign = tokens.Assign == p.s.tok
@@ -763,11 +773,13 @@ func (p *Parser) parseElse(head *Head) *Rule {
 
 	if !hasIf && !hasLBrace {
 		rule.Body = NewBody(NewExpr(BooleanTerm(true)))
+		rule.generatedBody = true
 		setLocRecursive(rule.Body, rule.Location)
 		return &rule
 	}
 
 	if hasIf {
+		rule.Head.keywords = append(rule.Head.keywords, tokens.If)
 		p.scan()
 	}
 
@@ -889,6 +901,7 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 
 	if head.Value == nil && head.Key == nil {
 		if len(head.Ref()) != 2 || len(head.Args) > 0 {
+			head.generatedValue = true
 			head.Value = BooleanTerm(true).SetLocation(head.Location)
 		}
 	}
@@ -2497,8 +2510,8 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
+	if len(path) == 1 || (!path[1].Equal(StringTerm("keywords")) && !path[1].Equal(futureCompatibleRef[1])) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `%s`", futureCompatibleRef)
 		return
 	}
 
@@ -2510,6 +2523,28 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	kwds := make([]string, 0, len(allowedFutureKeywords))
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
+	}
+
+	if path[1].Equal(futureCompatibleRef[1]) {
+		if len(path) > 2 {
+			p.errorf(imp.Path.Location, "invalid import, must be `%s`", futureCompatibleRef)
+			return
+		}
+		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.FutureCompatible() {
+			// We have imported future keywords, but they didn't come from another `future.compat` import.
+			p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
+			return
+		}
+		p.s.s.SetFutureCompatible()
+		for _, kw := range kwds {
+			p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
+		}
+		return
+	}
+
+	if p.s.s.FutureCompatible() {
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
+		return
 	}
 
 	switch len(path) {

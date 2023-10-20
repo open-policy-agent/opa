@@ -18,14 +18,15 @@ const bom = 0xFEFF
 // Scanner is used to tokenize an input stream of
 // Rego source code.
 type Scanner struct {
-	offset   int
-	row      int
-	col      int
-	bs       []byte
-	curr     rune
-	width    int
-	errors   []Error
-	keywords map[string]tokens.Token
+	offset           int
+	row              int
+	col              int
+	bs               []byte
+	curr             rune
+	width            int
+	errors           []Error
+	keywords         map[string]tokens.Token
+	futureCompatible bool
 }
 
 // Error represents a scanner error.
@@ -100,6 +101,23 @@ func (s *Scanner) AddKeyword(kw string, tok tokens.Token) {
 	case tokens.Every: // importing 'every' means also importing 'in'
 		s.keywords["in"] = tokens.In
 	}
+}
+
+func (s *Scanner) HasKeyword(keywords map[string]tokens.Token) bool {
+	for kw := range s.keywords {
+		if _, ok := keywords[kw]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Scanner) SetFutureCompatible() {
+	s.futureCompatible = true
+}
+
+func (s *Scanner) FutureCompatible() bool {
+	return s.futureCompatible
 }
 
 // WithKeywords returns a new copy of the Scanner struct `s`, with the set
