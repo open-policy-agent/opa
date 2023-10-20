@@ -1306,7 +1306,7 @@ func TestFutureImportsExtraction(t *testing.T) {
 			},
 		},
 		{
-			note: "future.strict imported",
+			note: "future.compat imported",
 			imp:  "import future.compat",
 			exp: map[string]tokens.Token{
 				"in":       tokens.In,

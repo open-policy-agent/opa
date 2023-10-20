@@ -2531,7 +2531,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 			return
 		}
 		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.FutureCompatible() {
-			// We have imported future keywords, but they didn't come from another `future.strict` import.
+			// We have imported future keywords, but they didn't come from another `future.compat` import.
 			p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
 			return
 		}
