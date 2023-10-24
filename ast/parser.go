@@ -25,7 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-var futureCompatibleRef = Ref{VarTerm("future"), StringTerm("compat")}
+var regoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
@@ -330,9 +330,14 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		s = p.save()
 
 		if imp := p.parseImport(); imp != nil {
+			if RegoRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
+				p.regoV1Import(imp)
+			}
+
 			if FutureRootDocument.Equal(imp.Path.Value.(Ref)[0]) {
 				p.futureImport(imp, allowedFutureKeywords)
 			}
+
 			stmts = append(stmts, imp)
 			continue
 		} else if len(p.s.errors) > 0 {
@@ -535,9 +540,9 @@ func (p *Parser) parseImport() *Import {
 
 	path := imp.Path.Value.(Ref)
 
-	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) {
+	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) && !RegoRootDocument.Equal(path[0]) {
 		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v",
-			RootDocumentNames.Union(NewSet(FutureRootDocument)),
+			RootDocumentNames.Union(NewSet(FutureRootDocument, RegoRootDocument)),
 			path[0])
 		return nil
 	}
@@ -2510,8 +2515,8 @@ var futureKeywords = map[string]tokens.Token{
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || (!path[1].Equal(StringTerm("keywords")) && !path[1].Equal(futureCompatibleRef[1])) {
-		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords` or `%s`", futureCompatibleRef)
+	if len(path) == 1 || !path[1].Equal(StringTerm("keywords")) {
+		p.errorf(imp.Path.Location, "invalid import, must be `future.keywords`")
 		return
 	}
 
@@ -2520,31 +2525,14 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 		return
 	}
 
+	if p.s.s.RegoV1Compatible() {
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", regoV1CompatibleRef)
+		return
+	}
+
 	kwds := make([]string, 0, len(allowedFutureKeywords))
 	for k := range allowedFutureKeywords {
 		kwds = append(kwds, k)
-	}
-
-	if path[1].Equal(futureCompatibleRef[1]) {
-		if len(path) > 2 {
-			p.errorf(imp.Path.Location, "invalid import, must be `%s`", futureCompatibleRef)
-			return
-		}
-		if p.s.s.HasKeyword(futureKeywords) && !p.s.s.FutureCompatible() {
-			// We have imported future keywords, but they didn't come from another `future.compat` import.
-			p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
-			return
-		}
-		p.s.s.SetFutureCompatible()
-		for _, kw := range kwds {
-			p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
-		}
-		return
-	}
-
-	if p.s.s.FutureCompatible() {
-		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", futureCompatibleRef)
-		return
 	}
 
 	switch len(path) {
@@ -2567,5 +2555,36 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 	for _, kw := range kwds {
 		p.s.s.AddKeyword(kw, allowedFutureKeywords[kw])
+	}
+}
+
+func (p *Parser) regoV1Import(imp *Import) {
+	path := imp.Path.Value.(Ref)
+
+	if len(path) == 1 || !path[1].Equal(regoV1CompatibleRef[1]) || len(path) > 2 {
+		p.errorf(imp.Path.Location, "invalid import, must be `%s`", regoV1CompatibleRef)
+		return
+	}
+
+	if imp.Alias != "" {
+		p.errorf(imp.Path.Location, "`rego` imports cannot be aliased")
+		return
+	}
+
+	// import all future keywords with the rego.v1 import
+	kwds := make([]string, 0, len(futureKeywords))
+	for k := range futureKeywords {
+		kwds = append(kwds, k)
+	}
+
+	if p.s.s.HasKeyword(futureKeywords) && !p.s.s.RegoV1Compatible() {
+		// We have imported future keywords, but they didn't come from another `rego.v1` import.
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", regoV1CompatibleRef)
+		return
+	}
+
+	p.s.s.SetRegoV1Compatible()
+	for _, kw := range kwds {
+		p.s.s.AddKeyword(kw, futureKeywords[kw])
 	}
 }

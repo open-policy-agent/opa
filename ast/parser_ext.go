@@ -663,8 +663,8 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
-			if Compare(stmt.Path.Value, futureCompatibleRef) == 0 {
-				mod.futureCompatible = true
+			if Compare(stmt.Path.Value, regoV1CompatibleRef) == 0 {
+				mod.regoV1Compatible = true
 			}
 		case *Rule:
 			setRuleModule(stmt, mod)
@@ -693,7 +693,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		}
 	}
 
-	if mod.futureCompatible {
+	if mod.regoV1Compatible {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				if r.generatedBody && r.Head.generatedValue {

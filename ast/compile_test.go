@@ -2684,6 +2684,13 @@ func TestCompilerCheckUnusedImports(t *testing.T) {
 			},
 		},
 		{
+			note: "ignore unused rego import",
+			module: `package p
+			import rego.v1
+			r if { 10 == 10 }
+			`,
+		},
+		{
 			note: "import used in comparison",
 			module: `package p
 			import data.foo.x
@@ -3138,7 +3145,7 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
-func TestCompileFutureCompatImport(t *testing.T) {
+func TestCompileRegoV1Import(t *testing.T) {
 	cases := []struct {
 		note           string
 		modules        map[string]string
@@ -3149,10 +3156,10 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "duplicate imports",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.bar.foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 			},
@@ -3167,7 +3174,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "duplicate imports (alias)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.bar as foo
 					p if { 
@@ -3185,7 +3192,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "duplicate imports (alias, different order)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.bar as foo
 					import data.foo
 					p if { 
@@ -3203,7 +3210,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "duplicate imports (repeat)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.foo
 					p if { 
@@ -3221,14 +3228,14 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "duplicate imports (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.bar.foo
 					p if { 
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.bar.foo
 					q if { 
@@ -3257,7 +3264,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					import data.foo
 					import data.bar.foo
 					q if { 
@@ -3276,7 +3283,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "var shadows input",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					p if {
 						input := 1
 						input == 1
@@ -3293,13 +3300,13 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "var shadows input (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					p if {
 						input := 1
 						input == 1
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q if {
 						input := 1
 						input == 1
@@ -3326,7 +3333,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 						input == 1
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q if {
 						input := 1
 						input == 1
@@ -3343,7 +3350,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "var shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					p if {
 						data := 1
 						data == 1
@@ -3360,13 +3367,13 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "var shadows data (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					p if {
 						data := 1
 						data == 1
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q if {
 						data := 1
 						data == 1
@@ -3393,7 +3400,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 						data == 1
 					}`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q if {
 						data := 1
 						data == 1
@@ -3411,7 +3418,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "rule shadows input",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					input := 1`,
 			},
 			expectedErrors: Errors{
@@ -3425,10 +3432,10 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "rule shadows input (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					input := 1`,
 				"policy2.rego": `package test2
-					import future.compat
+					import rego.v1
 					input := 2`,
 			},
 			expectedErrors: Errors{
@@ -3448,7 +3455,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 				"policy1.rego": `package test
 					input := 1`,
 				"policy2.rego": `package test2
-					import future.compat
+					import rego.v1
 					input := 2`,
 			},
 			expectedErrors: Errors{
@@ -3462,7 +3469,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "rule shadows data",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					data := 1`,
 			},
 			expectedErrors: Errors{
@@ -3476,10 +3483,10 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "rule shadows data (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					data := 1`,
 				"policy2.rego": `package test2
-					import future.compat
+					import rego.v1
 					data := 2`,
 			},
 			expectedErrors: Errors{
@@ -3499,7 +3506,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 				"policy1.rego": `package test
 					data := 1`,
 				"policy2.rego": `package test2
-					import future.compat
+					import rego.v1
 					data := 2`,
 			},
 			expectedErrors: Errors{
@@ -3514,7 +3521,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "deprecated built-in",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					p := all([true, false])`,
 			},
 			expectedErrors: Errors{
@@ -3528,7 +3535,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "deprecated built-in (multiple)",
 			modules: map[string]string{
 				"policy.rego": `package test
-					import future.compat
+					import rego.v1
 					p := all([true, false])
 					q := any([true, false])`,
 			},
@@ -3547,10 +3554,10 @@ func TestCompileFutureCompatImport(t *testing.T) {
 			note: "deprecated built-in (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					import future.compat
+					import rego.v1
 					p := all([true, false])`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q := all([true, false])`,
 			},
 			expectedErrors: Errors{
@@ -3570,7 +3577,7 @@ func TestCompileFutureCompatImport(t *testing.T) {
 				"policy1.rego": `package test
 					p := all([true, false])`,
 				"policy2.rego": `package test
-					import future.compat
+					import rego.v1
 					q := all([true, false])`,
 			},
 			expectedErrors: Errors{

@@ -44,6 +44,10 @@ var FunctionArgRootDocument = VarTerm("args")
 // features.
 var FutureRootDocument = VarTerm("future")
 
+// RegoRootDocument names the document containing new, to-become-default,
+// features in a future versioned release.
+var RegoRootDocument = VarTerm("rego")
+
 // RootDocumentNames contains the names of top-level documents that can be
 // referred to in modules and queries.
 //
@@ -147,7 +151,7 @@ type (
 		Rules            []*Rule        `json:"rules,omitempty"`
 		Comments         []*Comment     `json:"comments,omitempty"`
 		stmts            []Statement
-		futureCompatible bool
+		regoV1Compatible bool
 	}
 
 	// Comment contains the raw text from the comment in the definition.

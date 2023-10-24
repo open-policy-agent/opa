@@ -1,6 +1,6 @@
 package example
 
-import future.compat
+import rego.v1
 
 # R1: constant
 a := 1

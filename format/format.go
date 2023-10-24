@@ -120,7 +120,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 		case *ast.Import:
 			switch {
-			case future.IsFutureCompatible(n):
+			case isRegoV1Compatible(n):
 				o.contains = true
 				o.ifs = true
 			case future.IsAllFutureKeywords(n):
@@ -1434,4 +1434,12 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: " + "(" + strings.Join(d.Have, ",") + ")",
 		"want: " + "(" + strings.Join(d.Want, ",") + ")",
 	}
+}
+
+// isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
+func isRegoV1Compatible(imp *ast.Import) bool {
+	path := imp.Path.Value.(ast.Ref)
+	return len(path) == 2 &&
+		ast.RegoRootDocument.Equal(path[0]) &&
+		path[1].Equal(ast.StringTerm("v1"))
 }
