@@ -94,8 +94,8 @@ github.com/fortytw2/leaktest
 # github.com/foxcpp/go-mockdns v1.0.0
 ## explicit; go 1.13
 github.com/foxcpp/go-mockdns
-# github.com/fsnotify/fsnotify v1.6.0
-## explicit; go 1.16
+# github.com/fsnotify/fsnotify v1.7.0
+## explicit; go 1.17
 github.com/fsnotify/fsnotify
 # github.com/go-ini/ini v1.67.0
 ## explicit
