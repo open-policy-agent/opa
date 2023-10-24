@@ -122,3 +122,46 @@ func TestLoadCapabilitiesFile(t *testing.T) {
 	})
 
 }
+
+func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
+
+	c := CapabilitiesForThisVersion()
+
+	indexOfEq := findBuiltinIndex(c, "eq")
+	if indexOfEq < 0 {
+		panic("expected to find eq")
+	}
+
+	c.addBuiltinSorted(&Builtin{Name: "eq"})
+
+	if c.Builtins[indexOfEq].Decl != nil {
+		t.Fatal("expected builtin to get overwritten")
+	}
+
+	c.addBuiltinSorted(&Builtin{Name: "~foo"}) // non-existent but always sorts to the end
+
+	if findBuiltinIndex(c, "~foo") != len(c.Builtins)-1 {
+		t.Fatal("expected builtin to be last in slice")
+	}
+
+	c.addBuiltinSorted(&Builtin{Name: " foo"}) // non-existent but always sorts to start
+
+	if findBuiltinIndex(c, " foo") != 0 {
+		t.Fatal("expected builtin to be first in slice")
+	}
+
+	c.addBuiltinSorted(&Builtin{Name: "plus1"}) // non-existent but always after plus in middle
+
+	if findBuiltinIndex(c, "plus1") != findBuiltinIndex(c, "plus")+1 {
+		t.Fatal("expected builtin to be immediately after plus")
+	}
+}
+
+func findBuiltinIndex(c *Capabilities, name string) int {
+	for i, bi := range c.Builtins {
+		if bi.Name == name {
+			return i
+		}
+	}
+	return -1
+}

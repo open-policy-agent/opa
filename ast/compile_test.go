@@ -3177,7 +3177,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 					import rego.v1
 					import data.foo
 					import data.bar as foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 			},
@@ -3195,7 +3195,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 					import rego.v1
 					import data.bar as foo
 					import data.foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 			},
@@ -3213,7 +3213,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 					import rego.v1
 					import data.foo
 					import data.foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 			},
@@ -3231,14 +3231,14 @@ func TestCompileRegoV1Import(t *testing.T) {
 					import rego.v1
 					import data.foo
 					import data.bar.foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
 					import rego.v1
 					import data.foo
 					import data.bar.foo
-					q if { 
+					q if {
 						foo == "bar"
 					}`,
 			},
@@ -3260,14 +3260,14 @@ func TestCompileRegoV1Import(t *testing.T) {
 					import future.keywords.if
 					import data.foo
 					import data.bar.foo
-					p if { 
+					p if {
 						foo == "bar"
 					}`,
 				"policy2.rego": `package test
 					import rego.v1
 					import data.foo
 					import data.bar.foo
-					q if { 
+					q if {
 						foo == "bar"
 					}`,
 			},
@@ -3996,10 +3996,10 @@ q = [true | true] { true }
 		{
 			note: "array comprehension value in else head",
 			mod: MustParseModule(`package head
-q { 
-	false 
-} else = [true | true] { 
-	true 
+q {
+	false
+} else = [true | true] {
+	true
 }
 `),
 			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = [true | true] }`),
@@ -4029,10 +4029,10 @@ f(x) = [a | a := true] {
 		{
 			note: "array comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = [x | y] { 
-	false 
+f(x, y) = [x | y] {
+	false
 } else = [x | y] {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = [__local0__ | __local1__] } else = __local3__ { true; __local3__ = [__local0__ | __local1__] }`),
@@ -4047,10 +4047,10 @@ r = {"true": true | true} { true }
 		{
 			note: "object comprehension value in else head",
 			mod: MustParseModule(`package head
-q { 
-	false 
-} else = {"true": true | true} { 
-	true 
+q {
+	false
+} else = {"true": true | true} {
+	true
 }
 `),
 			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = {"true": true | true} }`),
@@ -4080,10 +4080,10 @@ f(x) = {"a": a | a := true} {
 		{
 			note: "object comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = {x: y | true} { 
-	false 
+f(x, y) = {x: y | true} {
+	false
 } else = {x: y | true} {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__: __local1__ | true} } else = __local3__ { true; __local3__ = {__local0__: __local1__ | true} }`),
@@ -4098,10 +4098,10 @@ s = {true | true} { true }
 		{
 			note: "set comprehension value in else head",
 			mod: MustParseModule(`package head
-q = {false | false} { 
-	false 
-} else = {true | true} { 
-	true 
+q = {false | false} {
+	false
+} else = {true | true} {
+	true
 }
 `),
 			exp: MustParseRule(`q = __local0__ { false; __local0__ = {false | false} } else = __local1__ { true; __local1__ = {true | true} }`),
@@ -4131,10 +4131,10 @@ f(x) = {a | a := true} {
 		{
 			note: "set comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = {x | y} { 
-	false 
+f(x, y) = {x | y} {
+	false
 } else = {x | y} {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__ | __local1__} } else = __local3__ { true; __local3__ = {__local0__ | __local1__} }`),
@@ -6165,7 +6165,7 @@ func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
 				print("Hello world")
 				some i
 			}
-			
+
 			bar {
 				print("Hello world")
 				some j
@@ -6742,7 +6742,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 		{
 			note: "inside comprehension",
 			module: `package test
-			p { {1 | print(x)} }
+			p { {1 | print(x)} = {1 | print(7)} }
 			`,
 			exp: errors.New("var x is undeclared"),
 		},
@@ -8900,6 +8900,121 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 				if NewArray(result.Keys...).Compare(expKeys) != 0 {
 					t.Fatalf("expected keys to be %v but got: %v", expKeys, result.Keys)
 				}
+			}
+		})
+	}
+}
+
+func TestCompilerBuildRequiredCapabilities(t *testing.T) {
+	tests := []struct {
+		note     string
+		module   string
+		opts     CompileOpts
+		builtins []string
+		features []string
+		keywords []string
+	}{
+		{
+			note: "trivial",
+			module: `
+				package x
+
+				p { input > 7 }
+			`,
+			builtins: []string{"eq", "gt"},
+		},
+		{
+			note: "future.keywords wildcard",
+			module: `
+				package x
+
+				import future.keywords
+			`,
+			keywords: []string{"contains", "every", "if", "in"},
+		},
+		{
+			note: "future.keywords specific",
+			module: `
+				package x
+
+				import future.keywords.in
+				import future.keywords.if
+				import future.keywords.contains
+				import future.keywords.every
+			`,
+			keywords: []string{"contains", "every", "if", "in"},
+		},
+		{
+			note: "rewriting erases assignment",
+			module: `
+				package x
+
+				p { a := 7 }
+			`,
+			builtins: []string{"assign", "eq"},
+		},
+		{
+			note: "rewriting erases equals",
+			module: `
+				package x
+
+				p { input == 7 }
+			`,
+			builtins: []string{"eq", "equal"},
+		},
+		{
+			note: "rewriting erases print",
+			module: `
+				package x
+
+				p { print(7) }
+			`,
+			opts:     CompileOpts{EnablePrintStatements: true},
+			builtins: []string{"eq", "internal.print", "print"},
+		},
+
+		{
+			note: "rewriting erases print but disabled",
+			module: `
+				package x
+
+				p { print(7) }
+			`,
+			opts:     CompileOpts{EnablePrintStatements: false},
+			builtins: []string{"print"}, // only print required because compiler will replace with true
+		},
+		{
+			note: "dots in the head",
+			module: `
+				package x
+
+				a.b.c := 7
+			`,
+			features: []string{"rule_head_ref_string_prefixes"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := MustCompileModulesWithOpts(map[string]string{
+				"test.rego": tc.module,
+			}, tc.opts)
+
+			var names []string
+			for i := range compiler.Required.Builtins {
+				names = append(names, compiler.Required.Builtins[i].Name)
+			}
+
+			if !reflect.DeepEqual(names, tc.builtins) {
+				t.Fatalf("expected builtins to be %v but got %v", tc.builtins, names)
+			}
+
+			if !reflect.DeepEqual(compiler.Required.FutureKeywords, tc.keywords) {
+				t.Fatalf("expected keywords to be %v but got %v", tc.keywords, compiler.Required.FutureKeywords)
+			}
+
+			if !reflect.DeepEqual(compiler.Required.Features, tc.features) {
+				t.Fatalf("expected features to be %v but got %v", tc.features, compiler.Required.Features)
 			}
 		})
 	}

@@ -129,3 +129,18 @@ func LoadCapabilitiesVersions() ([]string, error) {
 	}
 	return capabilitiesVersions, nil
 }
+
+// addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name
+// will be overwritten.
+func (c *Capabilities) addBuiltinSorted(bi *Builtin) {
+	i := sort.Search(len(c.Builtins), func(x int) bool {
+		return c.Builtins[x].Name >= bi.Name
+	})
+	if i < len(c.Builtins) && bi.Name == c.Builtins[i].Name {
+		c.Builtins[i] = bi
+		return
+	}
+	c.Builtins = append(c.Builtins, nil)
+	copy(c.Builtins[i+1:], c.Builtins[i:])
+	c.Builtins[i] = bi
+}
