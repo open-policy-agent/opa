@@ -1213,6 +1213,12 @@ func New(options ...func(r *Rego)) *Rego {
 			WithEnablePrintStatements(r.enablePrintStatements).
 			WithStrict(r.strict).
 			WithUseTypeCheckAnnotations(true)
+
+		// topdown could be target "" or "rego", but both could be overridden by
+		// a target plugin (checked below)
+		if r.target == targetWasm {
+			r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+		}
 	}
 
 	if r.store == nil {
@@ -1252,6 +1258,11 @@ func New(options ...func(r *Rego)) *Rego {
 			}
 		}
 	}
+
+	if t := r.targetPlugin(r.target); t != nil {
+		r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+	}
+
 	return r
 }
 
