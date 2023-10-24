@@ -556,15 +556,15 @@ func getTestRuntime(ctx context.Context, t *testing.T, logger logging.Logger) *R
 
 func TestAddrWarningMessage(t *testing.T) {
 	testCases := []struct {
-		name                string
-		addrSetByUser       bool
-		containsMsg         bool
-		futureCompatibility bool
+		name          string
+		addrSetByUser bool
+		containsMsg   bool
+		v1Compatible  bool
 	}{
 		{"WarningMessage", false, true, false},
 		{"NoWarningMessage", true, false, false},
-		{"FutureCompatibilityEnabled", false, false, true},
-		{"FutureCompatibilityDisabled", false, true, false},
+		{"V1Compatible", false, false, true},
+		{"V1InCompatible", false, true, false},
 	}
 
 	for _, tc := range testCases {
@@ -581,7 +581,7 @@ func TestAddrWarningMessage(t *testing.T) {
 			params.Addrs = &[]string{"localhost:8181"}
 			params.AddrSetByUser = tc.addrSetByUser
 			params.GracefulShutdownPeriod = 1
-			params.FutureCompatibility = tc.futureCompatibility
+			params.V1Compatible = tc.v1Compatible
 			rt, err := NewRuntime(ctx, params)
 			if err != nil {
 				t.Fatalf("Unexpected error %v", err)

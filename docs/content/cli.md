@@ -836,7 +836,7 @@ OPA will automatically perform type checking based on a schema inferred from kno
 resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
 be expanded in the future. To disable this, use the --skip-known-schema-check flag.
 
-The --future-compat flag can be used to opt-in to OPA features and behaviors that will be enabled by default in future OPA releases.
+The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
 Current behaviors enabled by this flag include:
 - setting OPA's listening address to "localhost:8181" by default.
 
@@ -857,7 +857,6 @@ opa run [flags]
       --disable-telemetry                    disables anonymous information reporting (see: https://www.openpolicyagent.org/docs/latest/privacy)
       --exclude-files-verify strings         set file names to exclude during bundle verification
   -f, --format string                        set shell output format, i.e, pretty, json (default "pretty")
-      --future-compat                        opt-in to OPA features and behaviors that will be enabled by default in future OPA releases
       --h2c                                  enable H2C for HTTP listeners
   -h, --help                                 help for run
   -H, --history string                       set path of history file (default "$HOME/.opa_history")
@@ -883,6 +882,7 @@ opa run [flags]
       --tls-cert-refresh-period duration     set certificate refresh period
       --tls-private-key-file string          set path of TLS private key file
       --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
+       --v1-compatible                       opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
       --verification-key string              set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string           name assigned to the verification key used for bundle verification (default "default")
   -w, --watch                                watch command line files for changes
