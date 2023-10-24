@@ -95,5 +95,5 @@ func blobPath(dgst digest.Digest) (string, error) {
 		return "", fmt.Errorf("cannot calculate blob path from invalid digest %s: %w: %v",
 			dgst.String(), errdef.ErrInvalidDigest, err)
 	}
-	return path.Join(ociBlobsDir, dgst.Algorithm().String(), dgst.Encoded()), nil
+	return path.Join(ocispec.ImageBlobsDir, dgst.Algorithm().String(), dgst.Encoded()), nil
 }
