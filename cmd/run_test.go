@@ -52,7 +52,7 @@ func TestRunServerBase(t *testing.T) {
 
 func TestRunServerBaseListenOnLocalhost(t *testing.T) {
 	params := newTestRunParams()
-	params.rt.FutureCompatibility = true
+	params.rt.V1Compatible = true
 
 	ctx, cancel := context.WithCancel(context.Background())
 
