@@ -1690,6 +1690,11 @@ become a no-op that can safely be removed. This should give all users ample time
 update their policies, so that the new keyword will not cause clashes with existing
 variable names.
 
+{{< info >}}
+If the `rego.v1` import is present in a module, then `future.keywords` and `future.keywords.*` import is implied, and not allowed.
+{{< /info >}}
+
+
 Note that some future keyword imports have consequences on pretty-printing:
 If `contains` or `if` are imported, the pretty-printer will use them as applicable
 when formatting the modules.
@@ -3801,6 +3806,12 @@ Unused local assignments | Unused arguments or [assignments](../policy-reference
 Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  | 1.0
 `input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
 Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
+
+{{< info >}}
+If the `rego.v1` import is present in a module, all strict mode checks documented above expect the unused local assignment and unused imports checks are enforced on the module.
+
+Additionally the `rego.v1` import also requires the usage of `if` and `contains` keywords when declaring certain rules. The `if` keyword is required before a rule body and the `contains` keyword is required for partial set rules.
+{{< /info >}}
 
 ## Ecosystem Projects
 

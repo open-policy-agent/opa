@@ -1457,7 +1457,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.futureCompatible)
+		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.regoV1Compatible)
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1599,7 +1599,7 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 func (c *Compiler) checkDuplicateImports() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if !c.strict && !mod.futureCompatible {
+		if !c.strict && !mod.regoV1Compatible {
 			continue
 		}
 
@@ -1620,7 +1620,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkKeywordOverrides(mod, c.strict || mod.futureCompatible)
+		errs := checkKeywordOverrides(mod, c.strict || mod.regoV1Compatible)
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1698,8 +1698,8 @@ func (c *Compiler) resolveAllRefs() {
 		if c.strict { // check for unused imports
 			for _, imp := range mod.Imports {
 				path := imp.Path.Value.(Ref)
-				if FutureRootDocument.Equal(path[0]) {
-					continue // ignore future imports
+				if FutureRootDocument.Equal(path[0]) || RegoRootDocument.Equal(path[0]) {
+					continue // ignore future and rego imports
 				}
 
 				for v, u := range globals {
@@ -4004,8 +4004,8 @@ func getGlobals(pkg *Package, rules []Ref, imports []*Import) map[Var]*usedRef {
 	// Populate globals with imports.
 	for _, imp := range imports {
 		path := imp.Path.Value.(Ref)
-		if FutureRootDocument.Equal(path[0]) {
-			continue // ignore future imports
+		if FutureRootDocument.Equal(path[0]) || RegoRootDocument.Equal(path[0]) {
+			continue // ignore future and rego imports
 		}
 		globals[imp.Name()] = &usedRef{ref: path}
 	}
