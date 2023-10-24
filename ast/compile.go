@@ -116,14 +116,10 @@ type Compiler struct {
 	// with the key being the generated name and value being the original.
 	RewrittenVars map[Var]Var
 
-	localvargen  *localVarGenerator
-	moduleLoader ModuleLoader
-	ruleIndices  *util.HashMap
-	stages       []struct {
-		name       string
-		metricName string
-		f          func()
-	}
+	localvargen             *localVarGenerator
+	moduleLoader            ModuleLoader
+	ruleIndices             *util.HashMap
+	stages                  []stage
 	maxErrs                 int
 	sorted                  []string // list of sorted module names
 	pathExists              func([]string) (bool, error)
@@ -145,10 +141,26 @@ type Compiler struct {
 	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
 	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
 	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
+	evalMode                CompilerEvalMode
 }
 
 // CompilerStage defines the interface for stages in the compiler.
 type CompilerStage func(*Compiler) *Error
+
+// CompilerEvalMode allows toggling certain stages that are only
+// needed for certain modes, Concretely, only "topdown" mode will
+// have the compiler build comprehension and rule indices.
+type CompilerEvalMode int
+
+const (
+	// EvalModeTopdown (default) instructs the compiler to build rule
+	// and comprehension indices used by topdown evaluation.
+	EvalModeTopdown CompilerEvalMode = iota
+
+	// EvalModeIR makes the compiler skip the stages for comprehension
+	// and rule indices.
+	EvalModeIR
+)
 
 // CompilerStageDefinition defines a compiler stage
 type CompilerStageDefinition struct {
@@ -266,6 +278,12 @@ type QueryCompilerStageDefinition struct {
 	Stage      QueryCompilerStage
 }
 
+type stage struct {
+	name       string
+	metricName string
+	f          func()
+}
+
 // NewCompiler returns a new empty compiler.
 func NewCompiler() *Compiler {
 
@@ -289,11 +307,7 @@ func NewCompiler() *Compiler {
 	c.ModuleTree = NewModuleTree(nil)
 	c.RuleTree = NewRuleTree(c.ModuleTree)
 
-	c.stages = []struct {
-		name       string
-		metricName string
-		f          func()
-	}{
+	c.stages = []stage{
 		// Reference resolution should run first as it may be used to lazily
 		// load additional modules. If any stages run before resolution, they
 		// need to be re-run after resolution.
@@ -433,6 +447,12 @@ func (c *Compiler) WithKeepModules(y bool) *Compiler {
 // WithUseTypeCheckAnnotations use schema annotations during type checking
 func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
 	c.useTypeCheckAnnotations = enabled
+	return c
+}
+
+// WithEvalMode allows setting the CompilerEvalMode of the compiler
+func (c *Compiler) WithEvalMode(e CompilerEvalMode) *Compiler {
+	c.evalMode = e
 	return c
 }
 
@@ -1469,6 +1489,12 @@ func (c *Compiler) compile() {
 	}()
 
 	for _, s := range c.stages {
+		if c.evalMode == EvalModeIR {
+			switch s.name {
+			case "BuildRuleIndices", "BuildComprehensionIndices":
+				continue // skip these stages
+			}
+		}
 		c.runStage(s.metricName, s.f)
 		if c.Failed() {
 			return
@@ -2620,6 +2646,12 @@ func (qc *queryCompiler) runStageAfter(metricName string, query Body, s QueryCom
 	return s(qc, query)
 }
 
+type queryStage = struct {
+	name       string
+	metricName string
+	f          func(*QueryContext, Body) (Body, error)
+}
+
 func (qc *queryCompiler) Compile(query Body) (Body, error) {
 	if len(query) == 0 {
 		return nil, Errors{NewError(CompileErr, nil, "empty query cannot be compiled")}
@@ -2627,11 +2659,7 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 
 	query = query.Copy()
 
-	stages := []struct {
-		name       string
-		metricName string
-		f          func(*QueryContext, Body) (Body, error)
-	}{
+	stages := []queryStage{
 		{"CheckKeywordOverrides", "query_compile_stage_check_keyword_overrides", qc.checkKeywordOverrides},
 		{"ResolveRefs", "query_compile_stage_resolve_refs", qc.resolveRefs},
 		{"RewriteLocalVars", "query_compile_stage_rewrite_local_vars", qc.rewriteLocalVars},
@@ -2646,7 +2674,9 @@ func (qc *queryCompiler) Compile(query Body) (Body, error) {
 		{"CheckTypes", "query_compile_stage_check_types", qc.checkTypes},
 		{"CheckUnsafeBuiltins", "query_compile_stage_check_unsafe_builtins", qc.checkUnsafeBuiltins},
 		{"CheckDeprecatedBuiltins", "query_compile_stage_check_deprecated_builtins", qc.checkDeprecatedBuiltins},
-		{"BuildComprehensionIndex", "query_compile_stage_build_comprehension_index", qc.buildComprehensionIndices},
+	}
+	if qc.compiler.evalMode == EvalModeTopdown {
+		stages = append(stages, queryStage{"BuildComprehensionIndex", "query_compile_stage_build_comprehension_index", qc.buildComprehensionIndices})
 	}
 
 	qctx := qc.qctx.Copy()
