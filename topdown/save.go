@@ -338,7 +338,7 @@ func splitPackageAndRule(path ast.Ref) (ast.Ref, ast.Ref) {
 	ruleRefStart := 2 // path always contains at least 3 terms (data. + one term in package + rule name)
 	for i := ruleRefStart; i < len(p.StringPrefix()); i++ {
 		t := p[i]
-		if str, ok := t.Value.(ast.String); ok && ast.VarRegexp.MatchString(string(str)) {
+		if str, ok := t.Value.(ast.String); ok && ast.IsVarCompatibleString(string(str)) {
 			ruleRefStart = i
 		} else {
 			break
