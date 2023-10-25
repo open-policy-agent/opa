@@ -1084,18 +1084,11 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		// needed once per rule set and constructing the path for every rule in the
 		// module could expensive for PE output (which can contain hundreds of thousands
 		// of rules.)
-		seen := ast.NewVarSet()
+		seen := ast.NewSet()
 		for _, rule := range b[i].Parsed.Rules {
-			// NOTE(sr): we're relying on the fact that PE never emits ref rules (so far)!
-			// The rule
-			//   p.a = 1 { ... }
-			// will be recorded in prefixes as `data.test.p`, and that'll be checked later on against `data.test.p[k]`
-			if len(rule.Head.Ref()) > 2 {
-				panic("expected a module without ref rules")
-			}
-			name := rule.Head.Name
+			name := ast.NewTerm(rule.Head.Ref())
 			if !seen.Contains(name) {
-				prefixes.Add(ast.NewTerm(b[i].Parsed.Package.Path.Append(ast.StringTerm(string(name)))))
+				prefixes.Add(ast.NewTerm(rule.Ref().ConstantPrefix()))
 				seen.Add(name)
 			}
 		}
@@ -1118,10 +1111,10 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 				continue
 			}
 
-			path := rule.Ref()
+			path := rule.Ref().ConstantPrefix()
 			overlap := prefixes.Until(func(x *ast.Term) bool {
 				r := x.Value.(ast.Ref)
-				return path.HasPrefix(r)
+				return r.HasPrefix(path) || path.HasPrefix(r)
 			})
 			if overlap {
 				discarded.Add(refT)

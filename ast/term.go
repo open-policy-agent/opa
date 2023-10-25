@@ -1102,7 +1102,7 @@ func (ref Ref) Ptr() (string, error) {
 	return strings.Join(parts, "/"), nil
 }
 
-var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
+var VarRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
 func (ref Ref) String() string {
 	if len(ref) == 0 {
@@ -1114,7 +1114,7 @@ func (ref Ref) String() string {
 		switch p := p.Value.(type) {
 		case String:
 			str := string(p)
-			if varRegexp.MatchString(str) && len(buf) > 0 && !IsKeyword(str) {
+			if VarRegexp.MatchString(str) && len(buf) > 0 && !IsKeyword(str) {
 				buf = append(buf, "."+str)
 			} else {
 				buf = append(buf, "["+p.String()+"]")
