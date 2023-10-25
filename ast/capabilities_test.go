@@ -157,6 +157,51 @@ func TestCapabilitiesAddBuiltinSorted(t *testing.T) {
 	}
 }
 
+func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
+
+	tests := []struct {
+		note    string
+		module  string
+		version string
+	}{
+		{
+			note: "builtins",
+			module: `
+				package x
+				p { array.reverse([1,2,3]) }
+			`,
+			version: "0.36.0",
+		},
+		{
+			note: "keywords",
+			module: `
+				package x
+				import future.keywords.every
+			`,
+			version: "0.38.0",
+		},
+		{
+			note: "features",
+			module: `
+				package x
+				import future.keywords.if
+				p.a.b.c.d if { true }
+			`,
+			version: "0.46.0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := MustCompileModules(map[string]string{"test.rego": tc.module})
+			minVersion, found := c.Required.MinimumCompatibleVersion()
+			if !found || minVersion != tc.version {
+				t.Fatal("expected", tc.version, "but got", minVersion)
+			}
+		})
+	}
+}
+
 func findBuiltinIndex(c *Capabilities, name string) int {
 	for i, bi := range c.Builtins {
 		if bi.Name == name {
