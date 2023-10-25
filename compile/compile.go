@@ -1173,6 +1173,13 @@ func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrint
 		return nil, compiler.Errors
 	}
 
+	minVersion, ok := compiler.Required.MinimumCompatibleVersion()
+	if !ok {
+		dbg.Printf("could not determine minimum compatible version!")
+	} else {
+		dbg.Printf("minimum compatible version: %v", minVersion)
+	}
+
 	return compiler, nil
 }
 
