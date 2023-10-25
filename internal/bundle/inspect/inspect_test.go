@@ -28,7 +28,7 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 		"/data.json":       `{"a": {"b": {"c": [123]}}}`,
 		"/foo/policy.rego": "package foo\np = 1",
 		"/baz/authz.rego":  "package foo\nx = 1",
-		"base.rego":        "package bar\nx = 1",
+		"base.rego":        "package bar\nx = 1 { input > 7 }",
 		"/.manifest":       `{"roots": ["foo", "bar", "fuz", "baz", "a"], "revision": "rev"}`,
 	}
 
@@ -58,6 +58,17 @@ func TestGenerateBundleInfoWithFileDir(t *testing.T) {
 
 		if !reflect.DeepEqual(info.Namespaces, expectedNamespaces) {
 			t.Fatalf("expected namespaces %v, but got %v", expectedNamespaces, info.Namespaces)
+		}
+
+		var builtinNames []string
+		for _, bi := range info.Required.Builtins {
+			builtinNames = append(builtinNames, bi.Name)
+		}
+
+		expBuiltinNames := []string{"eq", "gt"}
+
+		if !reflect.DeepEqual(expBuiltinNames, builtinNames) {
+			t.Fatalf("expected builtin names to be %v but got %v", expBuiltinNames, builtinNames)
 		}
 	})
 }

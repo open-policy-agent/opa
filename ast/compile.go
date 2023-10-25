@@ -972,6 +972,10 @@ func (c *Compiler) buildRequiredCapabilities() {
 	}
 
 	c.Required.Features = stringMapToSortedSlice(features)
+
+	for i, bi := range c.Required.Builtins {
+		c.Required.Builtins[i] = bi.Minimal()
+	}
 }
 
 func stringMapToSortedSlice(xs map[string]struct{}) []string {

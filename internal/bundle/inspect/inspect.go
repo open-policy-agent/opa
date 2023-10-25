@@ -27,6 +27,7 @@ type Info struct {
 	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
 	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
 	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
+	Required    *ast.Capabilities        `json:"capabilities,omitempty"`
 }
 
 func File(path string, includeAnnotations bool) (*Info, error) {
@@ -102,6 +103,19 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 		wasmModules = append(wasmModules, wasmModule)
 	}
 	bi.WasmModules = wasmModules
+
+	moduleMap := make(map[string]*ast.Module, len(b.Modules))
+	for _, f := range b.Modules {
+		moduleMap[f.URL] = f.Parsed
+	}
+
+	c := ast.NewCompiler()
+	c.Compile(moduleMap)
+	if c.Failed() {
+		return bi, c.Errors
+	}
+
+	bi.Required = c.Required
 
 	return bi, nil
 }
