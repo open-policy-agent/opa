@@ -26,14 +26,14 @@ const FeatureRefHeadStringPrefixes = "rule_head_ref_string_prefixes"
 // Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
 type Capabilities struct {
-	Builtins        []*Builtin       `json:"builtins"`
-	FutureKeywords  []string         `json:"future_keywords"`
-	WasmABIVersions []WasmABIVersion `json:"wasm_abi_versions"`
+	Builtins        []*Builtin       `json:"builtins,omitempty"`
+	FutureKeywords  []string         `json:"future_keywords,omitempty"`
+	WasmABIVersions []WasmABIVersion `json:"wasm_abi_versions,omitempty"`
 
 	// Features is a bit of a mixed bag for checking that an older version of OPA
 	// is able to do what needs to be done.
 	// TODO(sr): find better words ^^
-	Features []string `json:"features"`
+	Features []string `json:"features,omitempty"`
 
 	// allow_net is an array of hostnames or IP addresses, that an OPA instance is
 	// allowed to connect to.
