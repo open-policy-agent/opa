@@ -310,11 +310,16 @@ func printList(out io.Writer, list []listEntry, separator string) {
 		}
 	}
 	for _, e := range list {
-		line := fmt.Sprintf(" %s%s%s%s",
-			e.key,
-			separator,
-			strings.Repeat(" ", keyLength-len(e.key)),
-			e.value)
+		var line string
+		if len(e.value) > 0 {
+			line = fmt.Sprintf(" %s%s%s%s",
+				e.key,
+				separator,
+				strings.Repeat(" ", keyLength-len(e.key)),
+				e.value)
+		} else {
+			line = fmt.Sprintf(" %v", e.key)
+		}
 		fmt.Fprintln(out, truncateStr(line, pageWidth))
 	}
 }
