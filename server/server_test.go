@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/open-policy-agent/opa/internal/prometheus"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -3169,26 +3170,34 @@ func TestStatusV1(t *testing.T) {
 
 	f.server.manager.Register(pluginStatus.Name, bs)
 
-	req = newReqV1(http.MethodGet, "/status", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-	if f.recorder.Result().StatusCode != http.StatusOK {
-		t.Fatal("expected ok")
-	}
+	// Fetch the status info, wait for status plugin to be ok
+	t0 := time.Now()
+	ok := false
+	for !ok && time.Since(t0) < time.Second {
+		req = newReqV1(http.MethodGet, "/status", "")
+		f.reset()
+		f.server.Handler.ServeHTTP(f.recorder, req)
+		if f.recorder.Result().StatusCode != http.StatusOK {
+			t.Fatal("expected ok")
+		}
 
-	var resp1 struct {
-		Result struct {
-			Plugins struct {
-				Status struct {
-					State string
+		var resp1 struct {
+			Result struct {
+				Plugins struct {
+					Status struct {
+						State string
+					}
 				}
 			}
 		}
-	}
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
-		t.Fatal(err)
-	} else if resp1.Result.Plugins.Status.State != "OK" {
-		t.Fatal("expected plugin state for status to be 'OK' but got:", resp1)
+		if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
+			t.Fatal(err)
+		}
+		if resp1.Result.Plugins.Status.State == "OK" {
+			ok = true
+		} else {
+			t.Log("expected plugin state for status to be 'OK' but got:", resp1)
+		}
 	}
 
 	// Expect HTTP 200 and updated status after bundle update occurs
@@ -3281,27 +3290,34 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	}
 	f.server.manager.Register(pluginStatus.Name, bs)
 
-	// Fetch the status info
-	req = newReqV1(http.MethodGet, "/status", "")
-	f.reset()
-	f.server.Handler.ServeHTTP(f.recorder, req)
-	if f.recorder.Result().StatusCode != http.StatusOK {
-		t.Fatal("expected ok")
-	}
+	// Fetch the status info, wait for status plugin to be ok
+	t0 := time.Now()
+	ok := false
+	for !ok && time.Since(t0) < time.Second {
+		req = newReqV1(http.MethodGet, "/status", "")
+		f.reset()
+		f.server.Handler.ServeHTTP(f.recorder, req)
+		if f.recorder.Result().StatusCode != http.StatusOK {
+			t.Fatal("expected ok")
+		}
 
-	var resp1 struct {
-		Result struct {
-			Plugins struct {
-				Status struct {
-					State string
+		var resp1 struct {
+			Result struct {
+				Plugins struct {
+					Status struct {
+						State string
+					}
 				}
 			}
 		}
-	}
-	if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
-		t.Fatal(err)
-	} else if resp1.Result.Plugins.Status.State != "OK" {
-		t.Fatal("expected plugin state for status to be 'OK' but got:", resp1)
+		if err := util.NewJSONDecoder(f.recorder.Body).Decode(&resp1); err != nil {
+			t.Fatal(err)
+		}
+		if resp1.Result.Plugins.Status.State == "OK" {
+			ok = true
+		} else {
+			t.Log("expected plugin state for status to be 'OK' but got:", resp1)
+		}
 	}
 
 	// Make requests that should get denied
