@@ -12,8 +12,9 @@ import (
 	"net/http"
 	"reflect"
 
-	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 	prom "github.com/prometheus/client_golang/prometheus"
+
+	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -204,7 +205,9 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan reconfigure),
-		pluginStatusCh: make(chan map[string]*plugins.Status),
+		// we use a buffered channel here to avoid blocking other plugins
+		// when updating statuses
+		pluginStatusCh: make(chan map[string]*plugins.Status, 3),
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
