@@ -4705,6 +4705,7 @@
     }
   ],
   "features": [
-    "rule_head_ref_string_prefixes"
+    "rule_head_ref_string_prefixes",
+    "rule_head_general_refs"
   ]
 }

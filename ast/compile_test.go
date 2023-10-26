@@ -580,6 +580,22 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			),
 			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
 		},
+		{
+			note: "rewrite: single-value with non-var ref term",
+			modules: modules(
+				`package x
+				p.q[y.z].r if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__].r  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
+		{
+			note: "rewrite: single-value with non-var ref term and key",
+			modules: modules(
+				`package x
+				p.q[a.b][c.d] if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__][__local1__]  { y := {"z": "a"}; __local0__ = a.b; __local1__ = c.d }`),
+		},
 	}
 
 	for _, tc := range tests {

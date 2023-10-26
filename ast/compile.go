@@ -1753,10 +1753,13 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 			}
 
 			cannotSpeakRefs := true
+			cannotSpeakGeneralRefs := true
 			for _, f := range c.capabilities.Features {
-				if f == FeatureRefHeadStringPrefixes {
+				switch f {
+				case FeatureRefHeadStringPrefixes:
 					cannotSpeakRefs = false
-					break
+				case FeatureGeneralRefHeads:
+					cannotSpeakGeneralRefs = false
 				}
 			}
 
@@ -1766,9 +1769,16 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 			}
 
 			for i := 1; i < len(ref); i++ {
-				// Rewrite so that any non-scalar elements that in the last position of
-				// the rule are vars:
+				if cannotSpeakGeneralRefs && i != len(ref)-1 { // last
+					if _, ok := ref[i].Value.(String); !ok {
+						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (variables outside of last term) are not supported: %v", rule.Head.Reference))
+						continue
+					}
+				}
+
+				// Rewrite so that any non-scalar elements in the rule's ref are vars:
 				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
+				//     p.q[a.b][c.d] { ... }  =>  p.q[__local0__] { __local0__ = a.b; __local1__ = c.d }
 				// because that's what the RuleTree knows how to deal with.
 				if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
 					expr := f.Generate(ref[i])
