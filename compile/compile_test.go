@@ -11,6 +11,7 @@ import (
 	"path"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -587,6 +588,405 @@ q = true { __local0__3 = input.a; data.test.k[__local0__3] = _; _; __local1__3 =
 			}
 		})
 	}
+}
+
+func TestCompilerOptimizationWithGeneralRefs(t *testing.T) {
+	tests := []struct {
+		note       string
+		entrypoint string
+		files      map[string]string
+		expected   []string
+	}{
+		{
+			note: "special characters in ref term",
+			files: map[string]string{
+				"base.rego": `package base
+allow["entity/slash"].action {
+	action := "action"
+	input.principal == input.entity
+}`,
+				"query.rego": `package query
+main {
+	data.base.allow[input.entity.type][input.action]
+}`,
+			},
+			entrypoint: "query/main",
+			expected: []string{
+				`package base
+
+allow["entity/slash"].action {
+	input.principal = input.entity
+}
+`,
+				`package query
+
+main {
+	__local1__1 = input.entity.type
+	__local2__1 = input.action
+	"entity/slash" = __local1__1
+	"action" = __local2__1
+	data.base.allow[__local1__1][__local2__1] = _term_1_21
+	_term_1_21
+}
+`,
+			},
+		},
+		{
+			note:       "single rule (one key), no ref, no unknowns",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[r] {
+	r := ["do", "re"][_]
+}`,
+			},
+			expected: []string{
+				`package test
+
+p = __result__ {
+	__result__ = {"do", "re"}
+}
+`,
+			},
+		},
+		{
+			note:       "single rule (one key), no ref, unknown in body",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[r] {
+	r := ["do", "re"][_]
+	input.x
+}`,
+			},
+			expected: []string{
+				`package test
+
+p["do"] {
+	input.x = _term_1_21
+	_term_1_21
+}
+
+p["re"] {
+	input.x = _term_1_21
+	_term_1_21
+}
+`,
+			},
+		},
+		{
+			note:       "single rule (one key), no unknowns",
+			entrypoint: "test/p/q",
+			files: map[string]string{
+				"test.rego": `package test
+p.q[r] {
+	r := ["do", "re"][_]
+	input.x
+}`,
+			},
+			expected: []string{
+				`package test.p.q
+
+do {
+	input.x = _term_1_21
+	_term_1_21
+}
+
+re {
+	input.x = _term_1_21
+	_term_1_21
+}
+`,
+			},
+		},
+		{
+			note:       "single rule, no unknowns",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[q][r] {
+	q := ["foo", "bar"][_]
+	r := ["do", "re"][_]
+}`,
+			},
+			expected: []string{
+				`package test
+
+p = __result__ {
+	__result__ = {"foo": {"do": true, "re": true}, "bar": {"do": true, "re": true}}
+}
+`,
+			},
+		},
+		{
+			note:       "single rule, unknown value",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[q][r] := s {
+	q := ["foo", "bar"][_]
+	r := ["do", "re"][_]
+	s := input.x
+}`,
+			},
+			expected: []string{
+				`package test.p.foo
+
+do = __local2__1 {
+	__local2__1 = input.x
+}
+
+re = __local2__1 {
+	__local2__1 = input.x
+}
+`,
+				`package test.p.bar
+
+do = __local2__1 {
+	__local2__1 = input.x
+}
+
+re = __local2__1 {
+	__local2__1 = input.x
+}
+`,
+			},
+		},
+		{
+			note:       "single rule, unknown key (first)",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[q][r] {
+	q := input.x[_]
+	r := ["do", "re"][_]
+}`,
+			},
+			expected: []string{
+				`package test
+
+p[__local0__1].do {
+	__local0__1 = input.x[_01]
+}
+
+p[__local0__1].re {
+	__local0__1 = input.x[_01]
+}
+`,
+			},
+		},
+		{
+			note:       "single rule, unknown key (second)",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p[q][r] {
+	q := ["foo", "bar"][_]
+	r := input.x[_]
+}`,
+			},
+			expected: []string{
+				`package test.p
+
+bar[__local1__1] = true {
+	__local1__1 = input.x[_11]
+}
+
+foo[__local1__1] = true {
+	__local1__1 = input.x[_11]
+}
+`,
+			},
+		},
+		{
+			note:       "regression test for #6338",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+
+p { 
+	q[input.x][input.y] 
+}
+
+q["foo/bar"][x] {
+	x := "baz"
+	input.x == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+p {
+	__local1__1 = input.x
+	__local2__1 = input.y
+	"foo/bar" = __local1__1
+	data.test.q[__local1__1][__local2__1] = _term_1_21
+	_term_1_21
+}
+
+q["foo/bar"].baz {
+	input.x = 1
+}
+`,
+			},
+		},
+		{
+			note:       "regression test for #6339",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+
+import future.keywords.in
+
+p {
+	q[input.x][input.y]
+}
+
+q[entity][action] {
+	some action in ["show", "update"]
+	some entity in ["pay", "roll"]
+	input.z == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+p {
+	__local8__1 = input.x
+	__local9__1 = input.y
+	data.test.q[__local8__1][__local9__1] = _term_1_21
+	_term_1_21
+}
+`,
+				`package test.q.pay
+
+show {
+	input.z = 1
+}
+
+update {
+	input.z = 1
+}
+`,
+				`package test.q.roll
+
+show {
+	input.z = 1
+}
+
+update {
+	input.z = 1
+}
+`,
+			},
+		},
+		{
+			note:       "not",
+			entrypoint: "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+
+import future.keywords.in
+
+p {
+	not q[input.x][input.y]
+}
+
+q[entity][action] {
+	some action in ["show", "update"]
+	some entity in ["pay", "roll"]
+	input.z == 1
+}`,
+			},
+			expected: []string{
+				`package partial
+
+__not1_2_2__(__local8__1, __local9__1) {
+	data.test.q[__local8__1][__local9__1] = _term_2_01
+	_term_2_01
+}
+`,
+				`package test
+
+p {
+	__local8__1 = input.x
+	__local9__1 = input.y
+	not data.partial.__not1_2_2__(__local8__1, __local9__1)
+}
+`,
+				`package test.q.pay
+
+show {
+	input.z = 1
+}
+
+update {
+	input.z = 1
+}
+`,
+				`package test.q.roll
+
+show {
+	input.z = 1
+}
+
+update {
+	input.z = 1
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			for _, useMemoryFS := range []bool{false, true} {
+				test.WithTestFS(tc.files, useMemoryFS, func(root string, fsys fs.FS) {
+
+					compiler := New().
+						WithFS(fsys).
+						WithPaths(root).
+						WithOptimizationLevel(1).
+						WithEntrypoints(tc.entrypoint)
+
+					err := compiler.Build(context.Background())
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if len(compiler.bundle.Modules) != len(tc.expected) {
+						t.Fatalf("expected %v modules but got: %v:\n\n%v",
+							len(tc.expected), len(compiler.bundle.Modules), modulesToString(compiler.bundle.Modules))
+					}
+
+					actual := make(map[string]struct{})
+					for _, m := range compiler.bundle.Modules {
+						actual[string(m.Raw)] = struct{}{}
+					}
+
+					for _, e := range tc.expected {
+						if _, ok := actual[e]; !ok {
+							t.Fatalf("expected to find module:\n\n%v\n\nin bundle but got:\n\n%v",
+								e, modulesToString(compiler.bundle.Modules))
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func modulesToString(modules []bundle.ModuleFile) string {
+	var buf bytes.Buffer
+	//result := make([]string, len(modules))
+	for i, m := range modules {
+		//result[i] = m.Parsed.String()
+		buf.WriteString(strconv.Itoa(i))
+		buf.WriteString(":\n")
+		buf.WriteString(string(m.Raw))
+		buf.WriteString("\n\n")
+	}
+	return buf.String()
 }
 
 // NOTE(sr): we override this to not depend on build tags in tests
@@ -2003,10 +2403,10 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 			roots: []string{"test"},
 			wantModules: map[string]string{
-				"optimized/test.rego": `
-					package test
+				"optimized/test/p.rego": `
+					package test.p
 
-					p["a"] = 1 { split(input.a, ":", __local5__1); startswith(__local5__1[0], "foo") }
+					a = 1 { split(input.a, ":", __local5__1); startswith(__local5__1[0], "foo") }
 				`,
 				"test.rego": `
 					package test

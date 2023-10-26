@@ -1104,6 +1104,10 @@ func (ref Ref) Ptr() (string, error) {
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 
+func IsVarCompatibleString(s string) bool {
+	return varRegexp.MatchString(s)
+}
+
 func (ref Ref) String() string {
 	if len(ref) == 0 {
 		return ""
