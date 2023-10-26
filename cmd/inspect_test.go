@@ -55,6 +55,7 @@ func TestDoInspect(t *testing.T) {
 		}
 
 		res := `{
+    "capabilities": {},
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
     "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
@@ -300,7 +301,7 @@ Schemas:
  input: {"type":"boolean"}
 
 Related Resources:
- https://pkg 
+ https://pkg
  https://pkg rr-pkg-note
 
 Custom:
@@ -326,7 +327,7 @@ Schemas:
  input: {"type":"integer"}
 
 Related Resources:
- https://doc 
+ https://doc
  https://doc rr-doc-note
 
 Custom:
@@ -352,7 +353,7 @@ Schemas:
  input: {"type":"string"}
 
 Related Resources:
- https://rule 
+ https://rule
  https://rule rr-rule-note
 
 Custom:
@@ -493,7 +494,7 @@ Schemas:
  input: {"type":"boolean"}
 
 Related Resources:
- https://pkg 
+ https://pkg
  https://pkg rr-pkg-note
 
 Custom:
@@ -526,7 +527,7 @@ Schemas:
  input: {"type":"integer"}
 
 Related Resources:
- https://doc 
+ https://doc
  https://doc rr-doc-note
 
 Custom:
@@ -552,7 +553,7 @@ Schemas:
  input: {"type":"string"}
 
 Related Resources:
- https://rule 
+ https://rule
  https://rule rr-rule-note
 
 Custom:
