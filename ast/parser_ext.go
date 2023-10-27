@@ -699,7 +699,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 				if r.generatedBody && r.Head.generatedValue {
 					errs = append(errs, NewError(ParseErr, r.Location, "rule must have value assignment and/or body declaration"))
 				}
-				if r.Body != nil && !r.generatedBody && !ruleDeclarationHasKeyword(r, tokens.If) {
+				if r.Body != nil && !r.generatedBody && !ruleDeclarationHasKeyword(r, tokens.If) && !r.Default {
 					errs = append(errs, NewError(ParseErr, r.Location, "`if` keyword is required before rule body"))
 				}
 				if r.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(r, tokens.Contains) {

@@ -1511,6 +1511,12 @@ p.q[x] { x = input.x}`,
 				"rego_parse_error: `if` keyword is required before rule body",
 			},
 		},
+		{
+			note: "`if` keyword not used on default rule",
+			module: `package test
+import rego.v1
+default allow := false`,
+		},
 	}
 
 	for _, tc := range tests {
