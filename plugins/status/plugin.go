@@ -207,7 +207,7 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		reconfig:       make(chan reconfigure),
 		// we use a buffered channel here to avoid blocking other plugins
 		// when updating statuses
-		pluginStatusCh: make(chan map[string]*plugins.Status, 3),
+		pluginStatusCh: make(chan map[string]*plugins.Status, 1),
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
