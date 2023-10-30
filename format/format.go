@@ -154,8 +154,12 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		for kw := range extraFutureKeywordImports {
-			x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+		if moduleIsRegoV1Compatible(x) {
+			x.Imports = future.FilterFutureImports(x.Imports)
+		} else {
+			for kw := range extraFutureKeywordImports {
+				x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+			}
 		}
 		w.writeModule(x, o)
 	case *ast.Package:
@@ -1434,6 +1438,15 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: " + "(" + strings.Join(d.Have, ",") + ")",
 		"want: " + "(" + strings.Join(d.Want, ",") + ")",
 	}
+}
+
+func moduleIsRegoV1Compatible(m *ast.Module) bool {
+	for _, imp := range m.Imports {
+		if isRegoV1Compatible(imp) {
+			return true
+		}
+	}
+	return false
 }
 
 // isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
