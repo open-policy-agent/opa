@@ -20,3 +20,7 @@ d contains x if {
 e.f[x] if {
 	x := "g"
 }
+
+f if true in [true, false]
+
+g if every x in [1, 2, 3] { x < 4 }
