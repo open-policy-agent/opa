@@ -729,6 +729,9 @@ func (p *Parser) parseRules() []*Rule {
 				next.Head.Args[i].Value = Var(p.genwildcard())
 			}
 		}
+		if hasIf {
+			next.Head.keywords = append(next.Head.keywords, tokens.If)
+		}
 		setLocRecursive(next.Head, loc)
 
 		rules = append(rules, &next)
@@ -743,6 +746,7 @@ func (p *Parser) parseElse(head *Head) *Rule {
 	rule.SetLoc(p.s.Loc())
 
 	rule.Head = head.Copy()
+	rule.Head.generatedValue = false
 	for i := range rule.Head.Args {
 		if v, ok := rule.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
 			rule.Head.Args[i].Value = Var(p.genwildcard())
