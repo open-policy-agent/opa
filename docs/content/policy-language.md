@@ -49,7 +49,7 @@ to optimize queries to improve performance.
 
 In while reviewing the examples below, you might find it helpful to follow along
 using the online [OPA playground](http://play.openpolicyagent.org). The
-playground also allows sharing of examples via URL which can be helpful when 
+playground also allows sharing of examples via URL which can be helpful when
 asking questions on the [OPA Slack](https://slack.openpolicyagent.org).
 In addition to these official resources, you may also be interested to check
 out the community learning materials and tools.
@@ -1102,7 +1102,7 @@ p.q.r := 2
 p.q.r.s := 3
 ```
 
-Error: 
+Error:
 
 ```live:general_ref_head_conflict2:output:expect_rego_error
 ```
@@ -1123,7 +1123,7 @@ p[x].r.t := 2 {
 }
 ```
 
-Error: 
+Error:
 
 ```live:general_ref_head_conflict3:output:expect_eval_error
 ```
@@ -1383,7 +1383,7 @@ t
 ```live:eg/simple_negation:output
 ```
 
-Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"` 
+Negation is required to check whether some value _does not_ exist in a collection: `not p["foo"]`. That is not the same as complementing the `==` operator in an expression `p[_] == "foo"` which yields `p[_] != "foo"`
 which means for any item in `p`, return true if the item is not `"foo"`. See more details [here](https://docs.styra.com/regal/rules/bugs/not-equals-in-loop).
 
 For example, we can write a rule that defines a document containing names of apps not deployed on the `"prod"` site:
@@ -3069,7 +3069,7 @@ for _, entry := range flattened {
 // # METADATA
 // # description: A couple of useful rules
 // package foo.bar
-// 
+//
 // # METADATA
 // # title: My Rule P
 // p := 7
@@ -3104,7 +3104,7 @@ for _, link := range chain {
 // # METADATA
 // # description: A couple of useful rules
 // package foo.bar
-// 
+//
 // # METADATA
 // # title: My Rule P
 // p := 7
@@ -3791,7 +3791,7 @@ The Rego compiler supports `strict mode`, where additional constraints and safet
 Compiler rules that will be enforced by future versions of OPA, but will be a breaking change once introduced, are incubated in strict mode.
 This creates an opportunity for users to verify that their policies are compatible with the next version of OPA before upgrading.
 
-Compiler Strict mode is supported by the `check` command, and can be enabled through the `-S` flag.
+Compiler Strict mode is supported by the `check` command, and can be enabled through the `--strict`/`-S` flag.
 
 ```
 -S, --strict enable compiler strict mode
@@ -3802,8 +3802,8 @@ Compiler Strict mode is supported by the `check` command, and can be enabled thr
 Name | Description                                                                                                                                                                                                                                                    | Enforced by default in OPA version
 --- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ---
 Duplicate imports | Duplicate [imports](../policy-language/#imports), where one import shadows another, are prohibited.                                                                                                                                                            | 1.0
-Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited                                                                                                                                   | 1.0
-Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  | 1.0
+Unused local assignments | Unused arguments or [assignments](../policy-reference/#assignment-and-equality) local to a rule, function or comprehension are prohibited                                                                                                                                   |
+Unused imports | Unused [imports](../policy-language/#imports) are prohibited.                                                                                                                                                                                                  |
 `input` and `data` reserved keywords | `input` and `data` are reserved keywords, and may not be used as names for rules and variable assignment.                                                                                                                                                      | 1.0
 Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
 
