@@ -1412,6 +1412,26 @@ p := "foo" if {
 else := "qux"`,
 		},
 		{
+			note: "no else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
 			note: "`if` keyword not used before else body",
 			module: `package test
 import rego.v1
@@ -1516,6 +1536,256 @@ p.q[x] { x = input.x}`,
 			module: `package test
 import rego.v1
 default allow := false`,
+		},
+		{
+			note: "function, value assignment, no body",
+			module: `package test
+import rego.v1
+f(x) := x`,
+		},
+		{
+			note: "function, value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, no value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, no value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else without body, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else without body, value assignment only on else (regression test for #6364)",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else with body and if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on else",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on any else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
 		},
 	}
 
