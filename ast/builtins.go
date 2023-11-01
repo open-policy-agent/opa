@@ -3226,6 +3226,21 @@ func category(cs ...string) []string {
 	return cs
 }
 
+// Minimal returns a shallow copy of b with the descriptions and categories and
+// named arguments stripped out.
+func (b *Builtin) Minimal() *Builtin {
+	cpy := *b
+	fargs := b.Decl.FuncArgs()
+	if fargs.Variadic != nil {
+		cpy.Decl = types.NewVariadicFunction(fargs.Args, fargs.Variadic, b.Decl.Result())
+	} else {
+		cpy.Decl = types.NewFunction(fargs.Args, b.Decl.Result())
+	}
+	cpy.Categories = nil
+	cpy.Description = ""
+	return &cpy
+}
+
 // IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.
 func (b *Builtin) IsDeprecated() bool {
 	return b.deprecated

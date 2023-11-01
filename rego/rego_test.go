@@ -473,6 +473,38 @@ func TestRegoInstrumentExtraPartialCompilerStage(t *testing.T) {
 	}
 }
 
+func TestRegoTargetWasmAndTargetPluginDisablesIndexingTopdownStages(t *testing.T) {
+	tp := testPlugin{}
+	RegisterPlugin("rego.target.foo", &tp)
+	t.Cleanup(resetPlugins)
+
+	for _, tgt := range []string{"wasm", "foo"} {
+		t.Run(tgt, func(t *testing.T) {
+			m := metrics.New()
+			r := New(Query("foo = 1"), Module("foo.rego", "package x"), Metrics(m), Instrument(true), Target(tgt))
+			ctx := context.Background()
+			_, err := r.Eval(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expAbsent := []string{
+				"timer_query_compile_stage_build_comprehension_index_ns",
+				"timer_compile_stage_rebuild_comprehension_indices_ns",
+				"timer_compile_stage_rebuild_indices_ns",
+			}
+
+			all := m.All()
+
+			for _, name := range expAbsent {
+				if _, ok := all[name]; ok {
+					t.Errorf("Expected NOT to find %v but did", name)
+				}
+			}
+		})
+	}
+}
+
 func TestRegoInstrumentExtraPartialResultCompilerStage(t *testing.T) {
 	m := metrics.New()
 	r := New(Query("input.x"), Module("foo.rego", "package x"), Metrics(m), Instrument(true))

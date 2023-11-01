@@ -393,17 +393,25 @@ func prepareCopy(ctx context.Context, dst Target, dstRef string, proxy *cas.Prox
 
 	onCopySkipped := opts.OnCopySkipped
 	opts.OnCopySkipped = func(ctx context.Context, desc ocispec.Descriptor) error {
+		if !content.Equal(desc, root) {
+			if onCopySkipped != nil {
+				return onCopySkipped(ctx, desc)
+			}
+			return nil
+		}
+
+		// enforce tagging when the skipped node is root
+		if refPusher, ok := dst.(registry.ReferencePusher); ok {
+			// NOTE: refPusher tags the node by copying it with the reference,
+			// so onCopySkipped shouldn't be invoked in this case
+			return copyCachedNodeWithReference(ctx, proxy, refPusher, desc, dstRef)
+		}
+
+		// invoke onCopySkipped before tagging
 		if onCopySkipped != nil {
 			if err := onCopySkipped(ctx, desc); err != nil {
 				return err
 			}
-		}
-		if !content.Equal(desc, root) {
-			return nil
-		}
-		// enforce tagging when root is skipped
-		if refPusher, ok := dst.(registry.ReferencePusher); ok {
-			return copyCachedNodeWithReference(ctx, proxy, refPusher, desc, dstRef)
 		}
 		return dst.Tag(ctx, root, dstRef)
 	}

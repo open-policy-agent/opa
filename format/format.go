@@ -120,7 +120,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 		case *ast.Import:
 			switch {
-			case future.IsFutureCompatible(n):
+			case isRegoV1Compatible(n):
 				o.contains = true
 				o.ifs = true
 			case future.IsAllFutureKeywords(n):
@@ -154,8 +154,12 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		for kw := range extraFutureKeywordImports {
-			x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+		if moduleIsRegoV1Compatible(x) {
+			x.Imports = future.FilterFutureImports(x.Imports)
+		} else {
+			for kw := range extraFutureKeywordImports {
+				x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+			}
 		}
 		w.writeModule(x, o)
 	case *ast.Package:
@@ -1434,4 +1438,21 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: " + "(" + strings.Join(d.Have, ",") + ")",
 		"want: " + "(" + strings.Join(d.Want, ",") + ")",
 	}
+}
+
+func moduleIsRegoV1Compatible(m *ast.Module) bool {
+	for _, imp := range m.Imports {
+		if isRegoV1Compatible(imp) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
+func isRegoV1Compatible(imp *ast.Import) bool {
+	path := imp.Path.Value.(ast.Ref)
+	return len(path) == 2 &&
+		ast.RegoRootDocument.Equal(path[0]) &&
+		path[1].Equal(ast.StringTerm("v1"))
 }

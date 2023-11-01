@@ -35,7 +35,7 @@ github.com/cespare/xxhash
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/containerd/containerd v1.7.7
+# github.com/containerd/containerd v1.7.8
 ## explicit; go 1.19
 github.com/containerd/containerd/archive/compression
 github.com/containerd/containerd/content
@@ -94,14 +94,14 @@ github.com/fortytw2/leaktest
 # github.com/foxcpp/go-mockdns v1.0.0
 ## explicit; go 1.13
 github.com/foxcpp/go-mockdns
-# github.com/fsnotify/fsnotify v1.6.0
-## explicit; go 1.16
+# github.com/fsnotify/fsnotify v1.7.0
+## explicit; go 1.17
 github.com/fsnotify/fsnotify
 # github.com/go-ini/ini v1.67.0
 ## explicit
 github.com/go-ini/ini
-# github.com/go-logr/logr v1.2.4
-## explicit; go 1.16
+# github.com/go-logr/logr v1.3.0
+## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
 # github.com/go-logr/stdr v1.2.2
@@ -148,7 +148,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/uuid v1.3.1
+# github.com/google/uuid v1.4.0
 ## explicit
 github.com/google/uuid
 # github.com/gorilla/mux v1.8.0
@@ -195,7 +195,7 @@ github.com/olekukonko/tablewriter
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.1.0-rc4
+# github.com/opencontainers/image-spec v1.1.0-rc5
 ## explicit; go 1.18
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -340,7 +340,7 @@ golang.org/x/net/internal/timeseries
 golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/trace
-# golang.org/x/sync v0.3.0
+# golang.org/x/sync v0.4.0
 ## explicit; go 1.17
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
@@ -465,8 +465,8 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# oras.land/oras-go/v2 v2.3.0
-## explicit; go 1.19
+# oras.land/oras-go/v2 v2.3.1
+## explicit; go 1.20
 oras.land/oras-go/v2
 oras.land/oras-go/v2/content
 oras.land/oras-go/v2/content/oci
@@ -492,7 +492,8 @@ oras.land/oras-go/v2/registry/remote/auth
 oras.land/oras-go/v2/registry/remote/errcode
 oras.land/oras-go/v2/registry/remote/internal/errutil
 oras.land/oras-go/v2/registry/remote/retry
-# sigs.k8s.io/yaml v1.3.0
+# sigs.k8s.io/yaml v1.4.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+sigs.k8s.io/yaml/goyaml.v2
 # github.com/golang/glog => ./build/replacements/github.com/golang/glog

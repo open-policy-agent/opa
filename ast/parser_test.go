@@ -1213,7 +1213,7 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
 	assertParseErrorContains(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: unexpected var token: expecting string")
 	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: unexpected number token: expecting string")
-	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input}, got: foo")
+	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input, rego}, got: foo")
 	assertParseErrorContains(t, "bad variable term", "import input as A(", "rego_parse_error: unexpected eof token: expected var")
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
@@ -1236,7 +1236,6 @@ func TestFutureImports(t *testing.T) {
 	assertParseErrorContains(t, "unknown keyword", "import future.keywords.xyz", "unexpected keyword, must be one of [contains every if in]")
 	assertParseErrorContains(t, "all keyword import + alias", "import future.keywords as xyz", "`future` imports cannot be aliased")
 	assertParseErrorContains(t, "keyword import + alias", "import future.keywords.in as xyz", "`future` imports cannot be aliased")
-	assertParseErrorContains(t, "future.compat.abc", "import future.compat.abc", "invalid import, must be `future.compat`")
 
 	assertParseImport(t, "import kw with kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
@@ -1244,9 +1243,6 @@ func TestFutureImports(t *testing.T) {
 	assertParseImport(t, "import kw with all kw in options",
 		"import future.keywords.in", &Import{Path: RefTerm(VarTerm("future"), StringTerm("keywords"), StringTerm("in"))},
 		ParserOptions{AllFutureKeywords: true})
-	assertParseImport(t, "import compat",
-		"import future.compat", &Import{Path: RefTerm(VarTerm("future"), StringTerm("compat"))},
-		ParserOptions{})
 
 	mod := `
 		package p
@@ -1265,14 +1261,21 @@ func TestFutureImports(t *testing.T) {
 
 	mod = `
 		package p
-		import future.compat
+		import rego.v1
 		import future.keywords.in
 	`
-	assertParseModuleErrorMatch(t, "compat and keywords imported", mod, "rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive")
+	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords.in imported", mod, "rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive")
+
+	mod = `
+		package p
+        import future.keywords
+		import rego.v1
+	`
+	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords imported", mod, "rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive")
 }
 
-func TestFutureImportsExtraction(t *testing.T) {
-	// These tests assert that "import future..." statements in policies cause
+func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
+	// These tests assert that "import future..." and "import rego.v1" statements in policies cause
 	// the proper keywords to be added to the parser's list of known keywords.
 	tests := []struct {
 		note, imp string
@@ -1306,8 +1309,8 @@ func TestFutureImportsExtraction(t *testing.T) {
 			},
 		},
 		{
-			note: "future.compat imported",
-			imp:  "import future.compat",
+			note: "rego.v1 imported",
+			imp:  "import rego.v1",
 			exp: map[string]tokens.Token{
 				"in":       tokens.In,
 				"every":    tokens.Every,
@@ -1333,32 +1336,41 @@ func TestFutureImportsExtraction(t *testing.T) {
 	}
 }
 
-func TestFutureCompatImport(t *testing.T) {
+func TestRegoV1Import(t *testing.T) {
+	assertParseErrorContains(t, "rego", "import rego", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.v1 + alias", "import rego.v1 as xyz", "`rego` imports cannot be aliased")
+
+	assertParseImport(t, "import rego.v1",
+		"import rego.v1", &Import{Path: RefTerm(VarTerm("rego"), StringTerm("v1"))},
+		ParserOptions{})
+
 	tests := []struct {
 		note           string
 		module         string
 		expectedErrors []string
 	}{
 		{
-			note: "only future.compat imported",
+			note: "only rego.v1 imported",
 			module: `package test
-import future.compat
+import rego.v1
 p contains 1 if 1 == 1`,
 		},
 		{
-			note: "future.compat and future.keywords imported",
+			note: "rego.v1 and future.keywords imported",
 			module: `package test
-import future.compat
+import rego.v1
 import future.keywords
 p contains 1 if {
 	input.x == 1
 }`,
-			expectedErrors: []string{"rego_parse_error: the `future.compat` import implies `future.keywords`, these are therefore mutually exclusive"},
+			expectedErrors: []string{"rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive"},
 		},
 		{
 			note: "`if` keyword used on rule",
 			module: `package test
-import future.compat
+import rego.v1
 p if {
 	input.x == 1
 }`,
@@ -1366,7 +1378,7 @@ p if {
 		{
 			note: "`if` keyword not used on rule",
 			module: `package test
-import future.compat
+import rego.v1
 p {
 	input.x == 1
 }`,
@@ -1375,13 +1387,13 @@ p {
 		{
 			note: "constant definition",
 			module: `package test
-import future.compat
+import rego.v1
 p := 1`,
 		},
 		{
 			note: "`if` keyword used before else body",
 			module: `package test
-import future.compat
+import rego.v1
 p if {
 	input.x == 1
 } else if {
@@ -1391,8 +1403,28 @@ p if {
 		{
 			note: "`if` keyword used before else body (value assignment)",
 			module: `package test
-import future.compat
+import rego.v1
 p := "foo" if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "no else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
 	input.x == 1
 } else := "bar" if {
 	input.x == 2
@@ -1402,7 +1434,7 @@ else := "qux"`,
 		{
 			note: "`if` keyword not used before else body",
 			module: `package test
-import future.compat
+import rego.v1
 p if {
 	input.x == 1
 } else {
@@ -1413,7 +1445,7 @@ p if {
 		{
 			note: "`if` keyword not used before else body (value assignment)",
 			module: `package test
-import future.compat
+import rego.v1
 p := "foo" if {
 	input.x == 1
 } else := "bar" {
@@ -1424,65 +1456,65 @@ p := "foo" if {
 		{
 			note: "`contains` keyword used on partial set rule (const key)",
 			module: `package test
-import future.compat
+import rego.v1
 p contains "q"`,
 		},
 		{
 			note: "`contains` keyword used on partial set rule (ref-head, const key)",
 			module: `package test
-import future.compat
+import rego.v1
 p.q contains "r"`,
 		},
 		{
 			note: "`contains` keyword not used on partial set rule (const key)",
 			module: `package test
-import future.compat
+import rego.v1
 p.q`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
 		},
 		{
 			note: "object definition (naked ref-head with implicit `true` value)",
 			module: `package test
-import future.compat
+import rego.v1
 p.q.r`,
 			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key, no body)",
 			module: `package test
-import future.compat
+import rego.v1
 p contains input.x`,
 		},
 		{
 			note: "`contains` keyword not used on partial set rule (var key, no body)",
 			module: `package test
-import future.compat
+import rego.v1
 p[input.x]`,
 			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
 		},
 		{
 			note: "`if` keyword not used on partial object rule (ref-head, var key, implicit `true` value, no body)",
 			module: `package test
-import future.compat
+import rego.v1
 p.q[input.x]`,
 			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
 		},
 		{
 			note: "`contains` keyword used on partial set rule (var key)",
 			module: `package test
-import future.compat
+import rego.v1
 p contains x if { x = input.x}`,
 		},
 		{
 			note: "`if` keyword used on partial map rule (would be multi-value without `if`)",
 			module: `package test
-import future.compat
+import rego.v1
 p[x] if { x = input.x}`,
 		},
 		{
 			note: "`contains` and `if` keyword not used on partial rule",
 			module: `package test
-import future.compat
+import rego.v1
 p[x] { x = input.x}`,
 			// The developer likely intended a partial set.
 			expectedErrors: []string{
@@ -1493,11 +1525,267 @@ p[x] { x = input.x}`,
 		{
 			note: "`if` keyword not used on partial object rule (ref-head)",
 			module: `package test
-import future.compat
+import rego.v1
 p.q[x] { x = input.x}`,
 			expectedErrors: []string{
 				"rego_parse_error: `if` keyword is required before rule body",
 			},
+		},
+		{
+			note: "`if` keyword not used on default rule",
+			module: `package test
+import rego.v1
+default allow := false`,
+		},
+		{
+			note: "function, value assignment, no body",
+			module: `package test
+import rego.v1
+f(x) := x`,
+		},
+		{
+			note: "function, value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, no value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, no value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else without body, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else without body, value assignment only on else (regression test for #6364)",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else with body and if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on else",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if on any else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function, multiple else with body, no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
 		},
 	}
 

@@ -154,7 +154,7 @@ func validateOCILayout(layout *ocispec.ImageLayout) error {
 
 // loadIndexFile reads index.json from s.fsys.
 func (s *ReadOnlyStore) loadIndexFile(ctx context.Context) error {
-	indexFile, err := s.fsys.Open(ociImageIndexFile)
+	indexFile, err := s.fsys.Open(ocispec.ImageIndexFile)
 	if err != nil {
 		return fmt.Errorf("failed to open index file: %w", err)
 	}

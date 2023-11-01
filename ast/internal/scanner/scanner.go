@@ -26,7 +26,7 @@ type Scanner struct {
 	width            int
 	errors           []Error
 	keywords         map[string]tokens.Token
-	futureCompatible bool
+	regoV1Compatible bool
 }
 
 // Error represents a scanner error.
@@ -112,12 +112,12 @@ func (s *Scanner) HasKeyword(keywords map[string]tokens.Token) bool {
 	return false
 }
 
-func (s *Scanner) SetFutureCompatible() {
-	s.futureCompatible = true
+func (s *Scanner) SetRegoV1Compatible() {
+	s.regoV1Compatible = true
 }
 
-func (s *Scanner) FutureCompatible() bool {
-	return s.futureCompatible
+func (s *Scanner) RegoV1Compatible() bool {
+	return s.regoV1Compatible
 }
 
 // WithKeywords returns a new copy of the Scanner struct `s`, with the set

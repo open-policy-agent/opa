@@ -330,9 +330,10 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{
 				`package partial.test
 				p[a4].q = {"foo": 1} { a4 = input.a }
-				p[a3].q = {"bar": 2} { a3 = input.b }
-				p.foo.r = "baz" { true }
-				p.foo.s = a2 { a2 = input.c }`,
+				p[a3].q = {"bar": 2} { a3 = input.b }`,
+				`package partial.test.p.foo
+				r = "baz" { true }
+				s = a2 { a2 = input.c }`,
 			},
 		},
 		{
@@ -3000,10 +3001,10 @@ func TestTopDownPartialEval(t *testing.T) {
 				"data.partial.test.q[x1][0]; input = 2",
 			},
 			wantSupport: []string{
-				`package partial.test
+				`package partial.test.q
 
-				q["a"] = [1, 2] { 3 = input }
-				q["b"] = [1, 2] { 4 = input }`,
+				a = [1, 2] { 3 = input }
+				b = [1, 2] { 4 = input }`,
 			},
 			disableInlining: []string{`data.test.q`},
 		},
@@ -3961,8 +3962,8 @@ func TestTopDownPartialEval(t *testing.T) {
 				y := input.y
 			}`},
 			wantQueries: []string{`data.partial.test.p.q[x] = x_term_0_0; x_term_0_0`},
-			wantSupport: []string{`package partial.test.p
-			q.foo = __local1__1 { 
+			wantSupport: []string{`package partial.test.p.q
+			foo = __local1__1 { 
 				__local1__1 = input.y 
 			}`},
 		},
@@ -4011,6 +4012,34 @@ func TestTopDownPartialEval(t *testing.T) {
 			wantSupport: []string{`package partial.test.p
 			q[__local0__1] { 
 				__local0__1 = input.y
+			}`},
+		},
+		{
+			note:  "ref heads: special characters in ref var",
+			query: `data.test.p.q[input.z]`,
+			modules: []string{`package test
+			p.q["foo/bar"][x] {
+				x := "baz"
+				input.x == input.y
+			}`},
+			wantQueries: []string{`"foo/bar" = input.z; data.partial.test.p.q["foo/bar"]`},
+			wantSupport: []string{`package partial.test.p
+			q["foo/bar"].baz = true { 
+				input.x = input.y 
+			}`},
+		},
+		{
+			note:  "ref heads: special characters in ref var (multiple)",
+			query: `data.test.p.q[input.a][input.b]`,
+			modules: []string{`package test
+			p.q["do/re"]["mi/fa"][x] {
+				x := "baz"
+				input.x == input.y
+			}`},
+			wantQueries: []string{`"do/re" = input.a; "mi/fa" = input.b; data.partial.test.p.q["do/re"]["mi/fa"]`},
+			wantSupport: []string{`package partial.test.p
+			q["do/re"]["mi/fa"].baz = true { 
+				input.x = input.y
 			}`},
 		},
 	}
