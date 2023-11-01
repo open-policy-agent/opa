@@ -965,8 +965,13 @@ func (c *Compiler) buildRequiredCapabilities() {
 
 	for _, name := range c.sorted {
 		for _, rule := range c.Modules[name].Rules {
-			if len(rule.Head.Reference) >= 3 {
-				features[FeatureRefHeadStringPrefixes] = struct{}{}
+			refLen := len(rule.Head.Reference)
+			if refLen >= 3 {
+				if refLen > len(rule.Head.Reference.ConstantPrefix()) {
+					features[FeatureRefHeads] = struct{}{}
+				} else {
+					features[FeatureRefHeadStringPrefixes] = struct{}{}
+				}
 			}
 		}
 	}
@@ -1845,26 +1850,26 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				rule.Head.Reference = ref
 			}
 
-			cannotSpeakRefs := true
+			cannotSpeakStringPrefixRefs := true
 			cannotSpeakGeneralRefs := true
 			for _, f := range c.capabilities.Features {
 				switch f {
 				case FeatureRefHeadStringPrefixes:
-					cannotSpeakRefs = false
-				case FeatureGeneralRefHeads:
+					cannotSpeakStringPrefixRefs = false
+				case FeatureRefHeads:
 					cannotSpeakGeneralRefs = false
 				}
 			}
 
-			if cannotSpeakRefs && rule.Head.Name == "" {
+			if cannotSpeakStringPrefixRefs && cannotSpeakGeneralRefs && rule.Head.Name == "" {
 				c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
 				return true
 			}
 
 			for i := 1; i < len(ref); i++ {
-				if cannotSpeakGeneralRefs && i != len(ref)-1 { // last
+				if cannotSpeakGeneralRefs && (rule.Head.RuleKind() == MultiValue || i != len(ref)-1) { // last
 					if _, ok := ref[i].Value.(String); !ok {
-						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (variables outside of last term) are not supported: %v", rule.Head.Reference))
+						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (containing variables) are not supported: %v", rule.Head.Reference))
 						continue
 					}
 				}

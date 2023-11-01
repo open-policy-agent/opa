@@ -9707,7 +9707,7 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[q].r[s]",
 		},
 		{
-			note: "ref-head feature, no ref-head rules",
+			note: "string-prefix-ref-head feature, no ref-head rules",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
 			},
@@ -9715,49 +9715,109 @@ func TestCompilerCapabilitiesFeatures(t *testing.T) {
 				p := 42`,
 		},
 		{
-			note: "ref-head feature, ref-head rule",
+			note: "string-prefix-ref-head feature, ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
 			},
 			module: `package test
 				p.q.r := 42`,
+		},
+		{
+			note: "ref-head feature, ref-head rule",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[q].r[s]",
 		},
 		{
 			note: "ref-head feature, general-ref-head rule",
 			features: []string{
-				FeatureRefHeadStringPrefixes,
-			},
-			module: `package test
-				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
-			expectedErr: "rego_type_error: rule heads with general refs (variables outside of last term) are not supported: p[q].r[s]",
-		},
-		{
-			note: "general-ref-head feature, general-ref-head rule",
-			features: []string{
-				FeatureGeneralRefHeads,
-			},
-			module: `package test
-				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
-			// Both FeatureRefHeadStringPrefixes and FeatureGeneralRefHeads flags are required for general-ref heads
-			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[q].r[s]",
-		},
-		{
-			note: "ref-head & general-ref-head features, general-ref-head rule",
-			features: []string{
-				FeatureRefHeadStringPrefixes,
-				FeatureGeneralRefHeads,
+				FeatureRefHeads,
 			},
 			module: `package test
 				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
 		},
 		{
-			note: "ref-head & general-ref-head features, ref-head rule",
+			note: "string-prefix-ref-head & ref-head features, general-ref-head rule",
 			features: []string{
 				FeatureRefHeadStringPrefixes,
-				FeatureGeneralRefHeads,
+				FeatureRefHeads,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head features, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
 			},
 			module: `package test
 				p.q.r := 42`,
+		},
+		{
+			note:     "no features, string-prefix-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p.x",
+		},
+		{
+			note: "string-prefix-ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+		{
+			note: "ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+
+		{
+			note:     "no features, general-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[x]",
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[x]",
+		},
+		{
+			note: "ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
 		},
 	}
 
