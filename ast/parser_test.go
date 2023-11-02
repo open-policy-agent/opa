@@ -1879,6 +1879,21 @@ f(x) if {
 	x == 3
 }`,
 		},
+		{
+			note: "function with chained bodies, `if` on other than first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} if {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
 	}
 
 	for _, tc := range tests {
