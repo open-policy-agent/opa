@@ -1787,6 +1787,98 @@ f(x) := x {
 }`,
 			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
 		},
+		{
+			note: "rule with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+p {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "rule with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+		},
+		{
+			note: "rule with chained bodies, `if` on second body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} if {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` on third/last body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} if {
+	input.x == 3
+}`,
+			expectedErrors: []string{`7:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` and `contains` on first body",
+			module: `package test
+import rego.v1
+p contains x if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
+		{
+			note: "function with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "function with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
 	}
 
 	for _, tc := range tests {
