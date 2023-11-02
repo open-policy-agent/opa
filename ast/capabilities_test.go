@@ -189,6 +189,13 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 			`,
 			version: "0.46.0",
 		},
+		{
+			note: "rego.v1 import",
+			module: `
+				package x
+				import rego.v1`,
+			version: "0.59.0",
+		},
 	}
 
 	for _, tc := range tests {
