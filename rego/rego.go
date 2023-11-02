@@ -1837,6 +1837,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	defer m.Timer(metrics.RegoLoadFiles).Stop()
 
 	result, err := loader.NewFileLoader().
+		WithCapabilities(r.capabilities).
 		WithMetrics(m).
 		WithProcessAnnotation(true).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
