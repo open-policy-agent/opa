@@ -78,6 +78,35 @@ import future.keywords.if
 import future.keywords.in
 p if "opa" in input.tools`,
 		},
+		{
+			note: "rego.v1 imported but NOT defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import rego.v1`,
+			err: "rego_parse_error: Invalid import, `rego.v1` is not supported by current capabilities",
+		},
+		{
+			note: "rego.v1 imported AND defined in capabilities",
+			caps: func() string {
+				c := ast.CapabilitiesForThisVersion()
+				c.Features = []string{ast.FeatureRegoV1Import}
+				j, err := json.Marshal(c)
+				if err != nil {
+					panic(err)
+				}
+				return string(j)
+			}(),
+			policy: `package test
+import rego.v1`,
+		},
 	}
 
 	// add same tests for bundle-mode == true:
