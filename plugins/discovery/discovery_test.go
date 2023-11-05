@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1600,6 +1601,117 @@ func TestStatusUpdates(t *testing.T) {
 			cancel()
 			t.Fatalf("Waiting for following statuses timed out: %v", expectedDiscoveryUpdates)
 		}
+	}
+}
+
+func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
+	dir := t.TempDir()
+
+	// write the disco bundle to disk
+	discoBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"discovery": map[string]interface{}{
+				"bundles": map[string]interface{}{
+					"main": map[string]interface{}{
+						"persist":  true,
+						"resource": "/bundle",
+						"service":  "localhost",
+					},
+				},
+				"status": map[string]interface{}{
+					"service": "localhost",
+				},
+			},
+		},
+	}
+
+	discoBundleDir := filepath.Join(dir, "bundles", "config")
+	if err := os.MkdirAll(discoBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	discoBundleFile, err := os.Create(filepath.Join(discoBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer discoBundleFile.Close()
+
+	err = bundleApi.NewWriter(discoBundleFile).Write(discoBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// write an example data bundle ('main') to disk
+	mainBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+
+	mainBundleDir := filepath.Join(dir, "bundles", "main")
+	if err := os.MkdirAll(mainBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	mainBundleFile, err := os.Create(filepath.Join(mainBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer mainBundleFile.Close()
+
+	err = bundleApi.NewWriter(mainBundleFile).Write(mainBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a timing out listener for the referenced localhost service
+	// :0 will cause net to find an available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+            "persistence_directory": %q, 
+			"services": {
+				"localhost": {
+					"url": "http://%s"
+				}
+			},
+			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
+		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// allow 2s of time to start before failing
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// start Discovery instance, wait for it to complete Start()
+	booted := make(chan bool)
+	go func() {
+		disco, err := New(manager)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		err = disco.Start(ctx)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		booted <- true
+	}()
+
+	select {
+	case <-booted:
+		t.Log("OK, boot was not delayed")
+	case <-ctx.Done():
+		t.Errorf("Timed out waiting for disco to start")
 	}
 }
 
