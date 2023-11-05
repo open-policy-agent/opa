@@ -1880,3 +1880,34 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 		}
 	})
 }
+
+func TestEvalWithIgnoreFlag(t *testing.T) {
+	files := map[string]string{
+		"policy1.rego": `
+				package example
+				p1 { data.foo }`,
+		"policy2.rego": `
+				package example
+				var `,
+		"data.json": `
+				{"foo": true, "bar": false}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.bundlePaths.Set(path)
+		params.ignore = []string{"policy2.rego"}
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"example/p1"})
+
+		var buf bytes.Buffer
+
+		// Evaluate policies
+		defined1, err1 := eval([]string{"data.example.p1"}, params, &buf)
+
+		if !defined1 || err1 != nil {
+			t.Fatalf("Unexpected undefined or error for p1: %v", err1)
+		}
+	})
+}
