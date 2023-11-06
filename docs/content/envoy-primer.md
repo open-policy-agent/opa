@@ -101,14 +101,14 @@ With the input value above, the answer is:
 ## Example Policy with Additional Controls
 
 The `allow` variable in the above policy returns a `boolean` decision to indicate whether a request should be allowed or not.
-If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers. You can also set `DynamicMetadata` in the `CheckResponse`. To do that, you can write rules like the ones below to fill in values for variables with the following types:
+If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers. Response metadata can also be set for consumption by the next Envoy filter. To do that, you can write rules like the ones below to fill in values for variables with the following types:
 
 * `headers` is an object whose keys are strings and values are strings. In case the request is denied, the object represents the HTTP response headers to be sent to the downstream client. If the request is allowed, the object represents additional request headers to be sent to the upstream.
 * `response_headers_to_add` is an object whose keys are strings and values are strings. It defines the HTTP response headers to be sent to the downstream client when a request is allowed.
 * `request_headers_to_remove` is an array of strings which describes the HTTP headers to remove from the original request before dispatching it to the upstream when a request is allowed.
 * `body` is a string which represents the response body data sent to the downstream client when a request is denied.
 * `status_code` is a number which represents the HTTP response status code sent to the downstream client when a request is denied.
-* `dynamic_metadata` is an object whose keys are strings and values can be strings, objects, or numbers. It will set the `DynamicMetadata` in the `CheckResponse` returned by the `opa-envoy-plugin` and can be consumed elsewhere in the envoy filter chain.
+* `dynamic_metadata` is an object whose keys are strings and values can be booleans, strings, numbers, arrays, or objects. It will set the `DynamicMetadata` in the `CheckResponse` returned by the `opa-envoy-plugin` and can be consumed elsewhere in the envoy filter chain.
 
 ```live:obj_example:module:openable
 package envoy.authz
@@ -210,7 +210,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 * `request_headers_to_remove` (optional): is an array of string header names
 * `http_status` (optional): a number representing the HTTP status code
 * `body` (optional): the response body
-* `dynamic_metadata` (optional): an object to be added to the `CheckResponse`'s `DynamicMetadata` field.
+* `dynamic_metadata` (optional): an object representing dynamic metadata to be consumed by the next Envoy filter.
 
 To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
 
