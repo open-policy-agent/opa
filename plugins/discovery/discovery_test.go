@@ -1709,7 +1709,11 @@ func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
 
 	select {
 	case <-booted:
-		t.Log("OK, boot was not delayed")
+		for k, pi := range manager.PluginStatus() {
+			if pi.State != plugins.StateOK {
+				t.Errorf("Expected %s plugin to be in OK state but got %v", k, pi.State)
+			}
+		}
 	case <-ctx.Done():
 		t.Errorf("Timed out waiting for disco to start")
 	}
