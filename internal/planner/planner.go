@@ -1219,6 +1219,24 @@ func (p *Planner) planUnifyVar(a ast.Var, b *ast.Term, iter planiter) error {
 }
 
 func (p *Planner) planUnifyLocal(a ir.Operand, b *ast.Term, iter planiter) error {
+	// special cases: when a is StringIndex or Bool, and b is a string, or a bool, we can shortcut
+	switch va := a.Value.(type) {
+	case ir.StringIndex:
+		if vb, ok := b.Value.(ast.String); ok {
+			if va != ir.StringIndex(p.getStringConst(string(vb))) {
+				p.appendStmt(&ir.BreakStmt{})
+			}
+			return iter() // Don't plan EqualStmt{A: "foo", B: "foo"}
+		}
+	case ir.Bool:
+		if vb, ok := b.Value.(ast.Boolean); ok {
+			if va != ir.Bool(vb) {
+				p.appendStmt(&ir.BreakStmt{})
+			}
+			return iter() // Don't plan EqualStmt{A: true, B: true}
+		}
+	}
+
 	switch vb := b.Value.(type) {
 	case ast.Null, ast.Boolean, ast.Number, ast.String, ast.Ref, ast.Set, *ast.SetComprehension, *ast.ArrayComprehension, *ast.ObjectComprehension:
 		return p.planTerm(b, func() error {
