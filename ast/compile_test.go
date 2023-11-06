@@ -1769,9 +1769,23 @@ p[x] = y { x = y; x = "a" }
 q[1] { true }
 q = {1, 2, 3} { true }
 r[x] = y { x = y; x = "a" }
-r[x] = y { x = y; x = "a" }`,
+r[x] = y { x = y; x = "a" }
+s[x] { x = "a" }
+s[x] { x = "b" }
+t := x { x = "a"}`,
 
-		"mod2.rego": `package badrules.r
+		// valid extension of r in mod1.rego
+		"mod2a.rego": `package badrules.r
+
+q[1] { true }`,
+
+		// invalid override of s in mod1.rego
+		"mod2b.rego": `package badrules.s
+
+q[1] { true }`,
+
+		// invalid override of t in mod1.rego
+		"mod2c.rego": `package badrules.t
 
 q[1] { true }`,
 
@@ -1837,8 +1851,11 @@ p[r] := 2 { r := "foo" }`,
 		"rego_type_error: conflicting rules data.badrules.q found",
 		"rego_type_error: multiple default rules data.badrules.defkw.foo found",
 		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
-		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:7",
-		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:8",
+		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:10",
+		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:9",
+		"rego_type_error: package badrules.t conflicts with rule t defined at mod1.rego:11",
+		"rego_type_error: rule data.badrules.s conflicts with [data.badrules.s.q]",
+		"rego_type_error: rule data.badrules.t conflicts with [data.badrules.t.q]",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -2118,6 +2135,72 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			compileStages(c, c.checkRuleConflicts)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				assertCompilerErrorStrings(t, c, []string{})
+			}
+		})
+	}
+}
+
+func TestCompilerCheckRulePkgConflicts(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		err     []string
+	}{
+		{
+			note: "Package can be declared within dynamic extent of rule (#6387 regression test)",
+			modules: modules(
+				`package test
+					p[x] := y { x := "a"; y := "b" }`,
+				`package test.p
+					q := 1`),
+		},
+		{
+			note: "Package can be declared deep within dynamic extent of rule (#6387 regression test)",
+			modules: modules(
+				`package test
+					p[x] := y { x := "a"; y := "b" }`,
+				`package test.p.q.r.s
+					t := 1`),
+		},
+		{
+			note: "Package cannot be declared within extent of single-value rule (ground ref)",
+			modules: modules(
+				`package test
+					p := x { x := "a" }`,
+				`package test.p
+					q := 1`),
+			err: []string{
+				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
+				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+			},
+		},
+		{
+			note: "Package cannot be declared within extent of multi-value rule",
+			modules: modules(
+				`package test
+					p[x] { x := "a" }`,
+				`package test.p
+					q := 1`),
+			err: []string{
+				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
+				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.checkRuleConflicts)
+			if len(tc.err) > 0 {
+				assertCompilerErrorStrings(t, c, tc.err)
 			} else {
 				assertCompilerErrorStrings(t, c, []string{})
 			}
@@ -9462,6 +9545,7 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 }
 
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
+	t.Helper()
 	result := compilerErrsToStringSlice(compiler.Errors)
 
 	if len(result) != len(expected) {
