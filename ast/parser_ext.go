@@ -696,11 +696,18 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 	if mod.regoV1Compatible {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
+				var t string
+				if r.isFunction() {
+					t = "function"
+				} else {
+					t = "rule"
+				}
+
 				if r.generatedBody && r.Head.generatedValue {
-					errs = append(errs, NewError(ParseErr, r.Location, "rule must have value assignment and/or body declaration"))
+					errs = append(errs, NewError(ParseErr, r.Location, "%s must have value assignment and/or body declaration", t))
 				}
 				if r.Body != nil && !r.generatedBody && !ruleDeclarationHasKeyword(r, tokens.If) && !r.Default {
-					errs = append(errs, NewError(ParseErr, r.Location, "`if` keyword is required before rule body"))
+					errs = append(errs, NewError(ParseErr, r.Location, "`if` keyword is required before %s body", t))
 				}
 				if r.Head.RuleKind() == MultiValue && !ruleDeclarationHasKeyword(r, tokens.Contains) {
 					errs = append(errs, NewError(ParseErr, r.Location, "`contains` keyword is required for partial set rules"))
