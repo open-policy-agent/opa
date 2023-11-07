@@ -449,6 +449,18 @@ Note that the metaschemas [http://json-schema.org/draft-04/schema](http://json-s
 
 Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
 
+### Features
+
+```json
+{
+    "features": [ 
+      "rego_v1_import" 
+    ]
+}
+```
+
+* `rego_v1_import`: enables use of the `rego.v1` import.
+
 ### Future keywords
 
 The availability of future keywords in an OPA version can also be controlled using the capabilities file:

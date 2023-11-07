@@ -3808,7 +3808,7 @@ Unused imports | Unused [imports](../policy-language/#imports) are prohibited.  
 Use of deprecated built-ins | Use of deprecated functions is prohibited, and these will be removed in OPA 1.0. Deprecated built-in functions: `any`, `all`, `re_match`,  `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object` | 1.0
 
 {{< info >}}
-If the `rego.v1` import is present in a module, all strict mode checks documented above expect the unused local assignment and unused imports checks are enforced on the module.
+If the `rego.v1` import is present in a module, all strict mode checks documented above except the unused local assignment and unused imports checks are enforced on the module.
 
 Additionally the `rego.v1` import also requires the usage of `if` and `contains` keywords when declaring certain rules. The `if` keyword is required before a rule body and the `contains` keyword is required for partial set rules.
 {{< /info >}}
