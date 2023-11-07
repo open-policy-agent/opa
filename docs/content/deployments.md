@@ -457,15 +457,15 @@ Some features of OPA can be toggled on and off through the `features` list:
 {
     "features": [ 
       "rule_head_ref_string_prefixes", 
-      "rule_head_general_refs" 
+      "rule_head_refs" 
     ]
 }
 ```
 
 Features present in the list are enabled, while features not present are disabled. The following features are available:
 
-* `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](../policy-language/#rule-heads-containing-references) in the head of rules. Only the last element of the ref (the key) is allowed to be a variable.
-* `rule_head_general_refs`: Enables the use of [variables at arbitrary locations](../policy-language/#variables-in-rule-head-references) in a rule's ref (i.e. a general ref). Also requires `rule_head_ref_string_prefixes` to be enabled.
+* `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](../policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
+* `rule_head_refs`: Enables general support for [references in rule heads](../policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](../policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`. 
 
 ### Future keywords
 
