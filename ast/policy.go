@@ -718,6 +718,10 @@ func (rule *Rule) String() string {
 	return strings.Join(buf, " ")
 }
 
+func (rule *Rule) isFunction() bool {
+	return len(rule.Head.Args) > 0
+}
+
 func (rule *Rule) setJSONOptions(opts astJSON.Options) {
 	rule.jsonOptions = opts
 	if rule.Location != nil {

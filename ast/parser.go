@@ -724,13 +724,11 @@ func (p *Parser) parseRules() []*Rule {
 		// rule's head AST but have their location
 		// set to the rule body.
 		next.Head = rule.Head.Copy()
+		next.Head.keywords = rule.Head.keywords
 		for i := range next.Head.Args {
 			if v, ok := next.Head.Args[i].Value.(Var); ok && v.IsWildcard() {
 				next.Head.Args[i].Value = Var(p.genwildcard())
 			}
-		}
-		if hasIf {
-			next.Head.keywords = append(next.Head.keywords, tokens.If)
 		}
 		setLocRecursive(next.Head, loc)
 
