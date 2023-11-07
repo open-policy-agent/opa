@@ -257,6 +257,7 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 			})
 
 			c.logger.Debug("Discovery bundle loaded from disk and activated successfully.")
+			return
 		}
 	}
 }

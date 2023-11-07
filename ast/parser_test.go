@@ -1558,7 +1558,7 @@ import rego.v1
 f(x) := x {
 	x == 1
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, no value assignment, body, with if",
@@ -1575,7 +1575,7 @@ import rego.v1
 f(x) {
 	x == 1
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, else without body, value assignment",
@@ -1622,7 +1622,7 @@ f(x) := x if {
 } else := 42 {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, else with body and no if, no value assignment",
@@ -1633,7 +1633,7 @@ f(x) if {
 } else {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, else with body and no if, value assignment on primary head",
@@ -1644,7 +1644,7 @@ f(x) if {
 } else := 42 {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, else with body and no if, value assignment on else",
@@ -1655,7 +1655,7 @@ f(x) := x if {
 } else {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on last else, value assignment",
@@ -1668,7 +1668,7 @@ f(x) := x if {
 } else := 42 {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on last else, value assignment on primary head",
@@ -1681,7 +1681,7 @@ f(x) := x if {
 } else {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on last else, value assignment on first else",
@@ -1694,7 +1694,7 @@ f(x) if {
 } else {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on last else, value assignment on last else",
@@ -1707,7 +1707,7 @@ f(x) if {
 } else := 42 {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on first else, value assignment",
@@ -1720,7 +1720,7 @@ f(x) := x if {
 } else := 42 if {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on first else, value assignment on primary head",
@@ -1733,7 +1733,7 @@ f(x) := x if {
 } else if {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on first else, value assignment on first else",
@@ -1746,7 +1746,7 @@ f(x) if {
 } else if {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on first else, value assignment on last else",
@@ -1759,7 +1759,7 @@ f(x) if {
 } else := 42 if {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if on any else, value assignment",
@@ -1772,7 +1772,7 @@ f(x) := x if {
 } else := 42 {
 	x == 2
 }`,
-			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
 		},
 		{
 			note: "function, multiple else with body, no if, value assignment",
@@ -1785,7 +1785,114 @@ f(x) := x {
 } else := 42 {
 	x == 2
 }`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "rule with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+p {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
 			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "rule with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+		},
+		{
+			note: "rule with chained bodies, `if` on second body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} if {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` on third/last body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} if {
+	input.x == 3
+}`,
+			expectedErrors: []string{`7:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` and `contains` on first body",
+			module: `package test
+import rego.v1
+p contains x if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
+		{
+			note: "function with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
+		{
+			note: "function with chained bodies, `if` on other than first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} if {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
 		},
 	}
 

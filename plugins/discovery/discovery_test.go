@@ -11,12 +11,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -1467,23 +1467,17 @@ func TestProcessBundleWithNoSigningConfig(t *testing.T) {
 
 type testServer struct {
 	t       *testing.T
-	mtx     sync.Mutex
 	server  *httptest.Server
-	updates []status.UpdateRequestV1
+	updates chan status.UpdateRequestV1
 }
 
 func (ts *testServer) Start() {
+	ts.updates = make(chan status.UpdateRequestV1, 100)
 	ts.server = httptest.NewServer(http.HandlerFunc(ts.handle))
 }
 
 func (ts *testServer) Stop() {
 	ts.server.Close()
-}
-
-func (ts *testServer) Updates() []status.UpdateRequestV1 {
-	ts.mtx.Lock()
-	defer ts.mtx.Unlock()
-	return ts.updates
 }
 
 func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -1494,11 +1488,7 @@ func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		ts.t.Fatal(err)
 	}
 
-	func() {
-		ts.mtx.Lock()
-		defer ts.mtx.Unlock()
-		ts.updates = append(ts.updates, update)
-	}()
+	ts.updates <- update
 
 	w.WriteHeader(200)
 }
@@ -1557,24 +1547,175 @@ func TestStatusUpdates(t *testing.T) {
 	disco.oneShot(ctx, download.Update{ETag: "etag-2"})
 
 	// Check that all updates were received and active revisions are expected.
-	var ok bool
-	var updates []status.UpdateRequestV1
-	t0 := time.Now()
-
-	for !ok && time.Since(t0) < time.Second {
-		updates = ts.Updates()
-		ok = len(updates) == 7 &&
-			updates[0].Plugins["discovery"].State == plugins.StateNotReady && updates[0].Plugins["status"].State == plugins.StateOK &&
-			updates[1].Plugins["discovery"].State == plugins.StateOK && updates[1].Plugins["status"].State == plugins.StateOK &&
-			updates[2].Plugins["discovery"].State == plugins.StateOK && updates[2].Discovery.ActiveRevision == "test-revision-1" && updates[2].Discovery.Code == "" &&
-			updates[3].Plugins["discovery"].State == plugins.StateOK && updates[3].Discovery.ActiveRevision == "test-revision-1" && updates[3].Discovery.Code == "bundle_error" &&
-			updates[4].Plugins["discovery"].State == plugins.StateOK && updates[4].Discovery.ActiveRevision == "test-revision-2" && updates[4].Discovery.Code == "" &&
-			updates[5].Plugins["discovery"].State == plugins.StateOK && updates[5].Discovery.ActiveRevision == "test-revision-2" && updates[5].Discovery.Code == "bundle_error" &&
-			updates[6].Plugins["discovery"].State == plugins.StateOK && updates[6].Discovery.ActiveRevision == "test-revision-2" && updates[6].Discovery.Code == ""
+	expectedDiscoveryUpdates := []struct {
+		Code     string
+		Revision string
+	}{
+		{
+			Code:     "",
+			Revision: "test-revision-1",
+		},
+		{
+			Code:     "bundle_error",
+			Revision: "test-revision-1",
+		},
+		{
+			Code:     "",
+			Revision: "test-revision-2",
+		},
+		{
+			Code:     "bundle_error",
+			Revision: "test-revision-2",
+		},
+		{
+			Code:     "",
+			Revision: "test-revision-2",
+		},
 	}
 
-	if !ok {
-		t.Fatalf("Did not receive expected updates before timeout expired. Received: %+v", updates)
+	// nextExpectedDiscoveryUpdate, we look for each
+	nextExpectedDiscoveryUpdate := expectedDiscoveryUpdates[0]
+	expectedDiscoveryUpdates = expectedDiscoveryUpdates[1:]
+
+	timeout, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	for {
+		select {
+		case update := <-ts.updates:
+			if update.Discovery != nil {
+				matches := false
+				if update.Discovery.Code == nextExpectedDiscoveryUpdate.Code &&
+					update.Discovery.ActiveRevision == nextExpectedDiscoveryUpdate.Revision {
+					matches = true
+				}
+
+				if matches {
+					if len(expectedDiscoveryUpdates) == 0 {
+						return
+					}
+					nextExpectedDiscoveryUpdate = expectedDiscoveryUpdates[0]
+					expectedDiscoveryUpdates = expectedDiscoveryUpdates[1:]
+				}
+			}
+		case <-timeout.Done():
+			cancel()
+			t.Fatalf("Waiting for following statuses timed out: %v", expectedDiscoveryUpdates)
+		}
+	}
+}
+
+func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
+	dir := t.TempDir()
+
+	// write the disco bundle to disk
+	discoBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"discovery": map[string]interface{}{
+				"bundles": map[string]interface{}{
+					"main": map[string]interface{}{
+						"persist":  true,
+						"resource": "/bundle",
+						"service":  "localhost",
+					},
+				},
+				"status": map[string]interface{}{
+					"service": "localhost",
+				},
+			},
+		},
+	}
+
+	discoBundleDir := filepath.Join(dir, "bundles", "config")
+	if err := os.MkdirAll(discoBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	discoBundleFile, err := os.Create(filepath.Join(discoBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer discoBundleFile.Close()
+
+	err = bundleApi.NewWriter(discoBundleFile).Write(discoBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// write an example data bundle ('main') to disk
+	mainBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+
+	mainBundleDir := filepath.Join(dir, "bundles", "main")
+	if err := os.MkdirAll(mainBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	mainBundleFile, err := os.Create(filepath.Join(mainBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer mainBundleFile.Close()
+
+	err = bundleApi.NewWriter(mainBundleFile).Write(mainBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a timing out listener for the referenced localhost service
+	// :0 will cause net to find an available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+            "persistence_directory": %q, 
+			"services": {
+				"localhost": {
+					"url": "http://%s"
+				}
+			},
+			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
+		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// allow 2s of time to start before failing
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// start Discovery instance, wait for it to complete Start()
+	booted := make(chan bool)
+	go func() {
+		disco, err := New(manager)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		err = disco.Start(ctx)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		booted <- true
+	}()
+
+	select {
+	case <-booted:
+		for k, pi := range manager.PluginStatus() {
+			if pi.State != plugins.StateOK {
+				t.Errorf("Expected %s plugin to be in OK state but got %v", k, pi.State)
+			}
+		}
+	case <-ctx.Done():
+		t.Errorf("Timed out waiting for disco to start")
 	}
 }
 

@@ -1123,6 +1123,12 @@ func (c *Compiler) checkRuleConflicts() {
 		for _, mod := range node.Modules {
 			for _, rule := range mod.Rules {
 				ref := rule.Head.Ref().GroundPrefix()
+				// Rules with a dynamic portion in their ref are exempted, as a conflict within the dynamic portion
+				// can only be detected at eval-time.
+				if len(ref) < len(rule.Head.Ref()) {
+					continue
+				}
+
 				childNode, tail := node.find(ref)
 				if childNode != nil && len(tail) == 0 {
 					for _, childMod := range childNode.Modules {
