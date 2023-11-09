@@ -91,7 +91,7 @@ p if "opa" in input.tools`,
 			}(),
 			policy: `package test
 import rego.v1`,
-			err: "rego_parse_error: Invalid import, `rego.v1` is not supported by current capabilities",
+			err: "rego_parse_error: invalid import, `rego.v1` is not supported by current capabilities",
 		},
 		{
 			note: "rego.v1 imported AND defined in capabilities",
