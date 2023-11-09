@@ -25,7 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
-var regoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
+var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
@@ -2528,7 +2528,7 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 	}
 
 	if p.s.s.RegoV1Compatible() {
-		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", regoV1CompatibleRef)
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", RegoV1CompatibleRef)
 		return
 	}
 
@@ -2563,8 +2563,8 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 func (p *Parser) regoV1Import(imp *Import) {
 	path := imp.Path.Value.(Ref)
 
-	if len(path) == 1 || !path[1].Equal(regoV1CompatibleRef[1]) || len(path) > 2 {
-		p.errorf(imp.Path.Location, "invalid import, must be `%s`", regoV1CompatibleRef)
+	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
+		p.errorf(imp.Path.Location, "invalid import, must be `%s`", RegoV1CompatibleRef)
 		return
 	}
 
@@ -2581,7 +2581,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 
 	if p.s.s.HasKeyword(futureKeywords) && !p.s.s.RegoV1Compatible() {
 		// We have imported future keywords, but they didn't come from another `rego.v1` import.
-		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", regoV1CompatibleRef)
+		p.errorf(imp.Path.Location, "the `%s` import implies `future.keywords`, these are therefore mutually exclusive", RegoV1CompatibleRef)
 		return
 	}
 
