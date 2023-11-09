@@ -1068,7 +1068,6 @@ opa_regex_find_all_string_submatch,memcpy
 opa_regex_find_all_string_submatch,compile\28char\20const*\29
 opa_regex_find_all_string_submatch,opa_array
 opa_regex_find_all_string_submatch,memset
-opa_regex_find_all_string_submatch,strlen
 opa_regex_find_all_string_submatch,re2::RE2::Match\28re2::StringPiece\20const&\2c\20unsigned\20long\2c\20unsigned\20long\2c\20re2::RE2::Anchor\2c\20re2::StringPiece*\2c\20int\29\20const
 opa_regex_find_all_string_submatch,fullrune
 opa_regex_find_all_string_submatch,chartorune
