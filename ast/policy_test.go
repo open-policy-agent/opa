@@ -70,8 +70,8 @@ metadata := 7
 		t.Fatalf("Expected roundtripped module to be equal to original:\nExpected:\n\n%v\n\nGot:\n\n%v\n", mod, roundtrip)
 	}
 
-	if mod.Rules[3].Path().String() != "data.a.b.c.t" {
-		t.Fatal("expected path data.a.b.c.t for 4th rule in module but got:", mod.Rules[3].Path())
+	if mod.Rules[3].Ref().GroundPrefix().String() != "data.a.b.c.t" {
+		t.Fatal("expected path data.a.b.c.t for 4th rule in module but got:", mod.Rules[3].Ref().GroundPrefix())
 	}
 
 	if len(roundtrip.Annotations) != 1 {
@@ -608,7 +608,7 @@ func TestRuleString(t *testing.T) {
 func TestRulePath(t *testing.T) {
 	ruleWithMod := func(r string) Ref {
 		mod := MustParseModule("package pkg\n" + r)
-		return mod.Rules[0].Path()
+		return mod.Rules[0].Ref().GroundPrefix()
 	}
 	if exp, act := MustParseRef("data.pkg.p.q.r"), ruleWithMod("p.q.r { true }"); !exp.Equal(act) {
 		t.Errorf("expected %v, got %v", exp, act)

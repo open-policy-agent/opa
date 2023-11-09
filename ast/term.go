@@ -892,8 +892,8 @@ func PtrRef(head *Term, s string) (Ref, error) {
 		return Ref{head}, nil
 	}
 	parts := strings.Split(s, "/")
-	if max := math.MaxInt32; len(parts) >= max {
-		return nil, fmt.Errorf("path too long: %s, %d > %d (max)", s, len(parts), max)
+	if maxLen := math.MaxInt32; len(parts) >= maxLen {
+		return nil, fmt.Errorf("path too long: %s, %d > %d (max)", s, len(parts), maxLen)
 	}
 	ref := make(Ref, uint(len(parts))+1)
 	ref[0] = head

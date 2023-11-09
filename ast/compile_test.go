@@ -9931,14 +9931,14 @@ allow {
 				}
 			}
 
-			errors := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
+			errs := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
 
-			if len(errors) > 0 {
+			if len(errs) > 0 {
 				if len(tc.errs) == 0 {
-					t.Fatalf("Unexpected error: %v", errors)
+					t.Fatalf("Unexpected error: %v", errs)
 				}
 
-				result := compilerErrsToStringSlice(errors)
+				result := compilerErrsToStringSlice(errs)
 
 				if len(result) != len(tc.errs) {
 					t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(tc.errs), strings.Join(tc.errs, "\n"), len(result), strings.Join(result, "\n"))

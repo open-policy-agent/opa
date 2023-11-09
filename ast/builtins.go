@@ -3287,7 +3287,7 @@ func (b *Builtin) Ref() Ref {
 // IsTargetPos returns true if a variable in the i-th position will be bound by
 // evaluating the call expression.
 func (b *Builtin) IsTargetPos(i int) bool {
-	return len(b.Decl.Args()) == i
+	return len(b.Decl.FuncArgs().Args) == i
 }
 
 func init() {

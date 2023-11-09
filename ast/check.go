@@ -430,7 +430,7 @@ func (tc *typeChecker) checkExprWith(env *TypeEnv, expr *Expr, i int) *Error {
 		switch v := valueType.(type) {
 		case *types.Function: // ...by function
 			if !unifies(targetType, valueType) {
-				return newArgError(expr.With[i].Loc(), target.Value.(Ref), "arity mismatch", v.Args(), t.NamedFuncArgs())
+				return newArgError(expr.With[i].Loc(), target.Value.(Ref), "arity mismatch", v.FuncArgs().Args, t.NamedFuncArgs())
 			}
 		default: // ... by value, nothing to check
 		}
@@ -1241,7 +1241,7 @@ func getRuleAnnotation(as *AnnotationSet, rule *Rule) (result []*SchemaAnnotatio
 		result = append(result, x.Schemas...)
 	}
 
-	if x := as.GetDocumentScope(rule.Path()); x != nil {
+	if x := as.GetDocumentScope(rule.Ref().GroundPrefix()); x != nil {
 		result = append(result, x.Schemas...)
 	}
 
