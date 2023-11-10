@@ -116,6 +116,19 @@ func TestLocationMarshal(t *testing.T) {
 			},
 			exp: `{"file":"file","row":1,"col":1,"text":"dGV4dA=="}`,
 		},
+		"excluding file": {
+			loc: &Location{
+				File: "file",
+				Row:  1,
+				Col:  1,
+				JSONOptions: astJSON.Options{
+					MarshalOptions: astJSON.MarshalOptions{
+						ExcludeLocationFile: true,
+					},
+				},
+			},
+			exp: `{"row":1,"col":1}`,
+		},
 	}
 
 	for id, tc := range testCases {

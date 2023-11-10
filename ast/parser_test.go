@@ -3959,6 +3959,35 @@ func TestRuleFromBodyJSONOptions(t *testing.T) {
 	}
 }
 
+func TestRuleFromBodyJSONOptionsLocationOptions(t *testing.T) {
+	parserOpts := ParserOptions{ProcessAnnotation: true}
+	parserOpts.JSONOptions = &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
+				Term:           true,
+				Package:        true,
+				Comment:        true,
+				Import:         true,
+				Rule:           true,
+				Head:           true,
+				Expr:           true,
+				SomeDecl:       true,
+				Every:          true,
+				With:           true,
+				Annotations:    true,
+				AnnotationsRef: true,
+			},
+			IncludeLocationText: true,
+			ExcludeLocationFile: true,
+		},
+	}
+
+	module := `package a.b.c
+			foo := "bar"
+			`
+	assertParseModuleJSONOptions(t, `foo := "bar"`, module, parserOpts)
+}
+
 func TestRuleModulePtr(t *testing.T) {
 	mod := `package test
 

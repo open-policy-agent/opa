@@ -13,6 +13,9 @@ type MarshalOptions struct {
 	IncludeLocation NodeToggle
 	// IncludeLocationText additionally/optionally includes the text of the location
 	IncludeLocationText bool
+	// ExcludeLocationFile additionally/optionally excludes the file of the location
+	// Note that this is inverted (i.e. not "include" as the default needs to remain false)
+	ExcludeLocationFile bool
 }
 
 // NodeToggle is a generic struct to allow the toggling of
