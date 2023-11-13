@@ -1892,10 +1892,6 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	}
 
 	for _, path := range r.bundlePaths {
-		// Apply the filter to skip loading if necessary
-		//if filter(path, nil, 0) {
-		//	continue
-		//}
 		bndl, err := loader.NewFileLoader().
 			WithMetrics(m).
 			WithProcessAnnotation(true).
