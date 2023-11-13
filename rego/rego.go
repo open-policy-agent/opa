@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -594,6 +595,7 @@ type Rego struct {
 	pluginMgr              *plugins.Manager
 	plugins                []TargetPlugin
 	targetPrepState        TargetPluginEval
+	ignore                 []string
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1187,6 +1189,12 @@ func Strict(yes bool) func(r *Rego) {
 	}
 }
 
+func WithIgnore(ignorePaths []string) func(*Rego) {
+	return func(r *Rego) {
+		r.ignore = ignorePaths
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1197,6 +1205,7 @@ func New(options ...func(r *Rego)) *Rego {
 		builtinDecls:    map[string]*ast.Builtin{},
 		builtinFuncs:    map[string]*topdown.Builtin{},
 		bundles:         map[string]*bundle.Bundle{},
+		ignore:          []string{},
 	}
 
 	for _, option := range options {
@@ -1856,6 +1865,19 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	return nil
 }
 
+type loaderFilter struct {
+	Ignore []string
+}
+
+func (f loaderFilter) Apply(abspath string, info os.FileInfo, depth int) bool {
+	for _, s := range f.Ignore {
+		if loader.GlobExcludeName(s, 1)(abspath, info, depth) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
 	if len(r.bundlePaths) == 0 {
 		return nil
@@ -1864,11 +1886,21 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 	m.Timer(metrics.RegoLoadBundles).Start()
 	defer m.Timer(metrics.RegoLoadBundles).Stop()
 
+	// Create a loader filter with the provided ignore patterns
+	filter := func(abspath string, info os.FileInfo, depth int) bool {
+		return loaderFilter{Ignore: r.ignore}.Apply(abspath, info, depth)
+	}
+
 	for _, path := range r.bundlePaths {
+		// Apply the filter to skip loading if necessary
+		//if filter(path, nil, 0) {
+		//	continue
+		//}
 		bndl, err := loader.NewFileLoader().
 			WithMetrics(m).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
+			WithFilter(filter).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)

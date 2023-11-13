@@ -567,6 +567,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 			regoArgs = append(regoArgs, rego.ParsedBundle("optimized", b))
 		}
+		regoArgs = append(regoArgs, rego.WithIgnore(params.ignore))
 	}
 
 	// skip bundle verification
