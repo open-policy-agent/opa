@@ -134,41 +134,61 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 				t.Fatalf("Failed to read rego source: %v", err)
 			}
 
+			errorExpected := false
 			expected, err := os.ReadFile(rego + ".formatted")
 			if err != nil {
-				t.Fatalf("Failed to read expected rego source: %v", err)
+				if os.IsNotExist(err) {
+					errorExpected = true
+					expected, err = os.ReadFile(rego + ".error")
+					if err != nil {
+						t.Fatalf("Failed to read expected error source: %v", err)
+					}
+				}
+				if !errorExpected {
+					t.Fatalf("Failed to read expected rego source: %v", err)
+				}
 			}
 
-			formatted, err := SourceWithOpts(rego, contents, Opts{RegoV1: true})
-			if err != nil {
-				t.Fatalf("Failed to format file: %v", err)
-			}
+			if errorExpected {
+				formatted, err := SourceWithOpts(rego, contents, Opts{RegoV1: true})
+				if err == nil {
+					t.Fatalf("Expected error, got: %s", formatted)
+				}
+				if err.Error() != string(expected) {
+					t.Fatalf("Expected error:\n\n'%s'\n\ngot:\n\n'%s'", expected, err.Error())
+				}
+			} else {
+				formatted, err := SourceWithOpts(rego, contents, Opts{RegoV1: true})
+				if err != nil {
+					t.Fatalf("Failed to format file: %v", err)
+				}
 
-			if ln, at := differsAt(formatted, expected); ln != 0 {
-				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
-			}
+				if ln, at := differsAt(formatted, expected); ln != 0 {
+					t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
+				}
 
-			if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
-				t.Fatalf("Failed to parse formatted bytes: %v", err)
-			}
+				if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
+					t.Fatalf("Failed to parse formatted bytes: %v", err)
+				}
 
-			formatted, err = SourceWithOpts(rego, formatted, Opts{RegoV1: true})
-			if err != nil {
-				t.Fatalf("Failed to double format file")
-			}
+				formatted, err = SourceWithOpts(rego, formatted, Opts{RegoV1: true})
+				if err != nil {
+					t.Fatalf("Failed to double format file")
+				}
 
-			if ln, at := differsAt(formatted, expected); ln != 0 {
-				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
-			}
+				if ln, at := differsAt(formatted, expected); ln != 0 {
+					t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+				}
 
-			// rego-v1 formatted code is still compliant with v0, and should not be changed if formatted as such
-			formatted, err = Source(rego, formatted)
-			if err != nil {
-				t.Fatalf("Failed to double format file as v0")
-			}
+				// rego-v1 formatted code is still compliant with v0, and should not be changed if formatted as such
+				formatted, err = Source(rego, formatted)
+				if err != nil {
+					t.Fatalf("Failed to double format file as v0")
+				}
 
-			if ln, at := differsAt(formatted, expected); ln != 0 {
-				t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+				if ln, at := differsAt(formatted, expected); ln != 0 {
+					t.Fatalf("Expected roundtripped bytes to equal expected bytes but differed near line %d / byte %d:\n%s", ln, at, prefixWithLineNumbers(formatted))
+				}
 			}
 		})
 	}

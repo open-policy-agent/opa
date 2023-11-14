@@ -1528,9 +1528,11 @@ func (c *Compiler) checkUnsafeBuiltins() {
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.regoV1Compatible)
-		for _, err := range errs {
-			c.err(err)
+		if c.strict || mod.regoV1Compatible {
+			errs := CheckDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod)
+			for _, err := range errs {
+				c.err(err)
+			}
 		}
 	}
 }
@@ -1668,62 +1670,31 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 }
 
 func (c *Compiler) checkDuplicateImports() {
+	modules := make([]*Module, 0, len(c.Modules))
+
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if !c.strict && !mod.regoV1Compatible {
-			continue
+		if c.strict || mod.regoV1Compatible {
+			modules = append(modules, mod)
 		}
+	}
 
-		processedImports := map[Var]*Import{}
-
-		for _, imp := range mod.Imports {
-			name := imp.Name()
-
-			if processed, conflict := processedImports[name]; conflict {
-				c.err(NewError(CompileErr, imp.Location, "import must not shadow %v", processed))
-			} else {
-				processedImports[name] = imp
-			}
-		}
+	errors := CheckDuplicateImports(modules)
+	for _, err := range errors {
+		c.err(err)
 	}
 }
 
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkKeywordOverrides(mod, c.strict || mod.regoV1Compatible)
-		for _, err := range errs {
-			c.err(err)
-		}
-	}
-}
-
-func checkKeywordOverrides(node interface{}, strict bool) Errors {
-	if !strict {
-		return nil
-	}
-
-	errors := Errors{}
-
-	WalkRules(node, func(rule *Rule) bool {
-		name := rule.Head.Name.String()
-		if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
-			errors = append(errors, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
-		}
-		return true
-	})
-
-	WalkExprs(node, func(expr *Expr) bool {
-		if expr.IsAssignment() {
-			name := expr.Operand(0).String()
-			if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
-				errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+		if c.strict || mod.regoV1Compatible {
+			errs := CheckRootDocumentOverrides(mod)
+			for _, err := range errs {
+				c.err(err)
 			}
 		}
-		return false
-	})
-
-	return errors
+	}
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.
@@ -1743,7 +1714,6 @@ func checkKeywordOverrides(node interface{}, strict bool) Errors {
 // c.d[e] := 1 if e := "e"
 //
 // The reference "c.d.e" would be resolved to "data.a.b.c.d.e".
-
 func (c *Compiler) resolveAllRefs() {
 
 	rules := c.getExports()
@@ -2823,8 +2793,10 @@ func (qc *queryCompiler) applyErrorLimit(err error) error {
 }
 
 func (qc *queryCompiler) checkKeywordOverrides(_ *QueryContext, body Body) (Body, error) {
-	if errs := checkKeywordOverrides(body, qc.compiler.strict); len(errs) > 0 {
-		return nil, errs
+	if qc.compiler.strict {
+		if errs := CheckRootDocumentOverrides(body); len(errs) > 0 {
+			return nil, errs
+		}
 	}
 	return body, nil
 }
@@ -2960,9 +2932,11 @@ func (qc *queryCompiler) unsafeBuiltinsMap() map[string]struct{} {
 }
 
 func (qc *queryCompiler) checkDeprecatedBuiltins(_ *QueryContext, body Body) (Body, error) {
-	errs := checkDeprecatedBuiltins(qc.compiler.deprecatedBuiltinsMap, body, qc.compiler.strict)
-	if len(errs) > 0 {
-		return nil, errs
+	if qc.compiler.strict {
+		errs := CheckDeprecatedBuiltins(qc.compiler.deprecatedBuiltinsMap, body)
+		if len(errs) > 0 {
+			return nil, errs
+		}
 	}
 	return body, nil
 }
@@ -4201,6 +4175,8 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 					// this would require rewriting terms in the head and body.
 					// Preventing root document shadowing is simpler, and
 					// arguably, will prevent confusing names from being used.
+					// NOTE: this check is also performed as part of strict-mode in
+					// CheckRootDocumentOverrides.
 					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
 					return true
 				}
@@ -5669,25 +5645,6 @@ func checkUnsafeBuiltins(unsafeBuiltinsMap map[string]struct{}, node interface{}
 			operator := x.Operator().String()
 			if _, ok := unsafeBuiltinsMap[operator]; ok {
 				errs = append(errs, NewError(TypeErr, x.Loc(), "unsafe built-in function calls in expression: %v", operator))
-			}
-		}
-		return false
-	})
-	return errs
-}
-
-func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}, strict bool) Errors {
-	// Early out; deprecatedBuiltinsMap is only populated in strict-mode.
-	if !strict {
-		return nil
-	}
-
-	errs := make(Errors, 0)
-	WalkExprs(node, func(x *Expr) bool {
-		if x.IsCall() {
-			operator := x.Operator().String()
-			if _, ok := deprecatedBuiltinsMap[operator]; ok {
-				errs = append(errs, NewError(TypeErr, x.Loc(), "deprecated built-in function calls in expression: %v", operator))
 			}
 		}
 		return false
