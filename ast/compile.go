@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -528,7 +529,7 @@ func (c *Compiler) ComprehensionIndex(term *Term) *ComprehensionIndex {
 // otherwise, the ref is used to perform a ruleset lookup.
 func (c *Compiler) GetArity(ref Ref) int {
 	if bi := c.builtins[ref.String()]; bi != nil {
-		return len(bi.Decl.Args())
+		return len(bi.Decl.FuncArgs().Args)
 	}
 	rules := c.GetRulesExact(ref)
 	if len(rules) == 0 {
@@ -939,21 +940,25 @@ func (c *Compiler) buildComprehensionIndices() {
 // checker.
 func (c *Compiler) buildRequiredCapabilities() {
 
+	features := map[string]struct{}{}
+
 	// extract required keywords from modules
 	keywords := map[string]struct{}{}
 	futureKeywordsPrefix := Ref{FutureRootDocument, StringTerm("keywords")}
 	for _, name := range c.sorted {
 		for _, imp := range c.imports[name] {
 			path := imp.Path.Value.(Ref)
-			if !path.HasPrefix(futureKeywordsPrefix) {
-				continue
-			}
-			if len(path) == 2 {
-				for kw := range futureKeywords {
-					keywords[kw] = struct{}{}
+			switch {
+			case path.Equal(RegoV1CompatibleRef):
+				features[FeatureRegoV1Import] = struct{}{}
+			case path.HasPrefix(futureKeywordsPrefix):
+				if len(path) == 2 {
+					for kw := range futureKeywords {
+						keywords[kw] = struct{}{}
+					}
+				} else {
+					keywords[string(path[2].Value.(String))] = struct{}{}
 				}
-			} else {
-				keywords[string(path[2].Value.(String))] = struct{}{}
 			}
 		}
 	}
@@ -961,12 +966,16 @@ func (c *Compiler) buildRequiredCapabilities() {
 	c.Required.FutureKeywords = stringMapToSortedSlice(keywords)
 
 	// extract required features from modules
-	features := map[string]struct{}{}
 
 	for _, name := range c.sorted {
 		for _, rule := range c.Modules[name].Rules {
-			if len(rule.Head.Reference) >= 3 {
-				features[FeatureRefHeadStringPrefixes] = struct{}{}
+			refLen := len(rule.Head.Reference)
+			if refLen >= 3 {
+				if refLen > len(rule.Head.Reference.ConstantPrefix()) {
+					features[FeatureRefHeads] = struct{}{}
+				} else {
+					features[FeatureRefHeadStringPrefixes] = struct{}{}
+				}
 			}
 		}
 	}
@@ -1679,8 +1688,8 @@ func (c *Compiler) checkDuplicateImports() {
 		}
 	}
 
-	errors := CheckDuplicateImports(modules)
-	for _, err := range errors {
+	errs := CheckDuplicateImports(modules)
+	for _, err := range errs {
 		c.err(err)
 	}
 }
@@ -1821,23 +1830,33 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				rule.Head.Reference = ref
 			}
 
-			cannotSpeakRefs := true
+			cannotSpeakStringPrefixRefs := true
+			cannotSpeakGeneralRefs := true
 			for _, f := range c.capabilities.Features {
-				if f == FeatureRefHeadStringPrefixes {
-					cannotSpeakRefs = false
-					break
+				switch f {
+				case FeatureRefHeadStringPrefixes:
+					cannotSpeakStringPrefixRefs = false
+				case FeatureRefHeads:
+					cannotSpeakGeneralRefs = false
 				}
 			}
 
-			if cannotSpeakRefs && rule.Head.Name == "" {
+			if cannotSpeakStringPrefixRefs && cannotSpeakGeneralRefs && rule.Head.Name == "" {
 				c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
 				return true
 			}
 
 			for i := 1; i < len(ref); i++ {
-				// Rewrite so that any non-scalar elements that in the last position of
-				// the rule are vars:
+				if cannotSpeakGeneralRefs && (rule.Head.RuleKind() == MultiValue || i != len(ref)-1) { // last
+					if _, ok := ref[i].Value.(String); !ok {
+						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (containing variables) are not supported: %v", rule.Head.Reference))
+						continue
+					}
+				}
+
+				// Rewrite so that any non-scalar elements in the rule's ref are vars:
 				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
+				//     p.q[a.b][c.d] { ... }  =>  p.q[__local0__] { __local0__ = a.b; __local1__ = c.d }
 				// because that's what the RuleTree knows how to deal with.
 				if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
 					expr := f.Generate(ref[i])
@@ -2784,7 +2803,8 @@ func (qc *queryCompiler) TypeEnv() *TypeEnv {
 }
 
 func (qc *queryCompiler) applyErrorLimit(err error) error {
-	if errs, ok := err.(Errors); ok {
+	var errs Errors
+	if errors.As(err, &errs) {
 		if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
 			err = append(errs[:qc.compiler.maxErrs], errLimitReached)
 		}
@@ -3119,7 +3139,7 @@ type comprehensionIndexRegressionCheckVisitor struct {
 // values or not. It's unlikely that anything outside of OPA does this today so this
 // solution is fine for now.
 var comprehensionIndexBlacklist = map[string]int{
-	WalkBuiltin.Name: len(WalkBuiltin.Decl.Args()),
+	WalkBuiltin.Name: len(WalkBuiltin.Decl.FuncArgs().Args),
 }
 
 func newComprehensionIndexRegressionCheckVisitor(candidates VarSet) *comprehensionIndexRegressionCheckVisitor {
@@ -3756,7 +3776,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 
 			// check closures: is this expression closing over variables that
 			// haven't been made safe by what's already included in `reordered`?
-			vs := unsafeVarsInClosures(e, arity, safe)
+			vs := unsafeVarsInClosures(e)
 			cv := vs.Intersect(bodyVars).Diff(globals)
 			uv := cv.Diff(outputVarsForBody(reordered, arity, safe))
 
@@ -3889,7 +3909,7 @@ func (xform *bodySafetyTransformer) reorderSetComprehensionSafety(sc *SetCompreh
 
 // unsafeVarsInClosures collects vars that are contained in closures within
 // this expression.
-func unsafeVarsInClosures(e *Expr, arity func(Ref) int, safe VarSet) VarSet {
+func unsafeVarsInClosures(e *Expr) VarSet {
 	vs := VarSet{}
 	WalkClosures(e, func(x interface{}) bool {
 		vis := &VarVisitor{vars: vs}

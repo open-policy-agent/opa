@@ -580,6 +580,22 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 			),
 			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
 		},
+		{
+			note: "rewrite: single-value with non-var ref term",
+			modules: modules(
+				`package x
+				p.q[y.z].r if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__].r  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
+		{
+			note: "rewrite: single-value with non-var ref term and key",
+			modules: modules(
+				`package x
+				p.q[a.b][c.d] if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__][__local1__]  { y := {"z": "a"}; __local0__ = a.b; __local1__ = c.d }`),
+		},
 	}
 
 	for _, tc := range tests {
@@ -9750,6 +9766,166 @@ func runQueryCompilerTest(q, pkg string, imports []string, expected interface{})
 	}
 }
 
+func TestCompilerCapabilitiesFeatures(t *testing.T) {
+	cases := []struct {
+		note        string
+		module      string
+		features    []string
+		expectedErr string
+	}{
+		{
+			note: "no features, no ref-head rules",
+			module: `package test
+				p := 42`,
+		},
+		{
+			note: "no features, ref-head rule",
+			module: `package test
+				p.q.r := 42`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p.q.r",
+		},
+		{
+			note: "no features, general-ref-head rule",
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[q].r[s]",
+		},
+		{
+			note: "string-prefix-ref-head feature, no ref-head rules",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p := 42`,
+		},
+		{
+			note: "string-prefix-ref-head feature, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "ref-head feature, ref-head rule",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[q].r[s]",
+		},
+		{
+			note: "ref-head feature, general-ref-head rule",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head features, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head features, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note:     "no features, string-prefix-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p.x",
+		},
+		{
+			note: "string-prefix-ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+		{
+			note: "ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+
+		{
+			note:     "no features, general-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[x]",
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[x]",
+		},
+		{
+			note: "ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			capabilities := CapabilitiesForThisVersion()
+			capabilities.Features = tc.features
+
+			compiler := NewCompiler().WithCapabilities(capabilities)
+			compiler.Compile(map[string]*Module{"test": MustParseModule(tc.module)})
+			if tc.expectedErr != "" {
+				if !compiler.Failed() {
+					t.Fatal("expected error but got success")
+				}
+				if !strings.Contains(compiler.Errors.Error(), tc.expectedErr) {
+					t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", tc.expectedErr, compiler.Errors)
+				}
+			} else if compiler.Failed() {
+				t.Fatalf("unexpected error(s): %v", compiler.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
 
 	compiler := NewCompiler().WithCapabilities(&Capabilities{
@@ -9931,14 +10107,14 @@ allow {
 				}
 			}
 
-			errors := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
+			errs := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
 
-			if len(errors) > 0 {
+			if len(errs) > 0 {
 				if len(tc.errs) == 0 {
-					t.Fatalf("Unexpected error: %v", errors)
+					t.Fatalf("Unexpected error: %v", errs)
 				}
 
-				result := compilerErrsToStringSlice(errors)
+				result := compilerErrsToStringSlice(errs)
 
 				if len(result) != len(tc.errs) {
 					t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(tc.errs), strings.Join(tc.errs, "\n"), len(result), strings.Join(result, "\n"))

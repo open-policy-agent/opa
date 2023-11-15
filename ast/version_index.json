@@ -1367,9 +1367,23 @@
     }
   },
   "features": {
+    "rego_v1_import": {
+      "Major": 0,
+      "Minor": 59,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "rule_head_ref_string_prefixes": {
       "Major": 0,
       "Minor": 46,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
+    "rule_head_refs": {
+      "Major": 0,
+      "Minor": 59,
       "Patch": 0,
       "PreRelease": "",
       "Metadata": ""
