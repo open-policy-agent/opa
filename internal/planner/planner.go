@@ -464,7 +464,8 @@ func (p *Planner) planDotOr(obj ir.Local, key ir.Operand, or stmtFactory, iter p
 	// | | | dot &{Source:Local<obj> Key:{Value:Local<key>} Target:Local<val>}
 	// | | | break 1
 	// | | or &{Target:Local<val>}
-	// | | *ir.ObjectInsertOnceStmt &{Key:{Value:Local<key>} Value:{Value:Local<val>} Object:Local<obj>}
+	// | iter &{Target:Local<val>} # may update Local<val>.
+	// | *ir.ObjectInsertStmt &{Key:{Value:Local<key>} Value:{Value:Local<val>} Object:Local<obj>}
 
 	prev := p.curr
 	dotBlock := &ir.Block{}
@@ -482,13 +483,16 @@ func (p *Planner) planDotOr(obj ir.Local, key ir.Operand, or stmtFactory, iter p
 		Stmts: []ir.Stmt{
 			&ir.BlockStmt{Blocks: []*ir.Block{dotBlock}}, // FIXME: Set Location
 			or(val),
-			&ir.ObjectInsertOnceStmt{Key: key, Value: op(val), Object: obj},
 		},
 	}
 
 	p.curr = prev
 	p.appendStmt(&ir.BlockStmt{Blocks: []*ir.Block{outerBlock}})
-	return iter(val)
+	if err := iter(val); err != nil {
+		return err
+	}
+	p.appendStmt(&ir.ObjectInsertStmt{Key: key, Value: op(val), Object: obj})
+	return nil
 }
 
 func (p *Planner) planNestedObjects(obj ir.Local, ref ast.Ref, iter planLocalIter) error {

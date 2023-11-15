@@ -321,3 +321,39 @@ cases:
   want_result:
   - x:
     - n1
+- modules:
+  - |
+    package test
+    import future.keywords
+
+    p[a][b][c][d][e] if {
+        some a in numbers.range(1, 5)
+        some b in numbers.range(1, 5)
+        some c in numbers.range(1, 5)
+        some d in numbers.range(1, 5)
+        some e in numbers.range(1, 5)
+        a+b+c+d+e == 24
+    }
+  note: refheads/many-vars
+  query: data.test.p = x
+  want_result:
+  - x:
+      4:
+        5:
+          5:
+            5:
+              5: true
+      5:
+        4:
+          5:
+            5:
+              5: true
+        5:
+          4:
+            5:
+              5: true
+          5:
+            4:
+              5: true
+            5:
+              4: true
