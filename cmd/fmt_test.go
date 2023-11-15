@@ -318,7 +318,7 @@ func TestFmtSingleWrongArityError(t *testing.T) {
 		}
 		expectedErrs := ast.Errors(make([]*ast.Error, 1))
 		expectedErrs[0] = errExp
-		expectedSingleWrongArityErr := newError("failed to parse Rego source file: %v", fmt.Errorf("%s: %v", policyFile, expectedErrs))
+		expectedSingleWrongArityErr := newError("failed to format Rego source file: %v", fmt.Errorf("%s: %v", policyFile, expectedErrs))
 
 		if err != expectedSingleWrongArityErr {
 			t.Fatalf("Expected:%s\n\nGot:%s\n\n", expectedSingleWrongArityErr, err)
@@ -372,7 +372,7 @@ func TestFmtMultipleWrongArityError(t *testing.T) {
 			}
 			expectedErrs[i] = errExp
 		}
-		expectedMultipleWrongArityErr := newError("failed to parse Rego source file: %v", fmt.Errorf("%s: %v", policyFile, expectedErrs))
+		expectedMultipleWrongArityErr := newError("failed to format Rego source file: %v", fmt.Errorf("%s: %v", policyFile, expectedErrs))
 
 		if err != expectedMultipleWrongArityErr {
 			t.Fatalf("Expected:%s\n\nGot:%s\n\n", expectedMultipleWrongArityErr, err)
@@ -461,13 +461,15 @@ p {
 		{
 			note: "deprecated built-in",
 			input: `package test
-#p {
-#	any([true, false])
-#}
+p {
+	any([true, false])
+}
 
 q := all([true, false])
 `,
-			expectedErr: `failed to format Rego source file: 1 error occurred: %ROOT%/policy.rego:2: rego_type_error: deprecated built-in function calls in expression: any`,
+			expectedErr: `failed to format Rego source file: 2 errors occurred:
+%ROOT%/policy.rego:3: rego_type_error: deprecated built-in function calls in expression: any
+%ROOT%/policy.rego:6: rego_type_error: deprecated built-in function calls in expression: all`,
 		},
 	}
 

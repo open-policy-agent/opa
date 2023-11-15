@@ -15,3 +15,7 @@ p {
 }
 
 q := any([true, false])
+
+r[any([true, false])]
+
+s[any([true, false])][all([true, false])]

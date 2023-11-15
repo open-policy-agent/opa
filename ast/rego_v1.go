@@ -50,18 +50,52 @@ func CheckRootDocumentOverrides(node interface{}) Errors {
 	return errors
 }
 
-// FIXME: WalkExprs won't find built-in calls in rule values, as these aren't ast.Expr
-func CheckDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
-	errs := make(Errors, 0)
-	WalkExprs(node, func(x *Expr) bool {
-		if x.IsCall() {
-			operator := x.Operator().String()
-			if _, ok := deprecatedBuiltinsMap[operator]; ok {
-				errs = append(errs, NewError(TypeErr, x.Loc(), "deprecated built-in function calls in expression: %v", operator))
+func walkCalls(node interface{}, f func(interface{}) bool) {
+	vis := &GenericVisitor{func(x interface{}) bool {
+		switch x := x.(type) {
+		case Call:
+			return f(x)
+		case *Expr:
+			if x.IsCall() {
+				return f(x)
 			}
+		case *Head:
+			// GenericVisitor doesn't walk the rule head ref
+			walkCalls(x.Reference, f)
 		}
 		return false
+	}}
+	vis.Walk(node)
+}
+
+func CheckDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
+	errs := make(Errors, 0)
+
+	walkCalls(node, func(x interface{}) bool {
+		var operator string
+		var loc *Location
+
+		switch x := x.(type) {
+		case *Expr:
+			operator = x.Operator().String()
+			loc = x.Loc()
+		case Call:
+			terms := []*Term(x)
+			if len(terms) > 0 {
+				operator = terms[0].Value.String()
+				loc = terms[0].Loc()
+			}
+		}
+
+		if operator != "" {
+			if _, ok := deprecatedBuiltinsMap[operator]; ok {
+				errs = append(errs, NewError(TypeErr, loc, "deprecated built-in function calls in expression: %v", operator))
+			}
+		}
+
+		return false
 	})
+
 	return errs
 }
 
