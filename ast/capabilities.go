@@ -51,6 +51,7 @@ var minVersionIndex = func() VersionIndex {
 // OPA can work with policies that we're compiling -- if they don't know ref
 // heads, they wouldn't be able to parse them.
 const FeatureRefHeadStringPrefixes = "rule_head_ref_string_prefixes"
+const FeatureRefHeads = "rule_head_refs"
 
 // Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
@@ -102,6 +103,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 
 	f.Features = []string{
 		FeatureRefHeadStringPrefixes,
+		FeatureRefHeads,
 	}
 
 	return f

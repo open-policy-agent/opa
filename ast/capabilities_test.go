@@ -181,13 +181,32 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 			version: "0.38.0",
 		},
 		{
-			note: "features",
+			note: "features (string prefix ref)",
 			module: `
 				package x
 				import future.keywords.if
 				p.a.b.c.d if { true }
 			`,
 			version: "0.46.0",
+		},
+		{
+			note: "features (general ref)",
+			module: `
+				package x
+				import future.keywords.if
+				p.a.b[c].d if { c := "foo" }
+			`,
+			version: "0.59.0",
+		},
+		{
+			note: "features (general ref + string prefix ref)",
+			module: `
+				package x
+				import future.keywords.if
+				p.a.b.c.d if { true }
+				p.a.b[c].d if { c := "foo" }
+			`,
+			version: "0.59.0",
 		},
 	}
 

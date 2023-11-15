@@ -449,6 +449,24 @@ Note that the metaschemas [http://json-schema.org/draft-04/schema](http://json-s
 
 Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
 
+### Features
+
+Some features of OPA can be toggled on and off through the `features` list:
+
+```json
+{
+    "features": [ 
+      "rule_head_ref_string_prefixes", 
+      "rule_head_refs" 
+    ]
+}
+```
+
+Features present in the list are enabled, while features not present are disabled. The following features are available:
+
+* `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](../policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
+* `rule_head_refs`: Enables general support for [references in rule heads](../policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](../policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`. 
+
 ### Future keywords
 
 The availability of future keywords in an OPA version can also be controlled using the capabilities file:
