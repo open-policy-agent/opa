@@ -52,6 +52,7 @@ var minVersionIndex = func() VersionIndex {
 // heads, they wouldn't be able to parse them.
 const FeatureRefHeadStringPrefixes = "rule_head_ref_string_prefixes"
 const FeatureRefHeads = "rule_head_refs"
+const FeatureRegoV1Import = "rego_v1_import"
 
 // Capabilities defines a structure containing data that describes the capabilities
 // or features supported by a particular version of OPA.
@@ -104,6 +105,7 @@ func CapabilitiesForThisVersion() *Capabilities {
 	f.Features = []string{
 		FeatureRefHeadStringPrefixes,
 		FeatureRefHeads,
+		FeatureRegoV1Import,
 	}
 
 	return f
@@ -203,6 +205,15 @@ func (c *Capabilities) MinimumCompatibleVersion() (string, bool) {
 	}
 
 	return maxVersion.String(), true
+}
+
+func (c *Capabilities) ContainsFeature(feature string) bool {
+	for _, f := range c.Features {
+		if f == feature {
+			return true
+		}
+	}
+	return false
 }
 
 // addBuiltinSorted inserts a built-in into c in sorted order. An existing built-in with the same name

@@ -940,21 +940,25 @@ func (c *Compiler) buildComprehensionIndices() {
 // checker.
 func (c *Compiler) buildRequiredCapabilities() {
 
+	features := map[string]struct{}{}
+
 	// extract required keywords from modules
 	keywords := map[string]struct{}{}
 	futureKeywordsPrefix := Ref{FutureRootDocument, StringTerm("keywords")}
 	for _, name := range c.sorted {
 		for _, imp := range c.imports[name] {
 			path := imp.Path.Value.(Ref)
-			if !path.HasPrefix(futureKeywordsPrefix) {
-				continue
-			}
-			if len(path) == 2 {
-				for kw := range futureKeywords {
-					keywords[kw] = struct{}{}
+			switch {
+			case path.Equal(regoV1CompatibleRef):
+				features[FeatureRegoV1Import] = struct{}{}
+			case path.HasPrefix(futureKeywordsPrefix):
+				if len(path) == 2 {
+					for kw := range futureKeywords {
+						keywords[kw] = struct{}{}
+					}
+				} else {
+					keywords[string(path[2].Value.(String))] = struct{}{}
 				}
-			} else {
-				keywords[string(path[2].Value.(String))] = struct{}{}
 			}
 		}
 	}
@@ -962,7 +966,6 @@ func (c *Compiler) buildRequiredCapabilities() {
 	c.Required.FutureKeywords = stringMapToSortedSlice(keywords)
 
 	// extract required features from modules
-	features := map[string]struct{}{}
 
 	for _, name := range c.sorted {
 		for _, rule := range c.Modules[name].Rules {
