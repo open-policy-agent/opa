@@ -30,5 +30,3 @@ g[h].i contains "j" {
 h[i].j contains "k" if {
 	i := input.h
 }
-
-

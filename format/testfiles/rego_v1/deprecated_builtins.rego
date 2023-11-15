@@ -13,3 +13,5 @@ p {
 	re_match("f.o", "foo")
 	set_diff({"a", "b", "c"},{"b", "c"})
 }
+
+q := any([true, false])

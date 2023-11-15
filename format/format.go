@@ -47,11 +47,6 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		return nil, err
 	}
 
-	formatted, err := AstWithOpts(module, opts)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %v", filename, err)
-	}
-
 	if opts.RegoV1 {
 		var errors ast.Errors
 		errors = append(errors, ast.CheckDuplicateImports([]*ast.Module{module})...)
@@ -60,6 +55,11 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		if len(errors) > 0 {
 			return nil, errors
 		}
+	}
+
+	formatted, err := AstWithOpts(module, opts)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %v", filename, err)
 	}
 
 	return formatted, nil
@@ -118,7 +118,11 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	o.regoV1 = opts.RegoV1
+	if opts.RegoV1 {
+		o.regoV1 = true
+		o.ifs = true
+		o.contains = true
+	}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.

@@ -111,7 +111,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	formatted, err := format.SourceWithOpts(filename, contents, format.Opts{RegoV1: params.regoV1})
 	if err != nil {
-		return newError("failed to parse Rego source file: %v", err)
+		return newError("failed to format Rego source file: %v", err)
 	}
 
 	changed := !bytes.Equal(contents, formatted)

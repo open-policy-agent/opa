@@ -50,6 +50,7 @@ func CheckRootDocumentOverrides(node interface{}) Errors {
 	return errors
 }
 
+// FIXME: WalkExprs won't find built-in calls in rule values, as these aren't ast.Expr
 func CheckDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
 	errs := make(Errors, 0)
 	WalkExprs(node, func(x *Expr) bool {
