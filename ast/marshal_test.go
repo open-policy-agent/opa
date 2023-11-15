@@ -62,6 +62,28 @@ func TestGeneric_MarshalWithLocationJSONOptions(t *testing.T) {
 			}(),
 			ExpectedJSON: `{"location":{"file":"example.rego","row":1,"col":2,"text":"dGhpbmdz"},"type":"string","value":"example"}`,
 		},
+		"location included, location text included, file excluded": {
+			Term: func() *Term {
+				v, _ := InterfaceToValue("example")
+				t := &Term{
+					Value:    v,
+					Location: NewLocation([]byte("things"), "example.rego", 1, 2),
+				}
+				t.setJSONOptions(
+					astJSON.Options{
+						MarshalOptions: astJSON.MarshalOptions{
+							IncludeLocation: astJSON.NodeToggle{
+								Term: true,
+							},
+							IncludeLocationText: true,
+							ExcludeLocationFile: true,
+						},
+					},
+				)
+				return t
+			}(),
+			ExpectedJSON: `{"location":{"row":1,"col":2,"text":"dGhpbmdz"},"type":"string","value":"example"}`,
+		},
 	}
 
 	for name, data := range testCases {
