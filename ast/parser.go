@@ -87,7 +87,7 @@ func (c parsedTermCache) String() string {
 	s.WriteRune('{')
 	var e *parsedTermCacheItem
 	for e = c.m; e != nil; e = e.next {
-		fmt.Fprintf(&s, "%v", e)
+		s.WriteString(fmt.Sprintf("%v", e))
 	}
 	s.WriteRune('}')
 	return s.String()
@@ -1988,7 +1988,7 @@ func (p *Parser) error(loc *location.Location, reason string) {
 
 func (p *Parser) errorf(loc *location.Location, f string, a ...interface{}) {
 	msg := strings.Builder{}
-	fmt.Fprintf(&msg, f, a...)
+	msg.WriteString(fmt.Sprintf(f, a...))
 
 	switch len(p.s.hints) {
 	case 0: // nothing to do

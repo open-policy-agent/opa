@@ -5,6 +5,7 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -528,7 +529,7 @@ func (c *Compiler) ComprehensionIndex(term *Term) *ComprehensionIndex {
 // otherwise, the ref is used to perform a ruleset lookup.
 func (c *Compiler) GetArity(ref Ref) int {
 	if bi := c.builtins[ref.String()]; bi != nil {
-		return len(bi.Decl.Args())
+		return len(bi.Decl.FuncArgs().Args)
 	}
 	rules := c.GetRulesExact(ref)
 	if len(rules) == 0 {
@@ -1708,12 +1709,12 @@ func checkKeywordOverrides(node interface{}, strict bool) Errors {
 		return nil
 	}
 
-	errors := Errors{}
+	errs := Errors{}
 
 	WalkRules(node, func(rule *Rule) bool {
 		name := rule.Head.Name.String()
 		if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
-			errors = append(errors, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
+			errs = append(errs, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
 		}
 		return true
 	})
@@ -1722,13 +1723,13 @@ func checkKeywordOverrides(node interface{}, strict bool) Errors {
 		if expr.IsAssignment() {
 			name := expr.Operand(0).String()
 			if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
-				errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+				errs = append(errs, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
 			}
 		}
 		return false
 	})
 
-	return errors
+	return errs
 }
 
 // resolveAllRefs resolves references in expressions to their fully qualified values.
@@ -2829,7 +2830,8 @@ func (qc *queryCompiler) TypeEnv() *TypeEnv {
 }
 
 func (qc *queryCompiler) applyErrorLimit(err error) error {
-	if errs, ok := err.(Errors); ok {
+	var errs Errors
+	if errors.As(err, &errs) {
 		if qc.compiler.maxErrs > 0 && len(errs) > qc.compiler.maxErrs {
 			err = append(errs[:qc.compiler.maxErrs], errLimitReached)
 		}
@@ -3160,7 +3162,7 @@ type comprehensionIndexRegressionCheckVisitor struct {
 // values or not. It's unlikely that anything outside of OPA does this today so this
 // solution is fine for now.
 var comprehensionIndexBlacklist = map[string]int{
-	WalkBuiltin.Name: len(WalkBuiltin.Decl.Args()),
+	WalkBuiltin.Name: len(WalkBuiltin.Decl.FuncArgs().Args),
 }
 
 func newComprehensionIndexRegressionCheckVisitor(candidates VarSet) *comprehensionIndexRegressionCheckVisitor {
@@ -3797,7 +3799,7 @@ func reorderBodyForSafety(builtins map[string]*Builtin, arity func(Ref) int, glo
 
 			// check closures: is this expression closing over variables that
 			// haven't been made safe by what's already included in `reordered`?
-			vs := unsafeVarsInClosures(e, arity, safe)
+			vs := unsafeVarsInClosures(e)
 			cv := vs.Intersect(bodyVars).Diff(globals)
 			uv := cv.Diff(outputVarsForBody(reordered, arity, safe))
 
@@ -3930,7 +3932,7 @@ func (xform *bodySafetyTransformer) reorderSetComprehensionSafety(sc *SetCompreh
 
 // unsafeVarsInClosures collects vars that are contained in closures within
 // this expression.
-func unsafeVarsInClosures(e *Expr, arity func(Ref) int, safe VarSet) VarSet {
+func unsafeVarsInClosures(e *Expr) VarSet {
 	vs := VarSet{}
 	WalkClosures(e, func(x interface{}) bool {
 		vis := &VarVisitor{vars: vs}
