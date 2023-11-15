@@ -1380,6 +1380,13 @@
       "Patch": 0,
       "PreRelease": "",
       "Metadata": ""
+    },
+    "rule_head_refs": {
+      "Major": 0,
+      "Minor": 59,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
     }
   },
   "keywords": {

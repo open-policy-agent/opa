@@ -969,8 +969,13 @@ func (c *Compiler) buildRequiredCapabilities() {
 
 	for _, name := range c.sorted {
 		for _, rule := range c.Modules[name].Rules {
-			if len(rule.Head.Reference) >= 3 {
-				features[FeatureRefHeadStringPrefixes] = struct{}{}
+			refLen := len(rule.Head.Reference)
+			if refLen >= 3 {
+				if refLen > len(rule.Head.Reference.ConstantPrefix()) {
+					features[FeatureRefHeads] = struct{}{}
+				} else {
+					features[FeatureRefHeadStringPrefixes] = struct{}{}
+				}
 			}
 		}
 	}
@@ -1855,23 +1860,33 @@ func (c *Compiler) rewriteRuleHeadRefs() {
 				rule.Head.Reference = ref
 			}
 
-			cannotSpeakRefs := true
+			cannotSpeakStringPrefixRefs := true
+			cannotSpeakGeneralRefs := true
 			for _, f := range c.capabilities.Features {
-				if f == FeatureRefHeadStringPrefixes {
-					cannotSpeakRefs = false
-					break
+				switch f {
+				case FeatureRefHeadStringPrefixes:
+					cannotSpeakStringPrefixRefs = false
+				case FeatureRefHeads:
+					cannotSpeakGeneralRefs = false
 				}
 			}
 
-			if cannotSpeakRefs && rule.Head.Name == "" {
+			if cannotSpeakStringPrefixRefs && cannotSpeakGeneralRefs && rule.Head.Name == "" {
 				c.err(NewError(CompileErr, rule.Loc(), "rule heads with refs are not supported: %v", rule.Head.Reference))
 				return true
 			}
 
 			for i := 1; i < len(ref); i++ {
-				// Rewrite so that any non-scalar elements that in the last position of
-				// the rule are vars:
+				if cannotSpeakGeneralRefs && (rule.Head.RuleKind() == MultiValue || i != len(ref)-1) { // last
+					if _, ok := ref[i].Value.(String); !ok {
+						c.err(NewError(TypeErr, rule.Loc(), "rule heads with general refs (containing variables) are not supported: %v", rule.Head.Reference))
+						continue
+					}
+				}
+
+				// Rewrite so that any non-scalar elements in the rule's ref are vars:
 				//     p.q.r[y.z] { ... }  =>  p.q.r[__local0__] { __local0__ = y.z }
+				//     p.q[a.b][c.d] { ... }  =>  p.q[__local0__] { __local0__ = a.b; __local1__ = c.d }
 				// because that's what the RuleTree knows how to deal with.
 				if _, ok := ref[i].Value.(Var); !ok && !IsScalar(ref[i].Value) {
 					expr := f.Generate(ref[i])
