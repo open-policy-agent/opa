@@ -1715,7 +1715,12 @@ func checkKeywordOverrides(node interface{}, strict bool) Errors {
 	errs := Errors{}
 
 	WalkRules(node, func(rule *Rule) bool {
-		name := rule.Head.Name.String()
+		var name string
+		if len(rule.Head.Reference) > 0 {
+			name = rule.Head.Reference[0].Value.(Var).String()
+		} else {
+			name = rule.Head.Name.String()
+		}
 		if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
 			errs = append(errs, NewError(CompileErr, rule.Location, "rules must not shadow %v (use a different rule name)", name))
 		}
