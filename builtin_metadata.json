@@ -176,6 +176,7 @@
       "startswith",
       "strings.any_prefix_match",
       "strings.any_suffix_match",
+      "strings.render_template",
       "strings.replace_n",
       "strings.reverse",
       "substring",
@@ -15895,6 +15896,31 @@
       "description": "result of the suffix check",
       "name": "result",
       "type": "boolean"
+    },
+    "wasm": false
+  },
+  "strings.render_template": {
+    "args": [
+      {
+        "description": "a templated string",
+        "name": "value",
+        "type": "string"
+      },
+      {
+        "description": "a mapping of template variable keys to values",
+        "name": "vars",
+        "type": "object[string: any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Renders a templated string with given template variables injected. For a given templated string and key/value mapping, values will be injected into the template where they are referenced by key.\n\tFor examples of templating syntax, see https://pkg.go.dev/text/template",
+    "introduced": "edge",
+    "result": {
+      "description": "rendered template with template variables injected",
+      "name": "result",
+      "type": "string"
     },
     "wasm": false
   },
