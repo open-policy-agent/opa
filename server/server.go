@@ -184,7 +184,7 @@ func New() *Server {
 // Init initializes the server. This function MUST be called before starting any loops
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
-	s.initRouters()
+	s.initRouters(ctx)
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -755,7 +755,7 @@ func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, err
 	return compressHandler, nil
 }
 
-func (s *Server) initRouters() {
+func (s *Server) initRouters(ctx context.Context) {
 	mainRouter := s.router
 	if mainRouter == nil {
 		mainRouter = mux.NewRouter()
@@ -764,7 +764,7 @@ func (s *Server) initRouters() {
 	diagRouter := mux.NewRouter()
 
 	// authorizer, if configured, needs the iCache to be set up already
-	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
+	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, s.manager.InterQueryBuiltinCacheConfig())
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 
 	// Add authorization handler. This must come BEFORE authentication handler

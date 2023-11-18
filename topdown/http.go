@@ -888,7 +888,7 @@ func (c *interQueryCache) checkHTTPSendInterQueryCache() (ast.Value, error) {
 			pcv = cachedRespData
 		}
 
-		c.bctx.InterQueryBuiltinCache.Insert(c.key, pcv)
+		c.bctx.InterQueryBuiltinCache.InsertWithExpiry(c.key, pcv, cachedRespData.ExpiresAt)
 
 		return cachedRespData.formatToAST(c.forceJSONDecode, c.forceYAMLDecode)
 	}
@@ -924,18 +924,19 @@ func insertIntoHTTPSendInterQueryCache(bctx BuiltinContext, key ast.Value, resp 
 	}
 
 	var pcv cache.InterQueryCacheValue
-
+	var pcvData *interQueryCacheData
 	if cachingMode == defaultCachingMode {
-		pcv, err = newInterQueryCacheValue(bctx, resp, respBody, cacheParams)
+		pcv, pcvData, err = newInterQueryCacheValue(bctx, resp, respBody, cacheParams)
 	} else {
-		pcv, err = newInterQueryCacheData(bctx, resp, respBody, cacheParams)
+		pcvData, err = newInterQueryCacheData(bctx, resp, respBody, cacheParams)
+		pcv = pcvData
 	}
 
 	if err != nil {
 		return err
 	}
 
-	requestCache.Insert(key, pcv)
+	requestCache.InsertWithExpiry(key, pcv, pcvData.ExpiresAt)
 	return nil
 }
 
@@ -1030,17 +1031,17 @@ type interQueryCacheValue struct {
 	Data []byte
 }
 
-func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheValue, error) {
+func newInterQueryCacheValue(bctx BuiltinContext, resp *http.Response, respBody []byte, cacheParams *forceCacheParams) (*interQueryCacheValue, *interQueryCacheData, error) {
 	data, err := newInterQueryCacheData(bctx, resp, respBody, cacheParams)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	b, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &interQueryCacheValue{Data: b}, nil
+	return &interQueryCacheValue{Data: b}, data, nil
 }
 
 func (cb interQueryCacheValue) Clone() (cache.InterQueryCacheValue, error) {
