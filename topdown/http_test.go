@@ -1129,8 +1129,8 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			}))
 			defer ts.Close()
 
-			config, _ := iCache.ParseCachingConfig(nil)
-			interQueryCache := iCache.NewInterQueryCache(config)
+			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
+			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
 
 			opts := []func(*Query) *Query{
 				setTime(t0),
@@ -1538,8 +1538,8 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 			request := strings.ReplaceAll(tc.request, "%URL%", ts.URL)
 			request = strings.ReplaceAll(request, "%CACHE%", strconv.Itoa(cacheTime))
 			full := fmt.Sprintf("http.send(%s, x)", request)
-			config, _ := iCache.ParseCachingConfig(nil)
-			interQueryCache := iCache.NewInterQueryCache(config)
+			config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
+			interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
 			q := NewQuery(ast.MustParseBody(full)).
 				WithInterQueryBuiltinCache(interQueryCache).
 				WithTime(t0)
@@ -1598,7 +1598,7 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				interQueryCache.Insert(cacheKey, v)
+				interQueryCache.InsertWithExpiry(cacheKey, v, m.ExpiresAt)
 			}
 
 			actualCount := len(requests)
@@ -1769,8 +1769,8 @@ func TestHTTPSendInterQueryCachingNewResp(t *testing.T) {
 }
 
 func newQuery(qStr string, t0 time.Time) *Query {
-	config, _ := iCache.ParseCachingConfig(nil)
-	interQueryCache := iCache.NewInterQueryCache(config)
+	config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
+	interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
 	ctx := context.Background()
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store)
@@ -2159,7 +2159,7 @@ func TestNewInterQueryCacheValue(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBuffer(b)),
 	}
 
-	result, err := newInterQueryCacheValue(BuiltinContext{}, response, b, &forceCacheParams{})
+	result, _, err := newInterQueryCacheValue(BuiltinContext{}, response, b, &forceCacheParams{})
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -2934,8 +2934,8 @@ func TestHTTPSendCacheDefaultStatusCodesInterQueryCache(t *testing.T) {
 	t.Run("non-cacheable status code: inter-query cache", func(t *testing.T) {
 
 		// add an inter-query cache
-		config, _ := iCache.ParseCachingConfig(nil)
-		interQueryCache := iCache.NewInterQueryCache(config)
+		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
+		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
 
 		m := metrics.New()
 
@@ -2989,6 +2989,10 @@ func (c *onlyOnceInterQueryCache) Get(_ ast.Value) (value iCache.InterQueryCache
 }
 
 func (c *onlyOnceInterQueryCache) Insert(_ ast.Value, _ iCache.InterQueryCacheValue) int {
+	return 0
+}
+
+func (c *onlyOnceInterQueryCache) InsertWithExpiry(_ ast.Value, _ iCache.InterQueryCacheValue, _ time.Time) int {
 	return 0
 }
 
@@ -3274,8 +3278,8 @@ func TestHTTPSendMetrics(t *testing.T) {
 
 	t.Run("cache hits", func(t *testing.T) {
 		// add an inter-query cache
-		config, _ := iCache.ParseCachingConfig(nil)
-		interQueryCache := iCache.NewInterQueryCache(config)
+		config, _ := iCache.ParseCachingConfig([]byte(`{"inter_query_builtin_cache": {"max_size_bytes": 500, "stale_entry_eviction_period_seconds": 1, "forced_eviction_threshold_percentage": 80},}`))
+		interQueryCache := iCache.NewInterQueryCacheWithContext(context.Background(), config)
 
 		// Execute query twice and verify http.send inter-query cache hit metric is incremented.
 		m := metrics.New()
