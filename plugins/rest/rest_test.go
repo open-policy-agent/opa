@@ -1895,10 +1895,10 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 			}
 		},
 		"headers": {
-			"X-AMZ-SECURITY-TOKEN": "secret",
+			"X-AMZ-SECURITY-TOKEN": %q,
 			"remains-unmasked": %q
 		}
-	}`, ts.server.URL, token, plaintext)
+	}`, ts.server.URL, token, token, plaintext)
 	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
