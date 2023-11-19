@@ -1925,7 +1925,7 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 						t.Errorf("Expected redacted %q header value, got %v", k, v)
 					}
 				} else if k == "Remains-Unmasked" && v != plaintext {
-					t.Errorf("Expected %q header to have value %q, got %v", k, plaintext, v)
+					t.Errorf("Expected %q header key to have value %q, got %v", k, plaintext, v)
 				}
 			}
 		}
