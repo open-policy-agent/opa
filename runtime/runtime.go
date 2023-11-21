@@ -564,9 +564,15 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		rt.server = rt.server.WithUnixSocketPermission(rt.Params.UnixSocketPerm)
 	}
 
+	// If a refresh period is set, then we will periodically reload the certificate and ca pool. Otherwise, we will only
+	// reload cert, key and ca pool files when they change on disk.
 	if rt.Params.CertificateRefresh > 0 {
-		rt.server = rt.server.WithCertificatePaths(rt.Params.CertificateFile, rt.Params.CertificateKeyFile, rt.Params.CertificateRefresh)
-	} else if rt.Params.Certificate != nil {
+		rt.server = rt.server.WithCertRefresh(rt.Params.CertificateRefresh)
+	}
+
+	// if either the cert or the ca pool file is set then these fields will be set on the server and reloaded when they
+	// change on disk.
+	if rt.Params.CertificateFile != "" || rt.Params.CertPoolFile != "" {
 		rt.server = rt.server.WithTLSConfig(&server.TLSConfig{
 			CertFile:     rt.Params.CertificateFile,
 			KeyFile:      rt.Params.CertificateKeyFile,

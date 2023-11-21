@@ -298,6 +298,12 @@ func (s *Server) WithTLSConfig(tlsConfig *TLSConfig) *Server {
 	return s
 }
 
+// WithCertRefresh sets the period on which certs, keys and cert pools are reloaded from disk.
+func (s *Server) WithCertRefresh(refresh time.Duration) *Server {
+	s.certRefresh = refresh
+	return s
+}
+
 // WithStore sets the storage used by the server.
 func (s *Server) WithStore(store storage.Store) *Server {
 	s.store = store
@@ -595,7 +601,7 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 		// otherwise use the fsnotify default behavior
 		if s.certRefresh > 0 {
 			loops = []Loop{loop, s.certLoopPolling(logger)}
-		} else if s.certFile != "" {
+		} else if s.certFile != "" || s.certPoolFile != "" {
 			loops = []Loop{loop, s.certLoopNotify(logger)}
 		}
 	default:
