@@ -987,7 +987,7 @@ with data put into the configured `directory`.
 | `storage.disk.partitions` | `array[string]` | No | Non-overlapping `data` prefixes used for partitioning the data on disk. |
 | `storage.disk.badger` | `string` | No (default: empty) | "Superflags" passed to Badger allowing to modify advanced options. |
 
-See [the docs on disk storage](../misc-disk/) for details about the settings.
+See [the docs on disk storage](../storage/) for details about the settings.
 
 ### Server
 
