@@ -67,7 +67,7 @@ func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, 
 // extendedCert is a wrapper around x509.Certificate that adds additional fields for JSON serialization.
 type extendedCert struct {
 	x509.Certificate
-	URIStrings []string `json:"uri_strings,omitempty"`
+	URIStrings []string
 }
 
 func extentCertificates(certs []*x509.Certificate) []extendedCert {
