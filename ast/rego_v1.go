@@ -1,6 +1,6 @@
 package ast
 
-func CheckDuplicateImports(modules []*Module) (errors Errors) {
+func checkDuplicateImports(modules []*Module) (errors Errors) {
 	for _, module := range modules {
 		processedImports := map[Var]*Import{}
 
@@ -17,7 +17,7 @@ func CheckDuplicateImports(modules []*Module) (errors Errors) {
 	return
 }
 
-func CheckRootDocumentOverrides(node interface{}) Errors {
+func checkRootDocumentOverrides(node interface{}) Errors {
 	errors := Errors{}
 
 	WalkRules(node, func(rule *Rule) bool {
@@ -68,7 +68,7 @@ func walkCalls(node interface{}, f func(interface{}) bool) {
 	vis.Walk(node)
 }
 
-func CheckDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
+func checkDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node interface{}) Errors {
 	errs := make(Errors, 0)
 
 	walkCalls(node, func(x interface{}) bool {
@@ -99,7 +99,7 @@ func CheckDeprecatedBuiltins(deprecatedBuiltinsMap map[string]struct{}, node int
 	return errs
 }
 
-func CheckDeprecatedBuiltinsForCurrentVersion(node interface{}) Errors {
+func checkDeprecatedBuiltinsForCurrentVersion(node interface{}) Errors {
 	deprecatedBuiltins := make(map[string]struct{})
 	capabilities := CapabilitiesForThisVersion()
 	for _, bi := range capabilities.Builtins {
@@ -108,5 +108,14 @@ func CheckDeprecatedBuiltinsForCurrentVersion(node interface{}) Errors {
 		}
 	}
 
-	return CheckDeprecatedBuiltins(deprecatedBuiltins, node)
+	return checkDeprecatedBuiltins(deprecatedBuiltins, node)
+}
+
+// CheckRegoV1 checks the given module for errors that are specific to Rego v1
+func CheckRegoV1(module *Module) Errors {
+	var errors Errors
+	errors = append(errors, checkDuplicateImports([]*Module{module})...)
+	errors = append(errors, checkRootDocumentOverrides(module)...)
+	errors = append(errors, checkDeprecatedBuiltinsForCurrentVersion(module)...)
+	return errors
 }

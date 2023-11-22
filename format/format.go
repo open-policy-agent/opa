@@ -48,10 +48,7 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	}
 
 	if opts.RegoV1 {
-		var errors ast.Errors
-		errors = append(errors, ast.CheckDuplicateImports([]*ast.Module{module})...)
-		errors = append(errors, ast.CheckRootDocumentOverrides(module)...)
-		errors = append(errors, ast.CheckDeprecatedBuiltinsForCurrentVersion(module)...)
+		errors := ast.CheckRegoV1(module)
 		if len(errors) > 0 {
 			return nil, errors
 		}

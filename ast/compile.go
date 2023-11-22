@@ -1538,7 +1538,7 @@ func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		if c.strict || mod.regoV1Compatible {
-			errs := CheckDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod)
+			errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod)
 			for _, err := range errs {
 				c.err(err)
 			}
@@ -1688,7 +1688,7 @@ func (c *Compiler) checkDuplicateImports() {
 		}
 	}
 
-	errs := CheckDuplicateImports(modules)
+	errs := checkDuplicateImports(modules)
 	for _, err := range errs {
 		c.err(err)
 	}
@@ -1698,7 +1698,7 @@ func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
 		if c.strict || mod.regoV1Compatible {
-			errs := CheckRootDocumentOverrides(mod)
+			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)
 			}
@@ -2814,7 +2814,7 @@ func (qc *queryCompiler) applyErrorLimit(err error) error {
 
 func (qc *queryCompiler) checkKeywordOverrides(_ *QueryContext, body Body) (Body, error) {
 	if qc.compiler.strict {
-		if errs := CheckRootDocumentOverrides(body); len(errs) > 0 {
+		if errs := checkRootDocumentOverrides(body); len(errs) > 0 {
 			return nil, errs
 		}
 	}
@@ -2953,7 +2953,7 @@ func (qc *queryCompiler) unsafeBuiltinsMap() map[string]struct{} {
 
 func (qc *queryCompiler) checkDeprecatedBuiltins(_ *QueryContext, body Body) (Body, error) {
 	if qc.compiler.strict {
-		errs := CheckDeprecatedBuiltins(qc.compiler.deprecatedBuiltinsMap, body)
+		errs := checkDeprecatedBuiltins(qc.compiler.deprecatedBuiltinsMap, body)
 		if len(errs) > 0 {
 			return nil, errs
 		}
@@ -4196,7 +4196,7 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 					// Preventing root document shadowing is simpler, and
 					// arguably, will prevent confusing names from being used.
 					// NOTE: this check is also performed as part of strict-mode in
-					// CheckRootDocumentOverrides.
+					// checkRootDocumentOverrides.
 					err = fmt.Errorf("args must not shadow %v (use a different variable name)", x)
 					return true
 				}
