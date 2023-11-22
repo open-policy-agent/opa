@@ -2150,6 +2150,141 @@ result := {
 	}
 }
 
+func TestOpaRuntimeEnvironmentVariableDefinedInOS(t *testing.T) {
+	t.Setenv("TOKEN_VERIFY_KEY", "B41BD5F462719C6D6118E673A2389")
+
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+rt := opa.runtime()
+
+grant {
+	authenticatedUser
+}
+
+claims := payload {
+	io.jwt.verify_hs256(input.token, opa.runtime().env.TOKEN_VERIFY_KEY)
+	[_, payload, _] := io.jwt.decode(input.token)
+}
+
+authenticatedUser := a {
+	claims
+	a := count(claims) > 0
+}
+			`,
+		}),
+	)
+
+	defer server.Stop()
+
+	testBundleResource := "/bundles/bundle.tar.gz"
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": %q
+			}
+		},
+	}`, server.URL(), testBundleResource)
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	exp := true
+
+	input := map[string]interface{}{}
+	input["token"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQWxpY2lhIFNtaXRoc29uaWFuIiwicm9sZXMiOlsicmVhZGVyIiwid3JpdGVyIl0sInVzZXJuYW1lIjoiYWxpY2UifQ.md2KPJFH9OgBq-N0RonGdf5doGYRO_1miN8ugTSeTYc"
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/grant", Input: input}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
+
+func TestOpaRuntimeEnvironmentVariableDefinedInConfig(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+rt := opa.runtime()
+
+grant {
+	authenticatedUser
+}
+
+claims := payload {
+	io.jwt.verify_hs256(input.token, opa.runtime().config.env.TOKEN_VERIFY_KEY)
+	[_, payload, _] := io.jwt.decode(input.token)
+}
+
+authenticatedUser := a {
+	claims
+	a := count(claims) > 0
+}
+			`,
+		}),
+	)
+
+	defer server.Stop()
+
+	testBundleResource := "/bundles/bundle.tar.gz"
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": %q
+			}
+		},
+		"env": {
+			"TOKEN_VERIFY_KEY" : "B41BD5F462719C6D6118E673A2389"
+		}
+	}`, server.URL(), testBundleResource)
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		Config: strings.NewReader(config),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer opa.Stop(ctx)
+
+	exp := true
+
+	input := map[string]interface{}{}
+	input["token"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQWxpY2lhIFNtaXRoc29uaWFuIiwicm9sZXMiOlsicmVhZGVyIiwid3JpdGVyIl0sInVzZXJuYW1lIjoiYWxpY2UifQ.md2KPJFH9OgBq-N0RonGdf5doGYRO_1miN8ugTSeTYc"
+
+	if result, err := opa.Decision(ctx, sdk.DecisionOptions{Path: "/system/grant", Input: input}); err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(result.Result, exp) {
+		t.Fatalf("expected %v but got %v", exp, result.Result)
+	}
+}
+
 func TestPrintStatements(t *testing.T) {
 
 	ctx := context.Background()

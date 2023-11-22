@@ -1,12 +1,16 @@
 package test
 
-input := "foo"
+input := "do"
 
-input.x := "bar"
+input.x := "re"
 
-data := "baz"
+input.x.y := "mi"
 
-data.x := "bax"
+data := "fa"
+
+data.x := "so"
+
+data.x.y := "la"
 
 p {
 	input := 1

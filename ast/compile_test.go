@@ -2998,6 +2998,60 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 			},
 		},
 		{
+			note: "rule names (set construction)",
+			module: `package test
+				input.a { true }
+				p { true }
+				data.b { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data.b { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "rule names (object construction)",
+			module: `package test
+				input.a := 1 { true }
+				p { true }
+				data.b := 2 { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a := 1 { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data.b := 2 { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "leading term in rule refs",
+			module: `package test
+				input.a.b { true }
+				p { true }
+				data.b.c := "foo" { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a.b { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte(`data.b.c := "foo" { true }`), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
 			note: "global assignments",
 			module: `package test
 				input = 1
@@ -3528,6 +3582,48 @@ func TestCompileRegoV1Import(t *testing.T) {
 			},
 		},
 		{
+			note: "rule (object) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input.a := "b" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte(`input.a := "b" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (set) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input contains "a" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte(`input contains "a" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule ref shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input.a.b.c := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input.a.b.c := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
 			note: "rule shadows input (multiple modules)",
 			modules: map[string]string{
 				"policy1.rego": `package test
@@ -3575,6 +3671,48 @@ func TestCompileRegoV1Import(t *testing.T) {
 				&Error{
 					Message:  "rules must not shadow data (use a different rule name)",
 					Location: &Location{Text: []byte("data := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (object) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data.a := "b" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte(`data.a := "b" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (set) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data contains "a" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte(`data contains "a" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule ref shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data.a.b.c := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data.a.b.c := 1"), File: "policy.rego", Row: 3, Col: 6},
 				},
 			},
 		},
