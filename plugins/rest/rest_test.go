@@ -1913,25 +1913,22 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	var reqLogFound bool
-	for _, entry := range logger.Entries() {
-		if entry.Fields["headers"] != nil {
-			headers := entry.Fields["headers"].(http.Header)
-			for k := range headers {
-				v := headers.Get(k)
-				if _, ok := maskedHeaderKeys[k]; ok {
-					reqLogFound = true
-					if v != "REDACTED" {
-						t.Errorf("Expected redacted %q header value, got %v", k, v)
-					}
-				} else if k == "Remains-Unmasked" && v != plaintext {
-					t.Errorf("Expected %q header to have value %q, got %v", k, plaintext, v)
-				}
-			}
-		}
+	entries := logger.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 log entries, got %d", len(entries))
 	}
-	if !reqLogFound {
-		t.Fatalf("Expected log entry from request")
+
+	requestEntry := entries[0]
+	headers := requestEntry.Fields["headers"].(http.Header)
+	for k := range headers {
+		v := headers.Get(k)
+		if _, ok := maskedHeaderKeys[k]; ok {
+			if v != "REDACTED" {
+				t.Errorf("Expected redacted %q header value, got %v", k, v)
+			}
+		} else if k == "Remains-Unmasked" && v != plaintext {
+			t.Errorf("Expected %q header to have value %q, got %v", k, plaintext, v)
+		}
 	}
 }
 
