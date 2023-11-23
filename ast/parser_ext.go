@@ -477,7 +477,7 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(filename, stmts, comments)
+	return parseModule(filename, stmts, comments, popts.RegoV1Compatible)
 }
 
 // ParseBody returns exactly one body.
@@ -637,7 +637,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 	return stmts, comments, nil
 }
 
-func parseModule(filename string, stmts []Statement, comments []*Comment) (*Module, error) {
+func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1Compatible bool) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
@@ -693,7 +693,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment) (*Modu
 		}
 	}
 
-	if mod.regoV1Compatible {
+	if mod.regoV1Compatible || regoV1Compatible {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				var t string

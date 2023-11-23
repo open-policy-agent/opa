@@ -143,6 +143,7 @@ type Compiler struct {
 	inputType               types.Type                    // global input type retrieved from schema set
 	annotationSet           *AnnotationSet                // hierarchical set of annotations
 	strict                  bool                          // enforce strict compilation checks
+	regoV1Compatible        bool                          // indicates if compiler should enforce Rego v1 compatibility
 	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
 	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
 	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
@@ -439,6 +440,12 @@ func (c *Compiler) WithUnsafeBuiltins(unsafeBuiltins map[string]struct{}) *Compi
 // WithStrict enables strict mode in the compiler.
 func (c *Compiler) WithStrict(strict bool) *Compiler {
 	c.strict = strict
+	return c
+}
+
+// WithRegoV1Compatible enables Rego v1 compatibility mode in the compiler.
+func (c *Compiler) WithRegoV1Compatible(yes bool) *Compiler {
+	c.regoV1Compatible = yes
 	return c
 }
 
@@ -1537,7 +1544,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || mod.regoV1Compatible)
+		errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod, c.strict || c.isRegoV1Compatible(mod))
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -1679,7 +1686,7 @@ func (c *Compiler) GetAnnotationSet() *AnnotationSet {
 func (c *Compiler) checkDuplicateImports() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if !c.strict && !mod.regoV1Compatible {
+		if !c.strict && !c.isRegoV1Compatible(mod) {
 			continue
 		}
 
@@ -1700,7 +1707,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		errs := checkKeywordOverrides(mod, c.strict || mod.regoV1Compatible)
+		errs := checkKeywordOverrides(mod, c.strict || c.isRegoV1Compatible(mod))
 		for _, err := range errs {
 			c.err(err)
 		}
@@ -2704,6 +2711,10 @@ func (c *Compiler) setGraph() {
 		return c.GetRulesDynamicWithOpts(r, RulesOptions{IncludeHiddenModules: true})
 	}
 	c.Graph = NewGraph(c.Modules, list)
+}
+
+func (c *Compiler) isRegoV1Compatible(m *Module) bool {
+	return c.regoV1Compatible || m.regoV1Compatible
 }
 
 type queryCompiler struct {

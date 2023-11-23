@@ -102,6 +102,8 @@ type FileLoader interface {
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
 	WithJSONOptions(*astJSON.Options) FileLoader
+
+	WithRegoV1Compatible(bool) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -178,6 +180,11 @@ func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
 // WithJSONOptions sets the JSONOptions for use when parsing files
 func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 	fl.opts.JSONOptions = opts
+	return fl
+}
+
+func (fl *fileLoader) WithRegoV1Compatible(compatible bool) FileLoader {
+	fl.opts.RegoV1Compatible = compatible
 	return fl
 }
 
