@@ -103,7 +103,6 @@ func checkModules(params checkParams, args []string) error {
 		WithSchemas(ss).
 		WithEnablePrintStatements(true).
 		WithStrict(params.strict).
-		WithRegoV1Compatible(params.regoV1).
 		WithUseTypeCheckAnnotations(true)
 
 	compiler.Compile(modules)

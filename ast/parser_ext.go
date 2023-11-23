@@ -658,6 +658,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1
 
 	// The comments slice only holds comments that were not their own statements.
 	mod.Comments = append(mod.Comments, comments...)
+	mod.regoV1Compatible = regoV1Compatible
 
 	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
@@ -693,7 +694,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1
 		}
 	}
 
-	if mod.regoV1Compatible || regoV1Compatible {
+	if mod.regoV1Compatible {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				var t string
