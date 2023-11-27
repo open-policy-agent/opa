@@ -752,13 +752,13 @@ func TestSomeDeclExpr(t *testing.T) {
 	p[x] {
 		some x in {"foo": "bar"}
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseErrorContains(t, "some x, y in ... usage is hinted properly", `
 	p[y] = x {
 		some x, y in {"foo": "bar"}
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseRule(t, "whitespace terminated", `
 
@@ -848,13 +848,13 @@ func TestEvery(t *testing.T) {
 	p {
 		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
 
 	assertParseErrorContains(t, "not every 'every' gets a hint", `
 	p {
 		every x
 	}`,
-		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
+		"unexpected identifier token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
 	)
 
 	assertParseErrorContains(t, "invalid domain (internal.member_2)", "every internal.member_2()", "illegal domain", opts)
@@ -5194,7 +5194,7 @@ p { input = "str" }`,
 # - Tyrell Corp.
 # related_resources:
 # - https://example.com
-# - 
+# -
 #  ref: http://john:123@do.re/mi?foo=bar#baz
 #  description: foo bar
 # authors:

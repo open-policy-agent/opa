@@ -514,7 +514,7 @@ package test
 # METADATA
 # schemas:
 #   - input: schema["input"]
-p { 	
+p {
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
@@ -530,7 +530,7 @@ package test
 # schemas:
 #   - input.foo: {"type": "boolean"}
 p {
-	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation	 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should NOT be ignored since it is an inlined schema format
 }`
 
@@ -1432,9 +1432,9 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "strict mode should error on duplicate imports",
-			policy: `package x 
-			import future.keywords.if 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
+			import future.keywords.if
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1444,7 +1444,7 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 			note: "strict mode should error on unused imports",
 			policy: `package x
 			import future.keywords.if
-			import data.foo 
+			import data.foo
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1501,15 +1501,15 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "This should not error as it is valid",
-			policy: `package x 
+			policy: `package x
 			import future.keywords.if
 			foo = 2`,
 			query: "data.foo",
 		},
 		{
 			note: "Strict mode should not validate the query, only the policy, this should not error",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "x := data.x.foo",
 		},
@@ -1546,9 +1546,9 @@ func TestBundleWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "strict mode should error on duplicate imports in this bundle",
-			policy: `package x 
-			import future.keywords.if 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
+			import future.keywords.if
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1557,8 +1557,8 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error on unused imports in this bundle",
 			policy: `package x
-			import future.keywords.if 
-			import data.foo 
+			import future.keywords.if
+			import data.foo
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1567,7 +1567,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error when reserved vars data or input is used in this bundle",
 			policy: `package x
-			import future.keywords.if 
+			import future.keywords.if
 			data if { x = 1}`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1616,15 +1616,15 @@ func TestBundleWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "This bundle should not error as it is valid",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "data.foo",
 		},
 		{
 			note: "Strict mode should not validate the query, only the policy, this bundle should not error",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "x := data.x.foo",
 		},
@@ -1817,7 +1817,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 			else := x if {
 				x=2
 				1==2
-			} else 
+			} else
 				x=3
 			`,
 	}
@@ -1840,7 +1840,7 @@ func TestUnexpectedElseIfElseErr(t *testing.T) {
 
 		// Check the error message
 		errorMessage := err.Error()
-		expectedErrorMessage := "rego_parse_error: unexpected ident token: expected else value term or rule body"
+		expectedErrorMessage := "rego_parse_error: unexpected identifier token: expected else value term or rule body"
 		if !strings.Contains(errorMessage, expectedErrorMessage) {
 			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}
