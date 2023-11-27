@@ -5179,6 +5179,66 @@ p { input = "str" }`,
 				},
 			},
 		},
+		// unknown annotations
+		{
+			note: "Unknown annotation (rego v0)",
+			module: `package test
+# METADATA
+# title: P
+# foo: bar
+p := 1`,
+			expNumComments: 3,
+			expAnnotations: []*Annotations{
+				{
+					Title: "P",
+					Scope: annotationScopeRule,
+				},
+			},
+		},
+		{
+			note: "Unknown annotation (rego v1)",
+			module: `package test
+import rego.v1
+
+# METADATA
+# title: P
+# foo: bar
+p := 1`,
+			expNumComments: 3,
+			expError:       "test.rego:4: rego_parse_error: unknown annotation(s): [foo]",
+		},
+		{
+			note: "Unknown annotation, allowed (rego v1)",
+			module: `package test
+import rego.v1
+
+# METADATA
+# title: P
+# allow_unknown_annotations: true
+# foo: bar
+p := 1`,
+			expNumComments: 4,
+			expAnnotations: []*Annotations{
+				{
+					Title:                   "P",
+					Scope:                   annotationScopeRule,
+					AllowUnknownAnnotations: true,
+				},
+			},
+		},
+		{
+			note: "Unknown annotation, explicitly disallowed (rego v1)",
+			module: `package test
+import rego.v1
+
+# METADATA
+# title: P
+# allow_unknown_annotations: false
+# foo: bar
+p := 1`,
+			expNumComments: 4,
+			expError:       "test.rego:4: rego_parse_error: unknown annotation(s): [foo]",
+		},
 		{
 			note: "Rich meta",
 			module: `package test

@@ -279,6 +279,11 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 					printList(out, l, " ")
 					fmt.Fprintln(out)
 				}
+
+				if a.AllowUnknownAnnotations {
+					fmt.Fprintln(out, "Allow Unknown Annotations:", a.AllowUnknownAnnotations)
+				}
+
 				if len(a.Custom) > 0 {
 					fmt.Fprintln(out, "Custom:")
 					l := make([]listEntry, 0, len(a.Custom))

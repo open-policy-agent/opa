@@ -391,7 +391,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 
-	annotStmts, errs := parseAnnotations(p.s.comments)
+	annotStmts, errs := parseAnnotations(p.s.comments, p.s.s.RegoV1Compatible())
 	for _, err := range errs {
 		p.error(err.Location, err.Message)
 	}
@@ -403,7 +403,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 	return stmts
 }
 
-func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
+func parseAnnotations(comments []*Comment, regoV1Compatible bool) ([]*Annotations, Errors) {
 
 	var hint = []byte("METADATA")
 	var curr *metadataParser
@@ -418,7 +418,7 @@ func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 			curr = nil
 		}
 		if bytes.HasPrefix(bytes.TrimSpace(comments[i].Text), hint) {
-			curr = newMetadataParser(comments[i].Location)
+			curr = newMetadataParser(comments[i].Location, regoV1Compatible)
 			blocks = append(blocks, curr)
 		}
 	}
@@ -2198,27 +2198,29 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
-	Scope            string                 `yaml:"scope"`
-	Title            string                 `yaml:"title"`
-	Entrypoint       bool                   `yaml:"entrypoint"`
-	Description      string                 `yaml:"description"`
-	Organizations    []string               `yaml:"organizations"`
-	RelatedResources []interface{}          `yaml:"related_resources"`
-	Authors          []interface{}          `yaml:"authors"`
-	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
-	Custom           map[string]interface{} `yaml:"custom"`
+	Scope                   string                 `yaml:"scope"`
+	Title                   string                 `yaml:"title"`
+	Entrypoint              bool                   `yaml:"entrypoint"`
+	Description             string                 `yaml:"description"`
+	Organizations           []string               `yaml:"organizations"`
+	RelatedResources        []interface{}          `yaml:"related_resources"`
+	Authors                 []interface{}          `yaml:"authors"`
+	Schemas                 []rawSchemaAnnotation  `yaml:"schemas"`
+	Custom                  map[string]interface{} `yaml:"custom"`
+	AllowUnknownAnnotations bool                   `yaml:"allow_unknown_annotations"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
 
 type metadataParser struct {
-	buf      *bytes.Buffer
-	comments []*Comment
-	loc      *location.Location
+	buf              *bytes.Buffer
+	comments         []*Comment
+	loc              *location.Location
+	regoV1Compatible bool
 }
 
-func newMetadataParser(loc *Location) *metadataParser {
-	return &metadataParser{loc: loc, buf: bytes.NewBuffer(nil)}
+func newMetadataParser(loc *Location, regoV1Compatible bool) *metadataParser {
+	return &metadataParser{loc: loc, buf: bytes.NewBuffer(nil), regoV1Compatible: regoV1Compatible}
 }
 
 func (b *metadataParser) Append(c *Comment) {
@@ -2255,6 +2257,31 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		return nil, augmentYamlError(err, b.comments)
 	}
 
+	if b.regoV1Compatible && !raw.AllowUnknownAnnotations {
+		var allAnnotations map[string]interface{}
+		if err := yaml.Unmarshal(b.buf.Bytes(), &allAnnotations); err == nil {
+			// we passed unmarshalling once, so we should never have an error
+			delete(allAnnotations, "scope")
+			delete(allAnnotations, "title")
+			delete(allAnnotations, "entrypoint")
+			delete(allAnnotations, "description")
+			delete(allAnnotations, "organizations")
+			delete(allAnnotations, "related_resources")
+			delete(allAnnotations, "authors")
+			delete(allAnnotations, "schemas")
+			delete(allAnnotations, "custom")
+			delete(allAnnotations, "allow_unknown_annotations")
+
+			if len(allAnnotations) > 0 {
+				unknownAnnotations := make([]string, 0, len(allAnnotations))
+				for name := range allAnnotations {
+					unknownAnnotations = append(unknownAnnotations, name)
+				}
+				return nil, fmt.Errorf("unknown annotation(s): %v", unknownAnnotations)
+			}
+		}
+	}
+
 	var result Annotations
 	result.comments = b.comments
 	result.Scope = raw.Scope
@@ -2262,6 +2289,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	result.Title = raw.Title
 	result.Description = raw.Description
 	result.Organizations = raw.Organizations
+	result.AllowUnknownAnnotations = raw.AllowUnknownAnnotations
 
 	for _, v := range raw.RelatedResources {
 		rr, err := parseRelatedResource(v)

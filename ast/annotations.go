@@ -27,16 +27,17 @@ const (
 type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
-		Scope            string                       `json:"scope"`
-		Title            string                       `json:"title,omitempty"`
-		Entrypoint       bool                         `json:"entrypoint,omitempty"`
-		Description      string                       `json:"description,omitempty"`
-		Organizations    []string                     `json:"organizations,omitempty"`
-		RelatedResources []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
-		Authors          []*AuthorAnnotation          `json:"authors,omitempty"`
-		Schemas          []*SchemaAnnotation          `json:"schemas,omitempty"`
-		Custom           map[string]interface{}       `json:"custom,omitempty"`
-		Location         *Location                    `json:"location,omitempty"`
+		Scope                   string                       `json:"scope"`
+		Title                   string                       `json:"title,omitempty"`
+		Entrypoint              bool                         `json:"entrypoint,omitempty"`
+		Description             string                       `json:"description,omitempty"`
+		Organizations           []string                     `json:"organizations,omitempty"`
+		RelatedResources        []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
+		Authors                 []*AuthorAnnotation          `json:"authors,omitempty"`
+		Schemas                 []*SchemaAnnotation          `json:"schemas,omitempty"`
+		Custom                  map[string]interface{}       `json:"custom,omitempty"`
+		Location                *Location                    `json:"location,omitempty"`
+		AllowUnknownAnnotations bool                         `json:"allow_unknown_annotations"`
 
 		comments    []*Comment
 		node        Node
@@ -166,6 +167,13 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
+	if a.AllowUnknownAnnotations != other.AllowUnknownAnnotations {
+		if a.AllowUnknownAnnotations {
+			return 1
+		}
+		return -1
+	}
+
 	return 0
 }
 
@@ -227,6 +235,10 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 
 	if len(a.Custom) > 0 {
 		data["custom"] = a.Custom
+	}
+
+	if a.AllowUnknownAnnotations {
+		data["allow_unknown_annotations"] = a.AllowUnknownAnnotations
 	}
 
 	if a.jsonOptions.MarshalOptions.IncludeLocation.Annotations {
@@ -504,6 +516,10 @@ func (a *Annotations) toObject() (*Object, *Error) {
 			return nil, NewError(CompileErr, a.Location, "invalid custom annotation %s", err.Error())
 		}
 		obj.Insert(StringTerm("custom"), NewTerm(c))
+	}
+
+	if a.AllowUnknownAnnotations {
+		obj.Insert(StringTerm("allow_unknown_annotations"), BooleanTerm(true))
 	}
 
 	return &obj, nil
