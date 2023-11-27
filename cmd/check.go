@@ -77,7 +77,8 @@ func checkModules(params checkParams, args []string) error {
 		}
 	} else {
 		f := loaderFilter{
-			Ignore: params.ignore,
+			Ignore:   params.ignore,
+			OnlyRego: true,
 		}
 
 		result, err := loader.NewFileLoader().
