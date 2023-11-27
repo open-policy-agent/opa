@@ -165,6 +165,44 @@ func testCheckWithSchemasAnnotationButNoSchemaFlag(policy string) error {
 	return err
 }
 
+func TestCheckIgnoresNonRegoFiles(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test`,
+		"test.json": `{"foo": "bar"}`,
+		"test.yaml": `foo: bar`,
+	}
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+
+		err := checkModules(params, []string{root})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestCheckFailsOnInvalidRego(t *testing.T) {
+	files := map[string]string{
+		"test.rego": `package test
+{}`,
+		"test.json": `{"foo": "bar"}`,
+	}
+	expectedError := "rego_parse_error: object cannot be used for rule name"
+
+	test.WithTempFS(files, func(root string) {
+		params := newCheckParams()
+
+		err := checkModules(params, []string{root})
+		if err == nil {
+			t.Fatalf("expected error %v but received none", expectedError)
+		}
+		if !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("expected error %v but received %v", expectedError, err)
+		}
+	})
+}
+
 // Assert that 'schemas' annotations with schema refs are only informing the type checker when the --schema flag is used
 func TestCheckWithSchemasAnnotationButNoSchemaFlag(t *testing.T) {
 	policyWithSchemaRef := `
