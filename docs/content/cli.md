@@ -646,11 +646,12 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-  -d, --diff    only display a diff of the changes
-      --fail    non zero exit code on reformat
-  -h, --help    help for fmt
-  -l, --list    list all files who would change when formatted
-  -w, --write   overwrite the original source file
+  -d, --diff      only display a diff of the changes
+      --fail      non zero exit code on reformat
+  -h, --help      help for fmt
+  -l, --list      list all files who would change when formatted
+      --rego-v1   format as Rego v1
+  -w, --write     overwrite the original source file
 ```
 
 ____

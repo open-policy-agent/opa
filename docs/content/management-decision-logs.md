@@ -264,11 +264,11 @@ This rule will drop all requests to the _allow_ rule in the _kafka_ package, tha
 ```live:drop_rule_example/kafka_allow_rule:module:read_only
 package system.log
 
-import future.keywords.if
+import rego.v1
 
 drop if {
-    input.path == "kafka/allow"
-    input.result == true
+	input.path == "kafka/allow"
+	input.result == true
 }
 ```
 
@@ -278,12 +278,11 @@ Log only requests for _delete_ and _alter_ operations
 ```live:drop_rule_example/log_only_delete_alter_operations:module:read_only
 package system.log
 
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 drop if {
-    input.path == "kafka/allow"
-    not input.input.action.operation in {"DELETE", "ALTER"}
+	input.path == "kafka/allow"
+	not input.input.action.operation in {"DELETE", "ALTER"}
 }
 ```
 

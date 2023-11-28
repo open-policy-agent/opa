@@ -20,11 +20,13 @@ For example, the following rule has one local variable `user`, and that variable
 ```live:linear:module:read_only,openable
 package linear
 
-allow {
-    some user
-    input.method == "GET"
-    input.path = ["accounts", user]
-    input.user == user
+import rego.v1
+
+allow if {
+	some user
+	input.method == "GET"
+	input.path = ["accounts", user]
+	input.user == user
 }
 ```
 
@@ -71,30 +73,32 @@ Here is an example policy from the [rule-indexing blog](https://blog.openpolicya
 ```live:indexed:module:openable
 package indexed
 
+import rego.v1
+
 default allow := false
 
-allow {
-    some user
-    input.method == "GET"
-    input.path = ["accounts", user]
-    input.user == user
+allow if {
+	some user
+	input.method == "GET"
+	input.path = ["accounts", user]
+	input.user == user
 }
 
-allow {
-    input.method == "GET"
-    input.path == ["accounts", "report"]
-    roles[input.user][_] == "admin"
+allow if {
+	input.method == "GET"
+	input.path == ["accounts", "report"]
+	roles[input.user][_] == "admin"
 }
 
-allow {
-    input.method == "POST"
-    input.path == ["accounts"]
-    roles[input.user][_] == "admin"
+allow if {
+	input.method == "POST"
+	input.path == ["accounts"]
+	roles[input.user][_] == "admin"
 }
 
 roles := {
-    "bob": ["admin", "hr"],
-    "alice": ["procurement"],
+	"bob": ["admin", "hr"],
+	"alice": ["procurement"],
 }
 ```
 
@@ -149,14 +153,18 @@ The most common case for this are a set of `allow` rules:
 ```live:ee:module:read_only
 package earlyexit
 
-allow {
-    input.user == "alice"
+import rego.v1
+
+allow if {
+	input.user == "alice"
 }
-allow {
-    input.user == "bob"
+
+allow if {
+	input.user == "bob"
 }
-allow {
-    input.group == "admins"
+
+allow if {
+	input.group == "admins"
 }
 ```
 
@@ -167,40 +175,42 @@ Intuitively, the value can be anything that does not contain a variable:
 ```live:eeexamples:module:read_only
 package earlyexit.examples
 
+import rego.v1
+
 # p, q, r and s could be evaluated with early-exit semantics:
 
-p {
-    # ...
+p if {
+	# ...
 }
 
-q := 123 {
-    # ...
+q := 123 if {
+	# ...
 }
 
-r := {"hello": "world"} {
-    # ...
+r := {"hello": "world"} if {
+	# ...
 }
 
-s(x) := 12 {
-    # ...
+s(x) := 12 if {
+	# ...
 }
 
 # u, v, w, and y could _not_
 
-u[x] { # not a complete document rule, but a partial set
-    x := 911
+u contains x if { # not a complete document rule, but a partial set
+	x := 911
 }
 
-v := x { # x is a variable, not ground
-    x := true
+v := x if { # x is a variable, not ground
+	x := true
 }
 
-w := { "foo": x } { # a compound term containing a variable
-    x := "bar"
+w := {"foo": x} if { # a compound term containing a variable
+	x := "bar"
 }
 
-y(z) := r { # variable value, not ground
-    r := z + 1
+y(z) := r if { # variable value, not ground
+	r := z + 1
 }
 ```
 
@@ -210,9 +220,11 @@ When "early exit" is possible for a (set of) rules, iterations inside that rule 
 ```live:eeiteration:module:read_only
 package earlyexit.iteration
 
-p {
-    some p
-    data.projects[p] == "project-a"
+import rego.v1
+
+p if {
+	some p
+	data.projects[p] == "project-a"
 }
 ```
 
@@ -227,14 +239,18 @@ early; an evaluation with `{"user": "bob", "group": "admins"}` *would not*:
 ```live:eeindex:module:read_only
 package earlyexit
 
-allow {
-    input.user == "alice"
+import rego.v1
+
+allow if {
+	input.user == "alice"
 }
-allow = false {
-    input.user == "bob"
+
+allow := false if {
+	input.user == "bob"
 }
-allow {
-    input.group == "admins"
+
+allow if {
+	input.group == "admins"
 }
 ```
 
@@ -308,20 +324,20 @@ at once. These values are indexed by the assignments of `intf`.
 To implement the policy above we could write:
 
 ```rego
-deny[msg] {
-    some i
-    count(exposed_ports_by_interface[i]) > 100
-    msg := sprintf("interface '%v' exposes too many ports", [i])
+deny contains msg if {
+	some i
+	count(exposed_ports_by_interface[i]) > 100
+	msg := sprintf("interface '%v' exposes too many ports", [i])
 }
 
 exposed_ports_by_interface := {intf: ports |
-    some i
-    intf := input.exposed[i].interface
-    ports := [port |
-        some j
-        input.exposed[j].interface == intf
-        port := input.exposed[j].port
-  ]
+	some i
+	intf := input.exposed[i].interface
+	ports := [port |
+		some j
+		input.exposed[j].interface == intf
+		port := input.exposed[j].port
+	]
 }
 ```
 
@@ -343,41 +359,43 @@ In order to be indexed, comprehensions must meet the following conditions:
 The following examples shows rules that are **not** indexed:
 
 ```rego
-not_indexed_because_missing_assignment {
-    x := input[_]
-    [y | some y; x == input[y]]
+not_indexed_because_missing_assignment if {
+	x := input[_]
+	[y | some y; x == input[y]]
 }
 
-not_indexed_because_includes_with {
-    x := input[_]
-    ys := [y | some y; x := input[y]] with input as {}
+not_indexed_because_includes_with if {
+	x := input[_]
+	ys := [y | some y; x := input[y]] with input as {}
 }
 
-not_indexed_because_negated {
-    x := input[_]
-    not data.arr = [y | some y; x := input[y]]
+not_indexed_because_negated if {
+	x := input[_]
+	not data.arr = [y | some y; x := input[y]]
 }
 
-not_indexed_because_safety {
-    obj := input.foo.bar
-    x := obj[_]
-    ys := [y | some y; x == obj[y]]
+not_indexed_because_safety if {
+	obj := input.foo.bar
+	x := obj[_]
+	ys := [y | some y; x == obj[y]]
 }
 
-not_indexed_because_no_closure {
-    ys := [y | x := input[y]]
+not_indexed_because_no_closure if {
+	ys := [y | x := input[y]]
 }
 
-not_indexed_because_reference_operand_closure {
-    x := input[y].x
-    ys := [y | x == input[y].z[_]]
+not_indexed_because_reference_operand_closure if {
+	x := input[y].x
+	ys := [y | x == input[y].z[_]]
 }
 
-not_indexed_because_nested_closure {
-    x := 1
-    y := 2
-    _ = [i | x == input.foo[i]
-             _ = [j | y == input.bar[j]]]
+not_indexed_because_nested_closure if {
+	x := 1
+	y := 2
+	_ = [i |
+		x == input.foo[i]
+		_ = [j | y == input.bar[j]]
+	]
 }
 ```
 
@@ -415,11 +433,13 @@ let's take the following policy:
 ```rego
 package test
 
-p {
+import rego.v1
+
+p if {
 	a := 1
 	b := 2
 	c := 3
-	x = a + b * c
+	x = a + (b * c)
 }
 ```
 
@@ -442,7 +462,7 @@ ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` co
 are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:7`. This is because the compiler rewrites the above policy to
 something like below:
 
-`p = true {
+`p = true if {
   __local0__ = 1;
   __local1__ = 2;
   __local2__ = 3;
@@ -464,62 +484,64 @@ sample policy.
 ```live:profile:module:read_only,openable
 package rbac
 
+import rego.v1
+
 # Example input request
 
-input := {
- "subject": "bob",
- "resource": "foo123",
- "action": "write",
+inp := {
+	"subject": "bob",
+	"resource": "foo123",
+	"action": "write",
 }
 
 # Example RBAC configuration.
 bindings := [
- {
-  "user": "alice",
-  "roles": ["dev", "test"],
- },
- {
-  "user": "bob",
-  "roles": ["test"],
- },
+	{
+		"user": "alice",
+		"roles": ["dev", "test"],
+	},
+	{
+		"user": "bob",
+		"roles": ["test"],
+	},
 ]
 
 roles := [
- {
-  "name": "dev",
-  "permissions": [
-   {"resource": "foo123", "action": "write"},
-   {"resource": "foo123", "action": "read"},
-  ],
- },
- {
-  "name": "test",
-  "permissions": [{"resource": "foo123", "action": "read"}],
- },
+	{
+		"name": "dev",
+		"permissions": [
+			{"resource": "foo123", "action": "write"},
+			{"resource": "foo123", "action": "read"},
+		],
+	},
+	{
+		"name": "test",
+		"permissions": [{"resource": "foo123", "action": "read"}],
+	},
 ]
 
 # Example RBAC policy implementation.
 
 default allow := false
 
-allow {
-    some role_name
-    user_has_role[role_name]
-    role_has_permission[role_name]
+allow if {
+	some role_name
+	user_has_role[role_name]
+	role_has_permission[role_name]
 }
 
-user_has_role[role_name] {
-    binding := bindings[_]
-    binding.user == input.subject
-    role_name := binding.roles[_]
+user_has_role contains role_name if {
+	binding := bindings[_]
+	binding.user == inp.subject
+	role_name := binding.roles[_]
 }
 
-role_has_permission[role_name] {
-    role := roles[_]
-    role_name := role.name
-    perm := role.permissions[_]
-    perm.resource == input.resource
-    perm.action == input.action
+role_has_permission contains role_name if {
+	role := roles[_]
+	role_name := role.name
+	perm := role.permissions[_]
+	perm.resource == inp.resource
+	perm.action == inp.action
 }
 ```
 
@@ -750,13 +772,14 @@ Adding a unit test file for the [policy source as shown above](#example-policy):
 ```rego
 package rbac
 
+import rego.v1
 
-test_user_has_role_dev {
-    user_has_role["dev"] with input as {"subject": "alice"}
+test_user_has_role_dev if {
+	user_has_role.dev with input as {"subject": "alice"}
 }
 
-test_user_has_role_negative {
-    not user_has_role["super-admin"] with input as {"subject": "alice"}
+test_user_has_role_negative if {
+	not user_has_role["super-admin"] with input as {"subject": "alice"}
 }
 ```
 

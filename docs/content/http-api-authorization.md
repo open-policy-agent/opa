@@ -39,23 +39,25 @@ cd bundles
 ```live:example:module:openable
 package httpapi.authz
 
+import rego.v1
+
 # bob is alice's manager, and betty is charlie's.
 subordinates := {"alice": [], "charlie": [], "bob": ["alice"], "betty": ["charlie"]}
 
 default allow := false
 
 # Allow users to get their own salaries.
-allow {
-    input.method == "GET"
-    input.path == ["finance", "salary", input.user]
+allow if {
+	input.method == "GET"
+	input.path == ["finance", "salary", input.user]
 }
 
 # Allow managers to get their subordinates' salaries.
-allow {
-    some username
-    input.method == "GET"
-    input.path = ["finance", "salary", username]
-    subordinates[input.user][_] == username
+allow if {
+	some username
+	input.method == "GET"
+	input.path = ["finance", "salary", username]
+	subordinates[input.user][_] == username
 }
 ```
 
@@ -209,17 +211,17 @@ this.
 ```live:hr_example:module:read_only,openable
 package httpapi.authz
 
+import rego.v1
+
 # Allow HR members to get anyone's salary.
-allow {
-    input.method == "GET"
-    input.path = ["finance", "salary", _]
-    input.user == hr[_]
+allow if {
+	input.method == "GET"
+	input.path = ["finance", "salary", _]
+	input.user == hr[_]
 }
 
 # David is the only member of HR.
-hr := [
-    "david",
-]
+hr := ["david"]
 ```
 
 Build a new bundle with the new policy included.
@@ -256,40 +258,42 @@ real world, let's try a similar exercise utilizing the JWT utilities of OPA.
 ```live:jwt_example:module:openable
 package httpapi.authz
 
+import rego.v1
+
 default allow := false
 
 # Allow users to get their own salaries.
-allow {
-    some username
-    input.method == "GET"
-    input.path = ["finance", "salary", username]
-    token.payload.user == username
-    user_owns_token
+allow if {
+	some username
+	input.method == "GET"
+	input.path = ["finance", "salary", username]
+	token.payload.user == username
+	user_owns_token
 }
 
 # Allow managers to get their subordinate' salaries.
-allow {
-    some username
-    input.method == "GET"
-    input.path = ["finance", "salary", username]
-    token.payload.subordinates[_] == username
-    user_owns_token
+allow if {
+	some username
+	input.method == "GET"
+	input.path = ["finance", "salary", username]
+	token.payload.subordinates[_] == username
+	user_owns_token
 }
 
 # Allow HR members to get anyone's salary.
-allow {
-    input.method == "GET"
-    input.path = ["finance", "salary", _]
-    token.payload.hr == true
-    user_owns_token
+allow if {
+	input.method == "GET"
+	input.path = ["finance", "salary", _]
+	token.payload.hr == true
+	user_owns_token
 }
 
 # Ensure that the token was issued to the user supplying it.
-user_owns_token { input.user == token.payload.azp }
+user_owns_token if input.user == token.payload.azp
 
 # Helper to get the token payload.
-token := {"payload": payload} {
-    [header, payload, signature] := io.jwt.decode(input.token)
+token := {"payload": payload} if {
+	[header, payload, signature] := io.jwt.decode(input.token)
 }
 ```
 
