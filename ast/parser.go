@@ -2198,16 +2198,16 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
-	Scope                   string                 `yaml:"scope"`
-	Title                   string                 `yaml:"title"`
-	Entrypoint              bool                   `yaml:"entrypoint"`
-	Description             string                 `yaml:"description"`
-	Organizations           []string               `yaml:"organizations"`
-	RelatedResources        []interface{}          `yaml:"related_resources"`
-	Authors                 []interface{}          `yaml:"authors"`
-	Schemas                 []rawSchemaAnnotation  `yaml:"schemas"`
-	Custom                  map[string]interface{} `yaml:"custom"`
-	AllowUnknownAnnotations bool                   `yaml:"allow_unknown_annotations"`
+	Scope                 string                 `yaml:"scope"`
+	Title                 string                 `yaml:"title"`
+	Entrypoint            bool                   `yaml:"entrypoint"`
+	Description           string                 `yaml:"description"`
+	Organizations         []string               `yaml:"organizations"`
+	RelatedResources      []interface{}          `yaml:"related_resources"`
+	Authors               []interface{}          `yaml:"authors"`
+	Schemas               []rawSchemaAnnotation  `yaml:"schemas"`
+	Custom                map[string]interface{} `yaml:"custom"`
+	AdditionalAnnotations bool                   `yaml:"additional_annotations"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
@@ -2257,7 +2257,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 		return nil, augmentYamlError(err, b.comments)
 	}
 
-	if b.regoV1Compatible && !raw.AllowUnknownAnnotations {
+	if b.regoV1Compatible && !raw.AdditionalAnnotations {
 		var allAnnotations map[string]interface{}
 		if err := yaml.Unmarshal(b.buf.Bytes(), &allAnnotations); err == nil {
 			// we passed unmarshalling once, so we should never have an error
@@ -2270,7 +2270,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 			delete(allAnnotations, "authors")
 			delete(allAnnotations, "schemas")
 			delete(allAnnotations, "custom")
-			delete(allAnnotations, "allow_unknown_annotations")
+			delete(allAnnotations, "additional_annotations")
 
 			if len(allAnnotations) > 0 {
 				unknownAnnotations := make([]string, 0, len(allAnnotations))
@@ -2289,7 +2289,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	result.Title = raw.Title
 	result.Description = raw.Description
 	result.Organizations = raw.Organizations
-	result.AllowUnknownAnnotations = raw.AllowUnknownAnnotations
+	result.AdditionalAnnotations = raw.AdditionalAnnotations
 
 	for _, v := range raw.RelatedResources {
 		rr, err := parseRelatedResource(v)

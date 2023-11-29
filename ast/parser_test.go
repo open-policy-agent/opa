@@ -5214,15 +5214,15 @@ import rego.v1
 
 # METADATA
 # title: P
-# allow_unknown_annotations: true
+# additional_annotations: true
 # foo: bar
 p := 1`,
 			expNumComments: 4,
 			expAnnotations: []*Annotations{
 				{
-					Title:                   "P",
-					Scope:                   annotationScopeRule,
-					AllowUnknownAnnotations: true,
+					Title:                 "P",
+					Scope:                 annotationScopeRule,
+					AdditionalAnnotations: true,
 				},
 			},
 		},
@@ -5233,7 +5233,7 @@ import rego.v1
 
 # METADATA
 # title: P
-# allow_unknown_annotations: false
+# additional_annotations: false
 # foo: bar
 p := 1`,
 			expNumComments: 4,

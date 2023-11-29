@@ -27,17 +27,17 @@ const (
 type (
 	// Annotations represents metadata attached to other AST nodes such as rules.
 	Annotations struct {
-		Scope                   string                       `json:"scope"`
-		Title                   string                       `json:"title,omitempty"`
-		Entrypoint              bool                         `json:"entrypoint,omitempty"`
-		Description             string                       `json:"description,omitempty"`
-		Organizations           []string                     `json:"organizations,omitempty"`
-		RelatedResources        []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
-		Authors                 []*AuthorAnnotation          `json:"authors,omitempty"`
-		Schemas                 []*SchemaAnnotation          `json:"schemas,omitempty"`
-		Custom                  map[string]interface{}       `json:"custom,omitempty"`
-		Location                *Location                    `json:"location,omitempty"`
-		AllowUnknownAnnotations bool                         `json:"allow_unknown_annotations"`
+		Scope                 string                       `json:"scope"`
+		Title                 string                       `json:"title,omitempty"`
+		Entrypoint            bool                         `json:"entrypoint,omitempty"`
+		Description           string                       `json:"description,omitempty"`
+		Organizations         []string                     `json:"organizations,omitempty"`
+		RelatedResources      []*RelatedResourceAnnotation `json:"related_resources,omitempty"`
+		Authors               []*AuthorAnnotation          `json:"authors,omitempty"`
+		Schemas               []*SchemaAnnotation          `json:"schemas,omitempty"`
+		Custom                map[string]interface{}       `json:"custom,omitempty"`
+		Location              *Location                    `json:"location,omitempty"`
+		AdditionalAnnotations bool                         `json:"additional_annotations"`
 
 		comments    []*Comment
 		node        Node
@@ -167,8 +167,8 @@ func (a *Annotations) Compare(other *Annotations) int {
 		return cmp
 	}
 
-	if a.AllowUnknownAnnotations != other.AllowUnknownAnnotations {
-		if a.AllowUnknownAnnotations {
+	if a.AdditionalAnnotations != other.AdditionalAnnotations {
+		if a.AdditionalAnnotations {
 			return 1
 		}
 		return -1
@@ -237,8 +237,8 @@ func (a *Annotations) MarshalJSON() ([]byte, error) {
 		data["custom"] = a.Custom
 	}
 
-	if a.AllowUnknownAnnotations {
-		data["allow_unknown_annotations"] = a.AllowUnknownAnnotations
+	if a.AdditionalAnnotations {
+		data["additional_annotations"] = a.AdditionalAnnotations
 	}
 
 	if a.jsonOptions.MarshalOptions.IncludeLocation.Annotations {
@@ -518,8 +518,8 @@ func (a *Annotations) toObject() (*Object, *Error) {
 		obj.Insert(StringTerm("custom"), NewTerm(c))
 	}
 
-	if a.AllowUnknownAnnotations {
-		obj.Insert(StringTerm("allow_unknown_annotations"), BooleanTerm(true))
+	if a.AdditionalAnnotations {
+		obj.Insert(StringTerm("additional_annotations"), BooleanTerm(true))
 	}
 
 	return &obj, nil

@@ -280,8 +280,8 @@ func populateAnnotations(out io.Writer, refs []*ast.AnnotationsRef) error {
 					fmt.Fprintln(out)
 				}
 
-				if a.AllowUnknownAnnotations {
-					fmt.Fprintln(out, "Allow Unknown Annotations:", a.AllowUnknownAnnotations)
+				if a.AdditionalAnnotations {
+					fmt.Fprintln(out, "Additional Annotations:", a.AdditionalAnnotations)
 				}
 
 				if len(a.Custom) > 0 {
