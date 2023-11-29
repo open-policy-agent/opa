@@ -454,6 +454,9 @@ roughly the same as for XACML: attributes of users, actions, and resources.
 
 ```live:xacml:module:openable
 package xacml
+
+import future.keywords
+
 # METADATA
 # title: urn:curtiss:ba:taa:taa-1.1
 # description: Policy for Business Authorization category TAA-1.1
@@ -462,17 +465,14 @@ permit {
     # Check that resource has a "NavigationSystem" entry
     input.resource["NavigationSystem"]
 
-    # Check that organization is one of the options (underscore implements "any")
-    org_options := ["Packard", "Curtiss"]
-    input.user.organization == org_options[_]
+    # Check that organization is one of the options
+    input.user.organization in ["Packard", "Curtiss"]
 
-    # Check that nationality is one of the options (underscore implements "any")
-    nationality_options := ["GB", "US"]
-    input.user.nationality == nationality_options[_]
+    # Check that nationality is one of the options
+    input.user.nationality in ["GB", "US"]
 
-    # Check that work_effort is one of the options (underscore implements "any")
-    work_options := ["DetailedDesign", "Simulation"]
-    input.user.work_effort == work_options[_]
+    # Check that work_effort is one of the options
+    input.user.work_effort in ["DetailedDesign", "Simulation"]
 }
 ```
 
