@@ -106,7 +106,6 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 
 	verified, err := verifyX509CertificateChain(certs)
 	if err != nil {
-		panic(err)
 		return iter(invalid)
 	}
 
