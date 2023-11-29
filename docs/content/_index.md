@@ -378,7 +378,7 @@ to express _FOR SOME_ and _FOR ALL_ more explicitly.
 {{< info >}}
 To ensure backwards-compatibility, the keywords discussed below introduced slowly.
 In the first stage, users can opt-in to using the new keywords via a special import:
-`import future.keywords.every` introduces the `every` keyword described here.
+`import rego.v1` or, alternatively, `import future.keywords.every` introduces the `every` keyword described here.
 (Importing `every` means also importing `in` without an extra `import` statement.)
 
 At some point in the future, the keyword will become _standard_, and the import will
@@ -586,8 +586,8 @@ public_network contains net.id if {
 }
 ```
 
-In the example above `public_network[net.id]` is the rule head and `net :=
-input.networks[_]; net.public` is the rule body. You can query for the entire
+In the example above `public_network contains net.id if` is the rule head and
+`some net in input.networks; net.public` is the rule body. You can query for the entire
 set of values just like any other value:
 
 ```live:example/partial_set/1/extent:query:merge_down
@@ -810,8 +810,8 @@ curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa
 
 {{< info >}}
 Windows users can obtain the OPA executable from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe).
-The steps below are the same for Windows users except the executable name will be different.  
-Windows executable file name is opa_windows_amd64.exe, which inclues file extension name 'exe'. The checksums file name is opa_windows_amd64.exe.sha256.  
+The steps below are the same for Windows users except the executable name will be different.
+Windows executable file name is opa_windows_amd64.exe, which inclues file extension name 'exe'. The checksums file name is opa_windows_amd64.exe.sha256.
 Windows users can obtain the checksums from [here](https://openpolicyagent.org/downloads/{{< current_version >}}/opa_windows_amd64.exe.sha256).
 {{< /info >}}
 

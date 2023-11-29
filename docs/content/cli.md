@@ -368,8 +368,7 @@ Given a policy like this:
 
 	package policy
 
-	import future.keywords.if
-	import future.keywords.in
+	import rego.v1
 
 	allow if is_admin
 
@@ -646,12 +645,11 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-  -d, --diff      only display a diff of the changes
-      --fail      non zero exit code on reformat
-  -h, --help      help for fmt
-  -l, --list      list all files who would change when formatted
-      --rego-v1   format as Rego v1
-  -w, --write     overwrite the original source file
+  -d, --diff    only display a diff of the changes
+      --fail    non zero exit code on reformat
+  -h, --help    help for fmt
+  -l, --list    list all files who would change when formatted
+  -w, --write   overwrite the original source file
 ```
 
 ____
@@ -1021,7 +1019,7 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	import future.keywords.if
+	import rego.v1
 
 	allow if {
 		input.path == ["users"]
@@ -1037,25 +1035,27 @@ Example test (example/authz_test.rego):
 
 	package authz_test
 
+	import rego.v1
+
 	import data.authz.allow
 
-	test_post_allowed {
+	test_post_allowed if {
 		allow with input as {"path": ["users"], "method": "POST"}
 	}
 
-	test_get_denied {
+	test_get_denied if {
 		not allow with input as {"path": ["users"], "method": "GET"}
 	}
 
-	test_get_user_allowed {
+	test_get_user_allowed if {
 		allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
 	}
 
-	test_get_another_user_denied {
+	test_get_another_user_denied if {
 		not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
 	}
 
-	todo_test_user_allowed_http_client_data {
+	todo_test_user_allowed_http_client_data if {
 		false # Remember to test this later!
 	}
 

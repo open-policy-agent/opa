@@ -1677,6 +1677,7 @@ In the first stage, users can opt-in to using the new keywords via a special imp
 
 * `import future.keywords` introduces _all_ future keywords, and
 * `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
+* `import rego.v1` introduces all future keywords, and enforces the use of `if` and `contains` in rule heads where applicable.
 
 {{< danger >}}
 Using `import future.keywords` to import all future keywords means an **opt-out of a
@@ -1819,7 +1820,7 @@ For using the `some` keyword with iteration, see
 {{< info >}}
 `every` is a future keyword and needs to be imported.
 
-`import future.keywords.every` introduces the `every` keyword described here.
+`import rego.v1` or, alternatively, `import future.keywords.every` introduces the `every` keyword described here.
 
 [See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
@@ -2210,7 +2211,7 @@ limit imposed on the number of `else` clauses on a rule.
 {{< info >}}
 To ensure backwards-compatibility, new keywords (like `in`) are introduced slowly.
 In the first stage, users can opt-in to using the new keywords via a special import:
-`import future.keywords.in` and `rego.v1` introduces the `in` keyword described here.
+`import rego.v1` or, alternatively, `import future.keywords.in` introduces the `in` keyword described here.
 
 [See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}

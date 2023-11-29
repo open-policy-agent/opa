@@ -159,10 +159,12 @@ must be provided on startup. The authorization policy must be structured as foll
 # system.authz as follows:
 package system.authz
 
-default allow := false  # Reject requests by default.
+import rego.v1
 
-allow {
-  # Logic to authorize request goes here.
+default allow := false # Reject requests by default.
+
+allow if {
+	# Logic to authorize request goes here.
 }
 ```
 
@@ -265,9 +267,11 @@ identity:
 ```live:system_authz_secret:module:read_only
 package system.authz
 
-default allow := false           # Reject requests by default.
+import rego.v1
 
-allow {                         # Allow request if...
+default allow := false          # Reject requests by default.
+
+allow if {                      # Allow request if...
     "secret" == input.identity  # Identity is the secret root key.
 }
 ```
@@ -315,18 +319,20 @@ follows:
 ```live:system_authz_object_resp:module:read_only
 package system.authz
 
+import rego.v1
+
 default allow := {
-    "allowed": false,
-    "reason": "unauthorized resource access"
+	"allowed": false,
+	"reason": "unauthorized resource access",
 }
 
-allow := { "allowed": true } {   # Allow request if...
-    "secret" == input.identity  # identity is the secret root key.
+allow := {"allowed": true} if { # Allow request if...
+	"secret" == input.identity # identity is the secret root key.
 }
 
-allow := { "allowed": false, "reason": reason } {
-    not input.identity
-    reason := "no identity provided"
+allow := {"allowed": false, "reason": reason} if {
+	not input.identity
+	reason := "no identity provided"
 }
 ```
 
@@ -337,6 +343,8 @@ validate the identity:
 
 ```live:system_authz_bearer:module:read_only
 package system.authz
+
+import rego.v1
 
 # Tokens may defined in policy or pushed into OPA as data.
 tokens := {
@@ -351,14 +359,14 @@ tokens := {
     }
 }
 
-default allow := false           # Reject requests by default.
+default allow := false          # Reject requests by default.
 
-allow {                         # Allow request if...
+allow if {                      # Allow request if...
     input.identity == "secret"  # Identity is the secret root key.
 }
 
-allow {                        # Allow request if...
-    tokens[input.identity]     # Identity exists in "tokens".
+allow if {                      # Allow request if...
+    tokens[input.identity]      # Identity exists in "tokens".
 }
 ```
 
@@ -367,6 +375,8 @@ documents:
 
 ```live:system_authz_bearer_complete:module:read_only
 package system.authz
+
+import rego.v1
 
 # Rights may be defined in policy or pushed into OPA as data.
 rights := {
@@ -396,19 +406,19 @@ tokens := {
 
 default allow := false               # Reject requests by default.
 
-allow {                             # Allow request if...
+allow if { # Allow request if...
     some right
-    identity_rights[right]          # Rights for identity exist, and...
-    right.path == "*"               # Right.path is '*'.
+    identity_rights[right]           # Rights for identity exist, and...
+    right.path == "*"                # Right.path is '*'.
 }
 
-allow {                             # Allow request if...
+allow if { # Allow request if...
     some right
-    identity_rights[right]          # Rights for identity exist, and...
-    right.path == input.path        # Right.path matches input.path.
+    identity_rights[right]           # Rights for identity exist, and...
+    right.path == input.path         # Right.path matches input.path.
 }
 
-identity_rights[right] {             # Right is in the identity_rights set if...
+identity_rights contains right if {  # Right is in the identity_rights set if...
     token := tokens[input.identity]  # Token exists for identity, and...
     role := token.roles[_]           # Token has a role, and...
     right := rights[role]            # Role has rights defined.
@@ -506,28 +516,27 @@ information such as which paths are allowed.
 ```live:system_authz_x509:module:read_only
 package system.authz
 
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 id_uri := input.client_certificates[0].URIs[0]
 id_string := sprintf("%s://%s%s", [id_uri.Scheme, id_uri.Host, id_uri.Path])
 
 # client_acl represents an access control list and may defined in policy or pushed into OPA as data changes.
 client_acl := {
-  "spiffe://example.com/client-1": [["v1", "data"]],
-  "spiffe://example.com/client-2": [],
+	"spiffe://example.com/client-1": [["v1", "data"]],
+	"spiffe://example.com/client-2": [],
 }
 
 default allow := {"allowed": false, "reason": "Access denied: unknown caller"}
 
-allow := { "allowed": true } if {
-  input.path in client_acl[id_string]
+allow := {"allowed": true} if {
+	input.path in client_acl[id_string]
 } else := {
-  "allowed": false,
-  "reason": sprintf("%s is not allowed to call /%s", [
-    id_string,
-    concat("/", input.path),
-  ])
+	"allowed": false,
+	"reason": sprintf("%s is not allowed to call /%s", [
+		id_string,
+		concat("/", input.path),
+	]),
 }
 ```
 
@@ -627,13 +636,15 @@ clients access to the default policy decision, i.e., `POST /`:
 ```live:hardened_example:module:read_only
 package system.authz
 
+import rego.v1
+
 # Deny access by default.
 default allow := false
 
 # Allow anonymous access to the default policy decision.
-allow {
-    input.method == "POST"
-    input.path == [""]
+allow if {
+	input.method == "POST"
+	input.path == [""]
 }
 ```
 

@@ -160,6 +160,8 @@ and non-admins to only SSH into hosts that they contributed code to.
 ```live:sshd_authz:module:read_only
 package sshd.authz
 
+import rego.v1
+
 import input.pull_responses
 import input.sysinfo
 
@@ -169,8 +171,8 @@ import data.hosts
 default allow := false
 
 # Allow access to any user that has the "admin" role.
-allow {
-    data.roles["admin"][_] == input.sysinfo.pam_username
+allow if {
+	data.roles.admin[_] == input.sysinfo.pam_username
 }
 
 # Allow access to any user who contributed to the code running on the host.
@@ -181,13 +183,13 @@ allow {
 #
 # It then compares all the contributors for that host against the username
 # that is asking for authorization.
-allow {
-    hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
+allow if {
+	hosts[pull_responses.files["/etc/host_identity.json"].host_id].contributors[_] == sysinfo.pam_username
 }
 
 # If the user is not authorized, then include an error message in the response.
-errors["Request denied by administrative policy"] {
-    not allow
+errors contains "Request denied by administrative policy" if {
+	not allow
 }
 ```
 
@@ -200,17 +202,19 @@ Create the `sudo` authorization policy. It should allow only admins to use `sudo
 ```live:sudo_authz:module:read_only
 package sudo.authz
 
+import rego.v1
+
 # By default, users are not authorized.
 default allow := false
 
 # Allow access to any user that has the "admin" role.
-allow {
-    data.roles["admin"][_] == input.sysinfo.pam_username
+allow if {
+	data.roles.admin[_] == input.sysinfo.pam_username
 }
 
 # If the user is not authorized, then include an error message in the response.
-errors["Request denied by administrative policy"] {
-    not allow
+errors contains "Request denied by administrative policy" if {
+	not allow
 }
 ```
 
@@ -371,14 +375,16 @@ Then we need to make sure that the authorization takes this input into account.
 # A package can be defined across multiple files.
 package sudo.authz
 
+import rego.v1
+
 import data.elevate
-import input.sysinfo
 import input.display_responses
+import input.sysinfo
 
 # Allow this user if the elevation ticket they provided matches our mock API
 # of an internal elevation system.
-allow {
-    elevate.tickets[sysinfo.pam_username] == display_responses.ticket
+allow if {
+	elevate.tickets[sysinfo.pam_username] == display_responses.ticket
 }
 ```
 
