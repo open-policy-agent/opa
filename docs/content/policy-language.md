@@ -2710,6 +2710,7 @@ organizations | list of strings | A list of organizations related to the annotat
 schemas | list of object | A list of associations between value paths and schema definitions. Read more [here](#schemas).
 entrypoint | boolean | Whether or not the annotation target is to be used as a policy entrypoint. Read more [here](#entrypoint).
 custom | mapping of arbitrary data | A custom mapping of named parameters holding arbitrary data. Read more [here](#custom).
+additional_annotations | boolean | Don't reject unknown annotations. Read more [here](#additional-annotations).
 
 ### Scope
 
@@ -2960,6 +2961,25 @@ The `custom` annotation is a mapping of user-defined data, mapping string keys t
 #   a: 1
 #   b: 2
 allow {
+  ...
+}
+```
+
+### Additional Annotations
+
+When OPA 1.0 compatibility is enabled through `import rego.v1`, 
+OPA will reject any unknown annotations outside of the [custom](#custom) annotation. 
+This is to ensure that future versions of OPA can safely introduce new annotations without breaking existing policies.
+This behaviour can be disabled by setting the `additional_annotations` annotation to `true`, 
+whereby unknown annotations won't abort compilation with an error.
+
+#### Example
+
+```live:rego/metadata/additional_annotations:module:read_only
+# METADATA
+# additional_annotations: true
+# foo: bar
+allow if {
   ...
 }
 ```
