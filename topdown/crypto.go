@@ -56,12 +56,34 @@ func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, 
 		return err
 	}
 
-	v, err := ast.InterfaceToValue(certs)
+	v, err := ast.InterfaceToValue(extendCertificates(certs))
 	if err != nil {
 		return err
 	}
 
 	return iter(ast.NewTerm(v))
+}
+
+// extendedCert is a wrapper around x509.Certificate that adds additional fields for JSON serialization.
+type extendedCert struct {
+	x509.Certificate
+	URIStrings []string
+}
+
+func extendCertificates(certs []*x509.Certificate) []extendedCert {
+	// add a field to certs containing the URIs as strings
+	processedCerts := make([]extendedCert, len(certs))
+
+	for i, cert := range certs {
+		processedCerts[i].Certificate = *cert
+		if cert.URIs != nil {
+			processedCerts[i].URIStrings = make([]string, len(cert.URIs))
+			for j, uri := range cert.URIs {
+				processedCerts[i].URIStrings[j] = uri.String()
+			}
+		}
+	}
+	return processedCerts
 }
 
 func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -87,7 +109,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 		return iter(invalid)
 	}
 
-	value, err := ast.InterfaceToValue(verified)
+	value, err := ast.InterfaceToValue(extendCertificates(verified))
 	if err != nil {
 		return err
 	}
