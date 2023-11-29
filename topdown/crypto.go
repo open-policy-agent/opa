@@ -56,7 +56,7 @@ func builtinCryptoX509ParseCertificates(_ BuiltinContext, operands []*ast.Term, 
 		return err
 	}
 
-	v, err := ast.InterfaceToValue(extentCertificates(certs))
+	v, err := ast.InterfaceToValue(extendCertificates(certs))
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ type extendedCert struct {
 	URIStrings []string
 }
 
-func extentCertificates(certs []*x509.Certificate) []extendedCert {
+func extendCertificates(certs []*x509.Certificate) []extendedCert {
 	// add a field to certs containing the URIs as strings
 	processedCerts := make([]extendedCert, len(certs))
 
@@ -106,10 +106,11 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 
 	verified, err := verifyX509CertificateChain(certs)
 	if err != nil {
+		panic(err)
 		return iter(invalid)
 	}
 
-	value, err := ast.InterfaceToValue(extentCertificates(verified))
+	value, err := ast.InterfaceToValue(extendCertificates(verified))
 	if err != nil {
 		return err
 	}
