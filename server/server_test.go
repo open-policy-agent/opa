@@ -5144,8 +5144,8 @@ func TestCertPoolReloading(t *testing.T) {
 	}
 
 	_, err = client.Do(req)
-	if !strings.Contains(err.Error(), "bad certificate") {
-		t.Fatalf("expected bad certificate error, got %s", err.Error())
+	if !strings.Contains(err.Error(), "remote error: tls") {
+		t.Fatalf("expected unknown certificate authority error but got: %s", err)
 	}
 
 	// update the cert pool file to include the CA cert
@@ -5167,7 +5167,6 @@ func TestCertPoolReloading(t *testing.T) {
 		}
 
 		_, err = client.Do(req)
-		t.Log(err)
 		if err != nil {
 			t.Log("server still doesn't trust client cert")
 			retries--
