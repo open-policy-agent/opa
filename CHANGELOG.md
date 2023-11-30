@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.59.0
 
 This release adds tooling to help prepare existing policies for the upcoming OPA 1.0 release.
