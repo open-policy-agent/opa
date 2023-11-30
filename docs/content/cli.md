@@ -345,6 +345,7 @@ opa check <path> [path [...]] [flags]
   -h, --help                   help for check
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -m, --max-errors int         set the number of errors to allow before compilation fails early (default 10)
+      --rego-v1                check for Rego v1 compatibility (policies must also be compatible with current OPA version)
   -s, --schema string          set schema file path or directory path
   -S, --strict                 enable compiler strict mode
 ```
