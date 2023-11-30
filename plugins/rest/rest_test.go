@@ -1881,6 +1881,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 	token := "secret"
+	plaintext := "plaintext"
 	ts := testServer{t: t, expBearerToken: token}
 	ts.start()
 	defer ts.stop()
@@ -1892,8 +1893,12 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 			"bearer": {
 				"token": %q
 			}
+		},
+		"headers": {
+			"X-AMZ-SECURITY-TOKEN": %q,
+			"remains-unmasked": %q
 		}
-	}`, ts.server.URL, token)
+	}`, ts.server.URL, token, token, plaintext)
 	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -1908,21 +1913,22 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	var reqLogFound bool
-	for _, entry := range logger.Entries() {
-		if entry.Fields["headers"] != nil {
-			headers := entry.Fields["headers"].(http.Header)
-			authzHeader := headers.Get("Authorization")
-			if authzHeader != "" {
-				reqLogFound = true
-				if authzHeader != "REDACTED" {
-					t.Errorf("Excpected redacted Authorization header value, got %v", authzHeader)
-				}
-			}
-		}
+	entries := logger.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 log entries, got %d", len(entries))
 	}
-	if !reqLogFound {
-		t.Fatalf("Expected log entry from request")
+
+	requestEntry := entries[0]
+	headers := requestEntry.Fields["headers"].(http.Header)
+	for k := range headers {
+		v := headers.Get(k)
+		if _, ok := maskedHeaderKeys[k]; ok {
+			if v != "REDACTED" {
+				t.Errorf("Expected redacted %q header value, got %v", k, v)
+			}
+		} else if k == "Remains-Unmasked" && v != plaintext {
+			t.Errorf("Expected %q header to have value %q, got %v", k, plaintext, v)
+		}
 	}
 }
 

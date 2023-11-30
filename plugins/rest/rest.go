@@ -32,6 +32,11 @@ const (
 	grantTypeJwtBearer         = "jwt_bearer"
 )
 
+var maskedHeaderKeys = map[string]struct{}{
+	"Authorization":        {},
+	"X-Amz-Security-Token": {},
+}
+
 // An HTTPAuthPlugin represents a mechanism to construct and configure HTTP authentication for a REST service
 type HTTPAuthPlugin interface {
 	// implementations can assume NewClient will be called before Prepare
@@ -322,7 +327,7 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 		c.loggerFields = map[string]interface{}{
 			"method":  method,
 			"url":     url,
-			"headers": withMaskedAuthorizationHeader(req.Header),
+			"headers": withMaskedHeaders(req.Header),
 		}
 
 		c.logger.WithFields(c.loggerFields).Debug("Sending request.")
@@ -354,15 +359,14 @@ func (c Client) Do(ctx context.Context, method, path string) (*http.Response, er
 	return resp, err
 }
 
-func withMaskedAuthorizationHeader(headers http.Header) http.Header {
-	authzHeader := headers.Get("Authorization")
-	if authzHeader != "" {
-		masked := make(http.Header)
-		for k, v := range headers {
+func withMaskedHeaders(headers http.Header) http.Header {
+	masked := make(http.Header)
+	for k, v := range headers {
+		if _, ok := maskedHeaderKeys[k]; ok {
+			masked.Set(k, "REDACTED")
+		} else {
 			masked[k] = v
 		}
-		masked.Set("Authorization", "REDACTED")
-		return masked
 	}
-	return headers
+	return masked
 }

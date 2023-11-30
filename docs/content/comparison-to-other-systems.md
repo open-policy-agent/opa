@@ -362,65 +362,89 @@ allow
 
 ## XACML
 
-eXtensible Access Control Markup Language (XACML) was designed to express security policies: allow/deny decisions  using attributes of users, resources, actions, and the environment.
-The following policy says that users from the organization Curtiss or Packard who are US or GreatBritain nationals and who work on DetailedDesign or Simulation are permitted access to documents about NavigationSystems.
+eXtensible Access Control Markup Language (XACML) was designed to express security policies: allow/deny decisions using attributes of users, resources, actions, and the environment.
+The following policy says that users from the organization Curtiss or Packard who are US or Great Britain nationals and who work on DetailedDesign or Simulation are permitted access to documents about NavigationSystems.
 
 ```xml
-<Policy PolicyId="urn:curtiss:ba:taa:taa-1.1" RuleCombiningAlgId="urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:deny-overrides">
+<Policy xmlns="urn:oasis:names:tc:xacml:3.0:core:schema:wd-17" PolicyId="urn:curtiss:ba:taa"
+  Version="1.1"
+  RuleCombiningAlgId="urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-unless-permit">
   <Description>Policy for Business Authorization category TAA-1.1</Description>
-  <Target>
-    <AnyOf>
-      <AllOf>
-        <Match
-         MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">NavigationSystem</AttributeValue>
-          <AttributeDesignator
-           MustBePresent="true"
-           Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
-           AttributeId="urn:curtiss:names:tc:xacml:1.0:resource:Topics"
-           DataType="http://www.w3.org/2001/XMLSchema#string"/>
-        </Match>
-      </AllOf>
-    </AnyOf>
-  </Target>
-  <Rule Effect="Permit">
-    <Description />
+  <Target />
+  <Rule RuleId="Rule for NavigationSystems" Effect="Permit">
     <Target>
-      <Actions>
-        <Action>
-          <ActionMatch MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
-            <ActionAttributeDesignator
-              AttributeId="urn:oasis:names:tc:xacml:1.0:action:action-id"
-              DataType="http://www.w3.org/2001/XMLSchema#string" />
-            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Any</AttributeValue>
-          </ActionMatch>
-        </Action>
-      </Actions>
+      <AnyOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">NavigationSystem</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:3.0:attribute-category:resource"
+              AttributeId="urn:curtiss:names:tc:xacml:1.0:resource:Topics"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+      </AnyOf>
+      <AnyOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Packard</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/OrganizationID"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Curtiss</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/OrganizationID"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+      </AnyOf>
+      <AnyOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">GB</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/Nationality"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">US</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/Nationality"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+      </AnyOf>
+      <AnyOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">DetailedDesign</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/Work-Effort"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+        <AllOf>
+          <Match MatchId="urn:oasis:names:tc:xacml:1.0:function:string-equal">
+            <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Simulation</AttributeValue>
+            <AttributeDesignator
+              Category="urn:oasis:names:tc:xacml:1.0:subject-category:access-subject"
+              AttributeId="http://schemas.tscp.org/2012-03/claims/Work-Effort"
+              DataType="http://www.w3.org/2001/XMLSchema#string" MustBePresent="true" />
+          </Match>
+        </AllOf>
+      </AnyOf>
     </Target>
-    <Condition FunctionId="urn:oasis:names:tc:xacml:1.0:function:and">
-      <Apply xsi:type="AtLeastMemberOf" functionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
-        <Apply functionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Curtiss</AttributeValue>
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Packard</AttributeValue>
-        </Apply>
-        <AttributeDesignator AttributeId="http://schemas.tscp.org/2012-03/claims/OrganizationID" DataType="http://www.w3.org/2001/XMLSchema#string" />
-      </Apply>
-      <Apply xsi:type="AtLeastMemberOf" functionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
-        <Apply functionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">US</AttributeValue>
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">GB</AttributeValue>
-        </Apply>
-        <AttributeDesignator AttributeId="http://schemas.tscp.org/2012-03/claims/Nationality" DataType="http://www.w3.org/2001/XMLSchema#string" />
-      </Apply>
-      <Apply xsi:type="AtLeastMemberOf" functionId="urn:oasis:names:tc:xacml:1.0:function:string-at-least-one-member-of">
-        <Apply functionId="urn:oasis:names:tc:xacml:1.0:function:string-bag">
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">DetailedDesign</AttributeValue>
-          <AttributeValue DataType="http://www.w3.org/2001/XMLSchema#string">Simulation</AttributeValue>
-        </Apply>
-        <AttributeDesignator AttributeId="http://schemas.tscp.org/2012-03/claims/Work-Effort" DataType="http://www.w3.org/2001/XMLSchema#string" />
-      </Apply>
-      <Apply xsi:type="AndFunction" functionId="urn:oasis:names:tc:xacml:1.0:function:and" />
-    </Condition>
   </Rule>
 </Policy>
 ```
@@ -431,21 +455,24 @@ roughly the same as for XACML: attributes of users, actions, and resources.
 ```live:xacml:module:openable
 package xacml
 
+import future.keywords
+
+# METADATA
+# title: urn:curtiss:ba:taa:taa-1.1
+# description: Policy for Business Authorization category TAA-1.1
+default permit := false
 permit {
     # Check that resource has a "NavigationSystem" entry
     input.resource["NavigationSystem"]
 
-    # Check that organization is one of the options (underscore implements "any")
-    org_options := ["Packard", "Curtiss"]
-    input.user.organization == org_options[_]
+    # Check that organization is one of the options
+    input.user.organization in ["Packard", "Curtiss"]
 
-    # Check that nationality is one of the options (underscore implements "any")
-    nationality_options := ["GB", "US"]
-    input.user.nationality == nationality_options[_]
+    # Check that nationality is one of the options
+    input.user.nationality in ["GB", "US"]
 
-    # Check that work_effort is one of the options (underscore implements "any")
-    work_options := ["DetailedDesign", "Simulation"]
-    input.user.work_effort == work_options[_]
+    # Check that work_effort is one of the options
+    input.user.work_effort in ["DetailedDesign", "Simulation"]
 }
 ```
 
