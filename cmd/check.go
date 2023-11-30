@@ -25,6 +25,7 @@ type checkParams struct {
 	capabilities *capabilitiesFlag
 	schema       *schemaFlags
 	strict       bool
+	regoV1       bool
 }
 
 func newCheckParams() checkParams {
@@ -64,6 +65,7 @@ func checkModules(params checkParams, args []string) error {
 	if params.bundleMode {
 		for _, path := range args {
 			b, err := loader.NewFileLoader().
+				WithRegoV1Compatible(params.regoV1).
 				WithSkipBundleVerification(true).
 				WithProcessAnnotation(true).
 				WithCapabilities(capabilities).
@@ -82,6 +84,7 @@ func checkModules(params checkParams, args []string) error {
 		}
 
 		result, err := loader.NewFileLoader().
+			WithRegoV1Compatible(params.regoV1).
 			WithProcessAnnotation(true).
 			WithCapabilities(capabilities).
 			Filtered(args, f.Apply)
@@ -165,5 +168,6 @@ func init() {
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
+	checkCommand.Flags().BoolVar(&checkParams.regoV1, "rego-v1", false, "check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
 	RootCommand.AddCommand(checkCommand)
 }

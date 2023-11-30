@@ -106,6 +106,7 @@ type ParserOptions struct {
 	SkipRules          bool
 	JSONOptions        *astJSON.Options
 	unreleasedKeywords bool // TODO(sr): cleanup
+	RegoV1Compatible   bool
 }
 
 // NewParser creates and initializes a Parser.
