@@ -644,21 +644,24 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 			// This is not required, but appears to be how connect time updates config should be done:
 			// https://github.com/golang/go/issues/16066#issuecomment-250606132
 			GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
-				return &tls.Config{
+				cfg := &tls.Config{
 					GetCertificate: s.getCertificate,
 					ClientCAs:      s.certPool,
-				}, nil
+				}
+
+				if s.authentication == AuthenticationTLS {
+					cfg.ClientAuth = tls.RequireAndVerifyClientCert
+				}
+
+				if s.minTLSVersion != 0 {
+					cfg.MinVersion = s.minTLSVersion
+				} else {
+					cfg.MinVersion = defaultMinTLSVersion
+				}
+
+				return cfg, nil
 			},
 		},
-	}
-	if s.authentication == AuthenticationTLS {
-		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
-	}
-
-	if s.minTLSVersion != 0 {
-		httpsServer.TLSConfig.MinVersion = s.minTLSVersion
-	} else {
-		httpsServer.TLSConfig.MinVersion = defaultMinTLSVersion
 	}
 
 	l := newHTTPListener(&httpsServer, t)

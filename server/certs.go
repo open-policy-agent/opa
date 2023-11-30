@@ -58,11 +58,12 @@ func (s *Server) reloadTLSConfig(logger logging.Logger) error {
 
 	// if the server has a cert pool configured, also attempt to reload this
 	if s.certPoolFile != "" {
-		pool, updated, err := reloadCertificatePool(s.certPoolFile, s.certPoolFileHash, logger)
+		pool, certPoolFileHash, updated, err := reloadCertificatePool(s.certPoolFile, s.certPoolFileHash, logger)
 		if err != nil {
 			errs = errors.Join(errs, err)
 		} else if updated {
 			s.certPool = pool
+			s.certPoolFileHash = certPoolFileHash
 			logger.Debug("Refreshed server CA certificate pool.")
 		}
 	}
@@ -71,26 +72,26 @@ func (s *Server) reloadTLSConfig(logger logging.Logger) error {
 }
 
 // reloadCertificatePool loads the CA cert pool from the given file and returns a new pool if the file has changed.
-func reloadCertificatePool(certPoolFile string, certPoolFileHash []byte, logger logging.Logger) (*x509.CertPool, bool, error) {
+func reloadCertificatePool(certPoolFile string, certPoolFileHash []byte, logger logging.Logger) (*x509.CertPool, []byte, bool, error) {
 	certPoolHash, err := hash(certPoolFile)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to hash CA cert pool file: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to hash CA cert pool file: %w", err)
 	}
 
 	if bytes.Equal(certPoolFileHash, certPoolHash) {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 	caCertPEM, err := os.ReadFile(certPoolFile)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to read CA cert pool file %q: %w", certPoolFile, err)
+		return nil, nil, false, fmt.Errorf("failed to read CA cert pool file %q: %w", certPoolFile, err)
 	}
 
 	pool := x509.NewCertPool()
 	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
-		return nil, false, fmt.Errorf("failed to load CA cert pool file %q", certPoolFile)
+		return nil, nil, false, fmt.Errorf("failed to load CA cert pool file %q", certPoolFile)
 	}
 
-	return pool, true, nil
+	return pool, certPoolHash, true, nil
 }
 
 // reloadCertificateKeyPair loads the certificate and key from the given files and returns a new certificate if either

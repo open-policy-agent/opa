@@ -4863,6 +4863,328 @@ func TestDistributedTracingEnabled(t *testing.T) {
 	}
 }
 
+func TestCertPoolReloading(t *testing.T) {
+
+	ctx := context.Background()
+
+	tempDir := t.TempDir()
+
+	serverCertPath := filepath.Join(tempDir, "serverCert.pem")
+	serverCertKeyPath := filepath.Join(tempDir, "serverCertKey.pem")
+	clientCertPath := filepath.Join(tempDir, "clientCert.pem")
+	clientCertKeyPath := filepath.Join(tempDir, "clientCertKey.pem")
+	caCertPath := filepath.Join(tempDir, "ca.pem")
+
+	san := net.ParseIP("127.0.0.1")
+
+	// create the CA cert used in the cert pool and for signing server certs
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caSerial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	caSubj := pkix.Name{
+		CommonName:   "CA",
+		SerialNumber: caSerial.String(),
+	}
+	caTemplate := &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             caKey.Public(),
+		SerialNumber:          caSerial,
+		Issuer:                caSubj,
+		Subject:               caSubj,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(100 * time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		IsCA:                  true,
+		DNSNames:              nil,
+		EmailAddresses:        nil,
+		IPAddresses:           nil,
+	}
+
+	caCertData, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, caKey.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caCertPEMEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertData,
+	})
+
+	// we write an empty file for now
+	err = os.WriteFile(caCertPath, []byte{}, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a cert and key for the server to load at startup
+	var serverCert tls.Certificate
+
+	serverCertKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverCert.PrivateKey = serverCertKey
+
+	serverCertSerial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverCertTemplate := &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             serverCertKey.Public(),
+		SerialNumber:          serverCertSerial,
+		Issuer:                caSubj,
+		Subject: pkix.Name{
+			CommonName:   "Server 1",
+			SerialNumber: serverCertSerial.String(),
+		},
+		NotBefore:      time.Now(),
+		NotAfter:       time.Now().Add(99 * time.Hour * 24 * 365),
+		KeyUsage:       x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IsCA:           false,
+		DNSNames:       nil,
+		EmailAddresses: nil,
+		IPAddresses:    []net.IP{san},
+	}
+
+	serverCertData, err := x509.CreateCertificate(rand.Reader, serverCertTemplate, caTemplate, serverCertKey.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serverCertPEMEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: serverCertData,
+	})
+
+	serverCertKeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(serverCert.PrivateKey)
+	serverCertKeyPEMEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: serverCertKeyMarshalled,
+	})
+
+	err = os.WriteFile(serverCertPath, serverCertPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(serverCertKeyPath, serverCertKeyPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a cert and key for the client to test client auth
+	var clientCert tls.Certificate
+
+	clientCertKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCert.PrivateKey = clientCertKey
+
+	clientCertSerial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCertTemplate := &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             clientCertKey.Public(),
+		SerialNumber:          clientCertSerial,
+		Issuer:                caSubj,
+		Subject: pkix.Name{
+			CommonName:   "Client",
+			SerialNumber: clientCertSerial.String(),
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(99 * time.Hour * 24 * 365),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	clientCertData, err := x509.CreateCertificate(rand.Reader, clientCertTemplate, caTemplate, clientCertKey.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientCertPEMEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: clientCertData,
+	})
+
+	clientCertKeyMarshalled, _ := x509.MarshalPKCS8PrivateKey(clientCert.PrivateKey)
+	clientCertKeyPEMEncoded := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: clientCertKeyMarshalled,
+	})
+
+	err = os.WriteFile(clientCertPath, clientCertPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(clientCertKeyPath, clientCertKeyPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// configure the server to use the certs
+	initialCertPool := x509.NewCertPool()
+	ok := initialCertPool.AppendCertsFromPEM(caCertPEMEncoded)
+	if !ok {
+		t.Fatal("failed to add CA cert to cert pool")
+	}
+
+	initialCert, err := tls.LoadX509KeyPair(serverCertPath, serverCertKeyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("Unexpected error creating listener while finding free port: %s", err)
+	}
+
+	serverAddress := listener.Addr().String()
+	err = listener.Close()
+	if err != nil {
+		t.Fatalf("Unexpected error closing listener to free port: %s", err)
+	}
+
+	t.Log("server address:", serverAddress)
+
+	server := New().
+		WithAddresses([]string{serverAddress}).
+		WithStore(inmem.New()).
+		WithCertificate(&initialCert).
+		WithCertPool(x509.NewCertPool()). // empty cert pool
+		WithAuthentication(AuthenticationTLS).
+		WithTLSConfig(
+			&TLSConfig{
+				CertFile:     serverCertPath,
+				KeyFile:      serverCertKeyPath,
+				CertPoolFile: caCertPath, // currently empty
+			},
+		)
+
+	// start the server referencing the certs
+	m, err := plugins.New([]byte{}, "test", server.store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server = server.WithManager(m)
+	if err = m.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	server, err = server.Init(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loops, err := server.Listeners()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, loop := range loops {
+		go func(serverLoop func() error) {
+			errc := make(chan error)
+			errc <- serverLoop()
+			err := <-errc
+			t.Errorf("Unexpected error from server loop: %s", err)
+		}(loop)
+	}
+
+	// wait for the server to start
+	retries := 10
+	for {
+		if retries == 0 {
+			t.Fatal("failed to start server before deadline")
+		}
+		_, err = tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: initialCertPool})
+		if err != nil {
+			retries--
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+		t.Log("server started")
+		break
+	}
+
+	// make the first request and check that the server is not trusting the client cert
+	clientKeyPair, err := tls.LoadX509KeyPair(clientCertPath, clientCertKeyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:      initialCertPool,
+				Certificates: []tls.Certificate{clientKeyPair},
+			},
+		},
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/data", serverAddress), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Do(req)
+	if !strings.Contains(err.Error(), "bad certificate") {
+		t.Fatalf("expected bad certificate error, got %s", err.Error())
+	}
+
+	// update the cert pool file to include the CA cert
+	err = os.WriteFile(caCertPath, caCertPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// make a second request and check that the server now trusts the client cert
+	retries = 10
+	for {
+		if retries == 0 {
+			t.Fatal("server didn't accept client cert before deadline")
+		}
+
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/data", serverAddress), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = client.Do(req)
+		t.Log(err)
+		if err != nil {
+			t.Log("server still doesn't trust client cert")
+			retries--
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+
+		break
+	}
+
+	err = server.Shutdown(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error shutting down server: %s", err)
+	}
+
+}
+
 func TestCertReloading(t *testing.T) {
 
 	ctx := context.Background()
@@ -4959,9 +5281,6 @@ func TestCertReloading(t *testing.T) {
 				KeyUsage:              x509.KeyUsageCertSign,
 				ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 				IsCA:                  true,
-				DNSNames:              nil,
-				EmailAddresses:        nil,
-				IPAddresses:           nil,
 			}
 
 			caCertData, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, caKey.Public(), caKey)
@@ -5003,14 +5322,10 @@ func TestCertReloading(t *testing.T) {
 					CommonName:   "Server 1",
 					SerialNumber: serverCert1Serial.String(),
 				},
-				NotBefore:      time.Now(),
-				NotAfter:       time.Now().Add(99 * time.Hour * 24 * 365),
-				KeyUsage:       x509.KeyUsageDigitalSignature,
-				ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-				IsCA:           false,
-				DNSNames:       nil,
-				EmailAddresses: nil,
-				IPAddresses:    []net.IP{san},
+				NotBefore:   time.Now(),
+				NotAfter:    time.Now().Add(99 * time.Hour * 24 * 365),
+				ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				IPAddresses: []net.IP{san},
 			}
 
 			serverCert1Data2, err := x509.CreateCertificate(rand.Reader, serverCert1Template, caTemplate, serverCert1Key.Public(), caKey)
@@ -5063,14 +5378,10 @@ func TestCertReloading(t *testing.T) {
 					CommonName:   "Server 2",
 					SerialNumber: serverCert1Serial.String(),
 				},
-				NotBefore:      time.Now(),
-				NotAfter:       time.Now().Add(99 * time.Hour * 24 * 365),
-				KeyUsage:       x509.KeyUsageDigitalSignature,
-				ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-				IsCA:           false,
-				DNSNames:       nil,
-				EmailAddresses: nil,
-				IPAddresses:    []net.IP{san},
+				NotBefore:   time.Now(),
+				NotAfter:    time.Now().Add(99 * time.Hour * 24 * 365),
+				ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				IPAddresses: []net.IP{san},
 			}
 
 			serverCert2Data2, err := x509.CreateCertificate(rand.Reader, serverCert1Template, caTemplate, serverCert2Key.Public(), caKey)
@@ -5161,9 +5472,7 @@ func TestCertReloading(t *testing.T) {
 				if retries == 0 {
 					t.Fatal("failed to start server before deadline")
 				}
-				_, err = tls.Dial("tcp", serverAddress, &tls.Config{
-					RootCAs: certPool,
-				})
+				_, err = tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					retries--
 					time.Sleep(300 * time.Millisecond)
@@ -5179,18 +5488,16 @@ func TestCertReloading(t *testing.T) {
 				if retries == 0 {
 					t.Fatal("failed to get serverCert1 before deadline")
 				}
-				conn1, err := tls.Dial("tcp", serverAddress, &tls.Config{
-					RootCAs: certPool,
-				})
+				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
-				err = conn1.Close()
+				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				certs := conn1.ConnectionState().PeerCertificates
+				certs := conn.ConnectionState().PeerCertificates
 				if len(certs) != 1 {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
@@ -5223,17 +5530,15 @@ func TestCertReloading(t *testing.T) {
 					t.Fatal("failed to get serverCert2 before deadline")
 				}
 
-				conn2, err := tls.Dial("tcp", serverAddress, &tls.Config{
-					RootCAs: certPool,
-				})
+				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
-				err = conn2.Close()
+				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
 				}
-				certs := conn2.ConnectionState().PeerCertificates
+				certs := conn.ConnectionState().PeerCertificates
 				if len(certs) != 1 {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
@@ -5266,18 +5571,16 @@ func TestCertReloading(t *testing.T) {
 					t.Fatal("failed to get serverCert2 before deadline")
 				}
 
-				conn3, err := tls.Dial("tcp", serverAddress, &tls.Config{
-					RootCAs: certPool,
-				})
+				conn, err := tls.Dial("tcp", serverAddress, &tls.Config{RootCAs: certPool})
 				if err != nil {
 					t.Fatal(err)
 				}
-				err = conn3.Close()
+				err = conn.Close()
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				certs := conn3.ConnectionState().PeerCertificates
+				certs := conn.ConnectionState().PeerCertificates
 				if len(certs) != 1 {
 					t.Fatalf("expected 1 cert, got %d", len(certs))
 				}
