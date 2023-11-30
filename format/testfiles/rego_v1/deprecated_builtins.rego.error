@@ -1,0 +1,16 @@
+15 errors occurred:
+testfiles/rego_v1/deprecated_builtins.rego:4: rego_type_error: deprecated built-in function calls in expression: any
+testfiles/rego_v1/deprecated_builtins.rego:5: rego_type_error: deprecated built-in function calls in expression: all
+testfiles/rego_v1/deprecated_builtins.rego:6: rego_type_error: deprecated built-in function calls in expression: cast_array
+testfiles/rego_v1/deprecated_builtins.rego:7: rego_type_error: deprecated built-in function calls in expression: cast_boolean
+testfiles/rego_v1/deprecated_builtins.rego:8: rego_type_error: deprecated built-in function calls in expression: cast_null
+testfiles/rego_v1/deprecated_builtins.rego:9: rego_type_error: deprecated built-in function calls in expression: cast_object
+testfiles/rego_v1/deprecated_builtins.rego:10: rego_type_error: deprecated built-in function calls in expression: cast_set
+testfiles/rego_v1/deprecated_builtins.rego:11: rego_type_error: deprecated built-in function calls in expression: cast_string
+testfiles/rego_v1/deprecated_builtins.rego:12: rego_type_error: deprecated built-in function calls in expression: net.cidr_overlap
+testfiles/rego_v1/deprecated_builtins.rego:13: rego_type_error: deprecated built-in function calls in expression: re_match
+testfiles/rego_v1/deprecated_builtins.rego:14: rego_type_error: deprecated built-in function calls in expression: set_diff
+testfiles/rego_v1/deprecated_builtins.rego:17: rego_type_error: deprecated built-in function calls in expression: any
+testfiles/rego_v1/deprecated_builtins.rego:19: rego_type_error: deprecated built-in function calls in expression: any
+testfiles/rego_v1/deprecated_builtins.rego:21: rego_type_error: deprecated built-in function calls in expression: any
+testfiles/rego_v1/deprecated_builtins.rego:21: rego_type_error: deprecated built-in function calls in expression: all

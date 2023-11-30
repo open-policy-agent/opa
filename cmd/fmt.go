@@ -23,6 +23,7 @@ type fmtCommandParams struct {
 	list      bool
 	diff      bool
 	fail      bool
+	regoV1    bool
 }
 
 var fmtParams = fmtCommandParams{}
@@ -57,7 +58,7 @@ code if a file would be reformatted.`,
 func opaFmt(args []string) int {
 
 	if len(args) == 0 {
-		if err := formatStdin(os.Stdin, os.Stdout); err != nil {
+		if err := formatStdin(&fmtParams, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -108,9 +109,9 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	formatted, err := format.Source(filename, contents)
+	formatted, err := format.SourceWithOpts(filename, contents, format.Opts{RegoV1: params.regoV1})
 	if err != nil {
-		return newError("failed to parse Rego source file: %v", err)
+		return newError("failed to format Rego source file: %v", err)
 	}
 
 	changed := !bytes.Equal(contents, formatted)
@@ -166,14 +167,14 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	return nil
 }
 
-func formatStdin(r io.Reader, w io.Writer) error {
+func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 
 	contents, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
 
-	formatted, err := format.Source("stdin", contents)
+	formatted, err := format.SourceWithOpts("stdin", contents, format.Opts{RegoV1: params.regoV1})
 	if err != nil {
 		return err
 	}
@@ -233,5 +234,6 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
+	formatCommand.Flags().BoolVar(&fmtParams.regoV1, "rego-v1", false, "format as Rego v1")
 	RootCommand.AddCommand(formatCommand)
 }

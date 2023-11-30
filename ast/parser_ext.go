@@ -664,7 +664,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
-			if Compare(stmt.Path.Value, regoV1CompatibleRef) == 0 {
+			if Compare(stmt.Path.Value, RegoV1CompatibleRef) == 0 {
 				mod.regoV1Compatible = true
 			}
 		case *Rule:

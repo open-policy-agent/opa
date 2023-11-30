@@ -1,0 +1,3 @@
+2 errors occurred:
+testfiles/rego_v1/duplicate_imports.rego:4: rego_compile_error: import must not shadow import data.foo
+testfiles/rego_v1/duplicate_imports.rego:5: rego_compile_error: import must not shadow import data.foo
