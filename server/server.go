@@ -637,7 +637,15 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		Handler: h,
 		TLSConfig: &tls.Config{
 			GetCertificate: s.getCertificate,
-			ClientCAs:      s.certPool,
+			// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
+			// This is not required, but appears to be how connect time updates config should be done:
+			// https://github.com/golang/go/issues/16066#issuecomment-250606132
+			GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+				return &tls.Config{
+					GetCertificate: s.getCertificate,
+					ClientCAs:      s.certPool,
+				}, nil
+			},
 		},
 	}
 	if s.authentication == AuthenticationTLS {
