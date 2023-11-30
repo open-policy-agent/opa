@@ -16,6 +16,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
+	"github.com/open-policy-agent/opa/internal/errors"
 	"github.com/open-policy-agent/opa/internal/pathwatcher"
 	"github.com/open-policy-agent/opa/logging"
 )
@@ -26,60 +27,109 @@ func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error
 	return s.cert, nil
 }
 
+// reloadTLSConfig reloads the TLS config if the cert, key files or cert pool contents have changed.
 func (s *Server) reloadTLSConfig(logger logging.Logger) error {
 	s.tlsConfigMtx.Lock()
 	defer s.tlsConfigMtx.Unlock()
 
+	// reloading of the certificate key pair and the CA pool are independent operations,
+	// though errors from either operation are aggregated.
+	var errs error
+
 	// if the server has a cert configured, then we need to check the cert and key for changes.
 	if s.certFile != "" {
-		certHash, err := hash(s.certFile)
+		newCert, certFileHash, certKeyFileHash, updated, err := reloadCertificateKeyPair(
+			s.certFile,
+			s.certKeyFile,
+			s.certFileHash,
+			s.certKeyFileHash,
+			logger,
+		)
 		if err != nil {
-			return fmt.Errorf("failed to check server certificate: %w", err)
-		}
+			errs = errors.Join(errs, err)
+		} else if updated {
+			s.cert = newCert
+			s.certFileHash = certFileHash
+			s.certKeyFileHash = certKeyFileHash
 
-		certKeyHash, err := hash(s.certKeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to check server key: %w", err)
-		}
-
-		different := !bytes.Equal(s.certFileHash, certHash) ||
-			!bytes.Equal(s.certKeyFileHash, certKeyHash)
-
-		if different { // load and store
-			newCert, err := tls.LoadX509KeyPair(s.certFile, s.certKeyFile)
-			if err != nil {
-				return fmt.Errorf("failed to refresh server certificate: %w", err)
-			}
-			s.cert = &newCert
-			s.certFileHash = certHash
-			s.certKeyFileHash = certKeyHash
 			logger.Debug("Refreshed server certificate.")
 		}
 	}
 
-	// do not attempt to reload the ca cert pool if it has not been configured.
+	// if the server has a cert pool configured, also attempt to reload this
 	if s.certPoolFile != "" {
-		certPoolHash, err := hash(s.certPoolFile)
+		pool, updated, err := reloadCertificatePool(s.certPoolFile, s.certPoolFileHash, logger)
 		if err != nil {
-			return fmt.Errorf("failed to refresh CA cert pool: %w", err)
-		}
-
-		if !bytes.Equal(s.certPoolFileHash, certPoolHash) {
-			caCertPEM, err := os.ReadFile(s.certPoolFile)
-			if err != nil {
-				return fmt.Errorf("failed to read CA cert pool file: %w", err)
-			}
-
-			pool := x509.NewCertPool()
-			if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
-				return fmt.Errorf("failed to parse CA cert pool file %q", s.certPoolFile)
-			}
-
+			errs = errors.Join(errs, err)
+		} else if updated {
 			s.certPool = pool
+			logger.Debug("Refreshed server CA certificate pool.")
 		}
 	}
 
-	return nil
+	return errs
+}
+
+// reloadCertificatePool loads the CA cert pool from the given file and returns a new pool if the file has changed.
+func reloadCertificatePool(certPoolFile string, certPoolFileHash []byte, logger logging.Logger) (*x509.CertPool, bool, error) {
+	certPoolHash, err := hash(certPoolFile)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to hash CA cert pool file: %w", err)
+	}
+
+	if bytes.Equal(certPoolFileHash, certPoolHash) {
+		return nil, false, nil
+	}
+	caCertPEM, err := os.ReadFile(certPoolFile)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to read CA cert pool file %q: %w", certPoolFile, err)
+	}
+
+	pool := x509.NewCertPool()
+	if ok := pool.AppendCertsFromPEM(caCertPEM); !ok {
+		return nil, false, fmt.Errorf("failed to load CA cert pool file %q", certPoolFile)
+	}
+
+	return pool, true, nil
+}
+
+// reloadCertificateKeyPair loads the certificate and key from the given files and returns a new certificate if either
+// file has changed.
+func reloadCertificateKeyPair(
+	certFile, certKeyFile string,
+	certFileHash, certKeyFileHash []byte,
+	logger logging.Logger,
+) (*tls.Certificate, []byte, []byte, bool, error) {
+	certHash, err := hash(certFile)
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("failed to hash server certificate file: %w", err)
+	}
+
+	certKeyHash, err := hash(certKeyFile)
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("failed to hash server key file: %w", err)
+	}
+
+	differentCert := !bytes.Equal(certFileHash, certHash)
+	differentKey := !bytes.Equal(certKeyFileHash, certKeyHash)
+
+	if differentCert && !differentKey {
+		logger.Warn("Server certificate file changed but server key file did not change.")
+	}
+	if !differentCert && differentKey {
+		logger.Warn("Server key file changed but server certificate file did not change.")
+	}
+
+	if !differentCert && !differentKey {
+		return nil, nil, nil, false, nil
+	}
+
+	newCert, err := tls.LoadX509KeyPair(certFile, certKeyFile)
+	if err != nil {
+		return nil, nil, nil, false, fmt.Errorf("server certificate key pair was not updated, update failed: %w", err)
+	}
+
+	return &newCert, certHash, certKeyHash, true, nil
 }
 
 func (s *Server) certLoopPolling(logger logging.Logger) Loop {
