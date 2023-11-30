@@ -168,6 +168,6 @@ func init() {
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
-	checkCommand.Flags().BoolVar(&checkParams.regoV1, "rego-v1", false, "check for Rego v1 compatibility")
+	checkCommand.Flags().BoolVar(&checkParams.regoV1, "rego-v1", false, "check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
 	RootCommand.AddCommand(checkCommand)
 }
