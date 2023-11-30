@@ -3,7 +3,73 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.59.0
+
+### Fixes
+
+- Adding `--rego-v1` flag to `check` cmd (#6430) ([#6429](https://github.com/open-policy-agent/opa/issues/6429)) authored by @johanfylling
+- ast: Adding rule_head_refs capabilities feature flag  (#6346) ([#6334](https://github.com/open-policy-agent/opa/issues/6334)) authored by @johanfylling
+- ast: Allowing packages to be declared within the dynamic extent of a rule (#6388) ([#6387](https://github.com/open-policy-agent/opa/issues/6387)) authored by @johanfylling
+- ast: Disallow root document shadowing in leading term of rule refs ([#6291](https://github.com/open-policy-agent/opa/issues/6291)) authored by @johanfylling
+- build: Remove rootless image variant ([#4295](https://github.com/open-policy-agent/opa/issues/4295)) authored by @ashutosh-narkar
+- cmd & format: Adding rego-v1 mode to `opa fmt` (#6413) ([#6297](https://github.com/open-policy-agent/opa/issues/6297)) authored by @johanfylling
+- discovery: Make status updates non blocking (#6345) ([#6343](https://github.com/open-policy-agent/opa/issues/6343)) authored by @charlieegan3
+- feat(builtins): add a new builtin function strings.render_template to render templated strings ([#6371](https://github.com/open-policy-agent/opa/issues/6371)) authored by @RDVasavada reported by @RDVasavada
+- format: Not outputting any `future.keywords.*` imports when `rego.v1` import in policy (#6360) ([#6359](https://github.com/open-policy-agent/opa/issues/6359)) authored by @johanfylling
+- plugins/rest: masks X-AMZ-SECURITY-TOKEN header in decision logs (#6423) ([#5848](https://github.com/open-policy-agent/opa/issues/5848)) authored by @colinjlacy reported by @jwineinger
+- rego.v1: Fixing erroneous missing value assignment error  (#6368) ([#6364](https://github.com/open-policy-agent/opa/issues/6364)) authored by @johanfylling
+- rego.v1: Improving support for rules with chained bodies (#6374) ([#6370](https://github.com/open-policy-agent/opa/issues/6370)) authored by @johanfylling
+- topdown/crypto: Add URIStrings field to JSON certs ([#6416](https://github.com/open-policy-agent/opa/issues/6416)) authored by @charlieegan3 reported by @kenjenkins
+- wasm: fix re2 bug ([#6376](https://github.com/open-policy-agent/opa/issues/6376)) authored by @srenatus reported by @sandhose
+
+### Miscellaneous
+
+- Add ExcludeLocationFile JSON marshalling option (#6398) (authored by @anderseknert)
+- Add dependency-management-data to the Ecosystem (#6436) (authored by @jamietanna)
+- Add docs for dynamic_metadata feature in opa-envoy-plugin (authored by @tjons)
+- Fix IDE warnings and remove usage of several deprecated fields. (#6397) (authored by @willbeason)
+- Fixed XACML Policy in documentation (Comparing to Other Systems) to be XACML 3.0 compliant (#6438) (authored by @cdanger)
+- Moving wasm test (#6399) (authored by @johanfylling)
+- Prepare v0.59.0 development (authored by @ashutosh-narkar)
+- Update docs on rego.v1 / OPA 1.0 (#6365) (authored by @anderseknert)
+- Update spinnaker integration (#6414) (authored by @charlieegan3)
+- add options to the filter to only load rego files (#6437) (authored by @tjons)
+- ast: Adding capability feature for the `rego.v1` import (#6375) (authored by @johanfylling)
+- ast: Making `rego.v1` import errors more specific (authored by @johanfylling)
+- ast: change ident token string (#6435) (authored by @tsandall)
+- ast: compute required capabilities during compile (authored by @tsandall)
+- ast: extend capabilities to return min compatible version (authored by @tsandall)
+- ast: skip if keyword requirement for default rule (authored by @ashutosh-narkar)
+- build(deps): bump aquasecurity/trivy-action from 0.13.0 to 0.13.1 (authored by @dependabot[bot])
+- build(deps): bump aquasecurity/trivy-action from 0.13.1 to 0.14.0 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.7 to 1.7.8 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.8 to 1.7.9 (authored by @dependabot[bot])
+- build(deps): bump github.com/go-logr/logr from 1.2.4 to 1.3.0 (authored by @dependabot[bot])
+- build(deps): bump github.com/google/uuid from 1.3.1 to 1.4.0 (authored by @dependabot[bot])
+- build(deps): bump github.com/gorilla/mux from 1.8.0 to 1.8.1 (authored by @dependabot[bot])
+- build(deps): bump github.com/spf13/cobra from 1.7.0 to 1.8.0 (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.17.0 to 0.18.0 (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.18.0 to 0.19.0 (#6441) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/time from 0.3.0 to 0.4.0 (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/time from 0.4.0 to 0.5.0 (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group with 3 updates (authored by @dependabot[bot])
+- build(deps): bump the go-opentelemetry-io group with 3 updates (authored by @dependabot[bot])
+- chore: Disable verbose output in wasm-sdk-e2e-test (#6434) (authored by @tsandall)
+- cmd: fix inspect to omit unnecessary whitespace (authored by @tsandall)
+- deps: group otel deps (#6407) (authored by @srenatus)
+- docs: Add legitify to ecosystem (#6369) (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update generated CLI docs (authored by @)
+- docs: add cheat sheet link (authored by @charlieegan3)
+- docs: add newstack blog to regal (#6372) (authored by @charlieegan3)
+- fix: Disk storage broken link (authored by @francoisauclair911)
+- golang: Update golang to 1.21.4 (authored by @ashutosh-narkar)
+- internal/bundle/inspect: add required capabilities to output (authored by @tsandall)
+- internal/planner: Insert general ref head objects starting from the leaves, not root. (#6401) (authored by @srenatus)
+- planner: don't plan superfluous Equal/NotEqualStmts (#6386) (authored by @srenatus)
+- sdk_test: add environment variable tests (#6420) (authored by @robhafner)
+- update istio envoy tutorial to use AuthorizationPolicy (authored by @tjons)
+- wasm: Update generated binaries (authored by @cdanger)
 
 ## 0.58.0
 

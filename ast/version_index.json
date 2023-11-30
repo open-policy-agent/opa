@@ -1106,6 +1106,13 @@
       "PreRelease": "",
       "Metadata": ""
     },
+    "strings.render_template": {
+      "Major": 0,
+      "Minor": 59,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "strings.replace_n": {
       "Major": 0,
       "Minor": 17,

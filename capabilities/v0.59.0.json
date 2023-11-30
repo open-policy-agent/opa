@@ -3881,6 +3881,31 @@
       }
     },
     {
+      "name": "strings.render_template",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "dynamic": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "type": "object"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "strings.replace_n",
       "decl": {
         "args": [
@@ -4693,6 +4718,16 @@
     "every",
     "if",
     "in"
+  ],
+  "wasm_abi_versions": [
+    {
+      "version": 1,
+      "minor_version": 1
+    },
+    {
+      "version": 1,
+      "minor_version": 2
+    }
   ],
   "features": [
     "rule_head_ref_string_prefixes",

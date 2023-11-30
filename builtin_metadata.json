@@ -15913,10 +15913,11 @@
       }
     ],
     "available": [
+      "v0.59.0",
       "edge"
     ],
     "description": "Renders a templated string with given template variables injected. For a given templated string and key/value mapping, values will be injected into the template where they are referenced by key.\n\tFor examples of templating syntax, see https://pkg.go.dev/text/template",
-    "introduced": "edge",
+    "introduced": "v0.59.0",
     "result": {
       "description": "rendered template with template variables injected",
       "name": "result",
