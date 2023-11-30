@@ -159,13 +159,16 @@ type Metrics interface {
 // This configuration is used to configure file watchers to reload each file as it
 // changes on disk.
 type TLSConfig struct {
-	// CertFile is the path to the certificate file.
+	// CertFile is the path to the server's serving certificate file.
 	CertFile string
 
-	// KeyFile is the path to the key file.
+	// KeyFile is the path to the server's key file, completing the key pair for the
+	// CertFile certificate.
 	KeyFile string
 
-	// CertPoolFile is the path to the CA cert pool file.
+	// CertPoolFile is the path to the CA cert pool file. The contents of this file will be
+	// reloaded when the file changes on disk and used in as trusted client CAs in the TLS config
+	// for new connections to the server.
 	CertPoolFile string
 }
 
