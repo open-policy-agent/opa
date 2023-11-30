@@ -6,24 +6,31 @@ project adheres to [Semantic Versioning](http://semver.org/).
 ## 0.59.0
 
 This release adds tooling to help prepare existing policies for the upcoming OPA 1.0 release.
-This release also contains a mix of improvements, bugfixes and security fixes for third-party libraries.
+It also contains a mix of improvements, bugfixes and security fixes for third-party libraries.
+
+> **_NOTES:_**
+>
+> * All published OPA images now run with a non-root uid/gid. The `uid:gid` is set to `1000:1000` for all images. As a result
+    there is no longer a need for the `-rootless` image variant and hence it will not be published as part of future releases.
+    This change is in line with container security best practices. OPA can still be run with root privileges by explicitly setting the user,
+    either with the `--user` argument for `docker run`, or by specifying the `securityContext` in the Kubernetes Pod specification.
 
 ### Rego v1
 
-The future release of OPA 1.0 will introduce breaking changes to the Rego language. Most notably:
+The upcoming release of OPA 1.0, which will be released at a future date, will introduce breaking changes to the Rego language. Most notably:
 
-* the keywords that must be imported through `import future.keywords` into a module before use will be part of the Rego language by default, without the need to import them.
+* the keywords that currently must be imported through `import future.keywords` into a module before use will be part of the Rego language by default, without the need to first import them.
 * the `if` keyword will be required before the body of a rule.
 * the `contains` keyword will be required when declaring a multi-value rule (partial set rule).
 * deprecated built-in functions will be removed.
 
-This release introduces a new `--rego-v1` flag to the `opa fmt` and `opa check` commands.
+This current release (`0.59.0`) introduces a new `--rego-v1` flag to the `opa fmt` and `opa check` commands to facilitate the transition of existing policies to be compatible with the 1.0 syntax.
 
-When used with `opa fmt`, the `--rego-v1` flag will format the module(s) according to the new Rego syntax of OPA 1.0. 
+When used with `opa fmt`, the `--rego-v1` flag will format the module(s) according to the new Rego syntax in OPA 1.0. 
 Formatted modules are compatible with both the current version of OPA and 1.0. 
-Modules using deprecated built-ins will terminate formatting with an error. Future versions of OPA will support rewriting applicable calls with equivalent Rego compatible with 1.0. 
+Modules using deprecated built-ins will terminate formatting with an error. Future versions of OPA will support rewriting applicable function calls with equivalent Rego compatible with 1.0. 
 
-When used with `opa check`, the `--rego-v1` flag will check that the modules are compatibility with both the current version of OPA and 1.0.
+When used with `opa check`, the `--rego-v1` flag will check that the modules are compatible with both the current version of OPA and 1.0.
 
 #### Relevant Changes
 
@@ -74,17 +81,8 @@ When used with `opa check`, the `--rego-v1` flag will check that the modules are
   - docs: Disk storage broken link ([#6425](https://github.com/open-policy-agent/opa/pull/6425)) authored by @francoisauclair911
   - docs: Update istio envoy tutorial to use AuthorizationPolicy ([#6426](https://github.com/open-policy-agent/opa/pull/6426)) authored by @tjons
 - Dependency updates; notably:
-  - golang: Update golang to 1.21.4 (authored by @ashutosh-narkar)
-  - github.com/containerd/containerd from 1.7.7 to 1.7.9
-  - github.com/go-logr/logr from 1.2.4 to 1.3.0
-  - github.com/google/uuid from 1.3.1 to 1.4.0
-  - github.com/gorilla/mux from 1.8.0 to 1.8.1
-  - github.com/spf13/cobra from 1.7.0 to 1.8.0
-  - golang.org/x/net from 0.17.0 to 0.19.0
-  - golang.org/x/time from 0.3.0 to 0.5.0
-  - go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp from 0.45.0 to 0.46.1
-  - go.opentelemetry.io/otel/exporters/otlp/otlptrace from 1.19.0 to 1.21.0
-  - go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc from 1.19.0 to 1.21.0
+  - golang from 1.21.3 to 1.21.4
+  - OpenTelemetry (contrib) 1.21.0/0.46.1
 
 ## 0.58.0
 
