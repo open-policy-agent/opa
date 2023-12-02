@@ -7,11 +7,11 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/format"

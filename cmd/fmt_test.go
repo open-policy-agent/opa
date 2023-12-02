@@ -97,20 +97,20 @@ func TestFmtFormatFileFailToReadFile(t *testing.T) {
 		"policy.rego": unformatted,
 	}
 
-	not_there := "not_there.rego"
+	notThere := "notThere.rego"
 
 	test.WithTempFS(files, func(path string) {
 		policyFile := filepath.Join(path, "policy.rego")
 		info, err := os.Stat(policyFile)
-		err = formatFile(&params, &stdout, not_there, info, err)
+		err = formatFile(&params, &stdout, notThere, info, err)
 		if err == nil {
 			t.Fatalf("Expected error, found none")
 		}
 
 		actual := err.Error()
 
-		if !strings.Contains(actual, not_there) {
-			t.Fatalf("Expected error message to include %s, got:\n%s\n\n", not_there, actual)
+		if !strings.Contains(actual, notThere) {
+			t.Fatalf("Expected error message to include %s, got:\n%s\n\n", notThere, actual)
 		}
 	})
 }
