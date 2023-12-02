@@ -54,6 +54,14 @@ p {
 }
 `
 
+type errorWriter struct {
+	ErrMsg string
+}
+
+func (ew errorWriter) Write(p []byte) (n int, err error) {
+	return 0, fmt.Errorf(ew.ErrMsg)
+}
+
 func TestFmtFormatFile(t *testing.T) {
 	params := fmtCommandParams{}
 	var stdout bytes.Buffer
@@ -73,6 +81,36 @@ func TestFmtFormatFile(t *testing.T) {
 		actual := stdout.String()
 		if actual != formatted {
 			t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", formatted, actual)
+		}
+	})
+}
+
+func TestFmtFormatFileFailToReadFile(t *testing.T) {
+
+	params := fmtCommandParams{
+		diff: true,
+	}
+
+	var stdout = bytes.Buffer{}
+
+	files := map[string]string{
+		"policy.rego": unformatted,
+	}
+
+	not_there := "not_there.rego"
+
+	test.WithTempFS(files, func(path string) {
+		policyFile := filepath.Join(path, "policy.rego")
+		info, err := os.Stat(policyFile)
+		err = formatFile(&params, &stdout, not_there, info, err)
+		if err == nil {
+			t.Fatalf("Expected error, found none")
+		}
+
+		actual := err.Error()
+
+		if !strings.Contains(actual, not_there) {
+			t.Fatalf("Expected error message to include %s, got:\n%s\n\n", not_there, actual)
 		}
 	})
 }
@@ -148,6 +186,35 @@ func TestFmtFormatFileDiff(t *testing.T) {
 
 		if len(actual) > 0 {
 			t.Fatalf("Expected no output, got:\n%s\n\n", actual)
+		}
+	})
+}
+
+func TestFmtFormatFileFailToPrintDiff(t *testing.T) {
+
+	params := fmtCommandParams{
+		diff: true,
+	}
+
+	errMsg := "io.Write error"
+	var stdout = errorWriter{ErrMsg: errMsg}
+
+	files := map[string]string{
+		"policy.rego": unformatted,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		policyFile := filepath.Join(path, "policy.rego")
+		info, err := os.Stat(policyFile)
+		err = formatFile(&params, &stdout, policyFile, info, err)
+		if err == nil {
+			t.Fatalf("Expected error, found none")
+		}
+
+		actual := err.Error()
+
+		if !strings.Contains(actual, errMsg) {
+			t.Fatalf("Expected error message to include %s, got:\n%s\n\n", errMsg, actual)
 		}
 	})
 }
