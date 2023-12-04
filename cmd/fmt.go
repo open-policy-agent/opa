@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/format"
@@ -135,14 +135,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	if params.diff {
 		if changed {
-			stdout, stderr, err := doDiff(contents, formatted)
-			if err != nil && stdout.Len() == 0 {
-				fmt.Fprintln(os.Stderr, stderr.String())
-				return newError("failed to diff formatting: %v", err)
+			diffString := doDiff(contents, formatted)
+			if _, err := fmt.Fprintln(out, diffString); err != nil {
+				return newError("failed to print contents: %v", err)
 			}
-
-			fmt.Fprintln(out, stdout.String())
-
 			if params.fail {
 				return newError("unexpected diff")
 			}
@@ -183,34 +179,10 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 	return err
 }
 
-func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
-	o, err := os.CreateTemp("", ".opafmt")
-	if err != nil {
-		return stdout, stderr, err
-	}
-	defer os.Remove(o.Name())
-	defer o.Close()
-
-	n, err := os.CreateTemp("", ".opafmt")
-	if err != nil {
-		return stdout, stderr, err
-	}
-	defer os.Remove(n.Name())
-	defer n.Close()
-
-	_, err = o.Write(old)
-	if err != nil {
-		return stdout, stderr, err
-	}
-	_, err = n.Write(new)
-	if err != nil {
-		return stdout, stderr, err
-	}
-
-	cmd := exec.Command("diff", "-u", o.Name(), n.Name())
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	return stdout, stderr, cmd.Run()
+func doDiff(old, new []byte) (diffString string) {
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(string(old), string(new), false)
+	return dmp.DiffPrettyText(diffs)
 }
 
 type fmtError struct {
