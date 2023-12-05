@@ -11,20 +11,12 @@ These changes are backwards compatible in the sense that it is possible to autho
 ## The `future.keywords` imports
 
 The `in`, `every`, `if` and `contains` keywords have been introduced over time, and currently require opt-in to prevent them from breaking policies that existed before their introduction. 
-The `future.keywords` imports facilitate this opt-in mechanism. 
-In OPA v1.0 all the future keywords will be part of the language by default and the `future.keywords` imports will become a no-op. 
-
-### Why is this included
-
-The `future.keywords` imports were introduced years ago, and since then, multiple keywords have been added as part of this special import.
+The `future.keywords` imports facilitate this opt-in mechanism.
 These keywords help to increase the readability of policies and provide syntactic sugar for commonly used operations such as iteration, membership checks, defining multi-value rules, and so on.
-There is growing adoption of these keywords and their usage is prevalent in the OPA documentation, Rego Playground etc.
+There is growing adoption of these keywords and their usage is prevalent in the OPA documentation, Rego Playground, etc.
 
-### How this is a breaking change
-
-This is _not_ a breaking change. In OPA v1.0, the `future.keywords` imports will not be required, but policies that use them will continue to work.
-
-A policy that makes use of the `in`, `every`, `if` and `contains` keywords, but doesn't import `future.keywords` is valid in OPA v1.0 but not in older versions of OPA.
+In OPA v1.0 the `in`, `every`, `if` and `contains` keywords will be part of the language by default and the `future.keywords` imports will become a no-op.
+A policy that makes use of these keywords, but doesn't import `future.keywords` is valid in OPA v1.0 but not in older versions of OPA.
 
 ### Making new and existing policies compatible with OPA v1.0
 
