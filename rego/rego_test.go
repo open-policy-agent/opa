@@ -2555,3 +2555,131 @@ func TestRegoLazyObjCopyMaps(t *testing.T) {
 		t.Errorf("expected no change in foo, found one: %v", foo)
 	}
 }
+
+func TestDescriptionRegisterBuiltin1(t *testing.T) {
+	description := "custom-arity-1"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin1(decl, func(_ BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin2(t *testing.T) {
+	description := "custom-arity-2"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin2(decl, func(_ BuiltinContext, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin3(t *testing.T) {
+	description := "custom-arity-3"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin3(decl, func(_ BuiltinContext, _, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin4(t *testing.T) {
+	description := "custom-arity-4"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S, types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin4(decl, func(_ BuiltinContext, _, _, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltinDyn(t *testing.T) {
+	description := "custom-arity-dyn"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltinDyn(decl, func(_ BuiltinContext, _ []*ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+// unregisterBuiltin removes the builtin of the given name from ast.Builtins. This assists in
+// cleaning up custom functions added as part of certain test cases.
+func unregisterBuiltin(name string) {
+	builtins := make([]*ast.Builtin, 0, len(ast.Builtins))
+	for _, builtin := range ast.Builtins {
+		if builtin.Name == name {
+			continue
+		}
+		builtins = append(builtins, builtin)
+	}
+	ast.Builtins = builtins
+}
