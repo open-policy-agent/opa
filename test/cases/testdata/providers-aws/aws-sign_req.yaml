@@ -43,7 +43,8 @@ cases:
           "Authorization": "AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20151228/us-east-1/s3/aws4_request,SignedHeaders=foo;host;x-amz-content-sha256;x-amz-date,Signature=8f1dc7c9b9978356a0d0989fd26a95307f4f8a4aa264d8220647b7097d839952",
           "host": "example.com",
           "x-amz-content-sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          "x-amz-date": "20151228T140825Z"
+          "x-amz-date": "20151228T140825Z",
+          "foo": "bar"
         },
         "method": "get",
         "url": "http://example.com"
