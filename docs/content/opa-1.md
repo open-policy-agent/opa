@@ -1,12 +1,12 @@
 ---
 title: OPA 1.0
-kind: misc
-weight: 4
+kind: documentation
+weight: 120
 ---
 
-OPA v1.0 will introduce breaking changes to the Rego language. 
+OPA v1.0 will introduce breaking changes to the Rego language and OPA runtime. 
 Here, these changes are described, along with the presentation of tools to make new and existing policies compatible with OPA 1.0.
-These changes are backwards compatible in the sense that it is possible to author policies that are compatible with both OPA v1.0 and older versions of OPA.
+The changes to the Rego language are backwards compatible in the sense that it is possible to author policies that are compatible with both OPA v1.0 and older versions of OPA.
 
 ## The `future.keywords` imports
 
@@ -29,9 +29,9 @@ A policy that makes use of these keywords, but doesn't import `future.keywords` 
 
 To avoid breaking existing policies and give users a chance to update them such that these future keywords don’t clash with, for example, existing variable names, a new flag called `--v0-compatible` will be added to OPA commands such as `opa run` to maintain backward compatibility. 
 OPA’s Go SDK and Go API will be equipped with similar functionality, as well. 
-In addition to this, the bundle manifest will also be updated to include a bit that indicates whether pre-OPA v1.0 behavior is desired. 
-OPA tooling such as the `opa build` command will be equipped with a new flag that will allow users to control the relevant bit in the manifest. 
+In addition to this, the bundle manifest will also be updated to include a bit that indicates whether pre-OPA v1.0 behavior is desired.
 This should be useful for cases when pre-OPA v1.0 functionality is desired but the users themselves have no control over the OPA deployment and hence cannot set the CLI flag.
+OPA tooling such as the `opa build` command will be equipped with a new flag that will allow users to control the relevant bit in the manifest. 
 
 ## Enforce use of `if` and `contains` keywords in rule head declarations
 
@@ -59,7 +59,8 @@ The `if` keyword ensures that the semantics of rules does not change between tod
 If the Rego language was changed so that all rules were single-value by default, unless the `contains` keyword was used to make them multi-value, then the outcome of a rule like `p.a { true }` would change between today and v1.0 without generating an error.
 Generating errors in this case is preferable to changing the semantics of existing rules. Whereby, use of the `if` keyword will be a requirement in OPA v1.0, as this is also backwards compatible with older versions of OPA.
 
-In OPA v1.0, the `if` keyword is only required for rules with a declared body. Constants, rules that only consist of a value assignment, do not require `if`.
+In OPA v1.0, the `if` keyword is only required for rules with a declared body. Constants, rules that only consist of a value assignment, do not require `if`. 
+The following forms therefore remain valid in OPA v1.0:
 
 | rule       | output today           | output in v1.0         |
 |------------|------------------------|------------------------|
@@ -75,6 +76,16 @@ Because the `if` keyword can only be used in front of a rule body, rules with no
 | p.a   | {“p”: {“a”}}              | compile error  |
 | p.a.b | {“p”: {“a”: {“b”: true}}} | compile error  |
 
+The below table gives examples of currently valid Rego syntax that will be invalid in OPA v1.0, along with the equivalent valid syntax in OPA v1.0: 
+
+| invalid in v1.0 | v1.0 equivalent            | Note                    |
+|-----------------|----------------------------|-------------------------|
+| p { true }      | p if { true }              | Single-value rule       |
+| p.a             | p contains "a"             | Multi-value insertion   |
+| p.a { true }    | p contains "a" if { true } | Multi-value rule        |
+| p.a.b           | p.a.b := true              | Single-value assignment |
+| p.a.b { true }  | p.a.b if { true }          | Single-value rule       |
+
 Following is an example of how to define a rule that generates a set:
 
 ```rego
@@ -82,7 +93,7 @@ package play
 
 import rego.v1 # Implies future.keywords.if and future.keywords.contains
 
-a contains b if { b := 1}
+a contains b if { b := 1 }
 ```
 
 When the above rule is evaluated the output is (sets are serialized into arrays in JSON):
