@@ -3813,6 +3813,24 @@ If the `rego.v1` import is present in a module, all strict mode checks documente
 Additionally the `rego.v1` import also requires the usage of `if` and `contains` keywords when declaring certain rules. The `if` keyword is required before a rule body and the `contains` keyword is required for partial set rules.
 {{< /info >}}
 
+## The `rego.v1` Import
+
+In the future, when [OPA v1.0](../opa-1) is released, breaking changes will be introduced to the Rego language.
+The `rego.v1` import is a way to opt-in to these breaking changes early, and ensure that your policies are compatible with OPA v1.0.
+If a module containing this import is not compatible with OPA v1.0, it will cause a compilation error.
+
+When a module imports `rego.v1`, the following features and constraints are implied:
+
+* all [Future keywords](#future-keywords) are implied and can be used without import.
+  These imports are mutually exclusive, and it will cause a compilation error to import both `rego.v1` and `future.keywords` in the same module.
+* the [if](#futurekeywordsif) keyword is required before a rule body declaration.
+* the [contains](#futurekeywordscontains) keyword is required for partial set (multi-value) rules.
+* most [Strict mode](#strict-mode) constraints and checks are implied and enforced. See the strict mode [constraints and checks table](#strict-mode-constraints-and-checks) for details.
+
+The `rego.v1` import only affects the module where it's declared. It does not affect any other modules, even if they are importing, or is imported by, a module where `rego.v1` is declared.
+
+In OPA v1.0, the `rego.v1` import will have no semantic impact on the policy, as all its implied features and constraints will be enforced by default. It will however still be a valid statement, and won't cause any compilation errors.
+
 ## Ecosystem Projects
 
 {{< ecosystem_feature_embed key="learning-rego" topic="learning Rego" >}}

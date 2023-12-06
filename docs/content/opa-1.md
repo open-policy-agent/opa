@@ -25,7 +25,7 @@ A policy that makes use of these keywords, but doesn't import `future.keywords` 
 
 ### Making new and existing policies compatible with OPA v1.0
 
-1. A new `rego.v1` import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0. 
+1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0. 
    If a Rego module imports `rego.v1`, it means applicable `future.keywords` imports are implied. It is illegal to import both `rego.v1` and `future.keywords` in the same module.
 2. The `--rego-v1` flag on the `opa fmt` command will rewrite existing modules to use the `rego.v1` import instead of `future.keywords` imports.
 3. The `--rego-v1` flag on the `opa check` command will check that either the `rego.v1` import or applicable `future.keywords` imports are present if any of the `in`, `every`, `if` and `contains` keywords are used in a module.
@@ -134,7 +134,7 @@ This will make Rego code easier to author and read; thereby making it simpler fo
 
 ### Making new and existing policies compatible with OPA v1.0
 
-1. A new `rego.v1` import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
+1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means the `if` and `contains` keywords are required when declaring rules. Constants, rules that only consist of a value assignment, are exempted.
 2. The `--rego-v1` flag on the `opa fmt` command will rewrite existing modules to use the `if` and `contains` keywords where applicable.
 3. The `--rego-v1` flag on the `opa check` command will check that the `if` and `contains` keywords are used where applicable in a module.
@@ -153,7 +153,7 @@ An import shadowing another is most likely an authoring error and probably unint
 
 ### Making new and existing policies compatible with OPA v1.0
 
-1. A new `rego.v1` import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
+1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, duplicate imports are prohibited.
 2. The `--rego-v1` flag on the `opa fmt` command will reject modules with duplicate imports.
 3. The `--rego-v1` flag on the `opa check` command will check that duplicate imports are not present in a module.
@@ -173,7 +173,7 @@ Hence, if a rule or variable shadows `input` or `data` you have the unintended c
 
 ### Making new and existing policies compatible with OPA v1.0
 
-1. A new `rego.v1` import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
+1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means `input` and `data` are reserved keywords and may not be used as names for rules and variable assignments.
 2. The `--rego-v1` flag on the `opa fmt` command will reject modules where `input` and `data` are used as names for rules and local variable assignments.
    In a future release, a `--refactor-local-variables` flag will be added to `opa fmt` to refactor local variable assignments.
@@ -194,7 +194,7 @@ In some cases, new built-in functions have been added that provide functionality
 
 ### Making new and existing policies compatible with OPA v1.0
 
-1. A new `rego.v1` import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
+1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means deprecated built-in functions are prohibited.
 2. The `--rego-v1` flag on the `opa fmt` command will reject modules with calls to deprecated built-in functions.
    In a future release, `opa fmt --rego-v1` will also rewrite modules to use an alternative, existing built-in function when possible and/or provide suggestions on how to author policies that avoid usage of deprecated built-ins.
