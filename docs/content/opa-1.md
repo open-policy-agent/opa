@@ -8,6 +8,11 @@ OPA v1.0 will introduce breaking changes to the Rego language and OPA runtime.
 Here, these changes are described, along with the presentation of tools to make new and existing policies compatible with OPA 1.0.
 The changes to the Rego language are backwards compatible in the sense that it is possible to author policies that are compatible with both OPA v1.0 and older versions of OPA.
 
+{{< info >}}
+The full set of breaking changes in OPA v1.0 is not yet finalized.
+The tools mentioned in the below sections - such as the `rego.v1` import and the `--rego-v1` command flag - may change over time, so it's good practice to regularly employ them to ensure your policies are compatible with the future release of OPA v1.0.
+{{< /info >}}
+
 ## The `future.keywords` imports
 
 The `in`, `every`, `if` and `contains` keywords have been introduced over time, and currently require opt-in to prevent them from breaking policies that existed before their introduction. 
