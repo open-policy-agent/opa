@@ -109,7 +109,8 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 		moduleMap[f.URL] = f.Parsed
 	}
 
-	c := ast.NewCompiler()
+	c := ast.NewCompiler().
+		WithAllowUndefinedFunctionCalls(true)
 	c.Compile(moduleMap)
 	if c.Failed() {
 		return bi, c.Errors

@@ -565,3 +565,85 @@ Custom:
 
 	})
 }
+
+func TestCallToUnknownBuiltInFunction(t *testing.T) {
+	files := [][2]string{
+		{"/policy.rego", `package test
+			p {
+				foo.bar(42)
+				contains("foo", "o")
+			}
+		`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var out bytes.Buffer
+		params := newInspectCommandParams()
+		err = params.outputFormat.Set(evalJSONOutput)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = doInspect(params, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		bs := out.Bytes()
+		output := strings.TrimSpace(string(bs))
+		// Note: unknown foo.bar() built-in doesn't appear in the output, but also didn't cause an error.
+		expected := strings.TrimSpace(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "contains",
+        "decl": {
+          "args": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        }
+      }
+    ]
+  }
+}`)
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+		}
+	})
+}
