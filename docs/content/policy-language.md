@@ -3831,6 +3831,34 @@ The `rego.v1` import only affects the module where it's declared. It does not af
 
 In OPA v1.0, the `rego.v1` import will have no semantic impact on the policy, as all its implied features and constraints will be enforced by default. It will however still be a valid statement, and won't cause any compilation errors.
 
+Example policy that imports `rego.v1` to be compatible with the future syntax in OPA v1.0:
+
+```live:rego_v1:module:read_only
+package example
+
+import rego.v1
+
+l := [1, 2, 3]
+
+default allow := false
+
+# 'if' is part of default v1.0 syntax, and doesn't need import.
+# 'if' is required before role body.
+allow if {
+  count(violations) == 0
+}
+
+# 'contains' is part of default v1.0 syntax, and doesn't need import.
+# 'contains' is required to declare multi-value, partial set rule.
+violations contains msg if {
+  # 'every' and 'in' are part of default v1.0 syntax, and doesn't need imports.
+  every x in l {
+    x > 0
+  }
+  msg := "no negative entries"
+}
+```
+
 ## Ecosystem Projects
 
 {{< ecosystem_feature_embed key="learning-rego" topic="learning Rego" >}}
