@@ -171,6 +171,8 @@ One of these checks is to ensure that `input` and `data` are reserved keywords a
 The `input` document holds the user-provided input, while the data pushed into OPA and rule evaluation results are nested under the `data` document.
 Hence, if a rule or variable shadows `input` or `data` you have the unintended consequence of erasing information under these, resulting in incorrect policy decisions. In OPA v1.0 such a scenario will be avoided by default.
 
+Note, using the [with](../policy-language/#with-keyword) keyword to insert values into - or to fully replace - the `input` or `data` documents, as in `my_func(x) with input as {...}` does not constitute shadowing and is therefore allowed in OPA v1.0.
+
 ### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
