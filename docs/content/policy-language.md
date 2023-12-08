@@ -3843,7 +3843,7 @@ l := [1, 2, 3]
 default allow := false
 
 # 'if' is part of default v1.0 syntax, and doesn't need import.
-# 'if' is required before role body.
+# 'if' is required before rule body.
 allow if {
   count(violations) == 0
 }
