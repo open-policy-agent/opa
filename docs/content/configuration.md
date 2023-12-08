@@ -883,7 +883,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
-| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
+| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 | `bundles[_].polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
 | `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
@@ -900,7 +900,7 @@ included in the actual bundle gzipped tarball.
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.prometheus` | `boolean` | No (default: `false`) | Export the status (bundle and plugin) metrics to prometheus (see [the monitoring documentation](../monitoring/#prometheus)). When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
-| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual`. |
+| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 
 ### Decision Logs
 
@@ -914,7 +914,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
-| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual`. |
+| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 | `decision_logs.mask_decision` | `string` | No (default: `/system/log/mask`) | Set path of masking decision. |
 | `decision_logs.drop_decision` | `string` | No (default: `/system/log/drop`) | Set path of drop decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
@@ -929,7 +929,7 @@ included in the actual bundle gzipped tarball.
 | `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration.    |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads.                                                                                             |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads.                                                                                             |
-| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`.                                                       |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package).                                                       |
 | `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available.                                                      |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification.                                                                                                   |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification.                                                                                                             |
