@@ -1840,6 +1840,162 @@ func TestRegoEvalModulesOnCompiler(t *testing.T) {
 	assertResultSet(t, rs, `[[1]]`)
 }
 
+func TestRegoEvalWithRegoV1(t *testing.T) {
+	tests := []struct {
+		note           string
+		regoVersion    ast.RegoVersion
+		policy         string
+		query          string
+		expectedResult string
+		expectedErr    string
+	}{
+		{
+			note: "Rego v0",
+			policy: `package test
+				x[y] { y := 1 }`,
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility",
+			regoVersion: ast.RegoV0CompatV1,
+			policy: `package test
+				import rego.v1
+				x contains y if { y := 1 }`,
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility, invalid rule head",
+			regoVersion: ast.RegoV0CompatV1,
+			policy: `package test
+				import future.keywords.contains
+				x contains y { y := 1 }`,
+			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility, missing required imports",
+			regoVersion: ast.RegoV0CompatV1,
+			policy: `package test
+				x contains y if { y := 1 }`,
+			expectedErr: "rego_parse_error: var cannot be used for rule name", // FIXME: Improve error message
+		},
+		{
+			note:        "Rego v1",
+			regoVersion: ast.RegoV1,
+			policy: `package test
+				x contains y if { y := 1 }`,
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v1, invalid rule head",
+			regoVersion: ast.RegoV1,
+			policy: `package test
+				x contains y { y := 1 }`,
+			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+	}
+
+	setup := []struct {
+		name    string
+		options func(path string, policy string, t *testing.T, ctx context.Context) []func(*Rego)
+	}{
+		{
+			name: "File",
+			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					Load([]string{path}, nil),
+				}
+			},
+		},
+		{
+			name: "Bundle",
+			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					LoadBundle(path),
+				}
+			},
+		},
+		{
+			name: "Bundle URL",
+			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					LoadBundle("file://" + path),
+				}
+			},
+		},
+		{
+			name: "Store",
+			options: func(path string, policy string, t *testing.T, ctx context.Context) []func(*Rego) {
+				t.Helper()
+				store := mock.New()
+				txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+				err := store.UpsertPolicy(ctx, txn, "policy.rego", []byte(policy))
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				err = store.Commit(ctx, txn)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				return []func(*Rego){
+					// This extra module is required for modules in the store to be parsed
+					Module("extra.rego", "package extra\np = 1"),
+					Store(store),
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			files := map[string]string{
+				"policy.rego": tc.policy,
+			}
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(files, func(path string) {
+					ctx := context.Background()
+
+					options := append(s.options(path, tc.policy, t, ctx),
+						Query("data.test"),
+						func(r *Rego) {
+							if tc.regoVersion != ast.RegoV0 {
+								RegoVersion(tc.regoVersion)(r)
+							}
+						},
+					)
+
+					pq, err := New(
+						options...,
+					).PrepareForEval(ctx)
+
+					if tc.expectedErr != "" {
+						if err == nil {
+							t.Fatal("Expected error, got none")
+						}
+						if !strings.Contains(err.Error(), tc.expectedErr) {
+							t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", err, tc.expectedErr)
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						rs, err := pq.Eval(ctx)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						if tc.expectedResult != "" {
+							assertResultSet(t, rs, tc.expectedResult)
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestRegoLoadFilesWithProvidedStore(t *testing.T) {
 	ctx := context.Background()
 	store := mock.New()
@@ -2445,6 +2601,35 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 
 	// Ensure that Compile still works after Prepare
 	// and its Eval has been called.
+	_, err = r.Compile(ctx)
+	if err != nil {
+		t.Errorf("Unexpected error when compiling: %s", err.Error())
+	}
+}
+
+func TestPrepareAndCompileWithRegoV1(t *testing.T) {
+	module := `package test
+x contains v if {
+	v := input.y
+}`
+
+	r := New(
+		Query("data.test.x"),
+		Module("", module),
+		RegoVersion(ast.RegoV1),
+	)
+
+	ctx := context.Background()
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput(map[string]int{"y": 1}),
+	}, "[[[1]]]")
+
 	_, err = r.Compile(ctx)
 	if err != nil {
 		t.Errorf("Unexpected error when compiling: %s", err.Error())

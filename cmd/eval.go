@@ -70,6 +70,7 @@ type evalCommandParams struct {
 	optimizationLevel   int
 	entrypoints         repeatedStringFlag
 	strict              bool
+	regoV1              bool
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -326,6 +327,7 @@ access.
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
+	addRegoV1Flag(evalCommand.Flags(), &params.regoV1, false)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -661,6 +663,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strict {
 		regoArgs = append(regoArgs, rego.Strict(params.strict))
+	}
+
+	if params.regoV1 {
+		regoArgs = append(regoArgs, rego.RegoVersion(ast.RegoV1))
 	}
 
 	evalCtx := &evalContext{

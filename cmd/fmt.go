@@ -206,6 +206,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
-	formatCommand.Flags().BoolVar(&fmtParams.regoV1, "rego-v1", false, "format as Rego v1")
+	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format as Rego v1")
+
 	RootCommand.AddCommand(formatCommand)
 }

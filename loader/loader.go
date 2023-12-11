@@ -104,6 +104,8 @@ type FileLoader interface {
 	WithJSONOptions(*astJSON.Options) FileLoader
 
 	WithRegoV1Compatible(bool) FileLoader
+
+	WithRegoVersion(ast.RegoVersion) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -183,8 +185,20 @@ func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 	return fl
 }
 
+// WithRegoV1Compatible enforces Rego v0 with Rego v1 compatibility.
+// When true, modules must be compatible with both Rego v0 and Rego v1. Meaning, if "future" keywords are used,
+// the module must import either 'rego.v1' or one of the 'future.keywords' imports.
+// Calling this method with true is equivalent to calling WithRegoVersion(ast.RegoV0CompatV1).
 func (fl *fileLoader) WithRegoV1Compatible(compatible bool) FileLoader {
-	fl.opts.RegoV1Compatible = compatible
+	if compatible {
+		fl.opts.RegoVersion = ast.RegoV0CompatV1
+	}
+	return fl
+}
+
+// WithRegoVersion sets the ast.RegoVersion to use when parsing and compiling modules.
+func (fl *fileLoader) WithRegoVersion(version ast.RegoVersion) FileLoader {
+	fl.opts.RegoVersion = version
 	return fl
 }
 
@@ -256,7 +270,8 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
-		WithJSONOptions(fl.opts.JSONOptions)
+		WithJSONOptions(fl.opts.JSONOptions).
+		WithRegoVersion(fl.opts.RegoVersion)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.

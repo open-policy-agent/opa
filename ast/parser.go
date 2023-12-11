@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"net/url"
 	"regexp"
@@ -26,6 +27,14 @@ import (
 )
 
 var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
+
+type RegoVersion int
+
+const (
+	RegoV0 RegoVersion = iota
+	RegoV0CompatV1
+	RegoV1
+)
 
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
@@ -105,8 +114,8 @@ type ParserOptions struct {
 	FutureKeywords     []string
 	SkipRules          bool
 	JSONOptions        *astJSON.Options
+	RegoVersion        RegoVersion
 	unreleasedKeywords bool // TODO(sr): cleanup
-	RegoV1Compatible   bool
 }
 
 // NewParser creates and initializes a Parser.
@@ -189,6 +198,11 @@ func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
 	return p
 }
 
+func (p *Parser) WithRegoVersion(version RegoVersion) *Parser {
+	p.po.RegoVersion = version
+	return p
+}
+
 func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 	l := p.s.loc.Offset
 	// stop comparing once the cached offsets are lower than l
@@ -257,16 +271,21 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	for _, kw := range p.po.Capabilities.FutureKeywords {
-		var ok bool
-		allowedFutureKeywords[kw], ok = futureKeywords[kw]
-		if !ok {
-			return nil, nil, Errors{
-				&Error{
-					Code:     ParseErr,
-					Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-					Location: nil,
-				},
+	if p.po.RegoVersion == RegoV1 {
+		// RegoV1 includes all future keywords in the default language definition
+		allowedFutureKeywords = maps.Clone(futureKeywords)
+	} else {
+		for _, kw := range p.po.Capabilities.FutureKeywords {
+			var ok bool
+			allowedFutureKeywords[kw], ok = futureKeywords[kw]
+			if !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+						Location: nil,
+					},
+				}
 			}
 		}
 	}
@@ -284,7 +303,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords {
+	if p.po.AllFutureKeywords || p.po.RegoVersion == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
@@ -304,6 +323,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 	}
 	p.s.s = p.s.s.WithKeywords(selected)
+
+	if p.po.RegoVersion == RegoV1 {
+		for kw, tok := range allowedFutureKeywords {
+			p.s.s.AddKeyword(kw, tok)
+		}
+	}
 
 	// read the first token to initialize the parser
 	p.scan()
@@ -2564,6 +2589,11 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 func (p *Parser) regoV1Import(imp *Import) {
 	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
+		return
+	}
+
+	if p.po.RegoVersion == RegoV1 {
+		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
 

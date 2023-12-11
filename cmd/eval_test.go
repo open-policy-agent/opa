@@ -1880,3 +1880,114 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 		}
 	})
 }
+
+func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoV1      bool
+		modules     map[string]string
+		query       string
+		expectedErr string
+	}{
+		{
+			note: "rego-v0 mode: policy with no rego.v1 or future.keywords imports",
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:   "rego-v1 mode: policy with no rego.v1 or future.keywords imports",
+			regoV1: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:   "rego-v1 mode: policy with rego.v1 import",
+			regoV1: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:   "rego-v1 mode: policy with future.keywords import",
+			regoV1: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+	}
+
+	setup := []struct {
+		name          string
+		commandParams func(params *evalCommandParams, path string)
+	}{
+		{
+			name: "Files",
+			commandParams: func(params *evalCommandParams, path string) {
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+			},
+		},
+		{
+			name: "Bundle",
+			commandParams: func(params *evalCommandParams, path string) {
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.modules, func(path string) {
+					params := newEvalCommandParams()
+					s.commandParams(&params, path)
+					//params.dataPaths = newrepeatedStringFlag([]string{path})
+					params.regoV1 = tc.regoV1
+
+					var buf bytes.Buffer
+
+					defined, err := eval([]string{tc.query}, params, &buf)
+
+					if tc.expectedErr == "" {
+						if err != nil {
+							t.Fatalf("Unexpected error: %v, buf: %s", err, string(buf.Bytes()))
+						} else if !defined {
+							t.Fatal("expected result to be defined")
+						}
+					} else {
+						if err == nil {
+							t.Fatal("expected error, got none")
+						}
+
+						actual := string(buf.Bytes())
+						if !strings.Contains(actual, tc.expectedErr) {
+							t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", tc.expectedErr, actual)
+						}
+					}
+				})
+			})
+		}
+	}
+}

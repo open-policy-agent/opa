@@ -400,6 +400,7 @@ type Reader struct {
 	lazyLoadingMode       bool
 	name                  string
 	persist               bool
+	regoVersion           ast.RegoVersion
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -503,11 +504,17 @@ func (r *Reader) WithBundlePersistence(persist bool) *Reader {
 	return r
 }
 
+func (r *Reader) WithRegoVersion(version ast.RegoVersion) *Reader {
+	r.regoVersion = version
+	return r
+}
+
 func (r *Reader) ParserOptions() ast.ParserOptions {
 	return ast.ParserOptions{
 		ProcessAnnotation: r.processAnnotations,
 		Capabilities:      r.capabilities,
 		JSONOptions:       r.jsonOptions,
+		RegoVersion:       r.regoVersion,
 	}
 }
 
