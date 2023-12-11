@@ -535,7 +535,11 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fm
 		// * a.b.c.d -> a.b.c.d := true
 		isRegoV1RefConst := o.regoV1 && isExpandedConst && head.Key == nil && len(head.Args) == 0
 
-		if head.Location == head.Value.Location && head.Name != "else" && !isRegoV1RefConst {
+		if len(head.Args) > 0 &&
+			head.Location == head.Value.Location &&
+			head.Name != "else" &&
+			ast.Compare(head.Value, ast.BooleanTerm(true)) == 0 &&
+			!isRegoV1RefConst {
 			// If the value location is the same as the location of the head,
 			// we know that the value is generated, i.e. f(1)
 			// Don't print the value (` = true`) as it is implied.
