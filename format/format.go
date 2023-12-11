@@ -26,7 +26,7 @@ type Opts struct {
 	// carry along their original source locations.
 	IgnoreLocations bool
 
-	RegoV1 bool
+	RegoVersion ast.RegoVersion
 }
 
 // defaultLocationFile is the file name used in `Ast()` for terms
@@ -42,12 +42,19 @@ func Source(filename string, src []byte) ([]byte, error) {
 }
 
 func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
-	module, err := ast.ParseModule(filename, string(src))
+	parserOpts := ast.ParserOptions{}
+	if opts.RegoVersion == ast.RegoV1 {
+		// If the rego version is V1, wee need to parse it as such, to allow for future keywords not being imported.
+		// Otherwise, we'll default to RegoV0
+		parserOpts.RegoVersion = ast.RegoV1
+	}
+
+	module, err := ast.ParseModuleWithOpts(filename, string(src), parserOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	if opts.RegoV1 {
+	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
 		errors := ast.CheckRegoV1(module)
 		if len(errors) > 0 {
 			return nil, errors
@@ -115,10 +122,13 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	if opts.RegoV1 {
+	switch opts.RegoVersion {
+	case ast.RegoV0CompatV1:
 		o.regoV1 = true
 		o.ifs = true
 		o.contains = true
+	case ast.RegoV1:
+		o.regoV1 = true
 	}
 
 	// Preprocess the AST. Set any required defaults and calculate
@@ -176,10 +186,10 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if o.regoV1 {
+		if opts.RegoVersion == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
-		if o.regoV1 || moduleIsRegoV1Compatible(x) {
+		if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
 			x.Imports = future.FilterFutureImports(x.Imports)
 		} else {
 			for kw := range extraFutureKeywordImports {

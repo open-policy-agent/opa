@@ -83,6 +83,7 @@ type Compiler struct {
 	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
+	regoVersion                  ast.RegoVersion
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -239,6 +240,11 @@ func (c *Compiler) WithFS(fsys fs.FS) *Compiler {
 // WithPartialNamespace sets the namespace to use for partial evaluation results
 func (c *Compiler) WithPartialNamespace(ns string) *Compiler {
 	c.ns = ns
+	return c
+}
+
+func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
+	c.regoVersion = v
 	return c
 }
 
@@ -432,7 +438,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
+	load, err := initload.LoadPathsForRegoVersion(c.regoVersion, c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}

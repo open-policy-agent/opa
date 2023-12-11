@@ -976,3 +976,116 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildWithRegoV1Flag(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoV1      bool
+		files       map[string]string
+		expectedErr string
+	}{
+		{
+			note: "rego-v0 mode: policy with no rego.v1 or future.keywords imports",
+			files: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:   "rego-v1 mode: policy with no rego.v1 or future.keywords imports",
+			regoV1: true,
+			files: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:   "rego-v1 mode: policy with rego.v1 import",
+			regoV1: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+		{
+			note:   "rego-v1 mode: policy with future.keywords import",
+			regoV1: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.regoV1 = tc.regoV1
+
+				err := dobuild(params, []string{root})
+
+				if tc.expectedErr != "" {
+					if err == nil {
+						t.Fatal("expected error but got nil")
+					}
+					if !strings.Contains(err.Error(), tc.expectedErr) {
+						t.Fatalf("expected error %v, got %v", tc.expectedErr, err)
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					fl := loader.NewFileLoader()
+					if tc.regoV1 {
+						fl = fl.WithRegoVersion(ast.RegoV1)
+					}
+					_, err = fl.AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					// Check that manifest is not written given no input manifest and no other flags
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer f.Close()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+						if f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
+							continue
+						}
+						t.Fatal("unexpected file:", f.Name)
+					}
+				}
+			})
+		})
+	}
+}

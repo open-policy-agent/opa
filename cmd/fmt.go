@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,7 +110,11 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	formatted, err := format.SourceWithOpts(filename, contents, format.Opts{RegoV1: params.regoV1})
+	opts := format.Opts{}
+	if params.regoV1 {
+		opts.RegoVersion = ast.RegoV0CompatV1
+	}
+	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
 	}
@@ -170,7 +175,11 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	formatted, err := format.SourceWithOpts("stdin", contents, format.Opts{RegoV1: params.regoV1})
+	opts := format.Opts{}
+	if params.regoV1 {
+		opts.RegoVersion = ast.RegoV0CompatV1
+	}
+	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
 	}

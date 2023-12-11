@@ -1027,7 +1027,7 @@ func (b *Bundle) FormatModules(useModulePath bool) error {
 				path = module.Path
 			}
 
-			module.Raw, err = format.Source(path, module.Raw)
+			module.Raw, err = format.SourceWithOpts(path, module.Raw, format.Opts{RegoVersion: module.Parsed.RegoVersion()})
 			if err != nil {
 				return err
 			}
