@@ -5177,6 +5177,82 @@ func TestCertPoolReloading(t *testing.T) {
 		break
 	}
 
+	// update the cert pool file to a new & different CA that hasn't signed the client cert
+	caKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caSerial, err = rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	caSubj = pkix.Name{
+		CommonName:   "CA 2",
+		SerialNumber: caSerial.String(),
+	}
+
+	caTemplate = &x509.Certificate{
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		PublicKeyAlgorithm:    x509.ECDSA,
+		PublicKey:             caKey.Public(),
+		SerialNumber:          caSerial,
+		Issuer:                caSubj,
+		Subject:               caSubj,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(100 * time.Hour * 24 * 365),
+		KeyUsage:              x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		IsCA:                  true,
+		DNSNames:              nil,
+		EmailAddresses:        nil,
+		IPAddresses:           nil,
+	}
+
+	caCertData, err = x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, caKey.Public(), caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caCertPEMEncoded = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertData,
+	})
+
+	err = os.WriteFile(caCertPath, caCertPEMEncoded, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// make a final request and check that the server doesn't trust the client again
+	// since the loaded CA cert is different from the one that signed the client cert
+	retries = 10
+	for {
+		if retries == 0 {
+			t.Fatal("server didn't accept client cert before deadline")
+		}
+
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/data", serverAddress), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = client.Do(req)
+		if err == nil {
+			t.Log("server still trusts client cert")
+			retries--
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+
+		if !strings.Contains(err.Error(), "remote error: tls") {
+			t.Fatalf("expected unknown certificate authority error but got: %s", err)
+		}
+
+		break
+	}
+
 	err = server.Shutdown(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error shutting down server: %s", err)
