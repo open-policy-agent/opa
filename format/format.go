@@ -183,9 +183,12 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if opts.RegoVersion == ast.RegoV0CompatV1 {
+		if opts.RegoVersion == ast.RegoV1 {
+			x.Imports = filterRegoV1Import(x.Imports)
+		} else if opts.RegoVersion == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
+
 		if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
 			x.Imports = future.FilterFutureImports(x.Imports)
 		} else {
@@ -1453,6 +1456,17 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
 	return ensureImport(imps, ast.RegoV1CompatibleRef)
+}
+
+func filterRegoV1Import(imps []*ast.Import) []*ast.Import {
+	var ret []*ast.Import
+	for _, imp := range imps {
+		path := imp.Path.Value.(ast.Ref)
+		if !ast.RegoV1CompatibleRef.Equal(path) {
+			ret = append(ret, imp)
+		}
+	}
+	return ret
 }
 
 func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {

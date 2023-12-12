@@ -979,10 +979,11 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 
 func TestBuildWithRegoV1Flag(t *testing.T) {
 	tests := []struct {
-		note        string
-		regoV1      bool
-		files       map[string]string
-		expectedErr string
+		note          string
+		regoV1        bool
+		files         map[string]string
+		expectedFiles map[string]string
+		expectedErr   string
 	}{
 		{
 			note: "rego-v0 mode: policy with no rego.v1 or future.keywords imports",
@@ -995,6 +996,48 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 			expectedErr: "rego_parse_error",
 		},
 		{
+			note: "rego-v0 mode: policy with rego.v1 imports",
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+import rego.v1
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note: "rego-v0 mode: policy with future.keywords imports",
+			files: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+import future.keywords.if
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
 			note:   "rego-v1 mode: policy with no rego.v1 or future.keywords imports",
 			regoV1: true,
 			files: map[string]string{
@@ -1002,6 +1045,15 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 				allow if {
 					1 < 2
 				}`,
+			},
+			// Imports are not added in
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
 			},
 		},
 		{
@@ -1014,6 +1066,15 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 					1 < 2
 				}`,
 			},
+			// the rego.v1 import is obsolete in rego-v1, and is removed
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
+			},
 		},
 		{
 			note:   "rego-v1 mode: policy with future.keywords import",
@@ -1024,6 +1085,15 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 				allow if {
 					1 < 2
 				}`,
+			},
+			// future.keywords imports are obsolete in rego-v1, and are removed
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
 			},
 		},
 	}
@@ -1079,10 +1149,17 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 						} else if err != nil {
 							t.Fatal(err)
 						}
-						if f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
-							continue
+						expectedFile := tc.expectedFiles[path.Base(f.Name)]
+						if expectedFile != "" {
+							data, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
+							}
+							actualFile := string(data)
+							if actualFile != expectedFile {
+								t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+							}
 						}
-						t.Fatal("unexpected file:", f.Name)
 					}
 				}
 			})
