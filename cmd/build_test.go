@@ -1089,3 +1089,132 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildWithRegoV1FlagOptimized(t *testing.T) {
+	tests := []struct {
+		note          string
+		files         map[string]string
+		expectedFiles map[string]string
+	}{
+		{
+			note: "No imports",
+			files: map[string]string{
+				"test.rego": `package test
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note: "rego.v1 imported",
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			// Note: the rego.v1 import isn't added to the optimized module.
+			// This is ok, as the bundle was built with the --rego-v1 flag,
+			// and is therefore only guaranteed to work with OPA 1.0 or when
+			// OPA 0.x is run with the --rego-v1 flag.
+			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note: "future.keywords imported",
+			files: map[string]string{
+				"test.rego": `package test
+import future.keywords
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.regoV1 = true
+				params.optimizationLevel = 1
+
+				err := dobuild(params, []string{root})
+
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.Open(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+
+				gr, err := gzip.NewReader(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				tr := tar.NewReader(gr)
+
+				for {
+					f, err := tr.Next()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatal(err)
+					}
+					expectedFile := tc.expectedFiles[f.Name]
+					if expectedFile != "" {
+						data, err := io.ReadAll(tr)
+						if err != nil {
+							t.Fatal(err)
+						}
+						actualFile := string(data)
+						if actualFile != expectedFile {
+							t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+						}
+					}
+				}
+			})
+		})
+	}
+}

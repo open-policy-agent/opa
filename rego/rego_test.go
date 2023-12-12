@@ -1167,6 +1167,83 @@ func TestPrepareAndPartial(t *testing.T) {
 	}
 }
 
+func TestPartialWitRegoV1(t *testing.T) {
+	tests := []struct {
+		note       string
+		module     string
+		expQuery   string
+		expSupport string
+	}{
+		{
+			note: "No imports",
+			module: `package test
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+		{
+			note: "rego.v1 imported",
+			module: `package test
+				import rego.v1
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+		{
+			note: "future.keywords imported",
+			module: `package test
+				import future.keywords
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			r := New(
+				Query("data.test.p = x"),
+				Module("test.rego", tc.module),
+				RegoVersion(ast.RegoV1),
+			)
+
+			ctx := context.Background()
+
+			partialQuery, err := r.Partial(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			fmt.Println(partialQuery)
+
+			actualQuery := partialQuery.Queries[0].String()
+			if tc.expQuery != actualQuery {
+				t.Fatalf("Expected partial query to be:\n\n%s\n\nbut got:\n\n%s", tc.expQuery, actualQuery)
+			}
+
+			actualSupport := partialQuery.Support[0].String()
+			if tc.expSupport != actualSupport {
+				t.Fatalf("Expected support module to be:\n\n%s\n\nbut got:\n\n%s", tc.expSupport, actualSupport)
+			}
+		})
+	}
+}
+
 func TestPartialNamespace(t *testing.T) {
 
 	r := New(
@@ -1844,63 +1921,90 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 	tests := []struct {
 		note           string
 		regoVersion    ast.RegoVersion
-		policy         string
+		policies       map[string]string
 		query          string
 		expectedResult string
 		expectedErr    string
 	}{
 		{
 			note: "Rego v0",
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				x[y] { y := 1 }`,
+			},
 			expectedResult: `[[{"x": [1]}]]`,
 		},
 		{
 			note:        "Rego v0, forced v1 compatibility",
 			regoVersion: ast.RegoV0CompatV1,
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				import rego.v1
 				x contains y if { y := 1 }`,
+			},
 			expectedResult: `[[{"x": [1]}]]`,
 		},
 		{
 			note:        "Rego v0, forced v1 compatibility, invalid rule head",
 			regoVersion: ast.RegoV0CompatV1,
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				import future.keywords.contains
 				x contains y { y := 1 }`,
+			},
 			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
 		},
 		{
 			note:        "Rego v0, forced v1 compatibility, missing required imports",
 			regoVersion: ast.RegoV0CompatV1,
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				x contains y if { y := 1 }`,
+			},
 			expectedErr: "rego_parse_error: var cannot be used for rule name", // FIXME: Improve error message
 		},
 		{
 			note:        "Rego v1",
 			regoVersion: ast.RegoV1,
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				x contains y if { y := 1 }`,
+			},
 			expectedResult: `[[{"x": [1]}]]`,
 		},
 		{
 			note:        "Rego v1, invalid rule head",
 			regoVersion: ast.RegoV1,
-			policy: `package test
+			policies: map[string]string{
+				"policy.rego": `package test
 				x contains y { y := 1 }`,
+			},
 			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note:        "Rego v1, multiple files",
+			regoVersion: ast.RegoV1,
+			policies: map[string]string{
+				"one.rego": `package test
+				x contains v if { v := 1 }`,
+				"two.rego": `package test
+				import rego.v1
+				y contains v if { v := 1 }`,
+				"three.rego": `package test
+				import future.keywords
+				z contains v if { v := 1 }`,
+			},
+			expectedResult: `[[{"x": [1], "y": [1], "z": [1]}]]`,
 		},
 	}
 
 	setup := []struct {
 		name    string
-		options func(path string, policy string, t *testing.T, ctx context.Context) []func(*Rego)
+		options func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego)
 	}{
 		{
 			name: "File",
-			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
 				return []func(*Rego){
 					Load([]string{path}, nil),
 				}
@@ -1908,7 +2012,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		},
 		{
 			name: "Bundle",
-			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
 				return []func(*Rego){
 					LoadBundle(path),
 				}
@@ -1916,7 +2020,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		},
 		{
 			name: "Bundle URL",
-			options: func(path string, _ string, _ *testing.T, _ context.Context) []func(*Rego) {
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
 				return []func(*Rego){
 					LoadBundle("file://" + path),
 				}
@@ -1924,16 +2028,19 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		},
 		{
 			name: "Store",
-			options: func(path string, policy string, t *testing.T, ctx context.Context) []func(*Rego) {
+			options: func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego) {
 				t.Helper()
 				store := mock.New()
 				txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
-				err := store.UpsertPolicy(ctx, txn, "policy.rego", []byte(policy))
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
+				for name, policy := range policies {
+					err := store.UpsertPolicy(ctx, txn, name, []byte(policy))
+					if err != nil {
+						t.Fatalf("Unexpected error: %s", err)
+					}
 				}
-				err = store.Commit(ctx, txn)
+
+				err := store.Commit(ctx, txn)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)
 				}
@@ -1949,14 +2056,11 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 
 	for _, s := range setup {
 		for _, tc := range tests {
-			files := map[string]string{
-				"policy.rego": tc.policy,
-			}
 			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
-				test.WithTempFS(files, func(path string) {
+				test.WithTempFS(tc.policies, func(path string) {
 					ctx := context.Background()
 
-					options := append(s.options(path, tc.policy, t, ctx),
+					options := append(s.options(path, tc.policies, t, ctx),
 						Query("data.test"),
 						func(r *Rego) {
 							if tc.regoVersion != ast.RegoV0 {

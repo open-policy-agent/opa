@@ -122,13 +122,10 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	switch opts.RegoVersion {
-	case ast.RegoV0CompatV1:
+	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
 		o.regoV1 = true
 		o.ifs = true
 		o.contains = true
-	case ast.RegoV1:
-		o.regoV1 = true
 	}
 
 	// Preprocess the AST. Set any required defaults and calculate

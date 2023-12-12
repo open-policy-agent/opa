@@ -1037,6 +1037,32 @@ func (b *Bundle) FormatModules(useModulePath bool) error {
 	return nil
 }
 
+// FormatModulesForRegoVersion formats Rego modules to comply with a given Rego version
+func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, useModulePath bool) error {
+	var err error
+
+	for i, module := range b.Modules {
+		if module.Raw == nil {
+			module.Raw, err = format.AstWithOpts(module.Parsed, format.Opts{RegoVersion: version})
+			if err != nil {
+				return err
+			}
+		} else {
+			path := module.URL
+			if useModulePath {
+				path = module.Path
+			}
+
+			module.Raw, err = format.SourceWithOpts(path, module.Raw, format.Opts{RegoVersion: version})
+			if err != nil {
+				return err
+			}
+		}
+		b.Modules[i].Raw = module.Raw
+	}
+	return nil
+}
+
 // GenerateSignature generates the signature for the given bundle.
 func (b *Bundle) GenerateSignature(signingConfig *SigningConfig, keyID string, useModulePath bool) error {
 
