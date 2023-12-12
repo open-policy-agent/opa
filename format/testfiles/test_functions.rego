@@ -25,3 +25,24 @@ f7(x) := 1 {
 } else {
 	false
 }
+
+f(x) = 1 {
+	input.x == x
+} {
+	input.x < 10
+}
+
+f(_) {
+	input.x
+} {
+	input.y
+}
+
+# Non-functions
+foo[x] = y {
+	x = 1
+	y = 2
+} {
+	x = 3
+	y = 4
+}

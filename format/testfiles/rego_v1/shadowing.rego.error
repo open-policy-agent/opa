@@ -1,0 +1,13 @@
+12 errors occurred:
+testfiles/rego_v1/shadowing.rego:3: rego_compile_error: rules must not shadow input (use a different rule name)
+testfiles/rego_v1/shadowing.rego:5: rego_compile_error: rules must not shadow input (use a different rule name)
+testfiles/rego_v1/shadowing.rego:7: rego_compile_error: rules must not shadow input (use a different rule name)
+testfiles/rego_v1/shadowing.rego:9: rego_compile_error: rules must not shadow data (use a different rule name)
+testfiles/rego_v1/shadowing.rego:11: rego_compile_error: rules must not shadow data (use a different rule name)
+testfiles/rego_v1/shadowing.rego:13: rego_compile_error: rules must not shadow data (use a different rule name)
+testfiles/rego_v1/shadowing.rego:28: rego_compile_error: args must not shadow input (use a different variable name)
+testfiles/rego_v1/shadowing.rego:32: rego_compile_error: args must not shadow data (use a different variable name)
+testfiles/rego_v1/shadowing.rego:16: rego_compile_error: variables must not shadow input (use a different variable name)
+testfiles/rego_v1/shadowing.rego:17: rego_compile_error: variables must not shadow data (use a different variable name)
+testfiles/rego_v1/shadowing.rego:21: rego_compile_error: variables must not shadow input (use a different variable name)
+testfiles/rego_v1/shadowing.rego:25: rego_compile_error: variables must not shadow data (use a different variable name)

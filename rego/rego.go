@@ -599,6 +599,7 @@ type Rego struct {
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
 	Name             string
+	Description      string
 	Decl             *types.Function
 	Memoize          bool
 	Nondeterministic bool
@@ -629,6 +630,7 @@ type (
 func RegisterBuiltin1(decl *Function, impl Builtin1) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -642,6 +644,7 @@ func RegisterBuiltin1(decl *Function, impl Builtin1) {
 func RegisterBuiltin2(decl *Function, impl Builtin2) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -655,6 +658,7 @@ func RegisterBuiltin2(decl *Function, impl Builtin2) {
 func RegisterBuiltin3(decl *Function, impl Builtin3) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -668,6 +672,7 @@ func RegisterBuiltin3(decl *Function, impl Builtin3) {
 func RegisterBuiltin4(decl *Function, impl Builtin4) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -681,6 +686,7 @@ func RegisterBuiltin4(decl *Function, impl Builtin4) {
 func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
