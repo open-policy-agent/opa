@@ -404,7 +404,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.PrintHook(loggingPrintHook{logger: logger}),
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
-		plugins.WithTracerProvider(tracerProvider))
+		plugins.WithTracerProvider(tracerProvider),
+		plugins.WithEnableTelemetry(params.EnableVersionCheck))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

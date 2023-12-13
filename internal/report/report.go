@@ -10,15 +10,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
-
-	"os"
-	"time"
 
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
@@ -38,9 +38,15 @@ var ExternalServiceURL = "https://telemetry.openpolicyagent.org"
 
 // Reporter reports information such as the version, heap usage about the running OPA instance to an external service
 type Reporter struct {
-	body   map[string]string
+	body   map[string]any
 	client rest.Client
+
+	gatherers    map[string]Gatherer
+	gatherersMtx sync.Mutex
 }
+
+// Gatherer represents a mechanism to inject additional data in the telemetry report
+type Gatherer func(ctx context.Context) (any, error)
 
 // DataResponse represents the data returned by the external service
 type DataResponse struct {
@@ -62,8 +68,10 @@ type Options struct {
 
 // New returns an instance of the Reporter
 func New(id string, opts Options) (*Reporter, error) {
-	r := Reporter{}
-	r.body = map[string]string{
+	r := Reporter{
+		gatherers: map[string]Gatherer{},
+	}
+	r.body = map[string]any{
 		"id":      id,
 		"version": version.Version,
 	}
@@ -83,6 +91,9 @@ func New(id string, opts Options) (*Reporter, error) {
 	}
 	r.client = client
 
+	// heap_usage_bytes is always present, so register it unconditionally
+	r.RegisterGatherer("heap_usage_bytes", readRuntimeMemStats)
+
 	return &r, nil
 }
 
@@ -92,9 +103,15 @@ func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
 	rCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	r.body["heap_usage_bytes"] = strconv.FormatUint(m.Alloc, 10)
+	r.gatherersMtx.Lock()
+	defer r.gatherersMtx.Unlock()
+	for key, g := range r.gatherers {
+		var err error
+		r.body[key], err = g(rCtx)
+		if err != nil {
+			return nil, fmt.Errorf("gather telemetry error for key %s: %w", key, err)
+		}
+	}
 
 	resp, err := r.client.WithJSON(r.body).Do(rCtx, "POST", "/v1/version")
 	if err != nil {
@@ -117,6 +134,12 @@ func (r *Reporter) SendReport(ctx context.Context) (*DataResponse, error) {
 	default:
 		return nil, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
 	}
+}
+
+func (r *Reporter) RegisterGatherer(key string, f Gatherer) {
+	r.gatherersMtx.Lock()
+	r.gatherers[key] = f
+	r.gatherersMtx.Unlock()
 }
 
 // IsSet returns true if dr is populated.
@@ -152,4 +175,10 @@ func (dr *DataResponse) Pretty() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func readRuntimeMemStats(_ context.Context) (any, error) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return strconv.FormatUint(m.Alloc, 10), nil
 }
