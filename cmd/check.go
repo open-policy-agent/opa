@@ -38,6 +38,13 @@ func newCheckParams() checkParams {
 	}
 }
 
+func (p *checkParams) regoVersion() ast.RegoVersion {
+	if p.regoV1 {
+		return ast.RegoV0CompatV1
+	}
+	return ast.RegoV0
+}
+
 const (
 	checkFormatPretty = "pretty"
 	checkFormatJSON   = "json"
@@ -65,7 +72,7 @@ func checkModules(params checkParams, args []string) error {
 	if params.bundleMode {
 		for _, path := range args {
 			b, err := loader.NewFileLoader().
-				WithRegoV1Compatible(params.regoV1).
+				WithRegoVersion(params.regoVersion()).
 				WithSkipBundleVerification(true).
 				WithProcessAnnotation(true).
 				WithCapabilities(capabilities).
@@ -84,7 +91,7 @@ func checkModules(params checkParams, args []string) error {
 		}
 
 		result, err := loader.NewFileLoader().
-			WithRegoV1Compatible(params.regoV1).
+			WithRegoVersion(params.regoVersion()).
 			WithProcessAnnotation(true).
 			WithCapabilities(capabilities).
 			Filtered(args, f.Apply)

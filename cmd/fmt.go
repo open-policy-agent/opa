@@ -29,6 +29,13 @@ type fmtCommandParams struct {
 
 var fmtParams = fmtCommandParams{}
 
+func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
+	if p.regoV1 {
+		return ast.RegoV0CompatV1
+	}
+	return ast.RegoV0
+}
+
 var formatCommand = &cobra.Command{
 	Use:   "fmt [path [...]]",
 	Short: "Format Rego source files",
@@ -111,9 +118,7 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	}
 
 	opts := format.Opts{}
-	if params.regoV1 {
-		opts.RegoVersion = ast.RegoV0CompatV1
-	}
+	opts.RegoVersion = params.regoVersion()
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
@@ -176,9 +181,7 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 	}
 
 	opts := format.Opts{}
-	if params.regoV1 {
-		opts.RegoVersion = ast.RegoV0CompatV1
-	}
+	opts.RegoVersion = params.regoVersion()
 	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err

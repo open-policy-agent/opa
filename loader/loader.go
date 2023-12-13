@@ -103,6 +103,8 @@ type FileLoader interface {
 	WithCapabilities(*ast.Capabilities) FileLoader
 	WithJSONOptions(*astJSON.Options) FileLoader
 
+	// WithRegoV1Compatible
+	// Deprecated: use WithRegoVersion instead
 	WithRegoV1Compatible(bool) FileLoader
 
 	WithRegoVersion(ast.RegoVersion) FileLoader
