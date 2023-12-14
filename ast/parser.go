@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"maps"
 	"math/big"
 	"net/url"
 	"regexp"
@@ -273,7 +272,9 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	if p.po.RegoVersion == RegoV1 {
 		// RegoV1 includes all future keywords in the default language definition
-		allowedFutureKeywords = maps.Clone(futureKeywords)
+		for k, v := range futureKeywords {
+			allowedFutureKeywords[k] = v
+		}
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			var ok bool

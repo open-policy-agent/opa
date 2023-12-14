@@ -1972,7 +1972,7 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 
 					if tc.expectedErr == "" {
 						if err != nil {
-							t.Fatalf("Unexpected error: %v, buf: %s", err, string(buf.Bytes()))
+							t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
 						} else if !defined {
 							t.Fatal("expected result to be defined")
 						}
@@ -1981,7 +1981,7 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 							t.Fatal("expected error, got none")
 						}
 
-						actual := string(buf.Bytes())
+						actual := buf.String()
 						if !strings.Contains(actual, tc.expectedErr) {
 							t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", tc.expectedErr, actual)
 						}

@@ -666,7 +666,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	if params.regoV1 {
-		regoArgs = append(regoArgs, rego.RegoVersion(ast.RegoV1))
+		regoArgs = append(regoArgs, rego.SetRegoVersion(ast.RegoV1))
 	}
 
 	evalCtx := &evalContext{

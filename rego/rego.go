@@ -1194,7 +1194,7 @@ func Strict(yes bool) func(r *Rego) {
 	}
 }
 
-func RegoVersion(version ast.RegoVersion) func(r *Rego) {
+func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
 	return func(r *Rego) {
 		r.regoVersion = version
 	}

@@ -1219,7 +1219,7 @@ foo[__local1__1] { __local1__1 = input.v }`,
 			r := New(
 				Query("data.test.p = x"),
 				Module("test.rego", tc.module),
-				RegoVersion(ast.RegoV1),
+				SetRegoVersion(ast.RegoV1),
 			)
 
 			ctx := context.Background()
@@ -2064,7 +2064,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 						Query("data.test"),
 						func(r *Rego) {
 							if tc.regoVersion != ast.RegoV0 {
-								RegoVersion(tc.regoVersion)(r)
+								SetRegoVersion(tc.regoVersion)(r)
 							}
 						},
 					)
@@ -2720,7 +2720,7 @@ x contains v if {
 	r := New(
 		Query("data.test.x"),
 		Module("", module),
-		RegoVersion(ast.RegoV1),
+		SetRegoVersion(ast.RegoV1),
 	)
 
 	ctx := context.Background()
