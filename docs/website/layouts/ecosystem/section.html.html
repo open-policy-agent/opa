@@ -54,6 +54,7 @@
         </div>
         {{ end }}
 
+        {{ partial "ecosystem-cta" }}
 
         <h2>All Integrations</h2>
         {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $integrations) }}
