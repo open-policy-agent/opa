@@ -363,7 +363,7 @@ func (c *Compiler) Build(ctx context.Context) error {
 	}
 
 	if c.regoVersion == ast.RegoV1 {
-		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, false); err != nil {
+		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, false, false); err != nil {
 			return err
 		}
 	} else {

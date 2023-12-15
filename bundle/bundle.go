@@ -1012,34 +1012,13 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 }
 
 // FormatModules formats Rego modules
+// Modules will be formatted to comply with rego-v1, but Rego compatibility of individual parsed modules will be respected (e.g. if 'rego.v1' is imported).
 func (b *Bundle) FormatModules(useModulePath bool) error {
-	var err error
-
-	for i, module := range b.Modules {
-		if module.Raw == nil {
-			module.Raw, err = format.Ast(module.Parsed)
-			if err != nil {
-				return err
-			}
-		} else {
-			path := module.URL
-			if useModulePath {
-				path = module.Path
-			}
-
-			// Preserve Rego version of parsed module
-			module.Raw, err = format.SourceWithOpts(path, module.Raw, format.Opts{RegoVersion: module.Parsed.RegoVersion()})
-			if err != nil {
-				return err
-			}
-		}
-		b.Modules[i].Raw = module.Raw
-	}
-	return nil
+	return b.FormatModulesForRegoVersion(ast.RegoV0, true, useModulePath)
 }
 
 // FormatModulesForRegoVersion formats Rego modules to comply with a given Rego version
-func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, useModulePath bool) error {
+func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveModuleRegoVersion bool, useModulePath bool) error {
 	var err error
 
 	for i, module := range b.Modules {
@@ -1054,7 +1033,14 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, useModuleP
 				path = module.Path
 			}
 
-			module.Raw, err = format.SourceWithOpts(path, module.Raw, format.Opts{RegoVersion: version})
+			opts := format.Opts{}
+			if preserveModuleRegoVersion {
+				opts.RegoVersion = module.Parsed.RegoVersion()
+			} else {
+				opts.RegoVersion = version
+			}
+
+			module.Raw, err = format.SourceWithOpts(path, module.Raw, opts)
 			if err != nil {
 				return err
 			}
