@@ -54,10 +54,12 @@ example RBAC policy shown above.
 ```live:rbac:module:openable
 package rbac.authz
 
+import rego.v1
+
 # user-role assignments
 user_roles := {
     "alice": ["engineering", "webdev"],
-    "bob": ["hr"]
+    "bob": ["hr"],
 }
 
 # role-permissions assignments
@@ -65,12 +67,12 @@ role_permissions := {
     "engineering": [{"action": "read",  "object": "server123"}],
     "webdev":      [{"action": "read",  "object": "server123"},
                     {"action": "write", "object": "server123"}],
-    "hr":          [{"action": "read",  "object": "database456"}]
+    "hr":          [{"action": "read",  "object": "database456"}],
 }
 
 # logic that implements RBAC.
-default allow = false
-allow {
+default allow := false
+allow if {
     # lookup the list of roles for the user
     roles := user_roles[input.user]
     # for each role in that list
@@ -124,19 +126,19 @@ statements above.)
 ```live:rbac/sod:module:openable
 # Pairs of roles that no user can be assigned to simultaneously
 sod_roles := [
-    ["create-payment", "approve-payment"],
-    ["create-vendor", "pay-vendor"],
+	["create-payment", "approve-payment"],
+	["create-vendor", "pay-vendor"],
 ]
 
 # Find all users violating SOD
-sod_violation[user] {
-    some user
-    # grab one role for a user
-    role1 := user_roles[user][_]
-    # grab another role for that same user
-    role2 := user_roles[user][_]
-    # check if those roles are forbidden by SOD
-    sod_roles[_] == [role1, role2]
+sod_violation contains user if {
+	some user
+	# grab one role for a user
+	role1 := user_roles[user][_]
+	# grab another role for that same user
+	role2 := user_roles[user][_]
+	# check if those roles are forbidden by SOD
+	sod_roles[_] == [role1, role2]
 }
 ```
 
@@ -183,44 +185,46 @@ OPA supports ABAC policies as shown below.
 ```live:abac:module:openable
 package abac
 
+import rego.v1
+
 # User attributes
 user_attributes := {
-    "alice": {"tenure": 15, "title": "trader"},
-    "bob": {"tenure": 5, "title": "analyst"}
+	"alice": {"tenure": 15, "title": "trader"},
+	"bob": {"tenure": 5, "title": "analyst"},
 }
 
 # Stock attributes
 ticker_attributes := {
-    "MSFT": {"exchange": "NASDAQ", "price": 59.20},
-    "AMZN": {"exchange": "NASDAQ", "price": 813.64}
+	"MSFT": {"exchange": "NASDAQ", "price": 59.20},
+	"AMZN": {"exchange": "NASDAQ", "price": 813.64},
 }
 
-default allow = false
+default allow := false
 
 # all traders may buy NASDAQ under $2M
-allow {
-    # lookup the user's attributes
-    user := user_attributes[input.user]
-    # check that the user is a trader
-    user.title == "trader"
-    # check that the stock being purchased is sold on the NASDAQ
-    ticker_attributes[input.ticker].exchange == "NASDAQ"
-    # check that the purchase amount is under $2M
-    input.amount <= 2000000
+allow if {
+	# lookup the user's attributes
+	user := user_attributes[input.user]
+	# check that the user is a trader
+	user.title == "trader"
+	# check that the stock being purchased is sold on the NASDAQ
+	ticker_attributes[input.ticker].exchange == "NASDAQ"
+	# check that the purchase amount is under $2M
+	input.amount <= 2000000
 }
 
 # traders with 10+ years experience may buy NASDAQ under $5M
-allow {
-    # lookup the user's attributes
-    user := user_attributes[input.user]
-    # check that the user is a trader
-    user.title == "trader"
-    # check that the stock being purchased is sold on the NASDAQ
-    ticker_attributes[input.ticker].exchange == "NASDAQ"
-    # check that the user has at least 10 years of experience
-    user.tenure > 10
-    # check that the purchase amount is under $5M
-    input.amount <= 5000000
+allow if {
+	# lookup the user's attributes
+	user := user_attributes[input.user]
+	# check that the user is a trader
+	user.title == "trader"
+	# check that the stock being purchased is sold on the NASDAQ
+	ticker_attributes[input.ticker].exchange == "NASDAQ"
+	# check that the user has at least 10 years of experience
+	user.tenure > 10
+	# check that the purchase amount is under $5M
+	input.amount <= 5000000
 }
 ```
 
@@ -296,50 +300,52 @@ expect the input to have `principal`, `action`, and `resource` fields.
 ```live:iam:module:openable
 package aws
 
-default allow = false
+import rego.v1
+
+default allow := false
 
 # FirstStatement
-allow {
-    principals_match
-    input.action == "iam:ChangePassword"
+allow if {
+	principals_match
+	input.action == "iam:ChangePassword"
 }
 
 # SecondStatement
-allow {
-    principals_match
-    input.action == "s3:ListAllMyBuckets"
+allow if {
+	principals_match
+	input.action == "s3:ListAllMyBuckets"
 }
 
 # ThirdStatement
 #  Use helpers to handle implicit OR in the AWS policy.
 #  Below all of the 'principals_match', 'actions_match' and 'resources_match' must be true.
-allow {
-    principals_match
-    actions_match
-    resources_match
+allow if {
+	principals_match
+	actions_match
+	resources_match
 }
 
 # principals_match is true if input.principal matches
-principals_match {
-    input.principal == "alice"
+principals_match if {
+	input.principal == "alice"
 }
 
 # actions_match is true if input.action matches one in the list
-actions_match {
-    # iterate over the actions in the list
-    actions := ["s3:List.*","s3:Get.*"]
-    action := actions[_]
-    # check if input.action matches an action
-    regex.globs_match(input.action, action)
+actions_match if {
+	# iterate over the actions in the list
+	actions := ["s3:List.*", "s3:Get.*"]
+	action := actions[_]
+	# check if input.action matches an action
+	regex.globs_match(input.action, action)
 }
 
 # resources_match is true if input.resource matches one in the list
-resources_match {
-    # iterate over the resources in the list
-    resources := ["arn:aws:s3:::confidential-data","arn:aws:s3:::confidential-data/.*"]
-    resource := resources[_]
-    # check if input.resource matches a resource
-    regex.globs_match(input.resource, resource)
+resources_match if {
+	# iterate over the resources in the list
+	resources := ["arn:aws:s3:::confidential-data", "arn:aws:s3:::confidential-data/.*"]
+	resource := resources[_]
+	# check if input.resource matches a resource
+	regex.globs_match(input.resource, resource)
 }
 ```
 
@@ -455,13 +461,13 @@ roughly the same as for XACML: attributes of users, actions, and resources.
 ```live:xacml:module:openable
 package xacml
 
-import future.keywords
+import rego.v1
 
 # METADATA
 # title: urn:curtiss:ba:taa:taa-1.1
 # description: Policy for Business Authorization category TAA-1.1
 default permit := false
-permit {
+permit if {
     # Check that resource has a "NavigationSystem" entry
     input.resource["NavigationSystem"]
 

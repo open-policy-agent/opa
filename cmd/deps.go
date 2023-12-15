@@ -53,8 +53,7 @@ Given a policy like this:
 
 	package policy
 
-	import future.keywords.if
-	import future.keywords.in
+	import rego.v1
 
 	allow if is_admin
 

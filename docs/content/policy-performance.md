@@ -20,11 +20,13 @@ For example, the following rule has one local variable `user`, and that variable
 ```live:linear:module:read_only,openable
 package linear
 
-allow {
-    some user
-    input.method == "GET"
-    input.path = ["accounts", user]
-    input.user == user
+import rego.v1
+
+allow if {
+	some user
+	input.method == "GET"
+	input.path = ["accounts", user]
+	input.user == user
 }
 ```
 
@@ -71,30 +73,32 @@ Here is an example policy from the [rule-indexing blog](https://blog.openpolicya
 ```live:indexed:module:openable
 package indexed
 
+import rego.v1
+
 default allow := false
 
-allow {
-    some user
-    input.method == "GET"
-    input.path = ["accounts", user]
-    input.user == user
+allow if {
+	some user
+	input.method == "GET"
+	input.path = ["accounts", user]
+	input.user == user
 }
 
-allow {
-    input.method == "GET"
-    input.path == ["accounts", "report"]
-    roles[input.user][_] == "admin"
+allow if {
+	input.method == "GET"
+	input.path == ["accounts", "report"]
+	roles[input.user][_] == "admin"
 }
 
-allow {
-    input.method == "POST"
-    input.path == ["accounts"]
-    roles[input.user][_] == "admin"
+allow if {
+	input.method == "POST"
+	input.path == ["accounts"]
+	roles[input.user][_] == "admin"
 }
 
 roles := {
-    "bob": ["admin", "hr"],
-    "alice": ["procurement"],
+	"bob": ["admin", "hr"],
+	"alice": ["procurement"],
 }
 ```
 
@@ -149,58 +153,64 @@ The most common case for this are a set of `allow` rules:
 ```live:ee:module:read_only
 package earlyexit
 
-allow {
-    input.user == "alice"
+import rego.v1
+
+allow if {
+	input.user == "alice"
 }
-allow {
-    input.user == "bob"
+
+allow if {
+	input.user == "bob"
 }
-allow {
-    input.group == "admins"
+
+allow if {
+	input.group == "admins"
 }
 ```
 
-since `allow { ... }` is a shorthand for `allow = true { ... }`.
+since `allow if { ... }` is a shorthand for `allow := true if { ... }`.
 
 Intuitively, the value can be anything that does not contain a variable:
 
 ```live:eeexamples:module:read_only
 package earlyexit.examples
 
+import rego.v1
+
 # p, q, r and s could be evaluated with early-exit semantics:
 
-p {
-    # ...
+p if {
+	# ...
 }
 
-q := 123 {
-    # ...
+q := 123 if {
+	# ...
 }
 
-r := {"hello": "world"} {
-    # ...
+r := {"hello": "world"} if {
+	# ...
 }
 
-s(x) := 12 {
-    # ...
+s(x) := 12 if {
+	# ...
 }
 
 # u, v, w, and y could _not_
 
-u[x] { # not a complete document rule, but a partial set
-    x := 911
+u contains x if { # not a complete document rule, but a partial set
+	x := 911
 }
 
-v := x { # x is a variable, not ground
-    x := true
+v := x if { # x is a variable, not ground
+	x := true
 }
 
-w := { "foo": x } { # a compound term containing a variable
-    x := "bar"
+w := {"foo": x} if { # a compound term containing a variable
+	x := "bar"
 }
 
-y(z) := r { # variable value, not ground
-    r := z + 1
+y(z) := r if { # variable value, not ground
+	r := z + 1
 }
 ```
 
@@ -210,9 +220,11 @@ When "early exit" is possible for a (set of) rules, iterations inside that rule 
 ```live:eeiteration:module:read_only
 package earlyexit.iteration
 
-p {
-    some p
-    data.projects[p] == "project-a"
+import rego.v1
+
+p if {
+	some p
+	data.projects[p] == "project-a"
 }
 ```
 
@@ -227,14 +239,18 @@ early; an evaluation with `{"user": "bob", "group": "admins"}` *would not*:
 ```live:eeindex:module:read_only
 package earlyexit
 
-allow {
-    input.user == "alice"
+import rego.v1
+
+allow if {
+	input.user == "alice"
 }
-allow = false {
-    input.user == "bob"
+
+allow := false if {
+	input.user == "bob"
 }
-allow {
-    input.group == "admins"
+
+allow if {
+	input.group == "admins"
 }
 ```
 
@@ -308,20 +324,23 @@ at once. These values are indexed by the assignments of `intf`.
 To implement the policy above we could write:
 
 ```rego
-deny[msg] {
-    some i
-    count(exposed_ports_by_interface[i]) > 100
-    msg := sprintf("interface '%v' exposes too many ports", [i])
+package example
+import rego.v1
+
+deny contains msg if {
+	some i
+	count(exposed_ports_by_interface[i]) > 100
+	msg := sprintf("interface '%v' exposes too many ports", [i])
 }
 
 exposed_ports_by_interface := {intf: ports |
-    some i
-    intf := input.exposed[i].interface
-    ports := [port |
-        some j
-        input.exposed[j].interface == intf
-        port := input.exposed[j].port
-  ]
+	some i
+	intf := input.exposed[i].interface
+	ports := [port |
+		some j
+		input.exposed[j].interface == intf
+		port := input.exposed[j].port
+	]
 }
 ```
 
@@ -343,41 +362,46 @@ In order to be indexed, comprehensions must meet the following conditions:
 The following examples shows rules that are **not** indexed:
 
 ```rego
-not_indexed_because_missing_assignment {
-    x := input[_]
-    [y | some y; x == input[y]]
+package example
+import rego.v1
+
+not_indexed_because_missing_assignment if {
+	x := input[_]
+	[y | some y; x == input[y]]
 }
 
-not_indexed_because_includes_with {
-    x := input[_]
-    ys := [y | some y; x := input[y]] with input as {}
+not_indexed_because_includes_with if {
+	x := input[_]
+	ys := [y | some y; x := input[y]] with input as {}
 }
 
-not_indexed_because_negated {
-    x := input[_]
-    not data.arr = [y | some y; x := input[y]]
+not_indexed_because_negated if {
+	x := input[_]
+	not data.arr = [y | some y; x := input[y]]
 }
 
-not_indexed_because_safety {
-    obj := input.foo.bar
-    x := obj[_]
-    ys := [y | some y; x == obj[y]]
+not_indexed_because_safety if {
+	obj := input.foo.bar
+	x := obj[_]
+	ys := [y | some y; x == obj[y]]
 }
 
-not_indexed_because_no_closure {
-    ys := [y | x := input[y]]
+not_indexed_because_no_closure if {
+	ys := [y | x := input[y]]
 }
 
-not_indexed_because_reference_operand_closure {
-    x := input[y].x
-    ys := [y | x == input[y].z[_]]
+not_indexed_because_reference_operand_closure if {
+	x := input[y].x
+	ys := [y | x == input[y].z[_]]
 }
 
-not_indexed_because_nested_closure {
-    x := 1
-    y := 2
-    _ = [i | x == input.foo[i]
-             _ = [j | y == input.bar[j]]]
+not_indexed_because_nested_closure if {
+	x := 1
+	y := 2
+	_ = [i |
+		x == input.foo[i]
+		_ = [j | y == input.bar[j]]
+	]
 }
 ```
 
@@ -414,12 +438,13 @@ let's take the following policy:
 
 ```rego
 package test
+import rego.v1
 
-p {
+p if {
 	a := 1
 	b := 2
 	c := 3
-	x = a + b * c
+	x = a + (b * c)
 }
 ```
 
@@ -429,20 +454,20 @@ If we profile the above policy we would get something like the following output:
 +----------+----------+----------+--------------+-------------+
 |   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |  LOCATION   |
 +----------+----------+----------+--------------+-------------+
-| 20.291µs | 3        | 3        | 3            | test.rego:7 |
-| 1µs      | 1        | 1        | 1            | test.rego:6 |
-| 2.333µs  | 1        | 1        | 1            | test.rego:5 |
-| 6.333µs  | 1        | 1        | 1            | test.rego:4 |
+| 20.291µs | 3        | 3        | 3            | test.rego:8 |
+| 1µs      | 1        | 1        | 1            | test.rego:7 |
+| 2.333µs  | 1        | 1        | 1            | test.rego:6 |
+| 6.333µs  | 1        | 1        | 1            | test.rego:5 |
 | 84.75µs  | 1        | 1        | 1            | data        |
 +----------+----------+----------+--------------+-------------+
 ```
 
-The first entry indicates that line `test.rego:7` has a `EVAL/REDO` count of `3`. If we look at the expression on line `test.rego:7`
+The first entry indicates that line `test.rego:8` has a `EVAL/REDO` count of `3`. If we look at the expression on line `test.rego:8`
 ie `x = a + b * c` it's not immediately clear why this line has a `EVAL/REDO` count of `3`. But we also notice that there
-are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:7`. This is because the compiler rewrites the above policy to
+are `3` generated expressions (ie. `NUM GEN EXPR`) at line `test.rego:8`. This is because the compiler rewrites the above policy to
 something like below:
 
-`p = true {
+`p = true if {
   __local0__ = 1;
   __local1__ = 2;
   __local2__ = 3;
@@ -451,7 +476,7 @@ something like below:
   x = __local4__ 
 }`
 
-And that line `test.rego:7` is rewritten to `mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__` which
+And that line `test.rego:8` is rewritten to `mul(__local1__, __local2__, __local3__); plus(__local0__, __local3__, __local4__); x = __local4__` which
 results in a `NUM GEN EXPR` count of `3`. Hence, the `NUM GEN EXPR` count can help to better understand the `EVAL/REDO` counts
 for a given expression and also provide more clarity into the profile results and how policy evaluation works.
 
@@ -463,63 +488,64 @@ sample policy.
 
 ```live:profile:module:read_only,openable
 package rbac
+import rego.v1
 
 # Example input request
 
-input := {
- "subject": "bob",
- "resource": "foo123",
- "action": "write",
+inp := {
+	"subject": "bob",
+	"resource": "foo123",
+	"action": "write",
 }
 
 # Example RBAC configuration.
 bindings := [
- {
-  "user": "alice",
-  "roles": ["dev", "test"],
- },
- {
-  "user": "bob",
-  "roles": ["test"],
- },
+	{
+		"user": "alice",
+		"roles": ["dev", "test"],
+	},
+	{
+		"user": "bob",
+		"roles": ["test"],
+	},
 ]
 
 roles := [
- {
-  "name": "dev",
-  "permissions": [
-   {"resource": "foo123", "action": "write"},
-   {"resource": "foo123", "action": "read"},
-  ],
- },
- {
-  "name": "test",
-  "permissions": [{"resource": "foo123", "action": "read"}],
- },
+	{
+		"name": "dev",
+		"permissions": [
+			{"resource": "foo123", "action": "write"},
+			{"resource": "foo123", "action": "read"},
+		],
+	},
+	{
+		"name": "test",
+		"permissions": [{"resource": "foo123", "action": "read"}],
+	},
 ]
 
 # Example RBAC policy implementation.
 
 default allow := false
 
-allow {
-    some role_name
-    user_has_role[role_name]
-    role_has_permission[role_name]
+allow if {
+	some role_name
+	user_has_role[role_name]
+	role_has_permission[role_name]
 }
 
-user_has_role[role_name] {
-    binding := bindings[_]
-    binding.user == input.subject
-    role_name := binding.roles[_]
+user_has_role contains role_name if {
+	binding := bindings[_]
+	binding.user == inp.subject
+	role_name := binding.roles[_]
 }
 
-role_has_permission[role_name] {
-    role := roles[_]
-    role_name := role.name
-    perm := role.permissions[_]
-    perm.resource == input.resource
-    perm.action == input.action
+role_has_permission contains role_name if {
+	role := roles[_]
+	role_name := role.name
+	perm := role.permissions[_]
+	perm.resource == inp.resource
+	perm.action == inp.action
 }
 ```
 
@@ -533,30 +559,30 @@ opa eval --data rbac.rego --profile --format=pretty 'data.rbac.allow'
 
 ```ruby
 false
-
-+----------+----------+----------+--------------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
-+----------+----------+----------+--------------+-----------------+
-| 47.148µs | 1        | 1        | 1            | data.rbac.allow |
-| 28.965µs | 1        | 1        | 1            | rbac.rego:11    |
-| 24.384µs | 1        | 1        | 1            | rbac.rego:41    |
-| 23.064µs | 2        | 1        | 1            | rbac.rego:47    |
-| 15.525µs | 1        | 1        | 1            | rbac.rego:38    |
-| 14.137µs | 1        | 2        | 1            | rbac.rego:46    |
-| 13.927µs | 1        | 0        | 1            | rbac.rego:42    |
-| 13.568µs | 1        | 1        | 1            | rbac.rego:55    |
-| 12.982µs | 1        | 0        | 1            | rbac.rego:56    |
-| 12.763µs | 1        | 2        | 1            | rbac.rego:52    |
-+----------+----------+----------+--------------+-----------------+
-
-+------------------------------+----------+
-|            METRIC            |  VALUE   |
-+------------------------------+----------+
-| timer_rego_module_compile_ns | 1871613  |
-| timer_rego_query_compile_ns  | 82290    |
-| timer_rego_query_eval_ns     | 257952   |
-| timer_rego_query_parse_ns    | 12337169 |
-+------------------------------+----------+
++------------------------------+---------+
+|            METRIC            |  VALUE  |
++------------------------------+---------+
+| timer_rego_load_files_ns     | 769583  |
+| timer_rego_module_compile_ns | 1652125 |
+| timer_rego_module_parse_ns   | 482417  |
+| timer_rego_query_compile_ns  | 23042   |
+| timer_rego_query_eval_ns     | 440542  |
+| timer_rego_query_parse_ns    | 36250   |
++------------------------------+---------+
++-----------+----------+----------+--------------+-----------------+
+|   TIME    | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++-----------+----------+----------+--------------+-----------------+
+| 237.126µs | 1        | 1        | 1            | data.rbac.allow |
+| 25.75µs   | 1        | 1        | 1            | docs.rego:13    |
+| 17.5µs    | 1        | 1        | 1            | docs.rego:40    |
+| 6.832µs   | 2        | 1        | 1            | docs.rego:50    |
+| 5.042µs   | 1        | 1        | 1            | docs.rego:44    |
+| 4.666µs   | 1        | 0        | 1            | docs.rego:45    |
+| 4.209µs   | 1        | 1        | 1            | docs.rego:58    |
+| 3.792µs   | 1        | 2        | 1            | docs.rego:49    |
+| 3.666µs   | 1        | 2        | 1            | docs.rego:55    |
+| 3.167µs   | 1        | 1        | 1            | docs.rego:24    |
++-----------+----------+----------+--------------+-----------------+
 ```
 
 As seen from the above table, all results are displayed. The profile results are
@@ -573,30 +599,30 @@ opa eval --data rbac.rego --profile --format=pretty --count=10 'data.rbac.allow'
 
 ```ruby
 false
-+------------------------------+---------+----------+---------------+----------------+---------------+
-|            METRIC            |   MIN   |   MAX    |     MEAN      |      90%       |      99%      |
-+------------------------------+---------+----------+---------------+----------------+---------------+
-| timer_rego_load_files_ns     | 349969  | 2549399  | 1.4760619e+06 | 2.5312689e+06  | 2.549399e+06  |
-| timer_rego_module_compile_ns | 1087507 | 24537496 | 1.120074e+07  | 2.41699473e+07 | 2.4537496e+07 |
-| timer_rego_module_parse_ns   | 275531  | 1915263  | 1.126406e+06  | 1.9016968e+06  | 1.915263e+06  |
-| timer_rego_query_compile_ns  | 61663   | 64395    | 63062.5       | 64374.1        | 64395         |
-| timer_rego_query_eval_ns     | 161812  | 1198092  | 637754        | 1.1846622e+06  | 1.198092e+06  |
-| timer_rego_query_parse_ns    | 6078    | 6078     | 6078          | 6078           | 6078          |
-+------------------------------+---------+----------+---------------+----------------+---------------+
-+----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
-|   MIN    |     MAX     |    MEAN     |     90%     |     99%     | NUM EVAL | NUM REDO | NUM GEN EXPR |     LOCATION     |
-+----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
-| 43.875µs | 26.135469ms | 11.494512ms | 25.746215ms | 26.135469ms | 1        | 1        | 1            | data.rbac.allow  |
-| 21.478µs | 211.461µs   | 98.102µs    | 205.72µs    | 211.461µs   | 1        | 1        | 1            | rbac.rego:13     |
-| 19.652µs | 123.537µs   | 73.161µs    | 122.75µs    | 123.537µs   | 1        | 1        | 1            | rbac.rego:40     |
-| 12.303µs | 117.277µs   | 61.59µs     | 116.733µs   | 117.277µs   | 2        | 1        | 1            | rbac.rego:50     |
-| 12.224µs | 93.214µs    | 51.289µs    | 92.217µs    | 93.214µs    | 1        | 1        | 1            | rbac.rego:44     |
-| 5.561µs  | 84.121µs    | 43.002µs    | 83.469µs    | 84.121µs    | 1        | 1        | 1            | rbac.rego:51     |
-| 5.56µs   | 71.712µs    | 36.545µs    | 71.158µs    | 71.712µs    | 1        | 0        | 1            | rbac.rego:45     |
-| 4.958µs  | 66.04µs     | 33.161µs    | 65.636µs    | 66.04µs     | 1        | 2        | 1            | rbac.rego:49     |
-| 4.326µs  | 65.836µs    | 30.461µs    | 65.083µs    | 65.836µs    | 1        | 1        | 1            | rbac.rego:6      |
-| 3.948µs  | 43.399µs    | 24.167µs    | 43.055µs    | 43.399µs    | 1        | 2        | 1            | rbac.rego:55     |
-+----------+-------------+-------------+-------------+-------------+----------+----------+--------------+------------------+
++------------------------------+--------+---------+----------+------------------------+--------------+
+|            METRIC            |  MIN   |   MAX   |   MEAN   |          90%           |     99%      |
++------------------------------+--------+---------+----------+------------------------+--------------+
+| timer_rego_load_files_ns     | 140167 | 1092875 | 387233.3 | 1.0803291e+06          | 1.092875e+06 |
+| timer_rego_module_compile_ns | 447208 | 1178542 | 646295.9 | 1.1565419000000001e+06 | 1.178542e+06 |
+| timer_rego_module_parse_ns   | 121458 | 1041333 | 349183.2 | 1.022583e+06           | 1.041333e+06 |
+| timer_rego_query_compile_ns  | 17542  | 47875   | 25758.4  | 47450                  | 47875        |
+| timer_rego_query_eval_ns     | 47666  | 136625  | 68200    | 132762.5               | 136625       |
+| timer_rego_query_parse_ns    | 14334  | 46917   | 26270.9  | 46842                  | 46917        |
++------------------------------+--------+---------+----------+------------------------+--------------+
++---------+----------+---------+----------+----------+----------+----------+--------------+-----------------+
+|   MIN   |   MAX    |  MEAN   |   90%    |   99%    | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++---------+----------+---------+----------+----------+----------+----------+--------------+-----------------+
+| 5.208µs | 27µs     | 9.008µs | 25.525µs | 27µs     | 1        | 1        | 1            | data.rbac.allow |
+| 4.126µs | 17µs     | 7.196µs | 16.479µs | 17µs     | 1        | 1        | 1            | docs.rego:13    |
+| 3.958µs | 12.833µs | 6.116µs | 12.583µs | 12.833µs | 1        | 1        | 1            | docs.rego:40    |
+| 3.459µs | 10.708µs | 5.354µs | 10.499µs | 10.708µs | 2        | 1        | 1            | docs.rego:50    |
+| 3.291µs | 9.209µs  | 4.912µs | 9.096µs  | 9.209µs  | 1        | 1        | 1            | docs.rego:44    |
+| 3.209µs | 8.75µs   | 4.637µs | 8.62µs   | 8.75µs   | 1        | 0        | 1            | docs.rego:45    |
+| 3.042µs | 8.333µs  | 4.491µs | 8.233µs  | 8.333µs  | 1        | 1        | 1            | docs.rego:51    |
+| 3µs     | 7.25µs   | 4.1µs   | 7.112µs  | 7.25µs   | 1        | 1        | 1            | docs.rego:58    |
+| 2.667µs | 5.75µs   | 3.783µs | 5.72µs   | 5.75µs   | 1        | 2        | 1            | docs.rego:49    |
+| 2.583µs | 5.708µs  | 3.479µs | 5.595µs  | 5.708µs  | 1        | 1        | 1            | docs.rego:24    |
++---------+----------+---------+----------+----------+----------+----------+--------------+-----------------+
 ```
 
 ##### Example: Display top 5 profile results
@@ -609,13 +635,13 @@ opa eval --data rbac.rego --profile-limit 5 --format=pretty 'data.rbac.allow'
 
 ```ruby
 +----------+----------+----------+--------------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |     LOCATION    |
+|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
 +----------+----------+----------+--------------+-----------------+
-| 46.329µs | 1        | 1        | 1            | data.rbac.allow |
-| 26.656µs | 1        | 1        | 1            | rbac.rego:11    |
-| 24.206µs | 2        | 1        | 1            | rbac.rego:47    |
-| 23.235µs | 1        | 1        | 1            | rbac.rego:41    |
-| 18.242µs | 1        | 1        | 1            | rbac.rego:38    |
+| 24.624µs | 1        | 1        | 1            | data.rbac.allow |
+| 15.251µs | 1        | 1        | 1            | docs.rego:13    |
+| 12.167µs | 1        | 1        | 1            | docs.rego:40    |
+| 9.625µs  | 2        | 1        | 1            | docs.rego:50    |
+| 8.751µs  | 1        | 1        | 1            | docs.rego:44    |
 +----------+----------+----------+--------------+-----------------+
 ```
 
@@ -634,11 +660,11 @@ opa  eval --data rbac.rego --profile-limit 5 --profile-sort num_eval --format=pr
 +----------+----------+----------+--------------+-----------------+
 |   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
 +----------+----------+----------+--------------+-----------------+
-| 26.675µs | 2        | 1        | 1            | rbac.rego:47    |
-| 9.274µs  | 2        | 1        | 1            | rbac.rego:53    |
-| 43.356µs | 1        | 1        | 1            | data.rbac.allow |
-| 22.467µs | 1        | 1        | 1            | rbac.rego:41    |
-| 22.425µs | 1        | 1        | 1            | rbac.rego:11    |
+| 10.541µs | 2        | 1        | 1            | docs.rego:50    |
+| 4.041µs  | 2        | 1        | 1            | docs.rego:56    |
+| 27.876µs | 1        | 1        | 1            | data.rbac.allow |
+| 19.916µs | 1        | 1        | 1            | docs.rego:40    |
+| 19.416µs | 1        | 1        | 1            | docs.rego:13    |
 +----------+----------+----------+--------------+-----------------+
 ```
 
@@ -657,15 +683,15 @@ opa eval --data rbac.rego --profile-limit 5 --profile-sort num_eval,num_redo --f
 **Sample Profile Output**
 
 ```ruby
-+----------+----------+----------+--------------+-----------------+
-|   TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
-+----------+----------+----------+--------------+-----------------+
-| 22.892µs | 2        | 1        | 1            | rbac.rego:47    |
-| 8.831µs  | 2        | 1        | 1            | rbac.rego:53    |
-| 13.767µs | 1        | 2        | 1            | rbac.rego:46    |
-| 10.78µs  | 1        | 2        | 1            | rbac.rego:52    |
-| 42.338µs | 1        | 1        | 1            | data.rbac.allow |
-+----------+----------+----------+--------------+-----------------+
++---------+----------+----------+--------------+-----------------+
+|  TIME   | NUM EVAL | NUM REDO | NUM GEN EXPR |    LOCATION     |
++---------+----------+----------+--------------+-----------------+
+| 9.625µs | 2        | 1        | 1            | docs.rego:50    |
+| 3.458µs | 2        | 1        | 1            | docs.rego:56    |
+| 5.625µs | 1        | 2        | 1            | docs.rego:49    |
+| 5.292µs | 1        | 2        | 1            | docs.rego:55    |
+| 18.25µs | 1        | 1        | 1            | data.rbac.allow |
++---------+----------+----------+--------------+-----------------+
 ```
 
 As seen from the above table, result are first arranged based on *number of evaluations*,
@@ -750,13 +776,14 @@ Adding a unit test file for the [policy source as shown above](#example-policy):
 ```rego
 package rbac
 
+import rego.v1
 
-test_user_has_role_dev {
-    user_has_role["dev"] with input as {"subject": "alice"}
+test_user_has_role_dev if {
+	user_has_role.dev with input as {"subject": "alice"}
 }
 
-test_user_has_role_negative {
-    not user_has_role["super-admin"] with input as {"subject": "alice"}
+test_user_has_role_negative if {
+	not user_has_role["super-admin"] with input as {"subject": "alice"}
 }
 ```
 

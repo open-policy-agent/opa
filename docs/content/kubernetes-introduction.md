@@ -75,19 +75,21 @@ referring to illegal registries:
 ```live:container_image:module:openable
 package kubernetes.admission
 
-deny[reason] {
-  some container
-  input_containers[container]
-  not startswith(container.image, "hooli.com/")
-  reason := "container image refers to illegal registry (must be hooli.com)"
+import rego.v1
+
+deny contains reason if {
+	some container
+	input_containers[container]
+	not startswith(container.image, "hooli.com/")
+	reason := "container image refers to illegal registry (must be hooli.com)"
 }
 
-input_containers[container] {
-  container := input.request.object.spec.containers[_]
+input_containers contains container if {
+	container := input.request.object.spec.containers[_]
 }
 
-input_containers[container] {
-  container := input.request.object.spec.template.spec.containers[_]
+input_containers contains container if {
+	container := input.request.object.spec.template.spec.containers[_]
 }
 ```
 

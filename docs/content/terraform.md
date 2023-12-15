@@ -470,6 +470,8 @@ practice you would vary the threshold depending on the user.)
 ```live:terraform:module:openable
 package terraform.analysis
 
+import rego.v1
+
 import input as tfplan
 
 ########################
@@ -481,8 +483,8 @@ blast_radius := 30
 
 # weights assigned for each operation on each resource-type
 weights := {
-    "aws_autoscaling_group": {"delete": 100, "create": 10, "modify": 1},
-    "aws_instance": {"delete": 10, "create": 1, "modify": 1}
+	"aws_autoscaling_group": {"delete": 100, "create": 10, "modify": 1},
+	"aws_instance": {"delete": 10, "create": 1, "modify": 1},
 }
 
 # Consider exactly these resource types in calculations
@@ -494,28 +496,29 @@ resource_types := {"aws_autoscaling_group", "aws_instance", "aws_iam", "aws_laun
 
 # Authorization holds if score for the plan is acceptable and no changes are made to IAM
 default authz := false
-authz {
-    score < blast_radius
-    not touches_iam
+
+authz if {
+	score < blast_radius
+	not touches_iam
 }
 
 # Compute the score for a Terraform plan as the weighted sum of deletions, creations, modifications
-score := s {
-    all := [ x |
-            some resource_type
-            crud := weights[resource_type];
-            del := crud["delete"] * num_deletes[resource_type];
-            new := crud["create"] * num_creates[resource_type];
-            mod := crud["modify"] * num_modifies[resource_type];
-            x := del + new + mod
-    ]
-    s := sum(all)
+score := s if {
+	all := [x |
+		some resource_type
+		crud := weights[resource_type]
+		del := crud["delete"] * num_deletes[resource_type]
+		new := crud["create"] * num_creates[resource_type]
+		mod := crud["modify"] * num_modifies[resource_type]
+		x := (del + new) + mod
+	]
+	s := sum(all)
 }
 
 # Whether there is any change to IAM
-touches_iam {
-    all := resources["aws_iam"]
-    count(all) > 0
+touches_iam if {
+	all := resources.aws_iam
+	count(all) > 0
 }
 
 ####################
@@ -523,41 +526,40 @@ touches_iam {
 ####################
 
 # list of all resources of a given type
-resources[resource_type] := all {
-    some resource_type
-    resource_types[resource_type]
-    all := [name |
-        name:= tfplan.resource_changes[_]
-        name.type == resource_type
-    ]
+resources[resource_type] := all if {
+	some resource_type
+	resource_types[resource_type]
+	all := [name |
+		name := tfplan.resource_changes[_]
+		name.type == resource_type
+	]
 }
 
 # number of creations of resources of a given type
-num_creates[resource_type] := num {
-    some resource_type
-    resource_types[resource_type]
-    all := resources[resource_type]
-    creates := [res |  res:= all[_]; res.change.actions[_] == "create"]
-    num := count(creates)
+num_creates[resource_type] := num if {
+	some resource_type
+	resource_types[resource_type]
+	all := resources[resource_type]
+	creates := [res | res := all[_]; res.change.actions[_] == "create"]
+	num := count(creates)
 }
 
-
 # number of deletions of resources of a given type
-num_deletes[resource_type] := num {
-    some resource_type
-    resource_types[resource_type]
-    all := resources[resource_type]
-    deletions := [res |  res:= all[_]; res.change.actions[_] == "delete"]
-    num := count(deletions)
+num_deletes[resource_type] := num if {
+	some resource_type
+	resource_types[resource_type]
+	all := resources[resource_type]
+	deletions := [res | res := all[_]; res.change.actions[_] == "delete"]
+	num := count(deletions)
 }
 
 # number of modifications to resources of a given type
-num_modifies[resource_type] := num {
-    some resource_type
-    resource_types[resource_type]
-    all := resources[resource_type]
-    modifies := [res |  res:= all[_]; res.change.actions[_] == "update"]
-    num := count(modifies)
+num_modifies[resource_type] := num if {
+	some resource_type
+	resource_types[resource_type]
+	all := resources[resource_type]
+	modifies := [res | res := all[_]; res.change.actions[_] == "update"]
+	num := count(modifies)
 }
 ```
 
@@ -792,73 +794,75 @@ The policy uses the walk keyword to explore the json structure, and uses conditi
 ```rego
 package terraform.module
 
-deny[msg] {
-    desc := resources[r].values.description
-    contains(desc, "HTTP")
-    msg := sprintf("No security groups should be using HTTP. Resource in violation: %v", [r.address])
+import rego.v1
+
+deny contains msg if {
+	desc := resources[r].values.description
+	contains(desc, "HTTP")
+	msg := sprintf("No security groups should be using HTTP. Resource in violation: %v", [r.address])
 }
 
-resources := { r |
-    some path, value
+resources := {r |
+	some path, value
 
-    # Walk over the JSON tree and check if the node we are
-    # currently on is a module (either root or child) resources
-    # value.
-    walk(input.planned_values, [path, value])
+	# Walk over the JSON tree and check if the node we are
+	# currently on is a module (either root or child) resources
+	# value.
+	walk(input.planned_values, [path, value])
 
-    # Look for resources in the current value based on path
-    rs := module_resources(path, value)
+	# Look for resources in the current value based on path
+	rs := module_resources(path, value)
 
-    # Aggregate them into `resources`
-    r := rs[_]
+	# Aggregate them into `resources`
+	r := rs[_]
 }
 
 # Variant to match root_module resources
-module_resources(path, value) := rs {
-    # Expect something like:
-    #
-    #     {
-    #     	"root_module": {
-    #         	"resources": [...],
-    #             ...
-    #         }
-    #         ...
-    #     }
-    #
-    # Where the path is [..., "root_module", "resources"]
+module_resources(path, value) := rs if {
+	# Expect something like:
+	#
+	#     {
+	#     	"root_module": {
+	#         	"resources": [...],
+	#             ...
+	#         }
+	#         ...
+	#     }
+	#
+	# Where the path is [..., "root_module", "resources"]
 
-    reverse_index(path, 1) == "resources"
-    reverse_index(path, 2) == "root_module"
-    rs := value
+	reverse_index(path, 1) == "resources"
+	reverse_index(path, 2) == "root_module"
+	rs := value
 }
 
 # Variant to match child_modules resources
-module_resources(path, value) := rs {
-    # Expect something like:
-    #
-    #     {
-    #     	...
-    #         "child_modules": [
-    #         	{
-    #             	"resources": [...],
-    #                 ...
-    #             },
-    #             ...
-    #         ]
-    #         ...
-    #     }
-    #
-    # Where the path is [..., "child_modules", 0, "resources"]
-    # Note that there will always be an index int between `child_modules`
-    # and `resources`. We know that walk will only visit each one once,
-    # so we shouldn't need to keep track of what the index is.
+module_resources(path, value) := rs if {
+	# Expect something like:
+	#
+	#     {
+	#     	...
+	#         "child_modules": [
+	#         	{
+	#             	"resources": [...],
+	#                 ...
+	#             },
+	#             ...
+	#         ]
+	#         ...
+	#     }
+	#
+	# Where the path is [..., "child_modules", 0, "resources"]
+	# Note that there will always be an index int between `child_modules`
+	# and `resources`. We know that walk will only visit each one once,
+	# so we shouldn't need to keep track of what the index is.
 
-    reverse_index(path, 1) == "resources"
-    reverse_index(path, 3) == "child_modules"
-    rs := value
+	reverse_index(path, 1) == "resources"
+	reverse_index(path, 3) == "child_modules"
+	rs := value
 }
 
-reverse_index(path, idx) := value {
+reverse_index(path, idx) := value if {
 	value := path[count(path) - idx]
 }
 ```
