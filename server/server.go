@@ -118,13 +118,15 @@ type Server struct {
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
-	certMtx                sync.RWMutex
+	tlsConfigMtx           sync.RWMutex
 	certFile               string
 	certFileHash           []byte
 	certKeyFile            string
 	certKeyFileHash        []byte
 	certRefresh            time.Duration
 	certPool               *x509.CertPool
+	certPoolFile           string
+	certPoolFileHash       []byte
 	minTLSVersion          uint16
 	mtx                    sync.RWMutex
 	partials               map[string]rego.PartialResult
@@ -151,6 +153,23 @@ type Server struct {
 type Metrics interface {
 	RegisterEndpoints(registrar func(path, method string, handler http.Handler))
 	InstrumentHandler(handler http.Handler, label string) http.Handler
+}
+
+// TLSConfig represents the TLS configuration for the server.
+// This configuration is used to configure file watchers to reload each file as it
+// changes on disk.
+type TLSConfig struct {
+	// CertFile is the path to the server's serving certificate file.
+	CertFile string
+
+	// KeyFile is the path to the server's key file, completing the key pair for the
+	// CertFile certificate.
+	KeyFile string
+
+	// CertPoolFile is the path to the CA cert pool file. The contents of this file will be
+	// reloaded when the file changes on disk and used in as trusted client CAs in the TLS config
+	// for new connections to the server.
+	CertPoolFile string
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -271,6 +290,20 @@ func (s *Server) WithCertificatePaths(certFile, keyFile string, refresh time.Dur
 // WithCertPool sets the server-side cert pool that the server will use.
 func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
 	s.certPool = pool
+	return s
+}
+
+// WithTLSConfig sets the TLS configuration used by the server.
+func (s *Server) WithTLSConfig(tlsConfig *TLSConfig) *Server {
+	s.certFile = tlsConfig.CertFile
+	s.certKeyFile = tlsConfig.KeyFile
+	s.certPoolFile = tlsConfig.CertPoolFile
+	return s
+}
+
+// WithCertRefresh sets the period on which certs, keys and cert pools are reloaded from disk.
+func (s *Server) WithCertRefresh(refresh time.Duration) *Server {
+	s.certRefresh = refresh
 	return s
 }
 
@@ -566,11 +599,13 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
+
+		// if a manual cert refresh period has been set, then use the polling behavior,
+		// otherwise use the fsnotify default behavior
 		if s.certRefresh > 0 {
-			certLoop := s.certLoop(logger)
-			loops = []Loop{loop, certLoop}
-		} else {
-			loops = []Loop{loop}
+			loops = []Loop{loop, s.certLoopPolling(logger)}
+		} else if s.certFile != "" || s.certPoolFile != "" {
+			loops = []Loop{loop, s.certLoopNotify(logger)}
 		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
@@ -605,17 +640,31 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		Handler: h,
 		TLSConfig: &tls.Config{
 			GetCertificate: s.getCertificate,
-			ClientCAs:      s.certPool,
-		},
-	}
-	if s.authentication == AuthenticationTLS {
-		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
-	}
+			// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
+			// This is not required, but appears to be how connect time updates config should be done:
+			// https://github.com/golang/go/issues/16066#issuecomment-250606132
+			GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+				s.tlsConfigMtx.Lock()
+				defer s.tlsConfigMtx.Unlock()
 
-	if s.minTLSVersion != 0 {
-		httpsServer.TLSConfig.MinVersion = s.minTLSVersion
-	} else {
-		httpsServer.TLSConfig.MinVersion = defaultMinTLSVersion
+				cfg := &tls.Config{
+					GetCertificate: s.getCertificate,
+					ClientCAs:      s.certPool,
+				}
+
+				if s.authentication == AuthenticationTLS {
+					cfg.ClientAuth = tls.RequireAndVerifyClientCert
+				}
+
+				if s.minTLSVersion != 0 {
+					cfg.MinVersion = s.minTLSVersion
+				} else {
+					cfg.MinVersion = defaultMinTLSVersion
+				}
+
+				return cfg, nil
+			},
+		},
 	}
 
 	l := newHTTPListener(&httpsServer, t)
