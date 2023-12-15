@@ -977,16 +977,16 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 	})
 }
 
-func TestBuildWithRegoV1Flag(t *testing.T) {
+func TestBuildWithV1CompatibleFlag(t *testing.T) {
 	tests := []struct {
 		note          string
-		regoV1        bool
+		v1Compatible  bool
 		files         map[string]string
 		expectedFiles map[string]string
 		expectedErr   string
 	}{
 		{
-			note: "rego-v0 mode: policy with no rego.v1 or future.keywords imports",
+			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
 			files: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -996,7 +996,7 @@ func TestBuildWithRegoV1Flag(t *testing.T) {
 			expectedErr: "rego_parse_error",
 		},
 		{
-			note: "rego-v0 mode: policy with rego.v1 imports",
+			note: "default compatibility: policy with rego.v1 imports",
 			files: map[string]string{
 				"test.rego": `package test
 				import rego.v1
@@ -1017,7 +1017,7 @@ allow if {
 			},
 		},
 		{
-			note: "rego-v0 mode: policy with future.keywords imports",
+			note: "default compatibility: policy with future.keywords imports",
 			files: map[string]string{
 				"test.rego": `package test
 				import future.keywords.if
@@ -1038,8 +1038,8 @@ allow if {
 			},
 		},
 		{
-			note:   "rego-v1 mode: policy with no rego.v1 or future.keywords imports",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -1057,8 +1057,8 @@ allow if {
 			},
 		},
 		{
-			note:   "rego-v1 mode: policy with rego.v1 import",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with rego.v1 import",
+			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				import rego.v1
@@ -1077,8 +1077,8 @@ allow if {
 			},
 		},
 		{
-			note:   "rego-v1 mode: policy with future.keywords import",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with future.keywords import",
+			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				import future.keywords.if
@@ -1103,7 +1103,7 @@ allow if {
 			test.WithTempFS(tc.files, func(root string) {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
-				params.regoV1 = tc.regoV1
+				params.v1Compatible = tc.v1Compatible
 
 				err := dobuild(params, []string{root})
 
@@ -1120,7 +1120,7 @@ allow if {
 					}
 
 					fl := loader.NewFileLoader()
-					if tc.regoV1 {
+					if tc.v1Compatible {
 						fl = fl.WithRegoVersion(ast.RegoV1)
 					}
 					_, err = fl.AsBundle(params.outputFile)
@@ -1167,7 +1167,7 @@ allow if {
 	}
 }
 
-func TestBuildWithRegoV1FlagOptimized(t *testing.T) {
+func TestBuildWithV1CompatibleFlagOptimized(t *testing.T) {
 	tests := []struct {
 		note          string
 		files         map[string]string
@@ -1250,7 +1250,7 @@ foo contains __local1__1 if {
 			test.WithTempFS(tc.files, func(root string) {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
-				params.regoV1 = true
+				params.v1Compatible = true
 				params.optimizationLevel = 1
 
 				err := dobuild(params, []string{root})

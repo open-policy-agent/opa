@@ -205,7 +205,7 @@ Current behaviors enabled by this flag include:
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
-	runCommand.Flags().BoolVar(&cmdParams.rt.V1Compatible, "v1-compatible", false, "opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release")
+	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible, false)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
 	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")

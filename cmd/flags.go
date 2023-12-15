@@ -153,12 +153,12 @@ func addStrictFlag(fs *pflag.FlagSet, strict *bool, value bool) {
 	fs.BoolVarP(strict, "strict", "S", value, "enable compiler strict mode")
 }
 
-func addRegoV1Flag(fs *pflag.FlagSet, regoV1 *bool, value bool) {
-	addRegoV1FlagWithDescription(fs, regoV1, value, "enforce Rego v1 compatibility")
-}
-
 func addRegoV1FlagWithDescription(fs *pflag.FlagSet, regoV1 *bool, value bool, description string) {
 	fs.BoolVar(regoV1, "rego-v1", value, description)
+}
+
+func addV1CompatibleFlag(fs *pflag.FlagSet, v1Compatible *bool, value bool) {
+	fs.BoolVar(v1Compatible, "v1-compatible", value, "opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release")
 }
 
 func addE2EFlag(fs *pflag.FlagSet, e2e *bool, value bool) {

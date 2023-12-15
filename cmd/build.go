@@ -43,7 +43,7 @@ type buildParams struct {
 	excludeVerifyFiles []string
 	plugin             string
 	ns                 string
-	regoV1             bool
+	v1Compatible       bool
 }
 
 func newBuildParams() buildParams {
@@ -254,7 +254,7 @@ against OPA v0.22.0:
 	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
 
-	addRegoV1Flag(buildCommand.Flags(), &buildParams.regoV1, false)
+	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible, false)
 
 	RootCommand.AddCommand(buildCommand)
 }
@@ -303,7 +303,7 @@ func dobuild(params buildParams, args []string) error {
 		WithBundleSigningConfig(bsc).
 		WithPartialNamespace(params.ns)
 
-	if params.regoV1 {
+	if params.v1Compatible {
 		compiler = compiler.WithRegoVersion(ast.RegoV1)
 	}
 

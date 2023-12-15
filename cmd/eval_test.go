@@ -1881,16 +1881,16 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 	})
 }
 
-func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
+func TestEvalPolicyWithV1CompatibleFlag(t *testing.T) {
 	tests := []struct {
-		note        string
-		regoV1      bool
-		modules     map[string]string
-		query       string
-		expectedErr string
+		note         string
+		v1Compatible bool
+		modules      map[string]string
+		query        string
+		expectedErr  string
 	}{
 		{
-			note: "rego-v0 mode: policy with no rego.v1 or future.keywords imports",
+			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
 			modules: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -1901,8 +1901,8 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 			expectedErr: "rego_parse_error",
 		},
 		{
-			note:   "rego-v1 mode: policy with no rego.v1 or future.keywords imports",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v1Compatible: true,
 			modules: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -1912,8 +1912,8 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 			query: "data.test.allow",
 		},
 		{
-			note:   "rego-v1 mode: policy with rego.v1 import",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with rego.v1 import",
+			v1Compatible: true,
 			modules: map[string]string{
 				"test.rego": `package test
 				import rego.v1
@@ -1924,8 +1924,8 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 			query: "data.test.allow",
 		},
 		{
-			note:   "rego-v1 mode: policy with future.keywords import",
-			regoV1: true,
+			note:         "1.0 compatibility: policy with future.keywords import",
+			v1Compatible: true,
 			modules: map[string]string{
 				"test.rego": `package test
 				import future.keywords.if
@@ -1963,8 +1963,7 @@ func TestEvalPolicyWithRegoV1Flag(t *testing.T) {
 				test.WithTempFS(tc.modules, func(path string) {
 					params := newEvalCommandParams()
 					s.commandParams(&params, path)
-					//params.dataPaths = newrepeatedStringFlag([]string{path})
-					params.regoV1 = tc.regoV1
+					params.v1Compatible = tc.v1Compatible
 
 					var buf bytes.Buffer
 
