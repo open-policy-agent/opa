@@ -22,7 +22,7 @@ jobs:
         run: make clean generate
 
       - name: Upload generated artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: generated
           path: |
@@ -77,7 +77,7 @@ jobs:
         timeout-minutes: 30
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: binaries
