@@ -371,6 +371,13 @@ complex types.
 
 
 {{< builtin-table strings >}}
+
+{{< info >}}
+When using `sprintf`, values are pre-processed and may have an unexpected type. For example,
+`%T` evaluates to `string` for both `string` and `boolean` types. In such cases, use `type_name` to
+accurately evaluate the underlying type.
+{{< /info >}}
+
 {{< builtin-table regex >}}
 
 {{< builtin-table glob >}}
