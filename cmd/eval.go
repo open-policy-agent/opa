@@ -175,10 +175,16 @@ const (
 	defaultPrettyLimit  = 80
 )
 
-type regoError struct{}
+type regoError struct {
+	wrapped error
+}
 
 func (regoError) Error() string {
 	return "rego"
+}
+
+func (r regoError) Unwrap() error {
+	return r.wrapped
 }
 
 func init() {
@@ -304,7 +310,7 @@ access.
 				if _, ok := err.(regoError); !ok {
 					fmt.Fprintln(os.Stderr, err)
 				}
-				return newExitError(2)
+				return newExitErrorWrap(2, err)
 			}
 
 			if (params.fail && !defined) || (params.failDefined && defined) {
@@ -448,7 +454,7 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		// If the rego package returned an error, return a special error here so
 		// that the command doesn't print the same error twice. The error will
 		// have been printed above by the presentation package.
-		return false, regoError{}
+		return false, regoError{wrapped: result.Errors}
 	} else if len(result.Result) == 0 {
 		return false, nil
 	}
