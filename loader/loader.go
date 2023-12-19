@@ -188,13 +188,10 @@ func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 }
 
 // WithRegoV1Compatible enforces Rego v0 with Rego v1 compatibility.
-// When true, modules must be compatible with both Rego v0 and Rego v1. Meaning, if "future" keywords are used,
-// the module must import either 'rego.v1' or one of the 'future.keywords' imports.
-// Calling this method with true is equivalent to calling WithRegoVersion(ast.RegoV0CompatV1).
+// See ParserOptions.RegoV1Compatible for more details.
+// Deprecated: use WithRegoVersion instead
 func (fl *fileLoader) WithRegoV1Compatible(compatible bool) FileLoader {
-	if compatible {
-		fl.opts.RegoVersion = ast.RegoV0CompatV1
-	}
+	fl.opts.RegoV1Compatible = compatible
 	return fl
 }
 
@@ -723,7 +720,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(path, bs, m)
+			r, err := loadBundleFile(path, bs, m, opts)
 			if err != nil {
 				err = fmt.Errorf("bundle %s: %w", path, err)
 			}
@@ -749,9 +746,15 @@ func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.Pars
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
+func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (bundle.Bundle, error) {
 	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
-	br := bundle.NewCustomReader(tl).WithMetrics(m).WithSkipBundleVerification(true).IncludeManifestInData(true)
+	br := bundle.NewCustomReader(tl).
+		WithRegoVersion(opts.RegoVersion).
+		WithJSONOptions(opts.JSONOptions).
+		WithProcessAnnotations(opts.ProcessAnnotation).
+		WithMetrics(m).
+		WithSkipBundleVerification(true).
+		IncludeManifestInData(true)
 	return br.Read()
 }
 

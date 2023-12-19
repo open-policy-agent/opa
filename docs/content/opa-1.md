@@ -228,7 +228,8 @@ The `--v1-compatible` flag is currently supported on the following commands:
 
 * `build`
 * `eval`
+* `test`
 
 {{< info >}}
-Support for more commands will be added in the future.
+Support for more commands will be added over time, leading up to the release of OPA 1.0.
 {{< /info >}}
