@@ -20,18 +20,23 @@ import (
 )
 
 type fmtCommandParams struct {
-	overwrite bool
-	list      bool
-	diff      bool
-	fail      bool
-	regoV1    bool
+	overwrite    bool
+	list         bool
+	diff         bool
+	fail         bool
+	regoV1       bool
+	v1Compatible bool
 }
 
 var fmtParams = fmtCommandParams{}
 
 func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
+	// The '--rego-v1' flag takes precedence over the '--v1-compatible' flag.
 	if p.regoV1 {
 		return ast.RegoV0CompatV1
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
 	}
 	return ast.RegoV0
 }
@@ -219,6 +224,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
 	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format as Rego v1")
+	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 
 	RootCommand.AddCommand(formatCommand)
 }

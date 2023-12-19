@@ -585,3 +585,161 @@ q := all([true, false])
 		})
 	}
 }
+
+func TestFmtV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		input        string
+		expected     string
+		expectedErrs []string
+	}{
+		{
+			note: "no keywords used",
+			input: `package test
+p {
+	input.x == 1
+}
+
+q.foo {
+	input.x == 2
+}
+`,
+			expectedErrs: []string{
+				"policy.rego:2: rego_parse_error: `if` keyword is required before rule body",
+				"policy.rego:6: rego_parse_error: `if` keyword is required before rule body",
+				"policy.rego:6: rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "no imports",
+			input: `package test
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+			expected: `package test
+
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+		},
+		{
+			note: "future imports",
+			input: `package test
+import future.keywords
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+			expected: `package test
+
+p if {
+	input.x == 1
+}
+
+q contains "foo" if {
+	input.x == 2
+}
+`,
+		},
+		{
+			note: "duplicate imports",
+			input: `package test
+import data.foo
+import data.bar as foo
+`,
+			expectedErrs: []string{
+				`policy.rego:3: rego_compile_error: import must not shadow import data.foo`,
+			},
+		},
+		{
+			note: "root document overrides",
+			input: `package test
+input if {
+	1 == 1
+}
+
+p if {
+	data := 2
+}`,
+			expectedErrs: []string{
+				`policy.rego:2: rego_compile_error: rules must not shadow input (use a different rule name)`,
+				`policy.rego:7: rego_compile_error: variables must not shadow data (use a different variable name)`,
+			},
+		},
+		{
+			note: "deprecated built-in",
+			input: `package test
+p if {
+	any([true, false])
+}
+
+q := all([true, false])
+`,
+			expectedErrs: []string{
+				`policy.rego:3: rego_type_error: deprecated built-in function calls in expression: any`,
+				`policy.rego:6: rego_type_error: deprecated built-in function calls in expression: all`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			params := fmtCommandParams{
+				v1Compatible: true,
+			}
+
+			files := map[string]string{
+				"policy.rego": tc.input,
+			}
+
+			var stdout bytes.Buffer
+
+			test.WithTempFS(files, func(root string) {
+				policyFile := filepath.Join(root, "policy.rego")
+				info, err := os.Stat(policyFile)
+				err = formatFile(&params, &stdout, policyFile, info, err)
+
+				if len(tc.expectedErrs) > 0 {
+					if err == nil {
+						t.Fatalf("Expected error but got: %s", stdout.String())
+					}
+
+					for _, expectedErr := range tc.expectedErrs {
+						var actualErr string
+						switch err := err.(type) {
+						case fmtError:
+							actualErr = err.msg
+						default:
+							actualErr = err.Error()
+						}
+						if !strings.Contains(actualErr, expectedErr) {
+							t.Fatalf("Expected error to contain:\n\n%s\n\nGot error:\n\n%s\n\n", expectedErr, actualErr)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error: %s", err)
+					}
+					actual := stdout.String()
+					if actual != tc.expected {
+						t.Fatalf("Expected:%s\n\nGot:\n%s\n\n", tc.expected, actual)
+					}
+				}
+			})
+		})
+	}
+}
