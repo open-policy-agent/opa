@@ -273,7 +273,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
 		WithJSONOptions(fl.opts.JSONOptions).
-		WithRegoVersion(fl.opts.RegoVersion)
+		WithRegoVersion(fl.opts.EffectiveRegoVersion())
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.

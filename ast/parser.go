@@ -115,14 +115,27 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities       *Capabilities
-	ProcessAnnotation  bool
-	AllFutureKeywords  bool
-	FutureKeywords     []string
-	SkipRules          bool
-	JSONOptions        *astJSON.Options
-	RegoVersion        RegoVersion
+	Capabilities      *Capabilities
+	ProcessAnnotation bool
+	AllFutureKeywords bool
+	FutureKeywords    []string
+	SkipRules         bool
+	JSONOptions       *astJSON.Options
+	// RegoVersion is the version of Rego to parse for.
+	// RegoV1Compatible additionally affects the Rego version. Use EffectiveRegoVersion to get the effective Rego version.
+	RegoVersion RegoVersion
+	// RegoV1Compatible is equivalent to setting RegoVersion to RegoV0CompatV1.
+	// Setting RegoV1Compatible only has effect if RegoVersion is RegoV0.
+	// Deprecated: use RegoVersion instead. Will be removed in a future version of OPA.
+	RegoV1Compatible   bool
 	unreleasedKeywords bool // TODO(sr): cleanup
+}
+
+func (po *ParserOptions) EffectiveRegoVersion() RegoVersion {
+	if po.RegoVersion == RegoV0 && po.RegoV1Compatible {
+		return RegoV0CompatV1
+	}
+	return po.RegoVersion
 }
 
 // NewParser creates and initializes a Parser.
@@ -278,7 +291,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	if p.po.RegoVersion == RegoV1 {
+	if p.po.EffectiveRegoVersion() == RegoV1 {
 		// RegoV1 includes all future keywords in the default language definition
 		for k, v := range futureKeywords {
 			allowedFutureKeywords[k] = v
@@ -312,7 +325,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords || p.po.RegoVersion == RegoV1 {
+	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
@@ -333,7 +346,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 	p.s.s = p.s.s.WithKeywords(selected)
 
-	if p.po.RegoVersion == RegoV1 {
+	if p.po.EffectiveRegoVersion() == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			p.s.s.AddKeyword(kw, tok)
 		}
@@ -2601,7 +2614,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	if p.po.RegoVersion == RegoV1 {
+	if p.po.EffectiveRegoVersion() == RegoV1 {
 		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
