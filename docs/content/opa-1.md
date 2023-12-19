@@ -227,10 +227,13 @@ OPA can be run in 1.0 compatibility mode by using the `--v1-compatible` flag. Wh
 The `--v1-compatible` flag is currently supported on the following commands:
 
 * `build`
-* `fmt` Note that this command also supports the `--rego-v1` flag, which will format the Rego modules to be compatible with the Rego syntax of _both_ the current 0.x OPA version and OPA v1.0.
-  If both are used, `--rego-v1` takes precedence.
+* `check`*
+* `fmt`*
 * `eval`
 * `test`
+
+Note: the `check` and `fmt` commands also support the `--rego-v1` flag, which will check/format Rego modules as if compatible with the Rego syntax of _both_ the current 0.x OPA version and OPA v1.0.
+If both flags are used at the same time, `--rego-v1` takes precedence over `--v1-compatible`.
 
 {{< info >}}
 Support for more commands will be added over time, leading up to the release of OPA 1.0.
