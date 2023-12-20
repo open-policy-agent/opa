@@ -1,6 +1,6 @@
 module github.com/open-policy-agent/opa/logging/plugins/ozap
 
-go 1.21.5
+go 1.19
 
 require (
 	github.com/open-policy-agent/opa v0.59.0
