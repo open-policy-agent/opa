@@ -146,6 +146,7 @@ type Compiler struct {
 	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
 	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
 	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
+	allowUndefinedFuncCalls bool                          // don't error on calls to unknown functions.
 	evalMode                CompilerEvalMode
 }
 
@@ -454,6 +455,11 @@ func (c *Compiler) WithKeepModules(y bool) *Compiler {
 // WithUseTypeCheckAnnotations use schema annotations during type checking
 func (c *Compiler) WithUseTypeCheckAnnotations(enabled bool) *Compiler {
 	c.useTypeCheckAnnotations = enabled
+	return c
+}
+
+func (c *Compiler) WithAllowUndefinedFunctionCalls(allow bool) *Compiler {
+	c.allowUndefinedFuncCalls = allow
 	return c
 }
 
@@ -1513,7 +1519,8 @@ func (c *Compiler) checkTypes() {
 		WithInputType(c.inputType).
 		WithBuiltins(c.builtins).
 		WithRequiredCapabilities(c.Required).
-		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars))
+		WithVarRewriter(rewriteVarsInRef(c.RewrittenVars)).
+		WithAllowUndefinedFunctionCalls(c.allowUndefinedFuncCalls)
 	var as *AnnotationSet
 	if c.useTypeCheckAnnotations {
 		as = c.annotationSet
@@ -1577,6 +1584,11 @@ func (c *Compiler) compile() {
 				continue // skip these stages
 			}
 		}
+
+		if c.allowUndefinedFuncCalls && s.name == "CheckUndefinedFuncs" {
+			continue
+		}
+
 		c.runStage(s.metricName, s.f)
 		if c.Failed() {
 			return
