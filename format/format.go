@@ -26,7 +26,18 @@ type Opts struct {
 	// carry along their original source locations.
 	IgnoreLocations bool
 
+	// RegoV1 is equivalent to setting RegoVersion to ast.RegoV0Compat1.
+	// RegoV1 takes precedence over RegoVersion.
+	// Deprecated: use RegoVersion instead.
+	RegoV1      bool
 	RegoVersion ast.RegoVersion
+}
+
+func (o *Opts) effectiveRegoVersion() ast.RegoVersion {
+	if o.RegoV1 {
+		return ast.RegoV0CompatV1
+	}
+	return o.RegoVersion
 }
 
 // defaultLocationFile is the file name used in `Ast()` for terms
@@ -43,7 +54,7 @@ func Source(filename string, src []byte) ([]byte, error) {
 
 func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	parserOpts := ast.ParserOptions{}
-	if opts.RegoVersion == ast.RegoV1 {
+	if opts.effectiveRegoVersion() == ast.RegoV1 {
 		// If the rego version is V1, wee need to parse it as such, to allow for future keywords not being imported.
 		// Otherwise, we'll default to RegoV0
 		parserOpts.RegoVersion = ast.RegoV1
@@ -54,7 +65,7 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		return nil, err
 	}
 
-	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
+	if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 {
 		errors := ast.CheckRegoV1(module)
 		if len(errors) > 0 {
 			return nil, errors
@@ -122,7 +133,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
+	if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 {
 		o.regoV1 = true
 		o.ifs = true
 		o.contains = true
@@ -183,13 +194,13 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if opts.RegoVersion == ast.RegoV1 {
+		if opts.effectiveRegoVersion() == ast.RegoV1 {
 			x.Imports = filterRegoV1Import(x.Imports)
-		} else if opts.RegoVersion == ast.RegoV0CompatV1 {
+		} else if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
 
-		if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
+		if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
 			x.Imports = future.FilterFutureImports(x.Imports)
 		} else {
 			for kw := range extraFutureKeywordImports {
