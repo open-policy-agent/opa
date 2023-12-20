@@ -111,17 +111,17 @@ q {
 			t.Fatalf("expected message '%v', got '%v'", expectedMessage, msg)
 		}
 
-		loc1, ok1 := output.Errors[0].Location.(map[string]interface{})
-		if !ok1 {
-			t.Fatal("unexpected location type")
+		loc1 := output.Errors[0].Location
+		if loc1 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		loc2, ok2 := output.Errors[1].Location.(map[string]interface{})
-		if !ok2 {
-			t.Fatal("unexpected location type")
+		loc2 := output.Errors[1].Location
+		if loc2 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		if loc1["row"] == loc2["row"] {
+		if loc1.Row == loc2.Row {
 			t.Fatal("expected 2 distinct error occurrences in policy")
 		}
 	})
