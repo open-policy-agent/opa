@@ -653,7 +653,7 @@ opa fmt [path [...]] [flags]
       --fail            non zero exit code on reformat
   -h, --help            help for fmt
   -l, --list            list all files who would change when formatted
-      --rego-v1         format as Rego v1
+      --rego-v1         format module(s) to be compatible with both Rego v1 and current OPA version)
       --v1-compatible   opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
   -w, --write           overwrite the original source file
 ```
