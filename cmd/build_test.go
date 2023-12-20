@@ -1208,7 +1208,7 @@ p[k] contains v if {
 `,
 			},
 			// Note: the rego.v1 import isn't added to the optimized module.
-			// This is ok, as the bundle was built with the --rego-v1 flag,
+			// This is ok, as the bundle was built with the --v1-compatible flag,
 			// and is therefore only guaranteed to work with OPA 1.0 or when
 			// OPA 0.x is run with the --rego-v1 flag.
 			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.

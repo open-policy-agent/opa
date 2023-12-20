@@ -223,7 +223,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
-	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format as Rego v1")
+	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 
 	RootCommand.AddCommand(formatCommand)

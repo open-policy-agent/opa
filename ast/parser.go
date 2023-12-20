@@ -125,14 +125,14 @@ type ParserOptions struct {
 	// RegoV1Compatible additionally affects the Rego version. Use EffectiveRegoVersion to get the effective Rego version.
 	RegoVersion RegoVersion
 	// RegoV1Compatible is equivalent to setting RegoVersion to RegoV0CompatV1.
-	// Setting RegoV1Compatible only has effect if RegoVersion is RegoV0.
+	// RegoV1Compatible takes precedence, and if set to true, RegoVersion is ignored.
 	// Deprecated: use RegoVersion instead. Will be removed in a future version of OPA.
 	RegoV1Compatible   bool
 	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
 func (po *ParserOptions) EffectiveRegoVersion() RegoVersion {
-	if po.RegoVersion == RegoV0 && po.RegoV1Compatible {
+	if po.RegoV1Compatible {
 		return RegoV0CompatV1
 	}
 	return po.RegoVersion
