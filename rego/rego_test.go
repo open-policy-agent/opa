@@ -1167,7 +1167,7 @@ func TestPrepareAndPartial(t *testing.T) {
 	}
 }
 
-func TestPartialWitRegoV1(t *testing.T) {
+func TestPartialWithRegoV1(t *testing.T) {
 	tests := []struct {
 		note       string
 		module     string
