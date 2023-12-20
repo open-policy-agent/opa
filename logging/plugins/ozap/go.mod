@@ -1,4 +1,4 @@
-module github.com/open-policy-agent/opa/plugins/logging/ozap
+module github.com/open-policy-agent/opa/logging/plugins/ozap
 
 go 1.21.5
 

@@ -8,15 +8,46 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Wrap this zap Logger and AtomicLevel as a logging.Logger.
 func Wrap(log *zap.Logger, level *zap.AtomicLevel) logging.Logger {
 	return &Wrapper{internal: log, level: level}
 }
 
+// Wrapper implements logging.Logger for a zap Logger.
 type Wrapper struct {
 	internal *zap.Logger
 	level    *zap.AtomicLevel
 }
 
+// Debug logs at debug level.
+func (w *Wrapper) Debug(f string, a ...interface{}) {
+	w.internal.Debug(fmt.Sprintf(f, a...))
+}
+
+// Info logs at info level.
+func (w *Wrapper) Info(f string, a ...interface{}) {
+	w.internal.Info(fmt.Sprintf(f, a...))
+}
+
+// Error logs at error level.
+func (w *Wrapper) Error(f string, a ...interface{}) {
+	w.internal.Error(fmt.Sprintf(f, a...))
+}
+
+// Warn logs at warn level.
+func (w *Wrapper) Warn(f string, a ...interface{}) {
+	w.internal.Warn(fmt.Sprintf(f, a...))
+}
+
+// WithFields provides additional fields to include in log output.
+func (w *Wrapper) WithFields(fields map[string]interface{}) logging.Logger {
+	return &Wrapper{
+		internal: w.internal.With(toZapFields(fields)...),
+		level:    w.level,
+	}
+}
+
+// toZapFields converts logging format fields to zap format Fields
 func toZapFields(fields map[string]interface{}) []zap.Field {
 	var zapFields []zap.Field
 	for k, v := range fields {
@@ -36,29 +67,7 @@ func toZapFields(fields map[string]interface{}) []zap.Field {
 	return zapFields
 }
 
-func (w *Wrapper) Debug(f string, a ...interface{}) {
-	w.internal.Debug(fmt.Sprintf(f, a...))
-}
-
-func (w *Wrapper) Info(f string, a ...interface{}) {
-	w.internal.Info(fmt.Sprintf(f, a...))
-}
-
-func (w *Wrapper) Error(f string, a ...interface{}) {
-	w.internal.Error(fmt.Sprintf(f, a...))
-}
-
-func (w *Wrapper) Warn(f string, a ...interface{}) {
-	w.internal.Warn(fmt.Sprintf(f, a...))
-}
-
-func (w *Wrapper) WithFields(fields map[string]interface{}) logging.Logger {
-	return &Wrapper{
-		internal: w.internal.With(toZapFields(fields)...),
-		level:    w.level,
-	}
-}
-
+// SetLevel sets the logger level.
 func (w *Wrapper) GetLevel() logging.Level {
 	switch w.internal.Level() {
 	case zap.ErrorLevel:
@@ -72,6 +81,7 @@ func (w *Wrapper) GetLevel() logging.Level {
 	}
 }
 
+// SetLevel sets the logger level.
 func (w *Wrapper) SetLevel(l logging.Level) {
 	var newLevel zapcore.Level
 	switch l {
