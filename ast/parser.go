@@ -27,6 +27,22 @@ import (
 
 var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 
+// RegoVersion defines the Rego syntax requirements for a module.
+type RegoVersion int
+
+const (
+	// RegoV0 is the default, original Rego syntax.
+	RegoV0 RegoVersion = iota
+	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1 syntax (as when 'rego.v1' is imported in a module).
+	// Shortly, RegoV1 compatibility is required, but 'rego.v1' or 'future.keywords' must also be imported.
+	RegoV0CompatV1
+	// RegoV1 is the Rego syntax enforced by OPA 1.0; e.g.:
+	// future.keywords part of default keyword set, and don't require imports;
+	// 'if' and 'contains' required in rule heads;
+	// (some) strict checks on by default.
+	RegoV1
+)
+
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
 // save() and restore().
@@ -99,14 +115,27 @@ func (e *parsedTermCacheItem) String() string {
 
 // ParserOptions defines the options for parsing Rego statements.
 type ParserOptions struct {
-	Capabilities       *Capabilities
-	ProcessAnnotation  bool
-	AllFutureKeywords  bool
-	FutureKeywords     []string
-	SkipRules          bool
-	JSONOptions        *astJSON.Options
-	unreleasedKeywords bool // TODO(sr): cleanup
+	Capabilities      *Capabilities
+	ProcessAnnotation bool
+	AllFutureKeywords bool
+	FutureKeywords    []string
+	SkipRules         bool
+	JSONOptions       *astJSON.Options
+	// RegoVersion is the version of Rego to parse for.
+	// RegoV1Compatible additionally affects the Rego version. Use EffectiveRegoVersion to get the effective Rego version.
+	RegoVersion RegoVersion
+	// RegoV1Compatible is equivalent to setting RegoVersion to RegoV0CompatV1.
+	// RegoV1Compatible takes precedence, and if set to true, RegoVersion is ignored.
+	// Deprecated: use RegoVersion instead. Will be removed in a future version of OPA.
 	RegoV1Compatible   bool
+	unreleasedKeywords bool // TODO(sr): cleanup
+}
+
+func (po *ParserOptions) EffectiveRegoVersion() RegoVersion {
+	if po.RegoV1Compatible {
+		return RegoV0CompatV1
+	}
+	return po.RegoVersion
 }
 
 // NewParser creates and initializes a Parser.
@@ -189,6 +218,11 @@ func (p *Parser) WithJSONOptions(jsonOptions *astJSON.Options) *Parser {
 	return p
 }
 
+func (p *Parser) WithRegoVersion(version RegoVersion) *Parser {
+	p.po.RegoVersion = version
+	return p
+}
+
 func (p *Parser) parsedTermCacheLookup() (*Term, *state) {
 	l := p.s.loc.Offset
 	// stop comparing once the cached offsets are lower than l
@@ -257,16 +291,23 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	for _, kw := range p.po.Capabilities.FutureKeywords {
-		var ok bool
-		allowedFutureKeywords[kw], ok = futureKeywords[kw]
-		if !ok {
-			return nil, nil, Errors{
-				&Error{
-					Code:     ParseErr,
-					Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
-					Location: nil,
-				},
+	if p.po.EffectiveRegoVersion() == RegoV1 {
+		// RegoV1 includes all future keywords in the default language definition
+		for k, v := range futureKeywords {
+			allowedFutureKeywords[k] = v
+		}
+	} else {
+		for _, kw := range p.po.Capabilities.FutureKeywords {
+			var ok bool
+			allowedFutureKeywords[kw], ok = futureKeywords[kw]
+			if !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+						Location: nil,
+					},
+				}
 			}
 		}
 	}
@@ -284,7 +325,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords {
+	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
@@ -304,6 +345,12 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		}
 	}
 	p.s.s = p.s.s.WithKeywords(selected)
+
+	if p.po.EffectiveRegoVersion() == RegoV1 {
+		for kw, tok := range allowedFutureKeywords {
+			p.s.s.AddKeyword(kw, tok)
+		}
+	}
 
 	// read the first token to initialize the parser
 	p.scan()
@@ -2564,6 +2611,11 @@ func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]toke
 func (p *Parser) regoV1Import(imp *Import) {
 	if !p.po.Capabilities.ContainsFeature(FeatureRegoV1Import) {
 		p.errorf(imp.Path.Location, "invalid import, `%s` is not supported by current capabilities", RegoV1CompatibleRef)
+		return
+	}
+
+	if p.po.EffectiveRegoVersion() == RegoV1 {
+		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
 

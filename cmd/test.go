@@ -60,6 +60,7 @@ type testCommandParams struct {
 	stopChan     chan os.Signal
 	output       io.Writer
 	errOutput    io.Writer
+	v1Compatible bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -73,6 +74,13 @@ func newTestCommandParams() testCommandParams {
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
 	}
+}
+
+func (p *testCommandParams) RegoVersion() ast.RegoVersion {
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
 }
 
 func opaTest(args []string, testParams testCommandParams) (int, error) {
@@ -101,10 +109,10 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	var store storage.Store
 
 	if testParams.bundleMode {
-		bundles, err = tester.LoadBundles(args, filter.Apply)
+		bundles, err = tester.LoadBundlesWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
-		modules, store, err = tester.Load(args, filter.Apply)
+		modules, store, err = tester.LoadWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
 	}
 
 	if err != nil {
@@ -538,6 +546,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
+	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
 
 	RootCommand.AddCommand(testCommand)
 }

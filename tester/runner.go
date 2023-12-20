@@ -606,7 +606,14 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 
 // Load returns modules and an in-memory store for running tests.
 func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.Store, error) {
+	return LoadWithRegoVersion(args, filter, ast.RegoV0)
+}
+
+// LoadWithRegoVersion returns modules and an in-memory store for running tests.
+// Modules are parsed in accordance with the given RegoVersion.
+func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*ast.Module, storage.Store, error) {
 	loaded, err := loader.NewFileLoader().
+		WithRegoVersion(regoVersion).
 		WithProcessAnnotation(true).
 		Filtered(args, filter)
 	if err != nil {
@@ -634,9 +641,16 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 
 // LoadBundles will load the given args as bundles, either tarball or directory is OK.
 func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle, error) {
+	return LoadBundlesWithRegoVersion(args, filter, ast.RegoV0)
+}
+
+// LoadBundlesWithRegoVersion will load the given args as bundles, either tarball or directory is OK.
+// Bundles are parsed in accordance with the given RegoVersion.
+func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*bundle.Bundle, error) {
 	bundles := map[string]*bundle.Bundle{}
 	for _, bundleDir := range args {
 		b, err := loader.NewFileLoader().
+			WithRegoVersion(regoVersion).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(true).
 			WithFilter(filter).

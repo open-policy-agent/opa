@@ -249,6 +249,7 @@ opa build <path> [<path> [...]] [flags]
       --signing-key string             set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)
       --signing-plugin string          name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin
   -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
+      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
 ```
@@ -348,6 +349,7 @@ opa check <path> [path [...]] [flags]
       --rego-v1                check for Rego v1 compatibility (policies must also be compatible with current OPA version)
   -s, --schema string          set schema file path or directory path
   -S, --strict                 enable compiler strict mode
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -560,6 +562,7 @@ opa eval <query> [flags]
   -t, --target {rego,wasm}                                        set the runtime to exercise (default rego)
       --timeout duration                                          set eval timeout (default unlimited)
   -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
+      --v1-compatible                                             opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -646,12 +649,13 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-  -d, --diff      only display a diff of the changes
-      --fail      non zero exit code on reformat
-  -h, --help      help for fmt
-  -l, --list      list all files who would change when formatted
-      --rego-v1   format as Rego v1
-  -w, --write     overwrite the original source file
+  -d, --diff            only display a diff of the changes
+      --fail            non zero exit code on reformat
+  -h, --help            help for fmt
+  -l, --list            list all files who would change when formatted
+      --rego-v1         format as Rego v1
+      --v1-compatible   opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+  -w, --write           overwrite the original source file
 ```
 
 ____
@@ -1102,6 +1106,7 @@ opa test <path> [path [...]] [flags]
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
+      --v1-compatible                      opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
   -v, --verbose                            set verbose reporting mode
   -w, --watch                              watch command line files for changes
 ```

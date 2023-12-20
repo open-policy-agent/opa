@@ -83,6 +83,7 @@ type Compiler struct {
 	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
+	regoVersion                  ast.RegoVersion
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -242,6 +243,11 @@ func (c *Compiler) WithPartialNamespace(ns string) *Compiler {
 	return c
 }
 
+func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
+	c.regoVersion = v
+	return c
+}
+
 func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error {
 	for _, ref := range ar {
 		var entrypoint ast.Ref
@@ -356,8 +362,14 @@ func (c *Compiler) Build(ctx context.Context) error {
 		c.bundle.Manifest.Metadata = *c.metadata
 	}
 
-	if err := c.bundle.FormatModules(false); err != nil {
-		return err
+	if c.regoVersion == ast.RegoV1 {
+		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, false, false); err != nil {
+			return err
+		}
+	} else {
+		if err := c.bundle.FormatModules(false); err != nil {
+			return err
+		}
 	}
 
 	if c.bsc != nil {
@@ -432,7 +444,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
+	load, err := initload.LoadPathsForRegoVersion(c.regoVersion, c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}

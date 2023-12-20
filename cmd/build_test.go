@@ -976,3 +976,322 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildWithV1CompatibleFlag(t *testing.T) {
+	tests := []struct {
+		note          string
+		v1Compatible  bool
+		files         map[string]string
+		expectedFiles map[string]string
+		expectedErr   string
+	}{
+		{
+			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
+			files: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note: "default compatibility: policy with rego.v1 imports",
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+import rego.v1
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note: "default compatibility: policy with future.keywords imports",
+			files: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+import future.keywords.if
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are not added in
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note:         "1.0 compatibility: policy with rego.v1 import",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			// the rego.v1 import is obsolete in rego-v1, and is removed
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note:         "1.0 compatibility: policy with future.keywords import",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			// future.keywords imports are obsolete in rego-v1, and are removed
+			expectedFiles: map[string]string{
+				"test.rego": `package test
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.v1Compatible = tc.v1Compatible
+
+				err := dobuild(params, []string{root})
+
+				if tc.expectedErr != "" {
+					if err == nil {
+						t.Fatal("expected error but got nil")
+					}
+					if !strings.Contains(err.Error(), tc.expectedErr) {
+						t.Fatalf("expected error %v, got %v", tc.expectedErr, err)
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					fl := loader.NewFileLoader()
+					if tc.v1Compatible {
+						fl = fl.WithRegoVersion(ast.RegoV1)
+					}
+					_, err = fl.AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					// Check that manifest is not written given no input manifest and no other flags
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer f.Close()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+						expectedFile := tc.expectedFiles[path.Base(f.Name)]
+						if expectedFile != "" {
+							data, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
+							}
+							actualFile := string(data)
+							if actualFile != expectedFile {
+								t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+							}
+						}
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestBuildWithV1CompatibleFlagOptimized(t *testing.T) {
+	tests := []struct {
+		note          string
+		files         map[string]string
+		expectedFiles map[string]string
+	}{
+		{
+			note: "No imports",
+			files: map[string]string{
+				"test.rego": `package test
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note: "rego.v1 imported",
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			// Note: the rego.v1 import isn't added to the optimized module.
+			// This is ok, as the bundle was built with the --v1-compatible flag,
+			// and is therefore only guaranteed to work with OPA 1.0 or when
+			// OPA 0.x is run with the --rego-v1 flag.
+			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note: "future.keywords imported",
+			files: map[string]string{
+				"test.rego": `package test
+import future.keywords
+# METADATA
+# entrypoint: true
+p[k] contains v if {
+	k := "foo"
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/optimized/test/p.rego": `package test.p
+
+foo contains __local1__1 if {
+	__local1__1 = input.v
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.v1Compatible = true
+				params.optimizationLevel = 1
+
+				err := dobuild(params, []string{root})
+
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				f, err := os.Open(params.outputFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+
+				gr, err := gzip.NewReader(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				tr := tar.NewReader(gr)
+
+				for {
+					f, err := tr.Next()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatal(err)
+					}
+					expectedFile := tc.expectedFiles[f.Name]
+					if expectedFile != "" {
+						data, err := io.ReadAll(tr)
+						if err != nil {
+							t.Fatal(err)
+						}
+						actualFile := string(data)
+						if actualFile != expectedFile {
+							t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+						}
+					}
+				}
+			})
+		})
+	}
+}
