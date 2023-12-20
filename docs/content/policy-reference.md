@@ -39,7 +39,7 @@ val := arr[0]
 # lookup last value
 val := arr[count(arr)-1]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some 0, val in arr   # lookup value at index 0
 0, "foo" in arr      # check if value at index 0 is "foo"
 some i, "foo" in arr # find all indices i that have value "foo"
@@ -71,7 +71,7 @@ obj.foo.bar.baz
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
 not obj.foo.bar.baz
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 o := {"foo": false}
 # check if value exists: the expression will be true
 false in o
@@ -94,7 +94,7 @@ a_set[["a", "b", "c"]]
 # find all arrays of the form [x, "b", z] in the set
 a_set[[x, "b", z]]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 "foo" in a_set
 not "foo" in a_set
 some ["a", "b", "c"] in a_set
@@ -120,7 +120,7 @@ val := arr[_]
 # iterate over index/value pairs
 val := arr[i]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in arr    # iterate over values
 some i, _ in arr   # iterate over indices
 some i, val in arr # iterate over index/value pairs
@@ -138,7 +138,7 @@ val := obj[_]
 # iterate over key/value pairs
 val := obj[key]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in obj      # iterate over values
 some key, _ in obj   # iterate over keys
 some key, val in obj # key/value pairs
@@ -150,7 +150,7 @@ some key, val in obj # key/value pairs
 # iterate over values
 set[val]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in set
 ```
 
@@ -187,7 +187,7 @@ not any_not_match
 ```
 
 ```live:iteration/forall:module:read_only
-# with `import future.keywords.in` and `import future.keywords.if`
+# with `import rego.v1`, or `import future.keywords.in` and `import future.keywords.if`
 any_match if {
     some x in set
     f(x)
@@ -223,7 +223,7 @@ c := a | b
 p := true { ... }
 
 # OR
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 p if { ... }
 
 # OR
@@ -233,7 +233,7 @@ p { ... }
 ### Conditionals
 
 ```live:rules/cond:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 default a := 1
 a := 5   if { ... }
 a := 100 if { ... }
@@ -246,7 +246,7 @@ a := 100 if { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
-# alternatively, with `import future.keywords.contains` and `import future.keywords.if`
+# alternatively, with `import rego.v1`, or `import future.keywords.contains` and `import future.keywords.if`
 a_set contains x if { ... }
 a_set contains y if { ... }
 
@@ -258,7 +258,7 @@ a_map[w] := z if { ... }
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 default a := 1
 a := 5 if { ... }
 else := 10 if { ... }
@@ -267,7 +267,7 @@ else := 10 if { ... }
 ### Functions (Boolean)
 
 ```live:rules/funcs:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 f(x, y) if {
     ...
 }
@@ -282,7 +282,7 @@ f(x, y) := true if {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 f(x) := "A" if { x >= 90 }
 f(x) := "B" if { x >= 80; x < 90 }
 f(x) := "C" if { x >= 70; x < 80 }
@@ -291,7 +291,7 @@ f(x) := "C" if { x >= 70; x < 80 }
 ### Reference Heads
 
 ```live:rules/ref_heads:module:read_only
-# with `import future.keywords.contains` and `import future.keywords.if`
+# with `import rego.v1`, or `import future.keywords.contains` and `import future.keywords.if`
 fruit.apple.seeds = 12 if input == "apple"             # complete document (single value rule)
 
 fruit.pineapple.colors contains x if x := "yellow"     # multi-value rule
@@ -371,6 +371,13 @@ complex types.
 
 
 {{< builtin-table strings >}}
+
+{{< info >}}
+When using `sprintf`, values are pre-processed and may have an unexpected type. For example,
+`%T` evaluates to `string` for both `string` and `boolean` types. In such cases, use `type_name` to
+accurately evaluate the underlying type.
+{{< /info >}}
+
 {{< builtin-table regex >}}
 
 {{< builtin-table glob >}}
@@ -1190,7 +1197,7 @@ OPA doesn't presume what merge strategy is appropriate; instead, this lies in th
 # - Acme Corp.
 package example
 
-import future.keywords.in
+import rego.v1
 
 # METADATA
 # scope: document
@@ -1200,51 +1207,52 @@ import future.keywords.in
 # title: My Allow Rule
 # authors:
 # - Jane Doe <jane@example.com>
-allow {
-    meta := merge(rego.metadata.chain())
-    meta.title == "My Allow Rule"                                                  # 'title' pulled from 'rule' scope
-    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
-    meta.authors == {                                                              # 'authors' joined from 'package' and 'rule' scopes
-        {"email": "jane@example.com", "name": "Jane Doe"},
-        {"email": "john@example.com", "name": "John Doe"}
-    }
-    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+allow if {
+	meta := merge(rego.metadata.chain())
+	meta.title == "My Allow Rule" # 'title' pulled from 'rule' scope
+	meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+	meta.authors == {
+		{"email": "jane@example.com", "name": "Jane Doe"}, # 'authors' joined from 'package' and 'rule' scopes
+		{"email": "john@example.com", "name": "John Doe"},
+	}
+	meta.organizations == {"Acme Corp."} # 'organizations' pulled from 'package' scope
 }
 
-allow {
-    meta := merge(rego.metadata.chain())
-    meta.title == null                                                             # No 'title' present in 'rule' or 'document' scopes
-    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
-    meta.authors == {                                                              # 'authors' pulled from 'package' scope
-        {"email": "john@example.com", "name": "John Doe"}
-    }
-    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+allow if {
+	meta := merge(rego.metadata.chain())
+	meta.title == null # No 'title' present in 'rule' or 'document' scopes
+	meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+	meta.authors == { # 'authors' pulled from 'package' scope
+		{"email": "john@example.com", "name": "John Doe"}
+	}
+	meta.organizations == {"Acme Corp."} # 'organizations' pulled from 'package' scope
 }
 
-merge(chain) := meta {
-    ruleAndDoc := ["rule", "document"]
-    meta := {
-        "title": override_annot(chain, "title", ruleAndDoc),                         # looks for 'title' in 'rule' scope, then 'document' scope
-        "description": override_annot(chain, "description", ruleAndDoc),             # looks for 'description' in 'rule' scope, then 'document' scope
-        "related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
-        "authors": merge_annot(chain, "authors"),                                    # merges all 'authors' across all scopes
-        "organizations": merge_annot(chain, "organizations"),                        # merges all 'organizations' across all scopes
-    }
+merge(chain) := meta if {
+	ruleAndDoc := ["rule", "document"]
+	meta := {
+		"title": override_annot(chain, "title", ruleAndDoc), # looks for 'title' in 'rule' scope, then 'document' scope
+		"description": override_annot(chain, "description", ruleAndDoc), # looks for 'description' in 'rule' scope, then 'document' scope
+		"related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
+		"authors": merge_annot(chain, "authors"), # merges all 'authors' across all scopes
+		"organizations": merge_annot(chain, "organizations"), # merges all 'organizations' across all scopes
+	}
 }
 
-override_annot(chain, name, scopes) := val {
-    val := [v |
-        link := chain[_]
-        link.annotations.scope in scopes
-        v := link.annotations[name]
-    ][0]
+override_annot(chain, name, scopes) := val if {
+	val := [v |
+		link := chain[_]
+		link.annotations.scope in scopes
+		v := link.annotations[name]
+	][0]
 } else := null
 
-merge_annot(chain, name) := val {
-    val := {v |
-        v := chain[_].annotations[name][_]
-    }
+merge_annot(chain, name) := val if {
+	val := {v |
+		v := chain[_].annotations[name][_]
+	}
 } else := null
+
 ```
 
 {{< builtin-table cat=opa title=OPA >}}

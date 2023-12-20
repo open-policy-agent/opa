@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1009,6 +1011,207 @@ Lines not covered:
 				}
 			})
 		})
+	}
+}
+
+type loadType int
+
+const (
+	loadFile loadType = iota
+	loadBundle
+	loadTarball
+)
+
+func (t loadType) String() string {
+	return [...]string{"file", "bundle", "bundle tarball"}[t]
+}
+
+func TestWithV1CompatibleFlag(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		files        map[string]string
+		expErr       string
+	}{
+		{
+			note: "0.x module, no imports",
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+		{
+			note: "0.x module, rego.v1 imported",
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "0.x module, future.keywords imported",
+			files: map[string]string{
+				"/test.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+
+		{
+			note:         "1.0 compatible module, no imports",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "1.0 compatible module, rego.v1 imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "1.0 compatible module, future.keywords imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+	}
+
+	loadTypes := []loadType{loadFile, loadBundle, loadTarball}
+
+	for _, tc := range tests {
+		for _, loadType := range loadTypes {
+			t.Run(fmt.Sprintf("%s (%s)", tc.note, loadType), func(t *testing.T) {
+				var files map[string]string
+				if loadType != loadTarball {
+					files = tc.files
+				}
+				test.WithTempFS(files, func(root string) {
+					if loadType == loadTarball {
+						f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						testBundle := bundle.Bundle{
+							Data: map[string]interface{}{},
+						}
+						for k, v := range tc.files {
+							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
+								Path: k,
+								Raw:  []byte(v),
+							})
+						}
+
+						if err := bundle.Write(f, testBundle); err != nil {
+							t.Fatal(err)
+						}
+					}
+
+					var buf bytes.Buffer
+					var errBuf bytes.Buffer
+
+					testParams := newTestCommandParams()
+					testParams.v1Compatible = tc.v1Compatible
+					testParams.bundleMode = loadType == loadBundle
+					testParams.count = 1
+					testParams.output = &buf
+					testParams.errOutput = &errBuf
+
+					var paths []string
+					if loadType == loadTarball {
+						paths = []string{filepath.Join(root, "bundle.tar.gz")}
+					} else {
+						paths = []string{root}
+					}
+
+					exitCode, _ := opaTest(paths, testParams)
+					if tc.expErr != "" {
+						if exitCode == 0 {
+							t.Fatalf("expected non-zero exit code")
+						}
+
+						if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
+							t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", tc.expErr, actual)
+						}
+					} else {
+						if exitCode != 0 {
+							t.Fatalf("unexpected exit code: %d", exitCode)
+						}
+
+						if errBuf.Len() > 0 {
+							t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+						}
+
+						expected := "PASS: 1/1"
+						if actual := buf.String(); !strings.Contains(actual, expected) {
+							t.Fatalf("expected output to contain:\n\n%s\n\nbut got:\n\n%q", expected, actual)
+						}
+					}
+				})
+			})
+		}
 	}
 }
 

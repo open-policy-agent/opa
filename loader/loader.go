@@ -103,7 +103,11 @@ type FileLoader interface {
 	WithCapabilities(*ast.Capabilities) FileLoader
 	WithJSONOptions(*astJSON.Options) FileLoader
 
+	// WithRegoV1Compatible
+	// Deprecated: use WithRegoVersion instead
 	WithRegoV1Compatible(bool) FileLoader
+
+	WithRegoVersion(ast.RegoVersion) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -183,8 +187,17 @@ func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 	return fl
 }
 
+// WithRegoV1Compatible enforces Rego v0 with Rego v1 compatibility.
+// See ParserOptions.RegoV1Compatible for more details.
+// Deprecated: use WithRegoVersion instead
 func (fl *fileLoader) WithRegoV1Compatible(compatible bool) FileLoader {
 	fl.opts.RegoV1Compatible = compatible
+	return fl
+}
+
+// WithRegoVersion sets the ast.RegoVersion to use when parsing and compiling modules.
+func (fl *fileLoader) WithRegoVersion(version ast.RegoVersion) FileLoader {
+	fl.opts.RegoVersion = version
 	return fl
 }
 
@@ -256,7 +269,8 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
-		WithJSONOptions(fl.opts.JSONOptions)
+		WithJSONOptions(fl.opts.JSONOptions).
+		WithRegoVersion(fl.opts.EffectiveRegoVersion())
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
@@ -706,7 +720,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(path, bs, m)
+			r, err := loadBundleFile(path, bs, m, opts)
 			if err != nil {
 				err = fmt.Errorf("bundle %s: %w", path, err)
 			}
@@ -732,9 +746,15 @@ func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.Pars
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
+func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (bundle.Bundle, error) {
 	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
-	br := bundle.NewCustomReader(tl).WithMetrics(m).WithSkipBundleVerification(true).IncludeManifestInData(true)
+	br := bundle.NewCustomReader(tl).
+		WithRegoVersion(opts.RegoVersion).
+		WithJSONOptions(opts.JSONOptions).
+		WithProcessAnnotations(opts.ProcessAnnotation).
+		WithMetrics(m).
+		WithSkipBundleVerification(true).
+		IncludeManifestInData(true)
 	return br.Read()
 }
 

@@ -14,47 +14,47 @@ Let's start with an example policy that restricts access to an endpoint based on
 
 ```live:bool_example:module:openable
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 import input.attributes.request.http
 
 default allow := false
 
 allow if {
-    is_token_valid
-    action_allowed
+	is_token_valid
+	action_allowed
 }
 
 is_token_valid if {
-    token.valid
-    now := time.now_ns() / 1000000000
-    token.payload.nbf <= now
-    now < token.payload.exp
+	token.valid
+	now := time.now_ns() / 1000000000
+	token.payload.nbf <= now
+	now < token.payload.exp
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "guest"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "guest"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "admin"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "admin"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "POST"
-    token.payload.role == "admin"
-    glob.match("/people", ["/"], http.path)
-    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+	http.method == "POST"
+	token.payload.role == "admin"
+	glob.match("/people", ["/"], http.path)
+	lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
 }
-
 
 token := {"valid": valid, "payload": payload} if {
-    [_, encoded] := split(http.headers.authorization, " ")
-    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
+	[_, encoded] := split(http.headers.authorization, " ")
+	[valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
@@ -112,15 +112,16 @@ If you want, you can also control the HTTP status sent to the upstream or downst
 
 ```live:obj_example:module:openable
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 import input.attributes.request.http
 
 default allow := false
 
 allow if {
-    is_token_valid
-    action_allowed
+	is_token_valid
+	action_allowed
 }
 
 headers["x-ext-auth-allow"] := "yes"
@@ -131,9 +132,9 @@ request_headers_to_remove := ["one-auth-header", "another-auth-header"]
 response_headers_to_add["x-foo"] := "bar"
 
 status_code := 200 if {
-  allow
-} else := 401 {
-  not is_token_valid
+	allow
+} else := 401 if {
+	not is_token_valid
 } else := 403
 
 body := "Authentication Failed" if status_code == 401
@@ -142,35 +143,34 @@ body := "Unauthorized Request"  if status_code == 403
 dynamic_metadata := {"foo", "bar"}
 
 is_token_valid if {
-    token.valid
-    now := time.now_ns() / 1000000000
-    token.payload.nbf <= now
-    now < token.payload.exp
+	token.valid
+	now := time.now_ns() / 1000000000
+	token.payload.nbf <= now
+	now < token.payload.exp
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "guest"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "guest"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "admin"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "admin"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "POST"
-    token.payload.role == "admin"
-    glob.match("/people", ["/"], http.path)
-    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+	http.method == "POST"
+	token.payload.role == "admin"
+	glob.match("/people", ["/"], http.path)
+	lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
 }
-
 
 token := {"valid": valid, "payload": payload} if {
-    [_, encoded] := split(http.headers.authorization, " ")
-    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
+	[_, encoded] := split(http.headers.authorization, " ")
+	[valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
@@ -439,7 +439,8 @@ access the path `/people`.
 
 ```live:parsed_path_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
@@ -452,14 +453,15 @@ the HTTP URL query as a map of string array. The below sample policy allows anyo
 
 ```live:parsed_query_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
 allow if {
-    input.parsed_path == ["people"]
-    input.parsed_query.lang == ["en"]
-    input.parsed_query.id == ["1", "2"]
+	input.parsed_path == ["people"]
+	input.parsed_query.lang == ["en"]
+	input.parsed_query.id == ["1", "2"]
 }
 ```
 
@@ -469,13 +471,14 @@ can then be used in a policy as shown below.
 
 ```live:parsed_body_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
 allow if {
-    input.parsed_body.firstname == "Charlie"
-    input.parsed_body.lastname == "Opa"
+	input.parsed_body.firstname == "Charlie"
+	input.parsed_body.lastname == "Opa"
 }
 ```
 

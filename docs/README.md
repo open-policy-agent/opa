@@ -173,8 +173,10 @@ In this module:
 ```live:rule_body:module
 package example
 
-u {
-  "foo" == "foo"
+import rego.v1
+
+u if {
+	"foo" == "foo"
 }
 ```
 
@@ -200,12 +202,14 @@ Here's what a more complex set of blocks could look like:
 ``````markdown
 ```live:eg:module:hidden
 package example
+
+import rego.v1
 ```
 
 We can define a scalar rule:
 
 ```live:eg/string:module
-string = "hello"
+string := "hello"
 ```
 
 Which generates the document you'd expect:
@@ -216,7 +220,7 @@ Which generates the document you'd expect:
 We can then define a rule that uses the value of `string`:
 
 ```live:eg/string/rule:module
-r { input.value == string }
+r if { input.value == string }
 ```
 
 And query it with some input:
@@ -241,7 +245,7 @@ In that example, the output for `eg/string` is evaluated with only the module:
 ```
 package example
 
-string = "hello"
+string := "hello"
 ```
 
 Whereas the `eg/string/rule` output is evaluated with the module:
@@ -249,9 +253,11 @@ Whereas the `eg/string/rule` output is evaluated with the module:
 ```
 package example
 
-string = "hello"
+import rego.v1
 
-r { input.value == string }
+string := "hello"
+
+r if input.value == string
 ```
 
 as well the given query and input.

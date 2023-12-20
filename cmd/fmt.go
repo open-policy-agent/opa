@@ -14,19 +14,32 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 )
 
 type fmtCommandParams struct {
-	overwrite bool
-	list      bool
-	diff      bool
-	fail      bool
-	regoV1    bool
+	overwrite    bool
+	list         bool
+	diff         bool
+	fail         bool
+	regoV1       bool
+	v1Compatible bool
 }
 
 var fmtParams = fmtCommandParams{}
+
+func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
+	// The '--rego-v1' flag takes precedence over the '--v1-compatible' flag.
+	if p.regoV1 {
+		return ast.RegoV0CompatV1
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
+}
 
 var formatCommand = &cobra.Command{
 	Use:   "fmt [path [...]]",
@@ -109,7 +122,9 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	formatted, err := format.SourceWithOpts(filename, contents, format.Opts{RegoV1: params.regoV1})
+	opts := format.Opts{}
+	opts.RegoVersion = params.regoVersion()
+	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
 	}
@@ -170,7 +185,9 @@ func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	formatted, err := format.SourceWithOpts("stdin", contents, format.Opts{RegoV1: params.regoV1})
+	opts := format.Opts{}
+	opts.RegoVersion = params.regoVersion()
+	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
 	}
@@ -206,6 +223,8 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
-	formatCommand.Flags().BoolVar(&fmtParams.regoV1, "rego-v1", false, "format as Rego v1")
+	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
+	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
+
 	RootCommand.AddCommand(formatCommand)
 }

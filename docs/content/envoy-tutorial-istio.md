@@ -49,7 +49,7 @@ The `quick_start.yaml` manifest defines the following resources:
     ```live:example:module:openable
     package istio.authz
     
-    import future.keywords
+    import rego.v1
     
     import input.attributes.request.http as http_request
     import input.parsed_path

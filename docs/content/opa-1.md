@@ -13,7 +13,9 @@ The full set of breaking changes in OPA v1.0 is not yet finalized.
 The tools mentioned in the below sections - such as the `rego.v1` import and the `--rego-v1` command flag - may change over time, so it's good practice to regularly employ them to ensure your policies are compatible with the future release of OPA v1.0.
 {{< /info >}}
 
-## The `future.keywords` imports
+## What's changing in OPA 1.0
+
+### The `future.keywords` imports
 
 The `in`, `every`, `if` and `contains` keywords have been introduced over time, and currently require opt-in to prevent them from breaking policies that existed before their introduction. 
 The `future.keywords` imports facilitate this opt-in mechanism.
@@ -23,14 +25,14 @@ There is growing adoption of these keywords and their usage is prevalent in the 
 In OPA v1.0 the `in`, `every`, `if` and `contains` keywords will be part of the language by default and the `future.keywords` imports will become a no-op.
 A policy that makes use of these keywords, but doesn't import `future.keywords` is valid in OPA v1.0 but not in older versions of OPA.
 
-### Making new and existing policies compatible with OPA v1.0
+#### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0. 
    If a Rego module imports `rego.v1`, it means applicable `future.keywords` imports are implied. It is illegal to import both `rego.v1` and `future.keywords` in the same module.
 2. The `--rego-v1` flag on the `opa fmt` command will rewrite existing modules to use the `rego.v1` import instead of `future.keywords` imports.
 3. The `--rego-v1` flag on the `opa check` command will check that either the `rego.v1` import or applicable `future.keywords` imports are present if any of the `in`, `every`, `if` and `contains` keywords are used in a module.
 
-### Backwards compatibility in OPA v1.0
+#### Backwards compatibility in OPA v1.0
 
 To avoid breaking existing policies and give users a chance to update them such that these future keywords don’t clash with, for example, existing variable names, a new flag called `--v0-compatible` will be added to OPA commands such as `opa run` to maintain backward compatibility. 
 OPA’s Go SDK and Go API will be equipped with similar functionality, as well. 
@@ -38,7 +40,7 @@ In addition to this, the bundle manifest will also be updated to include a bit t
 This should be useful for cases when pre-OPA v1.0 functionality is desired but the users themselves have no control over the OPA deployment and hence cannot set the CLI flag.
 OPA tooling such as the `opa build` command will be equipped with a new flag that will allow users to control the relevant bit in the manifest. 
 
-## Enforce use of `if` and `contains` keywords in rule head declarations
+### Enforce use of `if` and `contains` keywords in rule head declarations
 
 Currently, there is semantic ambiguity between rules like `a.b {true}` and `a.b.c {true}`. Although syntactically similar, the former generates a set with the entry `b` at path `data.a`, while the latter generates an object with the attribute `"c": true` at path `data.a.b`. 
 This inconsistency makes it difficult for new users to understand how Rego works. 
@@ -132,38 +134,38 @@ When the above rule is evaluated the output is:
 The requirement of `if` and `contains` keywords will remove the ambiguity between single-value and multi-value rule declaration.
 This will make Rego code easier to author and read; thereby making it simpler for users to author their policies.
 
-### Making new and existing policies compatible with OPA v1.0
+#### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means the `if` and `contains` keywords are required when declaring rules. Constants, rules that only consist of a value assignment, are exempted.
 2. The `--rego-v1` flag on the `opa fmt` command will rewrite existing modules to use the `if` and `contains` keywords where applicable.
 3. The `--rego-v1` flag on the `opa check` command will check that the `if` and `contains` keywords are used where applicable in a module.
 
-### Backwards compatibility in OPA v1.0
+#### Backwards compatibility in OPA v1.0
 
 By default, OPA v1.0 will require the usage of `if` and `contains` as described above, but to maintain backward compatibility for policies written pre-OPA v1.0, a new flag called `--v0-compatible` will be added to OPA commands such as `opa run`, to avoid breaking existing policies and give users time to update them. 
 Similar functionality will be added to OPA’s Go SDK and Go API to assist users that embed OPA as a library in their Go services and also to OPA’s build command.
 
-## Prohibit duplicate imports
+### Prohibit duplicate imports
 
 The Rego compiler supports [strict mode](../policy-language/#strict-mode) which enforces additional constraints and safety checks during compilation. 
 One of these checks is to prohibit duplicate imports where one import shadows another. OPA v1.0 will enforce this check by default.
 
 An import shadowing another is most likely an authoring error and probably unintentional. OPA checking this by default will help to avoid policy evaluations resulting in error-prone decisions.
 
-### Making new and existing policies compatible with OPA v1.0
+#### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, duplicate imports are prohibited.
 2. The `--rego-v1` flag on the `opa fmt` command will reject modules with duplicate imports.
 3. The `--rego-v1` flag on the `opa check` command will check that duplicate imports are not present in a module.
 
-### Backwards compatibility in OPA v1.0
+#### Backwards compatibility in OPA v1.0
 
 If pre-OPA v1.0 behavior is desired where this check is only enforced when `strict mode` is enabled, a new `--v0-compatible` flag will be added to the OPA CLI to achieve that.
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
 
-## `input` and `data` keywords are reserved
+### `input` and `data` keywords are reserved
 
 The Rego compiler supports [strict mode](../policy-language/#strict-mode), which enforces additional constraints and safety checks during compilation. 
 One of these checks is to ensure that `input` and `data` are reserved keywords and may not be used as names for rules and variable assignments.
@@ -173,7 +175,7 @@ Hence, if a rule or variable shadows `input` or `data` you have the unintended c
 
 Note, using the [with](../policy-language/#with-keyword) keyword to insert values into - or to fully replace - the `input` or `data` documents, as in `my_func(x) with input as {...}` does not constitute shadowing and is therefore allowed in OPA v1.0.
 
-### Making new and existing policies compatible with OPA v1.0
+#### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means `input` and `data` are reserved keywords and may not be used as names for rules and variable assignments.
@@ -181,12 +183,12 @@ Note, using the [with](../policy-language/#with-keyword) keyword to insert value
    In a future release, a `--refactor-local-variables` flag will be added to `opa fmt` to refactor local variable assignments.
 3. The `--rego-v1` flag on the `opa check` command will check that `input` and `data` are not used as names for rules and local variable assignments in a module.
 
-### Backwards compatibility in OPA v1.0
+#### Backwards compatibility in OPA v1.0
 
 OPA v1.0 will enforce this check by default. If pre-OPA v1.0 behavior is desired where this check is only enforced when `strict mode` is enabled, a new flag `--v0-compatible` will be added to the OPA CLI to achieve that.
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
 
-## Prohibit use of deprecated builtins
+### Prohibit use of deprecated builtins
 
 The Rego compiler supports [strict mode](../policy-language/#strict-mode), which enforces additional constraints and safety checks during compilation. 
 One of these checks is to prohibit use of deprecated built-in functions. In OPA v1.0, these built-ins will be removed.
@@ -194,7 +196,7 @@ One of these checks is to prohibit use of deprecated built-in functions. In OPA 
 The following built-in functions are deprecated: `any`, `all`, `re_match`, `net.cidr_overlap`, `set_diff`, `cast_array`, `cast_set`, `cast_string`, `cast_boolean`, `cast_null`, `cast_object`.
 In some cases, new built-in functions have been added that provide functionality at least similar to a deprecated built-in.
 
-### Making new and existing policies compatible with OPA v1.0
+#### Making new and existing policies compatible with OPA v1.0
 
 1. A new [rego.v1](../policy-language/#the-regov1-import) import has been introduced that, when used, makes OPA apply all restrictions that will eventually be enforced by default in OPA v1.0.
    If a Rego module imports `rego.v1`, it means deprecated built-in functions are prohibited.
@@ -203,12 +205,12 @@ In some cases, new built-in functions have been added that provide functionality
    An FAQ section will be published that explains why each built-in function is deprecated and why it should be removed or replaced in the policy.
 3. The `--rego-v1` flag on the `opa check` command will check that deprecated built-in functions are not used in a module.
 
-### Backwards compatibility in OPA v1.0
+#### Backwards compatibility in OPA v1.0
 
 If pre-OPA v1.0 behavior is desired, where this check is only enforced when `strict` mode is enabled, a new flag `--v0-compatible` will be added to the OPA CLI to achieve that. 
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
 
-## Binding the OPA server to the `localhost` interface by default
+### Binding the OPA server to the `localhost` interface by default
 
 By default, OPA binds to the `0.0.0.0` interface, which allows the OPA server to be exposed to services running outside of the local machine. 
 Though not inherently insecure in a trusted environment, it's good practice to bind OPA to the `localhost` interface by default if OPA is not intended to be exposed to remote services.
@@ -217,3 +219,22 @@ In OPA v1.0, the OPA server will bind to the `localhost` interface by default.
 
 The `--v1-compatible` flag on the `opa run` command makes OPA employ configuration defaults that will eventually be used in OPA v1.0. 
 Binding to the `localhost` interface is one such default.
+
+## Running OPA in 1.0 compatibility mode
+
+OPA can be run in 1.0 compatibility mode by using the `--v1-compatible` flag. When this mode is enabled, the current release of OPA will behave as OPA v1.0 will eventually behave by default when it comes to the changes described [here](#whats-changing-in-opa-10).
+
+The `--v1-compatible` flag is currently supported on the following commands:
+
+* `build`: requires modules to be compatible with OPA v1.0 syntax
+* `check`*: requires modules to be compatible with OPA v1.0 syntax
+* `fmt`*: formats modules to be compatible with OPA v1.0 syntax, but not the current 0.x syntax.
+* `eval`: requires modules to be compatible with OPA v1.0 syntax
+* `test`: requires modules to be compatible with OPA v1.0 syntax
+
+Note: the `check` and `fmt` commands also support the `--rego-v1` flag, which will check/format Rego modules as if compatible with the Rego syntax of _both_ the current 0.x OPA version and OPA v1.0.
+If both flags are used at the same time, `--rego-v1` takes precedence over `--v1-compatible`.
+
+{{< info >}}
+Support for more commands will be added over time, leading up to the release of OPA 1.0.
+{{< /info >}}

@@ -125,11 +125,13 @@ expressions will be allowed.
 ```live:ingress_allowlist:module:read_only
 package kubernetes.admission
 
+import rego.v1
+
 import data.kubernetes.namespaces
 
 operations := {"CREATE", "UPDATE"}
 
-deny[msg] {
+deny contains msg if {
 	input.request.kind.kind == "Ingress"
 	operations[input.request.operation]
 	host := input.request.object.spec.rules[_].host
@@ -143,20 +145,20 @@ valid_ingress_hosts := {host |
 	host := hosts[_]
 }
 
-fqdn_matches_any(str, patterns) {
+fqdn_matches_any(str, patterns) if {
 	fqdn_matches(str, patterns[_])
 }
 
-fqdn_matches(str, pattern) {
+fqdn_matches(str, pattern) if {
 	pattern_parts := split(pattern, ".")
 	pattern_parts[0] == "*"
 	suffix := trim(pattern, "*.")
 	endswith(str, suffix)
 }
 
-fqdn_matches(str, pattern) {
-    not contains(pattern, "*")
-    str == pattern
+fqdn_matches(str, pattern) if {
+	not contains(pattern, "*")
+	str == pattern
 }
 ```
 
@@ -170,17 +172,19 @@ namespaces from sharing the same hostname.
 ```live:ingress_conflicts:module:read_only
 package kubernetes.admission
 
+import rego.v1
+
 import data.kubernetes.ingresses
 
-deny[msg] {
-    some other_ns, other_ingress
-    input.request.kind.kind == "Ingress"
-    input.request.operation == "CREATE"
-    host := input.request.object.spec.rules[_].host
-    ingress := ingresses[other_ns][other_ingress]
-    other_ns != input.request.namespace
-    ingress.spec.rules[_].host == host
-    msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
+deny contains msg if {
+	some other_ns, other_ingress
+	input.request.kind.kind == "Ingress"
+	input.request.operation == "CREATE"
+	host := input.request.object.spec.rules[_].host
+	ingress := ingresses[other_ns][other_ingress]
+	other_ns != input.request.namespace
+	ingress.spec.rules[_].host == host
+	msg := sprintf("invalid ingress host %q (conflicts with %v/%v)", [host, other_ns, other_ingress])
 }
 ```
 
@@ -194,12 +198,14 @@ Let's define a main policy that imports the [Restrict Hostnames](#policy-1-restr
 ```live:main:module:read_only
 package system
 
+import rego.v1
+
 import data.kubernetes.admission
 
 main := {
-  "apiVersion": "admission.k8s.io/v1",
-  "kind": "AdmissionReview",
-  "response": response,
+	"apiVersion": "admission.k8s.io/v1",
+	"kind": "AdmissionReview",
+	"response": response,
 }
 
 default uid := ""
@@ -207,14 +213,12 @@ default uid := ""
 uid := input.request.uid
 
 response := {
-    "allowed": false,
-    "uid": uid,
-    "status": {
-        "message": reason,
-    },
-} {
-    reason = concat(", ", admission.deny)
-    reason != ""
+	"allowed": false,
+	"uid": uid,
+	"status": {"message": reason},
+} if {
+	reason = concat(", ", admission.deny)
+	reason != ""
 }
 
 else := {"allowed": true, "uid": uid}

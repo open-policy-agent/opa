@@ -26,7 +26,18 @@ type Opts struct {
 	// carry along their original source locations.
 	IgnoreLocations bool
 
-	RegoV1 bool
+	// RegoV1 is equivalent to setting RegoVersion to ast.RegoV0Compat1.
+	// RegoV1 takes precedence over RegoVersion.
+	// Deprecated: use RegoVersion instead.
+	RegoV1      bool
+	RegoVersion ast.RegoVersion
+}
+
+func (o *Opts) effectiveRegoVersion() ast.RegoVersion {
+	if o.RegoV1 {
+		return ast.RegoV0CompatV1
+	}
+	return o.RegoVersion
 }
 
 // defaultLocationFile is the file name used in `Ast()` for terms
@@ -42,12 +53,19 @@ func Source(filename string, src []byte) ([]byte, error) {
 }
 
 func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
-	module, err := ast.ParseModule(filename, string(src))
+	parserOpts := ast.ParserOptions{}
+	if opts.effectiveRegoVersion() == ast.RegoV1 {
+		// If the rego version is V1, wee need to parse it as such, to allow for future keywords not being imported.
+		// Otherwise, we'll default to RegoV0
+		parserOpts.RegoVersion = ast.RegoV1
+	}
+
+	module, err := ast.ParseModuleWithOpts(filename, string(src), parserOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	if opts.RegoV1 {
+	if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 {
 		errors := ast.CheckRegoV1(module)
 		if len(errors) > 0 {
 			return nil, errors
@@ -115,7 +133,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	o := fmtOpts{}
 
-	if opts.RegoV1 {
+	if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 {
 		o.regoV1 = true
 		o.ifs = true
 		o.contains = true
@@ -176,10 +194,13 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		if o.regoV1 {
+		if opts.effectiveRegoVersion() == ast.RegoV1 {
+			x.Imports = filterRegoV1Import(x.Imports)
+		} else if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 {
 			x.Imports = ensureRegoV1Import(x.Imports)
 		}
-		if o.regoV1 || moduleIsRegoV1Compatible(x) {
+
+		if opts.effectiveRegoVersion() == ast.RegoV0CompatV1 || opts.effectiveRegoVersion() == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
 			x.Imports = future.FilterFutureImports(x.Imports)
 		} else {
 			for kw := range extraFutureKeywordImports {
@@ -1446,6 +1467,17 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 
 func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
 	return ensureImport(imps, ast.RegoV1CompatibleRef)
+}
+
+func filterRegoV1Import(imps []*ast.Import) []*ast.Import {
+	var ret []*ast.Import
+	for _, imp := range imps {
+		path := imp.Path.Value.(ast.Ref)
+		if !ast.RegoV1CompatibleRef.Equal(path) {
+			ret = append(ret, imp)
+		}
+	}
+	return ret
 }
 
 func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {

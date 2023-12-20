@@ -666,12 +666,14 @@ Content-Type: text/plain
 ```live:put_example:module:read_only
 package opa.examples
 
-import data.servers
+import rego.v1
+
 import data.networks
 import data.ports
+import data.servers
 
-public_servers[server] {
-  some k, m
+public_servers contains server if {
+	some k, m
 	server := servers[_]
 	server.ports[_] == ports[k].id
 	ports[k].networks[_] == networks[m].id
@@ -886,9 +888,11 @@ The examples below assume the following policy:
 ```live:input_example:module:read_only
 package opa.examples
 
+import rego.v1
+
 import input.example.flag
 
-allow_request { flag == true }
+allow_request if flag == true
 ```
 
 #### Example Request
@@ -989,9 +993,11 @@ The examples below assume the following policy:
 ```live:webhook_example:module:read_only
 package opa.examples
 
+import rego.v1
+
 import input.example.flag
 
-allow_request { flag == true }
+allow_request if flag == true
 ```
 
 #### Example Request
@@ -1200,8 +1206,10 @@ Content-Type: text/plain
 ```live:system_example:module:read_only
 package system
 
-main = msg {
-  msg := sprintf("hello, %v", [input.user])
+import rego.v1
+
+main := msg if {
+	msg := sprintf("hello, %v", [input.user])
 }
 ```
 
@@ -1349,8 +1357,10 @@ The example below assumes that OPA has been given the following policy:
 ```live:compile_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
 }
 ```
 
@@ -1444,12 +1454,14 @@ For example, if you extend to policy above to include a "break glass" condition,
 ```live:compile_unconditional_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
 }
 
-allow {
-  data.break_glass = true
+allow if {
+	data.break_glass = true
 }
 ```
 
@@ -1523,13 +1535,15 @@ exception:
 ```live:compile_unconditional_false_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
-  exceptions[input.subject.name]
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
+	exceptions[input.subject.name]
 }
 
-exceptions["bob"]
-exceptions["alice"]
+exceptions contains "bob"
+exceptions contains "alice"
 ```
 
 In this case, if we execute query on behalf of a user that does not
@@ -1657,15 +1671,17 @@ able to process the `live` rule. OPA is ready once all plugins have entered the 
 ```live:health_policy_example:module:read_only
 package system.health
 
+import rego.v1
+
 # opa is live if it can process this rule
-default live = true
+default live := true
 
 # by default, opa is not ready
-default ready = false
+default ready := false
 
 # opa is ready once all plugins have reported OK at least once
-ready {
-  input.plugins_ready
+ready if {
+	input.plugins_ready
 }
 ```
 
@@ -1675,15 +1691,17 @@ specific a plugin leaves the OK state, try this:
 ```live:health_policy_example_2:module:read_only
 package system.health
 
-default live = true
+import rego.v1
 
-default ready = false
+default live := true
+
+default ready := false
 
 # opa is ready once all plugins have reported OK at least once AND
 # the bundle plugin is currently in an OK state
-ready {
-  input.plugins_ready
-  input.plugin_state.bundle == "OK"
+ready if {
+	input.plugins_ready
+	input.plugin_state.bundle == "OK"
 }
 ```
 

@@ -118,6 +118,7 @@ type Runner struct {
 	cover                 topdown.QueryTracer
 	trace                 bool
 	enablePrintStatements bool
+	raiseBuiltinErrors    bool
 	runtime               *ast.Term
 	timeout               time.Duration
 	modules               map[string]*ast.Module
@@ -137,6 +138,13 @@ func NewRunner() *Runner {
 // SetCompiler sets the compiler used by the runner.
 func (r *Runner) SetCompiler(compiler *ast.Compiler) *Runner {
 	r.compiler = compiler
+	return r
+}
+
+// RaiseBuiltinErrors sets the runner to raise errors encountered by builtins
+// such as parsing input.
+func (r *Runner) RaiseBuiltinErrors(enabled bool) *Runner {
+	r.raiseBuiltinErrors = enabled
 	return r
 }
 
@@ -461,7 +469,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	}
 
 	printbuf := bytes.NewBuffer(nil)
-
+	var builtinErrors []topdown.Error
 	rg := rego.New(
 		rego.Store(r.store),
 		rego.Transaction(txn),
@@ -471,6 +479,7 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 		rego.Runtime(r.runtime),
 		rego.Target(r.target),
 		rego.PrintHook(topdown.NewPrintHook(printbuf)),
+		rego.BuiltinErrorList(&builtinErrors),
 	)
 
 	// Register custom builtins on rego instance
@@ -483,15 +492,24 @@ func (r *Runner) runTest(ctx context.Context, txn storage.Transaction, mod *ast.
 	dt := time.Since(t0)
 
 	var trace []*topdown.Event
-
 	if bufferTracer != nil {
 		trace = *bufferTracer
 	}
 
 	tr := newResult(rule.Loc(), mod.Package.Path.String(), rule.Head.Ref().String(), dt, trace, printbuf.Bytes())
-	tr.Error = err
-	var stop bool
 
+	// If there was an error other than errors from builtins, prefer that error.
+	if err != nil {
+		tr.Error = err
+	} else if r.raiseBuiltinErrors && len(builtinErrors) > 0 {
+		if len(builtinErrors) == 1 {
+			tr.Error = &builtinErrors[0]
+		} else {
+			tr.Error = fmt.Errorf("%v", builtinErrors)
+		}
+	}
+
+	var stop bool
 	if err != nil {
 		if topdown.IsCancel(err) || wasm_errors.IsCancel(err) {
 			stop = ctx.Err() != context.DeadlineExceeded
@@ -588,7 +606,14 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 
 // Load returns modules and an in-memory store for running tests.
 func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.Store, error) {
+	return LoadWithRegoVersion(args, filter, ast.RegoV0)
+}
+
+// LoadWithRegoVersion returns modules and an in-memory store for running tests.
+// Modules are parsed in accordance with the given RegoVersion.
+func LoadWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*ast.Module, storage.Store, error) {
 	loaded, err := loader.NewFileLoader().
+		WithRegoVersion(regoVersion).
 		WithProcessAnnotation(true).
 		Filtered(args, filter)
 	if err != nil {
@@ -616,9 +641,16 @@ func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.
 
 // LoadBundles will load the given args as bundles, either tarball or directory is OK.
 func LoadBundles(args []string, filter loader.Filter) (map[string]*bundle.Bundle, error) {
+	return LoadBundlesWithRegoVersion(args, filter, ast.RegoV0)
+}
+
+// LoadBundlesWithRegoVersion will load the given args as bundles, either tarball or directory is OK.
+// Bundles are parsed in accordance with the given RegoVersion.
+func LoadBundlesWithRegoVersion(args []string, filter loader.Filter, regoVersion ast.RegoVersion) (map[string]*bundle.Bundle, error) {
 	bundles := map[string]*bundle.Bundle{}
 	for _, bundleDir := range args {
 		b, err := loader.NewFileLoader().
+			WithRegoVersion(regoVersion).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(true).
 			WithFilter(filter).

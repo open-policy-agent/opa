@@ -111,17 +111,17 @@ q {
 			t.Fatalf("expected message '%v', got '%v'", expectedMessage, msg)
 		}
 
-		loc1, ok1 := output.Errors[0].Location.(map[string]interface{})
-		if !ok1 {
-			t.Fatal("unexpected location type")
+		loc1 := output.Errors[0].Location
+		if loc1 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		loc2, ok2 := output.Errors[1].Location.(map[string]interface{})
-		if !ok2 {
-			t.Fatal("unexpected location type")
+		loc2 := output.Errors[1].Location
+		if loc2 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		if loc1["row"] == loc2["row"] {
+		if loc1.Row == loc2.Row {
 			t.Fatal("expected 2 distinct error occurrences in policy")
 		}
 	})
@@ -1879,4 +1879,114 @@ func TestUnexpectedElseIfErr(t *testing.T) {
 			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
 		}
 	})
+}
+
+func TestEvalPolicyWithV1CompatibleFlag(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		modules      map[string]string
+		query        string
+		expectedErr  string
+	}{
+		{
+			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:         "1.0 compatibility: policy with rego.v1 import",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:         "1.0 compatibility: policy with future.keywords import",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+	}
+
+	setup := []struct {
+		name          string
+		commandParams func(params *evalCommandParams, path string)
+	}{
+		{
+			name: "Files",
+			commandParams: func(params *evalCommandParams, path string) {
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+			},
+		},
+		{
+			name: "Bundle",
+			commandParams: func(params *evalCommandParams, path string) {
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.modules, func(path string) {
+					params := newEvalCommandParams()
+					s.commandParams(&params, path)
+					params.v1Compatible = tc.v1Compatible
+
+					var buf bytes.Buffer
+
+					defined, err := eval([]string{tc.query}, params, &buf)
+
+					if tc.expectedErr == "" {
+						if err != nil {
+							t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+						} else if !defined {
+							t.Fatal("expected result to be defined")
+						}
+					} else {
+						if err == nil {
+							t.Fatal("expected error, got none")
+						}
+
+						actual := buf.String()
+						if !strings.Contains(actual, tc.expectedErr) {
+							t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", tc.expectedErr, actual)
+						}
+					}
+				})
+			})
+		}
+	}
 }

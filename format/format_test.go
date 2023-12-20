@@ -150,7 +150,7 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 			}
 
 			if errorExpected {
-				formatted, err := SourceWithOpts(rego, contents, Opts{RegoV1: true})
+				formatted, err := SourceWithOpts(rego, contents, Opts{RegoVersion: ast.RegoV0CompatV1})
 				if err == nil {
 					t.Fatalf("Expected error, got: %s", formatted)
 				}
@@ -158,7 +158,7 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 					t.Fatalf("Expected error:\n\n'%s'\n\ngot:\n\n'%s'", expected, err.Error())
 				}
 			} else {
-				formatted, err := SourceWithOpts(rego, contents, Opts{RegoV1: true})
+				formatted, err := SourceWithOpts(rego, contents, Opts{RegoVersion: ast.RegoV0CompatV1})
 				if err != nil {
 					t.Fatalf("Failed to format file: %v", err)
 				}
@@ -171,7 +171,7 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 					t.Fatalf("Failed to parse formatted bytes: %v", err)
 				}
 
-				formatted, err = SourceWithOpts(rego, formatted, Opts{RegoV1: true})
+				formatted, err = SourceWithOpts(rego, formatted, Opts{RegoVersion: ast.RegoV0CompatV1})
 				if err != nil {
 					t.Fatalf("Failed to double format file")
 				}

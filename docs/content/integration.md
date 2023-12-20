@@ -68,14 +68,13 @@ decisions: `example/authz/allow` and `example/authz/is_admin`.
 ```live:authz:module:openable,read_only
 package example.authz
 
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 default allow := false
 
 allow if {
-    input.method == "GET"
-    input.path == ["salary", input.subject.user]
+	input.method == "GET"
+	input.path == ["salary", input.subject.user]
 }
 
 allow if is_admin
@@ -217,7 +216,7 @@ func main() {
 		"example.rego": `
 				package authz
 
-				import future.keywords.if
+				import rego.v1
 
 				default allow := false
 
@@ -312,8 +311,7 @@ store, etc.
 module := `
 package example.authz
 
-import future.keywords.if
-import future.keywords.in
+import rego.v1
 
 default allow := false
 

@@ -1544,7 +1544,7 @@ func (c *Compiler) checkUnsafeBuiltins() {
 func (c *Compiler) checkDeprecatedBuiltins() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible {
+		if c.strict || mod.regoV1Compatible() {
 			errs := checkDeprecatedBuiltins(c.deprecatedBuiltinsMap, mod)
 			for _, err := range errs {
 				c.err(err)
@@ -1695,7 +1695,7 @@ func (c *Compiler) checkDuplicateImports() {
 
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible {
+		if c.strict || mod.regoV1Compatible() {
 			modules = append(modules, mod)
 		}
 	}
@@ -1709,7 +1709,7 @@ func (c *Compiler) checkDuplicateImports() {
 func (c *Compiler) checkKeywordOverrides() {
 	for _, name := range c.sorted {
 		mod := c.Modules[name]
-		if c.strict || mod.regoV1Compatible {
+		if c.strict || mod.regoV1Compatible() {
 			errs := checkRootDocumentOverrides(mod)
 			for _, err := range errs {
 				c.err(err)

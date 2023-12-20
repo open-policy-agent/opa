@@ -477,7 +477,7 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(filename, stmts, comments, popts.RegoV1Compatible)
+	return parseModule(filename, stmts, comments, popts.EffectiveRegoVersion())
 }
 
 // ParseBody returns exactly one body.
@@ -626,6 +626,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		WithCapabilities(popts.Capabilities).
 		WithSkipRules(popts.SkipRules).
 		WithJSONOptions(popts.JSONOptions).
+		WithRegoVersion(popts.EffectiveRegoVersion()).
 		withUnreleasedKeywords(popts.unreleasedKeywords)
 
 	stmts, comments, errs := parser.Parse()
@@ -637,7 +638,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 	return stmts, comments, nil
 }
 
-func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1Compatible bool) (*Module, error) {
+func parseModule(filename string, stmts []Statement, comments []*Comment, regoCompatibilityMode RegoVersion) (*Module, error) {
 
 	if len(stmts) == 0 {
 		return nil, NewError(ParseErr, &Location{File: filename}, "empty module")
@@ -658,14 +659,14 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1
 
 	// The comments slice only holds comments that were not their own statements.
 	mod.Comments = append(mod.Comments, comments...)
-	mod.regoV1Compatible = regoV1Compatible
+	mod.regoVersion = regoCompatibilityMode
 
 	for i, stmt := range stmts[1:] {
 		switch stmt := stmt.(type) {
 		case *Import:
 			mod.Imports = append(mod.Imports, stmt)
-			if Compare(stmt.Path.Value, RegoV1CompatibleRef) == 0 {
-				mod.regoV1Compatible = true
+			if mod.regoVersion == RegoV0 && Compare(stmt.Path.Value, RegoV1CompatibleRef) == 0 {
+				mod.regoVersion = RegoV0CompatV1
 			}
 		case *Rule:
 			setRuleModule(stmt, mod)
@@ -694,7 +695,7 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoV1
 		}
 	}
 
-	if mod.regoV1Compatible {
+	if mod.regoVersion == RegoV0CompatV1 || mod.regoVersion == RegoV1 {
 		for _, rule := range mod.Rules {
 			for r := rule; r != nil; r = r.Else {
 				var t string

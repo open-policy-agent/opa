@@ -173,27 +173,27 @@ simple policy to block an S3 Bucket unless it has an `AccessControl` attribute s
 ```live:example/system:module
 package system
 
-import future.keywords
+import rego.v1
 
 main := {
-    "allow": count(deny) == 0,
-    "violations": deny,
+	"allow": count(deny) == 0,
+	"violations": deny,
 }
 
-deny[msg] {
-    bucket_create_or_update
-    not bucket_is_private
+deny contains msg if {
+	bucket_create_or_update
+	not bucket_is_private
 
-    msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
+	msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
 }
 
-bucket_create_or_update {
-    input.resource.type == "AWS::S3::Bucket"
-    input.action in {"CREATE", "UPDATE"}
+bucket_create_or_update if {
+	input.resource.type == "AWS::S3::Bucket"
+	input.action in {"CREATE", "UPDATE"}
 }
 
-bucket_is_private {
-    input.resource.properties.AccessControl == "Private"
+bucket_is_private if {
+	input.resource.properties.AccessControl == "Private"
 }
 ```
 
@@ -203,12 +203,12 @@ rules help alleviate the problem of values potentially being undefined. Compare 
 look correct at a first glance:
 
 ```live:example/fail:module
-deny[msg] {
-    bucket_create_or_update
+deny contains msg if {
+	bucket_create_or_update
 
-    input.resource.properties.AccessControl != "Private"
+	input.resource.properties.AccessControl != "Private"
 
-    msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
+	msg := sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])
 }
 ```
 
@@ -224,15 +224,15 @@ attributes. An example S3 bucket policy might for example want to check that pub
 
 ```live:example/boolean_fail:module:read_only
 # Wrong: will allow both "true" and "false" values as both are considered "truthy"
-block_public_acls {
-    input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
+block_public_acls if {
+	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls
 }
 ```
 
 ```live:example/boolean_correct:module:read_only
 # Correct: will allow only when property set to "true"
-block_public_acls {
-    input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
+block_public_acls if {
+	input.resource.properties.PublicAccessBlockConfiguration.BlockPublicAcls == "true"
 }
 ```
 {{< /danger >}}
@@ -360,7 +360,7 @@ take a look at what such a main policy might look like:
 #
 package system
 
-import future.keywords
+import rego.v1
 
 main := {
 	"allow": count(violations) == 0,
@@ -377,11 +377,11 @@ main := {
 #   desirable, one may create a special policy for that by simply appending
 #   "delete" to the package name, e.g. data.aws.s3.bucket.delete
 #
-route := document(lower(component), lower(type)) {
+route := document(lower(component), lower(type)) if {
 	["AWS", component, type] = split(input.resource.type, "::")
 }
 
-violations[msg] {
+violations contains msg if {
 	# Aggregate all deny rules found in routed document
 	some msg in route.deny
 }
@@ -390,19 +390,19 @@ violations[msg] {
 # Basic input validation to avoid having to do this in each resource policy
 #
 
-violations["Missing input.resource"] {
+violations contains "Missing input.resource" if {
 	not input.resource
 }
 
-violations["Missing input.resource.type"] {
+violations contains "Missing input.resource.type" if {
 	not input.resource.type
 }
 
-violations["Missing input.resource.id"] {
+violations contains "Missing input.resource.id" if {
 	not input.resource.id
 }
 
-violations["Missing input.action"] {
+violations contains "Missing input.action" if {
 	not input.action
 }
 
@@ -410,11 +410,11 @@ violations["Missing input.action"] {
 # Helpers
 #
 
-document(component, type) := data.aws[component][type] {
+document(component, type) := data.aws[component][type] if {
 	input.action != "DELETE"
 }
 
-document(component, type) := data.aws[component][type].delete {
+document(component, type) := data.aws[component][type].delete if {
 	input.action == "DELETE"
 }
 ```
@@ -436,12 +436,14 @@ We can now modify our original policy to verify S3 bucket resources only:
 ```live:example/bucket:module
 package aws.s3.bucket
 
-deny[sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id])] {
-    not bucket_is_private
+import rego.v1
+
+deny contains sprintf("S3 Bucket %s 'AccessControl' attribute value must be 'Private'", [input.resource.id]) if {
+	not bucket_is_private
 }
 
-bucket_is_private {
-    input.resource.properties.AccessControl == "Private"
+bucket_is_private if {
+	input.resource.properties.AccessControl == "Private"
 }
 ```
 
@@ -464,10 +466,12 @@ A simple authz policy for checking the bearer token might look something like th
 ```live:example/authz:module
 package system.authz
 
+import rego.v1
+
 default allow := false
 
-allow {
-    input.identity == "my_secret_token"
+allow if {
+	input.identity == "my_secret_token"
 }
 ```
 

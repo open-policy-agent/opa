@@ -594,6 +594,7 @@ type Rego struct {
 	pluginMgr              *plugins.Manager
 	plugins                []TargetPlugin
 	targetPrepState        TargetPluginEval
+	regoVersion            ast.RegoVersion
 }
 
 // Function represents a built-in function that is callable in Rego.
@@ -1190,6 +1191,12 @@ func EnablePrintStatements(yes bool) func(r *Rego) {
 func Strict(yes bool) func(r *Rego) {
 	return func(r *Rego) {
 		r.strict = yes
+	}
+}
+
+func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
+	return func(r *Rego) {
+		r.regoVersion = version
 	}
 }
 
@@ -1803,7 +1810,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 			return err
 		}
 
-		parsed, err := ast.ParseModule(id, string(bs))
+		parsed, err := ast.ParseModuleWithOpts(id, string(bs), ast.ParserOptions{RegoVersion: r.regoVersion})
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1813,7 +1820,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 
 	// Parse any passed in as arguments to the Rego object
 	for _, module := range r.modules {
-		p, err := module.Parse()
+		p, err := module.ParseWithOpts(ast.ParserOptions{RegoVersion: r.regoVersion})
 		if err != nil {
 			switch errorWithType := err.(type) {
 			case ast.Errors:
@@ -1845,6 +1852,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	result, err := loader.NewFileLoader().
 		WithMetrics(m).
 		WithProcessAnnotation(true).
+		WithRegoVersion(r.regoVersion).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
@@ -1875,6 +1883,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 			WithMetrics(m).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
+			WithRegoVersion(r.regoVersion).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
@@ -1940,13 +1949,14 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		// Use this as the single-point of compiling everything only a
 		// single time.
 		opts := &bundle.ActivateOpts{
-			Ctx:          ctx,
-			Store:        r.store,
-			Txn:          txn,
-			Compiler:     r.compilerForTxn(ctx, r.store, txn),
-			Metrics:      m,
-			Bundles:      r.bundles,
-			ExtraModules: r.parsedModules,
+			Ctx:           ctx,
+			Store:         r.store,
+			Txn:           txn,
+			Compiler:      r.compilerForTxn(ctx, r.store, txn),
+			Metrics:       m,
+			Bundles:       r.bundles,
+			ExtraModules:  r.parsedModules,
+			ParserOptions: ast.ParserOptions{RegoVersion: r.regoVersion},
 		}
 		err := bundle.Activate(opts)
 		if err != nil {
@@ -2612,6 +2622,10 @@ type rawModule struct {
 
 func (m rawModule) Parse() (*ast.Module, error) {
 	return ast.ParseModule(m.filename, m.module)
+}
+
+func (m rawModule) ParseWithOpts(opts ast.ParserOptions) (*ast.Module, error) {
+	return ast.ParseModuleWithOpts(m.filename, m.module, opts)
 }
 
 type extraStage struct {
