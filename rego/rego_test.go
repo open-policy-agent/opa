@@ -1229,8 +1229,6 @@ foo[__local1__1] { __local1__1 = input.v }`,
 				t.Fatal(err)
 			}
 
-			fmt.Println(partialQuery)
-
 			actualQuery := partialQuery.Queries[0].String()
 			if tc.expQuery != actualQuery {
 				t.Fatalf("Expected partial query to be:\n\n%s\n\nbut got:\n\n%s", tc.expQuery, actualQuery)
