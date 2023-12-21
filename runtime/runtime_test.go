@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -443,6 +444,163 @@ func TestServerInitialized(t *testing.T) {
 		t.Fatal("expected ServerInitializedChannel to be closed")
 	}
 }
+
+func TestServerInitializedWithRegoV1(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		files        map[string]string
+		expErr       string
+	}{
+		{
+			note: "Rego v0, keywords not imported",
+			files: map[string]string{
+				"policy.rego": `package test
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error: var cannot be used for rule name",
+		},
+		{
+			note: "Rego v0, rego.v1 imported",
+			files: map[string]string{
+				"policy.rego": `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "Rego v0, future.keywords imported",
+			files: map[string]string{
+				"policy.rego": `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "Rego v0, no keywords used",
+			files: map[string]string{
+				"policy.rego": `package test
+				p {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note:         "Rego v1, keywords not imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"policy.rego": `package test
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note:         "Rego v1, rego.v1 imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"policy.rego": `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note:         "Rego v1, future.keywords imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"policy.rego": `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note:         "Rego v1, no keywords used",
+			v1Compatible: true,
+			files: map[string]string{
+				"policy.rego": `package test
+				p {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+	}
+
+	bundle := []bool{false, true}
+
+	for _, tc := range tests {
+		for _, b := range bundle {
+			t.Run(fmt.Sprintf("%s; bundle=%v", tc.note, b), func(t *testing.T) {
+				test.WithTempFS(tc.files, func(root string) {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					defer cancel()
+					var output bytes.Buffer
+
+					params := NewParams()
+					params.Output = &output
+					params.Paths = []string{root}
+					params.BundleMode = b
+					params.Addrs = &[]string{"localhost:0"}
+					params.GracefulShutdownPeriod = 1
+					params.Logger = logging.NewNoOpLogger()
+
+					//if tc.regoV1 {
+					//	params.RegoVersion = ast.RegoV1
+					//}
+					params.V1Compatible = tc.v1Compatible
+
+					rt, err := NewRuntime(ctx, params)
+
+					if tc.expErr != "" {
+						if err == nil {
+							t.Fatal("Expected error but got nil")
+						}
+						if !strings.Contains(err.Error(), tc.expErr) {
+							t.Fatalf("Expected error:\n\n%v\n\ngot:\n\n%v", tc.expErr, err.Error())
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error %v", err)
+						}
+
+						initChannel := rt.Manager.ServerInitializedChannel()
+						done := make(chan struct{})
+						go func() {
+							rt.StartServer(ctx)
+							close(done)
+						}()
+						<-done
+						select {
+						case <-initChannel:
+							return
+						default:
+							t.Fatal("expected ServerInitializedChannel to be closed")
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}

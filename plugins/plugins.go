@@ -210,6 +210,7 @@ type Manager struct {
 	reporter                     *report.Reporter
 	opaReportNotifyCh            chan struct{}
 	stop                         chan chan struct{}
+	parserOptions                ast.ParserOptions
 }
 
 type managerContextKey string
@@ -393,6 +394,11 @@ func WithHooks(hs hooks.Hooks) func(*Manager) {
 	return func(m *Manager) {
 		m.hooks = hs
 	}
+}
+
+func (m *Manager) WithParserOptions(opts ast.ParserOptions) *Manager {
+	m.parserOptions = opts
+	return m
 }
 
 // WithEnableTelemetry controls whether OPA will send telemetry reports to an external service.
@@ -1084,4 +1090,8 @@ func (m *Manager) sendOPAUpdateLoop(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (m *Manager) ParserOptions() ast.ParserOptions {
+	return m.parserOptions
 }

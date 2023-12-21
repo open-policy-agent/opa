@@ -38,15 +38,16 @@ import (
 // OPA represents an instance of the policy engine. OPA can be started with
 // several options that control configuration, logging, and lifecycle.
 type OPA struct {
-	id      string
-	state   *state
-	mtx     sync.Mutex
-	logger  logging.Logger
-	console logging.Logger
-	plugins map[string]plugins.Factory
-	store   storage.Store
-	hooks   hooks.Hooks
-	config  []byte
+	id           string
+	state        *state
+	mtx          sync.Mutex
+	logger       logging.Logger
+	console      logging.Logger
+	plugins      map[string]plugins.Factory
+	store        storage.Store
+	hooks        hooks.Hooks
+	config       []byte
+	v1Compatible bool
 }
 
 type state struct {
@@ -86,6 +87,7 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.logger = opts.Logger
 	opa.console = opts.ConsoleLogger
 	opa.plugins = opts.Plugins
+	opa.v1Compatible = opts.V1Compatible
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -138,6 +140,11 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
+		func(m *plugins.Manager) {
+			if opa.v1Compatible {
+				m.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1})
+			}
+		},
 	)
 	if err != nil {
 		return err

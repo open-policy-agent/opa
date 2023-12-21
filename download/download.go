@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"io"
 	"math/rand"
 	"net/http"
@@ -65,6 +66,7 @@ type Downloader struct {
 	longPollingEnabled bool
 	lazyLoadingMode    bool
 	bundleName         string
+	bundleParserOpts   ast.ParserOptions
 }
 
 type downloaderResponse struct {
@@ -131,6 +133,11 @@ func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
 // WithBundleName specifies the name of the downloaded bundle.
 func (d *Downloader) WithBundleName(bundleName string) *Downloader {
 	d.bundleName = bundleName
+	return d
+}
+
+func (d *Downloader) WithBundleParserOpts(opts ast.ParserOptions) *Downloader {
+	d.bundleParserOpts = opts
 	return d
 }
 
@@ -329,6 +336,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			etag := resp.Header.Get("ETag")
 
 			reader := bundle.NewCustomReader(loader).
+				WithRegoVersion(d.bundleParserOpts.RegoVersion).
 				WithMetrics(m).
 				WithBundleVerificationConfig(d.bvc).
 				WithBundleEtag(etag).

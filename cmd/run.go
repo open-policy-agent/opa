@@ -49,6 +49,7 @@ type runCmdParams struct {
 	skipBundleVerify     bool
 	skipKnownSchemaCheck bool
 	excludeVerifyFiles   []string
+	v1Compatible         bool
 }
 
 func newRunParams() runCmdParams {

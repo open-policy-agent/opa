@@ -190,6 +190,7 @@ func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 // WithRegoV1Compatible enforces Rego v0 with Rego v1 compatibility.
 // See ParserOptions.RegoV1Compatible for more details.
 // Deprecated: use WithRegoVersion instead
+// TODO: Remove, this is an internal type, so won't be a breaking change.
 func (fl *fileLoader) WithRegoV1Compatible(compatible bool) FileLoader {
 	fl.opts.RegoV1Compatible = compatible
 	return fl

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/open-policy-agent/opa/util/test"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -1794,6 +1795,242 @@ main = 7
 		t.Fatalf("expected %v but got %v", exp, result.Result)
 	}
 
+}
+
+func TestDiscoveryBundleRegoV1(t *testing.T) {
+	tests := []struct {
+		note            string
+		v1Compatible    bool
+		discoveryBundle map[string]string
+		policyBundle    map[string]string
+		expErr          string
+	}{
+		{
+			note: "0.x compatible, keywords not imported ind disco bundle",
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+foo contains "bar"
+
+# This will be interpreted as two rules - 'test.resource' and 'if' - so we have foo above to force an error
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import future.keywords
+
+main := v if { v := 7 }`,
+			},
+			expErr: "rego_parse_error",
+		},
+
+		{
+			note: "0.x compatible, keywords not imported ind policy bundle",
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import future.keywords
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+foo contains "bar"
+
+# This will be interpreted as two rules - 'main' and 'if' - so we have foo above to force an error
+main := v if { v := 7 }`,
+			},
+			expErr: "rego_parse_error",
+		},
+
+		{
+			note: "0.x compatible, keywords imported",
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import future.keywords
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import future.keywords
+
+main := v if { v := 7 }`,
+			},
+		},
+		{
+			note: "0.x compatible, rego.v1 imported",
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import rego.v1
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import rego.v1
+
+main := v if { v := 7 }`,
+			},
+		},
+		{
+			note:         "1.0 compatible, keywords not imported",
+			v1Compatible: true,
+			// Discovery and policy bundles are rego-v1 compatible, but rego-v0 incompatible (if keyword used without import)
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+main := v if { v := 7 }`,
+			},
+		},
+		{
+			note:         "1.0 compatible, keywords imported",
+			v1Compatible: true,
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import future.keywords
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import future.keywords
+
+main := v if { v := 7 }`,
+			},
+		},
+		{
+			note:         "1.0 compatible, rego.v1 imported",
+			v1Compatible: true,
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import rego.v1
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import rego.v1
+
+main := v if { v := 7 }`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+
+			serverOpts := []func(*sdktest.Server) error{
+				sdktest.MockBundle("/bundles/discovery.tar.gz", tc.discoveryBundle),
+				sdktest.MockBundle("/bundles/bundle.tar.gz", tc.policyBundle),
+				sdktest.RawBundles(true),
+			}
+			//if tc.v1Compatible || tc.discoServerV1Compatible {
+			//	serverOpts = append(serverOpts, sdktest.ParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
+			//}
+			server := sdktest.MustNewServer(serverOpts...)
+			defer server.Stop()
+
+			c := fmt.Sprintf(`{
+				"services": {
+					"test": {
+						"url": %q
+					}
+				},
+				"discovery": {
+					"resource": "/bundles/discovery.tar.gz"
+				}
+			}`, server.URL())
+
+			var readyCh chan struct{}
+			var logger logging.Logger
+			if tc.expErr != "" {
+				logger = loggingtest.New()
+				logger.SetLevel(logging.Info)
+				readyCh = make(chan struct{})
+			} else {
+				logger = logging.NewNoOpLogger()
+			}
+
+			opa, err := sdk.New(ctx, sdk.Options{
+				Logger:       logger,
+				Ready:        readyCh,
+				Config:       strings.NewReader(c),
+				V1Compatible: tc.v1Compatible,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			defer opa.Stop(ctx)
+
+			if tc.expErr != "" {
+				l := logger.(*loggingtest.Logger)
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					for _, e := range l.Entries() {
+						if strings.Contains(e.Message, tc.expErr) {
+							return true
+						}
+					}
+					return false
+				}) {
+					t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, l.Entries())
+				}
+			} else {
+				exp := json.Number("7")
+
+				if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+					t.Fatal(err)
+				} else if result.Result != exp {
+					t.Fatalf("expected %v but got %v", exp, result.Result)
+				}
+			}
+		})
+	}
 }
 
 func TestAsync(t *testing.T) {

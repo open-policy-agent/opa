@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"io"
 	mr "math/rand"
 	"net/url"
@@ -333,7 +334,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil, nil)
+	var regoVersion ast.RegoVersion
+	if params.V1Compatible {
+		regoVersion = ast.RegoV1
+	} else {
+		regoVersion = ast.RegoV0
+	}
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}

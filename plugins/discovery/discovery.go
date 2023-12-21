@@ -62,6 +62,7 @@ type Discovery struct {
 	logger            logging.Logger
 	bundlePersistPath string
 	hooks             hooks.Hooks
+	v1Compatible      bool
 }
 
 // Factories provides a set of factory functions to use for
@@ -123,10 +124,12 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 			WithBundleVerificationConfig(config.Signing).
 			WithBundlePersistence(config.Persist)
 	} else {
-		result.downloader = download.New(config.Config, restClient, config.path).
+		d := download.New(config.Config, restClient, config.path).
 			WithCallback(result.oneShot).
 			WithBundleVerificationConfig(config.Signing).
-			WithBundlePersistence(config.Persist)
+			WithBundlePersistence(config.Persist).
+			WithBundleParserOpts(manager.ParserOptions())
+		result.downloader = d
 	}
 	result.status = &bundle.Status{
 		Name: Name,
