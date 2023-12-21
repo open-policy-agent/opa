@@ -895,7 +895,7 @@ allow if {                                          # allow is true if...
 
 violation contains server.id if {                   # a server is in the violation set if...
     some server
-    public_server[server]                           # it exists in the 'public_server' set and...
+    public_servers[server]                           # it exists in the 'public_servers' set and...
     server.protocols[_] == "http"                   # it contains the insecure "http" protocol.
 }
 
@@ -904,7 +904,7 @@ violation contains server.id if {                   # a server is in the violati
     server.protocols[_] == "telnet"                 # it contains the "telnet" protocol.
 }
 
-public_server contains server if {                  # a server exists in the public_server set if...
+public_servers contains server if {                  # a server exists in the 'public_servers' set if...
     some i, j
     server := input.servers[_]                      # it exists in the input.servers collection and...
     server.ports[_] == input.ports[i].id            # it references a port in the input.ports collection and...
@@ -1002,7 +1002,7 @@ opa run example.rego repl.input:input.json
 ```
 
 ```ruby
-> data.example.public_server[s]
+> data.example.public_servers[s]
 ```
 
 {{< info >}}
