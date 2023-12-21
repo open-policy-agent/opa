@@ -11,7 +11,7 @@ import (
 )
 
 // Version is the canonical version of OPA.
-var Version = "0.60.0"
+var Version = "0.61.0-dev"
 
 // GoVersion is the version of Go this was built with
 var GoVersion = runtime.Version()
