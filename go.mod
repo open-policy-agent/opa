@@ -13,7 +13,7 @@ require (
 	github.com/foxcpp/go-mockdns v1.0.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-ini/ini v1.67.0
-	github.com/go-logr/logr v1.3.0
+	github.com/go-logr/logr v1.4.0
 	github.com/gobwas/glob v0.2.3
 	github.com/golang/protobuf v1.5.3
 	github.com/google/go-cmp v0.6.0
