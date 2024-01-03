@@ -1,13 +1,14 @@
+---
 cases:
-- data: {}
-  modules:
-  - |
-    package generated
+  - data: {}
+    modules:
+      - |
+        package generated
 
-    p = ns {
-      time.parse_duration_ns("100ms", ns)
-    }
-  note: time/parse duration nanos
-  query: data.generated.p = x
-  want_result:
-  - x: 100000000
+        p = ns {
+          time.parse_duration_ns("100ms", ns)
+        }
+    note: time/parse duration nanos
+    query: data.generated.p = x
+    want_result:
+      - x: 100000000

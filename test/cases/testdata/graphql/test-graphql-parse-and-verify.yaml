@@ -1,3 +1,4 @@
+---
 # This suite of tests is adapted from the underlying GraphQL parser library's
 # own test suite, as it provides a fairly comprehensive set of good/degenerate
 # test cases, which we want to make sure to react correctly to.

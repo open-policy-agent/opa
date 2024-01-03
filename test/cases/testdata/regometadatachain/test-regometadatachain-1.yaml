@@ -1,3 +1,4 @@
+---
 cases:
   - data:
     note: regometadatachain/simple
@@ -6,7 +7,7 @@ cases:
         # METADATA
         # description: The Rego test suite
         package testing
-        
+
         # METADATA
         # title: Testing annotations
         # authors:
@@ -83,7 +84,7 @@ cases:
         package testing
       - |
         package testing
-        
+
         p := rego.metadata.chain()
     query: data.testing.p = x
     want_result:
