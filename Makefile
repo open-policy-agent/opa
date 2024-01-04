@@ -29,6 +29,7 @@ GO_TAGS = -tags=opa_wasm
 endif
 
 GOLANGCI_LINT_VERSION := v1.51.0
+YAML_LINT_VERSION := 0.29.0
 
 DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
@@ -146,6 +147,11 @@ ifeq ($(DOCKER_RUNNING), 1)
 	docker run --rm -v $(shell pwd):/app:ro,Z -w /app golangci/golangci-lint:${GOLANGCI_LINT_VERSION} golangci-lint run -v
 else
 	@echo "Docker not installed or running. Skipping golangci run."
+endif
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint test/cases/testdata
+else
+	@echo "Docker not installed or running. Skipping yamllint run."
 endif
 
 .PHONY: fmt
