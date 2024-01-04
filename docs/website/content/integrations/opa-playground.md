@@ -24,5 +24,10 @@ docs_features:
       your first policies. You can also share links if you're asking for
       help in the community Slack. Get started with a simple
       [RBAC example](https://play.openpolicyagent.org/p/Bb9FqBvauC).
+  debugging-rego:
+    note: |
+      The playground is a great place to debug Rego policies as you can
+      quickly iterate on the policy and data at the same time before sharing
+      links to collaborate on a fix with others.
 ---
 Interactive online Rego playground for writing and sharing policies

@@ -34,6 +34,11 @@ docs_features:
       code is correct and free of common errors. See
       [the README](https://github.com/StyraInc/regal#try-it-out)
       to get started.
+  debugging-rego:
+    note: |
+      Regal can be used to debug Rego policies by identifying common mistakes.
+      See [Bugs](https://docs.styra.com/regal/category/bugs) for some example
+      issues it can identify automatically.
 ---
 Regal is a linter for Rego, with the goal of making your Rego magnificent!
 
