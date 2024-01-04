@@ -95,13 +95,13 @@ to isolate the OPA instance and query it directly. This can be done using the [R
 For example, to get a snapshot of the data that OPA has loaded, you can use the following command:
 
 ```shell
-curl --silent http://$OPA_HOSTNAME/v1/data/
+curl --silent https://$OPA_HOSTNAME/v1/data
 ```
 
 Or to manually evaluate a policy rule with some input:
 
 ```shell
-curl -X POST http://$OPA_HOSTNAME/v0/data/example_package/example_rule -d '{"foo": "bar"}'
+curl -X POST https://$OPA_HOSTNAME/v0/data/example_package/example_rule -d '{"foo": "bar"}'
 ```
 
 ## Load a Production Bundle Locally
