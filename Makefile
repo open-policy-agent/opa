@@ -148,11 +148,6 @@ ifeq ($(DOCKER_RUNNING), 1)
 else
 	@echo "Docker not installed or running. Skipping golangci run."
 endif
-ifeq ($(DOCKER_RUNNING), 1)
-	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint test/cases/testdata
-else
-	@echo "Docker not installed or running. Skipping yamllint run."
-endif
 
 .PHONY: fmt
 fmt:
@@ -479,6 +474,14 @@ check-go-module:
 	  --tmpfs /src/.go \
 	  $(RELEASE_BUILD_IMAGE) \
 	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
+
+.PHONY: check-yaml-tests
+check-yaml-tests:
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint test/cases/testdata
+else
+	@echo "Docker not installed or running. Skipping yamllint run."
+endif
 
 ######################################################
 #

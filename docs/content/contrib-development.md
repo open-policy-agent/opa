@@ -74,6 +74,8 @@ git rebase upstream/main
 > style.
 > For YAML files, you may need to run the `yamllint` tool on the
 > `test/cases/testdata` folder to make sure any new tests are well-formatted.
+> If you have Docker available, you can run `make check-yaml-tests` to
+> run `yamllint` on the tests without installing any Python dependencies.
 
 
 ### Submission
