@@ -9,9 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/util/test"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -1958,6 +1961,44 @@ import rego.v1
 main := v if { v := 7 }`,
 			},
 		},
+		{
+			note:         "1.0 compatible, keywords not used in discovery bundle",
+			v1Compatible: true,
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import rego.v1
+
+test.resource := b {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+		{
+			note:         "1.0 compatible, keywords not used in policy bundle",
+			v1Compatible: true,
+			discoveryBundle: map[string]string{
+				"bundles.rego": `
+package bundles
+
+import rego.v1
+
+test.resource := b if {
+	b := "/bundles/bundle.tar.gz"
+}`,
+			},
+			policyBundle: map[string]string{
+				"main.rego": `
+package system
+
+import rego.v1
+
+main := v { v := 7 }`,
+			},
+			expErr: "rego_parse_error",
+		},
 	}
 
 	for _, tc := range tests {
@@ -1969,9 +2010,6 @@ main := v if { v := 7 }`,
 				sdktest.MockBundle("/bundles/bundle.tar.gz", tc.policyBundle),
 				sdktest.RawBundles(true),
 			}
-			//if tc.v1Compatible || tc.discoServerV1Compatible {
-			//	serverOpts = append(serverOpts, sdktest.ParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
-			//}
 			server := sdktest.MustNewServer(serverOpts...)
 			defer server.Stop()
 
@@ -2029,6 +2067,174 @@ main := v if { v := 7 }`,
 					t.Fatalf("expected %v but got %v", exp, result.Result)
 				}
 			}
+		})
+	}
+}
+
+func TestRegoV1WithConfiguredLocalBundle(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		policy       string
+		expErr       string
+	}{
+		{
+			note: "0.x compatible, keywords not imported",
+			policy: `
+package system
+
+l contains 7
+
+main := v if {
+	v := l[0]
+}
+`,
+			expErr: "rego_parse_error",
+		},
+		{
+			note: "0.x compatible, keywords imported",
+			policy: `
+package system
+
+import future.keywords
+
+main := 7 if {
+	true
+}
+`,
+		},
+		{
+			note: "0.x compatible, rego.v1 imported",
+			policy: `
+package system
+
+import rego.v1
+
+main := 7 if {
+	true
+}
+`,
+		},
+		{
+			note:         "1.0 compatible, keywords not imported",
+			v1Compatible: true,
+			policy: `
+package system
+
+main := 7 if {
+	true
+}
+`,
+		},
+		{
+			note:         "1.0 compatible, keywords imported",
+			v1Compatible: true,
+			policy: `
+package system
+
+import future.keywords
+
+main := 7 if {
+	true
+}
+`,
+		},
+		{
+			note:         "1.0 compatible, rego.v1 imported",
+			v1Compatible: true,
+			policy: `
+package system
+
+import rego.v1
+
+main := 7 if {
+	true
+}
+`,
+		},
+		{
+			note:         "1.0 compatible, keywords not used",
+			v1Compatible: true,
+			policy: `
+package system
+
+main := 7 {
+	true
+}
+`,
+			expErr: "rego_parse_error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(map[string]string{}, func(rootDir string) {
+				f, err := os.Create(filepath.Join(rootDir, "bundle.tar.gz"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				buf := archive.MustWriteTarGz([][2]string{{"main.rego", tc.policy}})
+				_, err = f.Write(buf.Bytes())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				c := fmt.Sprintf(`services:
+bundles:
+  test:
+    resource: "file://%s/bundle.tar.gz"`, rootDir)
+
+				var readyCh chan struct{}
+				var logger logging.Logger
+				if tc.expErr != "" {
+					logger = loggingtest.New()
+					logger.SetLevel(logging.Info)
+					readyCh = make(chan struct{})
+				} else {
+					logger = logging.NewNoOpLogger()
+				}
+
+				ctx := context.Background()
+				opa, err := sdk.New(ctx, sdk.Options{
+					Logger:       logger,
+					Ready:        readyCh,
+					Config:       strings.NewReader(c),
+					V1Compatible: tc.v1Compatible,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				//exp := json.Number("7")
+				//
+				//if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+				//	t.Fatal(err)
+				//} else if result.Result != exp {
+				//	t.Fatalf("expected %v but got %v", exp, result.Result)
+				//}
+
+				if tc.expErr != "" {
+					l := logger.(*loggingtest.Logger)
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						for _, e := range l.Entries() {
+							if strings.Contains(e.Message, tc.expErr) {
+								return true
+							}
+						}
+						return false
+					}) {
+						t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, l.Entries())
+					}
+				} else {
+					exp := json.Number("7")
+
+					if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
+						t.Fatal(err)
+					} else if result.Result != exp {
+						t.Fatalf("expected %v but got %v", exp, result.Result)
+					}
+				}
+			})
 		})
 	}
 }

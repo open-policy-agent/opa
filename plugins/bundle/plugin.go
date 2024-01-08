@@ -407,11 +407,12 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 		switch u.Scheme {
 		case "file":
 			return &fileLoader{
-				name:           name,
-				path:           u.Path,
-				bvc:            source.Signing,
-				sizeLimitBytes: source.SizeLimitBytes,
-				f:              p.oneShot,
+				name:             name,
+				path:             u.Path,
+				bvc:              source.Signing,
+				sizeLimitBytes:   source.SizeLimitBytes,
+				f:                p.oneShot,
+				bundleParserOpts: p.manager.ParserOptions(),
 			}
 		}
 	}
@@ -722,11 +723,12 @@ func (p *Plugin) getBundlePersistPath() (string, error) {
 }
 
 type fileLoader struct {
-	name           string
-	path           string
-	bvc            *bundle.VerificationConfig
-	sizeLimitBytes int64
-	f              func(context.Context, string, download.Update)
+	name             string
+	path             string
+	bvc              *bundle.VerificationConfig
+	sizeLimitBytes   int64
+	f                func(context.Context, string, download.Update)
+	bundleParserOpts ast.ParserOptions
 }
 
 func (fl *fileLoader) Start(ctx context.Context) {
@@ -781,7 +783,9 @@ func (fl *fileLoader) oneShot(ctx context.Context) {
 	b, err := reader.
 		WithMetrics(u.Metrics).
 		WithBundleVerificationConfig(fl.bvc).
-		WithSizeLimitBytes(fl.sizeLimitBytes).Read()
+		WithSizeLimitBytes(fl.sizeLimitBytes).
+		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
+		Read()
 	u.Error = err
 	if err == nil {
 		u.Bundle = &b

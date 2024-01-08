@@ -561,10 +561,6 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 					params.Addrs = &[]string{"localhost:0"}
 					params.GracefulShutdownPeriod = 1
 					params.Logger = logging.NewNoOpLogger()
-
-					//if tc.regoV1 {
-					//	params.RegoVersion = ast.RegoV1
-					//}
 					params.V1Compatible = tc.v1Compatible
 
 					rt, err := NewRuntime(ctx, params)
