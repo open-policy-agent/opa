@@ -63,7 +63,7 @@ func (f *lazyFile) Close() error {
 	return nil
 }
 
-func newDescriptor(url, path string, reader io.Reader) *Descriptor {
+func NewDescriptor(url, path string, reader io.Reader) *Descriptor {
 	return &Descriptor{
 		url:    url,
 		path:   path,
@@ -71,7 +71,7 @@ func newDescriptor(url, path string, reader io.Reader) *Descriptor {
 	}
 }
 
-func (d *Descriptor) withCloser(closer io.Closer) *Descriptor {
+func (d *Descriptor) WithCloser(closer io.Closer) *Descriptor {
 	d.closer = closer
 	d.closeOnce = new(sync.Once)
 	return d
@@ -230,7 +230,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	fh := newLazyFile(fileName)
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := newDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
+	f := NewDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).WithCloser(fh)
 	return f, nil
 }
 
@@ -372,16 +372,14 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	t.idx++
 
 	cleanedPath := formatPath(f.name, "", t.pathFormat)
-	d := newDescriptor(filepath.Join(t.baseURL, cleanedPath), cleanedPath, f.reader)
+	d := NewDescriptor(filepath.Join(t.baseURL, cleanedPath), cleanedPath, f.reader)
 	return d, nil
-
 }
 
 // Next implements the storage.Iterator interface.
 // It iterates to the next policy or data file in the directory tree
 // and returns a storage.Update for the file.
 func (it *iterator) Next() (*storage.Update, error) {
-
 	if it.files == nil {
 		it.files = []file{}
 
