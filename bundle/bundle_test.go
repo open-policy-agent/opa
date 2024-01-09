@@ -104,7 +104,7 @@ func TestReadWithSizeLimit(t *testing.T) {
 	br := NewCustomReader(loader).WithSizeLimitBytes(4)
 
 	_, err := br.Read()
-	if err == nil || err.Error() != "bundle file 'data.json' exceeded max size (4 bytes)" {
+	if err == nil || err.Error() != "bundle file 'data.json' size (5 bytes) exceeded max size (4 bytes)" {
 		t.Fatal("expected error but got:", err)
 	}
 
@@ -116,7 +116,7 @@ func TestReadWithSizeLimit(t *testing.T) {
 	br = NewCustomReader(loader).WithSizeLimitBytes(4)
 
 	_, err = br.Read()
-	if err == nil || err.Error() != "bundle file '.signatures.json' exceeded max size (4 bytes)" {
+	if err == nil || err.Error() != "bundle file '.signatures.json' size (5 bytes) exceeded max size (4 bytes)" {
 		t.Fatal("expected error but got:", err)
 	}
 }
