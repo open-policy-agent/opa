@@ -433,7 +433,8 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 			WithCallback(callback).
 			WithBundleVerificationConfig(source.Signing).
 			WithSizeLimitBytes(source.SizeLimitBytes).
-			WithBundlePersistence(p.persistBundle(name))
+			WithBundlePersistence(p.persistBundle(name)).
+			WithBundleParserOpts(p.manager.ParserOptions())
 	}
 	return download.New(conf, client, path).
 		WithCallback(callback).

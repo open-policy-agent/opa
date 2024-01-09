@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
 	"io"
 	"math/rand"
 	"net/http"
@@ -77,6 +78,11 @@ func (d *OCIDownloader) WithSizeLimitBytes(n int64) *OCIDownloader {
 // WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
 func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	d.persist = persist
+	return d
+}
+
+func (d *OCIDownloader) WithBundleParserOpts(opts ast.ParserOptions) *OCIDownloader {
+	d.bundleParserOpts = opts
 	return d
 }
 
@@ -256,7 +262,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
-		WithBundleEtag(etag)
+		WithBundleEtag(etag).
+		WithRegoVersion(d.bundleParserOpts.RegoVersion)
 	bundleInfo, err := reader.Read()
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)
