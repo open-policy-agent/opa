@@ -1465,14 +1465,25 @@ func preProcessBundle(loader DirectoryLoader, skipVerify bool, sizeLimitBytes in
 }
 
 func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
+	if bb, ok := f.reader.(*bytes.Buffer); ok {
+		_ = f.Close() // always close, even on error
+
+		if int64(bb.Len()) >= sizeLimitBytes {
+			return *bb, fmt.Errorf("bundle file '%v' size (%d bytes) exceeded max size (%v bytes)",
+				strings.TrimPrefix(f.Path(), "/"), bb.Len(), sizeLimitBytes-1)
+		}
+
+		return *bb, nil
+	}
+
 	var buf bytes.Buffer
 	n, err := f.Read(&buf, sizeLimitBytes)
-	f.Close() // always close, even on error
+	_ = f.Close() // always close, even on error
 
 	if err != nil && err != io.EOF {
 		return buf, err
 	} else if err == nil && n >= sizeLimitBytes {
-		return buf, fmt.Errorf("bundle file '%v' exceeded max size (%v bytes)", strings.TrimPrefix(f.Path(), "/"), sizeLimitBytes-1)
+		return buf, fmt.Errorf(maxSizeLimitBytesErrMsg, strings.TrimPrefix(f.Path(), "/"), n, sizeLimitBytes-1)
 	}
 
 	return buf, nil
