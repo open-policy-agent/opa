@@ -111,6 +111,6 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	}
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := newDescriptor(cleanedPath, cleanedPath, fh).withCloser(fh)
+	f := NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh)
 	return f, nil
 }
