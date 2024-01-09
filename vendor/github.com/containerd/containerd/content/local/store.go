@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,6 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/pkg/randutil"
 	"github.com/sirupsen/logrus"
 
 	"github.com/opencontainers/go-digest"
@@ -473,7 +473,7 @@ func (s *store) Writer(ctx context.Context, opts ...content.WriterOpt) (content.
 			lockErr = nil
 			break
 		}
-		time.Sleep(time.Millisecond * time.Duration(randutil.Intn(1<<count)))
+		time.Sleep(time.Millisecond * time.Duration(rand.Intn(1<<count)))
 	}
 
 	if lockErr != nil {

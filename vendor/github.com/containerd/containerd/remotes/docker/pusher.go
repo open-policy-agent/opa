@@ -23,7 +23,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -138,9 +137,6 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 			if exists {
 				p.tracker.SetStatus(ref, Status{
 					Committed: true,
-					PushStatus: PushStatus{
-						Exists: true,
-					},
 					Status: content.Status{
 						Ref:    ref,
 						Total:  desc.Size,
@@ -168,7 +164,6 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		// Start upload request
 		req = p.request(host, http.MethodPost, "blobs", "uploads/")
 
-		mountedFrom := ""
 		var resp *http.Response
 		if fromRepo := selectRepositoryMountCandidate(p.refspec, desc.Annotations); fromRepo != "" {
 			preq := requestWithMountFrom(req, desc.Digest.String(), fromRepo)
@@ -185,14 +180,11 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 				return nil, err
 			}
 
-			switch resp.StatusCode {
-			case http.StatusUnauthorized:
+			if resp.StatusCode == http.StatusUnauthorized {
 				log.G(ctx).Debugf("failed to mount from repository %s", fromRepo)
 
 				resp.Body.Close()
 				resp = nil
-			case http.StatusCreated:
-				mountedFrom = path.Join(p.refspec.Hostname(), fromRepo)
 			}
 		}
 
@@ -212,9 +204,6 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 		case http.StatusCreated:
 			p.tracker.SetStatus(ref, Status{
 				Committed: true,
-				PushStatus: PushStatus{
-					MountedFrom: mountedFrom,
-				},
 				Status: content.Status{
 					Ref:    ref,
 					Total:  desc.Size,
@@ -249,16 +238,13 @@ func (p dockerPusher) push(ctx context.Context, desc ocispec.Descriptor, ref str
 			}
 
 			if lurl.Host != lhost.Host || lhost.Scheme != lurl.Scheme {
+
 				lhost.Scheme = lurl.Scheme
 				lhost.Host = lurl.Host
+				log.G(ctx).WithField("host", lhost.Host).WithField("scheme", lhost.Scheme).Debug("upload changed destination")
 
-				// Check if different than what was requested, accounting for fallback in the transport layer
-				requested := resp.Request.URL
-				if requested.Host != lhost.Host || requested.Scheme != lhost.Scheme {
-					// Strip authorizer if change to host or scheme
-					lhost.Authorizer = nil
-					log.G(ctx).WithField("host", lhost.Host).WithField("scheme", lhost.Scheme).Debug("upload changed destination, authorizer removed")
-				}
+				// Strip authorizer if change to host or scheme
+				lhost.Authorizer = nil
 			}
 		}
 		q := lurl.Query()
@@ -394,24 +380,17 @@ func (pw *pushWriter) Write(p []byte) (n int, err error) {
 
 			// If content has already been written, the bytes
 			// cannot be written and the caller must reset
-			status.Offset = 0
-			status.UpdatedAt = time.Now()
-			pw.tracker.SetStatus(pw.ref, status)
-			return 0, content.ErrReset
+			if status.Offset > 0 {
+				status.Offset = 0
+				status.UpdatedAt = time.Now()
+				pw.tracker.SetStatus(pw.ref, status)
+				return 0, content.ErrReset
+			}
 		default:
 		}
 	}
 
 	n, err = pw.pipe.Write(p)
-	if errors.Is(err, io.ErrClosedPipe) {
-		// if the pipe is closed, we might have the original error on the error
-		// channel - so we should try and get it
-		select {
-		case err2 := <-pw.errC:
-			err = err2
-		default:
-		}
-	}
 	status.Offset += int64(n)
 	status.UpdatedAt = time.Now()
 	pw.tracker.SetStatus(pw.ref, status)
@@ -452,7 +431,7 @@ func (pw *pushWriter) Digest() digest.Digest {
 
 func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
 	// Check whether read has already thrown an error
-	if _, err := pw.pipe.Write([]byte{}); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+	if _, err := pw.pipe.Write([]byte{}); err != nil && err != io.ErrClosedPipe {
 		return fmt.Errorf("pipe error before commit: %w", err)
 	}
 
@@ -463,7 +442,9 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 	var resp *http.Response
 	select {
 	case err := <-pw.errC:
-		return err
+		if err != nil {
+			return err
+		}
 	case resp = <-pw.respC:
 		defer resp.Body.Close()
 	case p, ok := <-pw.pipeC:
@@ -475,17 +456,18 @@ func (pw *pushWriter) Commit(ctx context.Context, size int64, expected digest.Di
 		}
 		pw.pipe.CloseWithError(content.ErrReset)
 		pw.pipe = p
-
-		// If content has already been written, the bytes
-		// cannot be written again and the caller must reset
 		status, err := pw.tracker.GetStatus(pw.ref)
 		if err != nil {
 			return err
 		}
-		status.Offset = 0
-		status.UpdatedAt = time.Now()
-		pw.tracker.SetStatus(pw.ref, status)
-		return content.ErrReset
+		// If content has already been written, the bytes
+		// cannot be written again and the caller must reset
+		if status.Offset > 0 {
+			status.Offset = 0
+			status.UpdatedAt = time.Now()
+			pw.tracker.SetStatus(pw.ref, status)
+			return content.ErrReset
+		}
 	}
 
 	// 201 is specified return status, some registries return

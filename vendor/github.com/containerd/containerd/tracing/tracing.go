@@ -20,11 +20,10 @@ import (
 	"context"
 	"net/http"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -37,25 +36,13 @@ type SpanOpt func(config *StartConfig)
 
 // WithHTTPRequest marks span as a HTTP request operation from client to server.
 // It'll append attributes from the HTTP request object and mark it with `SpanKindClient` type.
-//
-// Deprecated: use upstream functionality from otelhttp directly instead. This function is kept for API compatibility
-// but no longer works as expected due to required functionality no longer exported in OpenTelemetry libraries.
-func WithHTTPRequest(_ *http.Request) SpanOpt {
+func WithHTTPRequest(request *http.Request) SpanOpt {
 	return func(config *StartConfig) {
 		config.spanOpts = append(config.spanOpts,
-			trace.WithSpanKind(trace.SpanKindClient), // A client making a request to a server
+			trace.WithSpanKind(trace.SpanKindClient),                                      // A client making a request to a server
+			trace.WithAttributes(semconv.HTTPClientAttributesFromHTTPRequest(request)...), // Add HTTP attributes
 		)
 	}
-}
-
-// UpdateHTTPClient updates the http client with the necessary otel transport
-func UpdateHTTPClient(client *http.Client, name string) {
-	client.Transport = otelhttp.NewTransport(
-		client.Transport,
-		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return name
-		}),
-	)
 }
 
 // StartSpan starts child span in a context.
@@ -125,5 +112,5 @@ func Attribute(k string, v interface{}) attribute.KeyValue {
 // HTTPStatusCodeAttributes generates attributes of the HTTP namespace as specified by the OpenTelemetry
 // specification for a span.
 func HTTPStatusCodeAttributes(code int) []attribute.KeyValue {
-	return []attribute.KeyValue{semconv.HTTPStatusCodeKey.Int(code)}
+	return semconv.HTTPAttributesFromHTTPStatusCode(code)
 }

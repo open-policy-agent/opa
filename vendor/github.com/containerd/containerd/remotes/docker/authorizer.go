@@ -29,6 +29,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker/auth"
 	remoteerrors "github.com/containerd/containerd/remotes/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type dockerAuthorizer struct {
@@ -186,15 +187,15 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				return err
 			}
 
-			if username == "" || secret == "" {
-				return fmt.Errorf("%w: no basic auth credentials", ErrInvalidAuthorization)
-			}
+			if username != "" && secret != "" {
+				common := auth.TokenOptions{
+					Username: username,
+					Secret:   secret,
+				}
 
-			a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, auth.TokenOptions{
-				Username: username,
-				Secret:   secret,
-			})
-			return nil
+				a.handlers[host] = newAuthHandler(a.client, a.header, c.Scheme, common)
+				return nil
+			}
 		}
 	}
 	return fmt.Errorf("failed to find supported auth scheme: %w", errdefs.ErrNotImplemented)
@@ -311,7 +312,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 					}
 					return resp.Token, resp.RefreshToken, nil
 				}
-				log.G(ctx).WithFields(log.Fields{
+				log.G(ctx).WithFields(logrus.Fields{
 					"status": errStatus.Status,
 					"body":   string(errStatus.Body),
 				}).Debugf("token request failed")

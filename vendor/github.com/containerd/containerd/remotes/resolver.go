@@ -34,7 +34,7 @@ type Resolver interface {
 	// reference a specific host or be matched against a specific handler.
 	//
 	// The returned name should be used to identify the referenced entity.
-	// Depending on the remote namespace, this may be immutable or mutable.
+	// Dependending on the remote namespace, this may be immutable or mutable.
 	// While the name may differ from ref, it should itself be a valid ref.
 	//
 	// If the resolution fails, an error will be returned.
