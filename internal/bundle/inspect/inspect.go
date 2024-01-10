@@ -31,7 +31,12 @@ type Info struct {
 }
 
 func File(path string, includeAnnotations bool) (*Info, error) {
+	return FileForRegoVersion(ast.RegoV0, path, includeAnnotations)
+}
+
+func FileForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotations bool) (*Info, error) {
 	b, err := loader.NewFileLoader().
+		WithRegoVersion(regoVersion).
 		WithSkipBundleVerification(true).
 		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
 		WithJSONOptions(&json.Options{
