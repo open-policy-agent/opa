@@ -1039,6 +1039,193 @@ func TestOneShotJSON(t *testing.T) {
 	}
 }
 
+func TestOneShotV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		line         string
+		v1Compatible bool
+		expOutput    string
+		expErrs      []string
+	}{
+		{
+			note:    "v0.x, keywords used",
+			line:    "a contains 2 if { true }",
+			expErrs: []string{"rego_unsafe_var_error: var a is unsafe"},
+		},
+		{
+			note:      "v0.x, keywords not used",
+			line:      "a[2] { true }",
+			expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+		},
+		{
+			note:         "v1.0, keywords used",
+			v1Compatible: true,
+			line:         "a contains 2 if { true }",
+			expOutput:    "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+		},
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			line:         "a[2] { true }",
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := newTestStore()
+			var buffer bytes.Buffer
+			repl := newRepl(store, &buffer).
+				WithV1Compatible(tc.v1Compatible)
+
+			err := repl.OneShot(ctx, tc.line)
+
+			if len(tc.expErrs) != 0 {
+				if err == nil {
+					t.Fatalf("Expected error but got: %s", buffer.String())
+				}
+
+				for _, e := range tc.expErrs {
+					if !strings.Contains(err.Error(), e) {
+						t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", e, err)
+					}
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+				expectOutput(t, buffer.String(), tc.expOutput)
+			}
+		})
+	}
+}
+
+func TestStoredModuleV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		line         string
+		expOutput    string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x keywords not used",
+			module: `package example
+p[2] { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note: "v0.x, keywords not imported but used",
+			module: `package example
+p contains 2 if { 1 == 1 }`,
+			line: "data.example.p",
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			module: `package example
+import future.keywords
+p contains 2 if { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			module: `package example
+import rego.v1
+p contains 2 if { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			module: `package example
+p[2] { 1 == 1 }`,
+			line: "data.example.p",
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			module: `package example
+p contains 2 if { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			module: `package example
+import future.keywords
+p contains 2 if { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			module: `package example
+import rego.v1
+p contains 2 if { 1 == 1 }`,
+			line:      "data.example.p",
+			expOutput: "[\n  2\n]\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := newTestStore()
+
+			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+			if err := store.UpsertPolicy(ctx, txn, "policy", []byte(tc.module)); err != nil {
+				t.Fatalf("Unexpected error upserting policy: %v", err)
+			}
+
+			if err := store.Commit(ctx, txn); err != nil {
+				t.Fatalf("Unexpected error committing store transaction: %v", err)
+			}
+
+			var buffer bytes.Buffer
+			repl := newRepl(store, &buffer).
+				WithV1Compatible(tc.v1Compatible)
+
+			err := repl.OneShot(ctx, tc.line)
+
+			if len(tc.expErrs) != 0 {
+				if err == nil {
+					t.Fatalf("Expected error but got: %s", buffer.String())
+				}
+
+				for _, e := range tc.expErrs {
+					if !strings.Contains(err.Error(), e) {
+						t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", e, err)
+					}
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				expectOutput(t, buffer.String(), tc.expOutput)
+			}
+		})
+	}
+}
+
 func TestEvalData(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()

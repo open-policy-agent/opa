@@ -701,7 +701,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
-		WithRuntime(rt.Manager.Info)
+		WithRuntime(rt.Manager.Info).
+		WithV1Compatible(rt.Params.V1Compatible)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
