@@ -228,6 +228,7 @@ The `--v1-compatible` flag is currently supported on the following commands:
 
 * `bench`: requires modules to be compatible with OPA v1.0 syntax.
 * `build`: requires modules to be compatible with OPA v1.0 syntax.
+* `deps`: requires modules to be compatible with OPA v1.0 syntax.
 * `check`*: requires modules to be compatible with OPA v1.0 syntax.
 * `eval`: requires modules to be compatible with OPA v1.0 syntax.
 * `fmt`*: formats modules to be compatible with OPA v1.0 syntax, but not the current 0.x syntax.
