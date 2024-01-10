@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
+	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	sdk_test "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -147,6 +150,166 @@ func TestExecBundleFlag(t *testing.T) {
 		}
 
 	})
+}
+
+func TestExecV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x, no keywords used",
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, no keywords imported",
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: string cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			module: `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			module: `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+
+		{
+			note:         "v1.0, no keywords used",
+			v1Compatible: true,
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, no keywords imported",
+			v1Compatible: true,
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			module: `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			module: `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.json": `{"foo": "bar"}`,
+			}
+
+			test.WithTempFS(files, func(dir string) {
+				s := sdk_test.MustNewServer(
+					sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{"test.rego": tc.module}),
+					sdk_test.RawBundles(true),
+				)
+
+				defer s.Stop()
+
+				var buf bytes.Buffer
+				params := exec.NewParams(&buf)
+				params.V1Compatible = tc.v1Compatible
+				_ = params.OutputFormat.Set("json")
+				params.ConfigOverrides = []string{
+					"services.test.url=" + s.URL(),
+					"bundles.test.resource=/bundles/bundle.tar.gz",
+				}
+
+				params.Paths = append(params.Paths, dir)
+
+				if len(tc.expErrs) > 0 {
+					testLogger := loggingtest.New()
+					params.Logger = testLogger
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					go func() {
+						err := runExecWithContext(ctx, params)
+						if err != nil {
+							t.Error(err)
+							return
+						}
+					}()
+
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						for _, expErr := range tc.expErrs {
+							found := false
+							for _, e := range testLogger.Entries() {
+								if strings.Contains(e.Message, expErr) {
+									found = true
+									break
+								}
+							}
+							if !found {
+								return false
+							}
+						}
+						return true
+					}) {
+						t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+					}
+				} else {
+					err := runExec(params)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(dir), nil))
+
+					exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/test.json",
+			"result": ["hello"]
+		}]}`))
+
+					if !reflect.DeepEqual(output, exp) {
+						t.Fatal("Expected:", exp, "Got:", output)
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestInvalidConfig(t *testing.T) {

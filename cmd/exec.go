@@ -74,15 +74,24 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
+	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
 
 	RootCommand.AddCommand(cmd)
 }
 
 func runExec(params *exec.Params) error {
+	return runExecWithContext(context.Background(), params)
+}
+
+func runExecWithContext(ctx context.Context, params *exec.Params) error {
 
 	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String(), params.LogTimestampFormat)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
+	}
+
+	if params.Logger != nil {
+		stdLogger = params.Logger
 	}
 
 	config, err := setupConfig(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles, params.BundlePaths)
@@ -90,7 +99,6 @@ func runExec(params *exec.Params) error {
 		return fmt.Errorf("config error: %w", err)
 	}
 
-	ctx := context.Background()
 	ready := make(chan struct{})
 
 	opa, err := sdk.New(ctx, sdk.Options{
@@ -98,6 +106,7 @@ func runExec(params *exec.Params) error {
 		Logger:        stdLogger,
 		ConsoleLogger: consoleLogger,
 		Ready:         ready,
+		V1Compatible:  params.V1Compatible,
 	})
 	if err != nil {
 		return fmt.Errorf("runtime error: %w", err)
