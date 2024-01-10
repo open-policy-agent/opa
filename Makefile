@@ -29,6 +29,8 @@ GO_TAGS = -tags=opa_wasm
 endif
 
 GOLANGCI_LINT_VERSION := v1.51.0
+YAML_LINT_VERSION := 0.29.0
+YAML_LINT_FORMAT ?= auto
 
 DOCKER_RUNNING ?= $(shell docker ps >/dev/null 2>&1 && echo 1 || echo 0)
 
@@ -473,6 +475,14 @@ check-go-module:
 	  --tmpfs /src/.go \
 	  $(RELEASE_BUILD_IMAGE) \
 	  /bin/bash -c "git config --system --add safe.directory /src && go mod vendor -v"
+
+.PHONY: check-yaml-tests
+check-yaml-tests:
+ifeq ($(DOCKER_RUNNING), 1)
+	docker run --rm -v $(shell pwd):/data:ro,Z -w /data pipelinecomponents/yamllint:${YAML_LINT_VERSION} yamllint -f $(YAML_LINT_FORMAT) test/cases/testdata
+else
+	@echo "Docker not installed or running. Skipping yamllint run."
+endif
 
 ######################################################
 #

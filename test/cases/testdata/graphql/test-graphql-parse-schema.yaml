@@ -1,9 +1,10 @@
+---
 # This suite of tests is adapted from the underlying GraphQL parser library's
 # own test suite, as it provides a fairly comprehensive set of good/degenerate
 # test cases, which we want to make sure to react correctly to.
 # See: https://github.com/vektah/gqlparser/blob/master/parser/schema_test.yml
 cases:
-# object types:
+  # object types:
   - data:
     modules:
       - |
@@ -138,11 +139,11 @@ cases:
         }
     note: graphql_parse_schema/failure-object-types must define one or more fields
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13'
+    want_error: "graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13"
     want_error_code: eval_builtin_error
     strict_error: true
 
-# type extensions:
+  # type extensions:
   - data:
     modules:
       - |
@@ -199,7 +200,7 @@ cases:
         }
     note: graphql_parse_schema/failure-type-extensions without anything errors
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:18'
+    want_error: "graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:18"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -257,7 +258,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# schema definition:
+  # schema definition:
   - data:
     modules:
       - |
@@ -275,7 +276,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# schema extensions:
+  # schema extensions:
   - data:
     modules:
       - |
@@ -316,10 +317,10 @@ cases:
         }
     note: graphql_parse_schema/failure-schema-extensions without anything errors
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:14'
+    want_error: "graphql.parse_schema: Unexpected <EOF> in GraphQL string at location 1:14"
     want_error_code: eval_builtin_error
     strict_error: true
-# inheritance:
+  # inheritance:
   - data:
     modules:
       - |
@@ -359,7 +360,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# enums:
+  # enums:
   - data:
     modules:
       - |
@@ -396,10 +397,10 @@ cases:
         }
     note: graphql_parse_schema/failure-enums must define one or more unique enum values
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13'
+    want_error: "graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:13"
     want_error_code: eval_builtin_error
     strict_error: true
-# interface:
+  # interface:
   - data:
     modules:
       - |
@@ -427,7 +428,7 @@ cases:
         }
     note: graphql_parse_schema/failure-interface must define one or more fields
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:18'
+    want_error: "graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:18"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -453,7 +454,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# unions:
+  # unions:
   - data:
     modules:
       - |
@@ -503,7 +504,7 @@ cases:
         }
     note: graphql_parse_schema/failure-unions cant be empty
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:16'
+    want_error: "graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:16"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -516,7 +517,7 @@ cases:
         }
     note: graphql_parse_schema/failure-unions cant double pipe
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:19'
+    want_error: "graphql.parse_schema: Expected Name, found | in GraphQL string at location 1:19"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -529,10 +530,10 @@ cases:
         }
     note: graphql_parse_schema/failure-unions cant have trailing pipe
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:27'
+    want_error: "graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:27"
     want_error_code: eval_builtin_error
     strict_error: true
-# scalar:
+  # scalar:
   - data:
     modules:
       - |
@@ -546,7 +547,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# input object:
+  # input object:
   - data:
     modules:
       - |
@@ -578,7 +579,7 @@ cases:
         }
     note: graphql_parse_schema/failure-input-object can not have args
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Expected :, found ( in GraphQL string at location 3:10'
+    want_error: "graphql.parse_schema: Expected :, found ( in GraphQL string at location 3:10"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -591,10 +592,10 @@ cases:
         }
     note: graphql_parse_schema/failure-input-object must define one or more input fields
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:14'
+    want_error: "graphql.parse_schema: expected at least one definition, found } in GraphQL string at location 1:14"
     want_error_code: eval_builtin_error
     strict_error: true
-# directives:
+  # directives:
   - data:
     modules:
       - |
@@ -656,7 +657,7 @@ cases:
     want_error: 'graphql.parse_schema: Unexpected Name "INCORRECT_LOCATION" in GraphQL string at location 1:27'
     want_error_code: eval_builtin_error
     strict_error: true
-# fuzzer:
+  # fuzzer:
   - data:
     modules:
       - |
@@ -667,7 +668,7 @@ cases:
         }
     note: graphql_parse_schema/failure-fuzzer 1
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:13'
+    want_error: "graphql.parse_schema: Expected Name, found <EOF> in GraphQL string at location 1:13"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -680,6 +681,6 @@ cases:
         }
     note: graphql_parse_schema/failure-fuzzer 2
     query: data.test.p = x
-    want_error: 'graphql.parse_schema: Unexpected <Invalid> in GraphQL string at location 2:1'
+    want_error: "graphql.parse_schema: Unexpected <Invalid> in GraphQL string at location 2:1"
     want_error_code: eval_builtin_error
     strict_error: true

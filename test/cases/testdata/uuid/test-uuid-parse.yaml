@@ -1,13 +1,14 @@
+---
 cases:
   - note: uuid-parse/positive-v4
     data: {}
     modules:
       - |
         package test
-      
+
         p = uuid.parse(input.userid)
 
-    input: {"userid": "00000000-0000-4000-8000-000000000000"}
+    input: { "userid": "00000000-0000-4000-8000-000000000000" }
     query: data.test.p = x
     want_result:
       - x:
@@ -15,7 +16,7 @@ cases:
           variant: "RFC4122"
 
   - note: uuid-parse/positive-v2
-    data: { }
+    data: {}
     modules:
       - |
         package test
@@ -40,10 +41,10 @@ cases:
     modules:
       - |
         package test
-        
+
         p = uuid.parse(input.userid)
 
-    input: {"userid": "38074da4-0b00-388d-9c3c-362de965547a"}
+    input: { "userid": "38074da4-0b00-388d-9c3c-362de965547a" }
     query: data.test.p = x
     want_result:
       - x:
@@ -55,9 +56,9 @@ cases:
     modules:
       - |
         package test
-        
+
         p = uuid.parse(input.userid)
 
-    input: {"userid": "123"}
+    input: { "userid": "123" }
     query: data.test.p = x
     want_result: []

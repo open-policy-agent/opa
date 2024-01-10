@@ -1,9 +1,10 @@
+---
 cases:
   - note: json_match_schema/success
     modules:
       - |
         package test
-        
+
         document := {"id": 5}
         schema := {
           "properties": {
@@ -16,7 +17,7 @@ cases:
         p := json.match_schema(document, schema)
     query: data.test.p = x
     want_result:
-      - x: [ true, [ ] ]
+      - x: [true, []]
   - note: json_match_schema/success string document
     modules:
       - |
@@ -34,7 +35,7 @@ cases:
         p := json.match_schema(document, schema)
     query: data.test.p = x
     want_result:
-      - x: [ true, [ ] ]
+      - x: [true, []]
   - note: json_match_schema/success string schema
     modules:
       - |
@@ -52,7 +53,7 @@ cases:
         p := json.match_schema(document, schema)
     query: data.test.p = x
     want_result:
-      - x: [ true, [ ] ]
+      - x: [true, []]
   - note: json_match_schema/invalid document
     modules:
       - |
@@ -70,12 +71,18 @@ cases:
         p := json.match_schema(document, schema)
     query: data.test.p = x
     want_result:
-      - x: [ false, [ {
-        "desc": "Invalid type. Expected: integer, given: string",
-        "error": "id: Invalid type. Expected: integer, given: string",
-        "field": "id",
-        "type": "invalid_type"
-      } ] ]
+      - x:
+          [
+            false,
+            [
+              {
+                "desc": "Invalid type. Expected: integer, given: string",
+                "error": "id: Invalid type. Expected: integer, given: string",
+                "field": "id",
+                "type": "invalid_type",
+              },
+            ],
+          ]
   - note: json_match_schema/invalid schema
     modules:
       - |
@@ -93,5 +100,5 @@ cases:
         p := json.match_schema(document, schema)
     query: data.test.p = x
     strict_error: true
-    want_error: 'json.match_schema: has a primitive type that is NOT VALID -- given: /unknown/ Expected valid values are:[array boolean integer number null object string]'
+    want_error: "json.match_schema: has a primitive type that is NOT VALID -- given: /unknown/ Expected valid values are:[array boolean integer number null object string]"
     want_error_code: eval_builtin_error

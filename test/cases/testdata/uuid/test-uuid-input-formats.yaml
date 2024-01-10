@@ -1,6 +1,7 @@
+---
 cases:
   - note: uuid-parse/positive-v4-braces
-    data: { }
+    data: {}
     modules:
       - |
         package test
@@ -15,7 +16,7 @@ cases:
           variant: "RFC4122"
 
   - note: uuid-parse/positive-v2-urn
-    data: { }
+    data: {}
     modules:
       - |
         package test
@@ -36,7 +37,7 @@ cases:
           id: 1000
 
   - note: uuid-parse/positive-v3-no-dashes
-    data: { }
+    data: {}
     modules:
       - |
         package test
