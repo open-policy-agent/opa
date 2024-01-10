@@ -69,6 +69,8 @@ keys:
 caching:
   inter_query_builtin_cache:
     max_size_bytes: 10000000
+    forced_eviction_threshold_percentage: 70
+    stale_entry_eviction_period_seconds: 3600
 
 distributed_tracing:
   type: grpc
@@ -865,6 +867,8 @@ Caching represents the configuration of the inter-query cache that built-in func
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `caching.inter_query_builtin_cache.max_size_bytes` | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set. |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`. |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds` | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
 
 ### Bundles
 
