@@ -226,6 +226,7 @@ OPA can be run in 1.0 compatibility mode by using the `--v1-compatible` flag. Wh
 
 The `--v1-compatible` flag is currently supported on the following commands:
 
+* `bench`: requires modules to be compatible with OPA v1.0 syntax.
 * `build`: requires modules to be compatible with OPA v1.0 syntax.
 * `check`*: requires modules to be compatible with OPA v1.0 syntax.
 * `eval`: requires modules to be compatible with OPA v1.0 syntax.
