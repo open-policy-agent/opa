@@ -132,13 +132,12 @@ jobs:
     name: YAML Lint
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out code
+        uses: actions/checkout@v4
 
-      - name: Install yamllint
-        run: pip install yamllint
-
-      - name: Lint YAML files
-        run: yamllint ./test/cases/testdata/
+      - name: YAML Style and Lint Check
+        run: make check-yaml-tests
+        timeout-minutes: 30
 
   wasm:
     name: WASM
