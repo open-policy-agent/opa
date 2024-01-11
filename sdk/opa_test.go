@@ -2185,13 +2185,10 @@ bundles:
     resource: "file://%s/bundle.tar.gz"`, rootDir)
 
 				var readyCh chan struct{}
-				var logger logging.Logger
+				logger := loggingtest.New()
+				logger.SetLevel(logging.Info)
 				if tc.expErr != "" {
-					logger = loggingtest.New()
-					logger.SetLevel(logging.Info)
 					readyCh = make(chan struct{})
-				} else {
-					logger = logging.NewNoOpLogger()
 				}
 
 				ctx := context.Background()
@@ -2205,25 +2202,17 @@ bundles:
 					t.Fatal(err)
 				}
 
-				//exp := json.Number("7")
-				//
-				//if result, err := opa.Decision(ctx, sdk.DecisionOptions{}); err != nil {
-				//	t.Fatal(err)
-				//} else if result.Result != exp {
-				//	t.Fatalf("expected %v but got %v", exp, result.Result)
-				//}
-
 				if tc.expErr != "" {
-					l := logger.(*loggingtest.Logger)
 					if !test.Eventually(t, 5*time.Second, func() bool {
-						for _, e := range l.Entries() {
+						entries := logger.Entries()
+						for _, e := range entries {
 							if strings.Contains(e.Message, tc.expErr) {
 								return true
 							}
 						}
 						return false
 					}) {
-						t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, l.Entries())
+						t.Fatalf("timed out waiting for logged error:\n\n%s\n\ngot\n\n%v:", tc.expErr, logger.Entries())
 					}
 				} else {
 					exp := json.Number("7")
