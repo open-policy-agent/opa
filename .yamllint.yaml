@@ -1,0 +1,12 @@
+extends: default
+
+rules:
+  # Some of our testcases end up going past the default 80 character limit.
+  line-length: false
+  braces:
+    max-spaces-inside: 1
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    ignore:
+      - test-time-*

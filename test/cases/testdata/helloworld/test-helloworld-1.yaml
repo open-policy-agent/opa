@@ -1,3 +1,4 @@
+---
 # If you are adding new built-in functions to Rego, you must include test cases in this format.
 #
 # Each test file contains a set of test 'cases'. Each test case includes a globally unique
@@ -25,25 +26,25 @@
 #   go test ./topdown -v -run 'TestRego/helloworld'
 #
 cases:
-- data:
-    foo: bar
-  input:
-    baz: bar
-  modules:
-  - |
-    package test
+  - data:
+      foo: bar
+    input:
+      baz: bar
+    modules:
+      - |
+        package test
 
-    p = 7 {
-      data.foo == q
-    }
+        p = 7 {
+          data.foo == q
+        }
 
-    q = input.baz
-  note: helloworld/test_case
-  query: data.test.p = x
-  want_result:
-  - x: 7
-- note: helloworld/another_test_for_builtin_error
-  query: 1 / 0
-  strict_error: true
-  want_error: 'div: divide by zero'
-  want_error_code: eval_builtin_error
+        q = input.baz
+    note: helloworld/test_case
+    query: data.test.p = x
+    want_result:
+      - x: 7
+  - note: helloworld/another_test_for_builtin_error
+    query: 1 / 0
+    strict_error: true
+    want_error: "div: divide by zero"
+    want_error_code: eval_builtin_error

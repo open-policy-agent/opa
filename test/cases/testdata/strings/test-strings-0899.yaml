@@ -1,13 +1,14 @@
+---
 cases:
-- data: {}
-  modules:
-  - |
-    package generated
+  - data: {}
+    modules:
+      - |
+        package generated
 
-    p {
-      endswith("abcdefgh", "fgh")
-    }
-  note: strings/endswith
-  query: data.generated.p = x
-  want_result:
-  - x: true
+        p {
+          endswith("abcdefgh", "fgh")
+        }
+    note: strings/endswith
+    query: data.generated.p = x
+    want_result:
+      - x: true

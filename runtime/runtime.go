@@ -588,6 +588,8 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		})
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	rt.server, err = rt.server.Init(ctx)
 	if err != nil {
 		rt.logger.WithFields(map[string]interface{}{"err": err}).Error("Unable to initialize server.")

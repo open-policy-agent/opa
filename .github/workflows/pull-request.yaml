@@ -128,6 +128,19 @@ jobs:
         run: make check
         timeout-minutes: 30
 
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: YAML Style and Lint Check
+        run: make check-yaml-tests
+        timeout-minutes: 30
+        env:
+          YAML_LINT_FORMAT: github
+
   wasm:
     name: WASM
     runs-on: ubuntu-22.04
@@ -291,7 +304,6 @@ jobs:
         env:
           DOCKER_RUNNING: 0
 
-
   # Run PR metadata against Rego policies
   rego-check-pr:
     name: Rego PR checks
@@ -315,7 +327,7 @@ jobs:
         run: |
           curl --silent --fail --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -o files.json \
             https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files
-          
+
           opa eval -d build/policy/files.rego -d build/policy/helpers.rego  --format values --input files.json \
             --fail-defined 'data.files.deny[message]'
         env:

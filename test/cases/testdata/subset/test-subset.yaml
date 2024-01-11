@@ -1,3 +1,4 @@
+---
 cases:
   - data:
     modules:
@@ -26,7 +27,6 @@ cases:
     query: data.test.test_result = x
     want_result:
       - x: true
-
 
   - data:
     modules:
@@ -176,7 +176,6 @@ cases:
     query: data.test.test_result = x
     want_result:
       - x: true
-
 
   - data:
     modules:
@@ -386,7 +385,7 @@ cases:
     query: data.test.test_result = x
     want_result:
       - x: true
-  
+
   - data:
     modules:
       - |
