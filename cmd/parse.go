@@ -26,8 +26,16 @@ const (
 )
 
 type parseParams struct {
-	format      *util.EnumFlag
-	jsonInclude string
+	format       *util.EnumFlag
+	jsonInclude  string
+	v1Compatible bool
+}
+
+func (p *parseParams) regoVersion() ast.RegoVersion {
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
 }
 
 var configuredParseParams = parseParams{
@@ -71,7 +79,10 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 		}
 	}
 
-	parserOpts := ast.ParserOptions{ProcessAnnotation: true}
+	parserOpts := ast.ParserOptions{
+		ProcessAnnotation: true,
+		RegoVersion:       params.regoVersion(),
+	}
 	if exposeLocation {
 		parserOpts.JSONOptions = &astJSON.Options{
 			MarshalOptions: astJSON.MarshalOptions{
@@ -112,10 +123,10 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 			return 1
 		}
 
-		fmt.Fprint(stdout, string(bs)+"\n")
+		_, _ = fmt.Fprint(stdout, string(bs)+"\n")
 	default:
 		if err != nil {
-			fmt.Fprintln(stderr, err)
+			_, _ = fmt.Fprintln(stderr, err)
 			return 1
 		}
 		ast.Pretty(stdout, result.Parsed)
@@ -127,6 +138,7 @@ func parse(args []string, params *parseParams, stdout io.Writer, stderr io.Write
 func init() {
 	parseCommand.Flags().VarP(configuredParseParams.format, "format", "f", "set output format")
 	parseCommand.Flags().StringVarP(&configuredParseParams.jsonInclude, "json-include", "", "", "include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.")
+	addV1CompatibleFlag(parseCommand.Flags(), &configuredParseParams.v1Compatible, false)
 
 	RootCommand.AddCommand(parseCommand)
 }

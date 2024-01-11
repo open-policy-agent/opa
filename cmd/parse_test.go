@@ -930,6 +930,114 @@ func TestParseJSONOutputComments(t *testing.T) {
 	}
 }
 
+func TestParseV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		policy       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+		},
+		{
+			note: "v0.x, keywords not imported",
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"var cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"`if` keyword is required before rule body",
+				"`contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.policy,
+			}
+
+			_, _, stderr, _ := testParse(t, files, &parseParams{
+				format:       util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+				v1Compatible: tc.v1Compatible,
+			})
+
+			if len(tc.expErrs) > 0 {
+				errs := string(stderr)
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(errs, expErr) {
+						t.Fatalf("Expected error:\n\n%q\n\ngot:\n\n%s", expErr, errs)
+					}
+				}
+			} else {
+				if len(stderr) > 0 {
+					t.Fatalf("Expected no stderr output, got:\n%s\n", string(stderr))
+				}
+			}
+		})
+	}
+}
+
 // Runs parse and returns the exit code, stdout, and stderr contents
 func testParse(t *testing.T, files map[string]string, params *parseParams) (int, []byte, []byte, string) {
 	t.Helper()
