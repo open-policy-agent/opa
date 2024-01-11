@@ -12,7 +12,7 @@ code:
 - https://github.com/segrax/openpolicyagent
 - https://github.com/build-security/opa-symfony-middleware
 inventors:
-- build.security
+- build-security
 docs_features:
   rest-api-integration:
     note: |

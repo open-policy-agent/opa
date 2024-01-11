@@ -26,6 +26,20 @@ print_if(false, key, expected, output) := false {
 	print("Got:", messages_for_key(key, output))
 }
 
+test_integration_has_valid_key {
+	output := data.integrations.deny with input as {"integrations": {"/integrations/in.valid/": {"link": "https://example.com/", "title": "Example"}}}
+
+	key := "key"
+
+	got := messages_for_key(key, output)
+
+	message := "integration in.valid has an invalid key characters, change filename to lowercase and replace spaces with dashes"
+
+	result := message in got
+
+	print_if(result, key, message, output)
+}
+
 test_integration_has_required_fields_missing {
 	output := data.integrations.deny with input as {"integrations": {"/integrations/regal/": {}}}
 
@@ -274,6 +288,20 @@ test_organization_has_required_fields_present {
 	print_if(result, key, false, output)
 }
 
+test_organization_has_valid_key {
+	output := data.integrations.deny with input as {"organizations": {"/organizations/sty.ra/": {"link": "https://styra.com/", "title": "Styra"}}}
+
+	key := "key"
+
+	got := messages_for_key(key, output)
+
+	message := "organization sty.ra has an invalid key characters, change filename to lowercase and replace spaces with dashes"
+
+	result := message in got
+
+	print_if(result, key, message, output)
+}
+
 test_organization_has_one_or_more_integrations_none {
 	output := data.integrations.deny with input as {"organizations": {"/organizations/foobar/": {}}, "integrations": {}}
 
@@ -331,4 +359,18 @@ test_software_has_one_or_more_integrations_one {
 	result := got == set()
 
 	print_if(result, key, false, output)
+}
+
+test_software_has_valid_key {
+	output := data.integrations.deny with input as {"softwares": {"/softwares/in.valid/": {"link": "https://example.com/", "title": "Example"}}}
+
+	key := "key"
+
+	got := messages_for_key(key, output)
+
+	message := "software in.valid has an invalid key characters, change filename to lowercase and replace spaces with dashes"
+
+	result := message in got
+
+	print_if(result, key, message, output)
 }
