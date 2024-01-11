@@ -458,7 +458,7 @@ func (s *Server) handleRawBundles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var files [][2]string
+	files := make([][2]string, 0, len(b))
 	for url, str := range b {
 		files = append(files, [2]string{url, str})
 	}

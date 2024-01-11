@@ -767,7 +767,7 @@ a contains 4 if {
 
 				test.WithTempFS(files, func(path string) {
 					params := testBenchParams()
-					params.outputFormat.Set(evalPrettyOutput)
+					_ = params.outputFormat.Set(evalPrettyOutput)
 					params.v1Compatible = tc.v1Compatible
 					params.e2e = mode.e2e
 

@@ -5,11 +5,12 @@
 package cmd
 
 import (
-	"github.com/open-policy-agent/opa/util/test"
 	"io"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/open-policy-agent/opa/util/test"
 )
 
 func TestDepsV1Compatible(t *testing.T) {
@@ -111,10 +112,10 @@ p contains 3 if {
 			test.WithTempFS(files, func(rootPath string) {
 				params := newDepsCommandParams()
 				params.v1Compatible = tc.v1Compatible
-				params.outputFormat.Set(depsFormatPretty)
+				_ = params.outputFormat.Set(depsFormatPretty)
 
 				for f := range files {
-					params.dataPaths.Set(filepath.Join(rootPath, f))
+					_ = params.dataPaths.Set(filepath.Join(rootPath, f))
 				}
 
 				err := deps([]string{tc.query}, params, io.Discard)

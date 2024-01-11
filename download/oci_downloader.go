@@ -2,9 +2,9 @@ package download
 
 import (
 	"context"
-	"github.com/open-policy-agent/opa/ast"
 	"sync"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/plugins/rest"

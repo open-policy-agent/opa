@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"io"
 	"math/rand"
 	"net/http"
@@ -24,6 +23,7 @@ import (
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/oci"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"

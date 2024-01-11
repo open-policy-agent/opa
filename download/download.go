@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"io"
 	"math/rand"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"

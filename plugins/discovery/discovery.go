@@ -62,7 +62,6 @@ type Discovery struct {
 	logger            logging.Logger
 	bundlePersistPath string
 	hooks             hooks.Hooks
-	v1Compatible      bool
 }
 
 // Factories provides a set of factory functions to use for

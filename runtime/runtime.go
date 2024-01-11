@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
 	"io"
 	mr "math/rand"
 	"net/url"
@@ -29,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/automaxprocs/maxprocs"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	opa_config "github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/compiler"

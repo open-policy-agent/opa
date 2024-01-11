@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/open-policy-agent/opa/internal/file/archive"
-	"github.com/open-policy-agent/opa/util/test"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,6 +25,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/hooks"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/logging"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
@@ -39,6 +38,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/lineage"
+	"github.com/open-policy-agent/opa/util/test"
 	"github.com/open-policy-agent/opa/version"
 )
 
