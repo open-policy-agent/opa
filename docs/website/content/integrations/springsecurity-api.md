@@ -17,7 +17,7 @@ tutorials:
 - https://www.baeldung.com/spring-security-authorization-opa
 inventors:
 - styra
-- build.security
+- build-security
 - bisnode
 - alertavert
 docs_features:

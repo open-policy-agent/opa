@@ -6,7 +6,7 @@ labels:
 code:
 - https://github.com/build-security/opa-express-middleware
 inventors:
-- build.security
+- build-security
 software:
 - nodejsexpress
 docs_features:
@@ -19,4 +19,3 @@ docs_features:
 ---
 Express is a minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.
 OPA can be used to implement authorization policies for APIs used in the express framework.
-
