@@ -84,7 +84,8 @@ func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
 			fixture := newTestFixture(t)
 			fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
 
-			updates := make(chan *Update)
+			// We might get multiple updates, a buffered channel will make sure we save the first one.
+			updates := make(chan *Update, 1)
 
 			config := Config{}
 			if err := config.ValidateAndInjectDefaults(); err != nil {
@@ -94,7 +95,10 @@ func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
 			d := NewOCI(config, fixture.client, "ghcr.io/org/repo:rego_v1", "/tmp/opa/").
 				WithBundleParserOpts(ast.ParserOptions{RegoVersion: tc.regoVersion}).
 				WithCallback(func(_ context.Context, u Update) {
-					updates <- &u
+					// We might get multiple updates before the test ends, and we don't want to block indefinitely.
+					select {
+					case updates <- &u:
+					}
 				}).WithBundleVerificationConfig(vc)
 
 			d.Start(ctx)
@@ -102,6 +106,7 @@ func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
 			// Give time for some download events to occur
 			time.Sleep(1 * time.Second)
 
+			// We only care about the first update
 			u1 := <-updates
 
 			if tc.expErr != "" {
