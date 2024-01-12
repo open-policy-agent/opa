@@ -19,8 +19,9 @@ videos:
 inventors:
 - mia-platform
 blogs:
-- https://blog.mia-platform.eu/en/announcing-rond-new-open-source-security-enforcement-over-your-apis
-- https://blog.mia-platform.eu/en/how-why-adopted-role-based-access-control-rbac
+- https://mia-platform.eu/blog/rond-open-source-api-enforcement/
+- https://mia-platform.eu/blog/role-based-access-control-rbac/
+- https://resources.mia-platform.eu/en/white-paper-rbac-platform-engineering
 docs_features:
   go-integration:
     note: |
