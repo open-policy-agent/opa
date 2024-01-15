@@ -139,11 +139,9 @@ func checkRegoV1Module(module *Module) Errors {
 }
 
 func checkRegoV1Rule(rule *Rule) Errors {
-	var t string
+	t := "rule"
 	if rule.isFunction() {
 		t = "function"
-	} else {
-		t = "rule"
 	}
 
 	var errs Errors
