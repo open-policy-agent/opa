@@ -130,21 +130,22 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		return err
 	}
 
-	manager, err := plugins.New(
-		bs,
-		opa.id,
-		opa.store,
+	opts := []func(*plugins.Manager){
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
-		func(m *plugins.Manager) {
-			if opa.v1Compatible {
-				m.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1})
-			}
-		},
+	}
+	if opa.v1Compatible {
+		opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
+	}
+	manager, err := plugins.New(
+		bs,
+		opa.id,
+		opa.store,
+		opts...,
 	)
 	if err != nil {
 		return err

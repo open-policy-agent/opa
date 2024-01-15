@@ -412,7 +412,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
-		plugins.WithEnableTelemetry(params.EnableVersionCheck))
+		plugins.WithEnableTelemetry(params.EnableVersionCheck),
+		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: regoVersion}))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

@@ -29,11 +29,11 @@ const pageWidth = 80
 type inspectCommandParams struct {
 	outputFormat    *util.EnumFlag
 	listAnnotations bool
-	regoV1          bool
+	v1Compatible    bool
 }
 
 func (p *inspectCommandParams) regoVersion() ast.RegoVersion {
-	if p.regoV1 {
+	if p.v1Compatible {
 		return ast.RegoV1
 	}
 	return ast.RegoV0
@@ -91,7 +91,7 @@ referring to a directory, the 'inspect' command will load that path as a bundle 
 
 	addOutputFormat(inspectCommand.Flags(), params.outputFormat)
 	addListAnnotations(inspectCommand.Flags(), &params.listAnnotations)
-	addV1CompatibleFlag(inspectCommand.Flags(), &params.regoV1, false)
+	addV1CompatibleFlag(inspectCommand.Flags(), &params.v1Compatible, false)
 	RootCommand.AddCommand(inspectCommand)
 }
 

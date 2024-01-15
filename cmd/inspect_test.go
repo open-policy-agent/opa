@@ -665,7 +665,7 @@ p contains v if {
 
 				var out bytes.Buffer
 				params := newInspectCommandParams()
-				params.regoV1 = tc.v1Compatible
+				params.v1Compatible = tc.v1Compatible
 				err = params.outputFormat.Set(evalJSONOutput)
 				if err != nil {
 					t.Fatalf("Unexpected error: %s", err)

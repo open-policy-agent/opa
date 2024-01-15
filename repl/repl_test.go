@@ -1040,36 +1040,105 @@ func TestOneShotJSON(t *testing.T) {
 }
 
 func TestOneShotV1Compatible(t *testing.T) {
+	type action struct {
+		line      string
+		expOutput string
+		expErrs   []string
+	}
 	tests := []struct {
 		note         string
-		line         string
+		actions      []action
 		v1Compatible bool
-		expOutput    string
-		expErrs      []string
 	}{
 		{
-			note:    "v0.x, keywords used",
-			line:    "a contains 2 if { true }",
-			expErrs: []string{"rego_unsafe_var_error: var a is unsafe"},
+			note: "v0.x, keywords used",
+			actions: []action{
+				{
+					line:    "a contains 2 if { true }",
+					expErrs: []string{"rego_unsafe_var_error: var a is unsafe"},
+				},
+			},
 		},
 		{
-			note:      "v0.x, keywords not used",
-			line:      "a[2] { true }",
-			expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+			note: "v0.x, keywords not used",
+			actions: []action{
+				{
+					line:      "a[2] { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
 		},
 		{
-			note:         "v1.0, keywords used",
-			v1Compatible: true,
-			line:         "a contains 2 if { true }",
-			expOutput:    "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+			note: "v0.x, keywords imported",
+			actions: []action{
+				{
+					line: "import future.keywords",
+				},
+				{
+					line:      "a contains 2 if { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			actions: []action{
+				{
+					line: "import rego.v1",
+				},
+				{
+					line:      "a contains 2 if { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
 		},
 		{
 			note:         "v1.0, keywords not used",
 			v1Compatible: true,
-			line:         "a[2] { true }",
-			expErrs: []string{
-				"rego_parse_error: `if` keyword is required before rule body",
-				"rego_parse_error: `contains` keyword is required for partial set rules",
+			actions: []action{
+				{
+					line: "a[2] { true }",
+					expErrs: []string{
+						"rego_parse_error: `if` keyword is required before rule body",
+						"rego_parse_error: `contains` keyword is required for partial set rules",
+					},
+				},
+			},
+		},
+		{
+			note:         "v1.0, keywords used, not imported",
+			v1Compatible: true,
+			actions: []action{
+				{
+					line:      "a contains 2 if { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:         "v1.0, keywords used, keywords imported",
+			v1Compatible: true,
+			actions: []action{
+				{
+					line: "import future.keywords",
+				},
+				{
+					line:      "a contains 2 if { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
+			},
+		},
+		{
+			note:         "v1.0, keywords used, rego.v1 imported",
+			v1Compatible: true,
+			actions: []action{
+				{
+					line: "import rego.v1",
+				},
+				{
+					line:      "a contains 2 if { true }",
+					expOutput: "Rule 'a' defined in package repl. Type 'show' to see rules.\n",
+				},
 			},
 		},
 	}
@@ -1082,23 +1151,25 @@ func TestOneShotV1Compatible(t *testing.T) {
 			repl := newRepl(store, &buffer).
 				WithV1Compatible(tc.v1Compatible)
 
-			err := repl.OneShot(ctx, tc.line)
+			for _, action := range tc.actions {
+				err := repl.OneShot(ctx, action.line)
 
-			if len(tc.expErrs) != 0 {
-				if err == nil {
-					t.Fatalf("Expected error but got: %s", buffer.String())
-				}
-
-				for _, e := range tc.expErrs {
-					if !strings.Contains(err.Error(), e) {
-						t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", e, err)
+				if len(action.expErrs) != 0 {
+					if err == nil {
+						t.Fatalf("Expected error but got: %s", buffer.String())
 					}
+
+					for _, e := range action.expErrs {
+						if !strings.Contains(err.Error(), e) {
+							t.Fatalf("Expected error to contain:\n\n%q\n\nbut got:\n\n%v", e, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+					expectOutput(t, buffer.String(), action.expOutput)
 				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
-				expectOutput(t, buffer.String(), tc.expOutput)
 			}
 		})
 	}

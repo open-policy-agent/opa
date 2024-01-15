@@ -136,6 +136,7 @@ func (d *Downloader) WithBundleName(bundleName string) *Downloader {
 	return d
 }
 
+// WithBundleParserOpts specifies the parser options to use when parsing downloaded bundles.
 func (d *Downloader) WithBundleParserOpts(opts ast.ParserOptions) *Downloader {
 	d.bundleParserOpts = opts
 	return d

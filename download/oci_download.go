@@ -81,6 +81,7 @@ func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	return d
 }
 
+// WithBundleParserOpts specifies the parser options to use when parsing downloaded bundles.
 func (d *OCIDownloader) WithBundleParserOpts(opts ast.ParserOptions) *OCIDownloader {
 	d.bundleParserOpts = opts
 	return d

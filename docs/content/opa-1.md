@@ -234,6 +234,7 @@ The `--v1-compatible` flag is currently supported on the following commands:
 * `exec`: requires modules to be compatible with OPA v1.0 syntax.
 * `fmt`*: formats modules to be compatible with OPA v1.0 syntax, but not the current 0.x syntax.
 * `inspect`: requires modules to be compatible with OPA v1.0 syntax.
+* `parse`: requires modules to be compatible with OPA v1.0 syntax.
 * `run`: requires modules (including discovery bundle) to be compatible with OPA v1.0 syntax. Binds server listeners to the `localhost` interface by default.
 * `test`: requires modules to be compatible with OPA v1.0 syntax.
 

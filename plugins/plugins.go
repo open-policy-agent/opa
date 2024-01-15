@@ -396,9 +396,11 @@ func WithHooks(hs hooks.Hooks) func(*Manager) {
 	}
 }
 
-func (m *Manager) WithParserOptions(opts ast.ParserOptions) *Manager {
-	m.parserOptions = opts
-	return m
+// WithParserOptions sets the parser options to be used by the plugin manager.
+func WithParserOptions(opts ast.ParserOptions) func(*Manager) {
+	return func(m *Manager) {
+		m.parserOptions = opts
+	}
 }
 
 // WithEnableTelemetry controls whether OPA will send telemetry reports to an external service.

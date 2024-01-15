@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/open-policy-agent/opa/ast/internal/tokens"
+import (
+	"fmt"
+
+	"github.com/open-policy-agent/opa/ast/internal/tokens"
+)
 
 func checkDuplicateImports(modules []*Module) (errors Errors) {
 	for _, module := range modules {
@@ -119,7 +123,7 @@ func checkDeprecatedBuiltinsForCurrentVersion(node interface{}) Errors {
 }
 
 // CheckRegoV1 checks the given module or rule for errors that are specific to Rego v1.
-// If something other than an *ast.Rule or *ast.Module is passed, it will be ignored and result in no errors.
+// Passing something other than an *ast.Rule or *ast.Module is considered a programming error, and will cause a panic.
 func CheckRegoV1(x interface{}) Errors {
 	switch x := x.(type) {
 	case *Module:
@@ -127,7 +131,7 @@ func CheckRegoV1(x interface{}) Errors {
 	case *Rule:
 		return checkRegoV1Rule(x)
 	}
-	return nil
+	panic(fmt.Sprintf("cannot check rego-v1 compatibility on type %T", x))
 }
 
 func checkRegoV1Module(module *Module) Errors {
