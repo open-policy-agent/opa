@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -438,7 +437,7 @@ func TestWatchMode(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -539,7 +538,7 @@ func TestWatchModeWithDataFile(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -619,7 +618,7 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -737,7 +736,7 @@ Watching for changes ...`,
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(files, func(root string) {
-				buf := blockingWriter{}
+				buf := test.BlockingWriter{}
 
 				testParams := newTestCommandParams()
 				testParams.output = &buf
@@ -1213,27 +1212,4 @@ test_l if {
 			})
 		}
 	}
-}
-
-type blockingWriter struct {
-	m   sync.Mutex
-	buf bytes.Buffer
-}
-
-func (w *blockingWriter) Write(p []byte) (n int, err error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.buf.Write(p)
-}
-
-func (w *blockingWriter) String() string {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.buf.String()
-}
-
-func (w *blockingWriter) Reset() {
-	w.m.Lock()
-	defer w.m.Unlock()
-	w.buf.Reset()
 }

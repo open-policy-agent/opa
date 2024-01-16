@@ -5,6 +5,8 @@
 package test
 
 import (
+	"bytes"
+	"sync"
 	"testing"
 	"time"
 )
@@ -19,4 +21,27 @@ func Eventually(t *testing.T, timeout time.Duration, f func() bool) bool {
 		time.Sleep(10 * time.Millisecond)
 	}
 	return false
+}
+
+type BlockingWriter struct {
+	m   sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *BlockingWriter) Write(p []byte) (n int, err error) {
+	w.m.Lock()
+	defer w.m.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *BlockingWriter) String() string {
+	w.m.Lock()
+	defer w.m.Unlock()
+	return w.buf.String()
+}
+
+func (w *BlockingWriter) Reset() {
+	w.m.Lock()
+	defer w.m.Unlock()
+	w.buf.Reset()
 }

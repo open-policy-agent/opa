@@ -816,13 +816,14 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	return pathwatcher.ProcessWatcherUpdate(ctx, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
-			Store:     rt.Store,
-			Txn:       txn,
-			Files:     loaded.Files,
-			Bundles:   loaded.Bundles,
-			MaxErrors: -1,
+			Store:         rt.Store,
+			Txn:           txn,
+			Files:         loaded.Files,
+			Bundles:       loaded.Bundles,
+			MaxErrors:     -1,
+			ParserOptions: rt.Manager.ParserOptions(),
 		})
 
 		return err

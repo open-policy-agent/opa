@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/open-policy-agent/opa/loader"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -230,6 +231,319 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 		}
 
 	})
+}
+
+func TestRuntimeReplProcessWatchV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		policy       string
+		expErrs      []string
+		expOutput    string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			policy: `package test
+p[1] {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, keywords not imported",
+			policy: `package test
+p contains 1 if {
+	data.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			policy: `package test
+import future.keywords
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			policy: `package test
+import rego.v1
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			policy: `package test
+p[1] {
+	data.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			policy: `package test
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+	}
+
+	fs := map[string]string{
+		"test/data.json": `{"foo": "bar"}`,
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			test.WithTempFS(fs, func(rootDir string) {
+				// Prefix the directory intended to be watched with at least one
+				// directory to avoid permission issues on the local host. Otherwise, we
+				// cannot always watch the tmp directory's parent.
+				rootDir = filepath.Join(rootDir, "test")
+
+				output := test.BlockingWriter{}
+
+				params := NewParams()
+				params.Output = &output
+				params.Paths = []string{rootDir}
+				params.Watch = true
+				params.V1Compatible = tc.v1Compatible
+
+				rt, err := NewRuntime(ctx, params)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				go rt.StartREPL(ctx)
+
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
+				}) {
+					t.Fatal("Timed out waiting for REPL to start")
+				}
+				output.Reset()
+
+				// write new policy to disk, to trigger the watcher
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+					t.Fatal(err)
+				}
+
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					if tc.expErrs != nil {
+						return strings.Contains(output.String(), "# reload error")
+					}
+					return strings.Contains(output.String(), "# reloaded files")
+				}) {
+					t.Fatal("Timed out waiting for watcher")
+				}
+
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(output.String(), expErr) {
+						t.Fatalf("Expected error:\n\n%v\n\ngot output:\n\n%s", expErr, output.String())
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestRuntimeServerProcessWatchV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		policy       string
+		expErrs      []string
+		expOutput    string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			policy: `package test
+p[1] {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, keywords not imported",
+			policy: `package test
+p contains 1 if {
+	data.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			policy: `package test
+import future.keywords
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			policy: `package test
+import rego.v1
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			policy: `package test
+p[1] {
+	data.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			policy: `package test
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains 1 if {
+	data.foo == "bar"
+}`,
+		},
+	}
+
+	fs := map[string]string{
+		"test/data.json": `{"foo": "bar"}`,
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			test.WithTempFS(fs, func(rootDir string) {
+				// Prefix the directory intended to be watched with at least one
+				// directory to avoid permission issues on the local host. Otherwise, we
+				// cannot always watch the tmp directory's parent.
+				rootDir = filepath.Join(rootDir, "test")
+
+				testLogger := testLog.New()
+
+				params := NewParams()
+				params.Logger = testLogger
+				params.Addrs = &[]string{"localhost:0"}
+				params.AddrSetByUser = true
+				params.Paths = []string{rootDir}
+				params.Watch = true
+				params.V1Compatible = tc.v1Compatible
+
+				rt, err := NewRuntime(ctx, params)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				fmt.Println("starting server")
+				go rt.StartServer(ctx)
+				fmt.Println("server started")
+
+				if !test.Eventually(t, 5*time.Second, func() bool {
+					found := false
+					for _, e := range testLogger.Entries() {
+						found = strings.Contains(e.Message, "Server initialized.") || found
+					}
+					return found
+				}) {
+					t.Fatal("Timed out waiting for server to start")
+				}
+
+				// write new policy to disk, to trigger the watcher
+				if err := os.WriteFile(path.Join(rootDir, "authz.rego"), []byte(tc.policy), 0644); err != nil {
+					t.Fatal(err)
+				}
+
+				if tc.expErrs != nil {
+					// wait for errors
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						for _, expErr := range tc.expErrs {
+							found := false
+							for _, e := range testLogger.Entries() {
+								if errs, ok := e.Fields["err"].(loader.Errors); ok {
+									for _, err := range errs {
+										found = strings.Contains(err.Error(), expErr) || found
+									}
+								}
+							}
+							if !found {
+								return false
+							}
+						}
+						return true
+					}) {
+						t.Fatalf("Timed out waiting for watcher. Expected errors:\n\n%v\n\ngot output:\n\n%v",
+							tc.expErrs, testLogger.Entries())
+					}
+				} else {
+					// wait for successful reload
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						found := false
+						for _, e := range testLogger.Entries() {
+							found = strings.Contains(e.Message, "Processed file watch event.") || found
+						}
+						return found
+					}) {
+						t.Fatal("Timed out waiting for watcher")
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestCheckOPAUpdateBadURL(t *testing.T) {

@@ -884,7 +884,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	// compiler on the context but the server does not (nor would users
 	// implementing their own policy loading.)
 	if compiler == nil && event.PolicyChanged() {
-		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements)
+		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements, m.ParserOptions())
 	}
 
 	if compiler != nil {
@@ -921,7 +921,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	}
 }
 
-func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool) (*ast.Compiler, error) {
+func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool, popts ast.ParserOptions) (*ast.Compiler, error) {
 	policies, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -933,7 +933,7 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 		if err != nil {
 			return nil, err
 		}
-		module, err := ast.ParseModule(policy, string(bs))
+		module, err := ast.ParseModuleWithOpts(policy, string(bs), popts)
 		if err != nil {
 			return nil, err
 		}
