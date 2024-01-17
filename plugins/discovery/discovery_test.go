@@ -297,7 +297,7 @@ status.partition_name := "foo" if { 2 == 2 }
 decision_logs.partition_name := "bar" if { 3 == 3 }
 `, popts)
 
-	ps, err = disco.processBundle(ctx, updatedBundle)
+	_, err = disco.processBundle(ctx, updatedBundle)
 	if err == nil {
 		t.Fatal("Expected error but got none")
 	}
