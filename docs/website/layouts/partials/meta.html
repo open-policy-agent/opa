@@ -5,7 +5,10 @@
 {{ $pageType    := cond $isHome "website" "article" }}
 {{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
 {{ $twitter     := site.Params.social.twitter }}
-{{ $version     := index (split .File.Path "/") 1 }}
+{{ $version := "latest" }}
+{{ if strings.HasPrefix .Permalink "/docs/" }}
+{{ $version := index (split .File.Path "/") 1 }}
+{{ end }}
 {{ $page       := trim .RelPermalink "/" }}
 {{ $releases   := site.Data.releases }}
 {{ $latest     := index $releases 1 }}
