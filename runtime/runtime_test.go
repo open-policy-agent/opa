@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/open-policy-agent/opa/loader"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/logging"
