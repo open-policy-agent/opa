@@ -18,7 +18,6 @@ package docker
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -33,12 +32,12 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker/schema1" //nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
-	remoteerrors "github.com/containerd/containerd/remotes/errors"
-	"github.com/containerd/containerd/tracing"
+	"github.com/containerd/containerd/remotes/docker/schema1"
 	"github.com/containerd/containerd/version"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 var (
@@ -71,9 +70,6 @@ type Authorizer interface {
 	// unmodified. It may also add an `Authorization` header as
 	//  "bearer <some bearer token>"
 	//  "basic <base64 encoded credentials>"
-	//
-	// It may return remotes/errors.ErrUnexpectedStatus, which for example,
-	// can be used by the caller to find out the status code returned by the registry.
 	Authorize(context.Context, *http.Request) error
 
 	// AddResponses adds a 401 response for the authorizer to consider when
@@ -99,30 +95,25 @@ type ResolverOptions struct {
 	Tracker StatusTracker
 
 	// Authorizer is used to authorize registry requests
-	//
-	// Deprecated: use Hosts.
+	// Deprecated: use Hosts
 	Authorizer Authorizer
 
 	// Credentials provides username and secret given a host.
 	// If username is empty but a secret is given, that secret
 	// is interpreted as a long lived token.
-	//
-	// Deprecated: use Hosts.
+	// Deprecated: use Hosts
 	Credentials func(string) (string, string, error)
 
 	// Host provides the hostname given a namespace.
-	//
-	// Deprecated: use Hosts.
+	// Deprecated: use Hosts
 	Host func(string) (string, error)
 
 	// PlainHTTP specifies to use plain http and not https
-	//
-	// Deprecated: use Hosts.
+	// Deprecated: use Hosts
 	PlainHTTP bool
 
 	// Client is the http client to used when making registry requests
-	//
-	// Deprecated: use Hosts.
+	// Deprecated: use Hosts
 	Client *http.Client
 }
 
@@ -149,9 +140,6 @@ func NewResolver(options ResolverOptions) remotes.Resolver {
 
 	if options.Headers == nil {
 		options.Headers = make(http.Header)
-	} else {
-		// make a copy of the headers to avoid race due to concurrent map write
-		options.Headers = options.Headers.Clone()
 	}
 	if _, ok := options.Headers["User-Agent"]; !ok {
 		options.Headers.Set("User-Agent", "containerd/"+version.Version)
@@ -164,8 +152,7 @@ func NewResolver(options ResolverOptions) remotes.Resolver {
 			images.MediaTypeDockerSchema2Manifest,
 			images.MediaTypeDockerSchema2ManifestList,
 			ocispec.MediaTypeImageManifest,
-			ocispec.MediaTypeImageIndex, "*/*",
-		}, ", "))
+			ocispec.MediaTypeImageIndex, "*/*"}, ", "))
 	} else {
 		resolveHeader["Accept"] = options.Headers["Accept"]
 		delete(options.Headers, "Accept")
@@ -312,11 +299,11 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				if resp.StatusCode > 399 {
 					// Set firstErr when encountering the first non-404 status code.
 					if firstErr == nil {
-						firstErr = remoteerrors.NewUnexpectedStatusErr(resp)
+						firstErr = fmt.Errorf("pulling from host %s failed with status code %v: %v", host.Host, u, resp.Status)
 					}
 					continue // try another host
 				}
-				return "", ocispec.Descriptor{}, remoteerrors.NewUnexpectedStatusErr(resp)
+				return "", ocispec.Descriptor{}, fmt.Errorf("pulling from host %s failed with unexpected status code %v: %v", host.Host, u, resp.Status)
 			}
 			size := resp.ContentLength
 			contentType := getManifestMediaType(resp)
@@ -353,31 +340,26 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				if err != nil {
 					return "", ocispec.Descriptor{}, err
 				}
+				defer resp.Body.Close()
 
 				bodyReader := countingReader{reader: resp.Body}
 
 				contentType = getManifestMediaType(resp)
-				err = func() error {
-					defer resp.Body.Close()
-					if dgst != "" {
-						_, err = io.Copy(io.Discard, &bodyReader)
-						return err
-					}
-
+				if dgst == "" {
 					if contentType == images.MediaTypeDockerSchema1Manifest {
 						b, err := schema1.ReadStripSignature(&bodyReader)
 						if err != nil {
-							return err
+							return "", ocispec.Descriptor{}, err
 						}
 
 						dgst = digest.FromBytes(b)
-						return nil
+					} else {
+						dgst, err = digest.FromReader(&bodyReader)
+						if err != nil {
+							return "", ocispec.Descriptor{}, err
+						}
 					}
-
-					dgst, err = digest.FromReader(&bodyReader)
-					return err
-				}()
-				if err != nil {
+				} else if _, err := io.Copy(io.Discard, &bodyReader); err != nil {
 					return "", ocispec.Descriptor{}, err
 				}
 				size = bodyReader.bytesRead
@@ -543,14 +525,13 @@ type request struct {
 
 func (r *request) do(ctx context.Context) (*http.Response, error) {
 	u := r.host.Scheme + "://" + r.host.Host + r.path
-	req, err := http.NewRequestWithContext(ctx, r.method, u, nil)
+	req, err := http.NewRequest(r.method, u, nil)
 	if err != nil {
 		return nil, err
 	}
-	if r.header == nil {
-		req.Header = http.Header{}
-	} else {
-		req.Header = r.header.Clone() // headers need to be copied to avoid concurrent map access
+	req.Header = http.Header{} // headers need to be copied to avoid concurrent map access
+	for k, v := range r.header {
+		req.Header[k] = v
 	}
 	if r.body != nil {
 		body, err := r.body()
@@ -570,7 +551,7 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 		return nil, fmt.Errorf("failed to authorize: %w", err)
 	}
 
-	client := &http.Client{}
+	var client = &http.Client{}
 	if r.host.Client != nil {
 		*client = *r.host.Client
 	}
@@ -586,9 +567,7 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 		}
 	}
 
-	tracing.UpdateHTTPClient(client, tracing.Name("remotes.docker.resolver", "HTTPRequest"))
-
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to do request: %w", err)
 	}
@@ -651,7 +630,7 @@ func (r *request) String() string {
 	return r.host.Scheme + "://" + r.host.Host + r.path
 }
 
-func requestFields(req *http.Request) log.Fields {
+func requestFields(req *http.Request) logrus.Fields {
 	fields := map[string]interface{}{
 		"request.method": req.Method,
 	}
@@ -669,10 +648,10 @@ func requestFields(req *http.Request) log.Fields {
 		}
 	}
 
-	return fields
+	return logrus.Fields(fields)
 }
 
-func responseFields(resp *http.Response) log.Fields {
+func responseFields(resp *http.Response) logrus.Fields {
 	fields := map[string]interface{}{
 		"response.status": resp.Status,
 	}
@@ -687,7 +666,7 @@ func responseFields(resp *http.Response) log.Fields {
 		}
 	}
 
-	return fields
+	return logrus.Fields(fields)
 }
 
 // IsLocalhost checks if the registry host is local.
@@ -702,28 +681,4 @@ func IsLocalhost(host string) bool {
 
 	ip := net.ParseIP(host)
 	return ip.IsLoopback()
-}
-
-// HTTPFallback is an http.RoundTripper which allows fallback from https to http
-// for registry endpoints with configurations for both http and TLS, such as
-// defaulted localhost endpoints.
-type HTTPFallback struct {
-	http.RoundTripper
-}
-
-func (f HTTPFallback) RoundTrip(r *http.Request) (*http.Response, error) {
-	resp, err := f.RoundTripper.RoundTrip(r)
-	var tlsErr tls.RecordHeaderError
-	if errors.As(err, &tlsErr) && string(tlsErr.RecordHeader[:]) == "HTTP/" {
-		// server gave HTTP response to HTTPS client
-		plainHTTPUrl := *r.URL
-		plainHTTPUrl.Scheme = "http"
-
-		plainHTTPRequest := *r
-		plainHTTPRequest.URL = &plainHTTPUrl
-
-		return f.RoundTripper.RoundTrip(&plainHTTPRequest)
-	}
-
-	return resp, err
 }

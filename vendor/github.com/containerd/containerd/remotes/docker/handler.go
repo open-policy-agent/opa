@@ -30,6 +30,11 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+var (
+	// labelDistributionSource describes the source blob comes from.
+	labelDistributionSource = "containerd.io/distribution.source"
+)
+
 // AppendDistributionSourceLabel updates the label of blob with distribution source.
 func AppendDistributionSourceLabel(manager content.Manager, ref string) (images.HandlerFunc, error) {
 	refspec, err := reference.Parse(ref)
@@ -103,7 +108,7 @@ func appendDistributionSourceLabel(originLabel, repo string) string {
 }
 
 func distributionSourceLabelKey(source string) string {
-	return fmt.Sprintf("%s.%s", labels.LabelDistributionSource, source)
+	return fmt.Sprintf("%s.%s", labelDistributionSource, source)
 }
 
 // selectRepositoryMountCandidate will select the repo which has longest

@@ -29,6 +29,7 @@ import (
 	"github.com/containerd/containerd/log"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/containerd/containerd/version"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 var (
@@ -114,7 +115,7 @@ func FetchTokenWithOAuth(ctx context.Context, client *http.Client, headers http.
 		form.Set("access_type", "offline")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, to.Realm, strings.NewReader(form.Encode()))
+	req, err := http.NewRequest("POST", to.Realm, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +127,7 @@ func FetchTokenWithOAuth(ctx context.Context, client *http.Client, headers http.
 		req.Header.Set("User-Agent", "containerd/"+version.Version)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +162,7 @@ type FetchTokenResponse struct {
 
 // FetchToken fetches a token using a GET request
 func FetchToken(ctx context.Context, client *http.Client, headers http.Header, to TokenOptions) (*FetchTokenResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, to.Realm, nil)
+	req, err := http.NewRequest("GET", to.Realm, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +194,7 @@ func FetchToken(ctx context.Context, client *http.Client, headers http.Header, t
 
 	req.URL.RawQuery = reqParams.Encode()
 
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, err
 	}

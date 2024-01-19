@@ -114,17 +114,13 @@ import (
 	"strconv"
 	"strings"
 
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
-
 	"github.com/containerd/containerd/errdefs"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
 	specifierRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
-
-// Platform is a type alias for convenience, so there is no need to import image-spec package everywhere.
-type Platform = specs.Platform
 
 // Matcher matches platforms specifications, provided by an image or runtime.
 type Matcher interface {
@@ -140,7 +136,9 @@ type Matcher interface {
 //
 // Applications should opt to use `Match` over directly parsing specifiers.
 func NewMatcher(platform specs.Platform) Matcher {
-	return newDefaultMatcher(platform)
+	return &matcher{
+		Platform: Normalize(platform),
+	}
 }
 
 type matcher struct {
@@ -196,10 +194,6 @@ func Parse(specifier string) (specs.Platform, error) {
 				p.Variant = cpuVariant()
 			}
 
-			if p.OS == "windows" {
-				p.OSVersion = GetWindowsOsVersion()
-			}
-
 			return p, nil
 		}
 
@@ -222,10 +216,6 @@ func Parse(specifier string) (specs.Platform, error) {
 			p.Variant = ""
 		}
 
-		if p.OS == "windows" {
-			p.OSVersion = GetWindowsOsVersion()
-		}
-
 		return p, nil
 	case 3:
 		// we have a fully specified variant, this is rare
@@ -233,10 +223,6 @@ func Parse(specifier string) (specs.Platform, error) {
 		p.Architecture, p.Variant = normalizeArch(parts[1], parts[2])
 		if p.Architecture == "arm64" && p.Variant == "" {
 			p.Variant = "v8"
-		}
-
-		if p.OS == "windows" {
-			p.OSVersion = GetWindowsOsVersion()
 		}
 
 		return p, nil
@@ -271,6 +257,5 @@ func Format(platform specs.Platform) string {
 func Normalize(platform specs.Platform) specs.Platform {
 	platform.OS = normalizeOS(platform.OS)
 	platform.Architecture, platform.Variant = normalizeArch(platform.Architecture, platform.Variant)
-
 	return platform
 }

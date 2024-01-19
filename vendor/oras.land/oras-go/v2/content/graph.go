@@ -75,33 +75,18 @@ func Successors(ctx context.Context, fetcher Fetcher, node ocispec.Descriptor) (
 		}
 		nodes = append(nodes, manifest.Config)
 		return append(nodes, manifest.Layers...), nil
-	case docker.MediaTypeManifestList:
+	case docker.MediaTypeManifestList, ocispec.MediaTypeImageIndex:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {
 			return nil, err
 		}
 
-		// OCI manifest index schema can be used to marshal docker manifest list
+		// docker manifest list and oci index are equivalent for successors.
 		var index ocispec.Index
 		if err := json.Unmarshal(content, &index); err != nil {
 			return nil, err
 		}
 		return index.Manifests, nil
-	case ocispec.MediaTypeImageIndex:
-		content, err := FetchAll(ctx, fetcher, node)
-		if err != nil {
-			return nil, err
-		}
-
-		var index ocispec.Index
-		if err := json.Unmarshal(content, &index); err != nil {
-			return nil, err
-		}
-		var nodes []ocispec.Descriptor
-		if index.Subject != nil {
-			nodes = append(nodes, *index.Subject)
-		}
-		return append(nodes, index.Manifests...), nil
 	case spec.MediaTypeArtifactManifest:
 		content, err := FetchAll(ctx, fetcher, node)
 		if err != nil {

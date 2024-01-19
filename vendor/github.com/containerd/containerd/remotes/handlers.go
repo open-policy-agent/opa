@@ -17,7 +17,6 @@
 package remotes
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -28,10 +27,10 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -91,7 +90,7 @@ func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
 // recursive fetch.
 func FetchHandler(ingester content.Ingester, fetcher Fetcher) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
-		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
 			"digest":    desc.Digest,
 			"mediatype": desc.MediaType,
 			"size":      desc.Size,
@@ -101,21 +100,20 @@ func FetchHandler(ingester content.Ingester, fetcher Fetcher) images.HandlerFunc
 		case images.MediaTypeDockerSchema1Manifest:
 			return nil, fmt.Errorf("%v not supported", desc.MediaType)
 		default:
-			err := Fetch(ctx, ingester, fetcher, desc)
-			if errdefs.IsAlreadyExists(err) {
-				return nil, nil
-			}
+			err := fetch(ctx, ingester, fetcher, desc)
 			return nil, err
 		}
 	}
 }
 
-// Fetch fetches the given digest into the provided ingester
-func Fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc ocispec.Descriptor) error {
+func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc ocispec.Descriptor) error {
 	log.G(ctx).Debug("fetch")
 
 	cw, err := content.OpenWriter(ctx, ingester, content.WithRef(MakeRefKey(ctx, desc)), content.WithDescriptor(desc))
 	if err != nil {
+		if errdefs.IsAlreadyExists(err) {
+			return nil
+		}
 		return err
 	}
 	defer cw.Close()
@@ -137,11 +135,7 @@ func Fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 		if err != nil && !errdefs.IsAlreadyExists(err) {
 			return fmt.Errorf("failed commit on ref %q: %w", ws.Ref, err)
 		}
-		return err
-	}
-
-	if desc.Size == int64(len(desc.Data)) {
-		return content.Copy(ctx, cw, bytes.NewReader(desc.Data), desc.Size, desc.Digest)
+		return nil
 	}
 
 	rc, err := fetcher.Fetch(ctx, desc)
@@ -157,7 +151,7 @@ func Fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 // using a writer from the pusher.
 func PushHandler(pusher Pusher, provider content.Provider) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
 			"digest":    desc.Digest,
 			"mediatype": desc.MediaType,
 			"size":      desc.Size,
@@ -203,26 +197,17 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 //
 // Base handlers can be provided which will be called before any push specific
 // handlers.
-//
-// If the passed in content.Provider is also a content.InfoProvider (such as
-// content.Manager) then this will also annotate the distribution sources using
-// labels prefixed with "containerd.io/distribution.source".
-func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, store content.Provider, limiter *semaphore.Weighted, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, store content.Store, limiter *semaphore.Weighted, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
 
 	var m sync.Mutex
-	manifests := []ocispec.Descriptor{}
-	indexStack := []ocispec.Descriptor{}
+	manifestStack := []ocispec.Descriptor{}
 
 	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
-		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
 			m.Lock()
-			manifests = append(manifests, desc)
-			m.Unlock()
-			return nil, images.ErrStopHandler
-		case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
-			m.Lock()
-			indexStack = append(indexStack, desc)
+			manifestStack = append(manifestStack, desc)
 			m.Unlock()
 			return nil, images.ErrStopHandler
 		default:
@@ -234,14 +219,13 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, st
 
 	platformFilterhandler := images.FilterPlatforms(images.ChildrenHandler(store), platform)
 
-	var handler images.Handler
-	if m, ok := store.(content.InfoProvider); ok {
-		annotateHandler := annotateDistributionSourceHandler(platformFilterhandler, m)
-		handler = images.Handlers(annotateHandler, filterHandler, pushHandler)
-	} else {
-		handler = images.Handlers(platformFilterhandler, filterHandler, pushHandler)
-	}
+	annotateHandler := annotateDistributionSourceHandler(platformFilterhandler, store)
 
+	var handler images.Handler = images.Handlers(
+		annotateHandler,
+		filterHandler,
+		pushHandler,
+	)
 	if wrapper != nil {
 		handler = wrapper(handler)
 	}
@@ -250,18 +234,16 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, st
 		return err
 	}
 
-	if err := images.Dispatch(ctx, pushHandler, limiter, manifests...); err != nil {
-		return err
-	}
-
 	// Iterate in reverse order as seen, parent always uploaded after child
-	for i := len(indexStack) - 1; i >= 0; i-- {
-		err := images.Dispatch(ctx, pushHandler, limiter, indexStack[i])
+	for i := len(manifestStack) - 1; i >= 0; i-- {
+		_, err := pushHandler(ctx, manifestStack[i])
 		if err != nil {
 			// TODO(estesp): until we have a more complete method for index push, we need to report
 			// missing dependencies in an index/manifest list by sensing the "400 Bad Request"
 			// as a marker for this problem
-			if errors.Unwrap(err) != nil && strings.Contains(errors.Unwrap(err).Error(), "400 Bad Request") {
+			if (manifestStack[i].MediaType == ocispec.MediaTypeImageIndex ||
+				manifestStack[i].MediaType == images.MediaTypeDockerSchema2ManifestList) &&
+				errors.Unwrap(err) != nil && strings.Contains(errors.Unwrap(err).Error(), "400 Bad Request") {
 				return fmt.Errorf("manifest list/index references to blobs and/or manifests are missing in your target registry: %w", err)
 			}
 			return err
@@ -345,15 +327,14 @@ func FilterManifestByPlatformHandler(f images.HandlerFunc, m platforms.Matcher) 
 
 // annotateDistributionSourceHandler add distribution source label into
 // annotation of config or blob descriptor.
-func annotateDistributionSourceHandler(f images.HandlerFunc, provider content.InfoProvider) images.HandlerFunc {
+func annotateDistributionSourceHandler(f images.HandlerFunc, manager content.Manager) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := f(ctx, desc)
 		if err != nil {
 			return nil, err
 		}
 
-		// Distribution source is only used for config or blob but may be inherited from
-		// a manifest or manifest list
+		// only add distribution source for the config or blob data descriptor
 		switch desc.MediaType {
 		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
 			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
@@ -361,53 +342,27 @@ func annotateDistributionSourceHandler(f images.HandlerFunc, provider content.In
 			return children, nil
 		}
 
-		parentSourceAnnotations := desc.Annotations
-		var parentLabels map[string]string
-		if pi, err := provider.Info(ctx, desc.Digest); err != nil {
-			if !errdefs.IsNotFound(err) {
-				return nil, err
-			}
-		} else {
-			parentLabels = pi.Labels
-		}
-
 		for i := range children {
 			child := children[i]
 
-			info, err := provider.Info(ctx, child.Digest)
+			info, err := manager.Info(ctx, child.Digest)
 			if err != nil {
-				if !errdefs.IsNotFound(err) {
-					return nil, err
-				}
+				return nil, err
 			}
-			copyDistributionSourceLabels(info.Labels, &child)
 
-			// Annotate with parent labels for cross repo mount or fetch.
-			// Parent sources may apply to all children since most registries
-			// enforce that children exist before the manifests.
-			copyDistributionSourceLabels(parentSourceAnnotations, &child)
-			copyDistributionSourceLabels(parentLabels, &child)
+			for k, v := range info.Labels {
+				if !strings.HasPrefix(k, "containerd.io/distribution.source.") {
+					continue
+				}
+
+				if child.Annotations == nil {
+					child.Annotations = map[string]string{}
+				}
+				child.Annotations[k] = v
+			}
 
 			children[i] = child
 		}
 		return children, nil
-	}
-}
-
-func copyDistributionSourceLabels(from map[string]string, to *ocispec.Descriptor) {
-	for k, v := range from {
-		if !strings.HasPrefix(k, labels.LabelDistributionSource+".") {
-			continue
-		}
-
-		if to.Annotations == nil {
-			to.Annotations = make(map[string]string)
-		} else {
-			// Only propagate the parent label if the child doesn't already have it.
-			if _, has := to.Annotations[k]; has {
-				continue
-			}
-		}
-		to.Annotations[k] = v
 	}
 }
