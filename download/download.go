@@ -334,6 +334,12 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				loader = bundle.NewTarballLoaderWithBaseURL(r, baseURL)
 			}
 
+			// Setting the size limit on the loader allows early exit in the case
+			// of any file exceeding the limit, without the file getting loaded
+			if d.sizeLimitBytes != nil {
+				loader = loader.WithSizeLimitBytes(*d.sizeLimitBytes)
+			}
+
 			etag := resp.Header.Get("ETag")
 
 			reader := bundle.NewCustomReader(loader).
@@ -344,6 +350,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				WithLazyLoadingMode(d.lazyLoadingMode).
 				WithBundleName(d.bundleName).
 				WithBundlePersistence(d.persist)
+
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
