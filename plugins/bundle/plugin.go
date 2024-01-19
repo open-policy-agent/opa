@@ -353,7 +353,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
+			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
@@ -700,11 +700,11 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 	return bundleUtils.SaveBundleToDisk(path, raw)
 }
 
-func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
+func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
 	if src != nil {
-		return bundleUtils.LoadBundleFromDisk(path, name, src.Signing)
+		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, src.Signing)
 	}
-	return bundleUtils.LoadBundleFromDisk(path, name, nil)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {

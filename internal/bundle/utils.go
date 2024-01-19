@@ -89,10 +89,10 @@ func LoadWasmResolversFromStore(ctx context.Context, store storage.Store, txn st
 
 // LoadBundleFromDisk loads a previously persisted activated bundle from disk
 func LoadBundleFromDisk(path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
-	return LoadBundleFromDiskForRegoVersion(path, name, bvc, ast.RegoV0)
+	return LoadBundleFromDiskForRegoVersion(ast.RegoV0, path, name, bvc)
 }
 
-func LoadBundleFromDiskForRegoVersion(path, name string, bvc *bundle.VerificationConfig, regoVersion ast.RegoVersion) (*bundle.Bundle, error) {
+func LoadBundleFromDiskForRegoVersion(regoVersion ast.RegoVersion, path, name string, bvc *bundle.VerificationConfig) (*bundle.Bundle, error) {
 	bundlePath := filepath.Join(path, name, "bundle.tar.gz")
 
 	if _, err := os.Stat(bundlePath); err == nil {

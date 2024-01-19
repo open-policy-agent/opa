@@ -265,8 +265,8 @@ func (c *Discovery) loadAndActivateBundleFromDisk(ctx context.Context) {
 }
 
 func (c *Discovery) loadBundleFromDisk() (*bundleApi.Bundle, error) {
-	return bundleUtils.LoadBundleFromDiskForRegoVersion(c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing,
-		c.manager.ParserOptions().RegoVersion)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(c.manager.ParserOptions().RegoVersion,
+		c.bundlePersistPath, c.discoveryBundleDirName(), c.config.Signing)
 }
 
 func (c *Discovery) saveBundleToDisk(raw io.Reader) error {
