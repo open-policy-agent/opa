@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,6 +89,9 @@ allow {
 		testServerParams.MinTLSVersion = TLSVersion
 	}
 
+	// RSA cipher suite given server's key is RSA
+	testServerParams.CipherSuites = &[]uint16{tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}
+
 	testRuntime, err = e2e.NewTestRuntime(testServerParams)
 	if err != nil {
 		fatal(err)
@@ -95,16 +99,43 @@ allow {
 
 	// We need a client with proper TLS setup, otherwise the health check
 	// that loops to determine if the server is ready will fail.
-	testRuntime.Client = newClient(0, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+	testRuntime.Client = newClient(0, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 
 	os.Exit(testRuntime.RunTests(m))
 }
 
+func TestCipherSuites(t *testing.T) {
+	endpoint := testRuntime.URL()
+	t.Run("Cipher suite supported by both client and server", func(t *testing.T) {
+
+		c := newClient(tls.VersionTLS12, pool, &[]uint16{tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, "testdata/client-cert.pem", "testdata/client-key.pem")
+		_, err := c.Get(endpoint)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("No cipher suite supported by both client and server", func(t *testing.T) {
+
+		// Since server's key is RSA, client specifying an ECDSA cipher suite should result in an error
+		c := newClient(tls.VersionTLS12, pool, &[]uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}, "testdata/client-cert.pem", "testdata/client-key.pem")
+		_, err := c.Get(endpoint)
+		if err == nil {
+			t.Error("expected err - no cipher suite supported by both client and server, got nil")
+		}
+
+		expErr := "tls: handshake failure"
+		if !strings.Contains(err.Error(), expErr) {
+			t.Fatalf("unexpected error message %v", err)
+		}
+	})
+}
+
 func TestMinTLSVersion(t *testing.T) {
 	endpoint := testRuntime.URL()
-	t.Run("TLS version not suported by server", func(t *testing.T) {
+	t.Run("TLS version not supported by server", func(t *testing.T) {
 
-		c := newClient(tls.VersionTLS10, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(tls.VersionTLS10, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 		_, err := c.Get(endpoint)
 
 		if err == nil {
@@ -114,7 +145,7 @@ func TestMinTLSVersion(t *testing.T) {
 	})
 	t.Run("TLS Version supported by server", func(t *testing.T) {
 
-		c := newClient(tls.VersionTLS12, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(tls.VersionTLS12, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -134,7 +165,7 @@ func TestNotDefaultTLSVersion(t *testing.T) {
 	endpoint := testRuntime.URL()
 	t.Run("server started with min TLS Version 1.3, client connecting with not supported TLS version", func(t *testing.T) {
 
-		c := newClient(tls.VersionTLS10, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(tls.VersionTLS10, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 		_, err := c.Get(endpoint)
 
 		if err == nil {
@@ -148,7 +179,7 @@ func TestNotDefaultTLSVersion(t *testing.T) {
 
 	t.Run("server started with min TLS Version 1.3, client connecting supported TLS version", func(t *testing.T) {
 
-		c := newClient(tls.VersionTLS13, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(tls.VersionTLS13, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -168,7 +199,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	// already queries the health endpoint using a properly authenticated, and
 	// authorized, http client.
 	t.Run("happy path", func(t *testing.T) {
-		c := newClient(0, pool, "testdata/client-cert.pem", "testdata/client-key.pem")
+		c := newClient(0, pool, nil, "testdata/client-cert.pem", "testdata/client-key.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -180,7 +211,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 
 	t.Run("authn successful, authz failed", func(t *testing.T) {
-		c := newClient(0, pool, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
+		c := newClient(0, pool, nil, "testdata/client-cert-2.pem", "testdata/client-key-2.pem")
 		resp, err := c.Get(endpoint)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
@@ -192,7 +223,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 
 	t.Run("client trusts server, but doesn't provide client cert", func(t *testing.T) {
-		c := newClient(0, pool)
+		c := newClient(0, pool, nil)
 		_, err := c.Get(endpoint)
 		if _, ok := err.(*url.Error); !ok {
 			t.Errorf("expected *url.Error, got %T: %v", err, err)
@@ -200,7 +231,7 @@ func TestAuthenticationTLS(t *testing.T) {
 	})
 }
 
-func newClient(maxTLSVersion uint16, pool *x509.CertPool, clientKeyPair ...string) *http.Client {
+func newClient(maxTLSVersion uint16, pool *x509.CertPool, cipherSuites *[]uint16, clientKeyPair ...string) *http.Client {
 	c := *http.DefaultClient
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{
@@ -217,6 +248,11 @@ func newClient(maxTLSVersion uint16, pool *x509.CertPool, clientKeyPair ...strin
 	if maxTLSVersion != 0 {
 		tr.TLSClientConfig.MaxVersion = maxTLSVersion
 	}
+
+	if cipherSuites != nil {
+		tr.TLSClientConfig.CipherSuites = *cipherSuites
+	}
+
 	c.Transport = tr
 	return &c
 }

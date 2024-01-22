@@ -49,6 +49,7 @@ type runCmdParams struct {
 	skipBundleVerify     bool
 	skipKnownSchemaCheck bool
 	excludeVerifyFiles   []string
+	cipherSuites         []string
 }
 
 func newRunParams() runCmdParams {
@@ -181,6 +182,17 @@ be expanded in the future. To disable this, use the --skip-known-schema-check fl
 The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
 Current behaviors enabled by this flag include:
 - setting OPA's listening address to "localhost:8181" by default.
+
+The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
+cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):
+TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA,
+TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+See https://godoc.org/crypto/tls#pkg-constants for more information.
 `,
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -221,6 +233,7 @@ Current behaviors enabled by this flag include:
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
 	runCommand.Flags().BoolVar(&cmdParams.skipKnownSchemaCheck, "skip-known-schema-check", false, "disables type checking on known input schemas")
+	runCommand.Flags().StringSliceVar(&cmdParams.cipherSuites, "tls-cipher-suites", []string{}, "set list of enabled TLS 1.0–1.2 cipher suites (IANA)")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
@@ -332,6 +345,15 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 
 	params.rt.SkipKnownSchemaCheck = params.skipKnownSchemaCheck
 
+	if len(params.cipherSuites) > 0 {
+		cipherSuites, err := verifyCipherSuites(params.cipherSuites)
+		if err != nil {
+			return nil, err
+		}
+
+		params.rt.CipherSuites = cipherSuites
+	}
+
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {
 		return nil, err
@@ -353,6 +375,37 @@ func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
 	} else {
 		rt.StartREPL(ctx)
 	}
+}
+
+func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
+	cipherSuitesMap := map[string]*tls.CipherSuite{}
+
+	for _, c := range tls.CipherSuites() {
+		cipherSuitesMap[c.Name] = c
+	}
+
+	for _, c := range tls.InsecureCipherSuites() {
+		cipherSuitesMap[c.Name] = c
+	}
+
+	cipherSuitesIds := []uint16{}
+	for _, c := range cipherSuites {
+		val, ok := cipherSuitesMap[c]
+		if !ok {
+			return nil, fmt.Errorf("invalid cipher suite %v", c)
+		}
+
+		// verify no TLS 1.3 cipher suites as they are not configurable
+		for _, ver := range val.SupportedVersions {
+			if ver == tls.VersionTLS13 {
+				return nil, fmt.Errorf("TLS 1.3 cipher suite \"%v\" is not configurable", c)
+			}
+		}
+
+		cipherSuitesIds = append(cipherSuitesIds, val.ID)
+	}
+
+	return &cipherSuitesIds, nil
 }
 
 func historyPath() string {
