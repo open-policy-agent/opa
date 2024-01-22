@@ -146,6 +146,7 @@ type Server struct {
 	distributedTracingOpts tracing.Options
 	ndbCacheEnabled        bool
 	unixSocketPerm         *string
+	cipherSuites           *[]uint16
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -400,6 +401,12 @@ func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	return s
 }
 
+// WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
+func (s *Server) WithCipherSuites(cipherSuites *[]uint16) *Server {
+	s.cipherSuites = cipherSuites
+	return s
+}
+
 // WithUnixSocketPermission sets the permission for the Unix domain socket if used to listen for
 // incoming connections. Applies to the sockets the server is listening on including diagnostic API's.
 func (s *Server) WithUnixSocketPermission(unixSocketPerm *string) *Server {
@@ -635,36 +642,42 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
 	}
 
-	httpsServer := http.Server{
-		Addr:    u.Host,
-		Handler: h,
-		TLSConfig: &tls.Config{
-			GetCertificate: s.getCertificate,
-			// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
-			// This is not required, but appears to be how connect time updates config should be done:
-			// https://github.com/golang/go/issues/16066#issuecomment-250606132
-			GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
-				s.tlsConfigMtx.Lock()
-				defer s.tlsConfigMtx.Unlock()
+	tlsConfig := tls.Config{
+		GetCertificate: s.getCertificate,
+		// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
+		// This is not required, but appears to be how connect time updates config should be done:
+		// https://github.com/golang/go/issues/16066#issuecomment-250606132
+		GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+			s.tlsConfigMtx.Lock()
+			defer s.tlsConfigMtx.Unlock()
 
-				cfg := &tls.Config{
-					GetCertificate: s.getCertificate,
-					ClientCAs:      s.certPool,
-				}
+			cfg := &tls.Config{
+				GetCertificate: s.getCertificate,
+				ClientCAs:      s.certPool,
+			}
 
-				if s.authentication == AuthenticationTLS {
-					cfg.ClientAuth = tls.RequireAndVerifyClientCert
-				}
+			if s.authentication == AuthenticationTLS {
+				cfg.ClientAuth = tls.RequireAndVerifyClientCert
+			}
 
-				if s.minTLSVersion != 0 {
-					cfg.MinVersion = s.minTLSVersion
-				} else {
-					cfg.MinVersion = defaultMinTLSVersion
-				}
+			if s.minTLSVersion != 0 {
+				cfg.MinVersion = s.minTLSVersion
+			} else {
+				cfg.MinVersion = defaultMinTLSVersion
+			}
 
-				return cfg, nil
-			},
+			if s.cipherSuites != nil {
+				cfg.CipherSuites = *s.cipherSuites
+			}
+
+			return cfg, nil
 		},
+	}
+
+	httpsServer := http.Server{
+		Addr:      u.Host,
+		Handler:   h,
+		TLSConfig: &tlsConfig,
 	}
 
 	l := newHTTPListener(&httpsServer, t)

@@ -231,6 +231,9 @@ type Params struct {
 	// This flag allows users to opt-in to the new behavior and helps transition to the future release upon which
 	// the new behavior will be enabled by default.
 	V1Compatible bool
+
+	// CipherSuites specifies the list of enabled TLS 1.0–1.2 cipher suites
+	CipherSuites *[]uint16
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -550,6 +553,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 		WithRuntime(rt.Manager.Info).
 		WithMetrics(rt.metrics).
 		WithMinTLSVersion(rt.Params.MinTLSVersion).
+		WithCipherSuites(rt.Params.CipherSuites).
 		WithDistributedTracingOpts(rt.Params.DistributedTracingOpts)
 
 	// If decision_logging plugin enabled, check to see if we opted in to the ND builtins cache.
