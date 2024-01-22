@@ -121,7 +121,8 @@ func New(manager *plugins.Manager, opts ...func(*Discovery)) (*Discovery, error)
 		result.downloader = download.NewOCI(config.Config, restClient, config.path, ociStorePath).
 			WithCallback(result.oneShot).
 			WithBundleVerificationConfig(config.Signing).
-			WithBundlePersistence(config.Persist)
+			WithBundlePersistence(config.Persist).
+			WithBundleParserOpts(manager.ParserOptions())
 	} else {
 		d := download.New(config.Config, restClient, config.path).
 			WithCallback(result.oneShot).

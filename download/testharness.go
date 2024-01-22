@@ -299,6 +299,56 @@ func newTestServer(t *testing.T) *testServer {
 					},
 				}},
 			},
+			"test/v1compat/no_imports": {
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+				},
+				Data: map[string]interface{}{},
+				Modules: []bundle.ModuleFile{
+					{
+						Path: `/example.rego`,
+						Raw: []byte(`package test
+import data.foo
+import data.bar as foo
+p contains 1 if {
+	input.x == 2
+}`),
+					},
+				},
+			},
+			"test/v1compat/rego_import": {
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+				},
+				Data: map[string]interface{}{},
+				Modules: []bundle.ModuleFile{
+					{
+						Path: `/example.rego`,
+						Raw: []byte(`package test
+import rego.v1
+import data.foo
+import data.bar as foo
+p contains 1 if {
+	input.x == 2
+}`),
+					},
+				},
+			},
+			"test/v1compat/keywords_not_used": {
+				Manifest: bundle.Manifest{
+					Revision: "quickbrownfaux",
+				},
+				Data: map[string]interface{}{},
+				Modules: []bundle.ModuleFile{
+					{
+						Path: `/example.rego`,
+						Raw: []byte(`package test
+p[1] {
+	input.x == 2
+}`),
+					},
+				},
+			},
 		},
 	}
 }
