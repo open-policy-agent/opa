@@ -91,10 +91,11 @@ func TestServerSpan(t *testing.T) {
 			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("net.protocol.version", "1.1"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 3),
+			attribute.String("http.target", "/v0/data"),
 		}
 
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -136,10 +137,11 @@ func TestServerSpan(t *testing.T) {
 			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "GET"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("net.protocol.version", "1.1"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 67),
+			attribute.String("http.target", "/v1/data"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 	})
@@ -295,7 +297,6 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
@@ -337,7 +338,6 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
@@ -386,7 +386,6 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
@@ -438,7 +437,6 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []attribute.KeyValue{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
@@ -644,10 +642,11 @@ allow {
 			attribute.Int("net.host.port", port),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("net.protocol.version", "1.1"),
 			attribute.Int("http.status_code", 401),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 87),
+			attribute.String("http.target", "/v1/data"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
