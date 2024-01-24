@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/automaxprocs/maxprocs"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	opa_config "github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/internal/compiler"
@@ -336,7 +337,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	loaded, err := initload.LoadPaths(params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil, nil)
+	var regoVersion ast.RegoVersion
+	if params.V1Compatible {
+		regoVersion = ast.RegoV1
+	} else {
+		regoVersion = ast.RegoV0
+	}
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}
@@ -408,7 +415,8 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		plugins.WithRouter(params.Router),
 		plugins.WithPrometheusRegister(metrics),
 		plugins.WithTracerProvider(tracerProvider),
-		plugins.WithEnableTelemetry(params.EnableVersionCheck))
+		plugins.WithEnableTelemetry(params.EnableVersionCheck),
+		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: regoVersion}))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
@@ -700,7 +708,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
-		WithRuntime(rt.Manager.Info)
+		WithRuntime(rt.Manager.Info).
+		WithV1Compatible(rt.Params.V1Compatible)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
@@ -811,13 +820,14 @@ func (rt *Runtime) readWatcher(ctx context.Context, watcher *fsnotify.Watcher, p
 
 func (rt *Runtime) processWatcherUpdate(ctx context.Context, paths []string, removed string) error {
 
-	return pathwatcher.ProcessWatcherUpdate(ctx, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
+	return pathwatcher.ProcessWatcherUpdateForRegoVersion(ctx, rt.Manager.ParserOptions().RegoVersion, paths, removed, rt.Store, rt.Params.Filter, rt.Params.BundleMode, func(ctx context.Context, txn storage.Transaction, loaded *initload.LoadPathsResult) error {
 		_, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
-			Store:     rt.Store,
-			Txn:       txn,
-			Files:     loaded.Files,
-			Bundles:   loaded.Bundles,
-			MaxErrors: -1,
+			Store:         rt.Store,
+			Txn:           txn,
+			Files:         loaded.Files,
+			Bundles:       loaded.Bundles,
+			MaxErrors:     -1,
+			ParserOptions: rt.Manager.ParserOptions(),
 		})
 
 		return err

@@ -23,6 +23,7 @@ import (
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/oci"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -77,6 +78,12 @@ func (d *OCIDownloader) WithSizeLimitBytes(n int64) *OCIDownloader {
 // WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
 func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	d.persist = persist
+	return d
+}
+
+// WithBundleParserOpts specifies the parser options to use when parsing downloaded bundles.
+func (d *OCIDownloader) WithBundleParserOpts(opts ast.ParserOptions) *OCIDownloader {
+	d.bundleParserOpts = opts
 	return d
 }
 
@@ -256,7 +263,8 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
-		WithBundleEtag(etag)
+		WithBundleEtag(etag).
+		WithRegoVersion(d.bundleParserOpts.RegoVersion)
 	bundleInfo, err := reader.Read()
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)

@@ -7,6 +7,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/open-policy-agent/opa/dependencies"
@@ -24,6 +25,14 @@ type depsCommandParams struct {
 	outputFormat *util.EnumFlag
 	ignore       []string
 	bundlePaths  repeatedStringFlag
+	v1Compatible bool
+}
+
+func (p *depsCommandParams) regoVersion() ast.RegoVersion {
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
 }
 
 const (
@@ -31,13 +40,19 @@ const (
 	depsFormatJSON   = "json"
 )
 
-func init() {
-
+func newDepsCommandParams() depsCommandParams {
 	var params depsCommandParams
 
 	params.outputFormat = util.NewEnumFlag(depsFormatPretty, []string{
 		depsFormatPretty, depsFormatJSON,
 	})
+
+	return params
+}
+
+func init() {
+
+	params := newDepsCommandParams()
 
 	depsCommand := &cobra.Command{
 		Use:   "deps <query>",
@@ -81,7 +96,7 @@ data.policy.is_admin.
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := deps(args, params); err != nil {
+			if err := deps(args, params, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
@@ -92,11 +107,12 @@ data.policy.is_admin.
 	addDataFlag(depsCommand.Flags(), &params.dataPaths)
 	addBundleFlag(depsCommand.Flags(), &params.bundlePaths)
 	addOutputFormat(depsCommand.Flags(), params.outputFormat)
+	addV1CompatibleFlag(depsCommand.Flags(), &params.v1Compatible, false)
 
 	RootCommand.AddCommand(depsCommand)
 }
 
-func deps(args []string, params depsCommandParams) error {
+func deps(args []string, params depsCommandParams, w io.Writer) error {
 
 	query, err := ast.ParseBody(args[0])
 	if err != nil {
@@ -110,7 +126,9 @@ func deps(args []string, params depsCommandParams) error {
 			Ignore: params.ignore,
 		}
 
-		result, err := loader.NewFileLoader().Filtered(params.dataPaths.v, f.Apply)
+		result, err := loader.NewFileLoader().
+			WithRegoVersion(params.regoVersion()).
+			Filtered(params.dataPaths.v, f.Apply)
 		if err != nil {
 			return err
 		}
@@ -157,8 +175,8 @@ func deps(args []string, params depsCommandParams) error {
 
 	switch params.outputFormat.String() {
 	case depsFormatJSON:
-		return presentation.JSON(os.Stdout, output)
+		return presentation.JSON(w, output)
 	default:
-		return output.Pretty(os.Stdout)
+		return output.Pretty(w)
 	}
 }

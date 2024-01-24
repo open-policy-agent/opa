@@ -28,6 +28,7 @@ type InsertAndCompileOptions struct {
 	Bundles               map[string]*bundle.Bundle
 	MaxErrors             int
 	EnablePrintStatements bool
+	ParserOptions         ast.ParserOptions
 }
 
 // InsertAndCompileResult contains the output of the operation.
@@ -58,13 +59,14 @@ func InsertAndCompile(ctx context.Context, opts InsertAndCompileOptions) (*Inser
 	m := metrics.New()
 
 	activation := &bundle.ActivateOpts{
-		Ctx:          ctx,
-		Store:        opts.Store,
-		Txn:          opts.Txn,
-		Compiler:     compiler,
-		Metrics:      m,
-		Bundles:      opts.Bundles,
-		ExtraModules: policies,
+		Ctx:           ctx,
+		Store:         opts.Store,
+		Txn:           opts.Txn,
+		Compiler:      compiler,
+		Metrics:       m,
+		Bundles:       opts.Bundles,
+		ExtraModules:  policies,
+		ParserOptions: opts.ParserOptions,
 	}
 
 	err := bundle.Activate(activation)

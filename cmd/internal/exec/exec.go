@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/sdk"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -30,6 +31,8 @@ type Params struct {
 	Fail                bool           // exits with non-zero exit code on undefined policy decision or empty policy decision result or other errors
 	FailDefined         bool           // exits with non-zero exit code on 'not undefined policy decisiondefined' or 'not empty policy decision result' or other errors
 	FailNonEmpty        bool           // exits with non-zero exit code on non-empty set (array) results
+	V1Compatible        bool           // use OPA 1.0 compatibility mode
+	Logger              logging.Logger // Logger override. If set to nil, the default logger is used.
 }
 
 func NewParams(w io.Writer) *Params {

@@ -18,6 +18,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -59,9 +60,10 @@ func Ready(ch chan struct{}) func(*Server) error {
 
 // Server provides a mock HTTP server for testing the SDK and integrations.
 type Server struct {
-	server  *httptest.Server
-	ready   chan struct{}
-	bundles map[string]map[string]string
+	server     *httptest.Server
+	ready      chan struct{}
+	bundles    map[string]map[string]string
+	rawBundles bool
 }
 
 // MustNewServer returns a new Server for test purposes or panics if an error occurs.
@@ -89,6 +91,13 @@ func NewServer(opts ...func(*Server) error) (*Server, error) {
 	}
 	s.server = httptest.NewServer(http.HandlerFunc(s.handle))
 	return s, nil
+}
+
+func RawBundles(raw bool) func(*Server) error {
+	return func(s *Server) error {
+		s.rawBundles = raw
+		return nil
+	}
 }
 
 // WithTestBundle adds a bundle to the server at the specified endpoint.
@@ -228,7 +237,11 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.URL.Path, "/bundles") {
-		s.handleBundles(w, r)
+		if s.rawBundles {
+			s.handleRawBundles(w, r)
+		} else {
+			s.handleBundles(w, r)
+		}
 		return
 	}
 
@@ -431,6 +444,25 @@ func (s *Server) handleBundles(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
+
+	// Write out the bundle
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, buf)
+}
+
+func (s *Server) handleRawBundles(w http.ResponseWriter, r *http.Request) {
+	// Return 404 if bundle path does not exist.
+	b, ok := s.bundles[r.URL.Path]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	files := make([][2]string, 0, len(b))
+	for url, str := range b {
+		files = append(files, [2]string{url, str})
+	}
+	buf := archive.MustWriteTarGz(files)
 
 	// Write out the bundle
 	w.WriteHeader(http.StatusOK)

@@ -353,7 +353,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
-			b, err := loadBundleFromDisk(p.bundlePersistPath, name, src)
+			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
 				p.status[name].SetError(err)
@@ -407,11 +407,12 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 		switch u.Scheme {
 		case "file":
 			return &fileLoader{
-				name:           name,
-				path:           u.Path,
-				bvc:            source.Signing,
-				sizeLimitBytes: source.SizeLimitBytes,
-				f:              p.oneShot,
+				name:             name,
+				path:             u.Path,
+				bvc:              source.Signing,
+				sizeLimitBytes:   source.SizeLimitBytes,
+				f:                p.oneShot,
+				bundleParserOpts: p.manager.ParserOptions(),
 			}
 		}
 	}
@@ -432,14 +433,17 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 			WithCallback(callback).
 			WithBundleVerificationConfig(source.Signing).
 			WithSizeLimitBytes(source.SizeLimitBytes).
-			WithBundlePersistence(p.persistBundle(name))
+			WithBundlePersistence(p.persistBundle(name)).
+			WithBundleParserOpts(p.manager.ParserOptions())
 	}
 	return download.New(conf, client, path).
 		WithCallback(callback).
 		WithBundleVerificationConfig(source.Signing).
 		WithSizeLimitBytes(source.SizeLimitBytes).
 		WithBundlePersistence(p.persistBundle(name)).
-		WithLazyLoadingMode(true).WithBundleName(name)
+		WithLazyLoadingMode(true).
+		WithBundleName(name).
+		WithBundleParserOpts(p.manager.ParserOptions())
 }
 
 func (p *Plugin) oneShot(ctx context.Context, name string, u download.Update) {
@@ -696,11 +700,11 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 	return bundleUtils.SaveBundleToDisk(path, raw)
 }
 
-func loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
+func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
 	if src != nil {
-		return bundleUtils.LoadBundleFromDisk(path, name, src.Signing)
+		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, src.Signing)
 	}
-	return bundleUtils.LoadBundleFromDisk(path, name, nil)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {
@@ -720,11 +724,12 @@ func (p *Plugin) getBundlePersistPath() (string, error) {
 }
 
 type fileLoader struct {
-	name           string
-	path           string
-	bvc            *bundle.VerificationConfig
-	sizeLimitBytes int64
-	f              func(context.Context, string, download.Update)
+	name             string
+	path             string
+	bvc              *bundle.VerificationConfig
+	sizeLimitBytes   int64
+	f                func(context.Context, string, download.Update)
+	bundleParserOpts ast.ParserOptions
 }
 
 func (fl *fileLoader) Start(ctx context.Context) {
@@ -779,7 +784,9 @@ func (fl *fileLoader) oneShot(ctx context.Context) {
 	b, err := reader.
 		WithMetrics(u.Metrics).
 		WithBundleVerificationConfig(fl.bvc).
-		WithSizeLimitBytes(fl.sizeLimitBytes).Read()
+		WithSizeLimitBytes(fl.sizeLimitBytes).
+		WithRegoVersion(fl.bundleParserOpts.RegoVersion).
+		Read()
 	u.Error = err
 	if err == nil {
 		u.Bundle = &b

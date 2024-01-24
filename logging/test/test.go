@@ -19,7 +19,7 @@ type Logger struct {
 	level   logging.Level
 	fields  map[string]interface{}
 	entries *[]LogEntry
-	mtx     sync.Mutex
+	mtx     *sync.Mutex
 }
 
 // New instantiates new Logger.
@@ -27,6 +27,7 @@ func New() *Logger {
 	return &Logger{
 		level:   logging.Info,
 		entries: &[]LogEntry{},
+		mtx:     &sync.Mutex{},
 	}
 }
 
@@ -39,6 +40,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) logging.Logger {
 		level:   l.level,
 		entries: l.entries,
 		fields:  l.fields,
+		mtx:     l.mtx,
 	}
 	flds := make(map[string]interface{})
 	for k, v := range cp.fields {

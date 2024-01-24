@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -65,6 +66,7 @@ type Downloader struct {
 	longPollingEnabled bool
 	lazyLoadingMode    bool
 	bundleName         string
+	bundleParserOpts   ast.ParserOptions
 }
 
 type downloaderResponse struct {
@@ -131,6 +133,12 @@ func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
 // WithBundleName specifies the name of the downloaded bundle.
 func (d *Downloader) WithBundleName(bundleName string) *Downloader {
 	d.bundleName = bundleName
+	return d
+}
+
+// WithBundleParserOpts specifies the parser options to use when parsing downloaded bundles.
+func (d *Downloader) WithBundleParserOpts(opts ast.ParserOptions) *Downloader {
+	d.bundleParserOpts = opts
 	return d
 }
 
@@ -335,6 +343,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			etag := resp.Header.Get("ETag")
 
 			reader := bundle.NewCustomReader(loader).
+				WithRegoVersion(d.bundleParserOpts.RegoVersion).
 				WithMetrics(m).
 				WithBundleVerificationConfig(d.bvc).
 				WithBundleEtag(etag).
