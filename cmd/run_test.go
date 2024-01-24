@@ -7,8 +7,11 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -146,6 +149,51 @@ func TestInitRuntimeVerifyNonBundle(t *testing.T) {
 	exp := "enable bundle mode (ie. --bundle) to verify bundle files or directories"
 	if err.Error() != exp {
 		t.Fatalf("expected error message %v but got %v", exp, err.Error())
+	}
+}
+
+func TestInitRuntimeCipherSuites(t *testing.T) {
+	testCases := []struct {
+		name            string
+		cipherSuites    []string
+		expErr          bool
+		expCipherSuites []uint16
+	}{
+		{"no cipher suites", []string{}, false, []uint16{}},
+		{"secure and insecure cipher suites", []string{"TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_RC4_128_SHA"}, false, []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, tls.TLS_RSA_WITH_RC4_128_SHA}},
+		{"invalid cipher suites", []string{"foo"}, true, []uint16{}},
+		{"tls 1.3 cipher suite", []string{"TLS_AES_128_GCM_SHA256"}, true, []uint16{}},
+		{"tls 1.2-1.3 cipher suite", []string{"TLS_RSA_WITH_AES_128_GCM_SHA256", "TLS_AES_128_GCM_SHA256"}, true, []uint16{}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			params := newTestRunParams()
+
+			if len(tc.cipherSuites) != 0 {
+				params.cipherSuites = tc.cipherSuites
+			}
+
+			rt, err := initRuntime(context.Background(), params, nil, false)
+			fmt.Println(err)
+
+			if !tc.expErr && err != nil {
+				t.Fatal("Unexpected error occurred:", err)
+			} else if tc.expErr && err == nil {
+				t.Fatal("Expected error but got nil")
+			} else if err == nil {
+				if len(tc.expCipherSuites) > 0 {
+					if !reflect.DeepEqual(*rt.Params.CipherSuites, tc.expCipherSuites) {
+						t.Fatalf("expected cipher suites %v but got %v", tc.expCipherSuites, *rt.Params.CipherSuites)
+					}
+				} else {
+					if rt.Params.CipherSuites != nil {
+						t.Fatal("expected no value defined for cipher suites")
+					}
+				}
+			}
+		})
 	}
 }
 

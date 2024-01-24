@@ -845,6 +845,17 @@ The --v1-compatible flag can be used to opt-in to OPA features and behaviors tha
 Current behaviors enabled by this flag include:
 - setting OPA's listening address to "localhost:8181" by default.
 
+The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
+cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):
+TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA,
+TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+See https://godoc.org/crypto/tls#pkg-constants for more information.
+
 
 ```
 opa run [flags]
@@ -885,6 +896,7 @@ opa run [flags]
       --tls-ca-cert-file string              set path of TLS CA cert file
       --tls-cert-file string                 set path of TLS certificate file
       --tls-cert-refresh-period duration     set certificate refresh period
+      --tls-cipher-suites strings            set list of enabled TLS 1.0–1.2 cipher suites (IANA)
       --tls-private-key-file string          set path of TLS private key file
       --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
       --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
