@@ -96,9 +96,12 @@ func TestServerSpan(t *testing.T) {
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 3),
 			attribute.String("http.target", "/v0/data"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
 		}
 
-		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
+		actual := attribute.NewSet(spans[0].Attributes...)
+		compareSpanAttributes(t, expected, actual)
+		spanAttributePresent(t, actual, "net.sock.peer.port")
 	})
 
 	t.Run("GET v1/data", func(t *testing.T) {
@@ -142,8 +145,11 @@ func TestServerSpan(t *testing.T) {
 			attribute.String("user_agent.original", "Go-http-client/1.1"),
 			attribute.Int("http.wrote_bytes", 67),
 			attribute.String("http.target", "/v1/data"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
 		}
-		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
+		actual := attribute.NewSet(spans[0].Attributes...)
+		compareSpanAttributes(t, expected, actual)
+		spanAttributePresent(t, actual, "net.sock.peer.port")
 	})
 }
 
@@ -663,5 +669,12 @@ func compareSpanAttributes(t *testing.T, expectedAttributes []attribute.KeyValue
 		if value != exp.Value {
 			t.Fatalf("Expected %q attribute to be %s but got %s", exp.Key, exp.Value.Emit(), value.Emit())
 		}
+	}
+}
+
+func spanAttributePresent(t *testing.T, spanAttributes attribute.Set, key string) {
+	t.Helper()
+	if _, ok := spanAttributes.Value(attribute.Key(key)); !ok {
+		t.Fatalf("Expected span attributes to contain %q key", key)
 	}
 }
