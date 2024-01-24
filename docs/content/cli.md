@@ -58,6 +58,7 @@ opa bench <query> [flags]
   -I, --stdin-input                    read input document from stdin
   -t, --target {rego,wasm}             set the runtime to exercise (default rego)
   -u, --unknowns stringArray           set paths to treat as unknown during partial evaluation (default [input])
+      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -405,6 +406,7 @@ opa deps <query> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for deps
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -612,6 +614,7 @@ opa exec <path> [<path> [...]] [flags]
       --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
       --set stringArray                      override config values on the command line (use commas to specify multiple values)
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
+      --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -699,6 +702,7 @@ opa inspect <path> [<path> [...]] [flags]
   -a, --annotations            list annotations
   -f, --format {json,pretty}   set output format (default pretty)
   -h, --help                   help for inspect
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -721,6 +725,7 @@ opa parse <path> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for parse
       --json-include string    include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
