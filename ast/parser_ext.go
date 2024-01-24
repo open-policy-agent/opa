@@ -477,7 +477,7 @@ func ParseModuleWithOpts(filename, input string, popts ParserOptions) (*Module, 
 	if err != nil {
 		return nil, err
 	}
-	return parseModule(filename, stmts, comments, popts.EffectiveRegoVersion())
+	return parseModule(filename, stmts, comments, popts.RegoVersion)
 }
 
 // ParseBody returns exactly one body.
@@ -626,7 +626,7 @@ func ParseStatementsWithOpts(filename, input string, popts ParserOptions) ([]Sta
 		WithCapabilities(popts.Capabilities).
 		WithSkipRules(popts.SkipRules).
 		WithJSONOptions(popts.JSONOptions).
-		WithRegoVersion(popts.EffectiveRegoVersion()).
+		WithRegoVersion(popts.RegoVersion).
 		withUnreleasedKeywords(popts.unreleasedKeywords)
 
 	stmts, comments, errs := parser.Parse()

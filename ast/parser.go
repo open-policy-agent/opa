@@ -122,19 +122,13 @@ type ParserOptions struct {
 	SkipRules         bool
 	JSONOptions       *astJSON.Options
 	// RegoVersion is the version of Rego to parse for.
-	// RegoV1Compatible additionally affects the Rego version. Use EffectiveRegoVersion to get the effective Rego version.
-	RegoVersion RegoVersion
-	// RegoV1Compatible is equivalent to setting RegoVersion to RegoV0CompatV1.
-	// RegoV1Compatible takes precedence, and if set to true, RegoVersion is ignored.
-	// Deprecated: use RegoVersion instead. Will be removed in a future version of OPA.
-	RegoV1Compatible   bool
+	RegoVersion        RegoVersion
 	unreleasedKeywords bool // TODO(sr): cleanup
 }
 
+// EffectiveRegoVersion returns the effective RegoVersion to use for parsing.
+// Deprecated: Use RegoVersion instead.
 func (po *ParserOptions) EffectiveRegoVersion() RegoVersion {
-	if po.RegoV1Compatible {
-		return RegoV0CompatV1
-	}
 	return po.RegoVersion
 }
 
@@ -291,7 +285,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 	allowedFutureKeywords := map[string]tokens.Token{}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.RegoVersion == RegoV1 {
 		// RegoV1 includes all future keywords in the default language definition
 		for k, v := range futureKeywords {
 			allowedFutureKeywords[k] = v
@@ -325,7 +319,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 
 	selected := map[string]tokens.Token{}
-	if p.po.AllFutureKeywords || p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.AllFutureKeywords || p.po.RegoVersion == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			selected[kw] = tok
 		}
@@ -346,7 +340,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 	}
 	p.s.s = p.s.s.WithKeywords(selected)
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.RegoVersion == RegoV1 {
 		for kw, tok := range allowedFutureKeywords {
 			p.s.s.AddKeyword(kw, tok)
 		}
@@ -2614,7 +2608,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	if p.po.EffectiveRegoVersion() == RegoV1 {
+	if p.po.RegoVersion == RegoV1 {
 		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
