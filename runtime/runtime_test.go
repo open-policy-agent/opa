@@ -490,9 +490,7 @@ p contains 1 if {
 					t.Fatal(err)
 				}
 
-				fmt.Println("starting server")
 				go rt.StartServer(ctx)
-				fmt.Println("server started")
 
 				if !test.Eventually(t, 5*time.Second, func() bool {
 					found := false
