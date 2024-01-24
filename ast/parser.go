@@ -122,7 +122,6 @@ type ParserOptions struct {
 	SkipRules         bool
 	JSONOptions       *astJSON.Options
 	// RegoVersion is the version of Rego to parse for.
-	// RegoV1Compatible additionally affects the Rego version.
 	RegoVersion        RegoVersion
 	unreleasedKeywords bool // TODO(sr): cleanup
 }
