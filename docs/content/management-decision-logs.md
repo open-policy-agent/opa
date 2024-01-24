@@ -148,14 +148,16 @@ resources, supply the following policy to OPA:
 ```ruby
 package system.log
 
-mask["/input/password"] {
-  # OPA provides the entire decision log event as input to the masking policy.
-  # Refer to the original input document under input.input.
-  input.input.resource == "user"
+import rego.v1
+
+mask contains "/input/password" if {
+	# OPA provides the entire decision log event as input to the masking policy.
+	# Refer to the original input document under input.input.
+	input.input.resource == "user"
 }
 
 # To mask certain fields unconditionally, omit the rule body.
-mask["/input/ssn"]
+mask contains "/input/ssn"
 ```
 
 When the masking policy generates one or more JSON Pointers, they will be erased
@@ -211,10 +213,11 @@ operations
 ```ruby
 package system.log
 
-mask[{"op": "upsert", "path": "/input/password", "value": x}] {
-  # conditionally upsert password if it existed in the original event
-  input.input.password
-  x := "**REDACTED**"
+import rego.v1
+
+mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"} if {
+	# conditionally upsert password if it existed in the original event
+	input.input.password
 }
 ```
 
@@ -224,10 +227,10 @@ the following rule format can be used.
 ```ruby
 package system.log
 
+import rego.v1
+
 # always upsert, no conditions in rule body
-mask[{"op": "upsert", "path": "/input/password", "value": x}] {
-  x := "**REDACTED**"
-}
+mask contains {"op": "upsert", "path": "/input/password", "value": "**REDACTED**"}
 ```
 
 The result of this mask operation on the decision log event produces
