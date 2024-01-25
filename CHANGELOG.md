@@ -3,7 +3,43 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.61.0
+
+### Fixes
+
+- Adding `--v1-compatible` flag to all previously unsupported  command line commands (#6521) ([#6520](https://github.com/open-policy-agent/opa/issues/6520)) authored by @johanfylling
+- Clean expired cache entries periodically ([#5320](https://github.com/open-policy-agent/opa/issues/5320)) authored by @rudrakhp reported by @lukyer
+- Don't load files in tarball exceeding `size_limit_bytes` ([#6514](https://github.com/open-policy-agent/opa/issues/6514)) authored by @anderseknert reported by @dolevf
+
+### Miscellaneous
+
+- Add dependency-management-data logo (#6543) (authored by @jamietanna)
+- Add documentation for new cache config parameters (#6518) (authored by @rudrakhp)
+- Allow TLS cipher suites to be set for the OPA server (authored by @ashutosh-narkar)
+- Prepare v0.61.0 development (#6502) (authored by @ashutosh-narkar)
+- Removing deprecated fields and functions related to rego-v1 compatibility (#6542) (authored by @johanfylling)
+- Update docker-authorization.md to use new plugin version (#6539) (authored by @denis-accesa)
+- Updated Rond links (#6524) (authored by @ugho16)
+- build(deps): bump aquasecurity/trivy-action from 0.16.0 to 0.16.1 (#6510) (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.11 to 1.7.12 (authored by @dependabot[bot])
+- build(deps): bump github.com/go-logr/logr from 1.3.0 to 1.4.0 (authored by @dependabot[bot])
+- build(deps): bump github.com/go-logr/logr from 1.4.0 to 1.4.1 (authored by @dependabot[bot])
+- build(deps): bump github.com/google/uuid from 1.5.0 to 1.6.0 (#6540) (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.60.1 to 1.61.0 (#6541) (authored by @dependabot[bot])
+- docs/website: add 's' to the word public_server (authored by @trungnguyen)
+- docs: Add a new debugging page (#6513) (authored by @charlieegan3)
+- docs: Correctly size integration logos (#6544) (authored by @charlieegan3)
+- docs: Fix issue in versioning docs for search (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update log masking policy examples to be Rego v1 compatible (authored by @ashutosh-narkar)
+- docs: Validate ecosystem keys (#6522) (authored by @charlieegan3)
+- docs: update version for non docs pages (authored by @charlieegan3)
+- linters+testdata: Reformat all yaml testcases for linting. (#6511) (authored by @philipaconrad)
+- make func newDescriptor and withCloser public (authored by @)
+- runtime/logging: actually do not panic when rctx is missing (authored by @srenatus)
+- runtime: Fixing `--v1-compatible` runtime REPL test (#6546) (authored by @johanfylling)
 
 ## 0.60.0
 
