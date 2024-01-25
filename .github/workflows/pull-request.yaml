@@ -150,7 +150,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check PR for changes to Wasm
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3
         id: changes
         with:
           filters: |
