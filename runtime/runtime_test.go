@@ -359,18 +359,22 @@ p contains 1 if {
 					t.Fatal(err)
 				}
 
-				if !test.Eventually(t, 5*time.Second, func() bool {
-					if tc.expErrs != nil {
-						return strings.Contains(output.String(), "# reload error")
+				if tc.expErrs != nil {
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						for _, expErr := range tc.expErrs {
+							if !strings.Contains(output.String(), expErr) {
+								return false
+							}
+						}
+						return true
+					}) {
+						t.Fatalf("Expected error(s):\n\n%v\n\ngot output:\n\n%s", tc.expErrs, output.String())
 					}
-					return strings.Contains(output.String(), "# reloaded files")
-				}) {
-					t.Fatal("Timed out waiting for watcher")
-				}
-
-				for _, expErr := range tc.expErrs {
-					if !strings.Contains(output.String(), expErr) {
-						t.Fatalf("Expected error:\n\n%v\n\ngot output:\n\n%s", expErr, output.String())
+				} else {
+					if !test.Eventually(t, 5*time.Second, func() bool {
+						return strings.Contains(output.String(), "# reloaded files")
+					}) {
+						t.Fatal("Timed out waiting for watcher")
 					}
 				}
 			})
