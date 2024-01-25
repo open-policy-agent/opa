@@ -5,41 +5,43 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.61.0
 
-### Fixes
+This release contains a mix of new features and bugfixes.
 
-- Adding `--v1-compatible` flag to all previously unsupported  command line commands (#6521) ([#6520](https://github.com/open-policy-agent/opa/issues/6520)) authored by @johanfylling
-- Clean expired cache entries periodically ([#5320](https://github.com/open-policy-agent/opa/issues/5320)) authored by @rudrakhp reported by @lukyer
+### Runtime, SDK
+
+- Adding `--v1-compatible` flag to all previously unsupported command line commands ([#6520](https://github.com/open-policy-agent/opa/issues/6520)) authored by @johanfylling
 - Don't load files in tarball exceeding `size_limit_bytes` ([#6514](https://github.com/open-policy-agent/opa/issues/6514)) authored by @anderseknert reported by @dolevf
+- Allow TLS cipher suites to be set for the OPA server ([#6537](https://github.com/open-policy-agent/opa/pull/6537)) authored by @ashutosh-narkar
+- Removing deprecated fields and functions related to rego-v1 compatibility ([#6542](https://github.com/open-policy-agent/opa/pull/6542)) authored by @johanfylling
+- linters+testdata: Reformat all yaml testcases for linting. ([#6511](https://github.com/open-policy-agent/opa/pull/6511)) authored by @philipaconrad
+- bundle: Make func newDescriptor and withCloser public ([#6517](https://github.com/open-policy-agent/opa/pull/6517)) authored by @antgubarev
+- runtime/logging: Do not panic when rctx is missing ([#6506](https://github.com/open-policy-agent/opa/pull/6506)) authored by @srenatus
+
+### Topdown
+
+- topdown: Clean expired `http.send` cache entries periodically ([#5320](https://github.com/open-policy-agent/opa/issues/5320)) authored by @rudrakhp reported by @lukyer
+
+### Docs
+
+- docs: Add dependency-management-data logo ([#6543](https://github.com/open-policy-agent/opa/pull/6543)) authored by @jamietanna
+- docs: Add documentation for new cache config parameters ([#6518](https://github.com/open-policy-agent/opa/pull/6518)) authored by @rudrakhp
+- docs: Update docker-authorization.md to use new plugin version ([#6539](https://github.com/open-policy-agent/opa/pull/6539)) authored by @denis-accesa
+- docs: Fix a typo in _index.md ([#6491](https://github.com/open-policy-agent/opa/pull/6491)) authored by @trungnguyen
+- docs: Updated Rond links ([#6524](https://github.com/open-policy-agent/opa/pull/6524)) authored by @ugho16
+- docs: Add a new debugging page ([#6513](https://github.com/open-policy-agent/opa/pull/6513)) authored by @charlieegan3
+- docs: Correctly size integration logos ([#6544](https://github.com/open-policy-agent/opa/pull/6544)) authored by @charlieegan3
+- docs: Update log masking policy examples to be Rego v1 compatible ([#6545](https://github.com/open-policy-agent/opa/pull/6545)) authored by @ashutosh-narkar
+- docs: Validate ecosystem keys ([#6522](https://github.com/open-policy-agent/opa/pull/6522)) authored by @charlieegan3
+- docs: Update version for non docs pages ([#6526](https://github.com/open-policy-agent/opa/pull/6526)) authored by @charlieegan3
 
 ### Miscellaneous
 
-- Add dependency-management-data logo (#6543) (authored by @jamietanna)
-- Add documentation for new cache config parameters (#6518) (authored by @rudrakhp)
-- Allow TLS cipher suites to be set for the OPA server (authored by @ashutosh-narkar)
-- Prepare v0.61.0 development (#6502) (authored by @ashutosh-narkar)
-- Removing deprecated fields and functions related to rego-v1 compatibility (#6542) (authored by @johanfylling)
-- Update docker-authorization.md to use new plugin version (#6539) (authored by @denis-accesa)
-- Updated Rond links (#6524) (authored by @ugho16)
-- build(deps): bump aquasecurity/trivy-action from 0.16.0 to 0.16.1 (#6510) (authored by @dependabot[bot])
-- build(deps): bump github.com/containerd/containerd from 1.7.11 to 1.7.12 (authored by @dependabot[bot])
-- build(deps): bump github.com/go-logr/logr from 1.3.0 to 1.4.0 (authored by @dependabot[bot])
-- build(deps): bump github.com/go-logr/logr from 1.4.0 to 1.4.1 (authored by @dependabot[bot])
-- build(deps): bump github.com/google/uuid from 1.5.0 to 1.6.0 (#6540) (authored by @dependabot[bot])
-- build(deps): bump github.com/prometheus/client_golang (authored by @dependabot[bot])
-- build(deps): bump google.golang.org/grpc from 1.60.1 to 1.61.0 (#6541) (authored by @dependabot[bot])
-- docs/website: add 's' to the word public_server (authored by @trungnguyen)
-- docs: Add a new debugging page (#6513) (authored by @charlieegan3)
-- docs: Correctly size integration logos (#6544) (authored by @charlieegan3)
-- docs: Fix issue in versioning docs for search (authored by @charlieegan3)
-- docs: Update generated CLI docs (authored by @)
-- docs: Update generated CLI docs (authored by @)
-- docs: Update log masking policy examples to be Rego v1 compatible (authored by @ashutosh-narkar)
-- docs: Validate ecosystem keys (#6522) (authored by @charlieegan3)
-- docs: update version for non docs pages (authored by @charlieegan3)
-- linters+testdata: Reformat all yaml testcases for linting. (#6511) (authored by @philipaconrad)
-- make func newDescriptor and withCloser public (authored by @)
-- runtime/logging: actually do not panic when rctx is missing (authored by @srenatus)
-- runtime: Fixing `--v1-compatible` runtime REPL test (#6546) (authored by @johanfylling)
+- Dependency updates, notably:
+  - bump github.com/containerd/containerd from 1.7.11 to 1.7.12
+  - bump github.com/go-logr/logr from 1.3.0 to 1.4.1
+  - bump github.com/google/uuid from 1.5.0 to 1.6.0
+  - bump github.com/prometheus/client_golang from v1.16.0 to v1.18.0
+  - bump google.golang.org/grpc from 1.60.1 to 1.61.0
 
 ## 0.60.0
 
