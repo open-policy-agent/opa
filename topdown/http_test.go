@@ -848,6 +848,16 @@ func TestHTTPSendRaiseError(t *testing.T) {
 
 	response := ast.MustInterfaceToValue(responseObj)
 
+	inputValidationErrObj := make(map[string]interface{})
+	inputValidationErrObj["code"] = HTTPSendInternalErr
+	inputValidationErrObj["message"] = fmt.Sprintf(`http.send({"url": "%s", "raise_error": false}): eval_type_error: http.send: operand 1 missing required request parameters(s): {"method"}`, baseURL)
+
+	responseObjInputValidationErr := make(map[string]interface{})
+	responseObjInputValidationErr["status_code"] = 0
+	responseObjInputValidationErr["error"] = inputValidationErrObj
+
+	responseObjInputValidation := ast.MustInterfaceToValue(responseObjInputValidationErr)
+
 	tests := []struct {
 		note         string
 		ruleTemplate string
@@ -887,12 +897,31 @@ func TestHTTPSendRaiseError(t *testing.T) {
 			response: internalErr.String(),
 		},
 		{
-			note: "http.send missing param (don't raise error,  check response)",
+			note: "http.send missing param (don't raise error, check response)",
 			ruleTemplate: `p = x {
 									r = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "raise_error": false, "force_cache": true})
 									x = r
 								}`,
 			response: response.String(),
+		},
+		{
+			note: "http.send missing required input param (don't raise error, check response)",
+			ruleTemplate: `p = x {
+									r = http.send({"url": "%URL%", "raise_error": false})
+									x = r
+								}`,
+			response: responseObjInputValidation.String(),
+		},
+		{
+			note: "http.send missing required input param (raise error, undefined response)",
+			ruleTemplate: `p = x {
+									r = http.send({"url": "%URL%", "raise_error": true})
+									x = r
+								}`,
+			response: &Error{
+				Code:    TypeErr,
+				Message: "eval_type_error: http.send: operand 1 missing required request parameters(s): {\"method\"}",
+			},
 		},
 	}
 
