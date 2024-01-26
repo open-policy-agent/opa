@@ -114,14 +114,24 @@ const (
 )
 
 func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-	req, err := validateHTTPRequestOperand(operands[0], 1)
+
+	obj, err := builtins.ObjectOperand(operands[0].Value, 1)
 	if err != nil {
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
 	}
 
-	raiseError, err := getRaiseErrorValue(req)
+	raiseError, err := getRaiseErrorValue(obj)
 	if err != nil {
 		return handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)
+	}
+
+	req, err := validateHTTPRequestOperand(operands[0], 1)
+	if err != nil {
+		if raiseError {
+			return handleHTTPSendErr(bctx, err)
+		}
+
+		return iter(generateRaiseErrorResult(handleBuiltinErr(ast.HTTPSend.Name, bctx.Location, err)))
 	}
 
 	result, err := getHTTPResponse(bctx, req)
@@ -130,24 +140,28 @@ func builtinHTTPSend(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 			return handleHTTPSendErr(bctx, err)
 		}
 
-		obj := ast.NewObject()
-		obj.Insert(ast.StringTerm("status_code"), ast.IntNumberTerm(0))
-
-		errObj := ast.NewObject()
-
-		switch err.(type) {
-		case *url.Error:
-			errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendNetworkErr))
-		default:
-			errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendInternalErr))
-		}
-
-		errObj.Insert(ast.StringTerm("message"), ast.StringTerm(err.Error()))
-		obj.Insert(ast.StringTerm("error"), ast.NewTerm(errObj))
-
-		result = ast.NewTerm(obj)
+		result = generateRaiseErrorResult(err)
 	}
 	return iter(result)
+}
+
+func generateRaiseErrorResult(err error) *ast.Term {
+	obj := ast.NewObject()
+	obj.Insert(ast.StringTerm("status_code"), ast.IntNumberTerm(0))
+
+	errObj := ast.NewObject()
+
+	switch err.(type) {
+	case *url.Error:
+		errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendNetworkErr))
+	default:
+		errObj.Insert(ast.StringTerm("code"), ast.StringTerm(HTTPSendInternalErr))
+	}
+
+	errObj.Insert(ast.StringTerm("message"), ast.StringTerm(err.Error()))
+	obj.Insert(ast.StringTerm("error"), ast.NewTerm(errObj))
+
+	return ast.NewTerm(obj)
 }
 
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
