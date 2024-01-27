@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	ib "github.com/open-policy-agent/opa/internal/bundle/inspect"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	iStrs "github.com/open-policy-agent/opa/internal/strings"
@@ -78,8 +79,11 @@ Example:
 You can provide exactly one OPA bundle or path to the 'inspect' command on the command-line. If you provide a path
 referring to a directory, the 'inspect' command will load that path as a bundle and summarize its structure and contents.
 `,
-		PreRunE: func(_ *cobra.Command, args []string) error {
-			return validateInspectParams(&params, args)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateInspectParams(&params, args); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			if err := doInspect(params, args[0], os.Stdout); err != nil {

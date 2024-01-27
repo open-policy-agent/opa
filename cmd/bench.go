@@ -29,6 +29,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/metrics"
@@ -90,7 +91,10 @@ To run benchmarks against a running OPA server to evaluate server overhead use t
 The optional "gobench" output format conforms to the Go Benchmark Data Format.
 `,
 
-		PreRunE: func(_ *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := env.CmdFlags.CheckEnvironmentVariables(cmd); err != nil {
+				return err
+			}
 			return validateEvalParams(&params.evalCommandParams, args)
 		},
 		Run: func(_ *cobra.Command, args []string) {

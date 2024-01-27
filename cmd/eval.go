@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -270,7 +271,10 @@ access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validateEvalParams(&params, args)
+			if err := validateEvalParams(&params, args); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 

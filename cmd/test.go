@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -506,7 +507,7 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
 recommended as some updates might cause them to be dropped by OPA.
 `,
-		PreRunE: func(Cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("specify at least one file")
 			}
@@ -516,7 +517,7 @@ recommended as some updates might cause them to be dropped by OPA.
 				testParams.verbose = true
 			}
 
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {

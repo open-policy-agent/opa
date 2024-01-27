@@ -15,6 +15,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	astJSON "github.com/open-policy-agent/opa/ast/json"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
@@ -47,11 +48,11 @@ var parseCommand = &cobra.Command{
 	Use:   "parse <path>",
 	Short: "Parse Rego source file",
 	Long:  `Parse Rego source file and print AST.`,
-	PreRunE: func(Cmd *cobra.Command, args []string) error {
+	PreRunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("no source file specified")
 		}
-		return nil
+		return env.CmdFlags.CheckEnvironmentVariables(cmd)
 	},
 	Run: func(_ *cobra.Command, args []string) {
 		os.Exit(parse(args, &configuredParseParams, os.Stdout, os.Stderr))

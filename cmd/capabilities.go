@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/spf13/cobra"
 )
 
@@ -69,6 +70,9 @@ Print the capabilities of a capabilities file
     }
 
 `,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
 		RunE: func(*cobra.Command, []string) error {
 			cs, err := doCapabilities(capabilitiesParams)
 			if err != nil {

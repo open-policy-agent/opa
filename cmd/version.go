@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/report"
 	"github.com/open-policy-agent/opa/internal/uuid"
 	"github.com/open-policy-agent/opa/version"
@@ -25,6 +26,9 @@ func init() {
 		Use:   "version",
 		Short: "Print the version of OPA",
 		Long:  "Show version and build information for OPA.",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			generateCmdOutput(os.Stdout, check)
 		},

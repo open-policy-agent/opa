@@ -15,6 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
@@ -194,7 +195,9 @@ TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1
 
 See https://godoc.org/crypto/tls#pkg-constants for more information.
 `,
-
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			addrSetByUser := cmd.Flags().Changed("addr")
