@@ -1,5 +1,5 @@
 ---
-title: OPA Wasm dotnet core SDK
+title: OPA Wasm .NET core SDK
 software:
 - csharp
 inventors:
