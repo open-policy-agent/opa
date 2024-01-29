@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/internal/oracle"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
@@ -76,8 +77,10 @@ by the input location.`,
 			if len(args) != 1 {
 				return errors.New("expected exactly one position <filename>:<offset>")
 			}
-			_, _, err := parseFilenameOffset(args[0])
-			return err
+			if _, _, err := parseFilenameOffset(args[0]); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := dofindDefinition(findDefinitionParams, os.Stdin, os.Stdout, args); err != nil {

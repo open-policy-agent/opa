@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/util"
@@ -219,7 +220,7 @@ against OPA v0.22.0:
 			if len(args) == 0 {
 				return fmt.Errorf("expected at least one path")
 			}
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(Cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := dobuild(buildParams, args); err != nil {

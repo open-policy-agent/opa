@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -130,8 +131,11 @@ a JSON file containing optional claims.
 For more information on the format of the ".signatures.json" file see
 https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format.
 `,
-		PreRunE: func(Cmd *cobra.Command, args []string) error {
-			return validateSignParams(args, cmdParams)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateSignParams(args, cmdParams); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {

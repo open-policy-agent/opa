@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
@@ -158,11 +159,11 @@ func init() {
 	is produced. If the parsing or compiling fails, 'check' will output the errors
 	and exit with a non-zero exit code.`,
 
-		PreRunE: func(_ *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("specify at least one file")
 			}
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
 		Run: func(_ *cobra.Command, args []string) {

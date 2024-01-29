@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 )
@@ -63,6 +64,9 @@ to stdout from the 'fmt' command.
 
 If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
 code if a file would be reformatted.`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return env.CmdFlags.CheckEnvironmentVariables(cmd)
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(opaFmt(args))
 	},

@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -93,7 +94,7 @@ data.policy.is_admin.
 			if len(args) != 1 {
 				return errors.New("specify exactly one query argument")
 			}
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := deps(args, params, os.Stdout); err != nil {
