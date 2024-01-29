@@ -65,7 +65,7 @@ TELEMETRY_URL ?= #Default empty
 
 BUILD_HOSTNAME := $(shell ./build/get-build-hostname.sh)
 
-RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bullseye
+RELEASE_BUILD_IMAGE := golang:$(GOVERSION)-bookworm
 
 RELEASE_DIR ?= _release/$(VERSION)
 
@@ -304,12 +304,9 @@ ci-build-darwin-arm64-static: ensure-release-dir
 	mv opa_darwin_arm64 $(RELEASE_DIR)/opa_darwin_arm64_static
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_darwin_arm64_static > opa_darwin_arm64_static.sha256
 
-# NOTE: This target expects to be run as root on some debian/ubuntu variant
-# that can install the `gcc-mingw-w64-x86-64` package via apt-get.
 .PHONY: ci-build-windows
 ci-build-windows: ensure-release-dir
-	build/ensure-windows-toolchain.sh
-	@$(MAKE) build GOOS=windows CC=x86_64-w64-mingw32-gcc
+	@$(MAKE) build GOOS=windows CC="zig cc -target x86_64-windows-gnu -lunwind"
 	mv opa_windows_$(GOARCH) $(RELEASE_DIR)/opa_windows_$(GOARCH).exe
 	cd $(RELEASE_DIR)/ && shasum -a 256 opa_windows_$(GOARCH).exe > opa_windows_$(GOARCH).exe.sha256
 

@@ -10,16 +10,16 @@ github.com/andreyvit/diff
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
+# github.com/bytecodealliance/wasmtime-go/v30 v30.0.0
 ## explicit; go 1.18
-github.com/bytecodealliance/wasmtime-go/v3
-github.com/bytecodealliance/wasmtime-go/v3/build/include
-github.com/bytecodealliance/wasmtime-go/v3/build/include/wasmtime
-github.com/bytecodealliance/wasmtime-go/v3/build/linux-aarch64
-github.com/bytecodealliance/wasmtime-go/v3/build/linux-x86_64
-github.com/bytecodealliance/wasmtime-go/v3/build/macos-aarch64
-github.com/bytecodealliance/wasmtime-go/v3/build/macos-x86_64
-github.com/bytecodealliance/wasmtime-go/v3/build/windows-x86_64
+github.com/bytecodealliance/wasmtime-go/v30
+github.com/bytecodealliance/wasmtime-go/v30/build/include
+github.com/bytecodealliance/wasmtime-go/v30/build/include/wasmtime
+github.com/bytecodealliance/wasmtime-go/v30/build/linux-aarch64
+github.com/bytecodealliance/wasmtime-go/v30/build/linux-x86_64
+github.com/bytecodealliance/wasmtime-go/v30/build/macos-aarch64
+github.com/bytecodealliance/wasmtime-go/v30/build/macos-x86_64
+github.com/bytecodealliance/wasmtime-go/v30/build/windows-x86_64
 # github.com/cenkalti/backoff/v4 v4.3.0
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
