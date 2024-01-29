@@ -149,7 +149,7 @@ jobs:
           arch: arm64
         - os: windows
           run: ubuntu-24.04
-          targets: ci-go-ci-build-windows
+          targets: ci-build-windows
           arch: amd64
         - os: darwin
           run: macos-13
@@ -171,7 +171,11 @@ jobs:
       uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
         go-version: ${{ steps.go_version.outputs.go_version }}
-      if: matrix.os == 'darwin'
+        if: matrix.os != 'linux'
+    - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+      with:
+        version: '0.15.2'
+      if: matrix.os == 'windows'
 
     - name: Download generated artifacts
       uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
