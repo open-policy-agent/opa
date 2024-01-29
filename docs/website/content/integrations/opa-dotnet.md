@@ -14,7 +14,7 @@ code:
 - https://www.nuget.org/packages/OpaDotNet.Wasm/
 docs_features:
   wasm-integration:
-    note: 'This project implements Open Policy Agent (OPA) WebAssembly dotnet core SDK.'
+    note: 'This project implements Open Policy Agent (OPA) WebAssembly .NET core SDK.'
 ---
-Open Policy Agent (OPA) WebAssembly dotnet core SDK
+Open Policy Agent (OPA) WebAssembly .NET core SDK
 

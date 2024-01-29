@@ -10,5 +10,5 @@ code:
 inventors:
 - andriikurochka
 ---
-Open Policy Agent (OPA) ASP.NET Core authorization infrastructure
+Open Policy Agent (OPA) ASP.NET core authorization infrastructure
 
