@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v17"
 
 	"github.com/open-policy-agent/opa/ast"
 	sdk_errors "github.com/open-policy-agent/opa/internal/wasm/sdk/opa/errors"
@@ -94,11 +94,11 @@ func newVM(opts vmOpts, engine *wasmtime.Engine) (*VM, error) {
 	v.dispatcher = newBuiltinDispatcher()
 	externs := opaFunctions(v.dispatcher, store)
 	for name, extern := range externs {
-		if err := linker.Define("env", name, extern); err != nil {
+		if err := linker.Define(store, "env", name, extern); err != nil {
 			return nil, fmt.Errorf("linker: env.%s: %w", name, err)
 		}
 	}
-	if err := linker.Define("env", "memory", memory); err != nil {
+	if err := linker.Define(store, "env", "memory", memory); err != nil {
 		return nil, fmt.Errorf("linker: env.memory: %w", err)
 	}
 

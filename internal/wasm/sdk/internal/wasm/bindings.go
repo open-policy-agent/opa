@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"time"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v17"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
