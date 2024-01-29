@@ -8,7 +8,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/agnivade/levenshtein v1.2.1
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
+	github.com/bytecodealliance/wasmtime-go/v29 v29.0.0
 	github.com/containerd/containerd v1.7.25
 	github.com/containerd/errdefs v1.0.0
 	github.com/dgraph-io/badger/v4 v4.5.1
