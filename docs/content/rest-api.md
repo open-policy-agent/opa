@@ -34,7 +34,7 @@ to build on OPA by embedding functionality directly into your application.
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
-The identifiers given to policy modules are only used for management purposes. They are not used outside of the Policy API.
+The identifiers given to policy modules are only used for management purposes. They are not used outside the Policy API.
 
 ### List Policies
 
@@ -405,7 +405,7 @@ Get a policy module.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -645,7 +645,7 @@ If the policy module does not exist, it is created. If the policy module already
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
@@ -704,7 +704,7 @@ Delete a policy module.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
@@ -848,13 +848,13 @@ The request body contains an object that specifies a value for [The input Docume
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 - **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
 - **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **provenance** - If parameter is `true`, response will include build/version info in addition to the result.  See [Provenance](#provenance) for more detail.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -964,20 +964,20 @@ Get a document from a webhook.
 Use this API if you are enforcing policy decisions via webhooks that have pre-defined
 request/response formats. Note, the API path prefix is `/v0` instead of `/v1`.
 
-The request message body defines the content of the [The input
-Document](../philosophy/#the-opa-document-model). The request message body
+The request message body defines the content of the [input
+document](../philosophy/#the-opa-document-model). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 - **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
 - **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1035,7 +1035,7 @@ Content-Type: application/json
 
 Create or overwrite a document.
 
-If the path does not refer to an existing document, the server will attempt to create all of the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
+If the path does not refer to an existing document, the server will attempt to create all the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
 
 The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not overwrite an existing document located at the path.
 
@@ -1176,11 +1176,11 @@ entirely.
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1248,7 +1248,7 @@ GET /v1/query
 #### Query Parameters
 
 - **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used.
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
@@ -1341,7 +1341,7 @@ Compile API requests contain the following fields:
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -1660,7 +1660,7 @@ is defined under package `system.health`.
 > The "liveness" and "readiness" check convention comes from
 > [Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 > but they are just conventions. You can implement your own check endpoints
-> under the `system.health` package as needed. Any rules implemented inside of
+> under the `system.health` package as needed. Any rules implemented inside
 > `system.health` will be exposed at `/health/<rule-name>`.
 
 #### Policy Examples
@@ -1774,7 +1774,7 @@ GET /v1/config HTTP/1.1
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1840,7 +1840,7 @@ GET /v1/status HTTP/1.1
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1924,7 +1924,7 @@ admin.
 
 ## Errors
 
-All of the API endpoints use standard HTTP status codes to indicate success or
+All the API endpoints use standard HTTP status codes to indicate success or
 failure of an API call. If an API call fails, the response will contain a JSON
 encoded object that provides more detail. The `errors` and `location` fields are
 optional:
