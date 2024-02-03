@@ -745,7 +745,7 @@ GET /v1/data/{path:.+}
 
 Get a document.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
 #### Query Parameters
 
@@ -842,7 +842,7 @@ Content-Type: application/json
 
 Get a document that requires input.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
 The request body contains an object that specifies a value for [The input Document](../philosophy/#the-opa-document-model).
 
@@ -1086,9 +1086,9 @@ Content-Type: application/json-patch+json
 
 Update a document.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
-
 The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
+
+The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
 #### Status Codes
 
@@ -1096,8 +1096,6 @@ The server accepts updates encoded as JSON Patch operations. The message body of
 - **400** - bad request
 - **404** - not found
 - **500** - server error
-
-The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
 #### Example Request
 
