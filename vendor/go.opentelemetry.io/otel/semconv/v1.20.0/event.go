@@ -14,7 +14,7 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.17.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.20.0"
 
 import "go.opentelemetry.io/otel/attribute"
 
