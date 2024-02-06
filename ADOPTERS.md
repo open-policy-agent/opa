@@ -80,6 +80,9 @@ production users that have added themselves (in alphabetical order):
   changes before they're deployed to production, and produce audit trails to eliminate
   manual work and accelerate audit processes like SOC and ISO.
 
+* [Elastic](https://www.elastic.co/) uses OPA in its Cloud Security offering to enable CSPM and KSPM solutions, helping customers adhere to best practices
+  defined in CIS benchmarks by tracking misconfigurations on AWS, GCP and Azure. the code is Open Source, see [Security Policies](https://github.com/elastic/cloudbeat/tree/main/security-policies).
+
 * [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
   accounts and generate compliance reports and notifications.
