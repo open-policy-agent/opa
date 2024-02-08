@@ -30,7 +30,7 @@ jobs:
             capabilities.json
 
   go-build:
-    name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }})
+    name: Go Build (${{ matrix.os }}${{ matrix.arch && format(' {0}', matrix.arch) || '' }}${{ matrix.go_tags }})
     runs-on: ${{ matrix.run }}
     needs: generate
     strategy:
@@ -44,6 +44,11 @@ jobs:
           - os: linux
             run: ubuntu-22.04
             targets: ci-go-ci-build-linux-static
+            arch: arm64
+          - os: linux
+            run: ubuntu-22.04
+            targets: ci-go-ci-build-linux-static
+            go_tags: GO_TAGS="-tags=opa_no_oci"
             arch: arm64
           - os: windows
             run: ubuntu-22.04
@@ -71,7 +76,7 @@ jobs:
           name: generated
 
       - name: Build
-        run: make ${{ matrix.targets }}
+        run: make ${{ matrix.go_tags }} ${{ matrix.targets }}
         env:
           GOARCH: ${{ matrix.arch }}
         timeout-minutes: 30
