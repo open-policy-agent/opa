@@ -157,6 +157,34 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr,
 	return parsed, nil
 }
 
+func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]net.IP, error) {
+	var addrs []string
+	var err error
+	switch network {
+	case "ip":
+		addrs, err = r.LookupHost(ctx, host)
+	case "ip4":
+		_, addrs, err = r.lookupA(ctx, host)
+	case "ip6":
+		_, addrs, err = r.lookupAAAA(ctx, host)
+	default:
+		return nil, fmt.Errorf("unsupported network: %v", network)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addrs) == 0 {
+		return nil, notFound(host)
+	}
+
+	parsed := make([]net.IP, len(addrs))
+	for i, addr := range addrs {
+		parsed[i] = net.ParseIP(addr)
+	}
+	return parsed, nil
+}
+
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*net.MX, error) {
 	_, mx, err := r.lookupMX(ctx, name)
 	res := make([]*net.MX, len(mx))
