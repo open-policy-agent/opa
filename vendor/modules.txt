@@ -91,7 +91,7 @@ github.com/felixge/httpsnoop
 # github.com/fortytw2/leaktest v1.3.0
 ## explicit
 github.com/fortytw2/leaktest
-# github.com/foxcpp/go-mockdns v1.0.0
+# github.com/foxcpp/go-mockdns v1.1.0
 ## explicit; go 1.13
 github.com/foxcpp/go-mockdns
 # github.com/fsnotify/fsnotify v1.7.0
@@ -198,8 +198,8 @@ github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0
 ## explicit; go 1.19
 github.com/matttproud/golang_protobuf_extensions/v2/pbutil
-# github.com/miekg/dns v1.1.43
-## explicit; go 1.14
+# github.com/miekg/dns v1.1.57
+## explicit; go 1.19
 github.com/miekg/dns
 # github.com/mitchellh/mapstructure v1.5.0
 ## explicit; go 1.14
@@ -400,6 +400,9 @@ golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
 golang.org/x/exp/slog/internal/buffer
+# golang.org/x/mod v0.14.0
+## explicit; go 1.18
+golang.org/x/mod/semver
 # golang.org/x/net v0.19.0
 ## explicit; go 1.18
 golang.org/x/net/bpf
@@ -420,6 +423,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.15.0
 ## explicit; go 1.18
+golang.org/x/sys/execabs
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
@@ -438,6 +442,24 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.5.0
 ## explicit; go 1.18
 golang.org/x/time/rate
+# golang.org/x/tools v0.15.0
+## explicit; go 1.18
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/internal/packagesdriver
+golang.org/x/tools/go/packages
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/event/tag
+golang.org/x/tools/internal/gcimporter
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/packagesinternal
+golang.org/x/tools/internal/pkgbits
+golang.org/x/tools/internal/tokeninternal
+golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/typesinternal
 # google.golang.org/genproto/googleapis/api v0.0.0-20231106174013-bbf56f31fb17
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api/httpbody
