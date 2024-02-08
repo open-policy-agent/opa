@@ -4,6 +4,8 @@ package download
 
 import (
 	"context"
+
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
@@ -49,5 +51,9 @@ func (d *OCIDownloader) Start(context.Context) {
 }
 
 func (d *OCIDownloader) Stop(context.Context) {
+	panic("built without OCI support")
+}
+
+func (*OCIDownloader) WithBundleParserOpts(ast.ParserOptions) *OCIDownloader {
 	panic("built without OCI support")
 }
