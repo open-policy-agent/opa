@@ -276,7 +276,6 @@ p contains 3 if {
 					test.WithTempFS(files, func(root string) {
 						p := root
 						if bundleType.tar {
-							p = filepath.Join(root, "bundle.tar.gz")
 							b := bundle.Bundle{
 								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
 								Data:     map[string]interface{}{},
