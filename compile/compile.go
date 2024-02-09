@@ -468,6 +468,9 @@ func (c *Compiler) initBundle() error {
 			return fmt.Errorf("bundle merge failed: %v", err)
 		}
 
+		// We respect the bundle rego-version, defaulting to the compiler rego version if not set.
+		result.SetRegoVersion(result.RegoVersion(c.regoVersion))
+
 		c.bundle = result
 		return nil
 	}
@@ -476,6 +479,7 @@ func (c *Compiler) initBundle() error {
 	// contents. That would require changes to the loader to preserve the
 	// locations where base documents were mounted under data.
 	result := &bundle.Bundle{}
+	result.SetRegoVersion(c.regoVersion)
 	if len(c.roots) > 0 {
 		result.Manifest.Roots = &c.roots
 	}

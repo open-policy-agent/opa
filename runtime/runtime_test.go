@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/open-policy-agent/opa/internal/report"
@@ -879,6 +880,188 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 					params.GracefulShutdownPeriod = 1
 					params.Logger = logging.NewNoOpLogger()
 					params.V1Compatible = tc.v1Compatible
+
+					rt, err := NewRuntime(ctx, params)
+
+					if tc.expErr != "" {
+						if err == nil {
+							t.Fatal("Expected error but got nil")
+						}
+						if !strings.Contains(err.Error(), tc.expErr) {
+							t.Fatalf("Expected error:\n\n%v\n\ngot:\n\n%v", tc.expErr, err.Error())
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error %v", err)
+						}
+
+						initChannel := rt.Manager.ServerInitializedChannel()
+						done := make(chan struct{})
+						go func() {
+							rt.StartServer(ctx)
+							close(done)
+						}()
+						<-done
+						select {
+						case <-initChannel:
+							return
+						default:
+							t.Fatal("expected ServerInitializedChannel to be closed")
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
+func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		module            string
+		expErr            string
+	}{
+		{
+			note:              "v0.x bundle, keywords not imported",
+			bundleRegoVersion: 0,
+			module: `package test
+				p if {
+					input.x == 1
+				}
+				`,
+			expErr: "rego_parse_error: var cannot be used for rule name",
+		},
+		{
+			note:              "v0.x bundle, rego.v1 imported",
+			bundleRegoVersion: 0,
+			module: `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v0.x bundle, future.keywords imported",
+			bundleRegoVersion: 0,
+			module: `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v0.x bundle, no keywords used",
+			bundleRegoVersion: 0,
+			module: `package test
+				p {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v1.0 bundle, keywords not imported",
+			bundleRegoVersion: 1,
+			module: `package test
+				p if {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v1.0 bundle, rego.v1 imported",
+			bundleRegoVersion: 1,
+			module: `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v1.0 bundle, future.keywords imported",
+			bundleRegoVersion: 1,
+			module: `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+		},
+		{
+			note:              "v1.0 bundle, no keywords used",
+			bundleRegoVersion: 1,
+			module: `package test
+				p {
+					input.x == 1
+				}
+				`,
+			expErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s, %s", bundleType.note, tc.note), func(t *testing.T) {
+				files := map[string]string{}
+				if bundleType.tar {
+					files["bundle.tar.gz"] = ""
+				} else {
+					files["test.rego"] = tc.module
+					files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+				}
+
+				test.WithTempFS(files, func(root string) {
+					p := root
+					if bundleType.tar {
+						p = filepath.Join(root, "bundle.tar.gz")
+						b := bundle.Bundle{
+							Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
+							Data:     map[string]interface{}{},
+							Modules: []bundle.ModuleFile{
+								{
+									Path: "test.rego",
+									Raw:  []byte(tc.module),
+								},
+							},
+						}
+						p = filepath.Join(root, "bundle.tar.gz")
+						f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+						err = bundle.Write(f, b)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+					}
+
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					defer cancel()
+					var output bytes.Buffer
+
+					params := NewParams()
+					params.Output = &output
+					params.Paths = []string{p}
+					params.BundleMode = true
+					params.Addrs = &[]string{"localhost:0"}
+					params.GracefulShutdownPeriod = 1
+					params.Logger = logging.NewNoOpLogger()
+					//params.V1Compatible = tc.v1Compatible
 
 					rt, err := NewRuntime(ctx, params)
 

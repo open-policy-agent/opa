@@ -63,7 +63,7 @@ func TestBuildProducesBundle(t *testing.T) {
 			} else if err != nil {
 				t.Fatal(err)
 			}
-			if f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
+			if f.Name == "/.manifest" || f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
 				continue
 			}
 			t.Fatal("unexpected file:", f.Name)
@@ -382,7 +382,7 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 			switch {
 			case f.Name == "/plan.json":
 				found = true
-			case f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego"): // expected
+			case f.Name == "/.manifest" || f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego"): // expected
 			default:
 				t.Errorf("unexpected file: %s", f.Name)
 			}
@@ -646,6 +646,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -678,6 +679,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -729,6 +731,7 @@ bar := "baz"
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p3",
@@ -773,6 +776,7 @@ p := 1
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p",
@@ -812,6 +816,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -839,6 +844,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -970,7 +976,8 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 			files = append(files, filepath.Base(f.Name))
 		}
 
-		expected := 4
+		// We additionally expect a manifest file
+		expected := 5
 		if len(files) != expected {
 			t.Fatalf("expected %v files but got %v", expected, len(files))
 		}
@@ -1006,6 +1013,8 @@ func TestBuildWithV1CompatibleFlag(t *testing.T) {
 			},
 			// Imports are preserved
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
 				"test.rego": `package test
 
 import rego.v1
@@ -1027,6 +1036,8 @@ allow if {
 			},
 			// Imports are preserved
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
 				"test.rego": `package test
 
 import future.keywords.if
@@ -1048,6 +1059,8 @@ allow if {
 			},
 			// Imports are not added in
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1068,6 +1081,8 @@ allow if {
 			},
 			// the rego.v1 import is obsolete in rego-v1, and is removed
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1088,6 +1103,8 @@ allow if {
 			},
 			// future.keywords imports are obsolete in rego-v1, and are removed
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1095,6 +1112,17 @@ allow if {
 }
 `,
 			},
+		},
+		{
+			note:         "1.0 compatibility: missing keywords",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				allow[1] {
+					1 < 2
+				}`,
+			},
+			expectedErr: "rego_parse_error",
 		},
 	}
 
@@ -1142,6 +1170,7 @@ allow if {
 
 					tr := tar.NewReader(gr)
 
+					foundFiles := map[string]struct{}{}
 					for {
 						f, err := tr.Next()
 						if err == io.EOF {
@@ -1149,6 +1178,7 @@ allow if {
 						} else if err != nil {
 							t.Fatal(err)
 						}
+						foundFiles[path.Base(f.Name)] = struct{}{}
 						expectedFile := tc.expectedFiles[path.Base(f.Name)]
 						if expectedFile != "" {
 							data, err := io.ReadAll(tr)
@@ -1157,8 +1187,14 @@ allow if {
 							}
 							actualFile := string(data)
 							if actualFile != expectedFile {
-								t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+								t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
 							}
+						}
+					}
+
+					for expectedFile := range tc.expectedFiles {
+						if _, ok := foundFiles[expectedFile]; !ok {
+							t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
 						}
 					}
 				}
@@ -1186,6 +1222,8 @@ p[k] contains v if {
 `,
 			},
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1213,6 +1251,8 @@ p[k] contains v if {
 			// OPA 0.x is run with the --rego-v1 flag.
 			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1235,6 +1275,8 @@ p[k] contains v if {
 `,
 			},
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1272,6 +1314,7 @@ foo contains __local1__1 if {
 
 				tr := tar.NewReader(gr)
 
+				foundFiles := map[string]struct{}{}
 				for {
 					f, err := tr.Next()
 					if err == io.EOF {
@@ -1279,6 +1322,7 @@ foo contains __local1__1 if {
 					} else if err != nil {
 						t.Fatal(err)
 					}
+					foundFiles[f.Name] = struct{}{}
 					expectedFile := tc.expectedFiles[f.Name]
 					if expectedFile != "" {
 						data, err := io.ReadAll(tr)
@@ -1287,8 +1331,14 @@ foo contains __local1__1 if {
 						}
 						actualFile := string(data)
 						if actualFile != expectedFile {
-							t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+							t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
 						}
+					}
+				}
+
+				for expectedFile := range tc.expectedFiles {
+					if _, ok := foundFiles[expectedFile]; !ok {
+						t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
 					}
 				}
 			})

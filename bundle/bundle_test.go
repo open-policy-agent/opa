@@ -51,6 +51,10 @@ func TestManifestEqual(t *testing.T) {
 		}
 	}
 
+	pointTo := func(x int) *int {
+		return &x
+	}
+
 	assertEqual()
 
 	n.Revision = "xxx"
@@ -80,6 +84,64 @@ func TestManifestEqual(t *testing.T) {
 		"foo": "bar",
 	}
 	assertEqual()
+
+	n.RegoVersion = pointTo(1)
+	assertNotEqual()
+
+	m.RegoVersion = pointTo(0)
+	assertNotEqual()
+
+	m.RegoVersion = pointTo(1)
+	assertEqual()
+}
+
+func TestBundleRegoVersion(t *testing.T) {
+	b := Bundle{}
+
+	if b.Manifest.RegoVersion != nil {
+		t.Fatal("expected nil")
+	}
+
+	// No rego-version set, expect default
+	if b.RegoVersion(ast.RegoV0) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+
+	// Set rego-version to v0
+	b.SetRegoVersion(ast.RegoV0)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 0 {
+		t.Fatal("expected v0")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
+
+	// Set rego-version to v1
+	b.SetRegoVersion(ast.RegoV1)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 1 {
+		t.Fatal("expected v1")
+	}
+
+	if b.RegoVersion(ast.RegoV0) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+
+	// Set rego-version to v0-compat1
+	b.SetRegoVersion(ast.RegoV0CompatV1)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 0 {
+		t.Fatal("expected v0")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
 }
 
 func TestRead(t *testing.T) {
@@ -1227,7 +1289,7 @@ func TestWriterSkipEmptyManifest(t *testing.T) {
 		}
 
 		if f.Name != "/data.json" {
-			t.Fatal("expected only /data.json but got:", f.Name)
+			t.Fatal("expected only /data.json and /.manifest but got:", f.Name)
 		}
 	}
 }

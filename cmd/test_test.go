@@ -1213,3 +1213,204 @@ test_l if {
 		}
 	}
 }
+
+func TestWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		module            string
+		expErr            string
+	}{
+		{
+			note:              "v0.x bundle, no imports",
+			bundleRegoVersion: 0,
+			module: `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			expErr: "rego_parse_error",
+		},
+		{
+			note:              "v0.x bundle, rego.v1 imported",
+			bundleRegoVersion: 0,
+			module: `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+		},
+		{
+			note:              "v0.x bundle, future.keywords imported",
+			bundleRegoVersion: 0,
+			module: `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+		},
+
+		{
+			note:              "v1.0 bundle, no imports",
+			bundleRegoVersion: 1,
+			module: `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+		},
+		{
+			note:              "v1.0 bundle, rego.v1 imported",
+			bundleRegoVersion: 1,
+			module: `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+		},
+		{
+			note:              "v1.0 bundle, future.keywords imported",
+			bundleRegoVersion: 1,
+			module: `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+		},
+	}
+
+	loadTypes := []loadType{loadBundle, loadTarball}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, loadType := range loadTypes {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+
+				t.Run(fmt.Sprintf("%s, %s, %s", loadType, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{}
+
+					if loadType == loadTarball {
+						files["bundle.tar.gz"] = ""
+					} else {
+						files["test.rego"] = tc.module
+						files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+					}
+
+					test.WithTempFS(files, func(root string) {
+						if loadType == loadTarball {
+							f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+							if err != nil {
+								t.Fatal(err)
+							}
+
+							testBundle := bundle.Bundle{
+								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
+								Data:     map[string]interface{}{},
+								Modules: []bundle.ModuleFile{
+									{
+										Path: "test.rego",
+										Raw:  []byte(tc.module),
+									},
+								},
+							}
+
+							if err := bundle.Write(f, testBundle); err != nil {
+								t.Fatal(err)
+							}
+						}
+
+						var buf bytes.Buffer
+						var errBuf bytes.Buffer
+
+						testParams := newTestCommandParams()
+						testParams.v1Compatible = v1CompatibleFlag.used
+						testParams.bundleMode = true
+						testParams.count = 1
+						testParams.output = &buf
+						testParams.errOutput = &errBuf
+
+						var paths []string
+						if loadType == loadTarball {
+							paths = []string{filepath.Join(root, "bundle.tar.gz")}
+						} else {
+							paths = []string{root}
+						}
+
+						exitCode, _ := opaTest(paths, testParams)
+						if tc.expErr != "" {
+							if exitCode == 0 {
+								t.Fatalf("expected non-zero exit code")
+							}
+
+							if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
+								t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", tc.expErr, actual)
+							}
+						} else {
+							if exitCode != 0 {
+								t.Fatalf("unexpected exit code: %d", exitCode)
+							}
+
+							if errBuf.Len() > 0 {
+								t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+							}
+
+							expected := "PASS: 1/1"
+							if actual := buf.String(); !strings.Contains(actual, expected) {
+								t.Fatalf("expected output to contain:\n\n%s\n\nbut got:\n\n%q", expected, actual)
+							}
+						}
+					})
+				})
+			}
+		}
+	}
+}

@@ -120,10 +120,17 @@ func NewFile(name, hash, alg string) FileInfo {
 // Manifest represents the manifest from a bundle. The manifest may contain
 // metadata such as the bundle revision.
 type Manifest struct {
-	Revision      string                 `json:"revision"`
-	Roots         *[]string              `json:"roots,omitempty"`
-	WasmResolvers []WasmResolver         `json:"wasm,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Revision      string         `json:"revision"`
+	Roots         *[]string      `json:"roots,omitempty"`
+	WasmResolvers []WasmResolver `json:"wasm,omitempty"`
+	// RegoVersion
+	// We don't use ast.RegoVersion here, as this iota type's order isn't guaranteed to be stable over time.
+	// We use a pointer so that we can support hand-made bundles that don't have an explicit version appropriately.
+	// E.g. in OPA 0.x if --v1-compatible is used when consuming the bundle, and there is no specified version,
+	// we should default to v1; if --v1-compatible isn't used, we should default to v0. In OPA 1.0, no --x-compatible
+	// flag and no explicit bundle version should default to v1.
+	RegoVersion *int                   `json:"rego_version,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // WasmResolver maps a wasm module to an entrypoint ref.
@@ -150,6 +157,15 @@ func (m *Manifest) AddRoot(r string) {
 	}
 }
 
+func (m *Manifest) SetRegoVersion(v ast.RegoVersion) {
+	m.Init()
+	regoVersion := 0
+	if v == ast.RegoV1 {
+		regoVersion = 1
+	}
+	m.RegoVersion = &regoVersion
+}
+
 // Equal returns true if m is semantically equivalent to other.
 func (m Manifest) Equal(other Manifest) bool {
 
@@ -158,6 +174,16 @@ func (m Manifest) Equal(other Manifest) bool {
 	other.Init()
 
 	if m.Revision != other.Revision {
+		return false
+	}
+
+	if m.RegoVersion == nil && other.RegoVersion != nil {
+		return false
+	}
+	if m.RegoVersion != nil && other.RegoVersion == nil {
+		return false
+	}
+	if m.RegoVersion != nil && other.RegoVersion != nil && *m.RegoVersion != *other.RegoVersion {
 		return false
 	}
 
@@ -197,7 +223,13 @@ func (m Manifest) Copy() Manifest {
 
 func (m Manifest) String() string {
 	m.Init()
-	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v, metadata: %+v>", m.Revision, *m.Roots, m.WasmResolvers, m.Metadata)
+	var v string
+	if m.RegoVersion != nil {
+		v = fmt.Sprintf(", rego_version: %d", *m.RegoVersion)
+	} else {
+		v = ""
+	}
+	return fmt.Sprintf("<revision: %q%s, roots: %v, wasm: %+v, metadata: %+v>", m.Revision, v, *m.Roots, m.WasmResolvers, m.Metadata)
 }
 
 func (m Manifest) rootSet() stringSet {
@@ -543,6 +575,7 @@ func (r *Reader) Read() (Bundle, error) {
 		bundle.Data = map[string]interface{}{}
 	}
 
+	var modules []ModuleFile
 	for _, f := range descriptors {
 		buf, err := readFile(f, r.sizeLimitBytes)
 		if err != nil {
@@ -583,20 +616,13 @@ func (r *Reader) Read() (Bundle, error) {
 				raw = append(raw, Raw{Path: p, Value: bs})
 			}
 
-			r.metrics.Timer(metrics.RegoModuleParse).Start()
-			module, err := ast.ParseModuleWithOpts(fullPath, buf.String(), r.ParserOptions())
-			r.metrics.Timer(metrics.RegoModuleParse).Stop()
-			if err != nil {
-				return bundle, err
-			}
-
+			// Modules are parsed after we've had a chance to read the manifest
 			mf := ModuleFile{
-				URL:    f.URL(),
-				Path:   fullPath,
-				Raw:    bs,
-				Parsed: module,
+				URL:  f.URL(),
+				Path: fullPath,
+				Raw:  bs,
 			}
-			bundle.Modules = append(bundle.Modules, mf)
+			modules = append(modules, mf)
 		} else if filepath.Base(path) == WasmFile {
 			bundle.WasmModules = append(bundle.WasmModules, WasmModuleFile{
 				URL:  f.URL(),
@@ -654,6 +680,19 @@ func (r *Reader) Read() (Bundle, error) {
 				return bundle, fmt.Errorf("bundle load failed on manifest decode: %w", err)
 			}
 		}
+	}
+
+	// Parse modules
+	popts := r.ParserOptions()
+	popts.RegoVersion = bundle.RegoVersion(popts.RegoVersion)
+	for _, mf := range modules {
+		r.metrics.Timer(metrics.RegoModuleParse).Start()
+		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), popts)
+		r.metrics.Timer(metrics.RegoModuleParse).Stop()
+		if err != nil {
+			return bundle, err
+		}
+		bundle.Modules = append(bundle.Modules, mf)
 	}
 
 	if bundle.Type() == DeltaBundleType {
@@ -1111,6 +1150,21 @@ func (b *Bundle) ParsedModules(bundleName string) map[string]*ast.Module {
 	return mods
 }
 
+func (b *Bundle) RegoVersion(def ast.RegoVersion) ast.RegoVersion {
+	if v := b.Manifest.RegoVersion; v != nil {
+		if *v == 0 {
+			return ast.RegoV0
+		} else if *v == 1 {
+			return ast.RegoV1
+		}
+	}
+	return def
+}
+
+func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
+	b.Manifest.SetRegoVersion(v)
+}
+
 // Equal returns true if this bundle's contents equal the other bundle's
 // contents.
 func (b Bundle) Equal(other Bundle) bool {
@@ -1296,6 +1350,13 @@ func Merge(bundles []*Bundle) (*Bundle, error) {
 		result.WasmModules = append(result.WasmModules, b.WasmModules...)
 		result.PlanModules = append(result.PlanModules, b.PlanModules...)
 
+		if b.Manifest.RegoVersion != nil {
+			if result.Manifest.RegoVersion == nil {
+				result.Manifest.RegoVersion = b.Manifest.RegoVersion
+			} else if *result.Manifest.RegoVersion != *b.Manifest.RegoVersion {
+				return nil, fmt.Errorf("conflicting bundle rego versions: %v and %v", *result.Manifest.RegoVersion, *b.Manifest.RegoVersion)
+			}
+		}
 	}
 
 	if result.Data == nil {

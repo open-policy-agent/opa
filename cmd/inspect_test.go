@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/file/archive"
 
 	"github.com/open-policy-agent/opa/util"
@@ -690,6 +691,194 @@ p contains v if {
 				}
 			})
 		})
+	}
+}
+
+func TestDoInspectWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		module            string
+		expErrs           []string
+	}{
+		{
+			note:              "v0.x bundle, keywords not used",
+			bundleRegoVersion: 0,
+			module: `package test
+p[v] { 
+	v := input.x 
+}`,
+		},
+		{
+			note:              "v0.x bundle, no keywords imported, but used",
+			bundleRegoVersion: 0,
+			module: `package test
+p contains v if { 
+	v := input.x 
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note:              "v0.x bundle, keywords imported",
+			bundleRegoVersion: 0,
+			module: `package test
+import future.keywords
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:              "v0.x bundle, rego.v1 imported",
+			bundleRegoVersion: 0,
+			module: `package test
+import rego.v1
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:              "v1.0 bundle, keywords not used",
+			bundleRegoVersion: 1,
+			module: `package test
+p[v] { 
+	v := input.x 
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:              "v1.0 bundle, no keywords imported",
+			bundleRegoVersion: 1,
+			module: `package test
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:              "v1.0 bundle, keywords imported",
+			bundleRegoVersion: 1,
+			module: `package test
+import future.keywords
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:              "v1.0 bundle, rego.v1 imported",
+			bundleRegoVersion: 1,
+			module: `package test
+import rego.v1
+p contains v if { 
+	v := input.x 
+}`,
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{}
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						files["test.rego"] = tc.module
+						files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							b := bundle.Bundle{
+								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
+								Data:     map[string]interface{}{},
+								Modules: []bundle.ModuleFile{
+									{
+										Path: "test.rego",
+										Raw:  []byte(tc.module),
+									},
+								},
+							}
+							p = filepath.Join(root, "bundle.tar.gz")
+							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+							err = bundle.Write(f, b)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+						}
+
+						var out bytes.Buffer
+						params := newInspectCommandParams()
+						params.v1Compatible = v1CompatibleFlag.used
+						err := params.outputFormat.Set(evalPrettyOutput)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						err = doInspect(params, p, &out)
+
+						if len(tc.expErrs) > 0 {
+							if err == nil {
+								t.Fatalf("Expected error but got output: %s", out.String())
+							}
+
+							for _, expErr := range tc.expErrs {
+								if !strings.Contains(err.Error(), expErr) {
+									t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err.Error())
+								}
+							}
+						} else {
+							if err != nil {
+								t.Fatalf("Unexpected error %v", err)
+							}
+
+							expOut := fmt.Sprintf(`MANIFEST:
++--------------+-------+
+|    FIELD     | VALUE |
++--------------+-------+
+| Rego Version | %d     |
++--------------+-------+`,
+								tc.bundleRegoVersion)
+							if !strings.Contains(out.String(), expOut) {
+								t.Fatalf("Expected output to contain:\n\n%s\n\nbut got:\n\n%s", expOut, out.String())
+							}
+						}
+					})
+				})
+			}
+		}
 	}
 }
 

@@ -1064,6 +1064,127 @@ bundles.authz.service := v if {
 	}
 }
 
+func TestLoadAndActivateBundleFromDiskWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		bundle            string
+	}{
+		{
+			note:              "v0.x",
+			bundleRegoVersion: 0,
+			bundle: `package config
+import future.keywords
+
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if { 
+	v := {"a": "b"}
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}
+`,
+		},
+		{
+			note:              "v1.0",
+			bundleRegoVersion: 1,
+			// no future.keywords import
+			bundle: `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if { 
+	v := {"a": "b"}
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			dir := t.TempDir()
+
+			manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config", "persist": true},
+	}`), "test-id",
+				inmem.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+			testFactory := testFactory{p: testPlugin}
+
+			disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+
+			disco.bundlePersistPath = filepath.Join(dir, ".opa")
+
+			ensurePluginState(t, disco, plugins.StateNotReady)
+
+			// persist a bundle to disk and then load it
+			initialBundle := makeModuleBundleWithRegoVersion(1, tc.bundle, tc.bundleRegoVersion)
+
+			initialBundle.Manifest.Init()
+
+			var buf bytes.Buffer
+			if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			err = disco.saveBundleToDisk(&buf)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			disco.loadAndActivateBundleFromDisk(ctx)
+
+			ensurePluginState(t, disco, plugins.StateOK)
+
+			// verify the test plugin was registered on the manager
+			if plugin := manager.Plugin("test_plugin"); plugin == nil {
+				t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+			}
+
+			// verify the test plugin was started
+			count, ok := testPlugin.counts["start"]
+			if !ok {
+				t.Fatal("expected test plugin to have start counter")
+			}
+
+			if count != 1 {
+				t.Fatalf("expected test plugin to have a start count of 1 but got %v", count)
+			}
+
+			// verify the bundle plugin was registered on the manager
+			if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
+				t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+			}
+		})
+	}
+}
+
 func TestSaveBundleToDiskNew(t *testing.T) {
 	dir := t.TempDir()
 
@@ -1361,6 +1482,147 @@ default_authorization_decision := "baz/qux"
 plugins.test_plugin := v if {
 	v := {"a": "plugin parameter value changed"}
 }`, popts)
+
+	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	// Verify label additions are always on top of bootstrap config with multiple discovery documents
+	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
+	}
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
+
+	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
+	}
+
+	regoV0Bundle := makeModuleBundleWithRegoVersion(2, `package config
+labels := v {
+	v := {"a": "zero"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"`, 0)
+
+	disco.oneShot(ctx, download.Update{Bundle: regoV0Bundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
+
+	expLabel := "zero"
+	actLabel := manager.Labels()["a"]
+	if actLabel != expLabel {
+		t.Errorf(`Expected label "a" to be: %v, got: %v`, expLabel, actLabel)
+	}
+
+	regoV1Bundle := makeModuleBundleWithRegoVersion(2, `package config
+labels := v if {
+	v := {"a": "one"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"`, 1)
+
+	disco.oneShot(ctx, download.Update{Bundle: regoV1Bundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
+
+	expLabel = "one"
+	actLabel = manager.Labels()["a"]
+	if actLabel != expLabel {
+		t.Errorf(`Expected label "a" to be: %v, got: %v`, expLabel, actLabel)
+	}
+}
+
+func TestReconfigureWithBundleRegoVersion(t *testing.T) {
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"},
+	}`), "test-id",
+		inmem.New(),
+		plugins.WithParserOptions(popts))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	initialBundle := makeModuleBundleWithRegoVersion(1, `package config
+labels := v if {
+	v := {"x": "label value changed", "y": "new label"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+}`, 1)
+
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	} else if disco.status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
+	}
+
+	// Verify labels are unchanged but allow additions
+	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
+	}
+
+	// Verify decision ids set
+	expDecision := ast.MustParseTerm("data.bar.baz")
+	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
+	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	}
+	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	}
+
+	// Verify plugins started
+	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
+	}
+
+	// Verify plugins reconfigured
+	updatedBundle := makeModuleBundleWithRegoVersion(2, `package config
+labels := v if {
+	v := {"x": "label value changed", "z": "another added label"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "plugin parameter value changed"}
+}`, 1)
 
 	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
 
@@ -2269,6 +2531,30 @@ func makeDataBundle(n int, s string) *bundleApi.Bundle {
 func makeModuleBundle(n int, s string, popts ast.ParserOptions) *bundleApi.Bundle {
 	return &bundleApi.Bundle{
 		Manifest: bundleApi.Manifest{Revision: fmt.Sprintf("test-revision-%v", n)},
+		Modules: []bundleApi.ModuleFile{
+			{
+				URL:    `policy.rego`,
+				Path:   `/policy.rego`,
+				Raw:    []byte(s),
+				Parsed: ast.MustParseModuleWithOpts(s, popts),
+			},
+		},
+		Data: map[string]interface{}{},
+	}
+}
+
+func makeModuleBundleWithRegoVersion(n int, s string, regoVersion int) *bundleApi.Bundle {
+	popts := ast.ParserOptions{}
+	if regoVersion == 0 {
+		popts.RegoVersion = ast.RegoV0
+	} else {
+		popts.RegoVersion = ast.RegoV1
+	}
+	return &bundleApi.Bundle{
+		Manifest: bundleApi.Manifest{
+			Revision:    fmt.Sprintf("test-revision-%v", n),
+			RegoVersion: &regoVersion,
+		},
 		Modules: []bundleApi.ModuleFile{
 			{
 				URL:    `policy.rego`,

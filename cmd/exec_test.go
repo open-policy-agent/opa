@@ -3,11 +3,15 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	sdk_test "github.com/open-policy-agent/opa/sdk/test"
@@ -309,6 +313,219 @@ main contains "hello" if {
 				}
 			})
 		})
+	}
+}
+
+func TestExecWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		module            string
+		expErrs           []string
+	}{
+		{
+			note:              "v0.x bundle, no keywords used",
+			bundleRegoVersion: 0,
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:              "v0.x bundle, no keywords imported",
+			bundleRegoVersion: 0,
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: string cannot be used for rule name",
+			},
+		},
+		{
+			note:              "v0.x bundle, keywords imported",
+			bundleRegoVersion: 0,
+			module: `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:              "v0.x bundle, rego.v1 imported",
+			bundleRegoVersion: 0,
+			module: `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+
+		{
+			note:              "v1.0 bundle, no keywords used",
+			bundleRegoVersion: 1,
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:              "v1.0 bundle, no keywords imported",
+			bundleRegoVersion: 1,
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:              "v1.0 bundle, keywords imported",
+			bundleRegoVersion: 1,
+			module: `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:              "v1.0 bundle, rego.v1 imported",
+			bundleRegoVersion: 1,
+			module: `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{
+						"files/test.json": `{"foo": "bar"}`,
+					}
+					if bundleType.tar {
+						files["bundle/bundle.tar.gz"] = ""
+					} else {
+						files["bundle/test.rego"] = tc.module
+						files["bundle/.manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle", "bundle.tar.gz")
+							b := bundle.Bundle{
+								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
+								Data:     map[string]interface{}{},
+								Modules: []bundle.ModuleFile{
+									{
+										Path: "test.rego",
+										Raw:  []byte(tc.module),
+									},
+								},
+							}
+							p = filepath.Join(root, "bundle", "bundle.tar.gz")
+							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+							err = bundle.Write(f, b)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+						} else {
+							p = filepath.Join(root, "bundle")
+						}
+
+						var buf bytes.Buffer
+						params := exec.NewParams(&buf)
+						params.Paths = append(params.Paths, root+"/files/")
+						params.BundlePaths = []string{p}
+						params.V1Compatible = v1CompatibleFlag.used
+						_ = params.OutputFormat.Set("json")
+
+						if len(tc.expErrs) > 0 {
+							testLogger := loggingtest.New()
+							params.Logger = testLogger
+
+							ctx, cancel := context.WithCancel(context.Background())
+							defer cancel()
+							go func() {
+								err := runExecWithContext(ctx, params)
+								if err != nil {
+									t.Error(err)
+									return
+								}
+							}()
+
+							if !test.Eventually(t, 5*time.Second, func() bool {
+								for _, expErr := range tc.expErrs {
+									found := false
+									for _, e := range testLogger.Entries() {
+										if strings.Contains(e.Message, expErr) {
+											found = true
+											break
+										}
+									}
+									if !found {
+										return false
+									}
+								}
+								return true
+							}) {
+								t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+							}
+						} else {
+							err := runExec(params)
+							if err != nil {
+								t.Fatal(err)
+							}
+
+							output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(root), nil))
+
+							exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": ["hello"]
+		}]}`))
+
+							if !reflect.DeepEqual(output, exp) {
+								t.Fatal("Expected:", exp, "Got:", output)
+							}
+						}
+					})
+				})
+			}
+		}
 	}
 }
 

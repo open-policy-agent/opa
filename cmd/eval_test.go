@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/rego"
@@ -1987,6 +1988,159 @@ func TestEvalPolicyWithV1CompatibleFlag(t *testing.T) {
 					}
 				})
 			})
+		}
+	}
+}
+
+func TestEvalPolicyWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note              string
+		bundleRegoVersion int
+		module            string
+		query             string
+		expectedErr       string
+	}{
+		{
+			note:              "v0.x bundle, no rego.v1 or future.keywords imports",
+			bundleRegoVersion: 0,
+			module: `package test
+allow if {
+	1 < 2
+}`,
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:              "v1.0 bundle, no rego.v1 or future.keywords imports",
+			bundleRegoVersion: 1,
+			module: `package test
+allow if {
+	1 < 2
+}`,
+			query: "data.test.allow",
+		},
+		{
+			note:              "v1.0 bundle, policy with rego.v1 import",
+			bundleRegoVersion: 1,
+			module: `package test
+import rego.v1
+allow if {
+	1 < 2
+}`,
+			query: "data.test.allow",
+		},
+		{
+			note:              "v1.0 bundle, future.keywords import",
+			bundleRegoVersion: 1,
+			module: `package test
+import future.keywords.if
+allow if {
+	1 < 2
+}`,
+			query: "data.test.allow",
+		},
+		{
+			note:              "v1.0 bundle, keywords not used",
+			bundleRegoVersion: 1,
+			module: `package test
+allow {
+	1 < 2
+}`,
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{}
+
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						files["test.rego"] = tc.module
+						files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							b := bundle.Bundle{
+								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
+								Data:     map[string]interface{}{},
+								Modules: []bundle.ModuleFile{
+									{
+										Path: "test.rego",
+										Raw:  []byte(tc.module),
+									},
+								},
+							}
+							p = filepath.Join(root, "bundle.tar.gz")
+							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+							err = bundle.Write(f, b)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+						}
+						params := newEvalCommandParams()
+						params.v1Compatible = v1CompatibleFlag.used
+						if err := params.bundlePaths.Set(p); err != nil {
+							t.Fatal(err)
+						}
+
+						var buf bytes.Buffer
+
+						defined, err := eval([]string{tc.query}, params, &buf)
+
+						if tc.expectedErr == "" {
+							if err != nil {
+								t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+							} else if !defined {
+								t.Fatal("expected result to be defined")
+							}
+						} else {
+							if err == nil {
+								t.Fatal("expected error, got none")
+							}
+
+							actual := buf.String()
+							if !strings.Contains(actual, tc.expectedErr) {
+								t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", tc.expectedErr, actual)
+							}
+						}
+					})
+				})
+			}
 		}
 	}
 }

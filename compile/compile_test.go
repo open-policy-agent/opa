@@ -155,9 +155,192 @@ func TestCompilerLoadAsBundleSuccess(t *testing.T) {
 			expManifest := bundle.Manifest{
 				Roots: &expRoots,
 			}
+			expManifest.SetRegoVersion(ast.RegoV0)
 
 			if !compiler.bundle.Manifest.Equal(expManifest) {
 				t.Fatalf("expected %v but got %v", compiler.bundle.Manifest, expManifest)
+			}
+		})
+	}
+}
+
+func TestCompilerLoadAsBundleWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		files   map[string]string
+		expErrs []string
+	}{
+		{
+			note: "No bundle rego version",
+			files: map[string]string{
+				".manifest": `{}`,
+				"test.rego": `package test
+p[1] {
+	input.x == 2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle rego version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"test.rego": `package test
+p[1] {
+	input.x == 2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle rego version, missing keyword imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"test.rego": `package test
+p contains 1 if {
+	input.x == 2
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v1 bundle rego version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"test.rego": `package test
+p contains 1 if {
+	input.x == 2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle rego version, no keywords",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"test.rego": `package test
+p[1] {
+	input.x == 2
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		ctx := context.Background()
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTestFS(tc.files, false, func(root string, fsys fs.FS) {
+
+				compiler := New().
+					WithFS(fsys).
+					WithPaths(root).
+					WithAsBundle(true)
+
+				err := compiler.Build(ctx)
+
+				if len(tc.expErrs) > 0 {
+					if err == nil {
+						t.Fatal("expected error, got none")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected error to contain:\n\n%s\n\ngot:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+			})
+		})
+	}
+}
+
+func pointTo[T any](x T) *T {
+	return &x
+}
+
+func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note                 string
+		bundle1RegoVersion   *int
+		bundle2RegoVersion   *int
+		expBundleRegoVersion *int
+		expErr               string
+	}{
+		{
+			note: "no bundle rego version",
+		},
+		{
+			note:                 "one bundle rego version",
+			bundle1RegoVersion:   pointTo(1),
+			expBundleRegoVersion: pointTo(1),
+		},
+		{
+			note:                 "same bundle rego versions",
+			bundle1RegoVersion:   pointTo(1),
+			bundle2RegoVersion:   pointTo(1),
+			expBundleRegoVersion: pointTo(1),
+		},
+		{
+			note:               "different bundle rego versions",
+			bundle1RegoVersion: pointTo(1),
+			bundle2RegoVersion: pointTo(2),
+			expErr:             "conflicting bundle rego versions: 1 and 2",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			a := bundle.Bundle{
+				Manifest: bundle.Manifest{
+					RegoVersion: tc.bundle1RegoVersion,
+					Roots:       &[]string{"a"},
+				},
+				Data:    map[string]interface{}{},
+				Modules: []bundle.ModuleFile{},
+			}
+			a.Manifest.Init()
+
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{
+					RegoVersion: tc.bundle2RegoVersion,
+					Roots:       &[]string{"b"},
+				},
+				Data:    map[string]interface{}{},
+				Modules: []bundle.ModuleFile{},
+			}
+			b.Manifest.Init()
+
+			result, err := bundle.Merge([]*bundle.Bundle{&a, &b})
+			if tc.expErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %v but got none", tc.expErr)
+				}
+				if !strings.Contains(err.Error(), tc.expErr) {
+					t.Fatalf("expected error to contain:\n\n%v\n\nbut got:\n\n%v", tc.expErr, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+
+				if tc.expBundleRegoVersion == nil {
+					if result.Manifest.RegoVersion != nil {
+						t.Fatalf("expected no bundle rego version, but got %v", *result.Manifest.RegoVersion)
+					}
+				} else {
+					if result.Manifest.RegoVersion == nil {
+						t.Fatalf("expected bundle rego version to be %v, but got none", *tc.expBundleRegoVersion)
+					} else if *result.Manifest.RegoVersion != *tc.expBundleRegoVersion {
+						t.Fatalf("expected rego version to be:\n\n%v\n\nbut got:\n\n%v", *tc.expBundleRegoVersion, *result.Manifest.RegoVersion)
+					}
+				}
 			}
 		})
 	}
@@ -1124,6 +1307,7 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
+			expManifest.SetRegoVersion(ast.RegoV0)
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/p",
@@ -1263,6 +1447,7 @@ func TestCompilerWasmTargetEntrypointDependents(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
+			expManifest.SetRegoVersion(ast.RegoV0)
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/r",
@@ -1839,6 +2024,7 @@ func TestCompilerOutput(t *testing.T) {
 
 		p { input.x = data.foo }`))),
 		"data.json": `{"foo": 1}`,
+		".manifest": `{"rego_version": 0}`,
 	}
 
 	for _, useMemoryFS := range []bool{false, true} {

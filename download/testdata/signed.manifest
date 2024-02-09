@@ -8,8 +8,8 @@
    "layers":[
       {
          "mediaType":"application/vnd.oci.image.layer.v1.tar+gzip",
-         "digest":"sha256:e060c7b9558fad3ec85df5ffa19d0d019f839c36d7ec146977c871dcbc70885e",
-         "size":629,
+         "digest":"sha256:7fccf82798e6e627afd04144889570d966583788473db2888f0d0d325904d273",
+         "size":764,
          "annotations":{
             "org.opencontainers.image.created":"2022-02-11T09:00:07Z",
             "org.opencontainers.image.title":"dani/testpol"
