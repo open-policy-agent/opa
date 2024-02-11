@@ -21,6 +21,7 @@ import (
 	"hash"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/open-policy-agent/opa/internal/jwx/jwk"
 
@@ -120,6 +121,137 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 	)
 
 	return iter(valid)
+}
+
+type verifyOptions struct {
+	DNSName                  string
+	CurrentTime              time.Time
+	KeyUsages                []x509.ExtKeyUsage
+	MaxConstraintComparisons int
+}
+
+var allowedKeyUsages = map[string]x509.ExtKeyUsage{
+	"KeyUsageAny":                            x509.ExtKeyUsageAny,
+	"KeyUsageServerAuth":                     x509.ExtKeyUsageServerAuth,
+	"KeyUsageClientAuth":                     x509.ExtKeyUsageClientAuth,
+	"KeyUsageCodeSigning":                    x509.ExtKeyUsageCodeSigning,
+	"KeyUsageEmailProtection":                x509.ExtKeyUsageEmailProtection,
+	"KeyUsageIPSECEndSystem":                 x509.ExtKeyUsageIPSECEndSystem,
+	"KeyUsageIPSECTunnel":                    x509.ExtKeyUsageIPSECTunnel,
+	"KeyUsageIPSECUser":                      x509.ExtKeyUsageIPSECUser,
+	"KeyUsageTimeStamping":                   x509.ExtKeyUsageTimeStamping,
+	"KeyUsageOCSPSigning":                    x509.ExtKeyUsageOCSPSigning,
+	"KeyUsageMicrosoftServerGatedCrypto":     x509.ExtKeyUsageMicrosoftServerGatedCrypto,
+	"KeyUsageNetscapeServerGatedCrypto":      x509.ExtKeyUsageNetscapeServerGatedCrypto,
+	"KeyUsageMicrosoftCommercialCodeSigning": x509.ExtKeyUsageMicrosoftCommercialCodeSigning,
+	"KeyUsageMicrosoftKernelCodeSigning":     x509.ExtKeyUsageMicrosoftKernelCodeSigning,
+}
+
+func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	input, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+	options, err := builtins.ObjectOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	invalid := ast.ArrayTerm(
+		ast.BooleanTerm(false),
+		ast.NewTerm(ast.NewArray()),
+	)
+
+	certs, err := getX509CertsFromString(string(input))
+	if err != nil {
+		return iter(invalid)
+	}
+
+	// Collect the cert verification options
+	verifyOpt, err := extractVerifyOpts(options)
+	if err != nil {
+		return err
+	}
+
+	verified, err := verifyX509CertificateChainWithOpts(certs, verifyOpt)
+	if err != nil {
+		return iter(invalid)
+	}
+
+	value, err := ast.InterfaceToValue(verified)
+	if err != nil {
+		return err
+	}
+
+	valid := ast.ArrayTerm(
+		ast.BooleanTerm(true),
+		ast.NewTerm(value),
+	)
+
+	return iter(valid)
+}
+
+func extractVerifyOpts(options ast.Object) (verifyOpt verifyOptions, err error) {
+
+	for _, key := range options.Keys() {
+		switch key.String() {
+		case "\"DNSName\"":
+			dns, ok := options.Get(key).Value.(ast.String)
+			if ok {
+				verifyOpt.DNSName = dns.String()[1 : len(dns.String())-1]
+			} else {
+				return verifyOpt, fmt.Errorf("DNSName should be a string")
+			}
+		case "\"CurrentTime\"":
+			c, ok := options.Get(key).Value.(ast.Number)
+			if ok {
+				currTime, ok := c.Int64()
+				if ok {
+					verifyOpt.CurrentTime = time.UnixMilli(currTime)
+				} else {
+					return verifyOpt, fmt.Errorf("CurrentTime could not be parsed to be a valid int64 number.")
+				}
+			} else {
+				return verifyOpt, fmt.Errorf("CurrentTime should be a number")
+			}
+		case "\"MaxConstraintComparisons\"":
+			c, ok := options.Get(key).Value.(ast.Number)
+			if ok {
+				maxComparisons, ok := c.Int()
+				if ok {
+					verifyOpt.MaxConstraintComparisons = maxComparisons
+				} else {
+					return verifyOpt, fmt.Errorf("MaxConstraintComparisons could not be parsed to be a valid int number.")
+				}
+			} else {
+				return verifyOpt, fmt.Errorf("MaxConstraintComparisons should be a number")
+			}
+		case "\"KeyUsages\"":
+			ks, ok := options.Get(key).Value.(ast.Set)
+			if ok {
+				// Collect the x509.ExtKeyUsage values by looking up the
+				// mapping of key usage strings to x509.ExtKeyUsage
+				ks.Foreach(func(t *ast.Term) {
+					u, ok := t.Value.(ast.String)
+					if ok {
+						c := u.String()[1 : len(u.String())-1]
+						if t, ok := allowedKeyUsages[c]; ok {
+							verifyOpt.KeyUsages = append(verifyOpt.KeyUsages, t)
+						}
+					}
+				})
+
+			} else {
+				return verifyOpt, fmt.Errorf("KeyUsages should be a set")
+			}
+		default:
+			return verifyOpt, fmt.Errorf("invalid key option.")
+		}
+
+	}
+
+	return verifyOpt, nil
 }
 
 func builtinCryptoX509ParseKeyPair(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
@@ -380,6 +512,7 @@ func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*a
 func init() {
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
 	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificates.Name, builtinCryptoX509ParseAndVerifyCertificates)
+	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificatesWithOptions.Name, builtinCryptoX509ParseAndVerifyCertificatesWithOptions)
 	RegisterBuiltinFunc(ast.CryptoMd5.Name, builtinCryptoMd5)
 	RegisterBuiltinFunc(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterBuiltinFunc(ast.CryptoSha256.Name, builtinCryptoSha256)
@@ -416,6 +549,41 @@ func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate,
 	verifyOpts := x509.VerifyOptions{
 		Roots:         roots,
 		Intermediates: intermediates,
+	}
+	chains, err := leaf.Verify(verifyOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	return chains[0], nil
+}
+
+func verifyX509CertificateChainWithOpts(certs []*x509.Certificate, vo verifyOptions) ([]*x509.Certificate, error) {
+	if len(certs) < 2 {
+		return nil, builtins.NewOperandErr(1, "must supply at least two certificates to be able to verify")
+	}
+
+	// first cert is the root
+	roots := x509.NewCertPool()
+	roots.AddCert(certs[0])
+
+	// all other certs except the last are intermediates
+	intermediates := x509.NewCertPool()
+	for i := 1; i < len(certs)-1; i++ {
+		intermediates.AddCert(certs[i])
+	}
+
+	// last cert is the leaf
+	leaf := certs[len(certs)-1]
+
+	// verify the cert chain back to the root
+	verifyOpts := x509.VerifyOptions{
+		Roots:                     roots,
+		Intermediates:             intermediates,
+		DNSName:                   vo.DNSName,
+		CurrentTime:               vo.CurrentTime,
+		KeyUsages:                 vo.KeyUsages,
+		MaxConstraintComparisions: vo.MaxConstraintComparisons,
 	}
 	chains, err := leaf.Verify(verifyOpts)
 	if err != nil {
