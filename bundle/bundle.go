@@ -1051,7 +1051,7 @@ func hashBundleFiles(hash SignatureHasher, b *Bundle) ([]FileInfo, error) {
 }
 
 // FormatModules formats Rego modules
-// Modules will be formatted to comply with rego-v1, but Rego compatibility of individual parsed modules will be respected (e.g. if 'rego.v1' is imported).
+// Modules will be formatted to comply with rego-v0, but Rego compatibility of individual parsed modules will be respected (e.g. if 'rego.v1' is imported).
 func (b *Bundle) FormatModules(useModulePath bool) error {
 	return b.FormatModulesForRegoVersion(ast.RegoV0, true, useModulePath)
 }
