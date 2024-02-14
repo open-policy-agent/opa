@@ -13,17 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registryutil
+package slices
 
-import (
-	"context"
-
-	"oras.land/oras-go/v2/registry"
-	"oras.land/oras-go/v2/registry/remote/auth"
-)
-
-// WithScopeHint adds a hinted scope to the context.
-func WithScopeHint(ctx context.Context, ref registry.Reference, actions ...string) context.Context {
-	scope := auth.ScopeRepository(ref.Repository, actions...)
-	return auth.AppendScopes(ctx, scope)
+// Clone returns a shallow copy of the slice.
+func Clone[S ~[]E, E any](s S) S {
+	if s == nil {
+		return nil
+	}
+	return append(make(S, 0, len(s)), s...)
 }

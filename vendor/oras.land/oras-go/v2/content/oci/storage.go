@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -103,6 +104,23 @@ func (s *Storage) Push(_ context.Context, expected ocispec.Descriptor, content i
 		return err
 	}
 
+	return nil
+}
+
+// Delete removes the target from the system.
+func (s *Storage) Delete(ctx context.Context, target ocispec.Descriptor) error {
+	path, err := blobPath(target.Digest)
+	if err != nil {
+		return fmt.Errorf("%s: %s: %w", target.Digest, target.MediaType, errdef.ErrInvalidDigest)
+	}
+	targetPath := filepath.Join(s.root, path)
+	err = os.Remove(targetPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("%s: %s: %w", target.Digest, target.MediaType, errdef.ErrNotFound)
+		}
+		return err
+	}
 	return nil
 }
 

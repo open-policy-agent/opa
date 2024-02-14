@@ -34,13 +34,13 @@ var (
 	//
 	// References:
 	//   - https://github.com/distribution/distribution/blob/v2.7.1/reference/regexp.go#L53
-	//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#pulling-manifests
+	//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc4/spec.md#pulling-manifests
 	repositoryRegexp = regexp.MustCompile(`^[a-z0-9]+(?:(?:[._]|__|[-]*)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|[-]*)[a-z0-9]+)*)*$`)
 
 	// tagRegexp checks the tag name.
 	// The docker and OCI spec have the same regular expression.
 	//
-	// Reference: https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#pulling-manifests
+	// Reference: https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc4/spec.md#pulling-manifests
 	tagRegexp = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
 )
 
@@ -64,6 +64,9 @@ type Reference struct {
 }
 
 // ParseReference parses a string (artifact) into an `artifact reference`.
+// Corresponding cryptographic hash implementations are required to be imported
+// as specified by https://pkg.go.dev/github.com/opencontainers/go-digest#readme-usage
+// if the string contains a digest.
 //
 // Note: An "image" is an "artifact", however, an "artifact" is not necessarily
 // an "image".
@@ -117,7 +120,7 @@ func ParseReference(artifact string) (Reference, error) {
 	parts := strings.SplitN(artifact, "/", 2)
 	if len(parts) == 1 {
 		// Invalid Form
-		return Reference{}, fmt.Errorf("%w: missing repository", errdef.ErrInvalidReference)
+		return Reference{}, fmt.Errorf("%w: missing registry or repository", errdef.ErrInvalidReference)
 	}
 	registry, path := parts[0], parts[1]
 
@@ -190,7 +193,7 @@ func (r Reference) Validate() error {
 // ValidateRegistry validates the registry.
 func (r Reference) ValidateRegistry() error {
 	if uri, err := url.ParseRequestURI("dummy://" + r.Registry); err != nil || uri.Host != r.Registry {
-		return fmt.Errorf("%w: invalid registry", errdef.ErrInvalidReference)
+		return fmt.Errorf("%w: invalid registry %q", errdef.ErrInvalidReference, r.Registry)
 	}
 	return nil
 }
@@ -198,7 +201,7 @@ func (r Reference) ValidateRegistry() error {
 // ValidateRepository validates the repository.
 func (r Reference) ValidateRepository() error {
 	if !repositoryRegexp.MatchString(r.Repository) {
-		return fmt.Errorf("%w: invalid repository", errdef.ErrInvalidReference)
+		return fmt.Errorf("%w: invalid repository %q", errdef.ErrInvalidReference, r.Repository)
 	}
 	return nil
 }
@@ -206,7 +209,7 @@ func (r Reference) ValidateRepository() error {
 // ValidateReferenceAsTag validates the reference as a tag.
 func (r Reference) ValidateReferenceAsTag() error {
 	if !tagRegexp.MatchString(r.Reference) {
-		return fmt.Errorf("%w: invalid tag", errdef.ErrInvalidReference)
+		return fmt.Errorf("%w: invalid tag %q", errdef.ErrInvalidReference, r.Reference)
 	}
 	return nil
 }
@@ -214,7 +217,7 @@ func (r Reference) ValidateReferenceAsTag() error {
 // ValidateReferenceAsDigest validates the reference as a digest.
 func (r Reference) ValidateReferenceAsDigest() error {
 	if _, err := r.Digest(); err != nil {
-		return fmt.Errorf("%w: invalid digest; %v", errdef.ErrInvalidReference, err)
+		return fmt.Errorf("%w: invalid digest %q: %v", errdef.ErrInvalidReference, r.Reference, err)
 	}
 	return nil
 }
@@ -250,6 +253,8 @@ func (r Reference) ReferenceOrDefault() string {
 }
 
 // Digest returns the reference as a digest.
+// Corresponding cryptographic hash implementations are required to be imported
+// as specified by https://pkg.go.dev/github.com/opencontainers/go-digest#readme-usage
 func (r Reference) Digest() (digest.Digest, error) {
 	return digest.Parse(r.Reference)
 }

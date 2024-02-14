@@ -39,3 +39,9 @@ type TagResolver interface {
 	Tagger
 	Resolver
 }
+
+// Untagger untags reference tags.
+type Untagger interface {
+	// Untag untags the given reference string.
+	Untag(ctx context.Context, reference string) error
+}

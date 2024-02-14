@@ -38,6 +38,14 @@ import (
 // Note: Variant, OSVersion and OSFeatures are optional fields, will skip
 // the comparison if the target platform does not provide specific value.
 func Match(got *ocispec.Platform, want *ocispec.Platform) bool {
+	if got == nil && want == nil {
+		return true
+	}
+
+	if got == nil || want == nil {
+		return false
+	}
+
 	if got.Architecture != want.Architecture || got.OS != want.OS {
 		return false
 	}
