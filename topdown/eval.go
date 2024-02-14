@@ -2926,7 +2926,7 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 	}
 
 	if !e.e.unknown(e.ref, e.bindings) {
-		return suppressEarlyExit(e.evalValue(iter, e.ir.EarlyExit))
+		return e.evalValue(iter, e.ir.EarlyExit)
 	}
 
 	var generateSupport bool
@@ -2960,6 +2960,8 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		return e.evalTerm(iter, cached, e.bindings)
 	}
 
+	// FIXME: Wrap following in func call where suppressEarlyExit() is applied to return, instead of individual suppressions?
+
 	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
 	var prev *ast.Term
@@ -2967,13 +2969,13 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 	for _, rule := range e.ir.Rules {
 		next, err := e.evalValueRule(iter, rule, prev, findOne)
 		if err != nil {
-			return err
+			return suppressEarlyExit(err)
 		}
 		if next == nil {
 			for _, erule := range e.ir.Else[rule] {
 				next, err = e.evalValueRule(iter, erule, prev, findOne)
 				if err != nil {
-					return err
+					return suppressEarlyExit(err)
 				}
 				if next != nil {
 					break
@@ -2987,7 +2989,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 
 	if e.ir.Default != nil && prev == nil {
 		_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
-		return err
+		return suppressEarlyExit(err)
 	}
 
 	if prev == nil {

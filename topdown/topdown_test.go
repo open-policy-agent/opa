@@ -392,6 +392,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("a", "b"),
 		},
 		{
+			note: "complete doc: other complete doc that cannot exit early, one undefined",
+			module: `
+				package test
+				p { q }
+
+				q = x { x := true; trace("a"); false }
+				q = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
 			note: "complete doc: other complete doc that cannot exit early (else)",
 			module: `
 				package test
@@ -488,6 +498,104 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x"),
 		},
 		{
+			note: "complete doc, multiple array iteration",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					data.arr[_] = z; trace("z")
+				}
+			`,
+			notes: n("x", "y", "z"),
+		},
+		{
+			note: "complete doc, multiple array iteration, ref to other complete doc with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+			`,
+			notes:     n("a", "b", "x", "y", "q"),
+			extraExit: 1, // p + q
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, ref to other complete doc with iteration and cached result",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q1")
+					q; trace("q2") # result of q in cache
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+			`,
+			notes:     n("x", "y", "q1", "q2", "a", "b"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, multiple array iterations, ref to other multiple complete docs with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+					r; trace("r")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				r { 
+					data.arr[_] = c; trace("c")
+					data.arr[_] = d; trace("d")
+				}
+			`,
+			notes:     n("x", "y", "a", "b", "q", "c", "d", "r"),
+			extraExit: 2, // p + q + r
+		},
+		{
+			note: "complete doc, array iteration, package-local data",
+			module: `
+				package test
+				arr := ["a", "b", "c"]
+				p { 
+					arr[_] = x; trace("x")
+				}
+			`,
+			notes:     n("x"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, package-local data, cached result",
+			module: `
+				package test
+				arr := ["a", "b", "c"]
+				p { 
+					arr[_] = x; trace("x") 
+					arr[_] = y; trace("y")
+				}
+			`,
+			notes:     n("x", "y"),
+			extraExit: 1, // p + arr
+		},
+		{
 			note: "complete doc, obj iteration",
 			module: `
 				package test
@@ -538,9 +646,10 @@ func TestTopDownEarlyExit(t *testing.T) {
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
-			arr := make([]interface{}, 1000)
-			obj := make(map[string]interface{}, 1000)
-			for i := 0; i < 1000; i++ {
+			size := 1000 //3
+			arr := make([]interface{}, size)
+			obj := make(map[string]interface{}, size)
+			for i := 0; i < size; i++ {
 				arr[i] = i
 				obj[strconv.Itoa(i)] = i
 			}
@@ -560,6 +669,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 				WithTracer(buf)
 
 			_, err := query.Run(ctx)
+			//PrettyTrace(os.Stdout, *buf)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -578,15 +688,46 @@ func TestTopDownEarlyExit(t *testing.T) {
 			sort.Strings(tc.notes)
 			if !reflect.DeepEqual(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
-				PrettyTrace(os.Stderr, *buf)
+				//PrettyTrace(os.Stderr, *buf)
 			}
 			if exp, act := countExit, exits["early"]; exp != act {
 				t.Errorf("expected %d early exit events, got %d", exp, act)
+				//PrettyTrace(os.Stderr, *buf)
+			}
+
+			if t.Failed() {
 				PrettyTrace(os.Stderr, *buf)
 			}
 		})
 	}
 }
+
+//type PrintTracer struct {
+//	depths map[uint64]int
+//	depth  int
+//}
+//
+//func (t *PrintTracer) GetOrSetDepth(qid uint64, pqid uint64) int {
+//	if t.depths == nil {
+//		t.depths = map[uint64]int{}
+//	}
+//	depth := t.depths[qid]
+//	if depth == 0 {
+//		depth = t.depths[pqid]
+//		depth++
+//		t.depths[qid] = depth
+//	}
+//	return depth
+//}
+//
+//func (t *PrintTracer) Enabled() bool {
+//	return true
+//}
+//
+//func (t *PrintTracer) Trace(e *Event) {
+//	t.depth = t.GetOrSetDepth(e.QueryID, e.ParentID)
+//	fmt.Fprintf(os.Stderr, formatEvent(e, t.depth))
+//}
 
 func TestTopDownEvery(t *testing.T) {
 	n := func(ns ...string) []string { return ns }
