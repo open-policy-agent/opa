@@ -968,8 +968,9 @@ The table below shows examples of calling `http.send`:
 
 The AWS Request Signing builtin in OPA implements the header-based auth,
 single-chunk method described in the [AWS SigV4 docs](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html).
-It will always sign the payload when present, and will sign most user-provided
+It will default to signing the payload when present, configurable via `aws_config`, and will sign most user-provided
 headers for the request, to ensure their integrity.
+
 
 {{< info >}}
 Note that the `authorization`, `user-agent`, and `x-amzn-trace-id` headers,
@@ -986,17 +987,18 @@ The following fields will have effects on the output `Authorization` header sign
 | `method` | yes | `string` | HTTP method to specify in request. Used in the signature. |
 | `body` | no | `any` | HTTP message body. The JSON serialized version of this value will be used for the payload portion of the signature if present. |
 | `raw_body` | no | `string` | HTTP message body. This will be used for the payload portion of the signature if present. |
-| `headers` | no | `object` | HTTP headers to include in the request. These will be added to the list of headers to sign. |
+| `headers` | no | `object` | HTTP headers to include in the request. These will be added to the list of headers to sign.|
 
 The `aws_config` object parameter may contain the following fields:
 
-| Field | Required | Type | Description |
-| --- | --- | --- | --- |
-| `aws_access_key` | yes | `string` | AWS access key. |
-| `aws_secret_access_key` | yes | `string` | AWS secret access key. Used in generating the signing key for the request. |
-| `aws_service` | yes | `string` | AWS service the request will be valid for. (e.g. `"s3"`) |
-| `aws_region` | yes | `string` | AWS region for the request. (e.g. `"us-east-1"`) |
-| `aws_session_token` | no | `string` | AWS security token. Used for the `x-amz-security-token` request header. |
+| Field | Required | Type | Description                                                                                                                                                                                                                    |
+| --- | --- | --- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `aws_access_key` | yes | `string` | AWS access key.                                                                                                                                                                                                                |
+| `aws_secret_access_key` | yes | `string` | AWS secret access key. Used in generating the signing key for the request.                                                                                                                                                     |
+| `aws_service` | yes | `string` | AWS service the request will be valid for. (e.g. `"s3"`)                                                                                                                                                                       |
+| `aws_region` | yes | `string` | AWS region for the request. (e.g. `"us-east-1"`)                                                                                                                                                                               |
+| `aws_session_token` | no | `string` | AWS security token. Used for the `x-amz-security-token` request header.                                                                                                                                                        |
+| `disable_payload_signing` | no | `boolean` | When `true` an `UNSIGNED-PAYLOAD` value will be used for calculating the `x-amz-content-sha256` header during signing, and will be returned in the response. Applicable only for `s3` and `glacier` service. Default: `false`. |
 
 #### AWS Request Signing Examples
 
@@ -1016,6 +1018,26 @@ aws_config := {
     "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
     "aws_service": "s3",
     "aws_region": "us-east-1",
+}
+
+example_verify_resource {
+    resp := http.send(providers.aws.sign_req(req, aws_config, time.now_ns()))
+    # process response from AWS ...
+}
+```
+
+##### Unsigned Payload Request Signing Example
+The [AWS S3 request signing API](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html)
+supports unsigned payload signing option. This example below shows s3 request signing with payload signing disabled. 
+
+```live:providers/aws/sign_req_unsigned:module
+req := {"method": "get", "url": "https://examplebucket.s3.amazonaws.com/data"}
+aws_config := {
+    "aws_access_key": "MYAWSACCESSKEYGOESHERE",
+    "aws_secret_access_key": "MYAWSSECRETACCESSKEYGOESHERE",
+    "aws_service": "s3",
+    "aws_region": "us-east-1",
+    "disable_payload_signing": true,
 }
 
 example_verify_resource {
