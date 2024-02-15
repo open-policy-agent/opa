@@ -1585,7 +1585,7 @@ func (c *Compiler) compile() {
 			}
 		}
 
-		if c.allowUndefinedFuncCalls && s.name == "CheckUndefinedFuncs" {
+		if c.allowUndefinedFuncCalls && (s.name == "CheckUndefinedFuncs" || s.name == "CheckSafetyRuleBodies") {
 			continue
 		}
 
