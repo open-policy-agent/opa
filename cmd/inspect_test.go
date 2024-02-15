@@ -774,3 +774,105 @@ func TestCallToUnknownBuiltInFunction(t *testing.T) {
 		}
 	})
 }
+
+func TestCallToUnknownRegoFunction(t *testing.T) {
+	files := [][2]string{
+		{"/policy.rego", `package test
+import data.x.y
+
+p {
+	y(1) == true
+}
+		`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var out bytes.Buffer
+		params := newInspectCommandParams()
+		err = params.outputFormat.Set(evalJSONOutput)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = doInspect(params, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		bs := out.Bytes()
+		output := strings.TrimSpace(string(bs))
+		// Note: unknown data.x.y() function doesn't appear in the output, but also didn't cause an error.
+		expected := strings.TrimSpace(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "eq",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "="
+      },
+      {
+        "name": "equal",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "=="
+      }
+    ]
+  }
+}`)
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+		}
+	})
+}
