@@ -433,7 +433,7 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 
 func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 
-	annotStmts, errs := parseAnnotations(p.s.comments)
+	annotStmts, errs := ParseAnnotations(p.s.comments)
 	for _, err := range errs {
 		p.error(err.Location, err.Message)
 	}
@@ -445,7 +445,7 @@ func (p *Parser) parseAnnotations(stmts []Statement) []Statement {
 	return stmts
 }
 
-func parseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
+func ParseAnnotations(comments []*Comment) ([]*Annotations, Errors) {
 
 	var hint = []byte("METADATA")
 	var curr *metadataParser

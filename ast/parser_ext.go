@@ -713,6 +713,15 @@ func parseModule(filename string, stmts []Statement, comments []*Comment, regoCo
 		return nil, errs
 	}
 
+	as, errs := BuildAnnotationSet([]*Module{mod})
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	for _, rule := range mod.Rules {
+		rule.Annotations = as.GetRuleScope(rule)
+	}
+
 	return mod, nil
 }
 

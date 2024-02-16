@@ -111,6 +111,11 @@ func (a *Annotations) EndLoc() *Location {
 	return a.comments[count-1].Location
 }
 
+// Comments returns the comments associated with this annotation.
+func (a *Annotations) Comments() []*Comment {
+	return a.comments
+}
+
 // Compare returns an integer indicating if a is less than, equal to, or greater
 // than other.
 func (a *Annotations) Compare(other *Annotations) int {

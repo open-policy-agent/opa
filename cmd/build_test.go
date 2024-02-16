@@ -1188,6 +1188,9 @@ p[k] contains v if {
 			expectedFiles: map[string]string{
 				"/optimized/test/p.rego": `package test.p
 
+
+# METADATA
+# entrypoint: true
 foo contains __local1__1 if {
 	__local1__1 = input.v
 }
@@ -1215,6 +1218,9 @@ p[k] contains v if {
 			expectedFiles: map[string]string{
 				"/optimized/test/p.rego": `package test.p
 
+
+# METADATA
+# entrypoint: true
 foo contains __local1__1 if {
 	__local1__1 = input.v
 }
@@ -1237,6 +1243,9 @@ p[k] contains v if {
 			expectedFiles: map[string]string{
 				"/optimized/test/p.rego": `package test.p
 
+
+# METADATA
+# entrypoint: true
 foo contains __local1__1 if {
 	__local1__1 = input.v
 }

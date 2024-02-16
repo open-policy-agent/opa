@@ -2028,8 +2028,9 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 			}
 
 			e.e.saveSupport.Insert(path, &ast.Rule{
-				Head: head,
-				Body: plugged,
+				Head:        head,
+				Body:        plugged,
+				Annotations: rule.Annotations,
 			})
 		}
 		child.traceRedo(rule)
@@ -2729,9 +2730,10 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref)
 			}
 
 			e.e.saveSupport.InsertByPkg(pkg, &ast.Rule{
-				Head:    head,
-				Body:    plugged,
-				Default: rule.Default,
+				Head:        head,
+				Body:        plugged,
+				Default:     rule.Default,
+				Annotations: rule.Annotations,
 			})
 		}
 		child.traceRedo(rule)
@@ -3125,9 +3127,10 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 			}
 
 			e.e.saveSupport.InsertByPkg(pkg, &ast.Rule{
-				Head:    head,
-				Body:    plugged,
-				Default: rule.Default,
+				Head:        head,
+				Body:        plugged,
+				Default:     rule.Default,
+				Annotations: rule.Annotations,
 			})
 		}
 		child.traceRedo(rule)

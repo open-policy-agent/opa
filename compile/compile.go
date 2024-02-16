@@ -732,6 +732,65 @@ func findAnnotationsForTerm(term *ast.Term, annotationRefs []*ast.AnnotationsRef
 	return result
 }
 
+func pruneBundleAnnotations(b *bundle.Bundle) error {
+
+	for i := 0; i < len(b.Modules); i++ {
+		mf := &b.Modules[i]
+
+		// Drop any Annotations for non-matching rules
+		var annotations []*ast.Annotations
+		var prunedAnnotations []*ast.Annotations
+		for _, annotation := range mf.Parsed.Annotations {
+			p := annotation.GetTargetPath()
+
+			found := false
+			for _, rule := range mf.Parsed.Rules {
+				if p.Equal(rule.Ref()) {
+					annotations = append(annotations, annotation)
+					found = true
+					break
+				}
+			}
+
+			// Prune annotations of non-existing rules, but not packages, as the Rego file is retained
+			if p.Equal(mf.Parsed.Package.Path) {
+				annotations = append(annotations, annotation)
+			} else if !found {
+				prunedAnnotations = append(prunedAnnotations, annotation)
+			}
+
+		}
+
+		// Drop comments associated with pruned annotations
+		var comments []*ast.Comment
+		for _, comment := range mf.Parsed.Comments {
+			pruned := false
+			for _, annotation := range prunedAnnotations {
+				if comment.Location.Row >= annotation.Location.Row &&
+					comment.Location.Row <= annotation.EndLoc().Row {
+					pruned = true
+					break
+				}
+			}
+
+			if !pruned {
+				comments = append(comments, comment)
+			}
+		}
+
+		// If any annotations were dropped update the module accordingly
+		if len(comments) != len(mf.Parsed.Comments) {
+			mf.Parsed.Annotations = annotations
+			mf.Parsed.Comments = comments
+			// Remove the original raw source, we're editing the AST
+			// directly, so it won't be in sync anymore.
+			mf.Raw = nil
+		}
+	}
+
+	return nil
+}
+
 // pruneBundleEntrypoints will modify modules in the provided bundle to remove
 // rules matching the entrypoints along with injecting import statements to
 // preserve their ability to compile.
@@ -908,6 +967,8 @@ func (o *optimizer) Do(ctx context.Context) error {
 	// because otherwise the optimization outputs (e.g., support rules) would have to
 	// merged somehow. Instead of dealing with that, just run the optimizations in the
 	// order the user supplied the entrypoints in.
+
+	var flattenedAnnotations []*ast.AnnotationsRef
 	for i, e := range o.entrypoints {
 
 		var err error
@@ -915,6 +976,8 @@ func (o *optimizer) Do(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
+		flattenedAnnotations = o.compiler.GetAnnotationSet().Flatten()
 
 		if unknowns == nil {
 			unknowns = o.findUnknowns()
@@ -954,7 +1017,26 @@ func (o *optimizer) Do(ctx context.Context) error {
 			return undefinedEntrypointErr{Entrypoint: e}
 		}
 
-		if module := o.getSupportForEntrypoint(pq.Queries, e, resultsym); module != nil {
+		if len(pq.Support) != 0 {
+
+			// attach annotations to the module
+			for _, ar := range flattenedAnnotations {
+				for _, module := range pq.Support {
+					if module.Package.Path.Equal(ar.Path) {
+						module.Annotations = append(module.Annotations, ar.Annotations)
+					}
+
+					var annotations []*ast.Annotations
+					for _, rule := range module.Rules {
+						annotations = append(annotations, rule.Annotations...)
+					}
+					module.Annotations = append(module.Annotations, annotations...)
+				}
+			}
+
+		}
+
+		if module := o.getSupportForEntrypoint(pq.Queries, e, resultsym, flattenedAnnotations); module != nil {
 			pq.Support = append(pq.Support, module)
 		}
 
@@ -981,7 +1063,7 @@ func (o *optimizer) Do(ctx context.Context) error {
 	o.bundle.Manifest.AddRoot(o.nsprefix)
 	o.bundle.Manifest.Revision = ""
 
-	return nil
+	return pruneBundleAnnotations(o.bundle)
 }
 
 func (o *optimizer) Bundle() *bundle.Bundle {
@@ -1049,11 +1131,13 @@ func (o *optimizer) findUnknowns() []*ast.Term {
 	return unknowns.Sorted()
 }
 
-func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, resultsym *ast.Term) *ast.Module {
+func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, resultsym *ast.Term, annotationRefs []*ast.AnnotationsRef) *ast.Module {
 
 	path := e.Value.(ast.Ref)
 	name := ast.Var(path[len(path)-1].Value.(ast.String))
 	module := &ast.Module{Package: &ast.Package{Path: path[:len(path)-1]}}
+
+	ruleAnnotations := findAnnotationsForTerm(e, annotationRefs)
 
 	for _, query := range queries {
 		// NOTE(tsandall): when the query refers to the original entrypoint, throw it
@@ -1072,12 +1156,29 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 			o.debug.Printf("optimizer: entrypoint: %v: discard due to self-reference", e)
 			return nil
 		}
-		module.Rules = append(module.Rules, &ast.Rule{ // TODO(sr): use RefHead instead?
-			Head:   ast.NewHead(name, nil, resultsym),
-			Body:   query,
-			Module: module,
-		})
+
+		rule := &ast.Rule{ // TODO(sr): use RefHead instead?
+			Head:        ast.NewHead(name, nil, resultsym),
+			Body:        query,
+			Annotations: ruleAnnotations,
+			Module:      module,
+		}
+
+		module.Rules = append(module.Rules, rule)
 	}
+
+	// attach annotations to the module
+	var annotations []*ast.Annotations
+
+	for _, ar := range annotationRefs {
+		if module.Package.Path.Equal(ar.Path) {
+			annotations = append(annotations, ar.Annotations)
+		}
+	}
+
+	annotations = append(annotations, ruleAnnotations...)
+
+	module.Annotations = annotations
 
 	return module
 }

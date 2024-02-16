@@ -185,11 +185,12 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default  bool      `json:"default,omitempty"`
-		Head     *Head     `json:"head"`
-		Body     Body      `json:"body"`
-		Else     *Rule     `json:"else,omitempty"`
-		Location *Location `json:"location,omitempty"`
+		Default     bool           `json:"default,omitempty"`
+		Head        *Head          `json:"head"`
+		Body        Body           `json:"body"`
+		Else        *Rule          `json:"else,omitempty"`
+		Location    *Location      `json:"location,omitempty"`
+		Annotations []*Annotations `json:"-"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be
@@ -665,6 +666,12 @@ func (rule *Rule) Copy() *Rule {
 	cpy := *rule
 	cpy.Head = rule.Head.Copy()
 	cpy.Body = rule.Body.Copy()
+
+	cpy.Annotations = make([]*Annotations, len(rule.Annotations))
+	for i := range rule.Annotations {
+		cpy.Annotations[i] = rule.Annotations[i].Copy(nil)
+	}
+
 	if cpy.Else != nil {
 		cpy.Else = rule.Else.Copy()
 	}
