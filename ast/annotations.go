@@ -514,6 +514,34 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	return &obj, nil
 }
 
+func attachRuleAnnotations(mod *Module) {
+	// make a copy of the annotations
+	cpy := make([]*Annotations, len(mod.Annotations))
+	for i, a := range mod.Annotations {
+		cpy[i] = a.Copy(a.node)
+	}
+
+	for _, rule := range mod.Rules {
+		var j int
+		var found bool
+		for i, a := range cpy {
+			if rule.Loc().Row > a.Location.Row {
+				if a.Scope == annotationScopeRule || a.Scope == annotationScopeDocument {
+					rule.Annotations = append(rule.Annotations, a)
+					j = i
+					found = true
+					break
+				}
+			}
+		}
+
+		if found {
+			cpy[j] = cpy[len(cpy)-1] // put last element into position j
+			cpy = cpy[:len(cpy)-1]   // truncate slice
+		}
+	}
+}
+
 func attachAnnotationsNodes(mod *Module) Errors {
 	var errs Errors
 

@@ -2190,19 +2190,19 @@ p {
 	input.bar = "str"
 }`}},
 
-		//		{note: "document scope conflict", err: "test1.rego:9: rego_type_error: document annotation redeclared: test1.rego:3", modules: []string{`package test
-		//
-		//# METADATA
-		//# scope: document
-		//# schemas:
-		//# - input.foo: schema.number
-		//p { input.foo = 7 }
-		//
-		//# METADATA
-		//# scope: document
-		//# schemas:
-		//# - input.foo: schema.string
-		//p { input.foo = "str" }`}},
+		{note: "document scope conflict", err: "test1.rego:9: rego_type_error: document annotation redeclared: test1.rego:3", modules: []string{`package test
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.number
+p { input.foo = 7 }
+
+# METADATA
+# scope: document
+# schemas:
+# - input.foo: schema.string
+p { input.foo = "str" }`}},
 
 		{note: "package scope in other module", modules: []string{`# METADATA
 # scope: package
