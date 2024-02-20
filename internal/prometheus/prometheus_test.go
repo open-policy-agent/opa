@@ -1,11 +1,10 @@
 // Copyright 2022 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
-
-// NOTE(an): Different go runtime metrics on 1.20.
-// This can be removed when we drop support for go 1.19.
-//go:build go1.20
-// +build go1.20
+//
+// NOTE(sr): Different go runtime metrics on 1.20 vs 1.22.
+// Let's only test these on 1.22.
+//go:build go1.22
 
 package prometheus
 
@@ -137,6 +136,13 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_x509usefallbackroots_events_total",
 			"go_godebug_non_default_behavior_zipinsecurepath_events_total",
 			"go_godebug_non_default_behavior_tlsmaxrsasize_events_total",
+			"go_godebug_non_default_behavior_gotypesalias_events_total", // BEGIN added in 1.22
+			"go_godebug_non_default_behavior_tlsunsafeekm_events_total",
+			"go_godebug_non_default_behavior_httplaxcontentlength_events_total",
+			"go_godebug_non_default_behavior_x509usepolicies_events_total",
+			"go_godebug_non_default_behavior_tls10server_events_total",
+			"go_godebug_non_default_behavior_httpmuxgo121_events_total",
+			"go_godebug_non_default_behavior_tlsrsakex_events_total",
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
@@ -146,6 +152,10 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_heap_allocs_by_size_bytes", // was: "go_gc_heap_allocs_by_size_bytes_total"
 			"go_gc_heap_frees_by_size_bytes",  // was: "go_gc_heap_frees_by_size_bytes_total"
 			"go_sched_latencies_seconds",
+			"go_sched_pauses_stopping_other_seconds", // BEGIN added in 1.22
+			"go_sched_pauses_stopping_gc_seconds",
+			"go_sched_pauses_total_gc_seconds",
+			"go_sched_pauses_total_other_seconds",
 		},
 	}
 	found := 0
