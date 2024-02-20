@@ -2960,43 +2960,43 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		return e.evalTerm(iter, cached, e.bindings)
 	}
 
-	// FIXME: Wrap following in func call where suppressEarlyExit() is applied to return, instead of individual suppressions?
+	return withSuppressEarlyExit(func() error {
+		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
-	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
+		var prev *ast.Term
 
-	var prev *ast.Term
-
-	for _, rule := range e.ir.Rules {
-		next, err := e.evalValueRule(iter, rule, prev, findOne)
-		if err != nil {
-			return suppressEarlyExit(err)
-		}
-		if next == nil {
-			for _, erule := range e.ir.Else[rule] {
-				next, err = e.evalValueRule(iter, erule, prev, findOne)
-				if err != nil {
-					return suppressEarlyExit(err)
-				}
-				if next != nil {
-					break
+		for _, rule := range e.ir.Rules {
+			next, err := e.evalValueRule(iter, rule, prev, findOne)
+			if err != nil {
+				return err
+			}
+			if next == nil {
+				for _, erule := range e.ir.Else[rule] {
+					next, err = e.evalValueRule(iter, erule, prev, findOne)
+					if err != nil {
+						return err
+					}
+					if next != nil {
+						break
+					}
 				}
 			}
+			if next != nil {
+				prev = next
+			}
 		}
-		if next != nil {
-			prev = next
+
+		if e.ir.Default != nil && prev == nil {
+			_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
+			return err
 		}
-	}
 
-	if e.ir.Default != nil && prev == nil {
-		_, err := e.evalValueRule(iter, e.ir.Default, prev, findOne)
-		return suppressEarlyExit(err)
-	}
+		if prev == nil {
+			e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
+		}
 
-	if prev == nil {
-		e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, prev *ast.Term, findOne bool) (*ast.Term, error) {
@@ -3669,6 +3669,13 @@ func suppressEarlyExit(err error) error {
 		return err
 	}
 	return ee.prev // nil if we're done
+}
+
+func withSuppressEarlyExit(f func() error) error {
+	if err := f(); err != nil {
+		return suppressEarlyExit(err)
+	}
+	return nil
 }
 
 func (e *eval) updateSavedMocks(withs []*ast.With) []*ast.With {
