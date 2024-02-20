@@ -2027,10 +2027,16 @@ func (e evalFunc) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) error {
 				head.Args[i] = child.bindings.PlugNamespaced(a, e.e.caller.bindings)
 			}
 
+			// make a copy of the annotations
+			cpy := make([]*ast.Annotations, len(rule.Annotations))
+			for i, a := range rule.Annotations {
+				cpy[i] = a.Copy(a.GetRule())
+			}
+
 			e.e.saveSupport.Insert(path, &ast.Rule{
 				Head:        head,
 				Body:        plugged,
-				Annotations: rule.Annotations,
+				Annotations: cpy,
 			})
 		}
 		child.traceRedo(rule)
@@ -2729,11 +2735,17 @@ func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref)
 				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
 			}
 
+			// make a copy of the annotations
+			cpy := make([]*ast.Annotations, len(rule.Annotations))
+			for i, a := range rule.Annotations {
+				cpy[i] = a.Copy(a.GetRule())
+			}
+
 			e.e.saveSupport.InsertByPkg(pkg, &ast.Rule{
 				Head:        head,
 				Body:        plugged,
 				Default:     rule.Default,
-				Annotations: rule.Annotations,
+				Annotations: cpy,
 			})
 		}
 		child.traceRedo(rule)
@@ -3126,11 +3138,17 @@ func (e evalVirtualComplete) partialEvalSupportRule(rule *ast.Rule, path ast.Ref
 				plugged = applyCopyPropagation(cp, e.e.instr, plugged)
 			}
 
+			// make a copy of the annotations
+			cpy := make([]*ast.Annotations, len(rule.Annotations))
+			for i, a := range rule.Annotations {
+				cpy[i] = a.Copy(a.GetRule())
+			}
+
 			e.e.saveSupport.InsertByPkg(pkg, &ast.Rule{
 				Head:        head,
 				Body:        plugged,
 				Default:     rule.Default,
-				Annotations: rule.Annotations,
+				Annotations: cpy,
 			})
 		}
 		child.traceRedo(rule)

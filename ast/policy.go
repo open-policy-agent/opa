@@ -310,8 +310,8 @@ func (mod *Module) Copy() *Module {
 	nodes[mod.Package] = cpy.Package
 
 	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
-	for i := range mod.Annotations {
-		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].node])
+	for i, a := range mod.Annotations {
+		cpy.Annotations[i] = a.Copy(nodes[a.node])
 	}
 
 	cpy.Comments = make([]*Comment, len(mod.Comments))
@@ -668,8 +668,8 @@ func (rule *Rule) Copy() *Rule {
 	cpy.Body = rule.Body.Copy()
 
 	cpy.Annotations = make([]*Annotations, len(rule.Annotations))
-	for i := range rule.Annotations {
-		cpy.Annotations[i] = rule.Annotations[i].Copy(nil)
+	for i, a := range rule.Annotations {
+		cpy.Annotations[i] = a.Copy(a.GetRule())
 	}
 
 	if cpy.Else != nil {

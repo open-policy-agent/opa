@@ -186,6 +186,26 @@ func (a *Annotations) GetTargetPath() Ref {
 	}
 }
 
+func (a *Annotations) GetPackage() *Package {
+	switch n := a.node.(type) {
+	case *Package:
+		return n
+	case *Rule:
+		return n.Module.Package
+	default:
+		return nil
+	}
+}
+
+func (a *Annotations) GetRule() *Rule {
+	switch n := a.node.(type) {
+	case *Rule:
+		return n
+	default:
+		return nil
+	}
+}
+
 func (a *Annotations) setJSONOptions(opts astJSON.Options) {
 	a.jsonOptions = opts
 	if a.Location != nil {
@@ -535,9 +555,8 @@ func attachRuleAnnotations(mod *Module) {
 			}
 		}
 
-		if found {
-			cpy[j] = cpy[len(cpy)-1] // put last element into position j
-			cpy = cpy[:len(cpy)-1]   // truncate slice
+		if found && j < len(cpy) {
+			cpy = cpy[(j + 1):]
 		}
 	}
 }
