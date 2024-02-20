@@ -2196,6 +2196,8 @@ func (c *Compiler) parseMetadataBlocks() {
 				for _, err := range errs {
 					c.err(err)
 				}
+
+				attachRuleAnnotations(mod)
 			}
 		}
 	}
