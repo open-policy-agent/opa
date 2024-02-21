@@ -658,37 +658,39 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 func TestExtractX509VerifyOptions(t *testing.T) {
 	tests := []struct {
 		jsonOption      *ast.Term
-		expectErr       bool
+		expectErr       error
 		expectVerifyOpt x509.VerifyOptions
 	}{
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1}`),
-			expectErr:  true,
+			expectErr:  fmt.Errorf("'DNSName' should be a string"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{CurrentTime: "string"}`),
-			expectErr:  true,
+			expectErr:  fmt.Errorf("'CurrentTime' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{MaxConstraintComparisons: "string"}`),
-			expectErr:  true,
+			expectErr:  fmt.Errorf("'MaxConstraintComparisons' should be a number"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"KeyUsages" : [1,2,4]}`), // its not a Set
-			expectErr:  true,
+			expectErr:  fmt.Errorf("'KeyUsages' should be a set"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1, CurrentTime: "string", "KeyUsages" : {1,2}}`),
-			expectErr:  true,
+			expectErr:  fmt.Errorf("'DNSName' should be a string"),
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"InvalidKey": "test.com"}`),
+			expectErr:  fmt.Errorf("invalid key option"),
 		},
 		{
 			jsonOption:      ast.MustParseTerm(`{}`),
-			expectErr:       false,
 			expectVerifyOpt: x509.VerifyOptions{},
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"KeyUsages" : {1,"KeyUsageAny", "InvalidKeyUsage", "KeyUsageServerAuth", 2}}`),
-			expectErr:  false,
 			expectVerifyOpt: x509.VerifyOptions{
 				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth},
 			},
@@ -696,7 +698,6 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, ` +
 				`"MaxConstraintComparisons": 5, "KeyUsages" : {"KeyUsageAny", "KeyUsageServerAuth","KeyUsageClientAuth"}}`),
-			expectErr: false,
 			expectVerifyOpt: x509.VerifyOptions{
 				DNSName:                   "test.com",
 				CurrentTime:               time.Unix(0, 1708447636000000000),
@@ -707,7 +708,6 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, ` +
 				`"MaxConstraintComparisons": 5, "KeyUsages" : {"KeyUsageAny", "KeyUsageAny", 1, 2, "KeyUsageServerAuth","KeyUsageClientAuth"}}`),
-			expectErr: false,
 			expectVerifyOpt: x509.VerifyOptions{
 				DNSName:                   "test.com",
 				CurrentTime:               time.Unix(0, 1708447636000000000),
@@ -719,12 +719,7 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 
 	for _, testCase := range tests {
 		options, _ := builtins.ObjectOperand(testCase.jsonOption.Value, 0)
-		if testCase.expectErr {
-			_, err := extractVerifyOpts(options)
-			if err == nil {
-				t.Fatalf("expected error but got nil error")
-			}
-		} else {
+		if testCase.expectErr == nil {
 			vo, err := extractVerifyOpts(options)
 			if err != nil {
 				t.Fatalf("did not expect error but got %s", err)
@@ -738,6 +733,11 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 
 				t.Fatalf("expected x509.VerifyOptions: %+v \n"+
 					"got: %+v", testCase.expectVerifyOpt, vo)
+			}
+		} else {
+			_, err := extractVerifyOpts(options)
+			if err == nil {
+				t.Fatalf("expected error: %s, got nil error", testCase.expectErr)
 			}
 		}
 	}

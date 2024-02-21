@@ -188,15 +188,16 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
 
 	for _, key := range options.Keys() {
-		switch key.String() {
-		case "\"DNSName\"":
+		k := key.String()[1 : len(key.String())-1]
+		switch k {
+		case "DNSName":
 			dns, ok := options.Get(key).Value.(ast.String)
 			if ok {
 				verifyOpt.DNSName = dns.String()[1 : len(dns.String())-1]
 			} else {
 				return verifyOpt, fmt.Errorf("'DNSName' should be a string")
 			}
-		case "\"CurrentTime\"":
+		case "CurrentTime":
 			c, ok := options.Get(key).Value.(ast.Number)
 			if ok {
 				nanosecs, ok := c.Int64()
@@ -208,7 +209,7 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 			} else {
 				return verifyOpt, fmt.Errorf("'CurrentTime' should be a number")
 			}
-		case "\"MaxConstraintComparisons\"":
+		case "MaxConstraintComparisons":
 			c, ok := options.Get(key).Value.(ast.Number)
 			if ok {
 				maxComparisons, ok := c.Int()
@@ -220,7 +221,7 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 			} else {
 				return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a number")
 			}
-		case "\"KeyUsages\"":
+		case "KeyUsages":
 			ks, ok := options.Get(key).Value.(ast.Set)
 			if ok {
 				// Collect the x509.ExtKeyUsage values by looking up the
@@ -234,7 +235,6 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 						}
 					}
 				})
-
 			} else {
 				return verifyOpt, fmt.Errorf("'KeyUsages' should be a set")
 			}
