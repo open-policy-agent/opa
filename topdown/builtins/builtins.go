@@ -109,6 +109,17 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type DecisionLabels map[string]ast.Object
+
+func (dl DecisionLabels) Add(k string, v ast.Value) {
+	// TODO: Fill me
+} // end Add function
+
+func (dl DecisionLabels) Get(k string) (ast.Value, bool) {
+	// TODO: Fill me and correct output
+	return ast.NewObject(), true
+} // end Get function
+
 // ErrOperand represents an invalid operand has been passed to a built-in
 // function. Built-ins should return ErrOperand to indicate a type error has
 // occurred.

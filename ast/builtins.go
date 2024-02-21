@@ -241,6 +241,9 @@ var DefaultBuiltins = [...]*Builtin{
 	// HTTP
 	HTTPSend,
 
+	// Decision Labels
+	DecisionLabelAdd,
+
 	// GraphQL
 	GraphQLParse,
 	GraphQLParseAndVerify,
@@ -2649,6 +2652,24 @@ var HTTPSend = &Builtin{
 			types.Named("request", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 		),
 		types.Named("response", types.NewObject(nil, types.NewDynamicProperty(types.A, types.A))),
+	),
+	Nondeterministic: true,
+}
+
+/**
+ * Decision Labels
+ */
+
+// DecisionLabelAdd takes in Policy result data and adds it to the Decision Label property
+var DecisionLabelAdd = &Builtin{
+	Name:        "decision.label.add",
+	Description: "adds Policy results to the Decision Label Property",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("label", types.S).Description("string label of the tag"),
+			types.Named("value", types.A).Description("string value of the tag"),
+		),
+		types.Named("labels", types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
 	),
 	Nondeterministic: true,
 }
