@@ -9,23 +9,38 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 )
 
 type fmtCommandParams struct {
-	overwrite bool
-	list      bool
-	diff      bool
-	fail      bool
+	overwrite    bool
+	list         bool
+	diff         bool
+	fail         bool
+	regoV1       bool
+	v1Compatible bool
 }
 
 var fmtParams = fmtCommandParams{}
+
+func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
+	// The '--rego-v1' flag takes precedence over the '--v1-compatible' flag.
+	if p.regoV1 {
+		return ast.RegoV0CompatV1
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
+}
 
 var formatCommand = &cobra.Command{
 	Use:   "fmt [path [...]]",
@@ -49,6 +64,9 @@ to stdout from the 'fmt' command.
 
 If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
 code if a file would be reformatted.`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return env.CmdFlags.CheckEnvironmentVariables(cmd)
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		os.Exit(opaFmt(args))
 	},
@@ -57,7 +75,7 @@ code if a file would be reformatted.`,
 func opaFmt(args []string) int {
 
 	if len(args) == 0 {
-		if err := formatStdin(os.Stdin, os.Stdout); err != nil {
+		if err := formatStdin(&fmtParams, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -108,9 +126,11 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	formatted, err := format.Source(filename, contents)
+	opts := format.Opts{}
+	opts.RegoVersion = params.regoVersion()
+	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
-		return newError("failed to parse Rego source file: %v", err)
+		return newError("failed to format Rego source file: %v", err)
 	}
 
 	changed := !bytes.Equal(contents, formatted)
@@ -134,14 +154,10 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 
 	if params.diff {
 		if changed {
-			stdout, stderr, err := doDiff(contents, formatted)
-			if err != nil && stdout.Len() == 0 {
-				fmt.Fprintln(os.Stderr, stderr.String())
-				return newError("failed to diff formatting: %v", err)
+			diffString := doDiff(contents, formatted)
+			if _, err := fmt.Fprintln(out, diffString); err != nil {
+				return newError("failed to print contents: %v", err)
 			}
-
-			fmt.Fprintln(out, stdout.String())
-
 			if params.fail {
 				return newError("unexpected diff")
 			}
@@ -166,14 +182,16 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	return nil
 }
 
-func formatStdin(r io.Reader, w io.Writer) error {
+func formatStdin(params *fmtCommandParams, r io.Reader, w io.Writer) error {
 
 	contents, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
 
-	formatted, err := format.Source("stdin", contents)
+	opts := format.Opts{}
+	opts.RegoVersion = params.regoVersion()
+	formatted, err := format.SourceWithOpts("stdin", contents, opts)
 	if err != nil {
 		return err
 	}
@@ -182,34 +200,10 @@ func formatStdin(r io.Reader, w io.Writer) error {
 	return err
 }
 
-func doDiff(old, new []byte) (stdout, stderr bytes.Buffer, err error) {
-	o, err := os.CreateTemp("", ".opafmt")
-	if err != nil {
-		return stdout, stderr, err
-	}
-	defer os.Remove(o.Name())
-	defer o.Close()
-
-	n, err := os.CreateTemp("", ".opafmt")
-	if err != nil {
-		return stdout, stderr, err
-	}
-	defer os.Remove(n.Name())
-	defer n.Close()
-
-	_, err = o.Write(old)
-	if err != nil {
-		return stdout, stderr, err
-	}
-	_, err = n.Write(new)
-	if err != nil {
-		return stdout, stderr, err
-	}
-
-	cmd := exec.Command("diff", "-u", o.Name(), n.Name())
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	return stdout, stderr, cmd.Run()
+func doDiff(old, new []byte) (diffString string) {
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(string(old), string(new), false)
+	return dmp.DiffPrettyText(diffs)
 }
 
 type fmtError struct {
@@ -233,5 +227,8 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.list, "list", "l", false, "list all files who would change when formatted")
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
+	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
+	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
+
 	RootCommand.AddCommand(formatCommand)
 }

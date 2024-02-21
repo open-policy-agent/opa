@@ -15,6 +15,7 @@ Requirements:
 - GitHub account (if you are contributing)
 - Go (version 1.15+ is supported though older versions are likely to work)
 - GNU Make
+- Python3, pip, yamllint (if linting YAML files manually)
 
 ## Getting Started
 
@@ -71,6 +72,10 @@ git rebase upstream/main
 > Be sure to run `make check` before submitting your pull request. You
 > may need to run `go fmt` on your code to make it comply with standard Go
 > style.
+> For YAML files, you may need to run the `yamllint` tool on the
+> `test/cases/testdata` folder to make sure any new tests are well-formatted.
+> If you have Docker available, you can run `make check-yaml-tests` to
+> run `yamllint` on the tests without installing any Python dependencies.
 
 
 ### Submission

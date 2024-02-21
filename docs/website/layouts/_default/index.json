@@ -1,0 +1,31 @@
+{{/* this file is used to validate updates to integrations page state */}}
+{{- $base := "/docs/edge" -}}
+{{- $integrations := where $.Site.RegularPages "Section" "integrations" -}}
+{{- $organizations := where $.Site.RegularPages "Section" "organizations" -}}
+{{- $softwares := where $.Site.RegularPages "Section" "softwares" -}}
+{{- $.Scratch.Set "json" dict -}}
+
+{{- $.Scratch.Set "integrations" dict -}}
+{{- range $integrations -}}
+{{- $.Scratch.SetInMap "integrations" .RelPermalink (merge .Params (dict "content" .Content)) -}}
+{{- end -}}
+{{- $.Scratch.SetInMap "json" "integrations" ($.Scratch.Get "integrations") -}}
+
+{{- $.Scratch.Set "organizations" dict -}}
+{{- range $organizations -}}
+{{- $.Scratch.SetInMap "organizations" .RelPermalink (merge .Params (dict "content" .Content)) -}}
+{{- end -}}
+{{- $.Scratch.SetInMap "json" "organizations" ($.Scratch.Get "organizations") -}}
+
+{{- $.Scratch.Set "softwares" dict -}}
+{{- range $softwares -}}
+{{- $.Scratch.SetInMap "softwares" .RelPermalink (merge .Params (dict "content" .Content)) -}}
+{{- end -}}
+{{- $.Scratch.SetInMap "json" "softwares" ($.Scratch.Get "softwares") -}}
+
+{{- $.Scratch.Add "images" slice -}}
+{{- range (readDir "static/img/logos/integrations") -}}
+{{- $.Scratch.Add "images" .Name -}}
+{{- end -}}
+{{- $.Scratch.SetInMap "json" "images" ($.Scratch.Get "images") -}}
+{{- $.Scratch.Get "json" | jsonify (dict "indent" "  ") -}}

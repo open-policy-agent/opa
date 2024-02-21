@@ -142,19 +142,14 @@ func NewOutputErrors(err error) []OutputError {
 
 		switch typedErr := err.(type) {
 		case *ast.Error:
-			oe := OutputError{
-				Code:    typedErr.Code,
-				Message: typedErr.Message,
-				Details: typedErr.Details,
-				err:     typedErr,
-			}
+			errs = []OutputError{{
+				Code:     typedErr.Code,
+				Message:  typedErr.Message,
+				Details:  typedErr.Details,
+				Location: typedErr.Location,
+				err:      typedErr,
+			}}
 
-			// TODO(patrick-east): Why does the JSON marshaller marshal
-			// location as `null` when err.location == nil?!
-			if typedErr.Location != nil {
-				oe.Location = typedErr.Location
-			}
-			errs = []OutputError{oe}
 		case *topdown.Error:
 			errs = []OutputError{{
 				Code:     typedErr.Code,
@@ -184,11 +179,9 @@ func NewOutputErrors(err error) []OutputError {
 				}
 			}
 		case loader.Errors:
-			{
-				for _, e := range typedErr {
-					if e != nil {
-						errs = append(errs, NewOutputErrors(e)...)
-					}
+			for _, e := range typedErr {
+				if e != nil {
+					errs = append(errs, NewOutputErrors(e)...)
 				}
 			}
 		default:
@@ -239,10 +232,10 @@ func (e OutputErrors) Error() string {
 // library errors so that the JSON output given by the
 // presentation package is consistent and parsable.
 type OutputError struct {
-	Message  string      `json:"message"`
-	Code     string      `json:"code,omitempty"`
-	Location interface{} `json:"location,omitempty"`
-	Details  interface{} `json:"details,omitempty"`
+	Message  string        `json:"message"`
+	Code     string        `json:"code,omitempty"`
+	Location *ast.Location `json:"location,omitempty"`
+	Details  interface{}   `json:"details,omitempty"`
 	err      error
 }
 

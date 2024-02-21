@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -42,6 +43,38 @@ func TestCaptureWarningWithErrorSet(t *testing.T) {
 		if !strings.Contains(buf.String(), exp) {
 			t.Errorf("expected string %q not found in logs", exp)
 		}
+	}
+}
+
+func TestNoFormattingForSingleString(t *testing.T) {
+	buf := bytes.Buffer{}
+	logger := New()
+	logger.SetOutput(&buf)
+	logger.SetLevel(Debug)
+
+	// NOTE(sr): This construction is somewhat realistic: If we fed logger.Error()
+	// a format string but no args, the golang linters would yell. The indirection
+	// taken here is enough to not trigger linters.
+	x := url.PathEscape("/foo/bar/bar")
+	logger.Debug(x)
+	logger.Info(x)
+	logger.Warn(x)
+	logger.Error(x)
+
+	exp := `"%2Ffoo%2Fbar%2Fbar"`
+	expected := []string{
+		`level=error msg=` + exp,
+		`level=warning msg=` + exp,
+		`level=info msg=` + exp,
+		`level=debug msg=` + exp,
+	}
+	for _, exp := range expected {
+		if !strings.Contains(buf.String(), exp) {
+			t.Errorf("expected string %q not found in logs", exp)
+		}
+	}
+	if t.Failed() {
+		t.Logf("actual output:\n%s", buf.String())
 	}
 }
 

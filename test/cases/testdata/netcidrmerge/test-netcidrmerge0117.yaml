@@ -1,3 +1,4 @@
+---
 cases:
   - note: netcidrmerge/cidr single subnet
     modules:
@@ -9,7 +10,7 @@ cases:
         }
     query: data.test.p = x
     want_result:
-        - x:
+      - x:
           - 192.0.128.0/24
   - note: netcidrmerge/cidr duplicate
     modules:

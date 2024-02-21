@@ -141,6 +141,29 @@ func TestDirectoryLoader(t *testing.T) {
 	})
 }
 
+func TestTarballLoaderWithMaxSizeBytesLimit(t *testing.T) {
+	rootDir := t.TempDir()
+	tarballFile := filepath.Join(rootDir, "archive.tar.gz")
+
+	f := testGetTarballFile(t, rootDir)
+
+	loader := NewTarballLoaderWithBaseURL(f, tarballFile).WithSizeLimitBytes(5)
+
+	defer f.Close()
+
+	_, err := loader.NextFile()
+	if err == nil {
+		t.Fatal("Expected error but got nil")
+	}
+
+	// Order of iteration over files in the tarball aren't necessarily in a deterministic order,
+	// but luckily we have 2 files of 18 bytes. Just skip checking for the name here.
+	expected := "size (18 bytes) exceeds configured size_limit_bytes (5 bytes)"
+
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("Expected %q but got %v", expected, err)
+	}
+}
 func TestTarballLoaderWithFilter(t *testing.T) {
 
 	files := map[string]string{

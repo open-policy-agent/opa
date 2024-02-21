@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/util"
@@ -43,6 +44,7 @@ type buildParams struct {
 	excludeVerifyFiles []string
 	plugin             string
 	ns                 string
+	v1Compatible       bool
 }
 
 func newBuildParams() buildParams {
@@ -218,7 +220,7 @@ against OPA v0.22.0:
 			if len(args) == 0 {
 				return fmt.Errorf("expected at least one path")
 			}
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(Cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := dobuild(buildParams, args); err != nil {
@@ -252,6 +254,8 @@ against OPA v0.22.0:
 	addSigningKeyFlag(buildCommand.Flags(), &buildParams.key)
 	addSigningPluginFlag(buildCommand.Flags(), &buildParams.plugin)
 	addClaimsFileFlag(buildCommand.Flags(), &buildParams.claimsFile)
+
+	addV1CompatibleFlag(buildCommand.Flags(), &buildParams.v1Compatible, false)
 
 	RootCommand.AddCommand(buildCommand)
 }
@@ -299,6 +303,10 @@ func dobuild(params buildParams, args []string) error {
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc).
 		WithPartialNamespace(params.ns)
+
+	if params.v1Compatible {
+		compiler = compiler.WithRegoVersion(ast.RegoV1)
+	}
 
 	if params.revision.isSet {
 		compiler = compiler.WithRevision(*params.revision.v)

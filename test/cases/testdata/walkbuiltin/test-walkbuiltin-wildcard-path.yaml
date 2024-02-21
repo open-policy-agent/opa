@@ -1,0 +1,29 @@
+---
+cases:
+    - modules:
+          - |
+              package testing
+
+              obj := {
+                  "bar": "baz",
+                  "qux": [
+                      1,
+                      {"p": "rego", "q": "rules"},
+                      {1, 2, 3, {"a": "b", "c": {"d", "e", 1}}}
+                  ]
+              }
+
+              with_path[value] {
+                  walk(obj, [path, value])
+              }
+
+              without_path[value] {
+                  walk(obj, [_, value])
+              }
+
+              same_values := with_path == without_path
+
+      note: "walkbuiltin/wildcard-path same values as when path provided"
+      query: x = data.testing.same_values
+      want_result:
+          - x: true

@@ -6,8 +6,8 @@
 package cover
 
 import (
+	"bytes"
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -98,7 +98,7 @@ func (c *Cover) Report(modules map[string]*ast.Module) (report Report) {
 	}
 	report.CoveredLines = coveredLoc
 	report.NotCoveredLines = notCoveredLoc
-	report.Coverage = round(overallCoverage, 2)
+	report.Coverage = overallCoverage
 
 	return
 }
@@ -223,7 +223,7 @@ func (fr *FileReport) computeCoveragePercentage() float64 {
 		return 0.0
 	}
 
-	return round(100.0*float64(coveredLoc)/float64(totalLoc), 2)
+	return 100.0 * float64(coveredLoc) / float64(totalLoc)
 }
 
 // Report represents a coverage report for a set of files.
@@ -244,13 +244,38 @@ func (r Report) IsCovered(file string, row int) bool {
 type CoverageThresholdError struct {
 	Coverage  float64
 	Threshold float64
+	Report    *Report
 }
 
 func (e *CoverageThresholdError) Error() string {
-	return fmt.Sprintf(
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf(
 		"Code coverage threshold not met: got %.2f instead of %.2f",
 		e.Coverage,
-		e.Threshold)
+		e.Threshold))
+
+	if e.Report != nil && len(e.Report.Files) > 0 {
+		buffer.WriteString("\nLines not covered:")
+
+		sorted := make([]string, 0, len(e.Report.Files))
+		for file := range e.Report.Files {
+			sorted = append(sorted, file)
+		}
+		sort.Strings(sorted)
+
+		for _, file := range sorted {
+			report := e.Report.Files[file]
+			for _, r := range report.NotCovered {
+				if r.Start.Row == r.End.Row {
+					buffer.WriteString(fmt.Sprintf("\n\t%s:%d", file, r.Start.Row))
+				} else {
+					buffer.WriteString(fmt.Sprintf("\n\t%s:%d-%d", file, r.Start.Row, r.End.Row))
+				}
+			}
+		}
+	}
+
+	return fmt.Sprint(buffer.String())
 }
 
 func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
@@ -275,11 +300,6 @@ func sortedPositionSliceToRangeSlice(sorted []Position) (result []Range) {
 
 func hasFileLocation(loc *ast.Location) bool {
 	return loc != nil && loc.File != ""
-}
-
-// round returns the number with the specified precision.
-func round(number float64, precision int) float64 {
-	return math.Round(number*10*float64(precision)) / (10.0 * float64(precision))
 }
 
 // Check the expression and return true if it should be included in the coverage report

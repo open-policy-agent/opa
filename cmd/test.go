@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	"github.com/open-policy-agent/opa/internal/runtime"
@@ -60,6 +61,7 @@ type testCommandParams struct {
 	stopChan     chan os.Signal
 	output       io.Writer
 	errOutput    io.Writer
+	v1Compatible bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -73,6 +75,13 @@ func newTestCommandParams() testCommandParams {
 		errOutput:    os.Stderr,
 		stopChan:     make(chan os.Signal, 1),
 	}
+}
+
+func (p *testCommandParams) RegoVersion() ast.RegoVersion {
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
 }
 
 func opaTest(args []string, testParams testCommandParams) (int, error) {
@@ -101,10 +110,10 @@ func opaTest(args []string, testParams testCommandParams) (int, error) {
 	var store storage.Store
 
 	if testParams.bundleMode {
-		bundles, err = tester.LoadBundles(args, filter.Apply)
+		bundles, err = tester.LoadBundlesWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	} else {
-		modules, store, err = tester.Load(args, filter.Apply)
+		modules, store, err = tester.LoadWithRegoVersion(args, filter.Apply, testParams.RegoVersion())
 	}
 
 	if err != nil {
@@ -412,6 +421,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 			Modules:   modules,
 			Output:    testParams.output,
 			Threshold: testParams.threshold,
+			Verbose:   testParams.verbose,
 		}
 	}
 
@@ -441,7 +451,7 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	import future.keywords.if
+	import rego.v1
 
 	allow if {
 		input.path == ["users"]
@@ -457,25 +467,27 @@ Example test (example/authz_test.rego):
 
 	package authz_test
 
+	import rego.v1
+
 	import data.authz.allow
 
-	test_post_allowed {
+	test_post_allowed if {
 		allow with input as {"path": ["users"], "method": "POST"}
 	}
 
-	test_get_denied {
+	test_get_denied if {
 		not allow with input as {"path": ["users"], "method": "GET"}
 	}
 
-	test_get_user_allowed {
+	test_get_user_allowed if {
 		allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
 	}
 
-	test_get_another_user_denied {
+	test_get_another_user_denied if {
 		not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
 	}
 
-	todo_test_user_allowed_http_client_data {
+	todo_test_user_allowed_http_client_data if {
 		false # Remember to test this later!
 	}
 
@@ -495,7 +507,7 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 the policy and data and then re-runs the tests. Watching individual files (rather than directories) is generally not
 recommended as some updates might cause them to be dropped by OPA.
 `,
-		PreRunE: func(Cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("specify at least one file")
 			}
@@ -505,7 +517,7 @@ recommended as some updates might cause them to be dropped by OPA.
 				testParams.verbose = true
 			}
 
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -535,6 +547,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
+	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
 
 	RootCommand.AddCommand(testCommand)
 }

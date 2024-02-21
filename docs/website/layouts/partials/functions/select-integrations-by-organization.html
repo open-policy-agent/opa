@@ -1,0 +1,13 @@
+{{ $integrations := (index . "integrations") }}
+{{ $organization := (index . "organization") }}
+
+{{ $scratch := newScratch }}
+{{ $scratch.Set "integrations" (dict) }}
+{{ range $integration := $integrations }}
+  {{ $params := $integration.Params }}
+  {{ if in $params.inventors $organization }}
+    {{ $scratch.SetInMap "integrations" $integration.Permalink $integration  }}
+  {{ end }}
+{{ end }}
+
+{{ return ($scratch.Get "integrations") }}

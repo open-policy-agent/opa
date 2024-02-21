@@ -1,20 +1,21 @@
+---
 cases:
-- data:
-  modules:
-  - |
-    package x
+  - data:
+    modules:
+      - |
+        package x
 
-    p[a] {
-        a := q
-    }
+        p[a] {
+            a := q
+        }
 
-    q[b] {
-        b := 1
-    }
-  note: partialsetdoc/unexpected 'var requires evaluation'
-  query: data.x.p[x] = z
-  want_result:
-  - x:
-    - 1
-    z:
-    - 1
+        q[b] {
+            b := 1
+        }
+    note: partialsetdoc/unexpected 'var requires evaluation'
+    query: data.x.p[x] = z
+    want_result:
+      - x:
+          - 1
+        z:
+          - 1

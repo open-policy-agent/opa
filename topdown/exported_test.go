@@ -49,6 +49,10 @@ type opt func(*Query) *Query
 
 func testRun(t *testing.T, tc cases.TestCase, opts ...opt) {
 
+	for k, v := range tc.Env {
+		t.Setenv(k, v)
+	}
+
 	ctx := context.Background()
 
 	modules := map[string]string{}

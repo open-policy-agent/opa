@@ -27,7 +27,7 @@ We welcome contributions of all kinds. For example:
 - [Documentation](../contrib-docs) including reference material and examples.
 - Help out other members in the OPA Slack Org and on the [GitHub Discussions Board](https://github.com/open-policy-agent/feedback/discussions)
 - Spreading the word about OPA by speaking at conferences
-- Adding integrations to the OPA [ecosystem](https://www.openpolicyagent.org/docs/latest/ecosystem/)
+- Adding integrations to the OPA [ecosystem](https://www.openpolicyagent.org/ecosystem/)
 - Creating Blog and Videos to show how your organization has implemented OPA
 
 If you're interested in any non-code contributions, please reach out on the #help channel on [Slack](https://slack.openpolicyagent.org/)

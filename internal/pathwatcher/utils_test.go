@@ -17,10 +17,12 @@ func TestWatchPaths(t *testing.T) {
 
 	fs := map[string]string{
 		"/foo/bar/baz.json": "true",
+		"/foo/faz/baz.json": "true",
+		"/foo/baz.json":     "true",
 	}
 
 	expected := []string{
-		".", "/foo", "/foo/bar",
+		"/foo", "/foo/bar", "/foo/faz",
 	}
 
 	test.WithTempFS(fs, func(rootDir string) {

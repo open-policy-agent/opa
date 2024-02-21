@@ -20,6 +20,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/compile"
 	"github.com/open-policy-agent/opa/cover"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -70,6 +71,7 @@ type evalCommandParams struct {
 	optimizationLevel   int
 	entrypoints         repeatedStringFlag
 	strict              bool
+	v1Compatible        bool
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -269,7 +271,10 @@ access.
 `,
 
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validateEvalParams(&params, args)
+			if err := validateEvalParams(&params, args); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -326,6 +331,7 @@ access.
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
+	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
 
 	RootCommand.AddCommand(evalCommand)
 }
@@ -661,6 +667,10 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strict {
 		regoArgs = append(regoArgs, rego.Strict(params.strict))
+	}
+
+	if params.v1Compatible {
+		regoArgs = append(regoArgs, rego.SetRegoVersion(ast.RegoV1))
 	}
 
 	evalCtx := &evalContext{

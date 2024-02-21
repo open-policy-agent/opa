@@ -55,6 +55,8 @@ type Options struct {
 	// Hooks allows hooking into the internals of SDK operations (TODO(sr): find better words)
 	Hooks hooks.Hooks
 
+	V1Compatible bool
+
 	config []byte
 	block  bool
 }

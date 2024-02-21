@@ -1,3 +1,4 @@
+---
 # These unit tests check that we get JSON AST structures with
 # expected structure and content. If these ever break, policies
 # depending on the GraphQL ASTs will too!

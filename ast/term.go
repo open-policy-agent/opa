@@ -22,6 +22,7 @@ import (
 
 	"github.com/OneOfOne/xxhash"
 
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -294,7 +295,7 @@ type Term struct {
 	Value    Value     `json:"value"`              // the value of the Term as represented in Go
 	Location *Location `json:"location,omitempty"` // the location of the Term in the source
 
-	jsonOptions JSONOptions
+	jsonOptions astJSON.Options
 }
 
 // NewTerm returns a new Term object.
@@ -419,8 +420,11 @@ func (term *Term) IsGround() bool {
 	return term.Value.IsGround()
 }
 
-func (term *Term) setJSONOptions(opts JSONOptions) {
+func (term *Term) setJSONOptions(opts astJSON.Options) {
 	term.jsonOptions = opts
+	if term.Location != nil {
+		term.Location.JSONOptions = opts
+	}
 }
 
 // MarshalJSON returns the JSON encoding of the term.
@@ -888,8 +892,8 @@ func PtrRef(head *Term, s string) (Ref, error) {
 		return Ref{head}, nil
 	}
 	parts := strings.Split(s, "/")
-	if max := math.MaxInt32; len(parts) >= max {
-		return nil, fmt.Errorf("path too long: %s, %d > %d (max)", s, len(parts), max)
+	if maxLen := math.MaxInt32; len(parts) >= maxLen {
+		return nil, fmt.Errorf("path too long: %s, %d > %d (max)", s, len(parts), maxLen)
 	}
 	ref := make(Ref, uint(len(parts))+1)
 	ref[0] = head
@@ -1028,6 +1032,20 @@ func (ref Ref) ConstantPrefix() Ref {
 	return ref[:i]
 }
 
+func (ref Ref) StringPrefix() Ref {
+	r := ref.Copy()
+
+	for i := 1; i < len(ref); i++ {
+		switch r[i].Value.(type) {
+		case String: // pass
+		default: // cut off
+			return r[:i]
+		}
+	}
+
+	return r
+}
+
 // GroundPrefix returns the ground portion of the ref starting from the head. By
 // definition, the head of the reference is always ground.
 func (ref Ref) GroundPrefix() Ref {
@@ -1041,6 +1059,14 @@ func (ref Ref) GroundPrefix() Ref {
 	}
 
 	return prefix
+}
+
+func (ref Ref) DynamicSuffix() Ref {
+	i := ref.Dynamic()
+	if i < 0 {
+		return nil
+	}
+	return ref[i:]
 }
 
 // IsGround returns true if all of the parts of the Ref are ground.
@@ -1077,6 +1103,10 @@ func (ref Ref) Ptr() (string, error) {
 }
 
 var varRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
+
+func IsVarCompatibleString(s string) bool {
+	return varRegexp.MatchString(s)
+}
 
 func (ref Ref) String() string {
 	if len(ref) == 0 {

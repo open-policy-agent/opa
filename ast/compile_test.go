@@ -467,7 +467,6 @@ func toRef(s string) Ref {
 }
 
 func TestCompilerCheckRuleHeadRefs(t *testing.T) {
-
 	tests := []struct {
 		note     string
 		modules  []*Module
@@ -480,7 +479,6 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				`package x
 				p.q[i].r = 1 { i := 10 }`,
 			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): i",
 		},
 		{
 			note: "valid: ref is single-value rule with var key",
@@ -559,7 +557,6 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				`package x
 				p.q[arr[0]].r { i := 10 }`,
 			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): arr[0]",
 		},
 		{
 			note: "invalid: non-string in ref (not last position)",
@@ -567,7 +564,6 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				`package x
 				p.q[10].r { true }`,
 			),
-			err: "rego_type_error: rule head must only contain string terms (except for last): 10",
 		},
 		{
 			note: "valid: multi-value with var key",
@@ -583,6 +579,22 @@ func TestCompilerCheckRuleHeadRefs(t *testing.T) {
 				p.q.r[y.z] if y := {"z": "a"}`,
 			),
 			expected: MustParseRule(`p.q.r[__local0__]  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
+		{
+			note: "rewrite: single-value with non-var ref term",
+			modules: modules(
+				`package x
+				p.q[y.z].r if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__].r  { y := {"z": "a"}; __local0__ = y.z }`),
+		},
+		{
+			note: "rewrite: single-value with non-var ref term and key",
+			modules: modules(
+				`package x
+				p.q[a.b][c.d] if y := {"z": "a"}`,
+			),
+			expected: MustParseRule(`p.q[__local0__][__local1__]  { y := {"z": "a"}; __local0__ = a.b; __local1__ = c.d }`),
 		},
 	}
 
@@ -1773,9 +1785,23 @@ p[x] = y { x = y; x = "a" }
 q[1] { true }
 q = {1, 2, 3} { true }
 r[x] = y { x = y; x = "a" }
-r[x] = y { x = y; x = "a" }`,
+r[x] = y { x = y; x = "a" }
+s[x] { x = "a" }
+s[x] { x = "b" }
+t := x { x = "a"}`,
 
-		"mod2.rego": `package badrules.r
+		// valid extension of r in mod1.rego
+		"mod2a.rego": `package badrules.r
+
+q[1] { true }`,
+
+		// invalid override of s in mod1.rego
+		"mod2b.rego": `package badrules.s
+
+q[1] { true }`,
+
+		// invalid override of t in mod1.rego
+		"mod2c.rego": `package badrules.t
 
 q[1] { true }`,
 
@@ -1813,6 +1839,9 @@ p { true }`,
 import future.keywords
 
 bar.baz contains "quz" if true`,
+		"mod8.rego": `package badrules.complete_partial
+p := 1
+p[r] := 2 { r := "foo" }`,
 	})
 
 	c.WithPathConflictsCheck(func(path []string) (bool, error) {
@@ -1833,12 +1862,16 @@ bar.baz contains "quz" if true`,
 		"rego_type_error: conflicting rules data.badrules.arity.g found",
 		"rego_type_error: conflicting rules data.badrules.arity.p.q.h found",
 		"rego_type_error: conflicting rules data.badrules.arity.p.q.i found",
+		"rego_type_error: conflicting rules data.badrules.complete_partial.p[r] found",
 		"rego_type_error: conflicting rules data.badrules.p[x] found",
 		"rego_type_error: conflicting rules data.badrules.q found",
 		"rego_type_error: multiple default rules data.badrules.defkw.foo found",
 		"rego_type_error: multiple default rules data.badrules.defkw.p.q.bar found",
-		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:7",
-		"rego_type_error: package badrules.r conflicts with rule r[x] defined at mod1.rego:8",
+		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:10",
+		"rego_type_error: package badrules.s conflicts with rule s defined at mod1.rego:9",
+		"rego_type_error: package badrules.t conflicts with rule t defined at mod1.rego:11",
+		"rego_type_error: rule data.badrules.s conflicts with [data.badrules.s.q]",
+		"rego_type_error: rule data.badrules.t conflicts with [data.badrules.t.q]",
 	}
 
 	assertCompilerErrorStrings(t, c, expected)
@@ -1880,7 +1913,6 @@ func TestCompilerCheckRuleConflictsDefaultFunction(t *testing.T) {
 }
 
 func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
-
 	tests := []struct {
 		note    string
 		modules []*Module
@@ -1966,7 +1998,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r { true }`,
 				`package pkg
 				p.q.r.s { true }`),
-			err: "rego_type_error: single-value rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s]",
+			err: "rego_type_error: rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s]",
 		},
 		{
 			note: "single-value with other rule overlap",
@@ -1975,7 +2007,15 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q.r { true }
 				p.q.r.s { true }
 				p.q.r.t { true }`),
-			err: "rego_type_error: single-value rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s data.pkg.p.q.r.t]",
+			err: "rego_type_error: rule data.pkg.p.q.r conflicts with [data.pkg.p.q.r.s data.pkg.p.q.r.t]",
+		},
+		{
+			note: "single-value with other partial object (same ref) overlap",
+			modules: modules(
+				`package pkg
+				p.q := 1
+				p.q[r] := 2 { r := "foo" }`),
+			err: "rego_type_error: conflicting rules data.pkg.p.q[r] foun",
 		},
 		{
 			note: "single-value with other rule overlap, unknown key",
@@ -1984,16 +2024,22 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p.q[r] = x { r = input.key; x = input.foo }
 				p.q.r.s = x { true }
 				`),
-			err: "rego_type_error: single-value rule data.pkg.p.q[r] conflicts with [data.pkg.p.q.r.s]",
 		},
 		{
-			note: "single-value partial object with other partial object rule overlap, unknown keys (regression test for #5855)",
+			note: "single-value with other rule overlap, unknown ref var and key",
+			modules: modules(
+				`package pkg
+				p.q[r][s] = x { r = input.key1; s = input.key2; x = input.foo }
+				p.q.r.s.t = x { true }
+				`),
+		},
+		{
+			note: "single-value partial object with other partial object rule overlap, unknown keys (regression test for #5855; invalidated by multi-var refs)",
 			modules: modules(
 				`package pkg
 				p[r] := x { r = input.key; x = input.bar }
 				p.q[r] := x { r = input.key; x = input.bar }
 				`),
-			err: "rego_type_error: single-value rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
 		},
 		{
 			note: "single-value partial object with other partial object (implicit 'true' value) rule overlap, unknown keys",
@@ -2002,7 +2048,6 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p[r] := x { r = input.key; x = input.bar }
 				p.q[r] { r = input.key }
 				`),
-			err: "rego_type_error: single-value rule data.pkg.p[r] conflicts with [data.pkg.p.q[r]]",
 		},
 		{
 			note: "single-value partial object with multi-value rule (ref head) overlap, unknown key",
@@ -2037,7 +2082,7 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p[v] { v := ["a", "b"][_] }
 				p.q := 42
 				`),
-			err: "rego_type_error: multi-value rule data.pkg.p conflicts with [data.pkg.p.q]",
+			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q]",
 		},
 		{
 			note: "multi-value rule with other rule (ref) overlap",
@@ -2046,7 +2091,53 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 				p[v] { v := ["a", "b"][_] }
 				p.q.r { true }
 				`),
-			err: "rego_type_error: multi-value rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+		},
+		{
+			note: "multi-value rule (dots in head) with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				import future.keywords
+				p.q contains v { v := ["a", "b"][_] }
+				p.q.r { true }
+				`),
+			err: "rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
+		},
+		{
+			note: "multi-value rule (dots and var in head) with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				import future.keywords
+				p[q] contains v { v := ["a", "b"][_] }
+				p.q.r { true }
+				`),
+		},
+		{
+			note: "function with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				p(x) := x
+				p.q.r { true }
+				`),
+			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+		},
+		{
+			note: "function with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				p(x) := x
+				p.q.r { true }
+				`),
+			err: "rego_type_error: rule data.pkg.p conflicts with [data.pkg.p.q.r]",
+		},
+		{
+			note: "function (ref) with other rule (ref) overlap",
+			modules: modules(
+				`package pkg
+				p.q(x) := x
+				p.q.r { true }
+				`),
+			err: "rego_type_error: rule data.pkg.p.q conflicts with [data.pkg.p.q.r]",
 		},
 	}
 	for _, tc := range tests {
@@ -2060,6 +2151,72 @@ func TestCompilerCheckRuleConflictsDotsInRuleHeads(t *testing.T) {
 			compileStages(c, c.checkRuleConflicts)
 			if tc.err != "" {
 				assertCompilerErrorStrings(t, c, []string{tc.err})
+			} else {
+				assertCompilerErrorStrings(t, c, []string{})
+			}
+		})
+	}
+}
+
+func TestCompilerCheckRulePkgConflicts(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		err     []string
+	}{
+		{
+			note: "Package can be declared within dynamic extent of rule (#6387 regression test)",
+			modules: modules(
+				`package test
+					p[x] := y { x := "a"; y := "b" }`,
+				`package test.p
+					q := 1`),
+		},
+		{
+			note: "Package can be declared deep within dynamic extent of rule (#6387 regression test)",
+			modules: modules(
+				`package test
+					p[x] := y { x := "a"; y := "b" }`,
+				`package test.p.q.r.s
+					t := 1`),
+		},
+		{
+			note: "Package cannot be declared within extent of single-value rule (ground ref)",
+			modules: modules(
+				`package test
+					p := x { x := "a" }`,
+				`package test.p
+					q := 1`),
+			err: []string{
+				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
+				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+			},
+		},
+		{
+			note: "Package cannot be declared within extent of multi-value rule",
+			modules: modules(
+				`package test
+					p[x] { x := "a" }`,
+				`package test.p
+					q := 1`),
+			err: []string{
+				"rego_type_error: package test.p conflicts with rule p defined at mod0.rego:2",
+				"rego_type_error: rule data.test.p conflicts with [data.test.p.q]",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			mods := make(map[string]*Module, len(tc.modules))
+			for i, m := range tc.modules {
+				mods[fmt.Sprint(i)] = m
+			}
+			c := NewCompiler()
+			c.Modules = mods
+			compileStages(c, c.checkRuleConflicts)
+			if len(tc.err) > 0 {
+				assertCompilerErrorStrings(t, c, tc.err)
 			} else {
 				assertCompilerErrorStrings(t, c, []string{})
 			}
@@ -2626,6 +2783,13 @@ func TestCompilerCheckUnusedImports(t *testing.T) {
 			},
 		},
 		{
+			note: "ignore unused rego import",
+			module: `package p
+			import rego.v1
+			r if { 10 == 10 }
+			`,
+		},
+		{
 			note: "import used in comparison",
 			module: `package p
 			import data.foo.x
@@ -2829,6 +2993,60 @@ func TestCompilerCheckKeywordOverrides(t *testing.T) {
 				},
 				&Error{
 					Location: NewLocation([]byte("data { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "rule names (set construction)",
+			module: `package test
+				input.a { true }
+				p { true }
+				data.b { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data.b { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "rule names (object construction)",
+			module: `package test
+				input.a := 1 { true }
+				p { true }
+				data.b := 2 { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a := 1 { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte("data.b := 2 { true }"), "", 4, 5),
+					Message:  "rules must not shadow data (use a different rule name)",
+				},
+			},
+		},
+		{
+			note: "leading term in rule refs",
+			module: `package test
+				input.a.b { true }
+				p { true }
+				data.b.c := "foo" { true }
+			`,
+			expectedErrors: Errors{
+				&Error{
+					Location: NewLocation([]byte("input.a.b { true }"), "", 2, 5),
+					Message:  "rules must not shadow input (use a different rule name)",
+				},
+				&Error{
+					Location: NewLocation([]byte(`data.b.c := "foo" { true }`), "", 4, 5),
 					Message:  "rules must not shadow data (use a different rule name)",
 				},
 			},
@@ -3077,6 +3295,551 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 	if incorrectErrs {
 		t.Fatalf("Expected errors:\n\n%s\n\nGot:\n\n%s\n", expected.Error(), actual.Error())
+	}
+}
+
+func TestCompileRegoV1Import(t *testing.T) {
+	cases := []struct {
+		note           string
+		modules        map[string]string
+		expectedErrors Errors
+	}{
+		// Duplicate imports
+		{
+			note: "duplicate imports",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.bar.foo
+					p if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (alias)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.bar as foo
+					p if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (alias, different order)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					import data.bar as foo
+					import data.foo
+					p if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.bar as foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (repeat)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.foo
+					p if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.bar.foo
+					p if {
+						foo == "bar"
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.bar.foo
+					q if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy1.rego", Row: 4, Col: 6},
+				},
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy2.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		{
+			note: "duplicate imports (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					import data.foo
+					import data.bar.foo
+					p if {
+						foo == "bar"
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					import data.foo
+					import data.bar.foo
+					q if {
+						foo == "bar"
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "import must not shadow import data.foo",
+					Location: &Location{Text: []byte("import"), File: "policy2.rego", Row: 4, Col: 6},
+				},
+			},
+		},
+		// var shadowing
+		{
+			note: "var shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					p if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows input (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					p if {
+						input := 1
+						input == 1
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					q if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy1.rego", Row: 4, Col: 7},
+				},
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows input (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					p if {
+						input := 1
+						input == 1
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					q if {
+						input := 1
+						input == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow input (use a different variable name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					p if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					p if {
+						data := 1
+						data == 1
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					q if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy1.rego", Row: 4, Col: 7},
+				},
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		{
+			note: "var shadows data (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import future.keywords.if
+					p if {
+						data := 1
+						data == 1
+					}`,
+				"policy2.rego": `package test
+					import rego.v1
+					q if {
+						data := 1
+						data == 1
+					}`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "variables must not shadow data (use a different variable name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy2.rego", Row: 4, Col: 7},
+				},
+			},
+		},
+		// rule shadowing
+		{
+			note: "rule shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (object) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input.a := "b" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte(`input.a := "b" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (set) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input contains "a" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte(`input contains "a" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule ref shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					input.a.b.c := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input.a.b.c := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows input (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					input := 1`,
+				"policy2.rego": `package test2
+					import rego.v1
+					input := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 1"), File: "policy1.rego", Row: 3, Col: 6},
+				},
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows input (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					input := 1`,
+				"policy2.rego": `package test2
+					import rego.v1
+					input := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow input (use a different rule name)",
+					Location: &Location{Text: []byte("input := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (object) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data.a := "b" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte(`data.a := "b" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule (set) shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data contains "a" if { true }`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte(`data contains "a" if { true }`), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule ref shadows input",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					data.a.b.c := 1`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data.a.b.c := 1"), File: "policy.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					data := 1`,
+				"policy2.rego": `package test2
+					import rego.v1
+					data := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 1"), File: "policy1.rego", Row: 3, Col: 6},
+				},
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		{
+			note: "rule shadows data (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					data := 1`,
+				"policy2.rego": `package test2
+					import rego.v1
+					data := 2`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "rules must not shadow data (use a different rule name)",
+					Location: &Location{Text: []byte("data := 2"), File: "policy2.rego", Row: 3, Col: 6},
+				},
+			},
+		},
+		// deprecated built-ins
+		{
+			note: "deprecated built-in",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					p := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple)",
+			modules: map[string]string{
+				"policy.rego": `package test
+					import rego.v1
+					p := all([true, false])
+					q := any([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy.rego", Row: 3, Col: 11},
+				},
+				&Error{
+					Message:  "deprecated built-in function calls in expression: any",
+					Location: &Location{Text: []byte("any([true, false])"), File: "policy.rego", Row: 4, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple modules)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					import rego.v1
+					p := all([true, false])`,
+				"policy2.rego": `package test
+					import rego.v1
+					q := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy1.rego", Row: 3, Col: 11},
+				},
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy2.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+		{
+			note: "deprecated built-in (multiple modules, not all strict)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					p := all([true, false])`,
+				"policy2.rego": `package test
+					import rego.v1
+					q := all([true, false])`,
+			},
+			expectedErrors: Errors{
+				&Error{
+					Message:  "deprecated built-in function calls in expression: all",
+					Location: &Location{Text: []byte("all([true, false])"), File: "policy2.rego", Row: 3, Col: 11},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := NewCompiler()
+			compiler.Modules = map[string]*Module{}
+			for name, mod := range tc.modules {
+				if parsed, err := ParseModuleWithOpts(name, mod, ParserOptions{}); err != nil {
+					t.Fatal(err)
+				} else {
+					compiler.Modules[name] = parsed
+				}
+			}
+			compileStages(compiler, nil)
+			assertErrors(t, compiler.Errors, tc.expectedErrors, true)
+		})
 	}
 }
 
@@ -3470,10 +4233,10 @@ q = [true | true] { true }
 		{
 			note: "array comprehension value in else head",
 			mod: MustParseModule(`package head
-q { 
-	false 
-} else = [true | true] { 
-	true 
+q {
+	false
+} else = [true | true] {
+	true
 }
 `),
 			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = [true | true] }`),
@@ -3503,10 +4266,10 @@ f(x) = [a | a := true] {
 		{
 			note: "array comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = [x | y] { 
-	false 
+f(x, y) = [x | y] {
+	false
 } else = [x | y] {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = [__local0__ | __local1__] } else = __local3__ { true; __local3__ = [__local0__ | __local1__] }`),
@@ -3521,10 +4284,10 @@ r = {"true": true | true} { true }
 		{
 			note: "object comprehension value in else head",
 			mod: MustParseModule(`package head
-q { 
-	false 
-} else = {"true": true | true} { 
-	true 
+q {
+	false
+} else = {"true": true | true} {
+	true
 }
 `),
 			exp: MustParseRule(`q = true { false } else = __local0__ { true; __local0__ = {"true": true | true} }`),
@@ -3554,10 +4317,10 @@ f(x) = {"a": a | a := true} {
 		{
 			note: "object comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = {x: y | true} { 
-	false 
+f(x, y) = {x: y | true} {
+	false
 } else = {x: y | true} {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__: __local1__ | true} } else = __local3__ { true; __local3__ = {__local0__: __local1__ | true} }`),
@@ -3572,10 +4335,10 @@ s = {true | true} { true }
 		{
 			note: "set comprehension value in else head",
 			mod: MustParseModule(`package head
-q = {false | false} { 
-	false 
-} else = {true | true} { 
-	true 
+q = {false | false} {
+	false
+} else = {true | true} {
+	true
 }
 `),
 			exp: MustParseRule(`q = __local0__ { false; __local0__ = {false | false} } else = __local1__ { true; __local1__ = {true | true} }`),
@@ -3605,10 +4368,10 @@ f(x) = {a | a := true} {
 		{
 			note: "set comprehension value in else-func head (reused arg rewrite)",
 			mod: MustParseModule(`package head
-f(x, y) = {x | y} { 
-	false 
+f(x, y) = {x | y} {
+	false
 } else = {x | y} {
-	true 
+	true
 }
 `),
 			exp: MustParseRule(`f(__local0__, __local1__) = __local2__ { false; __local2__ = {__local0__ | __local1__} } else = __local3__ { true; __local3__ = {__local0__ | __local1__} }`),
@@ -5639,7 +6402,7 @@ func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
 				print("Hello world")
 				some i
 			}
-			
+
 			bar {
 				print("Hello world")
 				some j
@@ -6216,7 +6979,7 @@ func TestCompilerRewritePrintCallsErrors(t *testing.T) {
 		{
 			note: "inside comprehension",
 			module: `package test
-			p { {1 | print(x)} }
+			p { {1 | print(x)} = {1 | print(7)} }
 			`,
 			exp: errors.New("var x is undeclared"),
 		},
@@ -7094,6 +7857,29 @@ func TestCompilerCheckUnusedAssignedVar(t *testing.T) {
 				&Error{Message: "assigned var y unused"},
 			},
 		},
+		{
+			note: "general ref in rule head",
+			module: `package test
+						p[q].r[s] := 1 {
+							q := "foo"
+							s := "bar"
+							t := "baz"
+						}
+		`,
+			expectedErrors: Errors{
+				&Error{Message: "assigned var t unused"},
+			},
+		},
+		{
+			note: "general ref in rule head (no errors)",
+			module: `package test
+						p[q].r[s] := 1 {
+							q := "foo"
+							s := "bar"
+						}
+		`,
+			expectedErrors: Errors{},
+		},
 	}
 
 	makeTestRunner := func(tc testCase, strict bool) func(t *testing.T) {
@@ -7498,6 +8284,38 @@ foo {
 	}
 }
 
+// This is a regression test for a scenario that could make recursion checking miss a recursion scenario in OPA versions older than 0.56.0.
+func TestCompilerCheckPartialRuleRecursion(t *testing.T) {
+	// In the below policy, R2 and R3 has a recursion cycle. In OPA < 0.56.0, R1 hides this cycle from the recursion checker,
+	// and no error is reported.
+	policy := `package test
+
+# R1
+results[id] := 1 {
+  id := "bar"
+}
+
+# R2
+results.foo := 2 {
+  final_allow
+}
+
+# R3
+final_allow {
+  results.foo == 3
+}`
+	c := NewCompiler()
+	c.Modules = map[string]*Module{"test": MustParseModule(policy)}
+	compileStages(c, c.checkRecursion)
+
+	expected := Errors{
+		&Error{Code: "rego_recursion_error", Message: "rule data.test.results.foo is recursive: data.test.results.foo -> data.test.final_allow -> data.test.results.foo"},
+		&Error{Code: "rego_recursion_error", Message: "rule data.test.final_allow is recursive: data.test.final_allow -> data.test.results.foo -> data.test.final_allow"},
+	}
+
+	assertErrors(t, c.Errors, expected, false)
+}
+
 func TestCompilerCheckVoidCalls(t *testing.T) {
 	c := NewCompiler().WithCapabilities(&Capabilities{Builtins: []*Builtin{
 		{
@@ -7771,6 +8589,11 @@ r2 = 2`,
 r3 = 3`,
 		"hidden": `package system.hidden
 r4 = 4`,
+		"mod4": `package b.c
+r5[x] = 5 { x := "foo" }
+r5.bar = 6 { input.x }
+r5.baz = 7 { input.y }
+`,
 	})
 
 	compileStages(compiler, nil)
@@ -7780,6 +8603,9 @@ r4 = 4`,
 	rule2 := compiler.Modules["mod2"].Rules[1]
 	rule3 := compiler.Modules["mod3"].Rules[0]
 	rule4 := compiler.Modules["hidden"].Rules[0]
+	rule5 := compiler.Modules["mod4"].Rules[0]
+	rule5b := compiler.Modules["mod4"].Rules[1]
+	rule5c := compiler.Modules["mod4"].Rules[2]
 
 	tests := []struct {
 		input         string
@@ -7791,12 +8617,16 @@ r4 = 4`,
 		{input: "data.a.b[x].d", expected: []*Rule{rule1, rule3}},
 		{input: "data.a.b.c", expected: []*Rule{rule1, rule2d, rule2}},
 		{input: "data.a.b.d"},
-		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
-		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4}},
+		{input: "data", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c}},
+		{input: "data[x]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule4, rule5, rule5b, rule5c}},
 		{input: "data[data.complex_computation].b[y]", expected: []*Rule{rule1, rule2d, rule2, rule3}},
 		{input: "data[x][y].c.e", expected: []*Rule{rule2d, rule2}},
 		{input: "data[x][y].r3", expected: []*Rule{rule3}},
-		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3}, excludeHidden: true}, // old behaviour of GetRulesDynamic
+		{input: "data[x][y]", expected: []*Rule{rule1, rule2d, rule2, rule3, rule5, rule5b, rule5c}, excludeHidden: true}, // old behaviour of GetRulesDynamic
+		{input: "data.b.c", expected: []*Rule{rule5, rule5b, rule5c}},
+		{input: "data.b.c.r5", expected: []*Rule{rule5, rule5b, rule5c}},
+		{input: "data.b.c.r5.bar", expected: []*Rule{rule5, rule5b}}, // rule5 might still define a value for the "bar" key
+		{input: "data.b.c.r5.baz", expected: []*Rule{rule5, rule5c}},
 	}
 
 	for _, tc := range tests {
@@ -8312,6 +9142,121 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 	}
 }
 
+func TestCompilerBuildRequiredCapabilities(t *testing.T) {
+	tests := []struct {
+		note     string
+		module   string
+		opts     CompileOpts
+		builtins []string
+		features []string
+		keywords []string
+	}{
+		{
+			note: "trivial",
+			module: `
+				package x
+
+				p { input > 7 }
+			`,
+			builtins: []string{"eq", "gt"},
+		},
+		{
+			note: "future.keywords wildcard",
+			module: `
+				package x
+
+				import future.keywords
+			`,
+			keywords: []string{"contains", "every", "if", "in"},
+		},
+		{
+			note: "future.keywords specific",
+			module: `
+				package x
+
+				import future.keywords.in
+				import future.keywords.if
+				import future.keywords.contains
+				import future.keywords.every
+			`,
+			keywords: []string{"contains", "every", "if", "in"},
+		},
+		{
+			note: "rewriting erases assignment",
+			module: `
+				package x
+
+				p { a := 7 }
+			`,
+			builtins: []string{"assign", "eq"},
+		},
+		{
+			note: "rewriting erases equals",
+			module: `
+				package x
+
+				p { input == 7 }
+			`,
+			builtins: []string{"eq", "equal"},
+		},
+		{
+			note: "rewriting erases print",
+			module: `
+				package x
+
+				p { print(7) }
+			`,
+			opts:     CompileOpts{EnablePrintStatements: true},
+			builtins: []string{"eq", "internal.print", "print"},
+		},
+
+		{
+			note: "rewriting erases print but disabled",
+			module: `
+				package x
+
+				p { print(7) }
+			`,
+			opts:     CompileOpts{EnablePrintStatements: false},
+			builtins: []string{"print"}, // only print required because compiler will replace with true
+		},
+		{
+			note: "dots in the head",
+			module: `
+				package x
+
+				a.b.c := 7
+			`,
+			features: []string{"rule_head_ref_string_prefixes"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			compiler := MustCompileModulesWithOpts(map[string]string{
+				"test.rego": tc.module,
+			}, tc.opts)
+
+			var names []string
+			for i := range compiler.Required.Builtins {
+				names = append(names, compiler.Required.Builtins[i].Name)
+			}
+
+			if !reflect.DeepEqual(names, tc.builtins) {
+				t.Fatalf("expected builtins to be %v but got %v", tc.builtins, names)
+			}
+
+			if !reflect.DeepEqual(compiler.Required.FutureKeywords, tc.keywords) {
+				t.Fatalf("expected keywords to be %v but got %v", tc.keywords, compiler.Required.FutureKeywords)
+			}
+
+			if !reflect.DeepEqual(compiler.Required.Features, tc.features) {
+				t.Fatalf("expected features to be %v but got %v", tc.features, compiler.Required.Features)
+			}
+		})
+	}
+}
+
 func TestCompilerAllowMultipleAssignments(t *testing.T) {
 
 	_, err := CompileModules(map[string]string{"test.rego": `
@@ -8754,6 +9699,7 @@ func runStrictnessQueryTestCase(t *testing.T, cases []strictnessQueryTestCase) {
 }
 
 func assertCompilerErrorStrings(t *testing.T, compiler *Compiler, expected []string) {
+	t.Helper()
 	result := compilerErrsToStringSlice(compiler.Errors)
 
 	if len(result) != len(expected) {
@@ -8958,6 +9904,166 @@ func runQueryCompilerTest(q, pkg string, imports []string, expected interface{})
 	}
 }
 
+func TestCompilerCapabilitiesFeatures(t *testing.T) {
+	cases := []struct {
+		note        string
+		module      string
+		features    []string
+		expectedErr string
+	}{
+		{
+			note: "no features, no ref-head rules",
+			module: `package test
+				p := 42`,
+		},
+		{
+			note: "no features, ref-head rule",
+			module: `package test
+				p.q.r := 42`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p.q.r",
+		},
+		{
+			note: "no features, general-ref-head rule",
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[q].r[s]",
+		},
+		{
+			note: "string-prefix-ref-head feature, no ref-head rules",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p := 42`,
+		},
+		{
+			note: "string-prefix-ref-head feature, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "ref-head feature, ref-head rule",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[q].r[s]",
+		},
+		{
+			note: "ref-head feature, general-ref-head rule",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head features, general-ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+			},
+			module: `package test
+				p[q].r[s] := 42 { q := "foo"; s := "bar" }`,
+		},
+		{
+			note: "string-prefix-ref-head & ref-head features, ref-head rule",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+				FeatureRefHeads,
+			},
+			module: `package test
+				p.q.r := 42`,
+		},
+		{
+			note:     "no features, string-prefix-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p.x",
+		},
+		{
+			note: "string-prefix-ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+		{
+			note: "ref-head feature, string-prefix-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords.contains
+				p.x contains 1`,
+		},
+
+		{
+			note:     "no features, general-ref-head with contains kw",
+			features: []string{},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_compile_error: rule heads with refs are not supported: p[x]",
+		},
+		{
+			note: "string-prefix-ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeadStringPrefixes,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+			expectedErr: "rego_type_error: rule heads with general refs (containing variables) are not supported: p[x]",
+		},
+		{
+			note: "ref-head feature, general-ref-head with contains kw",
+			features: []string{
+				FeatureRefHeads,
+			},
+			module: `package test
+				import future.keywords
+				p[x] contains 1 if x = "foo"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			capabilities := CapabilitiesForThisVersion()
+			capabilities.Features = tc.features
+
+			compiler := NewCompiler().WithCapabilities(capabilities)
+			compiler.Compile(map[string]*Module{"test": MustParseModule(tc.module)})
+			if tc.expectedErr != "" {
+				if !compiler.Failed() {
+					t.Fatal("expected error but got success")
+				}
+				if !strings.Contains(compiler.Errors.Error(), tc.expectedErr) {
+					t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", tc.expectedErr, compiler.Errors)
+				}
+			} else if compiler.Failed() {
+				t.Fatalf("unexpected error(s): %v", compiler.Errors)
+			}
+		})
+	}
+}
+
 func TestCompilerCapabilitiesExtendedWithCustomBuiltins(t *testing.T) {
 
 	compiler := NewCompiler().WithCapabilities(&Capabilities{
@@ -9028,6 +10134,139 @@ func TestCompilerPassesTypeCheck(t *testing.T) {
 	c.Compile(nil)
 	if c.PassesTypeCheck(MustParseBody(`a = input.a; split(a, ":", x); a0 = x[0]; a0 = null`)) {
 		t.Fatal("Did not successfully detect a type-checking violation")
+	}
+}
+
+func TestCompilerPassesTypeCheckRules(t *testing.T) {
+	inputSchema := `{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "OPA Authorization Policy Schema",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "string"
+    },
+    "path": {
+      "type": "array",
+      "items": {}
+    },
+    "params": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "identity",
+    "path",
+    "params"
+  ]
+}`
+
+	ischema := util.MustUnmarshalJSON([]byte(inputSchema))
+
+	module1 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identity = "foo"
+}
+
+allow {
+    input.path = ["foo", "bar"]
+}
+
+allow {
+    input.params = {"foo": "bar"}
+}`
+
+	module2 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identty = "foo"
+}`
+
+	module3 := `
+package policy
+
+default allow := false
+
+allow {
+    input.path = "foo"
+}`
+
+	module4 := `
+package policy
+
+default allow := false
+
+allow {
+    input.identty = "foo"
+}
+
+allow {
+    input.path = "foo"
+}`
+
+	schemaSet := NewSchemaSet()
+	schemaSet.Put(SchemaRootRef, ischema)
+
+	tests := []struct {
+		note    string
+		modules []string
+		errs    []string
+	}{
+		{note: "no error", modules: []string{module1}},
+		{note: "typo", modules: []string{module2}, errs: []string{"undefined ref: input.identty"}},
+		{note: "wrong type", modules: []string{module3}, errs: []string{"match error"}},
+		{note: "multiple errors", modules: []string{module4}, errs: []string{"match error", "undefined ref: input.identty"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var elems []*Rule
+
+			for i, module := range tc.modules {
+				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{
+					ProcessAnnotation: true,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				for _, rule := range mod.Rules {
+					elems = append(elems, rule)
+					for next := rule.Else; next != nil; next = next.Else {
+						elems = append(elems, next)
+					}
+				}
+			}
+
+			errs := NewCompiler().WithSchemas(schemaSet).PassesTypeCheckRules(elems)
+
+			if len(errs) > 0 {
+				if len(tc.errs) == 0 {
+					t.Fatalf("Unexpected error: %v", errs)
+				}
+
+				result := compilerErrsToStringSlice(errs)
+
+				if len(result) != len(tc.errs) {
+					t.Fatalf("Expected %d:\n%v\nBut got %d:\n%v", len(tc.errs), strings.Join(tc.errs, "\n"), len(result), strings.Join(result, "\n"))
+				}
+
+				for i := range result {
+					if !strings.Contains(result[i], tc.errs[i]) {
+						t.Errorf("Expected %v but got: %v", tc.errs[i], result[i])
+					}
+				}
+			} else if len(tc.errs) > 0 {
+				t.Fatalf("Expected error %q but got success", tc.errs)
+			}
+		})
 	}
 }
 

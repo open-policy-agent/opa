@@ -69,6 +69,8 @@ keys:
 caching:
   inter_query_builtin_cache:
     max_size_bytes: 10000000
+    forced_eviction_threshold_percentage: 70
+    stale_entry_eviction_period_seconds: 3600
 
 distributed_tracing:
   type: grpc
@@ -497,7 +499,7 @@ services:
 bundles:
   authz:
     service: gcp
-    resource: 'bundles/http/example/authz.tar.gz?alt=media'
+    resource: 'bundles%2fhttp%2fexample%2fauthz.tar.gz?alt=media'
 
 keys:
   jwt_signing_key:
@@ -631,12 +633,14 @@ services:
 bundles:
   authz:
     service: gcs
-    resource: 'bundle.tar.gz?alt=media'
+    resource: 'bundles%2fhttp%2fexample%2fbundle.tar.gz?alt=media'
     persist: true
     polling:
       min_delay_seconds: 60
       max_delay_seconds: 120
 ```
+
+When the given resource (the object in the GCS bucket) contains slashes (/) or other special characters, these need to be url-encoded here.
 
 #### Azure Managed Identities Token
 
@@ -863,6 +867,8 @@ Caching represents the configuration of the inter-query cache that built-in func
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `caching.inter_query_builtin_cache.max_size_bytes` | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set. |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`. |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds` | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
 
 ### Bundles
 
@@ -881,7 +887,7 @@ included in the actual bundle gzipped tarball.
 | `bundles[_].service` | `string` | Yes | Name of service to use to contact remote server. |
 | `bundles[_].polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between bundle downloads. |
 | `bundles[_].polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between bundle downloads. |
-| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`. |
+| `bundles[_].trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 | `bundles[_].polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available. |
 | `bundles[_].persist` | `bool` | No | Persist activated bundles to disk. |
 | `bundles[_].signing.keyid` | `string` | No | Name of the key to use for bundle signature verification. |
@@ -898,7 +904,7 @@ included in the actual bundle gzipped tarball.
 | `status.console` | `boolean` | No (default: `false`) | Log the status updates locally to the console. When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.prometheus` | `boolean` | No (default: `false`) | Export the status (bundle and plugin) metrics to prometheus (see [the monitoring documentation](../monitoring/#prometheus)). When enabled alongside a remote status update API the `service` must be configured, the default `service` selection will be disabled. |
 | `status.plugin` | `string` | No | Use the named plugin for status updates. If this field exists, the other configuration fields are not required. |
-| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual`. |
+| `status.trigger` | `string`  (default: `periodic`) | No | Controls how status updates are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 
 ### Decision Logs
 
@@ -912,7 +918,7 @@ included in the actual bundle gzipped tarball.
 | `decision_logs.reporting.upload_size_limit_bytes` | `int64` | No (default: `32768`) | Decision log upload size limit in bytes. OPA will chunk uploads to cap message body to this limit. |
 | `decision_logs.reporting.min_delay_seconds` | `int64` | No (default: `300`) | Minimum amount of time to wait between uploads. |
 | `decision_logs.reporting.max_delay_seconds` | `int64` | No (default: `600`) | Maximum amount of time to wait between uploads. |
-| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual`. |
+| `decision_logs.reporting.trigger` | `string` | No (default: `periodic`) | Controls how decision logs are reported to the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package). |
 | `decision_logs.mask_decision` | `string` | No (default: `/system/log/mask`) | Set path of masking decision. |
 | `decision_logs.drop_decision` | `string` | No (default: `/system/log/drop`) | Set path of drop decision. |
 | `decision_logs.plugin` | `string` | No | Use the named plugin for decision logging. If this field exists, the other configuration fields are not required. |
@@ -927,7 +933,7 @@ included in the actual bundle gzipped tarball.
 | `discovery.decision` | `string` | No | The path of the decision to evaluate in the discovery bundle. By default, OPA will evaluate `data` in the discovery bundle to produce the configuration.    |
 | `discovery.polling.min_delay_seconds` | `int64` | No (default: `60`) | Minimum amount of time to wait between configuration downloads.                                                                                             |
 | `discovery.polling.max_delay_seconds` | `int64` | No (default: `120`) | Maximum amount of time to wait between configuration downloads.                                                                                             |
-| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual`.                                                       |
+| `discovery.trigger` | `string`  (default: `periodic`) | No | Controls how bundle is downloaded from the remote server. Allowed values are `periodic` and `manual` (`manual` triggers are only possible when using OPA as a Go package).                                                       |
 | `discovery.polling.long_polling_timeout_seconds` | `int64` | No | Maximum amount of time the server should wait before issuing a timeout if there's no update available.                                                      |
 | `discovery.signing.keyid` | `string` | No | Name of the key to use for bundle signature verification.                                                                                                   |
 | `discovery.signing.scope` | `string` | No | Scope to use for bundle signature verification.                                                                                                             |
@@ -985,14 +991,17 @@ with data put into the configured `directory`.
 | `storage.disk.partitions` | `array[string]` | No | Non-overlapping `data` prefixes used for partitioning the data on disk. |
 | `storage.disk.badger` | `string` | No (default: empty) | "Superflags" passed to Badger allowing to modify advanced options. |
 
-See [the docs on disk storage](../misc-disk/) for details about the settings.
+See [the docs on disk storage](../storage/) for details about the settings.
 
 ### Server
 
-The `server` configuration sets the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
+The `server` configuration sets:
+- the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
 The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
+- buckets for `http_request_duration_seconds` histogram
 
-| Field                                    | Type  | Required            | Description                                                                                                                                                                                                                                  |
-|------------------------------------------|-------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `server.encoding.gzip.min_length`        | `int` | No, (default: 1024) | Specifies the minimum length of the response to compress                                                                                                                                                                                     |
-| `server.encoding.gzip.compression_level` | `int` | No, (default: 9)    | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants |
+| Field                                                       | Type        | Required                                                                  | Description                                                                                                                                                                                                               |
+|-------------------------------------------------------------|-------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                       | Specifies the minimum length of the response to compress                                                                                                                                                                  |
+| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                          | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
+| `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1  ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |

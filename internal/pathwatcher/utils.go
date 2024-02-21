@@ -7,6 +7,9 @@ package pathwatcher
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"sort"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/open-policy-agent/opa/ast"
@@ -39,7 +42,12 @@ func CreatePathWatcher(rootPaths []string) (*fsnotify.Watcher, error) {
 // ProcessWatcherUpdate handles an occurrence of a watcher event
 func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	loaded, err := initload.LoadPaths(paths, filter, asBundle, nil, true, false, nil, nil)
+	return ProcessWatcherUpdateForRegoVersion(ctx, ast.RegoV0, paths, removed, store, filter, asBundle, f)
+}
+
+func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
+	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, paths, filter, asBundle, nil, true, false, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -95,7 +103,29 @@ func getWatchPaths(rootPaths []string) ([]string, error) {
 			return nil, err
 		}
 
-		paths = append(paths, loader.Dirs(result)...)
+		unique := map[string]struct{}{}
+
+		for _, r := range result {
+			fi, err := os.Lstat(r)
+			if err != nil {
+				return nil, err
+			}
+
+			if fi.IsDir() {
+				unique[r] = struct{}{}
+			} else {
+				dir := filepath.Dir(r)
+				unique[dir] = struct{}{}
+			}
+		}
+
+		u := make([]string, 0, len(unique))
+		for k := range unique {
+			u = append(u, k)
+		}
+		sort.Strings(u)
+
+		paths = append(paths, u...)
 	}
 
 	return paths, nil

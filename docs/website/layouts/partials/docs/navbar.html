@@ -16,7 +16,7 @@
 {{ $operations  := where $allDocs ".Params.kind" "eq" "operations" }}
 {{ $management  := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib     := where $allDocs ".Params.kind" "eq" "contrib" }}
-{{ $misc        := where $allDocs ".Params.kind" "eq" "misc" }}
+{{ $misc       := where (where $allDocs ".Params.kind" "eq" "misc") ".Title" "ne" "Ecosystem" }}
 {{ $version     := index (split .File.Path "/") 1 }}
 {{ $pageUrl     := .Permalink }}
 <nav class="navbar is-primary">
@@ -66,10 +66,13 @@
         Support
       </span>
       <a class="navbar-item" href="/support">
-        Enterprise and Commercial
+        Enterprise
       </a>
       <a class="navbar-item" href="/community">
         Community
+      </a>
+      <a class="navbar-item" href="/ecosystem">
+        OPA Ecosystem
       </a>
     </div>
 

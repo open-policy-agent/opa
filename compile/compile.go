@@ -83,6 +83,7 @@ type Compiler struct {
 	metadata                     *map[string]interface{}    // represents additional data included in .manifest file
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
+	regoVersion                  ast.RegoVersion
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -242,6 +243,11 @@ func (c *Compiler) WithPartialNamespace(ns string) *Compiler {
 	return c
 }
 
+func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
+	c.regoVersion = v
+	return c
+}
+
 func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error {
 	for _, ref := range ar {
 		var entrypoint ast.Ref
@@ -356,8 +362,14 @@ func (c *Compiler) Build(ctx context.Context) error {
 		c.bundle.Manifest.Metadata = *c.metadata
 	}
 
-	if err := c.bundle.FormatModules(false); err != nil {
-		return err
+	if c.regoVersion == ast.RegoV1 {
+		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, false, false); err != nil {
+			return err
+		}
+	} else {
+		if err := c.bundle.FormatModules(false); err != nil {
+			return err
+		}
 	}
 
 	if c.bsc != nil {
@@ -432,7 +444,7 @@ func (c *Compiler) initBundle() error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPaths(c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
+	load, err := initload.LoadPathsForRegoVersion(c.regoVersion, c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}
@@ -1084,18 +1096,11 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 		// needed once per rule set and constructing the path for every rule in the
 		// module could expensive for PE output (which can contain hundreds of thousands
 		// of rules.)
-		seen := ast.NewVarSet()
+		seen := ast.NewSet()
 		for _, rule := range b[i].Parsed.Rules {
-			// NOTE(sr): we're relying on the fact that PE never emits ref rules (so far)!
-			// The rule
-			//   p.a = 1 { ... }
-			// will be recorded in prefixes as `data.test.p`, and that'll be checked later on against `data.test.p[k]`
-			if len(rule.Head.Ref()) > 2 {
-				panic("expected a module without ref rules")
-			}
-			name := rule.Head.Name
+			name := ast.NewTerm(rule.Head.Ref())
 			if !seen.Contains(name) {
-				prefixes.Add(ast.NewTerm(b[i].Parsed.Package.Path.Append(ast.StringTerm(string(name)))))
+				prefixes.Add(ast.NewTerm(rule.Ref().ConstantPrefix()))
 				seen.Add(name)
 			}
 		}
@@ -1118,10 +1123,10 @@ func (o *optimizer) merge(a, b []bundle.ModuleFile) []bundle.ModuleFile {
 				continue
 			}
 
-			path := rule.Ref()
+			path := rule.Ref().ConstantPrefix()
 			overlap := prefixes.Until(func(x *ast.Term) bool {
 				r := x.Value.(ast.Ref)
-				return path.HasPrefix(r)
+				return r.HasPrefix(path) || path.HasPrefix(r)
 			})
 			if overlap {
 				discarded.Add(refT)
@@ -1178,6 +1183,13 @@ func compile(c *ast.Capabilities, b *bundle.Bundle, dbg debug.Debug, enablePrint
 
 	if compiler.Failed() {
 		return nil, compiler.Errors
+	}
+
+	minVersion, ok := compiler.Required.MinimumCompatibleVersion()
+	if !ok {
+		dbg.Printf("could not determine minimum compatible version!")
+	} else {
+		dbg.Printf("minimum compatible version: %v", minVersion)
 	}
 
 	return compiler, nil

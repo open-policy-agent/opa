@@ -118,13 +118,15 @@ type Server struct {
 	authentication         AuthenticationScheme
 	authorization          AuthorizationScheme
 	cert                   *tls.Certificate
-	certMtx                sync.RWMutex
+	tlsConfigMtx           sync.RWMutex
 	certFile               string
 	certFileHash           []byte
 	certKeyFile            string
 	certKeyFileHash        []byte
 	certRefresh            time.Duration
 	certPool               *x509.CertPool
+	certPoolFile           string
+	certPoolFileHash       []byte
 	minTLSVersion          uint16
 	mtx                    sync.RWMutex
 	partials               map[string]rego.PartialResult
@@ -144,6 +146,7 @@ type Server struct {
 	distributedTracingOpts tracing.Options
 	ndbCacheEnabled        bool
 	unixSocketPerm         *string
+	cipherSuites           *[]uint16
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -151,6 +154,23 @@ type Server struct {
 type Metrics interface {
 	RegisterEndpoints(registrar func(path, method string, handler http.Handler))
 	InstrumentHandler(handler http.Handler, label string) http.Handler
+}
+
+// TLSConfig represents the TLS configuration for the server.
+// This configuration is used to configure file watchers to reload each file as it
+// changes on disk.
+type TLSConfig struct {
+	// CertFile is the path to the server's serving certificate file.
+	CertFile string
+
+	// KeyFile is the path to the server's key file, completing the key pair for the
+	// CertFile certificate.
+	KeyFile string
+
+	// CertPoolFile is the path to the CA cert pool file. The contents of this file will be
+	// reloaded when the file changes on disk and used in as trusted client CAs in the TLS config
+	// for new connections to the server.
+	CertPoolFile string
 }
 
 // Loop will contain all the calls from the server that we'll be listening on.
@@ -165,7 +185,7 @@ func New() *Server {
 // Init initializes the server. This function MUST be called before starting any loops
 // from s.Listeners().
 func (s *Server) Init(ctx context.Context) (*Server, error) {
-	s.initRouters()
+	s.initRouters(ctx)
 
 	txn, err := s.store.NewTransaction(ctx, storage.WriteParams)
 	if err != nil {
@@ -274,6 +294,20 @@ func (s *Server) WithCertPool(pool *x509.CertPool) *Server {
 	return s
 }
 
+// WithTLSConfig sets the TLS configuration used by the server.
+func (s *Server) WithTLSConfig(tlsConfig *TLSConfig) *Server {
+	s.certFile = tlsConfig.CertFile
+	s.certKeyFile = tlsConfig.KeyFile
+	s.certPoolFile = tlsConfig.CertPoolFile
+	return s
+}
+
+// WithCertRefresh sets the period on which certs, keys and cert pools are reloaded from disk.
+func (s *Server) WithCertRefresh(refresh time.Duration) *Server {
+	s.certRefresh = refresh
+	return s
+}
+
 // WithStore sets the storage used by the server.
 func (s *Server) WithStore(store storage.Store) *Server {
 	s.store = store
@@ -364,6 +398,12 @@ func (s *Server) WithDistributedTracingOpts(opts tracing.Options) *Server {
 // WithNDBCacheEnabled sets whether the ND builtins cache is to be used.
 func (s *Server) WithNDBCacheEnabled(ndbCacheEnabled bool) *Server {
 	s.ndbCacheEnabled = ndbCacheEnabled
+	return s
+}
+
+// WithCipherSuites sets the list of enabled TLS 1.0–1.2 cipher suites.
+func (s *Server) WithCipherSuites(cipherSuites *[]uint16) *Server {
+	s.cipherSuites = cipherSuites
 	return s
 }
 
@@ -566,11 +606,13 @@ func (s *Server) getListener(addr string, h http.Handler, t httpListenerType) ([
 			"cert-file":     s.certFile,
 			"cert-key-file": s.certKeyFile,
 		})
+
+		// if a manual cert refresh period has been set, then use the polling behavior,
+		// otherwise use the fsnotify default behavior
 		if s.certRefresh > 0 {
-			certLoop := s.certLoop(logger)
-			loops = []Loop{loop, certLoop}
-		} else {
-			loops = []Loop{loop}
+			loops = []Loop{loop, s.certLoopPolling(logger)}
+		} else if s.certFile != "" || s.certPoolFile != "" {
+			loops = []Loop{loop, s.certLoopNotify(logger)}
 		}
 	default:
 		err = fmt.Errorf("invalid url scheme %q", parsedURL.Scheme)
@@ -600,22 +642,42 @@ func (s *Server) getListenerForHTTPSServer(u *url.URL, h http.Handler, t httpLis
 		return nil, nil, fmt.Errorf("TLS certificate required but not supplied")
 	}
 
-	httpsServer := http.Server{
-		Addr:    u.Host,
-		Handler: h,
-		TLSConfig: &tls.Config{
-			GetCertificate: s.getCertificate,
-			ClientCAs:      s.certPool,
+	tlsConfig := tls.Config{
+		GetCertificate: s.getCertificate,
+		// GetConfigForClient is used to ensure that a fresh config is provided containing the latest cert pool.
+		// This is not required, but appears to be how connect time updates config should be done:
+		// https://github.com/golang/go/issues/16066#issuecomment-250606132
+		GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) {
+			s.tlsConfigMtx.Lock()
+			defer s.tlsConfigMtx.Unlock()
+
+			cfg := &tls.Config{
+				GetCertificate: s.getCertificate,
+				ClientCAs:      s.certPool,
+			}
+
+			if s.authentication == AuthenticationTLS {
+				cfg.ClientAuth = tls.RequireAndVerifyClientCert
+			}
+
+			if s.minTLSVersion != 0 {
+				cfg.MinVersion = s.minTLSVersion
+			} else {
+				cfg.MinVersion = defaultMinTLSVersion
+			}
+
+			if s.cipherSuites != nil {
+				cfg.CipherSuites = *s.cipherSuites
+			}
+
+			return cfg, nil
 		},
 	}
-	if s.authentication == AuthenticationTLS {
-		httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
-	}
 
-	if s.minTLSVersion != 0 {
-		httpsServer.TLSConfig.MinVersion = s.minTLSVersion
-	} else {
-		httpsServer.TLSConfig.MinVersion = defaultMinTLSVersion
+	httpsServer := http.Server{
+		Addr:      u.Host,
+		Handler:   h,
+		TLSConfig: &tlsConfig,
 	}
 
 	l := newHTTPListener(&httpsServer, t)
@@ -706,7 +768,7 @@ func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, err
 	return compressHandler, nil
 }
 
-func (s *Server) initRouters() {
+func (s *Server) initRouters(ctx context.Context) {
 	mainRouter := s.router
 	if mainRouter == nil {
 		mainRouter = mux.NewRouter()
@@ -715,7 +777,7 @@ func (s *Server) initRouters() {
 	diagRouter := mux.NewRouter()
 
 	// authorizer, if configured, needs the iCache to be set up already
-	s.interQueryBuiltinCache = iCache.NewInterQueryCache(s.manager.InterQueryBuiltinCacheConfig())
+	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, s.manager.InterQueryBuiltinCacheConfig())
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 
 	// Add authorization handler. This must come BEFORE authentication handler
@@ -1033,8 +1095,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 			}
 		}
 
-		partial, strictBuiltinErrors, instrument := false, false, false
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, instrument, nil, opts)
+		rego, err := s.makeRego(ctx, false, txn, input, urlPath, m, false, nil, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -1462,8 +1523,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		partial := false
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
+		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -1622,7 +1682,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	urlPath := vars["path"]
 	explainMode := getExplain(r.URL.Query()[types.ParamExplainV1], types.ExplainOffV1)
 	includeInstrumentation := getBoolParam(r.URL, types.ParamInstrumentV1, true)
-	partial := getBoolParam(r.URL, types.ParamPartialV1, true)
 	provenance := getBoolParam(r.URL, types.ParamProvenanceV1, true)
 	strictBuiltinErrors := getBoolParam(r.URL, types.ParamStrictBuiltinErrors, true)
 
@@ -1674,9 +1733,6 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pqID := "v1DataPost::"
-	if partial {
-		pqID += "partial::"
-	}
 	if strictBuiltinErrors {
 		pqID += "strict-builtin-errors::"
 	}
@@ -1696,7 +1752,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		rego, err := s.makeRego(ctx, partial, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
+		rego, err := s.makeRego(ctx, strictBuiltinErrors, txn, input, urlPath, m, includeInstrumentation, buf, opts)
 		if err != nil {
 			_ = logger.Log(ctx, txn, urlPath, "", goInput, input, nil, ndbCache, err, m)
 			writer.ErrorAuto(w, err)
@@ -2486,7 +2542,6 @@ func (s *Server) getCompiler() *ast.Compiler {
 }
 
 func (s *Server) makeRego(ctx context.Context,
-	partial bool,
 	strictBuiltinErrors bool,
 	txn storage.Transaction,
 	input ast.Value,
@@ -2512,29 +2567,6 @@ func (s *Server) makeRego(ctx context.Context,
 		rego.PrintHook(s.manager.PrintHook()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
 	)
-
-	if partial {
-		// pick a namespace for the query (path), doesn't really matter what it is
-		// as long as it is unique for each path.
-		namespace := fmt.Sprintf("partial[`%s`]", urlPath)
-		s.mtx.Lock()
-		defer s.mtx.Unlock()
-		pr, ok := s.partials[queryPath]
-		if !ok {
-			peopts := append(opts, rego.PartialNamespace(namespace))
-			r := rego.New(peopts...)
-			var err error
-			pr, err = r.PartialResult(ctx)
-			if err != nil {
-				if !rego.IsPartialEvaluationNotEffectiveErr(err) {
-					return nil, err
-				}
-				return rego.New(opts...), nil
-			}
-			s.partials[queryPath] = pr
-		}
-		return pr.Rego(opts...), nil
-	}
 
 	return rego.New(opts...), nil
 }

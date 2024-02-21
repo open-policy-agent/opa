@@ -37,3 +37,4 @@ man
 
 # generated when running local website build
 docs/website/.hugo_build.lock
+docs/website/data/versions

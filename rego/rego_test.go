@@ -1167,6 +1167,81 @@ func TestPrepareAndPartial(t *testing.T) {
 	}
 }
 
+func TestPartialWithRegoV1(t *testing.T) {
+	tests := []struct {
+		note       string
+		module     string
+		expQuery   string
+		expSupport string
+	}{
+		{
+			note: "No imports",
+			module: `package test
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+		{
+			note: "rego.v1 imported",
+			module: `package test
+				import rego.v1
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+		{
+			note: "future.keywords imported",
+			module: `package test
+				import future.keywords
+				p[k] contains v if {
+					k := "foo"
+					v := input.v
+				}`,
+			expQuery: `data.partial.test.p = x`,
+			expSupport: `package partial.test.p
+
+foo[__local1__1] { __local1__1 = input.v }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			r := New(
+				Query("data.test.p = x"),
+				Module("test.rego", tc.module),
+				SetRegoVersion(ast.RegoV1),
+			)
+
+			ctx := context.Background()
+
+			partialQuery, err := r.Partial(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			actualQuery := partialQuery.Queries[0].String()
+			if tc.expQuery != actualQuery {
+				t.Fatalf("Expected partial query to be:\n\n%s\n\nbut got:\n\n%s", tc.expQuery, actualQuery)
+			}
+
+			actualSupport := partialQuery.Support[0].String()
+			if tc.expSupport != actualSupport {
+				t.Fatalf("Expected support module to be:\n\n%s\n\nbut got:\n\n%s", tc.expSupport, actualSupport)
+			}
+		})
+	}
+}
+
 func TestPartialNamespace(t *testing.T) {
 
 	r := New(
@@ -1840,6 +1915,189 @@ func TestRegoEvalModulesOnCompiler(t *testing.T) {
 	assertResultSet(t, rs, `[[1]]`)
 }
 
+func TestRegoEvalWithRegoV1(t *testing.T) {
+	tests := []struct {
+		note           string
+		regoVersion    ast.RegoVersion
+		policies       map[string]string
+		query          string
+		expectedResult string
+		expectedErr    string
+	}{
+		{
+			note: "Rego v0",
+			policies: map[string]string{
+				"policy.rego": `package test
+				x[y] { y := 1 }`,
+			},
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility",
+			regoVersion: ast.RegoV0CompatV1,
+			policies: map[string]string{
+				"policy.rego": `package test
+				import rego.v1
+				x contains y if { y := 1 }`,
+			},
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility, invalid rule head",
+			regoVersion: ast.RegoV0CompatV1,
+			policies: map[string]string{
+				"policy.rego": `package test
+				import future.keywords.contains
+				x contains y { y := 1 }`,
+			},
+			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note:        "Rego v0, forced v1 compatibility, missing required imports",
+			regoVersion: ast.RegoV0CompatV1,
+			policies: map[string]string{
+				"policy.rego": `package test
+				x contains y if { y := 1 }`,
+			},
+			expectedErr: "rego_parse_error: var cannot be used for rule name", // FIXME: Improve error message
+		},
+		{
+			note:        "Rego v1",
+			regoVersion: ast.RegoV1,
+			policies: map[string]string{
+				"policy.rego": `package test
+				x contains y if { y := 1 }`,
+			},
+			expectedResult: `[[{"x": [1]}]]`,
+		},
+		{
+			note:        "Rego v1, invalid rule head",
+			regoVersion: ast.RegoV1,
+			policies: map[string]string{
+				"policy.rego": `package test
+				x contains y { y := 1 }`,
+			},
+			expectedErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note:        "Rego v1, multiple files",
+			regoVersion: ast.RegoV1,
+			policies: map[string]string{
+				"one.rego": `package test
+				x contains v if { v := 1 }`,
+				"two.rego": `package test
+				import rego.v1
+				y contains v if { v := 1 }`,
+				"three.rego": `package test
+				import future.keywords
+				z contains v if { v := 1 }`,
+			},
+			expectedResult: `[[{"x": [1], "y": [1], "z": [1]}]]`,
+		},
+	}
+
+	setup := []struct {
+		name    string
+		options func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego)
+	}{
+		{
+			name: "File",
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					Load([]string{path}, nil),
+				}
+			},
+		},
+		{
+			name: "Bundle",
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					LoadBundle(path),
+				}
+			},
+		},
+		{
+			name: "Bundle URL",
+			options: func(path string, _ map[string]string, _ *testing.T, _ context.Context) []func(*Rego) {
+				return []func(*Rego){
+					LoadBundle("file://" + path),
+				}
+			},
+		},
+		{
+			name: "Store",
+			options: func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego) {
+				t.Helper()
+				store := mock.New()
+				txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+
+				for name, policy := range policies {
+					err := store.UpsertPolicy(ctx, txn, name, []byte(policy))
+					if err != nil {
+						t.Fatalf("Unexpected error: %s", err)
+					}
+				}
+
+				err := store.Commit(ctx, txn)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				return []func(*Rego){
+					// This extra module is required for modules in the store to be parsed
+					Module("extra.rego", "package extra\np = 1"),
+					Store(store),
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.policies, func(path string) {
+					ctx := context.Background()
+
+					options := append(s.options(path, tc.policies, t, ctx),
+						Query("data.test"),
+						func(r *Rego) {
+							if tc.regoVersion != ast.RegoV0 {
+								SetRegoVersion(tc.regoVersion)(r)
+							}
+						},
+					)
+
+					pq, err := New(
+						options...,
+					).PrepareForEval(ctx)
+
+					if tc.expectedErr != "" {
+						if err == nil {
+							t.Fatal("Expected error, got none")
+						}
+						if !strings.Contains(err.Error(), tc.expectedErr) {
+							t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", err, tc.expectedErr)
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						rs, err := pq.Eval(ctx)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						if tc.expectedResult != "" {
+							assertResultSet(t, rs, tc.expectedResult)
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestRegoLoadFilesWithProvidedStore(t *testing.T) {
 	ctx := context.Background()
 	store := mock.New()
@@ -2451,6 +2709,35 @@ func TestPrepareAndCompileWithSchema(t *testing.T) {
 	}
 }
 
+func TestPrepareAndCompileWithRegoV1(t *testing.T) {
+	module := `package test
+x contains v if {
+	v := input.y
+}`
+
+	r := New(
+		Query("data.test.x"),
+		Module("", module),
+		SetRegoVersion(ast.RegoV1),
+	)
+
+	ctx := context.Background()
+
+	pq, err := r.PrepareForEval(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err.Error())
+	}
+
+	assertPreparedEvalQueryEval(t, pq, []EvalOption{
+		EvalInput(map[string]int{"y": 1}),
+	}, "[[[1]]]")
+
+	_, err = r.Compile(ctx)
+	if err != nil {
+		t.Errorf("Unexpected error when compiling: %s", err.Error())
+	}
+}
+
 func TestGenerateJSON(t *testing.T) {
 	r := New(
 		Query("input"),
@@ -2554,4 +2841,132 @@ func TestRegoLazyObjCopyMaps(t *testing.T) {
 	if _, ok := foo["fox"]; ok {
 		t.Errorf("expected no change in foo, found one: %v", foo)
 	}
+}
+
+func TestDescriptionRegisterBuiltin1(t *testing.T) {
+	description := "custom-arity-1"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin1(decl, func(_ BuiltinContext, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin2(t *testing.T) {
+	description := "custom-arity-2"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin2(decl, func(_ BuiltinContext, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin3(t *testing.T) {
+	description := "custom-arity-3"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin3(decl, func(_ BuiltinContext, _, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltin4(t *testing.T) {
+	description := "custom-arity-4"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S, types.S, types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltin4(decl, func(_ BuiltinContext, _, _, _, _ *ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+func TestDescriptionRegisterBuiltinDyn(t *testing.T) {
+	description := "custom-arity-dyn"
+
+	decl := &Function{
+		Name:        "foo",
+		Description: description,
+		Decl: types.NewFunction(
+			types.Args(types.S),
+			types.S,
+		),
+	}
+
+	RegisterBuiltinDyn(decl, func(_ BuiltinContext, _ []*ast.Term) (*ast.Term, error) {
+		return ast.StringTerm("bar"), nil
+	})
+	defer unregisterBuiltin("foo")
+
+	got := ast.Builtins[len(ast.Builtins)-1].Description
+	if got != description {
+		t.Fatalf("expected %q, got %q", description, got)
+	}
+}
+
+// unregisterBuiltin removes the builtin of the given name from ast.Builtins. This assists in
+// cleaning up custom functions added as part of certain test cases.
+func unregisterBuiltin(name string) {
+	builtins := make([]*ast.Builtin, 0, len(ast.Builtins))
+	for _, builtin := range ast.Builtins {
+		if builtin.Name == name {
+			continue
+		}
+		builtins = append(builtins, builtin)
+	}
+	ast.Builtins = builtins
 }

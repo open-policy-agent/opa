@@ -1,0 +1,49 @@
+---
+cases:
+  - note: rendertemplate/simple
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        template_string = `{{.test}}`
+        template_vars = {`test`: `hello world`}
+        p = strings.render_template(template_string, template_vars)
+    want_result:
+      - x: "hello world"
+
+  - note: rendertemplate/simpleint
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        template_string = `{{.test}}`
+        template_vars = {`test`: 2023}
+        p = strings.render_template(template_string, template_vars)
+    want_result:
+      - x: "2023"
+
+  - note: rendertemplate/complex
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        template_string = `{{range $i, $name := .hellonames}}{{if $i}},{{end}}hello {{$name}}{{end}}`
+        template_vars = {`hellonames`: [`rohan`, `john doe`]}
+        p = strings.render_template(template_string, template_vars)
+    want_result:
+      - x: "hello rohan,hello john doe"
+
+  - note: rendertemplate/missingkey
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        template_string = `{{.testvarnotprovided}}`
+        template_vars = {`test`: `hello world`}
+        p = strings.render_template(template_string, template_vars)
+    want_error_code: eval_builtin_error
+    strict_error: true

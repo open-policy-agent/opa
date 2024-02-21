@@ -1,3 +1,4 @@
+---
 cases:
   - data:
     modules:
@@ -5,7 +6,7 @@ cases:
         # METADATA
         # description: The Rego test suite
         package testing
-  
+
         # METADATA
         # title: Testing annotations
         # authors:
@@ -27,7 +28,7 @@ cases:
         # METADATA
         # description: The Rego test suite
         package testing
-        
+
         # METADATA
         # title: Testing annotations
         # authors:
@@ -35,7 +36,7 @@ cases:
         p := "foo" {
             false
         }
-        
+
         # METADATA
         # title: Another annotation
         p := x {
@@ -47,4 +48,3 @@ cases:
       - x:
           title: Another annotation
           scope: rule
-

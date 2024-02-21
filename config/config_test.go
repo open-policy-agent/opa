@@ -202,6 +202,13 @@ func TestActiveConfig(t *testing.T) {
 					"min_length": 1024,
 					"compression_level": 1
 				}
+			},
+			"metrics": {
+				"prom": {
+					"http_request_duration_seconds": {
+						"buckets": [0.1, 0.2]
+					}
+				}
 			}
 		},
 		"discovery": {"name": "config"}`
@@ -262,6 +269,13 @@ func TestActiveConfig(t *testing.T) {
 				"gzip": {
 					"min_length": 1024,
 					"compression_level": 1
+				}
+			},
+			"metrics": {
+				"prom": {
+					"http_request_duration_seconds": {
+						"buckets": [0.1, 0.2]
+					}
 				}
 			}
 		},

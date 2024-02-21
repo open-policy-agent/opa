@@ -721,7 +721,43 @@ func (acs *awsCredentialServiceChain) addService(service awsCredentialService) {
 	acs.awsCredentialServices = append(acs.awsCredentialServices, service)
 }
 
+type awsCredentialCheckErrors []*awsCredentialCheckError
+
+func (e awsCredentialCheckErrors) Error() string {
+
+	if len(e) == 0 {
+		return "no error(s)"
+	}
+
+	if len(e) == 1 {
+		return fmt.Sprintf("1 error occurred: %v", e[0].Error())
+	}
+
+	s := make([]string, len(e))
+	for i, err := range e {
+		s[i] = err.Error()
+	}
+
+	return fmt.Sprintf("%d errors occurred:\n%s", len(e), strings.Join(s, "\n"))
+}
+
+type awsCredentialCheckError struct {
+	message string
+}
+
+func newAWSCredentialError(message string) *awsCredentialCheckError {
+	return &awsCredentialCheckError{
+		message: message,
+	}
+}
+
+func (e *awsCredentialCheckError) Error() string {
+	return e.message
+}
+
 func (acs *awsCredentialServiceChain) credentials(ctx context.Context) (aws.Credentials, error) {
+	var errs awsCredentialCheckErrors
+
 	for _, service := range acs.awsCredentialServices {
 		credential, err := service.credentials(ctx)
 		if err != nil {
@@ -731,6 +767,7 @@ func (acs *awsCredentialServiceChain) credentials(ctx context.Context) (aws.Cred
 				return aws.Credentials{}, err
 			}
 
+			errs = append(errs, newAWSCredentialError(err.Error()))
 			continue
 		}
 
@@ -738,7 +775,7 @@ func (acs *awsCredentialServiceChain) credentials(ctx context.Context) (aws.Cred
 		return credential, nil
 	}
 
-	return aws.Credentials{}, errors.New("all AWS credential providers failed")
+	return aws.Credentials{}, fmt.Errorf("all AWS credential providers failed: %v", errs)
 }
 
 func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {

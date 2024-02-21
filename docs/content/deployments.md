@@ -33,6 +33,7 @@ command line arguments for OPA's server mode are:
 * `--addr` to set the listening address (default: `0.0.0.0:8181`).
 * `--log-level` (or `-l`) to set the log level (default: `"info"`).
 * `--log-format` to set the log format (default: `"json"`).
+* `--v1-compatible` to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release. For example, setting the listening address to `localhost:8181` by default.
 
 By default, OPA listens for normal HTTP connections on `0.0.0.0:8181`. To make
 OPA listen for HTTPS connections, see [Security](../security).
@@ -447,6 +448,26 @@ Not providing a capabilities file, or providing a file without an `allow_net` ke
 Note that the metaschemas [http://json-schema.org/draft-04/schema](http://json-schema.org/draft-04/schema), [http://json-schema.org/draft-06/schema](http://json-schema.org/draft-06/schema), and [http://json-schema.org/draft-07/schema](http://json-schema.org/draft-07/schema), are always available, even without network access.
 
 Similarly, the `allow_net` capability restricts what hosts the `http.send` built-in function may send requests to, and what hosts the `net.lookup_ip_addr` built-in function may resolve IP addresses for.
+
+### Features
+
+Some features of OPA can be toggled on and off through the `features` list:
+
+```json
+{
+    "features": [ 
+      "rule_head_ref_string_prefixes", 
+      "rule_head_refs",
+      "rego_v1_import"
+    ]
+}
+```
+
+Features present in the list are enabled, while features not present are disabled. The following features are available:
+
+* `rule_head_ref_string_prefixes`: Enables the use of a [reference in place of name](../policy-language/#rule-heads-containing-references) in the head of rules. This is a subset of `rule_head_refs`, and only covers references where all terms are primitive types, or where only the last element of the ref (the key in the generated object or set) is allowed to be a variable.
+* `rule_head_refs`: Enables general support for [references in rule heads](../policy-language/#rule-heads-containing-references), including [variables at arbitrary locations](../policy-language/#variables-in-rule-head-references). This feature also covers the functionality of `rule_head_ref_string_prefixes`.
+* `rego_v1_import`: enables use of the `rego.v1` import.
 
 ### Future keywords
 

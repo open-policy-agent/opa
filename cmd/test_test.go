@@ -3,18 +3,19 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
@@ -219,6 +220,51 @@ func failTrace(t *testing.T) []*topdown.Event {
 	return *tracer
 }
 
+// Assert that ignore flag is correctly used when the bundle flag is activated
+func TestIgnoreFlag(t *testing.T) {
+	files := map[string]string{
+		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/broken.rego": "package foo\n bar {",
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(root string) {
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.errOutput = io.Discard
+		testParams.bundleMode = false
+		testParams.ignore = []string{"broken.rego"}
+
+		exitCode, _ = opaTest([]string{root}, testParams)
+	})
+
+	if exitCode > 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+}
+
+// Assert that ignore flag is correctly used when the bundle flag is activated
+func TestIgnoreFlagWithBundleFlag(t *testing.T) {
+	files := map[string]string{
+		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/broken.rego": "package foo\n bar {",
+	}
+
+	var exitCode int
+	test.WithTempFS(files, func(root string) {
+		testParams := newTestCommandParams()
+		testParams.count = 1
+		testParams.errOutput = io.Discard
+		testParams.bundleMode = true
+		testParams.ignore = []string{"broken.rego"}
+		exitCode, _ = opaTest([]string{root}, testParams)
+	})
+
+	if exitCode > 0 {
+		t.Fatalf("unexpected exit code: %d", exitCode)
+	}
+}
+
 func testSchemasAnnotation(rego string) (int, error) {
 
 	files := map[string]string{
@@ -232,6 +278,7 @@ func testSchemasAnnotation(rego string) (int, error) {
 
 		testParams := newTestCommandParams()
 		testParams.count = 1
+		testParams.errOutput = io.Discard
 
 		exitCode, err = opaTest([]string{regoFilePath}, testParams)
 	})
@@ -390,7 +437,7 @@ func TestWatchMode(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -491,7 +538,7 @@ func TestWatchModeWithDataFile(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -571,7 +618,7 @@ func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 	}
 
 	test.WithTempFS(files, func(root string) {
-		buf := blockingWriter{}
+		buf := test.BlockingWriter{}
 
 		testParams := newTestCommandParams()
 		testParams.output = &buf
@@ -689,12 +736,13 @@ Watching for changes ...`,
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			test.WithTempFS(files, func(root string) {
-				buf := blockingWriter{}
+				buf := test.BlockingWriter{}
 
 				testParams := newTestCommandParams()
 				testParams.output = &buf
 				testParams.watch = true
 				testParams.count = 1
+				testParams.errOutput = io.Discard
 
 				done := make(chan struct{})
 				go func() {
@@ -765,6 +813,8 @@ func testExitCode(rego string, skipExitZero bool) (int, error) {
 		testParams := newTestCommandParams()
 		testParams.count = 1
 		testParams.skipExitZero = skipExitZero
+		testParams.errOutput = io.Discard
+		testParams.output = io.Discard
 
 		exitCode, err = opaTest([]string{regoFilePath}, testParams)
 	})
@@ -847,25 +897,319 @@ func TestExitCode(t *testing.T) {
 	}
 }
 
-type blockingWriter struct {
-	m   sync.Mutex
-	buf bytes.Buffer
+func TestCoverageThreshold(t *testing.T) {
+	testCases := []struct {
+		note              string
+		modules           map[string]string
+		threshold         float64
+		verbose           bool
+		expectedErrOutput string
+		expectedExitCode  int
+	}{
+		{
+			note: "coverage threshold met",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1
+					test_p { p == 1 }`,
+			},
+			expectedExitCode: 0,
+		},
+		{
+			note: "coverage threshold not met",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3
+					test_q { q == 2 }`,
+			},
+			threshold:         100,
+			expectedExitCode:  2,
+			expectedErrOutput: "Code coverage threshold not met: got 40.00 instead of 100.00\n",
+		},
+		{
+			note: "coverage threshold not met (verbose)",
+			modules: map[string]string{
+				"test.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3
+					test_q { q == 2 }`,
+			},
+			threshold:        100,
+			expectedExitCode: 2,
+			verbose:          true,
+			expectedErrOutput: `Code coverage threshold not met: got 40.00 instead of 100.00
+Lines not covered:
+	%ROOT%/test.rego:2-3
+	%ROOT%/test.rego:6
+`,
+		},
+		{
+			note: "coverage threshold not met (verbose, multiple files)",
+			modules: map[string]string{
+				"policy1.rego": `package test
+					p := 1 {
+						1 == 1
+					}
+					q := 2
+					r := 3`,
+				"policy2.rego": `package test
+					s := 4 {
+						1 == 1
+						2 == 2
+					}
+					t := 5
+					u := 6
+					v := 7`,
+				"test.rego": `package test
+					test_q { q == 2 }
+					test_t { t == 5 }`,
+			},
+			threshold:        100,
+			expectedExitCode: 2,
+			verbose:          true,
+			expectedErrOutput: `Code coverage threshold not met: got 33.33 instead of 100.00
+Lines not covered:
+	%ROOT%/policy1.rego:2-3
+	%ROOT%/policy1.rego:6
+	%ROOT%/policy2.rego:2-4
+	%ROOT%/policy2.rego:7-8
+`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.modules, func(root string) {
+				var buf bytes.Buffer
+
+				testParams := newTestCommandParams()
+				testParams.threshold = tc.threshold
+				testParams.verbose = tc.verbose
+				testParams.count = 1
+				testParams.errOutput = &buf
+
+				exitCode, _ := opaTest([]string{root}, testParams)
+				if exitCode != tc.expectedExitCode {
+					t.Fatalf("unexpected exit code: %d", exitCode)
+				}
+
+				if len(tc.expectedErrOutput) == 0 && buf.Len() > 0 {
+					t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+				}
+
+				expectedErrOutput := strings.ReplaceAll(tc.expectedErrOutput, "%ROOT%", root)
+				if buf.String() != expectedErrOutput {
+					t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", expectedErrOutput, buf.String())
+				}
+			})
+		})
+	}
 }
 
-func (w *blockingWriter) Write(p []byte) (n int, err error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.buf.Write(p)
+type loadType int
+
+const (
+	loadFile loadType = iota
+	loadBundle
+	loadTarball
+)
+
+func (t loadType) String() string {
+	return [...]string{"file", "bundle", "bundle tarball"}[t]
 }
 
-func (w *blockingWriter) String() string {
-	w.m.Lock()
-	defer w.m.Unlock()
-	return w.buf.String()
+func TestWithV1CompatibleFlag(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		files        map[string]string
+		expErr       string
+	}{
+		{
+			note: "0.x module, no imports",
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
 }
 
-func (w *blockingWriter) Reset() {
-	w.m.Lock()
-	defer w.m.Unlock()
-	w.buf.Reset()
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+		{
+			note: "0.x module, rego.v1 imported",
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "0.x module, future.keywords imported",
+			files: map[string]string{
+				"/test.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+
+		{
+			note:         "1.0 compatible module, no imports",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "1.0 compatible module, rego.v1 imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "1.0 compatible module, future.keywords imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+	}
+
+	loadTypes := []loadType{loadFile, loadBundle, loadTarball}
+
+	for _, tc := range tests {
+		for _, loadType := range loadTypes {
+			t.Run(fmt.Sprintf("%s (%s)", tc.note, loadType), func(t *testing.T) {
+				var files map[string]string
+				if loadType != loadTarball {
+					files = tc.files
+				}
+				test.WithTempFS(files, func(root string) {
+					if loadType == loadTarball {
+						f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						testBundle := bundle.Bundle{
+							Data: map[string]interface{}{},
+						}
+						for k, v := range tc.files {
+							testBundle.Modules = append(testBundle.Modules, bundle.ModuleFile{
+								Path: k,
+								Raw:  []byte(v),
+							})
+						}
+
+						if err := bundle.Write(f, testBundle); err != nil {
+							t.Fatal(err)
+						}
+					}
+
+					var buf bytes.Buffer
+					var errBuf bytes.Buffer
+
+					testParams := newTestCommandParams()
+					testParams.v1Compatible = tc.v1Compatible
+					testParams.bundleMode = loadType == loadBundle
+					testParams.count = 1
+					testParams.output = &buf
+					testParams.errOutput = &errBuf
+
+					var paths []string
+					if loadType == loadTarball {
+						paths = []string{filepath.Join(root, "bundle.tar.gz")}
+					} else {
+						paths = []string{root}
+					}
+
+					exitCode, _ := opaTest(paths, testParams)
+					if tc.expErr != "" {
+						if exitCode == 0 {
+							t.Fatalf("expected non-zero exit code")
+						}
+
+						if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
+							t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", tc.expErr, actual)
+						}
+					} else {
+						if exitCode != 0 {
+							t.Fatalf("unexpected exit code: %d", exitCode)
+						}
+
+						if errBuf.Len() > 0 {
+							t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+						}
+
+						expected := "PASS: 1/1"
+						if actual := buf.String(); !strings.Contains(actual, expected) {
+							t.Fatalf("expected output to contain:\n\n%s\n\nbut got:\n\n%q", expected, actual)
+						}
+					}
+				})
+			})
+		}
+	}
 }

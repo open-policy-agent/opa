@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/bundle"
 	initload "github.com/open-policy-agent/opa/internal/runtime/init"
 	"github.com/open-policy-agent/opa/loader"
@@ -26,15 +27,21 @@ type Info struct {
 	WasmModules []map[string]interface{} `json:"wasm_modules,omitempty"`
 	Namespaces  map[string][]string      `json:"namespaces,omitempty"`
 	Annotations []*ast.AnnotationsRef    `json:"annotations,omitempty"`
+	Required    *ast.Capabilities        `json:"capabilities,omitempty"`
 }
 
 func File(path string, includeAnnotations bool) (*Info, error) {
+	return FileForRegoVersion(ast.RegoV0, path, includeAnnotations)
+}
+
+func FileForRegoVersion(regoVersion ast.RegoVersion, path string, includeAnnotations bool) (*Info, error) {
 	b, err := loader.NewFileLoader().
+		WithRegoVersion(regoVersion).
 		WithSkipBundleVerification(true).
 		WithProcessAnnotation(true). // Always process annotations, for enriching namespace listing
-		WithJSONOptions(&ast.JSONOptions{
-			MarshalOptions: ast.JSONMarshalOptions{
-				IncludeLocation: ast.NodeToggle{
+		WithJSONOptions(&json.Options{
+			MarshalOptions: json.MarshalOptions{
+				IncludeLocation: json.NodeToggle{
 					// Annotation location data is only included if includeAnnotations is set
 					AnnotationsRef: includeAnnotations,
 				},
@@ -101,6 +108,20 @@ func File(path string, includeAnnotations bool) (*Info, error) {
 		wasmModules = append(wasmModules, wasmModule)
 	}
 	bi.WasmModules = wasmModules
+
+	moduleMap := make(map[string]*ast.Module, len(b.Modules))
+	for _, f := range b.Modules {
+		moduleMap[f.URL] = f.Parsed
+	}
+
+	c := ast.NewCompiler().
+		WithAllowUndefinedFunctionCalls(true)
+	c.Compile(moduleMap)
+	if c.Failed() {
+		return bi, c.Errors
+	}
+
+	bi.Required = c.Required
 
 	return bi, nil
 }

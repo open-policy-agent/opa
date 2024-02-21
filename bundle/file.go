@@ -17,6 +17,8 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 )
 
+const maxSizeLimitBytesErrMsg = "bundle file %s size (%d bytes) exceeds configured size_limit_bytes (%d bytes)"
+
 // Descriptor contains information about a file and
 // can be used to read the file contents.
 type Descriptor struct {
@@ -63,7 +65,7 @@ func (f *lazyFile) Close() error {
 	return nil
 }
 
-func newDescriptor(url, path string, reader io.Reader) *Descriptor {
+func NewDescriptor(url, path string, reader io.Reader) *Descriptor {
 	return &Descriptor{
 		url:    url,
 		path:   path,
@@ -71,7 +73,7 @@ func newDescriptor(url, path string, reader io.Reader) *Descriptor {
 	}
 }
 
-func (d *Descriptor) withCloser(closer io.Closer) *Descriptor {
+func (d *Descriptor) WithCloser(closer io.Closer) *Descriptor {
 	d.closer = closer
 	d.closeOnce = new(sync.Once)
 	return d
@@ -123,14 +125,16 @@ type DirectoryLoader interface {
 	NextFile() (*Descriptor, error)
 	WithFilter(filter filter.LoaderFilter) DirectoryLoader
 	WithPathFormat(PathFormat) DirectoryLoader
+	WithSizeLimitBytes(sizeLimitBytes int64) DirectoryLoader
 }
 
 type dirLoader struct {
-	root       string
-	files      []string
-	idx        int
-	filter     filter.LoaderFilter
-	pathFormat PathFormat
+	root              string
+	files             []string
+	idx               int
+	filter            filter.LoaderFilter
+	pathFormat        PathFormat
+	maxSizeLimitBytes int64
 }
 
 // Normalize root directory, ex "./src/bundle" -> "src/bundle"
@@ -171,6 +175,12 @@ func (d *dirLoader) WithPathFormat(pathFormat PathFormat) DirectoryLoader {
 	return d
 }
 
+// WithSizeLimitBytes specifies the maximum size of any file in the directory to read
+func (d *dirLoader) WithSizeLimitBytes(sizeLimitBytes int64) DirectoryLoader {
+	d.maxSizeLimitBytes = sizeLimitBytes
+	return d
+}
+
 func formatPath(fileName string, root string, pathFormat PathFormat) string {
 	switch pathFormat {
 	case SlashRooted:
@@ -206,6 +216,9 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 					return nil
 				}
+				if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
+					return fmt.Errorf(maxSizeLimitBytesErrMsg, strings.TrimPrefix(path, "/"), info.Size(), d.maxSizeLimitBytes)
+				}
 				d.files = append(d.files, path)
 			} else if info != nil && info.Mode().IsDir() {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, true)) {
@@ -230,19 +243,20 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	fh := newLazyFile(fileName)
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := newDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).withCloser(fh)
+	f := NewDescriptor(filepath.Join(d.root, cleanedPath), cleanedPath, fh).WithCloser(fh)
 	return f, nil
 }
 
 type tarballLoader struct {
-	baseURL    string
-	r          io.Reader
-	tr         *tar.Reader
-	files      []file
-	idx        int
-	filter     filter.LoaderFilter
-	skipDir    map[string]struct{}
-	pathFormat PathFormat
+	baseURL           string
+	r                 io.Reader
+	tr                *tar.Reader
+	files             []file
+	idx               int
+	filter            filter.LoaderFilter
+	skipDir           map[string]struct{}
+	pathFormat        PathFormat
+	maxSizeLimitBytes int64
 }
 
 type file struct {
@@ -285,6 +299,12 @@ func (t *tarballLoader) WithPathFormat(pathFormat PathFormat) DirectoryLoader {
 	return t
 }
 
+// WithSizeLimitBytes specifies the maximum size of any file in the tarball to read
+func (t *tarballLoader) WithSizeLimitBytes(sizeLimitBytes int64) DirectoryLoader {
+	t.maxSizeLimitBytes = sizeLimitBytes
+	return t
+}
+
 // NextFile iterates to the next file in the directory tree
 // and returns a file Descriptor for the file.
 func (t *tarballLoader) NextFile() (*Descriptor, error) {
@@ -306,6 +326,7 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 		for {
 			header, err := t.tr.Next()
+
 			if err == io.EOF {
 				break
 			}
@@ -343,6 +364,10 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 					}
 				}
 
+				if t.maxSizeLimitBytes > 0 && header.Size > t.maxSizeLimitBytes {
+					return nil, fmt.Errorf(maxSizeLimitBytesErrMsg, header.Name, header.Size, t.maxSizeLimitBytes)
+				}
+
 				f := file{name: header.Name}
 
 				var buf bytes.Buffer
@@ -372,16 +397,14 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	t.idx++
 
 	cleanedPath := formatPath(f.name, "", t.pathFormat)
-	d := newDescriptor(filepath.Join(t.baseURL, cleanedPath), cleanedPath, f.reader)
+	d := NewDescriptor(filepath.Join(t.baseURL, cleanedPath), cleanedPath, f.reader)
 	return d, nil
-
 }
 
 // Next implements the storage.Iterator interface.
 // It iterates to the next policy or data file in the directory tree
 // and returns a storage.Update for the file.
 func (it *iterator) Next() (*storage.Update, error) {
-
 	if it.files == nil {
 		it.files = []file{}
 

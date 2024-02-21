@@ -6,6 +6,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util"
@@ -171,6 +172,11 @@ func (env *TypeEnv) getRefRec(node *typeTreeNode, ref, tail Ref) types.Type {
 	}
 
 	if node.Leaf() {
+		if node.children.Len() > 0 {
+			if child := node.Child(tail[0].Value); child != nil {
+				return env.getRefRec(child, ref, tail[1:])
+			}
+		}
 		return selectRef(node.Value(), tail)
 	}
 
@@ -305,9 +311,9 @@ func (n *typeTreeNode) Put(path Ref, tpe types.Type) {
 }
 
 // Insert inserts tpe at path in the tree, but also merges the value into any types.Object present along that path.
-// If an types.Object is inserted, any leafs already present further down the tree are merged into the inserted object.
+// If a types.Object is inserted, any leafs already present further down the tree are merged into the inserted object.
 // path must be ground.
-func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
+func (n *typeTreeNode) Insert(path Ref, tpe types.Type, env *TypeEnv) {
 	curr := n
 	for i, term := range path {
 		c, ok := curr.children.Get(term.Value)
@@ -324,7 +330,7 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 				// If child has an object value, merge the new value into it.
 				if o, ok := child.value.(*types.Object); ok {
 					var err error
-					child.value, err = insertIntoObject(o, path[i+1:], tpe)
+					child.value, err = insertIntoObject(o, path[i+1:], tpe, env)
 					if err != nil {
 						panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
 					}
@@ -335,14 +341,14 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 		curr = child
 	}
 
-	curr.value = tpe
+	curr.value = mergeTypes(curr.value, tpe)
 
 	if _, ok := tpe.(*types.Object); ok && curr.children.Len() > 0 {
 		// merge all leafs into the inserted object
 		leafs := curr.Leafs()
 		for p, t := range leafs {
 			var err error
-			curr.value, err = insertIntoObject(curr.value.(*types.Object), *p, t)
+			curr.value, err = insertIntoObject(curr.value.(*types.Object), *p, t, env)
 			if err != nil {
 				panic(fmt.Errorf("unreachable, insertIntoObject: %w", err))
 			}
@@ -350,47 +356,118 @@ func (n *typeTreeNode) Insert(path Ref, tpe types.Type) {
 	}
 }
 
-func insertIntoObject(o *types.Object, path Ref, tpe types.Type) (*types.Object, error) {
+// mergeTypes merges the types of 'a' and 'b'. If both are sets, their 'of' types are joined with an types.Or.
+// If both are objects, the key types of their dynamic properties are joined with types.Or:s, and their value types
+// are recursively merged (using mergeTypes).
+// If 'a' and 'b' are both objects, and at least one of them have static properties, they are joined
+// with an types.Or, instead of being merged.
+// If 'a' is an Any containing an Object, and 'b' is an Object (or vice versa); AND both objects have no
+// static properties, they are merged.
+// If 'a' and 'b' are different types, they are joined with an types.Or.
+func mergeTypes(a, b types.Type) types.Type {
+	if a == nil {
+		return b
+	}
+
+	if b == nil {
+		return a
+	}
+
+	switch a := a.(type) {
+	case *types.Object:
+		if bObj, ok := b.(*types.Object); ok && len(a.StaticProperties()) == 0 && len(bObj.StaticProperties()) == 0 {
+			if len(a.StaticProperties()) > 0 || len(bObj.StaticProperties()) > 0 {
+				return types.Or(a, bObj)
+			}
+
+			aDynProps := a.DynamicProperties()
+			bDynProps := bObj.DynamicProperties()
+			dynProps := types.NewDynamicProperty(
+				types.Or(aDynProps.Key, bDynProps.Key),
+				mergeTypes(aDynProps.Value, bDynProps.Value))
+			return types.NewObject(nil, dynProps)
+		} else if bAny, ok := b.(types.Any); ok && len(a.StaticProperties()) == 0 {
+			// If a is an object type with no static components ...
+			for _, t := range bAny {
+				if tObj, ok := t.(*types.Object); ok && len(tObj.StaticProperties()) == 0 {
+					// ... and b is a types.Any containing an object with no static components, we merge them.
+					aDynProps := a.DynamicProperties()
+					tDynProps := tObj.DynamicProperties()
+					tDynProps.Key = types.Or(tDynProps.Key, aDynProps.Key)
+					tDynProps.Value = types.Or(tDynProps.Value, aDynProps.Value)
+					return bAny
+				}
+			}
+		}
+	case *types.Set:
+		if bSet, ok := b.(*types.Set); ok {
+			return types.NewSet(types.Or(a.Of(), bSet.Of()))
+		}
+	case types.Any:
+		if _, ok := b.(types.Any); !ok {
+			return mergeTypes(b, a)
+		}
+	}
+
+	return types.Or(a, b)
+}
+
+func (n *typeTreeNode) String() string {
+	b := strings.Builder{}
+
+	if k := n.key; k != nil {
+		b.WriteString(k.String())
+	} else {
+		b.WriteString("-")
+	}
+
+	if v := n.value; v != nil {
+		b.WriteString(": ")
+		b.WriteString(v.String())
+	}
+
+	n.children.Iter(func(_, v util.T) bool {
+		if child, ok := v.(*typeTreeNode); ok {
+			b.WriteString("\n\t+ ")
+			s := child.String()
+			s = strings.ReplaceAll(s, "\n", "\n\t")
+			b.WriteString(s)
+		}
+		return false
+	})
+
+	return b.String()
+}
+
+func insertIntoObject(o *types.Object, path Ref, tpe types.Type, env *TypeEnv) (*types.Object, error) {
 	if len(path) == 0 {
 		return o, nil
 	}
 
-	key, err := JSON(path[0].Value)
-	if err != nil {
-		return nil, fmt.Errorf("invalid path term %v: %w", path[0], err)
-	}
+	key := env.Get(path[0].Value)
 
 	if len(path) == 1 {
-		for _, prop := range o.StaticProperties() {
-			if util.Compare(prop.Key, key) == 0 {
-				prop.Value = types.Or(prop.Value, tpe)
-				return o, nil
-			}
+		var dynamicProps *types.DynamicProperty
+		if dp := o.DynamicProperties(); dp != nil {
+			dynamicProps = types.NewDynamicProperty(types.Or(o.DynamicProperties().Key, key), types.Or(o.DynamicProperties().Value, tpe))
+		} else {
+			dynamicProps = types.NewDynamicProperty(key, tpe)
 		}
-		staticProps := append(o.StaticProperties(), types.NewStaticProperty(key, tpe))
-		return types.NewObject(staticProps, o.DynamicProperties()), nil
+		return types.NewObject(o.StaticProperties(), dynamicProps), nil
 	}
 
-	for _, prop := range o.StaticProperties() {
-		if util.Compare(prop.Key, key) == 0 {
-			if propO := prop.Value.(*types.Object); propO != nil {
-				prop.Value, err = insertIntoObject(propO, path[1:], tpe)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, fmt.Errorf("cannot insert into non-object type %v", prop.Value)
-			}
-			return o, nil
-		}
-	}
-
-	child, err := insertIntoObject(types.NewObject(nil, nil), path[1:], tpe)
+	child, err := insertIntoObject(types.NewObject(nil, nil), path[1:], tpe, env)
 	if err != nil {
 		return nil, err
 	}
-	staticProps := append(o.StaticProperties(), types.NewStaticProperty(key, child))
-	return types.NewObject(staticProps, o.DynamicProperties()), nil
+
+	var dynamicProps *types.DynamicProperty
+	if dp := o.DynamicProperties(); dp != nil {
+		dynamicProps = types.NewDynamicProperty(types.Or(o.DynamicProperties().Key, key), types.Or(o.DynamicProperties().Value, child))
+	} else {
+		dynamicProps = types.NewDynamicProperty(key, child)
+	}
+	return types.NewObject(o.StaticProperties(), dynamicProps), nil
 }
 
 func (n *typeTreeNode) Leafs() map[*Ref]types.Type {

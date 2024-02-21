@@ -11,12 +11,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
+	"strings"
 	"testing"
 	"time"
 
@@ -184,6 +185,128 @@ func TestProcessBundle(t *testing.T) {
 
 }
 
+func TestProcessBundleV1Compatible(t *testing.T) {
+	ctx := context.Background()
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
+
+	manager, err := plugins.New([]byte(`{
+		"services": {
+			"default": {
+				"url": "http://localhost:8181"
+			}
+		},
+		"discovery": {"name": "config"}
+	}`), "test-id",
+		inmem.New(),
+		plugins.WithParserOptions(popts))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initialBundle := makeModuleBundle(1, `package config
+bundle.name := "test1"
+status := {}
+decision_logs := {} if { 3 == 3 }
+`, popts)
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ps, err := disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ps.Start) != 3 || len(ps.Reconfig) != 0 {
+		t.Fatalf("Expected exactly three start events but got %v", ps)
+	}
+
+	actualConfig, err := manager.Config.ActiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertConfig(t, actualConfig, fmt.Sprintf(`{
+	"bundle": {
+		"name": "test1"
+	},
+	"decision_logs": {},
+	"default_authorization_decision": "/system/authz/allow",
+	"default_decision": "/system/main",
+	"discovery": {
+		"name": "config"
+	},
+	"labels": {
+		"id": "test-id",
+		"version": %v
+	},
+	"status": {}
+}`, version.Version))
+
+	// The bundle is parsed outside the discovery service, but is still compiled by it during processing.
+	// As such, it is impossible to pass it a module that doesn't pass the parsing step.
+	// We first pass it a valid v1.0 policy ...
+	updatedBundle := makeModuleBundle(1, `package config
+bundle.name := "test2" if { 1 == 1 }
+status.partition_name := "foo" if { 2 == 2 }
+decision_logs.partition_name := "bar" if { 3 == 3 }
+`, popts)
+
+	ps, err = disco.processBundle(ctx, updatedBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ps.Start) != 0 || len(ps.Reconfig) != 3 {
+		t.Fatalf("Expected exactly three start events but got %v", ps)
+	}
+
+	actualConfig, err = manager.Config.ActiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertConfig(t, actualConfig, fmt.Sprintf(`{
+	"bundle": {
+		"name": "test2"
+	},
+	"decision_logs": {
+		"partition_name": "bar"
+	},
+	"default_authorization_decision": "/system/authz/allow",
+	"default_decision": "/system/main",
+	"discovery": {
+		"name": "config"
+	},
+	"labels": {
+		"id": "test-id",
+		"version": %v
+	},
+	"status": {
+		"partition_name": "foo"
+	}
+}`, version.Version))
+
+	// ... and then an invalid v1.0 policy, where we expect the compiler to complain about shadowed imports (which passes the parsing step).
+	updatedBundle = makeModuleBundle(1, `package config
+import data.foo
+import data.bar as foo
+
+bundle.name := "test2" if { 1 == 1 }
+status.partition_name := "foo" if { 2 == 2 }
+decision_logs.partition_name := "bar" if { 3 == 3 }
+`, popts)
+
+	_, err = disco.processBundle(ctx, updatedBundle)
+	if err == nil {
+		t.Fatal("Expected error but got none")
+	}
+	expErr := `rego_compile_error: import must not shadow import data.foo`
+	if !strings.Contains(err.Error(), expErr) {
+		t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err)
+	}
+}
+
 func TestProcessBundleWithActiveConfig(t *testing.T) {
 
 	ctx := context.Background()
@@ -278,14 +401,7 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		"discovery": {"name": "config"}
 	}`, version.Version)
 
-	var expected map[string]interface{}
-	if err := util.Unmarshal([]byte(expectedConfig), &expected); err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("want %v got %v", expected, actual)
-	}
+	assertConfig(t, actual, expectedConfig)
 
 	initialBundle = makeDataBundle(2, `
 		{
@@ -345,13 +461,19 @@ func TestProcessBundleWithActiveConfig(t *testing.T) {
 		"discovery": {"name": "config"}
 	}`, version.Version)
 
-	var expected2 map[string]interface{}
-	if err := util.Unmarshal([]byte(expectedConfig2), &expected2); err != nil {
+	assertConfig(t, actual, expectedConfig2)
+}
+
+func assertConfig(t *testing.T, actualConfig interface{}, expectedConfig string) {
+	t.Helper()
+
+	var expected map[string]interface{}
+	if err := util.Unmarshal([]byte(expectedConfig), &expected); err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(actual, expected2) {
-		t.Fatalf("want %v got %v", expected, actual)
+	if !reflect.DeepEqual(actualConfig, expected) {
+		t.Fatalf("expected config:\n\n%v\n\ngot:\n\n%v", expectedConfig, actualConfig)
 	}
 }
 
@@ -816,6 +938,132 @@ func TestLoadAndActivateBundleFromDiskMaxAttempts(t *testing.T) {
 	}
 }
 
+func TestLoadAndActivateBundleFromDiskV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		bundle       string
+	}{
+		{
+			note: "v0.x",
+			bundle: `package config
+import future.keywords
+
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if { 
+	v := {"a": "b"}
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}
+`,
+		},
+		{
+			note:         "v1.0",
+			v1Compatible: true,
+			// no future.keywords import
+			bundle: `package config
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if { 
+	v := {"a": "b"}
+}
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
+}
+bundles.authz.service := v if {
+	v := "localhost"
+}
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+			dir := t.TempDir()
+
+			manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config", "persist": true},
+	}`), "test-id",
+				inmem.New(),
+				plugins.WithParserOptions(popts))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+			testFactory := testFactory{p: testPlugin}
+
+			disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+
+			disco.bundlePersistPath = filepath.Join(dir, ".opa")
+
+			ensurePluginState(t, disco, plugins.StateNotReady)
+
+			// persist a bundle to disk and then load it
+			initialBundle := makeModuleBundle(1, tc.bundle, popts)
+
+			initialBundle.Manifest.Init()
+
+			var buf bytes.Buffer
+			if err := bundleApi.NewWriter(&buf).Write(*initialBundle); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			err = disco.saveBundleToDisk(&buf)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			disco.loadAndActivateBundleFromDisk(ctx)
+
+			ensurePluginState(t, disco, plugins.StateOK)
+
+			// verify the test plugin was registered on the manager
+			if plugin := manager.Plugin("test_plugin"); plugin == nil {
+				t.Fatalf("expected \"test_plugin\" to be regsitered with the plugin manager")
+			}
+
+			// verify the test plugin was started
+			count, ok := testPlugin.counts["start"]
+			if !ok {
+				t.Fatal("expected test plugin to have start counter")
+			}
+
+			if count != 1 {
+				t.Fatalf("expected test plugin to have a start count of 1 but got %v", count)
+			}
+
+			// verify the bundle plugin was registered on the manager
+			if plugin := bundlePlugin.Lookup(disco.manager); plugin == nil {
+				t.Fatalf("expected bundle plugin to be regsitered with the plugin manager")
+			}
+		})
+	}
+}
+
 func TestSaveBundleToDiskNew(t *testing.T) {
 	dir := t.TempDir()
 
@@ -1014,6 +1262,105 @@ func TestReconfigure(t *testing.T) {
 			}
 		}
 	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
+
+	// Verify label additions are always on top of bootstrap config with multiple discovery documents
+	exp = map[string]string{"x": "y", "z": "another added label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
+	}
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	}
+
+	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1, "reconfig": 1}) {
+		t.Errorf("Expected one plugin start and one reconfig but got %v", testPlugin)
+	}
+}
+
+func TestReconfigureV1Compatible(t *testing.T) {
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
+
+	manager, err := plugins.New([]byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"},
+	}`), "test-id",
+		inmem.New(),
+		plugins.WithParserOptions(popts))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testPlugin := &reconfigureTestPlugin{counts: map[string]int{}}
+	testFactory := testFactory{p: testPlugin}
+
+	disco, err := New(manager, Factories(map[string]plugins.Factory{"test_plugin": testFactory}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	initialBundle := makeModuleBundle(1, `package config
+labels := v if {
+	v := {"x": "label value changed", "y": "new label"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "b"}
+}`, popts)
+
+	disco.oneShot(ctx, download.Update{Bundle: initialBundle, Size: snapshotBundleSize})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if disco.status.Type != bundleApi.SnapshotBundleType {
+		t.Fatalf("expected snapshot bundle but got %v", disco.status.Type)
+	} else if disco.status.Size != snapshotBundleSize {
+		t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, disco.status.Size)
+	}
+
+	// Verify labels are unchanged but allow additions
+	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels to be unchanged (%v) but got %v", exp, manager.Labels())
+	}
+
+	// Verify decision ids set
+	expDecision := ast.MustParseTerm("data.bar.baz")
+	expAuthzDecision := ast.MustParseTerm("data.baz.qux")
+	if !manager.Config.DefaultDecisionRef().Equal(expDecision.Value) {
+		t.Errorf("Expected default decision to be %v but got %v", expDecision, manager.Config.DefaultDecisionRef())
+	}
+	if !manager.Config.DefaultAuthorizationDecisionRef().Equal(expAuthzDecision.Value) {
+		t.Errorf("Expected default authz decision to be %v but got %v", expAuthzDecision, manager.Config.DefaultAuthorizationDecisionRef())
+	}
+
+	// Verify plugins started
+	if !reflect.DeepEqual(testPlugin.counts, map[string]int{"start": 1}) {
+		t.Errorf("Expected exactly one plugin start but got %v", testPlugin)
+	}
+
+	// Verify plugins reconfigured
+	updatedBundle := makeModuleBundle(2, `package config
+labels := v if {
+	v := {"x": "label value changed", "z": "another added label"}
+}
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v if {
+	v := {"a": "plugin parameter value changed"}
+}`, popts)
 
 	disco.oneShot(ctx, download.Update{Bundle: updatedBundle})
 
@@ -1467,23 +1814,17 @@ func TestProcessBundleWithNoSigningConfig(t *testing.T) {
 
 type testServer struct {
 	t       *testing.T
-	mtx     sync.Mutex
 	server  *httptest.Server
-	updates []status.UpdateRequestV1
+	updates chan status.UpdateRequestV1
 }
 
 func (ts *testServer) Start() {
+	ts.updates = make(chan status.UpdateRequestV1, 100)
 	ts.server = httptest.NewServer(http.HandlerFunc(ts.handle))
 }
 
 func (ts *testServer) Stop() {
 	ts.server.Close()
-}
-
-func (ts *testServer) Updates() []status.UpdateRequestV1 {
-	ts.mtx.Lock()
-	defer ts.mtx.Unlock()
-	return ts.updates
 }
 
 func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -1494,11 +1835,7 @@ func (ts *testServer) handle(w http.ResponseWriter, r *http.Request) {
 		ts.t.Fatal(err)
 	}
 
-	func() {
-		ts.mtx.Lock()
-		defer ts.mtx.Unlock()
-		ts.updates = append(ts.updates, update)
-	}()
+	ts.updates <- update
 
 	w.WriteHeader(200)
 }
@@ -1557,24 +1894,175 @@ func TestStatusUpdates(t *testing.T) {
 	disco.oneShot(ctx, download.Update{ETag: "etag-2"})
 
 	// Check that all updates were received and active revisions are expected.
-	var ok bool
-	var updates []status.UpdateRequestV1
-	t0 := time.Now()
-
-	for !ok && time.Since(t0) < time.Second {
-		updates = ts.Updates()
-		ok = len(updates) == 7 &&
-			updates[0].Plugins["discovery"].State == plugins.StateNotReady && updates[0].Plugins["status"].State == plugins.StateOK &&
-			updates[1].Plugins["discovery"].State == plugins.StateOK && updates[1].Plugins["status"].State == plugins.StateOK &&
-			updates[2].Plugins["discovery"].State == plugins.StateOK && updates[2].Discovery.ActiveRevision == "test-revision-1" && updates[2].Discovery.Code == "" &&
-			updates[3].Plugins["discovery"].State == plugins.StateOK && updates[3].Discovery.ActiveRevision == "test-revision-1" && updates[3].Discovery.Code == "bundle_error" &&
-			updates[4].Plugins["discovery"].State == plugins.StateOK && updates[4].Discovery.ActiveRevision == "test-revision-2" && updates[4].Discovery.Code == "" &&
-			updates[5].Plugins["discovery"].State == plugins.StateOK && updates[5].Discovery.ActiveRevision == "test-revision-2" && updates[5].Discovery.Code == "bundle_error" &&
-			updates[6].Plugins["discovery"].State == plugins.StateOK && updates[6].Discovery.ActiveRevision == "test-revision-2" && updates[6].Discovery.Code == ""
+	expectedDiscoveryUpdates := []struct {
+		Code     string
+		Revision string
+	}{
+		{
+			Code:     "",
+			Revision: "test-revision-1",
+		},
+		{
+			Code:     "bundle_error",
+			Revision: "test-revision-1",
+		},
+		{
+			Code:     "",
+			Revision: "test-revision-2",
+		},
+		{
+			Code:     "bundle_error",
+			Revision: "test-revision-2",
+		},
+		{
+			Code:     "",
+			Revision: "test-revision-2",
+		},
 	}
 
-	if !ok {
-		t.Fatalf("Did not receive expected updates before timeout expired. Received: %+v", updates)
+	// nextExpectedDiscoveryUpdate, we look for each
+	nextExpectedDiscoveryUpdate := expectedDiscoveryUpdates[0]
+	expectedDiscoveryUpdates = expectedDiscoveryUpdates[1:]
+
+	timeout, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	for {
+		select {
+		case update := <-ts.updates:
+			if update.Discovery != nil {
+				matches := false
+				if update.Discovery.Code == nextExpectedDiscoveryUpdate.Code &&
+					update.Discovery.ActiveRevision == nextExpectedDiscoveryUpdate.Revision {
+					matches = true
+				}
+
+				if matches {
+					if len(expectedDiscoveryUpdates) == 0 {
+						return
+					}
+					nextExpectedDiscoveryUpdate = expectedDiscoveryUpdates[0]
+					expectedDiscoveryUpdates = expectedDiscoveryUpdates[1:]
+				}
+			}
+		case <-timeout.Done():
+			cancel()
+			t.Fatalf("Waiting for following statuses timed out: %v", expectedDiscoveryUpdates)
+		}
+	}
+}
+
+func TestStatusUpdatesFromPersistedBundlesDontDelayBoot(t *testing.T) {
+	dir := t.TempDir()
+
+	// write the disco bundle to disk
+	discoBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"discovery": map[string]interface{}{
+				"bundles": map[string]interface{}{
+					"main": map[string]interface{}{
+						"persist":  true,
+						"resource": "/bundle",
+						"service":  "localhost",
+					},
+				},
+				"status": map[string]interface{}{
+					"service": "localhost",
+				},
+			},
+		},
+	}
+
+	discoBundleDir := filepath.Join(dir, "bundles", "config")
+	if err := os.MkdirAll(discoBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	discoBundleFile, err := os.Create(filepath.Join(discoBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer discoBundleFile.Close()
+
+	err = bundleApi.NewWriter(discoBundleFile).Write(discoBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// write an example data bundle ('main') to disk
+	mainBundle := bundleApi.Bundle{
+		Data: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+
+	mainBundleDir := filepath.Join(dir, "bundles", "main")
+	if err := os.MkdirAll(mainBundleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	mainBundleFile, err := os.Create(filepath.Join(mainBundleDir, "bundle.tar.gz"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	defer mainBundleFile.Close()
+
+	err = bundleApi.NewWriter(mainBundleFile).Write(mainBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a timing out listener for the referenced localhost service
+	// :0 will cause net to find an available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	manager, err := plugins.New([]byte(fmt.Sprintf(`{
+            "persistence_directory": %q, 
+			"services": {
+				"localhost": {
+					"url": "http://%s"
+				}
+			},
+			"discovery": {"name": "config", "persist": true, "decision": "discovery"},
+		}`, dir, listener.Addr().String())), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// allow 2s of time to start before failing
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// start Discovery instance, wait for it to complete Start()
+	booted := make(chan bool)
+	go func() {
+		disco, err := New(manager)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		err = disco.Start(ctx)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		booted <- true
+	}()
+
+	select {
+	case <-booted:
+		for k, pi := range manager.PluginStatus() {
+			if pi.State != plugins.StateOK {
+				t.Errorf("Expected %s plugin to be in OK state but got %v", k, pi.State)
+			}
+		}
+	case <-ctx.Done():
+		t.Errorf("Timed out waiting for disco to start")
 	}
 }
 
@@ -1775,6 +2263,21 @@ func makeDataBundle(n int, s string) *bundleApi.Bundle {
 	return &bundleApi.Bundle{
 		Manifest: bundleApi.Manifest{Revision: fmt.Sprintf("test-revision-%v", n)},
 		Data:     util.MustUnmarshalJSON([]byte(s)).(map[string]interface{}),
+	}
+}
+
+func makeModuleBundle(n int, s string, popts ast.ParserOptions) *bundleApi.Bundle {
+	return &bundleApi.Bundle{
+		Manifest: bundleApi.Manifest{Revision: fmt.Sprintf("test-revision-%v", n)},
+		Modules: []bundleApi.ModuleFile{
+			{
+				URL:    `policy.rego`,
+				Path:   `/policy.rego`,
+				Raw:    []byte(s),
+				Parsed: ast.MustParseModuleWithOpts(s, popts),
+			},
+		},
+		Data: map[string]interface{}{},
 	}
 }
 

@@ -51,6 +51,7 @@ type REPL struct {
 	profiler            bool
 	strictBuiltinErrors bool
 	capabilities        *ast.Capabilities
+	v1Compatible        bool
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -341,6 +342,11 @@ func (r *REPL) DisableUndefinedOutput(yes bool) *REPL {
 // WithRuntime sets the runtime data to provide to the evaluation engine.
 func (r *REPL) WithRuntime(term *ast.Term) *REPL {
 	r.runtime = term
+	return r
+}
+
+func (r *REPL) WithV1Compatible(v1Compatible bool) *REPL {
+	r.v1Compatible = v1Compatible
 	return r
 }
 
@@ -762,6 +768,12 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	var unset bool
 
+	if r.v1Compatible {
+		if errs := ast.CheckRegoV1(rule); errs != nil {
+			return errs
+		}
+	}
+
 	if rule.Head.Assign {
 		var err error
 		unset, err = r.unsetRule(ctx, rule.Head.Name)
@@ -892,8 +904,19 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 }
 
 func (r *REPL) parserOptions() (ast.ParserOptions, error) {
+	if r.v1Compatible {
+		return ast.ParserOptions{RegoVersion: ast.RegoV1}, nil
+	}
 	if r.currentModuleID != "" {
-		return future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
+		opts, err := future.ParserOptionsFromFutureImports(r.modules[r.currentModuleID].Imports)
+		if err == nil {
+			for _, i := range r.modules[r.currentModuleID].Imports {
+				if ast.Compare(i.Path.Value, ast.RegoV1CompatibleRef) == 0 {
+					opts.RegoVersion = ast.RegoV1
+				}
+			}
+		}
+		return opts, err
 	}
 	return ast.ParserOptions{}, nil
 }
@@ -1241,7 +1264,12 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 			return nil, err
 		}
 
-		parsed, err := ast.ParseModule(id, string(bs))
+		popts := ast.ParserOptions{}
+		if r.v1Compatible {
+			popts.RegoVersion = ast.RegoV1
+		}
+
+		parsed, err := ast.ParseModuleWithOpts(id, string(bs), popts)
 		if err != nil {
 			return nil, err
 		}

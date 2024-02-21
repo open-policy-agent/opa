@@ -6,6 +6,7 @@ package tester_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -608,4 +609,69 @@ func TestRunnerWithCustomBuiltin(t *testing.T) {
 			t.Fatal("expected:", exp, "got:", got)
 		}
 	})
+}
+
+func TestRunnerWithBuiltinErrors(t *testing.T) {
+	const ruleTemplate = `package test
+	test_json_parsing {
+      x := json.unmarshal("%s")
+	  x.test == 123
+	}`
+
+	testCases := []struct {
+		desc          string
+		json          string
+		builtinErrors bool
+		wantErr       bool
+	}{
+		{
+			desc:          "Valid JSON with flag enabled does not raise an error",
+			json:          `{\"test\": 123}`,
+			builtinErrors: true,
+		},
+		{
+			desc:          "Invalid JSON with flag enabled raises an error",
+			json:          `test: 123`,
+			builtinErrors: true,
+			wantErr:       true,
+		},
+		{
+			desc: "Invalid JSON with flag disabled does not raise an error",
+			json: `test: 123`,
+		},
+	}
+
+	ctx := context.Background()
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			files := map[string]string{
+				"builtin_error_test.rego": fmt.Sprintf(ruleTemplate, tc.json),
+			}
+
+			test.WithTempFS(files, func(d string) {
+				paths := []string{d}
+				modules, store, err := tester.Load(paths, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				txn := storage.NewTransactionOrDie(ctx, store)
+				runner := tester.
+					NewRunner().
+					SetStore(store).
+					SetModules(modules).
+					RaiseBuiltinErrors(tc.builtinErrors)
+
+				ch, err := runner.RunTests(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for result := range ch {
+					if gotErr := result.Error != nil; gotErr != tc.wantErr {
+						t.Errorf("wantErr = %v, gotErr = %v", tc.wantErr, gotErr)
+					}
+				}
+			})
+		})
+	}
 }

@@ -11,3 +11,10 @@ q[1] = y if true
 r[x] if x := 10
 p.q.r[x] if x := 10
 p.q.r[2] if true
+
+g[h].i[j].k { true }
+g[h].i[j].k { h := 1; j = 2 }
+g[3].i[j].k = x { j := 3; x = 4 }
+g[h].i[j].k[l] if { true }
+g[h].i[j].k[l] contains x { x = "foo" }
+g[h].i[j].k[l] contains x { h := 5; j := 6; l = 7; x = "foo" }

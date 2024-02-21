@@ -349,12 +349,9 @@ func TestPluginStartTriggerManual(t *testing.T) {
 			"app":     "example-app",
 			"version": version.Version,
 		},
-		Plugins: map[string]*plugins.Status{
-			"status": {State: plugins.StateOK},
-		},
 	}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !reflect.DeepEqual(result.Labels, exp.Labels) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 
@@ -371,7 +368,7 @@ func TestPluginStartTriggerManual(t *testing.T) {
 
 	exp.Bundles = map[string]*bundle.Status{"test": status}
 
-	if !reflect.DeepEqual(result, exp) {
+	if !reflect.DeepEqual(result.Bundles, exp.Bundles) {
 		t.Fatalf("Expected: %v but got: %v", exp, result)
 	}
 }

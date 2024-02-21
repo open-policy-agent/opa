@@ -1,11 +1,10 @@
 // Copyright 2022 The OPA Authors.  All rights reserved.
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
-
-// NOTE(an): Different go runtime metrics on 1.20.
-// This can be removed when we drop support for go 1.19.
-//go:build go1.20
-// +build go1.20
+//
+// NOTE(sr): Different go runtime metrics on 1.20 vs 1.22.
+// Let's only test these on 1.22.
+//go:build go1.22
 
 package prometheus
 
@@ -25,7 +24,7 @@ func TestJSONSerialization(t *testing.T) {
 		}
 	}(logging.NewNoOpLogger())
 
-	prom := New(inner, logger)
+	prom := New(inner, logger, []float64{1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1})
 
 	m := prom.All()
 	bs, err := json.Marshal(m)
@@ -85,6 +84,13 @@ func TestJSONSerialization(t *testing.T) {
 			"go_sched_goroutines_goroutines",
 			"go_sched_gomaxprocs_threads",
 			"go_threads",
+			"go_gc_gomemlimit_bytes", // BEGIN added in 1.21
+			"go_gc_heap_live_bytes",
+			"go_gc_gogc_percent",
+			"go_gc_scan_globals_bytes",
+			"go_gc_scan_heap_bytes",
+			"go_gc_scan_stack_bytes",
+			"go_gc_scan_total_bytes",
 		},
 		"COUNTER": {
 			"go_gc_cycles_automatic_gc_cycles_total",
@@ -112,6 +118,31 @@ func TestJSONSerialization(t *testing.T) {
 			"go_cpu_classes_gc_total_cpu_seconds_total",
 			"go_sync_mutex_wait_total_seconds_total",
 			"go_cpu_classes_gc_pause_cpu_seconds_total",
+			"go_godebug_non_default_behavior_execerrdot_events_total", // BEGIN added in 1.21
+			"go_godebug_non_default_behavior_gocachehash_events_total",
+			"go_godebug_non_default_behavior_gocachetest_events_total",
+			"go_godebug_non_default_behavior_gocacheverify_events_total",
+			"go_godebug_non_default_behavior_http2client_events_total",
+			"go_godebug_non_default_behavior_http2server_events_total",
+			"go_godebug_non_default_behavior_installgoroot_events_total",
+			"go_godebug_non_default_behavior_jstmpllitinterp_events_total",
+			"go_godebug_non_default_behavior_panicnil_events_total",
+			"go_godebug_non_default_behavior_randautoseed_events_total",
+			"go_godebug_non_default_behavior_tarinsecurepath_events_total",
+			"go_godebug_non_default_behavior_multipartmaxheaders_events_total",
+			"go_godebug_non_default_behavior_multipartmaxparts_events_total",
+			"go_godebug_non_default_behavior_multipathtcp_events_total",
+			"go_godebug_non_default_behavior_x509sha1_events_total",
+			"go_godebug_non_default_behavior_x509usefallbackroots_events_total",
+			"go_godebug_non_default_behavior_zipinsecurepath_events_total",
+			"go_godebug_non_default_behavior_tlsmaxrsasize_events_total",
+			"go_godebug_non_default_behavior_gotypesalias_events_total", // BEGIN added in 1.22
+			"go_godebug_non_default_behavior_tlsunsafeekm_events_total",
+			"go_godebug_non_default_behavior_httplaxcontentlength_events_total",
+			"go_godebug_non_default_behavior_x509usepolicies_events_total",
+			"go_godebug_non_default_behavior_tls10server_events_total",
+			"go_godebug_non_default_behavior_httpmuxgo121_events_total",
+			"go_godebug_non_default_behavior_tlsrsakex_events_total",
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
@@ -121,6 +152,10 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_heap_allocs_by_size_bytes", // was: "go_gc_heap_allocs_by_size_bytes_total"
 			"go_gc_heap_frees_by_size_bytes",  // was: "go_gc_heap_frees_by_size_bytes_total"
 			"go_sched_latencies_seconds",
+			"go_sched_pauses_stopping_other_seconds", // BEGIN added in 1.22
+			"go_sched_pauses_stopping_gc_seconds",
+			"go_sched_pauses_total_gc_seconds",
+			"go_sched_pauses_total_other_seconds",
 		},
 	}
 	found := 0

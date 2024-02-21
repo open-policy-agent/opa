@@ -3,6 +3,7 @@ package compile
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -22,11 +23,11 @@ func BenchmarkCompileDynamicPolicy(b *testing.B) {
 
 	for _, n := range numPolicies {
 		testcase := generateDynamicPolicyBenchmarkData(n)
-		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
-			test.WithTempFS(testcase, func(root string) {
-				b.ResetTimer()
-
+		test.WithTestFS(testcase, true, func(root string, fileSys fs.FS) {
+			b.ResetTimer()
+			b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 				compiler := New().
+					WithFS(fileSys).
 					WithPaths(root)
 
 				err := compiler.Build(context.Background())

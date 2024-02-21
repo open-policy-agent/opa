@@ -1,0 +1,256 @@
+---
+cases:
+  - note: "refheads/general, single var"
+    modules:
+      - |
+        package test
+
+        p[q].r := i { q := ["a", "b", "c"][i] }
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: 0
+          b:
+            r: 1
+          c:
+            r: 2
+  - note: "refheads/general, multiple vars"
+    modules:
+      - |
+        package test
+
+        p[q][r] { q := ["a", "b", "c"][r] }
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            0: true
+          b:
+            1: true
+          c:
+            2: true
+  - note: "refheads/general, deep query"
+    modules:
+      - |
+        package test
+
+        p[q][r] { q := ["a", "b", "c"][r] }
+    query: data.test.p.b = x
+    want_result:
+      - x:
+          1: true
+  - note: "refheads/general, overlapping rule, no conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r := i { q := ["a", "b", "c"][i] }
+        p.a.r := 0
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: 0
+          b:
+            r: 1
+          c:
+            r: 2
+  - note: "refheads/general, overlapping rule, different dynamic depths, no conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r.s := i { q := ["a", "b", "c"][i] }
+        p.d.r := 3
+        p.e := 4
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r:
+              s: 0
+          b:
+            r:
+              s: 1
+          c:
+            r:
+              s: 2
+          d:
+            r: 3
+          e: 4
+  - note: "refheads/general, self-conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r.s := i { q := ["a", "b", "c", "b"][i] }
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
+  - note: "refheads/general, overlapping rule, conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r.s := i { q := ["a", "b", "c"][i] }
+        p.a.r := 42
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
+  - note: "refheads/general, overlapping rule, deep override inside other rule object value, conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r := v {
+          q := "q";
+          v := {
+            "s": {
+              "t" : 1
+            }
+          }
+        }
+
+        p.q.r.s.t := 42
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
+  - note: "refheads/general, overlapping rule, deep injection into other rule object value, conflict"
+    modules:
+      - |
+        package test
+
+        p[q].r := v {
+          q := "q";
+          v := {
+            "s": {
+              "t" : 1
+            }
+          }
+        }
+
+        p.q.r.s.u := 42
+    query: data.test.p = x
+    want_error_code: eval_conflict_error
+  - note: "refheads/general, set leaf (shallow ref)"
+    modules:
+      - |
+        package test
+        import future.keywords
+
+        p[q] contains r {
+          x := ["a", "b", "c"]
+          q := x[_]
+          r := x[_]
+          q != r
+        }
+
+        p.b contains "foo"
+    query: data.test.p = x
+    want_result:
+      - x:
+          a: ["b", "c"]
+          b: ["a", "c", "foo"]
+          c: ["a", "b"]
+  - note: "refheads/general, set leaf (other rule defines dynamic ref portion)"
+    modules:
+      - |
+        package test
+        import future.keywords
+
+        p.q contains r {
+          r := ["a", "b", "c"][_]
+        }
+
+        p[q] := r { q := "foo"; r := "bar" }
+    query: data.test.p = x
+    want_result:
+      - x:
+          q: ["a", "b", "c"]
+          foo: bar
+  - note: "refheads/general, set leaf"
+    modules:
+      - |
+        package test
+        import future.keywords
+
+        p[q].r contains s {
+          x := ["a", "b", "c"]
+          q := x[_]
+          s := x[_]
+          q != s
+        }
+
+        p.b.r contains "foo"
+    query: data.test.p = x
+    want_result:
+      - x:
+          a:
+            r: ["b", "c"]
+          b:
+            r: ["a", "c", "foo"]
+          c:
+            r: ["a", "b"]
+  - note: "refheads/general, set leaf, deep query"
+    modules:
+      - |
+        package test
+        import future.keywords
+
+        p[q].r contains s {
+          x := ["a", "b", "c"]
+          q := x[_]
+          s := x[_]
+          q != s
+        }
+
+        p.b.r contains "foo"
+    query: data.test.p.b.r.c = x
+    want_result:
+      - x: "c"
+  - note: "refheads/general, input var"
+    modules:
+      - |
+        package test
+
+        p[input.x].r := "foo"
+    query: data.test.p = x
+    input:
+      x: "bar"
+    want_result:
+      - x:
+          bar:
+            r: "foo"
+  - note: "refheads/general, external non-ground var"
+    modules:
+      - |
+        package test
+
+        a := [x | x := input.x[_]]
+        b := input.y
+
+        p[a[b]].r[s] := i {
+          s := a[i]
+        }
+    query: data.test.p = x
+    input:
+      x: ["foo", "bar", "baz"]
+      "y": 1
+    want_result:
+      - x:
+          bar:
+            r:
+              foo: 0
+              bar: 1
+              baz: 2
+  - note: "refheads/general, multiple result-set entries"
+    modules:
+      - |
+        package test
+
+        p.q[r].s := 1 { r := "foo" }
+        p.q[r].s := 2 { r := "bar" }
+    query: data.test.p.q[i].s = x
+    want_result:
+      - i: foo
+        x: 1
+      - i: bar
+        x: 2

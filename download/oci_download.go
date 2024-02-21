@@ -1,3 +1,5 @@
+//go:build !opa_no_oci
+
 package download
 
 import (
@@ -11,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
@@ -22,6 +23,7 @@ import (
 	oraslib "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/oci"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -29,25 +31,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
-
-type OCIDownloader struct {
-	config         Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client         rest.Client                   // HTTP client to use for bundle downloading
-	path           string                        // path for OCI image as <registry>/<org>/<repo>:<tag>
-	localStorePath string                        // path for the local OCI storage
-	trigger        chan chan struct{}            // channel to signal downloads when manual triggering is enabled
-	stop           chan chan struct{}            // used to signal plugin to stop running
-	f              func(context.Context, Update) // callback function invoked when download updates occur
-	sizeLimitBytes *int64                        // max bundle file size in bytes (passed to reader)
-	bvc            *bundle.VerificationConfig
-	wg             sync.WaitGroup
-	logger         logging.Logger
-	mtx            sync.Mutex
-	stopped        bool
-	persist        bool
-	store          *oci.Store
-	etag           string
-}
 
 // NewOCI returns a new Downloader that can be started.
 func NewOCI(config Config, client rest.Client, path, storePath string) *OCIDownloader {
@@ -95,6 +78,12 @@ func (d *OCIDownloader) WithSizeLimitBytes(n int64) *OCIDownloader {
 // WithBundlePersistence specifies if the downloaded bundle will eventually be persisted to disk.
 func (d *OCIDownloader) WithBundlePersistence(persist bool) *OCIDownloader {
 	d.persist = persist
+	return d
+}
+
+// WithBundleParserOpts specifies the parser options to use when parsing downloaded bundles.
+func (d *OCIDownloader) WithBundleParserOpts(opts ast.ParserOptions) *OCIDownloader {
+	d.bundleParserOpts = opts
 	return d
 }
 
@@ -271,10 +260,11 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		return nil, err
 	}
 	loader := bundle.NewTarballLoaderWithBaseURL(fileReader, d.localStorePath)
-	reader := bundle.NewCustomReader(loader).WithBaseDir(d.localStorePath).
+	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
-		WithBundleEtag(etag)
+		WithBundleEtag(etag).
+		WithRegoVersion(d.bundleParserOpts.RegoVersion)
 	bundleInfo, err := reader.Read()
 	if err != nil {
 		return &downloaderResponse{}, fmt.Errorf("unexpected error %w", err)

@@ -15,9 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 
 	"github.com/open-policy-agent/opa/ast"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/bundle"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/internal/merge"
@@ -100,7 +101,8 @@ type FileLoader interface {
 	WithSkipBundleVerification(bool) FileLoader
 	WithProcessAnnotation(bool) FileLoader
 	WithCapabilities(*ast.Capabilities) FileLoader
-	WithJSONOptions(*ast.JSONOptions) FileLoader
+	WithJSONOptions(*astJSON.Options) FileLoader
+	WithRegoVersion(ast.RegoVersion) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -175,8 +177,14 @@ func (fl *fileLoader) WithCapabilities(caps *ast.Capabilities) FileLoader {
 }
 
 // WithJSONOptions sets the JSONOptions for use when parsing files
-func (fl *fileLoader) WithJSONOptions(opts *ast.JSONOptions) FileLoader {
+func (fl *fileLoader) WithJSONOptions(opts *astJSON.Options) FileLoader {
 	fl.opts.JSONOptions = opts
+	return fl
+}
+
+// WithRegoVersion sets the ast.RegoVersion to use when parsing and compiling modules.
+func (fl *fileLoader) WithRegoVersion(version ast.RegoVersion) FileLoader {
+	fl.opts.RegoVersion = version
 	return fl
 }
 
@@ -248,7 +256,8 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithSkipBundleVerification(fl.skipVerify).
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
-		WithJSONOptions(fl.opts.JSONOptions)
+		WithJSONOptions(fl.opts.JSONOptions).
+		WithRegoVersion(fl.opts.RegoVersion)
 
 	// For bundle directories add the full path in front of module file names
 	// to simplify debugging.
@@ -698,7 +707,7 @@ func loadKnownTypes(path string, bs []byte, m metrics.Metrics, opts ast.ParserOp
 		return loadYAML(path, bs, m)
 	default:
 		if strings.HasSuffix(path, ".tar.gz") {
-			r, err := loadBundleFile(path, bs, m)
+			r, err := loadBundleFile(path, bs, m, opts)
 			if err != nil {
 				err = fmt.Errorf("bundle %s: %w", path, err)
 			}
@@ -724,9 +733,15 @@ func loadFileForAnyType(path string, bs []byte, m metrics.Metrics, opts ast.Pars
 	return nil, unrecognizedFile(path)
 }
 
-func loadBundleFile(path string, bs []byte, m metrics.Metrics) (bundle.Bundle, error) {
+func loadBundleFile(path string, bs []byte, m metrics.Metrics, opts ast.ParserOptions) (bundle.Bundle, error) {
 	tl := bundle.NewTarballLoaderWithBaseURL(bytes.NewBuffer(bs), path)
-	br := bundle.NewCustomReader(tl).WithMetrics(m).WithSkipBundleVerification(true).IncludeManifestInData(true)
+	br := bundle.NewCustomReader(tl).
+		WithRegoVersion(opts.RegoVersion).
+		WithJSONOptions(opts.JSONOptions).
+		WithProcessAnnotations(opts.ProcessAnnotation).
+		WithMetrics(m).
+		WithSkipBundleVerification(true).
+		IncludeManifestInData(true)
 	return br.Read()
 }
 

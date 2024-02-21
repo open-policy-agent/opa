@@ -1,0 +1,52 @@
+package p
+
+f1(x) = x
+
+f2(x) := x
+
+f3(1)
+
+f4(1) = true
+
+f5(1) := x {
+	x := 5
+}
+
+f6(x) {
+	true
+} else := false
+
+f7(x) := 1 {
+	x.key1
+} else := false {
+	x.key2
+} else {
+	false
+}
+
+f(x) = 1 {
+	input.x == x
+}
+
+f(x) = 1 {
+	input.x < 10
+}
+
+f(_) {
+	input.x
+}
+
+f(_) {
+	input.y
+}
+
+# Non-functions
+foo[x] = y {
+	x = 1
+	y = 2
+}
+
+foo[x] = y {
+	x = 3
+	y = 4
+}

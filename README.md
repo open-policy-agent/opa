@@ -71,6 +71,9 @@ For concrete examples of how to integrate OPA with systems like [Kubernetes](htt
 
 ## Presentations
 
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon NA 2023: [video](https://www.youtube.com/watch?v=wJkjsvVpj_Q)
+- Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2023: [video](https://www.youtube.com/watch?v=6RNp3m_THw4)
+- Running Policy in Hard to Reach Places with WASM & OPA @ CN Wasm Day EU 2023: [video](https://www.youtube.com/watch?v=BdeBhukLwt4)
 - OPA maintainers talk @ Kubecon NA 2022: [video](https://www.youtube.com/watch?v=RMiovzGGCfI)
 - Open Policy Agent (OPA) Intro & Deep Dive @ Kubecon EU 2022: [video](https://www.youtube.com/watch?v=MhyQxIp1H58)
 - Open Policy Agent Intro @ KubeCon EU 2021: [Video](https://www.youtube.com/watch?v=2CgeiWkliaw)
