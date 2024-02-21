@@ -412,6 +412,49 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("a", "b"),
 		},
 		{
+			note: "complete doc: other complete doc that cannot exit early, partial doc",
+			module: `
+				package test
+				p { q }
+
+				q[x] { 
+					x := [1, 2, 3][_]; trace("a")
+				}`,
+			notes: n("a", "a", "a"),
+		},
+		{
+			note: "complete doc, iteration: other partial doc that cannot exit early",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x") 
+					q 
+				}
+
+				q[x] { 
+					x := [1, 2, 3][_]; trace("a")
+				}`,
+			notes: n("x", "a", "a", "a"),
+		},
+		{
+			note: "complete doc, iteration: multiple other partial docs that cannot exit early",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+		
+				q[x] {
+					x := [1, 2, 3][_]; trace("a")
+				}
+		
+				q[x] {
+					x := [4, 5, 6][_]; trace("b")
+				}`,
+			notes: n("x", "a", "a", "a", "b", "b", "b"),
+		},
+		{
 			note: "complete doc: other function that cannot exit early",
 			module: `
 				package test
@@ -527,6 +570,30 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes:     n("a", "b", "x", "y", "q"),
 			extraExit: 1, // p + q
 		},
+		{
+			note: "complete doc, multiple array iteration, ref to multiple other complete docs with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				# Not called because of EE
+				q { 
+					data.arr[_] = a; trace("c")
+					data.arr[_] = b; trace("d")
+				}
+			`,
+			notes:     n("a", "b", "x", "y", "q"),
+			extraExit: 1, // p + q
+		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, multiple array iterations, ref to other complete doc with iteration and cached result",
 			module: `
@@ -541,6 +608,31 @@ func TestTopDownEarlyExit(t *testing.T) {
 				q { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
+				}
+			`,
+			notes:     n("x", "y", "q1", "q2", "a", "b"),
+			extraExit: 1, // p + q
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, ref to multiple other complete docs with iteration and cached result",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q1")
+					q; trace("q2") # result of q in cache
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				# Not called because of EE
+				q { 
+					data.arr[_] = a; trace("c")
+					data.arr[_] = b; trace("d")
 				}
 			`,
 			notes:     n("x", "y", "q1", "q2", "a", "b"),
@@ -589,11 +681,190 @@ func TestTopDownEarlyExit(t *testing.T) {
 				arr := ["a", "b", "c"]
 				p { 
 					arr[_] = x; trace("x") 
-					arr[_] = y; trace("y")
+					arr[_] = y; trace("y") # arr in cache
 				}
 			`,
 			notes:     n("x", "y"),
 			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			//
+			note: "complete doc, array iteration, ref to other complete doc without early exit",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+			}
+
+			q := x {
+				x := 1
+			}`,
+			notes: n("x", "y"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			//
+			note: "complete doc, array iteration, multiple refs to other complete docs without early exit",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+				r; trace("z")
+			}
+
+			q := x {
+				x := 1
+			}
+
+			r := x {
+				x := 2
+			}`,
+			notes: n("x", "y", "z"),
+		},
+		{
+			note: "complete doc, array iteration, func call with early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{
+			note: "complete doc, multiple array iterations, func call multiple early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+				
+				f(x) := 1 {
+					trace("b")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{
+			note: "complete doc, multiple array iterations, func call without early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+				
+				f(x) := 1 {
+					trace("b")
+				}
+
+				f(x) := 2 {
+					trace("c")
+					false # to avoid eval_conflict_error error
+				}
+			`,
+			notes: n("x", "a", "b", "c"),
+		},
+		{
+			note: "complete doc, multiple array iterations, func call with early exit and iteration",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					data.arr[_] = a; trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, func call without early exit, static arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes: n("x", "a"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, func call without early exit, dynamic arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes: n("x", "a"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, func call without early exit, array iteration, dynamic arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					data.arr[_] = y; trace("a")
+					y == 1; trace("b")
+				}
+			`,
+			notes: n("x", "a", "a", "b"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, func (multi) call without early exit, static arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+
+				f(x) := x {
+					trace("b")
+					false
+				}
+
+				f(x) := x {
+					trace("c")
+				}
+			`,
+			notes: n("x", "a", "b", "c"),
 		},
 		{
 			note: "complete doc, obj iteration",
@@ -640,13 +911,83 @@ func TestTopDownEarlyExit(t *testing.T) {
 			`,
 			notes: n("x"),
 		},
+		//		{
+		//			note: "partial doc",
+		//			module: `package test
+		//				p[x] {
+		//					data.arr[i] = x; trace("x")
+		//					i < 3
+		//				}
+		//`,
+		//			notes: n("x", "x", "x"),
+		//		},
+		{
+			note: "ee -> ee -> ee",
+			module: `package test
+				p {
+					data.arr[_] = x; trace("a")
+					q; trace("b")
+				}
+
+				q {
+					data.arr[_] = x; trace("c")
+					r; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+`,
+			notes:     n("a", "c", "e", "d", "b"),
+			extraExit: 2, // p + q + r
+		},
+		{
+			note: "ee -> no ee -> ee",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("c")
+					r; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+`,
+			notes:     n("a", "c", "c", "c", "e", "d", "d", "d", "b"),
+			extraExit: 1, // p + r
+		},
+		{
+			note: "ee -> (no ee, ee)",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+					r; trace("c")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+`,
+			notes:     n("a", "d", "d", "d", "b", "e", "c"),
+			extraExit: 1, // p + r
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
-			size := 1000 //3
+			size := 1000
 			arr := make([]interface{}, size)
 			obj := make(map[string]interface{}, size)
 			for i := 0; i < size; i++ {
@@ -669,7 +1010,6 @@ func TestTopDownEarlyExit(t *testing.T) {
 				WithTracer(buf)
 
 			_, err := query.Run(ctx)
-			//PrettyTrace(os.Stdout, *buf)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -688,11 +1028,9 @@ func TestTopDownEarlyExit(t *testing.T) {
 			sort.Strings(tc.notes)
 			if !reflect.DeepEqual(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
-				//PrettyTrace(os.Stderr, *buf)
 			}
 			if exp, act := countExit, exits["early"]; exp != act {
 				t.Errorf("expected %d early exit events, got %d", exp, act)
-				//PrettyTrace(os.Stderr, *buf)
 			}
 
 			if t.Failed() {
