@@ -190,7 +190,7 @@ type (
 		Body        Body           `json:"body"`
 		Else        *Rule          `json:"else,omitempty"`
 		Location    *Location      `json:"location,omitempty"`
-		Annotations []*Annotations `json:"-"`
+		Annotations []*Annotations `json:"annotations,omitempty"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be
