@@ -105,7 +105,7 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 		return iter(invalid)
 	}
 
-	verified, err := verifyX509CertificateChain(certs)
+	verified, err := verifyX509CertificateChain(certs, x509.VerifyOptions{})
 	if err != nil {
 		return iter(invalid)
 	}
@@ -121,13 +121,6 @@ func builtinCryptoX509ParseAndVerifyCertificates(_ BuiltinContext, operands []*a
 	)
 
 	return iter(valid)
-}
-
-type verifyOptions struct {
-	DNSName                  string
-	CurrentTime              time.Time
-	KeyUsages                []x509.ExtKeyUsage
-	MaxConstraintComparisons int
 }
 
 var allowedKeyUsages = map[string]x509.ExtKeyUsage{
@@ -174,7 +167,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 		return err
 	}
 
-	verified, err := verifyX509CertificateChainWithOpts(certs, verifyOpt)
+	verified, err := verifyX509CertificateChain(certs, verifyOpt)
 	if err != nil {
 		return iter(invalid)
 	}
@@ -192,7 +185,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 	return iter(valid)
 }
 
-func extractVerifyOpts(options ast.Object) (verifyOpt verifyOptions, err error) {
+func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
 
 	for _, key := range options.Keys() {
 		switch key.String() {
@@ -201,31 +194,31 @@ func extractVerifyOpts(options ast.Object) (verifyOpt verifyOptions, err error) 
 			if ok {
 				verifyOpt.DNSName = dns.String()[1 : len(dns.String())-1]
 			} else {
-				return verifyOpt, fmt.Errorf("DNSName should be a string")
+				return verifyOpt, fmt.Errorf("'DNSName' should be a string")
 			}
 		case "\"CurrentTime\"":
 			c, ok := options.Get(key).Value.(ast.Number)
 			if ok {
-				currTime, ok := c.Int64()
+				nanosecs, ok := c.Int64()
 				if ok {
-					verifyOpt.CurrentTime = time.UnixMilli(currTime)
+					verifyOpt.CurrentTime = time.Unix(0, nanosecs)
 				} else {
-					return verifyOpt, fmt.Errorf("CurrentTime could not be parsed to be a valid int64 number.")
+					return verifyOpt, fmt.Errorf("'CurrentTime' should be a valid int64 number")
 				}
 			} else {
-				return verifyOpt, fmt.Errorf("CurrentTime should be a number")
+				return verifyOpt, fmt.Errorf("'CurrentTime' should be a number")
 			}
 		case "\"MaxConstraintComparisons\"":
 			c, ok := options.Get(key).Value.(ast.Number)
 			if ok {
 				maxComparisons, ok := c.Int()
 				if ok {
-					verifyOpt.MaxConstraintComparisons = maxComparisons
+					verifyOpt.MaxConstraintComparisions = maxComparisons
 				} else {
-					return verifyOpt, fmt.Errorf("MaxConstraintComparisons could not be parsed to be a valid int number.")
+					return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a valid number")
 				}
 			} else {
-				return verifyOpt, fmt.Errorf("MaxConstraintComparisons should be a number")
+				return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a number")
 			}
 		case "\"KeyUsages\"":
 			ks, ok := options.Get(key).Value.(ast.Set)
@@ -243,10 +236,10 @@ func extractVerifyOpts(options ast.Object) (verifyOpt verifyOptions, err error) 
 				})
 
 			} else {
-				return verifyOpt, fmt.Errorf("KeyUsages should be a set")
+				return verifyOpt, fmt.Errorf("'KeyUsages' should be a set")
 			}
 		default:
-			return verifyOpt, fmt.Errorf("invalid key option.")
+			return verifyOpt, fmt.Errorf("invalid key option")
 		}
 
 	}
@@ -527,38 +520,7 @@ func init() {
 	RegisterBuiltinFunc(ast.CryptoHmacEqual.Name, builtinCryptoHmacEqual)
 }
 
-func verifyX509CertificateChain(certs []*x509.Certificate) ([]*x509.Certificate, error) {
-	if len(certs) < 2 {
-		return nil, builtins.NewOperandErr(1, "must supply at least two certificates to be able to verify")
-	}
-
-	// first cert is the root
-	roots := x509.NewCertPool()
-	roots.AddCert(certs[0])
-
-	// all other certs except the last are intermediates
-	intermediates := x509.NewCertPool()
-	for i := 1; i < len(certs)-1; i++ {
-		intermediates.AddCert(certs[i])
-	}
-
-	// last cert is the leaf
-	leaf := certs[len(certs)-1]
-
-	// verify the cert chain back to the root
-	verifyOpts := x509.VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermediates,
-	}
-	chains, err := leaf.Verify(verifyOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return chains[0], nil
-}
-
-func verifyX509CertificateChainWithOpts(certs []*x509.Certificate, vo verifyOptions) ([]*x509.Certificate, error) {
+func verifyX509CertificateChain(certs []*x509.Certificate, vo x509.VerifyOptions) ([]*x509.Certificate, error) {
 	if len(certs) < 2 {
 		return nil, builtins.NewOperandErr(1, "must supply at least two certificates to be able to verify")
 	}
@@ -583,7 +545,7 @@ func verifyX509CertificateChainWithOpts(certs []*x509.Certificate, vo verifyOpti
 		DNSName:                   vo.DNSName,
 		CurrentTime:               vo.CurrentTime,
 		KeyUsages:                 vo.KeyUsages,
-		MaxConstraintComparisions: vo.MaxConstraintComparisons,
+		MaxConstraintComparisions: vo.MaxConstraintComparisions,
 	}
 	chains, err := leaf.Verify(verifyOpts)
 	if err != nil {

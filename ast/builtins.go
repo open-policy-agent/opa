@@ -2332,11 +2332,25 @@ var CryptoX509ParseAndVerifyCertificatesWithOptions = &Builtin{
 	Name: "crypto.x509.parse_and_verify_certificates_with_options",
 	Description: `Returns one or more certificates from the given string containing PEM
 or base64 encoded DER certificates after verifying the supplied certificates form a complete
-certificate chain back to a trusted root. Second argument is a option object to validate the 
-
+certificate chain back to a trusted root. Second argument is a option object to pass
+extra configs to verify the validity of certificates.
 
 The first certificate is treated as the root and the last is treated as the leaf,
-with all others being treated as intermediates.`,
+with all others being treated as intermediates.` +
+		"Example option object: " +
+		"`options := {\"DNSName\" : \"example.dns.com\", \"CurrentTime\": 1708447636000000000,`" +
+		"`\"KeyUsages\": {\"KeyUsageServerAuth\", \"KeyUsageClientAuth\", \"KeyUsageCodeSigning\"},`" +
+		"`\"MaxConstraintComparisons\" : 5,`" +
+		"`}`" +
+		"Then this function call will look like: `crypto.x509.parse_and_verify_certificates_with_options(<cert base64 encoded string>, options)`" +
+		"This option's field has same definitions as fields in [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions)" +
+		"`CurrentTime` is nanoseconds since epoch" +
+		"List of possible values for `KeyUsages` field are: `[\"KeyUsageAny\", \"KeyUsageServerAuth\",`" +
+		"`\"KeyUsageClientAuth\", \"KeyUsageCodeSigning\", \"KeyUsageEmailProtection\", \"KeyUsageIPSECEndSystem\",`" +
+		"`\"KeyUsageIPSECTunnel\", \"KeyUsageIPSECUser\", \"KeyUsageTimeStamping\", \"KeyUsageOCSPSigning\",`" +
+		"`\"KeyUsageMicrosoftServerGatedCrypto\", \"KeyUsageNetscapeServerGatedCrypto\",`" +
+		"`\"KeyUsageMicrosoftCommercialCodeSigning\", \"KeyUsageMicrosoftKernelCodeSigning\"]`",
+
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("certs", types.S).Description("base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs"),
@@ -2350,7 +2364,7 @@ with all others being treated as intermediates.`,
 						types.NewSet(types.A),
 					),
 				)),
-			).Description("object containing a set or array of neighboring vertices"),
+			).Description("option object to pass extra configs to verify the validity of certificates."),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.B,
