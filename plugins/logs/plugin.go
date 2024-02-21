@@ -57,6 +57,7 @@ type EventV1 struct {
 	Result         *interface{}            `json:"result,omitempty"`
 	MappedResult   *interface{}            `json:"mapped_result,omitempty"`
 	NDBuiltinCache *interface{}            `json:"nd_builtin_cache,omitempty"`
+	DecisionLabel  *interface{}            `json:"decision_label,omitempty"`
 	Erased         []string                `json:"erased,omitempty"`
 	Masked         []string                `json:"masked,omitempty"`
 	Error          error                   `json:"error,omitempty"`
@@ -93,6 +94,7 @@ var inputKey = ast.StringTerm("input")
 var resultKey = ast.StringTerm("result")
 var mappedResultKey = ast.StringTerm("mapped_result")
 var ndBuiltinCacheKey = ast.StringTerm("nd_builtin_cache")
+var decisionLabelKey = ast.StringTerm("decision_label")
 var erasedKey = ast.StringTerm("erased")
 var maskedKey = ast.StringTerm("masked")
 var errorKey = ast.StringTerm("error")
@@ -172,6 +174,14 @@ func (e *EventV1) AST() (ast.Value, error) {
 			return nil, err
 		}
 		event.Insert(ndBuiltinCacheKey, ast.NewTerm(ndbCache))
+	}
+
+	if e.DecisionLabel != nil {
+		decisionLabel, err := roundtripJSONToAST(e.DecisionLabel)
+		if err != nil {
+			return nil, err
+		}
+		event.Insert(decisionLabelKey, ast.NewTerm(decisionLabel))
 	}
 
 	if len(e.Erased) > 0 {
@@ -609,6 +619,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		Result:         decision.Results,
 		MappedResult:   decision.MappedResults,
 		NDBuiltinCache: decision.NDBuiltinCache,
+		DecisionLabel:  decision.DecisionLabel,
 		RequestedBy:    decision.RemoteAddr,
 		Timestamp:      decision.Timestamp,
 		RequestID:      decision.RequestID,

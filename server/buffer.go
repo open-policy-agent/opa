@@ -30,6 +30,7 @@ type Info struct {
 	Results        *interface{}
 	MappedResults  *interface{}
 	NDBuiltinCache *interface{}
+	DecisionLabel  *interface{}
 	Error          error
 	Metrics        metrics.Metrics
 	Trace          []*topdown.Event
