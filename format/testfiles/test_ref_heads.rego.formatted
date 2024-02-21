@@ -17,3 +17,26 @@ r[x] if x := 10
 p.q.r[x] if x := 10
 
 p.q.r[2] = true
+
+g[h].i[j].k = true
+
+g[h].i[j].k if {
+	h := 1
+	j = 2
+}
+
+g[3].i[j].k = x if {
+	j := 3
+	x = 4
+}
+
+g[h].i[j].k[l] = true
+
+g[h].i[j].k[l] contains x if x = "foo"
+
+g[h].i[j].k[l] contains x if {
+	h := 5
+	j := 6
+	l = 7
+	x = "foo"
+}

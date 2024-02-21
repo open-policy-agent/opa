@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
 	"github.com/open-policy-agent/opa/internal/config"
 	internal_logging "github.com/open-policy-agent/opa/internal/logging"
@@ -52,6 +53,9 @@ specifying the --decision argument and pointing at a specific policy decision,
 e.g., opa exec --decision /foo/bar/baz ...`,
 
 		Args: cobra.MinimumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			params.Paths = args
 			params.BundlePaths = bundlePaths.v
@@ -68,20 +72,30 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	addConfigOverrides(cmd.Flags(), &params.ConfigOverrides)
 	addConfigOverrideFiles(cmd.Flags(), &params.ConfigOverrideFiles)
 	cmd.Flags().StringVarP(&params.Decision, "decision", "", "", "set decision to evaluate")
-	cmd.Flags().BoolVarP(&params.FailDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
-	cmd.Flags().BoolVarP(&params.Fail, "fail", "", false, "exits with non-zero exit code on undefined/empty result and errors")
+	cmd.Flags().BoolVarP(&params.FailDefined, "fail-defined", "", false, "exits with non-zero exit code on defined result and errors")
+	cmd.Flags().BoolVarP(&params.Fail, "fail", "", false, "exits with non-zero exit code on undefined result and errors")
+	cmd.Flags().BoolVarP(&params.FailNonEmpty, "fail-non-empty", "", false, "exits with non-zero exit code on non-empty result and errors")
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
+	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
 
 	RootCommand.AddCommand(cmd)
 }
 
 func runExec(params *exec.Params) error {
+	return runExecWithContext(context.Background(), params)
+}
+
+func runExecWithContext(ctx context.Context, params *exec.Params) error {
 
 	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String(), params.LogTimestampFormat)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
+	}
+
+	if params.Logger != nil {
+		stdLogger = params.Logger
 	}
 
 	config, err := setupConfig(params.ConfigFile, params.ConfigOverrides, params.ConfigOverrideFiles, params.BundlePaths)
@@ -89,7 +103,6 @@ func runExec(params *exec.Params) error {
 		return fmt.Errorf("config error: %w", err)
 	}
 
-	ctx := context.Background()
 	ready := make(chan struct{})
 
 	opa, err := sdk.New(ctx, sdk.Options{
@@ -97,6 +110,7 @@ func runExec(params *exec.Params) error {
 		Logger:        stdLogger,
 		ConsoleLogger: consoleLogger,
 		Ready:         ready,
+		V1Compatible:  params.V1Compatible,
 	})
 	if err != nil {
 		return fmt.Errorf("runtime error: %w", err)

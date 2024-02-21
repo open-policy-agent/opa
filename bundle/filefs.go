@@ -19,12 +19,13 @@ const (
 
 type dirLoaderFS struct {
 	sync.Mutex
-	filesystem fs.FS
-	files      []string
-	idx        int
-	filter     filter.LoaderFilter
-	root       string
-	pathFormat PathFormat
+	filesystem        fs.FS
+	files             []string
+	idx               int
+	filter            filter.LoaderFilter
+	root              string
+	pathFormat        PathFormat
+	maxSizeLimitBytes int64
 }
 
 // NewFSLoader returns a basic DirectoryLoader implementation
@@ -61,6 +62,10 @@ func (d *dirLoaderFS) walkDir(path string, dirEntry fs.DirEntry, err error) erro
 				return nil
 			}
 
+			if d.maxSizeLimitBytes > 0 && info.Size() > d.maxSizeLimitBytes {
+				return fmt.Errorf("file %s size %d exceeds limit of %d", path, info.Size(), d.maxSizeLimitBytes)
+			}
+
 			d.files = append(d.files, path)
 		} else if dirEntry.Type().IsDir() {
 			if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, true)) {
@@ -80,6 +85,12 @@ func (d *dirLoaderFS) WithFilter(filter filter.LoaderFilter) DirectoryLoader {
 // WithPathFormat specifies how a path is formatted in a Descriptor
 func (d *dirLoaderFS) WithPathFormat(pathFormat PathFormat) DirectoryLoader {
 	d.pathFormat = pathFormat
+	return d
+}
+
+// WithSizeLimitBytes specifies the maximum size of any file in the filesystem directory to read
+func (d *dirLoaderFS) WithSizeLimitBytes(sizeLimitBytes int64) DirectoryLoader {
+	d.maxSizeLimitBytes = sizeLimitBytes
 	return d
 }
 
@@ -111,6 +122,6 @@ func (d *dirLoaderFS) NextFile() (*Descriptor, error) {
 	}
 
 	cleanedPath := formatPath(fileName, d.root, d.pathFormat)
-	f := newDescriptor(cleanedPath, cleanedPath, fh).withCloser(fh)
+	f := NewDescriptor(cleanedPath, cleanedPath, fh).WithCloser(fh)
 	return f, nil
 }

@@ -39,7 +39,7 @@ val := arr[0]
 # lookup last value
 val := arr[count(arr)-1]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some 0, val in arr   # lookup value at index 0
 0, "foo" in arr      # check if value at index 0 is "foo"
 some i, "foo" in arr # find all indices i that have value "foo"
@@ -71,7 +71,7 @@ obj.foo.bar.baz
 # check if path foo.bar.baz, foo.bar, or foo does not exist or is false
 not obj.foo.bar.baz
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 o := {"foo": false}
 # check if value exists: the expression will be true
 false in o
@@ -94,7 +94,7 @@ a_set[["a", "b", "c"]]
 # find all arrays of the form [x, "b", z] in the set
 a_set[[x, "b", z]]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 "foo" in a_set
 not "foo" in a_set
 some ["a", "b", "c"] in a_set
@@ -120,7 +120,7 @@ val := arr[_]
 # iterate over index/value pairs
 val := arr[i]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in arr    # iterate over values
 some i, _ in arr   # iterate over indices
 some i, val in arr # iterate over index/value pairs
@@ -138,7 +138,7 @@ val := obj[_]
 # iterate over key/value pairs
 val := obj[key]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in obj      # iterate over values
 some key, _ in obj   # iterate over keys
 some key, val in obj # key/value pairs
@@ -150,7 +150,7 @@ some key, val in obj # key/value pairs
 # iterate over values
 set[val]
 
-# with `import future.keywords.in`
+# with `import rego.v1` or `import future.keywords.in`
 some val in set
 ```
 
@@ -187,7 +187,7 @@ not any_not_match
 ```
 
 ```live:iteration/forall:module:read_only
-# with `import future.keywords.in` and `import future.keywords.if`
+# with `import rego.v1`, or `import future.keywords.in` and `import future.keywords.if`
 any_match if {
     some x in set
     f(x)
@@ -223,7 +223,7 @@ c := a | b
 p := true { ... }
 
 # OR
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 p if { ... }
 
 # OR
@@ -233,7 +233,7 @@ p { ... }
 ### Conditionals
 
 ```live:rules/cond:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 default a := 1
 a := 5   if { ... }
 a := 100 if { ... }
@@ -246,7 +246,7 @@ a := 100 if { ... }
 a_set[x] { ... }
 a_set[y] { ... }
 
-# alternatively, with `import future.keywords.contains` and `import future.keywords.if`
+# alternatively, with `import rego.v1`, or `import future.keywords.contains` and `import future.keywords.if`
 a_set contains x if { ... }
 a_set contains y if { ... }
 
@@ -258,7 +258,7 @@ a_map[w] := z if { ... }
 ### Ordered (Else)
 
 ```live:rules/ordered:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 default a := 1
 a := 5 if { ... }
 else := 10 if { ... }
@@ -267,7 +267,7 @@ else := 10 if { ... }
 ### Functions (Boolean)
 
 ```live:rules/funcs:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 f(x, y) if {
     ...
 }
@@ -282,7 +282,7 @@ f(x, y) := true if {
 ### Functions (Conditionals)
 
 ```live:rules/condfuncs:module:read_only
-# with `import future.keywords.if`
+# with `import rego.v1` or `import future.keywords.if`
 f(x) := "A" if { x >= 90 }
 f(x) := "B" if { x >= 80; x < 90 }
 f(x) := "C" if { x >= 70; x < 80 }
@@ -291,7 +291,7 @@ f(x) := "C" if { x >= 70; x < 80 }
 ### Reference Heads
 
 ```live:rules/ref_heads:module:read_only
-# with `import future.keywords.contains` and `import future.keywords.if`
+# with `import rego.v1`, or `import future.keywords.contains` and `import future.keywords.if`
 fruit.apple.seeds = 12 if input == "apple"             # complete document (single value rule)
 
 fruit.pineapple.colors contains x if x := "yellow"     # multi-value rule
@@ -371,6 +371,13 @@ complex types.
 
 
 {{< builtin-table strings >}}
+
+{{< info >}}
+When using `sprintf`, values are pre-processed and may have an unexpected type. For example,
+`%T` evaluates to `string` for both `string` and `boolean` types. In such cases, use `type_name` to
+accurately evaluate the underlying type.
+{{< /info >}}
+
 {{< builtin-table regex >}}
 
 {{< builtin-table glob >}}
@@ -859,35 +866,35 @@ to automatic performance optimizations that are applied during policy evaluation
 
 The `request` object parameter may contain the following fields:
 
-| Field | Required | Type | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --- | --- | --- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `url` | yes | `string` | HTTP URL to specify in the request (e.g., `"https://www.openpolicyagent.org"`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `method` | yes | `string` | HTTP method to specify in request (e.g., `"GET"`, `"POST"`, `"PUT"`, etc.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `body` | no | `any` | HTTP message body to include in request. The value will be serialized to JSON.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `raw_body` | no | `string` | HTTP message body to include in request. The value WILL NOT be serialized. Use this for non-JSON messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `force_yaml_decode` | no | `boolean` | Decode the HTTP response message body as YAML even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `tls_client_cert` | no | `string` | String containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `tls_client_cert_file` | no | `string` | Path to file containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `tls_client_cert_env_variable` | no | `string` | Environment variable containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `tls_client_key` | no | `string` | String containing a key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `tls_client_key_file` | no | `string` | Path to file containing a key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `tls_client_key_env_variable` | no | `string` | Environment variable containing a client key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `timeout` | no | `string` or `number` | Timeout for the HTTP request with a default of 5 seconds (`5s`). Numbers provided are in nanoseconds. Strings must be a valid duration string where a duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". A zero timeout means no timeout.                                                                                                                                                                                                                                                                                                                                                                                         |
-| `tls_insecure_skip_verify` | no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `tls_server_name` | no | `string` | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `force_cache` | no | `boolean` | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `force_cache_duration_seconds` | no | `number` | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Field | Required | Type | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `url` | yes | `string` | HTTP URL to specify in the request (e.g., `"https://www.openpolicyagent.org"`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `method` | yes | `string` | HTTP method to specify in request (e.g., `"GET"`, `"POST"`, `"PUT"`, etc.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `body` | no | `any` | HTTP message body to include in request. The value will be serialized to JSON.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `raw_body` | no | `string` | HTTP message body to include in request. The value WILL NOT be serialized. Use this for non-JSON messages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `headers` | no | `object` | HTTP headers to include in the request (e.g,. `{"X-Opa": "rules"}`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `enable_redirect` | no | `boolean` | Follow HTTP redirects. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `force_json_decode` | no | `boolean` | Decode the HTTP response message body as JSON even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `force_yaml_decode` | no | `boolean` | Decode the HTTP response message body as YAML even if the `Content-Type` header is missing. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `tls_use_system_certs` | no | `boolean` | Use the system certificate pool. Default: `true` when `tls_ca_cert`, `tls_ca_cert_file`, `tls_ca_cert_env_variable` are unset. **Ignored on Windows** due to the system certificate pool not being accessible in the same way as it is for other platforms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tls_ca_cert` | no | `string` | String containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tls_ca_cert_file` | no | `string` | Path to file containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `tls_ca_cert_env_variable` | no | `string` | Environment variable containing a root certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `tls_client_cert` | no | `string` | String containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `tls_client_cert_file` | no | `string` | Path to file containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `tls_client_cert_env_variable` | no | `string` | Environment variable containing a client certificate in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tls_client_key` | no | `string` | String containing a key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `tls_client_key_file` | no | `string` | Path to file containing a key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `tls_client_key_env_variable` | no | `string` | Environment variable containing a client key in PEM encoded format.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `timeout` | no | `string` or `number` | Timeout for the HTTP request with a default of 5 seconds (`5s`). Numbers provided are in nanoseconds. Strings must be a valid duration string where a duration string is a possibly signed sequence of decimal numbers, each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". A zero timeout means no timeout.                                                                                                                                                                                                                                                                                                                                                                                        |
+| `tls_insecure_skip_verify` | no | `bool` | Allows for skipping TLS verification when calling a network endpoint. Not recommended for production.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `tls_server_name` | no | `string` | Sets the hostname that is sent in the client Server Name Indication and that be will be used for server certificate validation. If this is not set, the value of the `Host` header (if present) will be used. If neither are set, the host name from the requested URL is used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `cache` | no | `boolean` | Cache HTTP response across OPA queries. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `force_cache` | no | `boolean` | Cache HTTP response across OPA queries and override cache directives defined by the server. Default: `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `force_cache_duration_seconds` | no | `number` | If `force_cache` is set, this field specifies the duration in seconds for the freshness of a cached response.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `caching_mode` | no | `string` | Controls the format in which items are inserted into the inter-query cache. Allowed modes are `serialized` and `deserialized`. In the `serialized` mode, items will be serialized before inserting into the cache. This mode is helpful if memory conservation is preferred over higher latency during cache lookup. This is the default mode. In the `deserialized` mode, an item will be inserted in the cache without any serialization. This means when items are fetched from the cache, there won't be a need to decode them. This mode helps to make the cache lookup faster at the expense of more memory consumption. If this mode is enabled, the configured `caching.inter_query_builtin_cache.max_size_bytes` value will be ignored. This means an unlimited cache size will be assumed. |
-| `raise_error` | no | `bool` | If `raise_error` is set, errors returned by `http.send` will halt policy evaluation. Default: `true`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `max_retry_attempts` | no | `number` | Number of times to retry a HTTP request when a network error is encountered. If provided, retries are performed with an exponential backoff delay. Default: `0`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `raise_error` | no | `bool` | If `raise_error` is set, `http.send` will return an error that can halt policy evaluation when used in conjunction with the `strict-builtin-errors` option. Default: `true`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `max_retry_attempts` | no | `number` | Number of times to retry a HTTP request when a network error is encountered. If provided, retries are performed with an exponential backoff delay. Default: `0`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 If the `Host` header is included in `headers`, its value will be used as the `Host` header of the request. The `url` parameter will continue to specify the server to connect to.
 
@@ -912,10 +919,11 @@ The `response` object parameter will contain the following fields:
 | `headers` | `object` | An object containing the response headers. The values will be an array of strings, repeated headers are grouped under the same keys with all values in the array. |
 | `error` | `object` | If `raise_error` is `false`, this field will represent the error encountered while running `http.send`. The `error` object contains a `message` key which holds the actual error message and a `code` key which represents if the error was caused due to a network issue or during policy evaluation. |
 
-By default, an error returned by `http.send` halts the policy evaluation. This behaviour can be altered such that
-instead of halting evaluation, if `http.send` encounters an error, it can return a `response` object with `status_code`
+By default, an error returned by `http.send` halts the policy evaluation when used in conjunction with the `strict-builtin-errors` option that can be set when running evaluation.
+This behaviour can be altered such that instead of halting evaluation, if `http.send` encounters an error, it can return a `response` object with `status_code`
 set to `0` and `error` describing the actual error. This can be activated by setting the `raise_error` field
-in the `request` object to `false`.
+in the `request` object to `false`. Note that if the `strict-builtin-errors` option is not specified and `raise_error`
+field is `true` (which is the default), an error returned by `http.send` will generate an undefined result.
 
 If the `cache` field in the `request` object is `true`, `http.send` will return a cached response after it checks its
 freshness and validity.
@@ -1190,7 +1198,7 @@ OPA doesn't presume what merge strategy is appropriate; instead, this lies in th
 # - Acme Corp.
 package example
 
-import future.keywords.in
+import rego.v1
 
 # METADATA
 # scope: document
@@ -1200,51 +1208,52 @@ import future.keywords.in
 # title: My Allow Rule
 # authors:
 # - Jane Doe <jane@example.com>
-allow {
-    meta := merge(rego.metadata.chain())
-    meta.title == "My Allow Rule"                                                  # 'title' pulled from 'rule' scope
-    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
-    meta.authors == {                                                              # 'authors' joined from 'package' and 'rule' scopes
-        {"email": "jane@example.com", "name": "Jane Doe"},
-        {"email": "john@example.com", "name": "John Doe"}
-    }
-    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+allow if {
+	meta := merge(rego.metadata.chain())
+	meta.title == "My Allow Rule" # 'title' pulled from 'rule' scope
+	meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+	meta.authors == {
+		{"email": "jane@example.com", "name": "Jane Doe"}, # 'authors' joined from 'package' and 'rule' scopes
+		{"email": "john@example.com", "name": "John Doe"},
+	}
+	meta.organizations == {"Acme Corp."} # 'organizations' pulled from 'package' scope
 }
 
-allow {
-    meta := merge(rego.metadata.chain())
-    meta.title == null                                                             # No 'title' present in 'rule' or 'document' scopes
-    meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
-    meta.authors == {                                                              # 'authors' pulled from 'package' scope
-        {"email": "john@example.com", "name": "John Doe"}
-    }
-    meta.organizations == {"Acme Corp."}                                           # 'organizations' pulled from 'package' scope
+allow if {
+	meta := merge(rego.metadata.chain())
+	meta.title == null # No 'title' present in 'rule' or 'document' scopes
+	meta.description == "A rule that merges metadata annotations in various ways." # 'description' pulled from 'document' scope
+	meta.authors == { # 'authors' pulled from 'package' scope
+		{"email": "john@example.com", "name": "John Doe"}
+	}
+	meta.organizations == {"Acme Corp."} # 'organizations' pulled from 'package' scope
 }
 
-merge(chain) := meta {
-    ruleAndDoc := ["rule", "document"]
-    meta := {
-        "title": override_annot(chain, "title", ruleAndDoc),                         # looks for 'title' in 'rule' scope, then 'document' scope
-        "description": override_annot(chain, "description", ruleAndDoc),             # looks for 'description' in 'rule' scope, then 'document' scope
-        "related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
-        "authors": merge_annot(chain, "authors"),                                    # merges all 'authors' across all scopes
-        "organizations": merge_annot(chain, "organizations"),                        # merges all 'organizations' across all scopes
-    }
+merge(chain) := meta if {
+	ruleAndDoc := ["rule", "document"]
+	meta := {
+		"title": override_annot(chain, "title", ruleAndDoc), # looks for 'title' in 'rule' scope, then 'document' scope
+		"description": override_annot(chain, "description", ruleAndDoc), # looks for 'description' in 'rule' scope, then 'document' scope
+		"related_resources": override_annot(chain, "related_resources", ruleAndDoc), # looks for 'related_resources' in 'rule' scope, then 'document' scope
+		"authors": merge_annot(chain, "authors"), # merges all 'authors' across all scopes
+		"organizations": merge_annot(chain, "organizations"), # merges all 'organizations' across all scopes
+	}
 }
 
-override_annot(chain, name, scopes) := val {
-    val := [v |
-        link := chain[_]
-        link.annotations.scope in scopes
-        v := link.annotations[name]
-    ][0]
+override_annot(chain, name, scopes) := val if {
+	val := [v |
+		link := chain[_]
+		link.annotations.scope in scopes
+		v := link.annotations[name]
+	][0]
 } else := null
 
-merge_annot(chain, name) := val {
-    val := {v |
-        v := chain[_].annotations[name][_]
-    }
+merge_annot(chain, name) := val if {
+	val := {v |
+		v := chain[_].annotations[name][_]
+	}
 } else := null
+
 ```
 
 {{< builtin-table cat=opa title=OPA >}}

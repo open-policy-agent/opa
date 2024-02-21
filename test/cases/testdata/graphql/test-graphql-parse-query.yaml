@@ -1,9 +1,10 @@
+---
 # This suite of tests is adapted from the underlying GraphQL parser library's
 # own test suite, as it provides a fairly comprehensive set of good/degenerate
 # test cases, which we want to make sure to react correctly to.
 # See: https://github.com/vektah/gqlparser/blob/master/parser/query_test.yml
 cases:
-# parser provides useful errors:
+  # parser provides useful errors:
   - data:
     modules:
       - |
@@ -13,7 +14,7 @@ cases:
         }
     note: graphql_parse_query/failure-unclosed paren
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Expected Name, found <EOF> in GraphQL string at location 1:2'
+    want_error: "graphql.parse_query: Expected Name, found <EOF> in GraphQL string at location 1:2"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -42,7 +43,7 @@ cases:
         }
     note: graphql_parse_query/failure-missing name after alias
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Expected Name, found { in GraphQL string at location 1:10'
+    want_error: "graphql.parse_query: Expected Name, found { in GraphQL string at location 1:10"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -68,10 +69,10 @@ cases:
         }
     note: graphql_parse_query/failure-a wild splat appears
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Unexpected ... in GraphQL string at location 1:1'
+    want_error: "graphql.parse_query: Unexpected ... in GraphQL string at location 1:1"
     want_error_code: eval_builtin_error
     strict_error: true
-# variables:
+  # variables:
   - data:
     modules:
       - |
@@ -95,7 +96,7 @@ cases:
         }
     note: graphql_parse_query/failure-variables are not allowed in default args
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Unexpected $ in GraphQL string at location 1:37'
+    want_error: "graphql.parse_query: Unexpected $ in GraphQL string at location 1:37"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -111,7 +112,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# fragments:
+  # fragments:
   - data:
     modules:
       - |
@@ -135,10 +136,10 @@ cases:
         }
     note: graphql_parse_query/failure-fragment can not spread fragments called 'on'
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Expected Name, found } in GraphQL string at location 1:9'
+    want_error: "graphql.parse_query: Expected Name, found } in GraphQL string at location 1:9"
     want_error_code: eval_builtin_error
     strict_error: true
-# encoding:
+  # encoding:
   - data:
     modules:
       - |
@@ -155,7 +156,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# keywords are allowed anywhere a name is:
+  # keywords are allowed anywhere a name is:
   - data:
     modules:
       - |
@@ -222,7 +223,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# operations:
+  # operations:
   - data:
     modules:
       - |
@@ -275,7 +276,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# ast:
+  # ast:
   - data:
     modules:
       - |
@@ -328,7 +329,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# values:
+  # values:
   - data:
     modules:
       - |
@@ -368,7 +369,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# types:
+  # types:
   - data:
     modules:
       - |
@@ -382,7 +383,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# large queries:
+  # large queries:
   - data:
     modules:
       - |
@@ -449,7 +450,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-# fuzzer:
+  # fuzzer:
   - data:
     modules:
       - |
@@ -460,7 +461,7 @@ cases:
         }
     note: graphql_parse_query/failure-fuzzer 01
     query: data.test.p = x
-    want_error: 'graphql.parse_query: Expected {, found } in GraphQL string at location 1:16'
+    want_error: "graphql.parse_query: Expected {, found } in GraphQL string at location 1:16"
     want_error_code: eval_builtin_error
     strict_error: true
   - data:
@@ -473,6 +474,6 @@ cases:
         }
     note: graphql_parse_query/failure-fuzzer 02
     query: data.test.p = x
-    want_error: 'graphql.parse_query: expected at least one definition, found } in GraphQL string at location 1:21'
+    want_error: "graphql.parse_query: expected at least one definition, found } in GraphQL string at location 1:21"
     want_error_code: eval_builtin_error
     strict_error: true

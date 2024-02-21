@@ -111,17 +111,17 @@ q {
 			t.Fatalf("expected message '%v', got '%v'", expectedMessage, msg)
 		}
 
-		loc1, ok1 := output.Errors[0].Location.(map[string]interface{})
-		if !ok1 {
-			t.Fatal("unexpected location type")
+		loc1 := output.Errors[0].Location
+		if loc1 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		loc2, ok2 := output.Errors[1].Location.(map[string]interface{})
-		if !ok2 {
-			t.Fatal("unexpected location type")
+		loc2 := output.Errors[1].Location
+		if loc2 == nil {
+			t.Fatal("unexpected nil location")
 		}
 
-		if loc1["row"] == loc2["row"] {
+		if loc1.Row == loc2.Row {
 			t.Fatal("expected 2 distinct error occurrences in policy")
 		}
 	})
@@ -514,7 +514,7 @@ package test
 # METADATA
 # schemas:
 #   - input: schema["input"]
-p { 	
+p {
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }`
@@ -530,7 +530,7 @@ package test
 # schemas:
 #   - input.foo: {"type": "boolean"}
 p {
-	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation	 
+	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should NOT be ignored since it is an inlined schema format
 }`
 
@@ -1432,9 +1432,9 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "strict mode should error on duplicate imports",
-			policy: `package x 
-			import future.keywords.if 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
+			import future.keywords.if
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1444,7 +1444,7 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 			note: "strict mode should error on unused imports",
 			policy: `package x
 			import future.keywords.if
-			import data.foo 
+			import data.foo
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1501,15 +1501,15 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "This should not error as it is valid",
-			policy: `package x 
+			policy: `package x
 			import future.keywords.if
 			foo = 2`,
 			query: "data.foo",
 		},
 		{
 			note: "Strict mode should not validate the query, only the policy, this should not error",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "x := data.x.foo",
 		},
@@ -1546,9 +1546,9 @@ func TestBundleWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "strict mode should error on duplicate imports in this bundle",
-			policy: `package x 
-			import future.keywords.if 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
+			import future.keywords.if
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1557,8 +1557,8 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error on unused imports in this bundle",
 			policy: `package x
-			import future.keywords.if 
-			import data.foo 
+			import future.keywords.if
+			import data.foo
 			foo = 2`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1567,7 +1567,7 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error when reserved vars data or input is used in this bundle",
 			policy: `package x
-			import future.keywords.if 
+			import future.keywords.if
 			data if { x = 1}`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
@@ -1616,15 +1616,15 @@ func TestBundleWithStrictFlag(t *testing.T) {
 	}{
 		{
 			note: "This bundle should not error as it is valid",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "data.foo",
 		},
 		{
 			note: "Strict mode should not validate the query, only the policy, this bundle should not error",
-			policy: `package x 
-			import future.keywords.if 
+			policy: `package x
+			import future.keywords.if
 			foo = 2`,
 			query: "x := data.x.foo",
 		},
@@ -1652,4 +1652,341 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		})
 	}
 
+}
+
+func TestIfElseIfElseNoBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if false
+			else := 2`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestIfElseIfElseBrace(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 if { false }
+			else := 2`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestIfElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := 1 `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseNoIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else = x {
+				x=2
+			} `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseIf(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+			} `,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestElseIfElse(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else =x {
+				x=3
+			}`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		defined, err := eval([]string{"data.bug.p"}, params, &buf)
+		if !defined || err != nil {
+			t.Fatalf("Unexpected undefined or error: %v", err)
+		}
+	})
+}
+
+func TestUnexpectedElseIfElseErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			p if false
+			else := x if {
+				x=2
+				1==2
+			} else
+				x=3
+			`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
+		if err == nil {
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "rego_parse_error: unexpected identifier token: expected else value term or rule body"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
+		}
+	})
+}
+
+func TestUnexpectedElseIfErr(t *testing.T) {
+	files := map[string]string{
+		"bug.rego": `package bug
+			import future.keywords.if
+			q := 1 if false
+			else := 2 if
+			`,
+	}
+
+	test.WithTempFS(files, func(path string) {
+
+		params := newEvalCommandParams()
+		params.optimizationLevel = 1
+		params.dataPaths = newrepeatedStringFlag([]string{path})
+		params.entrypoints = newrepeatedStringFlag([]string{"bug/p"})
+
+		var buf bytes.Buffer
+
+		_, err := eval([]string{"data.bug.p"}, params, &buf)
+
+		// Check if there was an error
+		if err == nil {
+			t.Fatalf("expected an error, but got nil")
+		}
+
+		// Check the error message
+		errorMessage := err.Error()
+		expectedErrorMessage := "rego_parse_error: unexpected eof token: rule body expected"
+		if !strings.Contains(errorMessage, expectedErrorMessage) {
+			t.Fatalf("expected error message to contain '%s', but got '%s'", expectedErrorMessage, errorMessage)
+		}
+	})
+}
+
+func TestEvalPolicyWithV1CompatibleFlag(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		modules      map[string]string
+		query        string
+		expectedErr  string
+	}{
+		{
+			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query:       "data.test.allow",
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:         "1.0 compatibility: policy with rego.v1 import",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+		{
+			note:         "1.0 compatibility: policy with future.keywords import",
+			v1Compatible: true,
+			modules: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			query: "data.test.allow",
+		},
+	}
+
+	setup := []struct {
+		name          string
+		commandParams func(params *evalCommandParams, path string)
+	}{
+		{
+			name: "Files",
+			commandParams: func(params *evalCommandParams, path string) {
+				params.dataPaths = newrepeatedStringFlag([]string{path})
+			},
+		},
+		{
+			name: "Bundle",
+			commandParams: func(params *evalCommandParams, path string) {
+				if err := params.bundlePaths.Set(path); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+
+	for _, s := range setup {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s: %s", s.name, tc.note), func(t *testing.T) {
+				test.WithTempFS(tc.modules, func(path string) {
+					params := newEvalCommandParams()
+					s.commandParams(&params, path)
+					params.v1Compatible = tc.v1Compatible
+
+					var buf bytes.Buffer
+
+					defined, err := eval([]string{tc.query}, params, &buf)
+
+					if tc.expectedErr == "" {
+						if err != nil {
+							t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+						} else if !defined {
+							t.Fatal("expected result to be defined")
+						}
+					} else {
+						if err == nil {
+							t.Fatal("expected error, got none")
+						}
+
+						actual := buf.String()
+						if !strings.Contains(actual, tc.expectedErr) {
+							t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", tc.expectedErr, actual)
+						}
+					}
+				})
+			})
+		}
+	}
 }

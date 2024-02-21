@@ -15,38 +15,42 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/runtime"
 	"github.com/open-policy-agent/opa/server"
 	"github.com/open-policy-agent/opa/util"
 )
 
 const (
-	defaultAddr        = ":8181"        // default listening address for server
-	defaultHistoryFile = ".opa_history" // default filename for shell history
+	defaultAddr        = ":8181"          // default listening address for server
+	defaultLocalAddr   = "localhost:8181" // default listening address for server bound to localhost
+	defaultHistoryFile = ".opa_history"   // default filename for shell history
 )
 
 type runCmdParams struct {
-	rt                 runtime.Params
-	tlsCertFile        string
-	tlsPrivateKeyFile  string
-	tlsCACertFile      string
-	tlsCertRefresh     time.Duration
-	ignore             []string
-	serverMode         bool
-	skipVersionCheck   bool // skipVersionCheck is deprecated. Use disableTelemetry instead
-	disableTelemetry   bool
-	authentication     *util.EnumFlag
-	authorization      *util.EnumFlag
-	minTLSVersion      *util.EnumFlag
-	logLevel           *util.EnumFlag
-	logFormat          *util.EnumFlag
-	logTimestampFormat string
-	algorithm          string
-	scope              string
-	pubKey             string
-	pubKeyID           string
-	skipBundleVerify   bool
-	excludeVerifyFiles []string
+	rt                   runtime.Params
+	tlsCertFile          string
+	tlsPrivateKeyFile    string
+	tlsCACertFile        string
+	tlsCertRefresh       time.Duration
+	ignore               []string
+	serverMode           bool
+	skipVersionCheck     bool // skipVersionCheck is deprecated. Use disableTelemetry instead
+	disableTelemetry     bool
+	authentication       *util.EnumFlag
+	authorization        *util.EnumFlag
+	minTLSVersion        *util.EnumFlag
+	logLevel             *util.EnumFlag
+	logFormat            *util.EnumFlag
+	logTimestampFormat   string
+	algorithm            string
+	scope                string
+	pubKey               string
+	pubKeyID             string
+	skipBundleVerify     bool
+	skipKnownSchemaCheck bool
+	excludeVerifyFiles   []string
+	cipherSuites         []string
 }
 
 func newRunParams() runCmdParams {
@@ -171,8 +175,29 @@ To skip bundle verification, use the --skip-verify flag.
 The --watch flag can be used to monitor policy and data file-system changes. When a change is detected, the updated policy
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
-`,
 
+OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
+resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
+be expanded in the future. To disable this, use the --skip-known-schema-check flag.
+
+The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
+Current behaviors enabled by this flag include:
+- setting OPA's listening address to "localhost:8181" by default.
+
+The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
+cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):
+TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA,
+TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+See https://godoc.org/crypto/tls#pkg-constants for more information.
+`,
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			addrSetByUser := cmd.Flags().Changed("addr")
@@ -195,6 +220,7 @@ updates might cause them to be dropped by OPA.
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible, false)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
 	runCommand.Flags().StringVar(&cmdParams.tlsCertFile, "tls-cert-file", "", "set path of TLS certificate file")
@@ -209,6 +235,8 @@ updates might cause them to be dropped by OPA.
 	runCommand.Flags().StringVar(&cmdParams.logTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	runCommand.Flags().IntVar(&cmdParams.rt.GracefulShutdownPeriod, "shutdown-grace-period", 10, "set the time (in seconds) that the server will wait to gracefully shut down")
 	runCommand.Flags().IntVar(&cmdParams.rt.ShutdownWaitPeriod, "shutdown-wait-period", 0, "set the time (in seconds) that the server will wait before initiating shutdown")
+	runCommand.Flags().BoolVar(&cmdParams.skipKnownSchemaCheck, "skip-known-schema-check", false, "disables type checking on known input schemas")
+	runCommand.Flags().StringSliceVar(&cmdParams.cipherSuites, "tls-cipher-suites", []string{}, "set list of enabled TLS 1.0–1.2 cipher suites (IANA)")
 	addConfigOverrides(runCommand.Flags(), &cmdParams.rt.ConfigOverrides)
 	addConfigOverrideFiles(runCommand.Flags(), &cmdParams.rt.ConfigOverrideFiles)
 	addBundleModeFlag(runCommand.Flags(), &cmdParams.rt.BundleMode, false)
@@ -270,6 +298,7 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	params.rt.CertificateFile = params.tlsCertFile
 	params.rt.CertificateKeyFile = params.tlsPrivateKeyFile
 	params.rt.CertificateRefresh = params.tlsCertRefresh
+	params.rt.CertPoolFile = params.tlsCACertFile
 
 	if params.tlsCACertFile != "" {
 		pool, err := loadCertPool(params.tlsCACertFile)
@@ -317,6 +346,17 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 		return nil, fmt.Errorf("enable bundle mode (ie. --bundle) to verify bundle files or directories")
 	}
 
+	params.rt.SkipKnownSchemaCheck = params.skipKnownSchemaCheck
+
+	if len(params.cipherSuites) > 0 {
+		cipherSuites, err := verifyCipherSuites(params.cipherSuites)
+		if err != nil {
+			return nil, err
+		}
+
+		params.rt.CipherSuites = cipherSuites
+	}
+
 	rt, err := runtime.NewRuntime(ctx, params.rt)
 	if err != nil {
 		return nil, err
@@ -324,6 +364,10 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 
 	rt.SetDistributedTracingLogging()
 	rt.Params.AddrSetByUser = addrSetByUser
+
+	if !addrSetByUser && rt.Params.V1Compatible {
+		rt.Params.Addrs = &[]string{defaultLocalAddr}
+	}
 
 	return rt, nil
 }
@@ -334,6 +378,37 @@ func startRuntime(ctx context.Context, rt *runtime.Runtime, serverMode bool) {
 	} else {
 		rt.StartREPL(ctx)
 	}
+}
+
+func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
+	cipherSuitesMap := map[string]*tls.CipherSuite{}
+
+	for _, c := range tls.CipherSuites() {
+		cipherSuitesMap[c.Name] = c
+	}
+
+	for _, c := range tls.InsecureCipherSuites() {
+		cipherSuitesMap[c.Name] = c
+	}
+
+	cipherSuitesIds := []uint16{}
+	for _, c := range cipherSuites {
+		val, ok := cipherSuitesMap[c]
+		if !ok {
+			return nil, fmt.Errorf("invalid cipher suite %v", c)
+		}
+
+		// verify no TLS 1.3 cipher suites as they are not configurable
+		for _, ver := range val.SupportedVersions {
+			if ver == tls.VersionTLS13 {
+				return nil, fmt.Errorf("TLS 1.3 cipher suite \"%v\" is not configurable", c)
+			}
+		}
+
+		cipherSuitesIds = append(cipherSuitesIds, val.ID)
+	}
+
+	return &cipherSuitesIds, nil
 }
 
 func historyPath() string {

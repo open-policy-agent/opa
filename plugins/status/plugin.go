@@ -12,8 +12,9 @@ import (
 	"net/http"
 	"reflect"
 
-	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 	prom "github.com/prometheus/client_golang/prometheus"
+
+	lstat "github.com/open-policy-agent/opa/plugins/logs/status"
 
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -204,7 +205,9 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 		decisionLogsCh: make(chan lstat.Status),
 		stop:           make(chan chan struct{}),
 		reconfig:       make(chan reconfigure),
-		pluginStatusCh: make(chan map[string]*plugins.Status),
+		// we use a buffered channel here to avoid blocking other plugins
+		// when updating statuses
+		pluginStatusCh: make(chan map[string]*plugins.Status, 1),
 		queryCh:        make(chan chan *UpdateRequestV1),
 		logger:         manager.Logger().WithFields(map[string]interface{}{"plugin": Name}),
 		trigger:        make(chan trigger),
@@ -236,7 +239,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 func (p *Plugin) Start(ctx context.Context) error {
 	p.logger.Info("Starting status reporter.")
 
-	go p.loop()
+	go p.loop(ctx)
 
 	// Setup a listener for plugin statuses, but only after starting the loop
 	// to prevent blocking threads pushing the plugin updates.
@@ -344,9 +347,9 @@ func (p *Plugin) Trigger(ctx context.Context) error {
 	}
 }
 
-func (p *Plugin) loop() {
+func (p *Plugin) loop(ctx context.Context) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	for {
 

@@ -1,13 +1,14 @@
+---
 cases:
-- data: {}
-  modules:
-  - |
-    package generated
+  - data: {}
+    modules:
+      - |
+        package generated
 
-    p {
-      {}
-    }
-  note: evaltermexpr/object empty
-  query: data.generated.p = x
-  want_result:
-  - x: true
+        p {
+          {}
+        }
+    note: evaltermexpr/object empty
+    query: data.generated.p = x
+    want_result:
+      - x: true

@@ -244,15 +244,15 @@ Update the `policies/tutorial.rego` with the following content.
 #-----------------------------------------------------------------------------
 package kafka.authz
 
-import future.keywords.in
+import rego.v1
 
 default allow := false
 
-allow {
+allow if {
 	not deny
 }
 
-deny {
+deny if {
 	is_read_operation
 	topic_contains_pii
 	not consumer_is_allowlisted_for_pii
@@ -272,11 +272,11 @@ topic_metadata := {"credit-scores": {"tags": ["pii"]}}
 # Helpers for checking topic access.
 #-----------------------------------
 
-topic_contains_pii {
+topic_contains_pii if {
 	"pii" in topic_metadata[topic_name].tags
 }
 
-consumer_is_allowlisted_for_pii {
+consumer_is_allowlisted_for_pii if {
 	principal.name in consumer_allowlist.pii
 }
 
@@ -286,23 +286,23 @@ consumer_is_allowlisted_for_pii {
 # place.
 #-----------------------------------------------------------------------------
 
-is_write_operation {
-    input.action.operation == "WRITE"
+is_write_operation if {
+	input.action.operation == "WRITE"
 }
 
-is_read_operation {
+is_read_operation if {
 	input.action.operation == "READ"
 }
 
-is_topic_resource {
+is_topic_resource if {
 	input.action.resourcePattern.resourceType == "TOPIC"
 }
 
-topic_name := input.action.resourcePattern.name {
+topic_name := input.action.resourcePattern.name if {
 	is_topic_resource
 }
 
-principal := {"fqn": parsed.CN, "name": cn_parts[0]} {
+principal := {"fqn": parsed.CN, "name": cn_parts[0]} if {
 	parsed := parse_user(input.requestContext.principal.name)
 	cn_parts := split(parsed.CN, ".")
 }
@@ -440,24 +440,24 @@ Processed a total of 0 messages
 First, add the following content to the policy file (`./policies/tutorial.rego`):
 
 ```live:example/deny:module:openable
-deny {
-    is_write_operation
-    topic_has_large_fanout
-    not producer_is_allowlisted_for_large_fanout
+deny if {
+	is_write_operation
+	topic_has_large_fanout
+	not producer_is_allowlisted_for_large_fanout
 }
 
 producer_allowlist := {
-    "large-fanout": {
-        "fanout_producer",
-    }
+	"large-fanout": {
+		"fanout_producer",
+	}
 }
 
-topic_has_large_fanout {
-    topic_metadata[topic_name].tags[_] == "large-fanout"
+topic_has_large_fanout if {
+	topic_metadata[topic_name].tags[_] == "large-fanout"
 }
 
-producer_is_allowlisted_for_large_fanout {
-    producer_allowlist["large-fanout"][_] == principal.name
+producer_is_allowlisted_for_large_fanout if {
+	producer_allowlist["large-fanout"][_] == principal.name
 }
 ```
 

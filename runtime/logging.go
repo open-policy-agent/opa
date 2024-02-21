@@ -24,8 +24,13 @@ type loggingPrintHook struct {
 func (h loggingPrintHook) Print(pctx print.Context, msg string) error {
 	// NOTE(tsandall): if the request context is not present then do not panic,
 	// just log the print message without the additional context.
-	rctx, _ := logging.FromContext(pctx.Context)
-	fields := rctx.Fields()
+	var fields map[string]any
+	rctx, ok := logging.FromContext(pctx.Context)
+	if ok {
+		fields = rctx.Fields()
+	} else {
+		fields = make(map[string]any, 1)
+	}
 	fields["line"] = pctx.Location.String()
 	h.logger.WithFields(fields).Info(msg)
 	return nil
@@ -105,12 +110,6 @@ func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			h.logger.WithFields(fields).Error("Failed to read body.")
 		}
-	}
-
-	params := r.URL.Query()
-
-	if _, ok := params["partial"]; ok {
-		h.logger.Warn("Deprecated 'partial' parameter specified in request. See https://github.com/open-policy-agent/opa/releases/tag/v0.23.0 for details.")
 	}
 
 	h.inner.ServeHTTP(recorder, r)

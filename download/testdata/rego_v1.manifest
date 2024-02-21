@@ -1,0 +1,19 @@
+{
+   "schemaVersion":2,
+   "config":{
+      "mediaType":"application/vnd.oci.image.config.v1+json",
+      "digest":"sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "size":2
+   },
+   "layers":[
+      {
+         "mediaType":"application/vnd.oci.image.layer.v1.tar+gzip",
+         "digest":"sha256:cc09b0f5ac97b11637c96ff1b0fbbc287c5ba0169813edaa71fe58424e95f0b7",
+         "size":695,
+         "annotations":{
+            "org.opencontainers.image.created":"2022-02-11T09:00:07Z",
+            "org.opencontainers.image.title":"dani/testpol"
+         }
+      }
+   ]
+}

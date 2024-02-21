@@ -1,0 +1,52 @@
+---
+cases:
+  - note: uuid-parse/positive-v4-braces
+    data: {}
+    modules:
+      - |
+        package test
+
+        p = uuid.parse(input.userid)
+
+    input: { "userid": "{00000000-0000-4000-8000-000000000000}" }
+    query: data.test.p = x
+    want_result:
+      - x:
+          version: 4
+          variant: "RFC4122"
+
+  - note: uuid-parse/positive-v2-urn
+    data: {}
+    modules:
+      - |
+        package test
+
+        p = uuid.parse(input.userid)
+
+    input: { "userid": "urn:uuid:000003e8-48b9-21ee-b200-325096b39f47" }
+    query: data.test.p = x
+    want_result:
+      - x:
+          version: 2
+          variant: "RFC4122"
+          nodeid: "32-50-96-b3-9f-47"
+          macvariables: "local:unicast"
+          time: 1693566990121469600
+          clocksequence: 12800
+          domain: "Person"
+          id: 1000
+
+  - note: uuid-parse/positive-v3-no-dashes
+    data: {}
+    modules:
+      - |
+        package test
+
+        p = uuid.parse(input.userid)
+
+    input: { "userid": "6bea8ef2d3d33cd184e09bab06a52ece" }
+    query: data.test.p = x
+    want_result:
+      - x:
+          version: 3
+          variant: "RFC4122"

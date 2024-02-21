@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/future"
@@ -24,6 +25,9 @@ type Opts struct {
 	// of partial evaluation, arguments maybe have been shuffled around, but still
 	// carry along their original source locations.
 	IgnoreLocations bool
+
+	// RegoVersion is the version of Rego to format code for.
+	RegoVersion ast.RegoVersion
 }
 
 // defaultLocationFile is the file name used in `Ast()` for terms
@@ -35,15 +39,34 @@ const defaultLocationFile = "__format_default__"
 // Rego module. If they don't, Source will return an error resulting from the attempt
 // to parse the bytes.
 func Source(filename string, src []byte) ([]byte, error) {
-	module, err := ast.ParseModule(filename, string(src))
+	return SourceWithOpts(filename, src, Opts{})
+}
+
+func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
+	parserOpts := ast.ParserOptions{}
+	if opts.RegoVersion == ast.RegoV1 {
+		// If the rego version is V1, wee need to parse it as such, to allow for future keywords not being imported.
+		// Otherwise, we'll default to RegoV0
+		parserOpts.RegoVersion = ast.RegoV1
+	}
+
+	module, err := ast.ParseModuleWithOpts(filename, string(src), parserOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	formatted, err := Ast(module)
+	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
+		errors := ast.CheckRegoV1(module)
+		if len(errors) > 0 {
+			return nil, errors
+		}
+	}
+
+	formatted, err := AstWithOpts(module, opts)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", filename, err)
 	}
+
 	return formatted, nil
 }
 
@@ -80,6 +103,8 @@ type fmtOpts struct {
 	// for ref heads -- if they do, we'll print all of them in a different way
 	// than if they don't.
 	refHeads bool
+
+	regoV1 bool
 }
 
 func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
@@ -97,6 +122,12 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 	extraFutureKeywordImports := map[string]struct{}{}
 
 	o := fmtOpts{}
+
+	if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 {
+		o.regoV1 = true
+		o.ifs = true
+		o.contains = true
+	}
 
 	// Preprocess the AST. Set any required defaults and calculate
 	// values required for printing the formatted output.
@@ -119,6 +150,9 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 		case *ast.Import:
 			switch {
+			case isRegoV1Compatible(n):
+				o.contains = true
+				o.ifs = true
 			case future.IsAllFutureKeywords(n):
 				o.contains = true
 				o.ifs = true
@@ -150,8 +184,18 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 
 	switch x := x.(type) {
 	case *ast.Module:
-		for kw := range extraFutureKeywordImports {
-			x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+		if opts.RegoVersion == ast.RegoV1 {
+			x.Imports = filterRegoV1Import(x.Imports)
+		} else if opts.RegoVersion == ast.RegoV0CompatV1 {
+			x.Imports = ensureRegoV1Import(x.Imports)
+		}
+
+		if opts.RegoVersion == ast.RegoV0CompatV1 || opts.RegoVersion == ast.RegoV1 || moduleIsRegoV1Compatible(x) {
+			x.Imports = future.FilterFutureImports(x.Imports)
+		} else {
+			for kw := range extraFutureKeywordImports {
+				x.Imports = ensureFutureKeywordImport(x.Imports, kw)
+			}
 		}
 		w.writeModule(x, o)
 	case *ast.Package:
@@ -263,12 +307,11 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 		return locLess(comments[i], comments[j])
 	})
 
-	// XXX: The parser currently duplicates comments for some reason, so we need
-	// to remove duplicates here.
-	comments = dedupComments(comments)
 	sort.Slice(others, func(i, j int) bool {
 		return locLess(others[i], others[j])
 	})
+
+	comments = trimTrailingWhitespaceInComments(comments)
 
 	comments = w.writePackage(pkg, comments)
 	var imports []*ast.Import
@@ -286,6 +329,14 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 			w.write("\n")
 		}
 	}
+}
+
+func trimTrailingWhitespaceInComments(comments []*ast.Comment) []*ast.Comment {
+	for _, c := range comments {
+		c.Text = bytes.TrimRightFunc(c.Text, unicode.IsSpace)
+	}
+
+	return comments
 }
 
 func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.Comment {
@@ -345,7 +396,7 @@ func (w *writer) writeRule(rule *ast.Rule, isElse bool, o fmtOpts, comments []*a
 		return comments
 	}
 
-	if o.ifs && partialSetException {
+	if (o.regoV1 || o.ifs) && partialSetException {
 		w.write(" if")
 		if len(rule.Body) == 1 {
 			if rule.Body[0].Location.Row == rule.Head.Location.Row {
@@ -453,7 +504,7 @@ func (w *writer) writeElse(rule *ast.Rule, o fmtOpts, comments []*ast.Comment) [
 
 func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fmtOpts, comments []*ast.Comment) []*ast.Comment {
 	ref := head.Ref()
-	if head.Key != nil && head.Value == nil {
+	if head.Key != nil && head.Value == nil && !head.HasDynamicRef() {
 		ref = ref.GroundPrefix()
 	}
 	if o.refHeads || len(ref) == 1 {
@@ -484,8 +535,30 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fm
 			w.write("]")
 		}
 	}
-	if head.Value != nil && (head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
-		if head.Assign {
+
+	if head.Value != nil &&
+		(head.Key != nil || ast.Compare(head.Value, ast.BooleanTerm(true)) != 0 || isExpandedConst || isDefault) {
+
+		// in rego v1, explicitly print value for ref-head constants that aren't partial set assignments, e.g.:
+		// * a -> parser error, won't reach here
+		// * a.b -> a contains "b"
+		// * a.b.c -> a.b.c := true
+		// * a.b.c.d -> a.b.c.d := true
+		isRegoV1RefConst := o.regoV1 && isExpandedConst && head.Key == nil && len(head.Args) == 0
+
+		if len(head.Args) > 0 &&
+			head.Location == head.Value.Location &&
+			head.Name != "else" &&
+			ast.Compare(head.Value, ast.BooleanTerm(true)) == 0 &&
+			!isRegoV1RefConst {
+			// If the value location is the same as the location of the head,
+			// we know that the value is generated, i.e. f(1)
+			// Don't print the value (` = true`) as it is implied.
+			return comments
+		}
+
+		if head.Assign || o.regoV1 {
+			// preserve assignment operator, and enforce it if formatting for Rego v1
 			w.write(" := ")
 		} else {
 			w.write(" = ")
@@ -812,6 +885,7 @@ func (w *writer) writeCall(parens bool, x ast.Call, loc *ast.Location, comments 
 }
 
 func (w *writer) writeInOperator(parens bool, operands []*ast.Term, comments []*ast.Comment, loc *ast.Location, f *types.Function) []*ast.Comment {
+
 	if len(operands) != len(f.Args()) {
 		// The number of operands does not math the arity of the `in` operator
 		operator := ast.Member.Name
@@ -1290,21 +1364,6 @@ func skipPast(open, close byte, loc *ast.Location) (int, int) {
 	return i, offset
 }
 
-func dedupComments(comments []*ast.Comment) []*ast.Comment {
-	if len(comments) == 0 {
-		return nil
-	}
-
-	filtered := []*ast.Comment{comments[0]}
-	for i := 1; i < len(comments); i++ {
-		if comments[i].Location.Equal(comments[i-1].Location) {
-			continue
-		}
-		filtered = append(filtered, comments[i])
-	}
-	return filtered
-}
-
 // startLine begins a line with the current indentation level.
 func (w *writer) startLine() {
 	w.inline = true
@@ -1396,6 +1455,35 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 	return append(imps, imp)
 }
 
+func ensureRegoV1Import(imps []*ast.Import) []*ast.Import {
+	return ensureImport(imps, ast.RegoV1CompatibleRef)
+}
+
+func filterRegoV1Import(imps []*ast.Import) []*ast.Import {
+	var ret []*ast.Import
+	for _, imp := range imps {
+		path := imp.Path.Value.(ast.Ref)
+		if !ast.RegoV1CompatibleRef.Equal(path) {
+			ret = append(ret, imp)
+		}
+	}
+	return ret
+}
+
+func ensureImport(imps []*ast.Import, path ast.Ref) []*ast.Import {
+	for _, imp := range imps {
+		p := imp.Path.Value.(ast.Ref)
+		if p.Equal(path) {
+			return imps
+		}
+	}
+	imp := &ast.Import{
+		Path: ast.NewTerm(path),
+	}
+	imp.Location = defaultLocation(imp)
+	return append(imps, imp)
+}
+
 // ArgErrDetail but for `fmt` checks since compiler has not run yet.
 type ArityFormatErrDetail struct {
 	Have []string `json:"have"`
@@ -1427,4 +1515,21 @@ func (d *ArityFormatErrDetail) Lines() []string {
 		"have: " + "(" + strings.Join(d.Have, ",") + ")",
 		"want: " + "(" + strings.Join(d.Want, ",") + ")",
 	}
+}
+
+func moduleIsRegoV1Compatible(m *ast.Module) bool {
+	for _, imp := range m.Imports {
+		if isRegoV1Compatible(imp) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRegoV1Compatible returns true if the passed *ast.Import is `rego.v1`
+func isRegoV1Compatible(imp *ast.Import) bool {
+	path := imp.Path.Value.(ast.Ref)
+	return len(path) == 2 &&
+		ast.RegoRootDocument.Equal(path[0]) &&
+		path[1].Equal(ast.StringTerm("v1"))
 }

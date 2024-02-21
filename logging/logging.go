@@ -126,21 +126,37 @@ func (l *StandardLogger) GetLevel() Level {
 
 // Debug logs at debug level
 func (l *StandardLogger) Debug(fmt string, a ...interface{}) {
+	if len(a) == 0 {
+		l.logger.WithFields(l.getFields()).Debug(fmt)
+		return
+	}
 	l.logger.WithFields(l.getFields()).Debugf(fmt, a...)
 }
 
 // Info logs at info level
 func (l *StandardLogger) Info(fmt string, a ...interface{}) {
+	if len(a) == 0 {
+		l.logger.WithFields(l.getFields()).Info(fmt)
+		return
+	}
 	l.logger.WithFields(l.getFields()).Infof(fmt, a...)
 }
 
 // Error logs at error level
 func (l *StandardLogger) Error(fmt string, a ...interface{}) {
+	if len(a) == 0 {
+		l.logger.WithFields(l.getFields()).Error(fmt)
+		return
+	}
 	l.logger.WithFields(l.getFields()).Errorf(fmt, a...)
 }
 
 // Warn logs at warn level
 func (l *StandardLogger) Warn(fmt string, a ...interface{}) {
+	if len(a) == 0 {
+		l.logger.WithFields(l.getFields()).Warn(fmt)
+		return
+	}
 	l.logger.WithFields(l.getFields()).Warnf(fmt, a...)
 }
 

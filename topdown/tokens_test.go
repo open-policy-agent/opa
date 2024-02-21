@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -471,11 +470,8 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	   "y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
 	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
 	  }, x)`
-	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.05wmHY3NomU1jr7yvusBvKwhthRklPuJhUPOkoeIn5e5n_GXvE25EfRs9AJK2wOy6NoY2ljhj07M9BMtV0dfyA"
-	if strings.HasPrefix(runtime.Version(), "go1.20") {
-		encodedSigned = "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.GRp6wIqDZuYnvQH50hnIy559LdrjUux76v1ynxX6lH0XtlgwreyR16x2JMnuElo79X3zUbqlWrZITICv86arew"
-	}
 
+	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.GRp6wIqDZuYnvQH50hnIy559LdrjUux76v1ynxX6lH0XtlgwreyR16x2JMnuElo79X3zUbqlWrZITICv86arew"
 	for i := 0; i < 10; i++ {
 		q := NewQuery(ast.MustParseBody(query)).
 			WithSeed(&cng{}).

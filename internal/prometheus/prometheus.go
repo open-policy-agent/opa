@@ -37,25 +37,14 @@ type Provider struct {
 type loggerFunc func(attrs map[string]interface{}, f string, a ...interface{})
 
 // New returns a new Provider object.
-func New(inner metrics.Metrics, logger loggerFunc) *Provider {
+func New(inner metrics.Metrics, logger loggerFunc, httpRequestBuckets []float64) *Provider {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collector())
 	durationHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "http_request_duration_seconds",
-			Help: "A histogram of duration for requests.",
-			Buckets: []float64{
-				1e-6, // 1 microsecond
-				5e-6,
-				1e-5,
-				5e-5,
-				1e-4,
-				5e-4,
-				1e-3, // 1 millisecond
-				0.01,
-				0.1,
-				1, // 1 second
-			},
+			Name:    "http_request_duration_seconds",
+			Help:    "A histogram of duration for requests.",
+			Buckets: httpRequestBuckets,
 		},
 		[]string{"code", "handler", "method"},
 	)

@@ -1274,9 +1274,17 @@ func TestClientCert(t *testing.T) {
 		// Ensure the keys don't work anymore, make a new client as the url will have changed
 		client = newTestClient(t, &ts, certPath, keyPath)
 		_, err := client.Do(ctx, "GET", "test")
-		expectedErrMsg := "tls: bad certificate"
-		if err == nil || !strings.Contains(err.Error(), expectedErrMsg) {
-			t.Fatalf("Expected '%s' error but request succeeded", expectedErrMsg)
+		expectedErrMsg := func(s string) bool {
+			switch {
+			case strings.Contains(s, "tls: unknown certificate authority"):
+			case strings.Contains(s, "tls: bad certificate"):
+			default:
+				return false
+			}
+			return true
+		}
+		if err == nil || !expectedErrMsg(err.Error()) {
+			t.Fatalf("Unexpected error %v", err)
 		}
 
 		// Update the key files and try again..
@@ -1781,6 +1789,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 		input   string
 		wantErr bool
 		env     map[string]string
+		errMsg  string
 	}{
 		{
 			name: "Fallback to Environment Credential",
@@ -1818,6 +1827,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 				}
 			}`,
 			wantErr: true,
+			errMsg:  "all AWS credential providers failed: 4 errors occurred",
 			env:     map[string]string{},
 		},
 	}
@@ -1851,10 +1861,19 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 			awsPlugin.logger = client.logger
 			err = awsPlugin.Prepare(req)
-			if err != nil && !tc.wantErr {
-				t.Fatalf("Unexpected error: %v", err)
-			} else if err == nil && tc.wantErr {
-				t.Fatalf("Expected error for input %v", tc.input)
+
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("Expected error for input %v", tc.input)
+				}
+
+				if !strings.Contains(err.Error(), tc.errMsg) {
+					t.Fatalf("Expected error message %v but got %v", tc.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
 			}
 		})
 	}
@@ -1862,6 +1881,7 @@ func TestAWSCredentialServiceChain(t *testing.T) {
 
 func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 	token := "secret"
+	plaintext := "plaintext"
 	ts := testServer{t: t, expBearerToken: token}
 	ts.start()
 	defer ts.stop()
@@ -1873,8 +1893,12 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 			"bearer": {
 				"token": %q
 			}
+		},
+		"headers": {
+			"X-AMZ-SECURITY-TOKEN": %q,
+			"remains-unmasked": %q
 		}
-	}`, ts.server.URL, token)
+	}`, ts.server.URL, token, token, plaintext)
 	client, err := New([]byte(config), map[string]*keys.Config{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -1889,21 +1913,22 @@ func TestDebugLoggingRequestMaskAuthorizationHeader(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	var reqLogFound bool
-	for _, entry := range logger.Entries() {
-		if entry.Fields["headers"] != nil {
-			headers := entry.Fields["headers"].(http.Header)
-			authzHeader := headers.Get("Authorization")
-			if authzHeader != "" {
-				reqLogFound = true
-				if authzHeader != "REDACTED" {
-					t.Errorf("Excpected redacted Authorization header value, got %v", authzHeader)
-				}
-			}
-		}
+	entries := logger.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 log entries, got %d", len(entries))
 	}
-	if !reqLogFound {
-		t.Fatalf("Expected log entry from request")
+
+	requestEntry := entries[0]
+	headers := requestEntry.Fields["headers"].(http.Header)
+	for k := range headers {
+		v := headers.Get(k)
+		if _, ok := maskedHeaderKeys[k]; ok {
+			if v != "REDACTED" {
+				t.Errorf("Expected redacted %q header value, got %v", k, v)
+			}
+		} else if k == "Remains-Unmasked" && v != plaintext {
+			t.Errorf("Expected %q header to have value %q, got %v", k, plaintext, v)
+		}
 	}
 }
 

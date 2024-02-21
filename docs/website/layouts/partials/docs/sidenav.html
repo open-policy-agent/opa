@@ -8,8 +8,9 @@
 {{ $operations := where $allDocs ".Params.kind" "eq" "operations" }}
 {{ $management := where $allDocs ".Params.kind" "eq" "management" }}
 {{ $contrib    := where $allDocs ".Params.kind" "eq" "contrib" }}
-{{ $misc       := where $allDocs ".Params.kind" "eq" "misc" }}
-{{ $support    := where $allDocs ".Params.kind" "eq" "support" }}
+{{/* Drop all ecosystem pages in historic versions in favor of hard coded link below */}}
+{{ $misc       := where (where $allDocs ".Params.kind" "eq" "misc") ".Title" "ne" "Ecosystem" }}
+{{ $support    := where (where (where $allDocs ".Params.kind" "eq" "support") ".Title" "ne" "Ecosystem") ".Title" "ne" "OPA Ecosystem" }}
 {{ $pageUrl    := .Permalink }}
 {{ $isDocsHome := eq .Permalink $docsHome.Permalink }}
 {{ $version    := index (split .File.Path "/") 1 }}
@@ -53,6 +54,5 @@
 
 {{ partial "docs/sidenav-section.html" ( dict "ctx" . "sectionTitle" "Support" "section" $support "pageUrl" $pageUrl "version" $version ) }}
 
-<a class="docs-nav-item" href="/support">
-  Enterprise
-</a>
+<a class="docs-nav-item" href="/ecosystem">OPA Ecosystem</a>
+<a class="docs-nav-item" href="/support">Enterprise</a>

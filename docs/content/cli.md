@@ -58,6 +58,7 @@ opa bench <query> [flags]
   -I, --stdin-input                    read input document from stdin
   -t, --target {rego,wasm}             set the runtime to exercise (default rego)
   -u, --unknowns stringArray           set paths to treat as unknown during partial evaluation (default [input])
+      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -249,6 +250,7 @@ opa build <path> [<path> [...]] [flags]
       --signing-key string             set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)
       --signing-plugin string          name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin
   -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
+      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
 ```
@@ -345,8 +347,10 @@ opa check <path> [path [...]] [flags]
   -h, --help                   help for check
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -m, --max-errors int         set the number of errors to allow before compilation fails early (default 10)
+      --rego-v1                check for Rego v1 compatibility (policies must also be compatible with current OPA version)
   -s, --schema string          set schema file path or directory path
   -S, --strict                 enable compiler strict mode
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -368,8 +372,7 @@ Given a policy like this:
 
 	package policy
 
-	import future.keywords.if
-	import future.keywords.in
+	import rego.v1
 
 	allow if is_admin
 
@@ -403,6 +406,7 @@ opa deps <query> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for deps
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -560,6 +564,7 @@ opa eval <query> [flags]
   -t, --target {rego,wasm}                                        set the runtime to exercise (default rego)
       --timeout duration                                          set eval timeout (default unlimited)
   -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
+      --v1-compatible                                             opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -599,8 +604,9 @@ opa exec <path> [<path> [...]] [flags]
   -b, --bundle string                        set bundle file(s) or directory path(s). This flag can be repeated.
   -c, --config-file string                   set path of configuration file
       --decision string                      set decision to evaluate
-      --fail                                 exits with non-zero exit code on undefined/empty result and errors
-      --fail-defined                         exits with non-zero exit code on defined/non-empty result and errors
+      --fail                                 exits with non-zero exit code on undefined result and errors
+      --fail-defined                         exits with non-zero exit code on defined result and errors
+      --fail-non-empty                       exits with non-zero exit code on non-empty result and errors
   -f, --format {pretty,json}                 set output format (default pretty)
   -h, --help                                 help for exec
       --log-format {text,json,json-pretty}   set log format (default json)
@@ -608,6 +614,7 @@ opa exec <path> [<path> [...]] [flags]
       --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
       --set stringArray                      override config values on the command line (use commas to specify multiple values)
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
+      --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -645,11 +652,13 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
-  -d, --diff    only display a diff of the changes
-      --fail    non zero exit code on reformat
-  -h, --help    help for fmt
-  -l, --list    list all files who would change when formatted
-  -w, --write   overwrite the original source file
+  -d, --diff            only display a diff of the changes
+      --fail            non zero exit code on reformat
+  -h, --help            help for fmt
+  -l, --list            list all files who would change when formatted
+      --rego-v1         format module(s) to be compatible with both Rego v1 and current OPA version)
+      --v1-compatible   opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+  -w, --write           overwrite the original source file
 ```
 
 ____
@@ -693,6 +702,7 @@ opa inspect <path> [<path> [...]] [flags]
   -a, --annotations            list annotations
   -f, --format {json,pretty}   set output format (default pretty)
   -h, --help                   help for inspect
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -715,6 +725,7 @@ opa parse <path> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for parse
       --json-include string    include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.
+      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 
 ____
@@ -831,6 +842,25 @@ The --watch flag can be used to monitor policy and data file-system changes. Whe
 and data is reloaded into OPA. Watching individual files (rather than directories) is generally not recommended as some
 updates might cause them to be dropped by OPA.
 
+OPA will automatically perform type checking based on a schema inferred from known input documents and report any errors
+resulting from the schema check. Currently this check is performed on OPA's Authorization Policy Input document and will
+be expanded in the future. To disable this, use the --skip-known-schema-check flag.
+
+The --v1-compatible flag can be used to opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
+Current behaviors enabled by this flag include:
+- setting OPA's listening address to "localhost:8181" by default.
+
+The --tls-cipher-suites flag can be used to specify the list of enabled TLS 1.0–1.2 cipher suites. Note that TLS 1.3
+cipher suites are not configurable. Following are the supported TLS 1.0 - 1.2 cipher suites (IANA):
+TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_3DES_EDE_CBC_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA,
+TLS_RSA_WITH_AES_128_CBC_SHA256, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+
+See https://godoc.org/crypto/tls#pkg-constants for more information.
+
 
 ```
 opa run [flags]
@@ -866,12 +896,15 @@ opa run [flags]
       --shutdown-grace-period int            set the time (in seconds) that the server will wait to gracefully shut down (default 10)
       --shutdown-wait-period int             set the time (in seconds) that the server will wait before initiating shutdown
       --signing-alg string                   name of the signing algorithm (default "RS256")
+      --skip-known-schema-check              disables type checking on known input schemas
       --skip-verify                          disables bundle signature verification
       --tls-ca-cert-file string              set path of TLS CA cert file
       --tls-cert-file string                 set path of TLS certificate file
       --tls-cert-refresh-period duration     set certificate refresh period
+      --tls-cipher-suites strings            set list of enabled TLS 1.0–1.2 cipher suites (IANA)
       --tls-private-key-file string          set path of TLS private key file
       --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
+      --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
       --verification-key string              set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string           name assigned to the verification key used for bundle verification (default "default")
   -w, --watch                                watch command line files for changes
@@ -1009,7 +1042,7 @@ Example policy (example/authz.rego):
 
 	package authz
 
-	import future.keywords.if
+	import rego.v1
 
 	allow if {
 		input.path == ["users"]
@@ -1025,25 +1058,27 @@ Example test (example/authz_test.rego):
 
 	package authz_test
 
+	import rego.v1
+
 	import data.authz.allow
 
-	test_post_allowed {
+	test_post_allowed if {
 		allow with input as {"path": ["users"], "method": "POST"}
 	}
 
-	test_get_denied {
+	test_get_denied if {
 		not allow with input as {"path": ["users"], "method": "GET"}
 	}
 
-	test_get_user_allowed {
+	test_get_user_allowed if {
 		allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "bob"}
 	}
 
-	test_get_another_user_denied {
+	test_get_another_user_denied if {
 		not allow with input as {"path": ["users", "bob"], "method": "GET", "user_id": "alice"}
 	}
 
-	todo_test_user_allowed_http_client_data {
+	todo_test_user_allowed_http_client_data if {
 		false # Remember to test this later!
 	}
 
@@ -1088,6 +1123,7 @@ opa test <path> [path [...]] [flags]
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
+      --v1-compatible                      opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
   -v, --verbose                            set verbose reporting mode
   -w, --watch                              watch command line files for changes
 ```

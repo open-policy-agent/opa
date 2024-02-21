@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	"github.com/open-policy-agent/opa/format"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/loader"
@@ -69,8 +70,11 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 | default allow = false   |
 | _ _ _ _ _ _ _ _ _ _ _ _ | 
 `,
-		PreRunE: func(_ *cobra.Command, args []string) error {
-			return validateMoveArgs(args)
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateMoveArgs(args); err != nil {
+				return err
+			}
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := doMove(moveCommandParams, args, os.Stdout); err != nil {

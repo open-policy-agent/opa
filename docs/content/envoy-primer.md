@@ -14,47 +14,47 @@ Let's start with an example policy that restricts access to an endpoint based on
 
 ```live:bool_example:module:openable
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 import input.attributes.request.http
 
 default allow := false
 
 allow if {
-    is_token_valid
-    action_allowed
+	is_token_valid
+	action_allowed
 }
 
 is_token_valid if {
-    token.valid
-    now := time.now_ns() / 1000000000
-    token.payload.nbf <= now
-    now < token.payload.exp
+	token.valid
+	now := time.now_ns() / 1000000000
+	token.payload.nbf <= now
+	now < token.payload.exp
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "guest"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "guest"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "admin"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "admin"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "POST"
-    token.payload.role == "admin"
-    glob.match("/people", ["/"], http.path)
-    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+	http.method == "POST"
+	token.payload.role == "admin"
+	glob.match("/people", ["/"], http.path)
+	lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
 }
-
 
 token := {"valid": valid, "payload": payload} if {
-    [_, encoded] := split(http.headers.authorization, " ")
-    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
+	[_, encoded] := split(http.headers.authorization, " ")
+	[valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
@@ -101,25 +101,27 @@ With the input value above, the answer is:
 ## Example Policy with Additional Controls
 
 The `allow` variable in the above policy returns a `boolean` decision to indicate whether a request should be allowed or not.
-If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers.  To do that, you can write rules like the ones below to fill in values for variables with the following types:
+If you want, you can also control the HTTP status sent to the upstream or downstream client, along with the response body, and the response headers. Response metadata can also be set for consumption by the next Envoy filter. To do that, you can write rules like the ones below to fill in values for variables with the following types:
 
 * `headers` is an object whose keys are strings and values are strings. In case the request is denied, the object represents the HTTP response headers to be sent to the downstream client. If the request is allowed, the object represents additional request headers to be sent to the upstream.
 * `response_headers_to_add` is an object whose keys are strings and values are strings. It defines the HTTP response headers to be sent to the downstream client when a request is allowed.
 * `request_headers_to_remove` is an array of strings which describes the HTTP headers to remove from the original request before dispatching it to the upstream when a request is allowed.
 * `body` is a string which represents the response body data sent to the downstream client when a request is denied.
 * `status_code` is a number which represents the HTTP response status code sent to the downstream client when a request is denied.
+* `dynamic_metadata` is an object whose keys are strings and values can be booleans, strings, numbers, arrays, or objects. It will set the `DynamicMetadata` in the `CheckResponse` returned by the `opa-envoy-plugin` and can be consumed elsewhere in the envoy filter chain.
 
 ```live:obj_example:module:openable
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 import input.attributes.request.http
 
 default allow := false
 
 allow if {
-    is_token_valid
-    action_allowed
+	is_token_valid
+	action_allowed
 }
 
 headers["x-ext-auth-allow"] := "yes"
@@ -130,44 +132,45 @@ request_headers_to_remove := ["one-auth-header", "another-auth-header"]
 response_headers_to_add["x-foo"] := "bar"
 
 status_code := 200 if {
-  allow
-} else := 401 {
-  not is_token_valid
+	allow
+} else := 401 if {
+	not is_token_valid
 } else := 403
 
 body := "Authentication Failed" if status_code == 401
 body := "Unauthorized Request"  if status_code == 403
 
+dynamic_metadata := {"foo", "bar"}
+
 is_token_valid if {
-    token.valid
-    now := time.now_ns() / 1000000000
-    token.payload.nbf <= now
-    now < token.payload.exp
+	token.valid
+	now := time.now_ns() / 1000000000
+	token.payload.nbf <= now
+	now < token.payload.exp
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "guest"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "guest"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "GET"
-    token.payload.role == "admin"
-    glob.match("/people/*", ["/"], http.path)
+	http.method == "GET"
+	token.payload.role == "admin"
+	glob.match("/people/*", ["/"], http.path)
 }
 
 action_allowed if {
-    http.method == "POST"
-    token.payload.role == "admin"
-    glob.match("/people", ["/"], http.path)
-    lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
+	http.method == "POST"
+	token.payload.role == "admin"
+	glob.match("/people", ["/"], http.path)
+	lower(input.parsed_body.firstname) != base64url.decode(token.payload.sub)
 }
-
 
 token := {"valid": valid, "payload": payload} if {
-    [_, encoded] := split(http.headers.authorization, " ")
-    [valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
+	[_, encoded] := split(http.headers.authorization, " ")
+	[valid, _, payload] := io.jwt.decode_verify(encoded, {"secret": "secret"})
 }
 ```
 
@@ -207,6 +210,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 * `request_headers_to_remove` (optional): is an array of string header names
 * `http_status` (optional): a number representing the HTTP status code
 * `body` (optional): the response body
+* `dynamic_metadata` (optional): an object representing dynamic metadata to be consumed by the next Envoy filter.
 
 To construct that output object using the policies demonstrated in the last section, you can use the following Rego snippet.  Notice that we are using partial object rules so that any variables with undefined values simply have no key in the `result` object.
 
@@ -217,6 +221,7 @@ result["response_headers_to_add"] := response_headers_to_add
 result["request_headers_to_remove"] := request_headers_to_remove
 result["body"] := body
 result["http_status"] := status_code
+result["dynamic_metadata"] := dynamic_metadata
 ```
 
 For a single user, including this snippet in your normal policy is fine, but when you have multiple teams writing policies, you will typically pull this bit of boilerplate into a wrapper package, so your teams can focus on writing the policies shown in the previous sections.
@@ -434,7 +439,8 @@ access the path `/people`.
 
 ```live:parsed_path_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
@@ -447,14 +453,15 @@ the HTTP URL query as a map of string array. The below sample policy allows anyo
 
 ```live:parsed_query_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
 allow if {
-    input.parsed_path == ["people"]
-    input.parsed_query.lang == ["en"]
-    input.parsed_query.id == ["1", "2"]
+	input.parsed_path == ["people"]
+	input.parsed_query.lang == ["en"]
+	input.parsed_query.id == ["1", "2"]
 }
 ```
 
@@ -464,13 +471,14 @@ can then be used in a policy as shown below.
 
 ```live:parsed_body_example:module:read_only
 package envoy.authz
-import future.keywords
+
+import rego.v1
 
 default allow := false
 
 allow if {
-    input.parsed_body.firstname == "Charlie"
-    input.parsed_body.lastname == "Opa"
+	input.parsed_body.firstname == "Charlie"
+	input.parsed_body.lastname == "Opa"
 }
 ```
 

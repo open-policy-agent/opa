@@ -1,3 +1,4 @@
+---
 cases:
   - note: objectkeys/string_keys_found
     query: data.test.p = x
@@ -64,6 +65,6 @@ cases:
       - |
         package test
         p := object.keys(input.obj)
-    want_error: 'object.keys: operand 1 must be object but got string'
+    want_error: "object.keys: operand 1 must be object but got string"
     want_error_code: eval_type_error
     strict_error: true

@@ -34,7 +34,7 @@ to build on OPA by embedding functionality directly into your application.
 
 The Policy API exposes CRUD endpoints for managing policy modules. Policy modules can be added, removed, and modified at any time.
 
-The identifiers given to policy modules are only used for management purposes. They are not used outside of the Policy API.
+The identifiers given to policy modules are only used for management purposes. They are not used outside the Policy API.
 
 ### List Policies
 
@@ -405,7 +405,7 @@ Get a policy module.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -645,7 +645,7 @@ If the policy module does not exist, it is created. If the policy module already
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
@@ -666,12 +666,14 @@ Content-Type: text/plain
 ```live:put_example:module:read_only
 package opa.examples
 
-import data.servers
+import rego.v1
+
 import data.networks
 import data.ports
+import data.servers
 
-public_servers[server] {
-  some k, m
+public_servers contains server if {
+	some k, m
 	server := servers[_]
 	server.ports[_] == ports[k].id
 	ports[k].networks[_] == networks[m].id
@@ -702,7 +704,7 @@ Delete a policy module.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **metrics** - Return compiler performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
 #### Status Codes
@@ -743,7 +745,7 @@ GET /v1/data/{path:.+}
 
 Get a document.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
 #### Query Parameters
 
@@ -840,19 +842,19 @@ Content-Type: application/json
 
 Get a document that requires input.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
+The path separator is used to access values inside object and array documents. The server attempts to convert path segments to integers. If a path element cannot be converted to an integer, the server will use its string representation.
 
 The request body contains an object that specifies a value for [The input Document](../philosophy/#the-opa-document-model).
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 - **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
 - **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **provenance** - If parameter is `true`, response will include build/version info in addition to the result.  See [Provenance](#provenance) for more detail.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -886,9 +888,11 @@ The examples below assume the following policy:
 ```live:input_example:module:read_only
 package opa.examples
 
+import rego.v1
+
 import input.example.flag
 
-allow_request { flag == true }
+allow_request if flag == true
 ```
 
 #### Example Request
@@ -960,20 +964,20 @@ Get a document from a webhook.
 Use this API if you are enforcing policy decisions via webhooks that have pre-defined
 request/response formats. Note, the API path prefix is `/v0` instead of `/v1`.
 
-The request message body defines the content of the [The input
-Document](../philosophy/#the-opa-document-model). The request message body
+The request message body defines the content of the [input
+document](../philosophy/#the-opa-document-model). The request message body
 may be empty. The path separator is used to access values inside object and
 array documents.
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 - **Content-Encoding: gzip**: Indicates the request body is a gzip encoded object.
 - **Accept-Encoding: gzip**: Indicates the server should respond with a gzip encoded body. The server will send the compressed response only if its length is above `server.encoding.gzip.min_length` value. See the configuration section
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -989,9 +993,11 @@ The examples below assume the following policy:
 ```live:webhook_example:module:read_only
 package opa.examples
 
+import rego.v1
+
 import input.example.flag
 
-allow_request { flag == true }
+allow_request if flag == true
 ```
 
 #### Example Request
@@ -1029,7 +1035,7 @@ Content-Type: application/json
 
 Create or overwrite a document.
 
-If the path does not refer to an existing document, the server will attempt to create all of the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
+If the path does not refer to an existing document, the server will attempt to create all the necessary containing documents. This behavior is similar in principle to the Unix command `mkdir -p`.
 
 The server will respect the `If-None-Match` header if it is set to `*`. In this case, the server will not overwrite an existing document located at the path.
 
@@ -1080,9 +1086,9 @@ Content-Type: application/json-patch+json
 
 Update a document.
 
-The path separator is used to access values inside object and array documents. If the path indexes into an array, the server will attempt to convert the array index to an integer. If the path element cannot be converted to an integer, the server will respond with 404.
-
 The server accepts updates encoded as JSON Patch operations. The message body of the request should contain a JSON encoded array containing one or more JSON Patch operations. Each operation specifies the operation type, path, and an optional value. For more information on JSON Patch, see [RFC 6902](https://tools.ietf.org/html/rfc6902).
+
+The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
 #### Status Codes
 
@@ -1090,8 +1096,6 @@ The server accepts updates encoded as JSON Patch operations. The message body of
 - **400** - bad request
 - **404** - not found
 - **500** - server error
-
-The effective path of the JSON Patch operation is obtained by joining the path portion of the URL with the path value from the operation(s) contained in the message body. In all cases, the parent of the effective path MUST refer to an existing document, otherwise the server returns 404. In the case of **remove** and **replace** operations, the effective path MUST refer to an existing document, otherwise the server returns 404.
 
 #### Example Request
 
@@ -1170,11 +1174,11 @@ entirely.
 
 #### Request Headers
 
-- **Content-Type: application/x-yaml**: Indicates the request body is a YAML encoded object.
+- **Content-Type: application/yaml**: Indicates the request body is a YAML encoded object.
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1200,8 +1204,10 @@ Content-Type: text/plain
 ```live:system_example:module:read_only
 package system
 
-main = msg {
-  msg := sprintf("hello, %v", [input.user])
+import rego.v1
+
+main := msg if {
+	msg := sprintf("hello, %v", [input.user])
 }
 ```
 
@@ -1240,7 +1246,7 @@ GET /v1/query
 #### Query Parameters
 
 - **q** - The ad-hoc query to execute. OPA will parse, compile, and execute the query represented by the parameter value. The value MUST be URL encoded. Only used in GET method. For POST method the query is sent as part of the request body and this parameter is not used.
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 
@@ -1333,7 +1339,7 @@ Compile API requests contain the following fields:
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 - **explain** - Return query explanation in addition to result. Values: **notes**, **fails**, **full**, **debug**.
 - **metrics** - Return query performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
 - **instrument** - Instrument query evaluation and return a superset of performance metrics in addition to result. See [Performance Metrics](#performance-metrics) for more detail.
@@ -1349,8 +1355,10 @@ The example below assumes that OPA has been given the following policy:
 ```live:compile_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
 }
 ```
 
@@ -1444,12 +1452,14 @@ For example, if you extend to policy above to include a "break glass" condition,
 ```live:compile_unconditional_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
 }
 
-allow {
-  data.break_glass = true
+allow if {
+	data.break_glass = true
 }
 ```
 
@@ -1523,13 +1533,15 @@ exception:
 ```live:compile_unconditional_false_example:module:read_only
 package example
 
-allow {
-  input.subject.clearance_level >= data.reports[_].clearance_level
-  exceptions[input.subject.name]
+import rego.v1
+
+allow if {
+	input.subject.clearance_level >= data.reports[_].clearance_level
+	exceptions[input.subject.name]
 }
 
-exceptions["bob"]
-exceptions["alice"]
+exceptions contains "bob"
+exceptions contains "alice"
 ```
 
 In this case, if we execute query on behalf of a user that does not
@@ -1646,7 +1658,7 @@ is defined under package `system.health`.
 > The "liveness" and "readiness" check convention comes from
 > [Kubernetes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
 > but they are just conventions. You can implement your own check endpoints
-> under the `system.health` package as needed. Any rules implemented inside of
+> under the `system.health` package as needed. Any rules implemented inside
 > `system.health` will be exposed at `/health/<rule-name>`.
 
 #### Policy Examples
@@ -1657,15 +1669,17 @@ able to process the `live` rule. OPA is ready once all plugins have entered the 
 ```live:health_policy_example:module:read_only
 package system.health
 
+import rego.v1
+
 # opa is live if it can process this rule
-default live = true
+default live := true
 
 # by default, opa is not ready
-default ready = false
+default ready := false
 
 # opa is ready once all plugins have reported OK at least once
-ready {
-  input.plugins_ready
+ready if {
+	input.plugins_ready
 }
 ```
 
@@ -1675,15 +1689,17 @@ specific a plugin leaves the OK state, try this:
 ```live:health_policy_example_2:module:read_only
 package system.health
 
-default live = true
+import rego.v1
 
-default ready = false
+default live := true
+
+default ready := false
 
 # opa is ready once all plugins have reported OK at least once AND
 # the bundle plugin is currently in an OK state
-ready {
-  input.plugins_ready
-  input.plugin_state.bundle == "OK"
+ready if {
+	input.plugins_ready
+	input.plugin_state.bundle == "OK"
 }
 ```
 
@@ -1756,7 +1772,7 @@ GET /v1/config HTTP/1.1
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1822,7 +1838,7 @@ GET /v1/status HTTP/1.1
 
 #### Query Parameters
 
-- **pretty** - If parameter is `true`, response will formatted for humans.
+- **pretty** - If parameter is `true`, response will be formatted for humans.
 
 #### Status Codes
 
@@ -1906,7 +1922,7 @@ admin.
 
 ## Errors
 
-All of the API endpoints use standard HTTP status codes to indicate success or
+All the API endpoints use standard HTTP status codes to indicate success or
 failure of an API call. If an API call fails, the response will contain a JSON
 encoded object that provides more detail. The `errors` and `location` fields are
 optional:

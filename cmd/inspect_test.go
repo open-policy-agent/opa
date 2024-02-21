@@ -55,6 +55,7 @@ func TestDoInspect(t *testing.T) {
 		}
 
 		res := `{
+    "capabilities": {},
     "manifest": {"revision": "rev", "roots": ["foo", "bar", "fuz", "baz", "a", "x"]},
     "signatures_config": {},
     "namespaces": {"data": ["/data.json"], "data.foo": ["/example/foo.rego"]}
@@ -300,7 +301,7 @@ Schemas:
  input: {"type":"boolean"}
 
 Related Resources:
- https://pkg 
+ https://pkg
  https://pkg rr-pkg-note
 
 Custom:
@@ -326,7 +327,7 @@ Schemas:
  input: {"type":"integer"}
 
 Related Resources:
- https://doc 
+ https://doc
  https://doc rr-doc-note
 
 Custom:
@@ -352,7 +353,7 @@ Schemas:
  input: {"type":"string"}
 
 Related Resources:
- https://rule 
+ https://rule
  https://rule rr-rule-note
 
 Custom:
@@ -493,7 +494,7 @@ Schemas:
  input: {"type":"boolean"}
 
 Related Resources:
- https://pkg 
+ https://pkg
  https://pkg rr-pkg-note
 
 Custom:
@@ -526,7 +527,7 @@ Schemas:
  input: {"type":"integer"}
 
 Related Resources:
- https://doc 
+ https://doc
  https://doc rr-doc-note
 
 Custom:
@@ -552,7 +553,7 @@ Schemas:
  input: {"type":"string"}
 
 Related Resources:
- https://rule 
+ https://rule
  https://rule rr-rule-note
 
 Custom:
@@ -562,5 +563,316 @@ Custom:
 			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
 		}
 
+	})
+}
+
+func TestDoInspectV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			module: `package test
+p[v] { 
+	v := input.x 
+}`,
+		},
+		{
+			note: "v0.x, no keywords imported, but used",
+			module: `package test
+p contains v if { 
+	v := input.x 
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			module: `package test
+import future.keywords
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note: "v0.x, rego.v1 imported",
+			module: `package test
+import rego.v1
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			module: `package test
+p[v] { 
+	v := input.x 
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:         "v1.0, no keywords imported",
+			v1Compatible: true,
+			module: `package test
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			module: `package test
+import future.keywords
+p contains v if { 
+	v := input.x 
+}`,
+		},
+		{
+			note:         "v1.0, rego.v1 imported",
+			v1Compatible: true,
+			module: `package test
+import rego.v1
+p contains v if { 
+	v := input.x 
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(nil, func(rootDir string) {
+				buf := archive.MustWriteTarGz([][2]string{{"/policy.rego", tc.module}})
+
+				bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+				bf, err := os.Create(bundleFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				_, err = bf.Write(buf.Bytes())
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				var out bytes.Buffer
+				params := newInspectCommandParams()
+				params.v1Compatible = tc.v1Compatible
+				err = params.outputFormat.Set(evalJSONOutput)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				err = doInspect(params, bundleFile, &out)
+
+				if len(tc.expErrs) > 0 {
+					if err == nil {
+						t.Fatalf("Expected error but got nil")
+					}
+
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("Expected error:\n\n%v\n\nbut got:\n\n%v", expErr, err.Error())
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatalf("Unexpected error %v", err)
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestCallToUnknownBuiltInFunction(t *testing.T) {
+	files := [][2]string{
+		{"/policy.rego", `package test
+			p {
+				foo.bar(42)
+				contains("foo", "o")
+			}
+		`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var out bytes.Buffer
+		params := newInspectCommandParams()
+		err = params.outputFormat.Set(evalJSONOutput)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = doInspect(params, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		bs := out.Bytes()
+		output := strings.TrimSpace(string(bs))
+		// Note: unknown foo.bar() built-in doesn't appear in the output, but also didn't cause an error.
+		expected := strings.TrimSpace(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "contains",
+        "decl": {
+          "args": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        }
+      }
+    ]
+  }
+}`)
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+		}
+	})
+}
+
+func TestCallToUnknownRegoFunction(t *testing.T) {
+	files := [][2]string{
+		{"/policy.rego", `package test
+import data.x.y
+
+p {
+	y(1) == true
+}
+		`},
+	}
+
+	buf := archive.MustWriteTarGz(files)
+
+	test.WithTempFS(nil, func(rootDir string) {
+		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+		bf, err := os.Create(bundleFile)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		var out bytes.Buffer
+		params := newInspectCommandParams()
+		err = params.outputFormat.Set(evalJSONOutput)
+		if err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		err = doInspect(params, bundleFile, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		bs := out.Bytes()
+		output := strings.TrimSpace(string(bs))
+		// Note: unknown data.x.y() function doesn't appear in the output, but also didn't cause an error.
+		expected := strings.TrimSpace(`{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "eq",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "="
+      },
+      {
+        "name": "equal",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "=="
+      }
+    ]
+  }
+}`)
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+		}
 	})
 }

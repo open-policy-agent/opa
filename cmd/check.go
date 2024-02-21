@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/cmd/internal/env"
 	pr "github.com/open-policy-agent/opa/internal/presentation"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
@@ -25,6 +26,8 @@ type checkParams struct {
 	capabilities *capabilitiesFlag
 	schema       *schemaFlags
 	strict       bool
+	regoV1       bool
+	v1Compatible bool
 }
 
 func newCheckParams() checkParams {
@@ -35,6 +38,17 @@ func newCheckParams() checkParams {
 		capabilities: newcapabilitiesFlag(),
 		schema:       &schemaFlags{},
 	}
+}
+
+func (p *checkParams) regoVersion() ast.RegoVersion {
+	// The '--rego-v1' flag takes precedence over the '--v1-compatible' flag.
+	if p.regoV1 {
+		return ast.RegoV0CompatV1
+	}
+	if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.RegoV0
 }
 
 const (
@@ -64,6 +78,7 @@ func checkModules(params checkParams, args []string) error {
 	if params.bundleMode {
 		for _, path := range args {
 			b, err := loader.NewFileLoader().
+				WithRegoVersion(params.regoVersion()).
 				WithSkipBundleVerification(true).
 				WithProcessAnnotation(true).
 				WithCapabilities(capabilities).
@@ -77,10 +92,12 @@ func checkModules(params checkParams, args []string) error {
 		}
 	} else {
 		f := loaderFilter{
-			Ignore: params.ignore,
+			Ignore:   params.ignore,
+			OnlyRego: true,
 		}
 
 		result, err := loader.NewFileLoader().
+			WithRegoVersion(params.regoVersion()).
 			WithProcessAnnotation(true).
 			WithCapabilities(capabilities).
 			Filtered(args, f.Apply)
@@ -142,11 +159,11 @@ func init() {
 	is produced. If the parsing or compiling fails, 'check' will output the errors
 	and exit with a non-zero exit code.`,
 
-		PreRunE: func(_ *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("specify at least one file")
 			}
-			return nil
+			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
 		Run: func(_ *cobra.Command, args []string) {
@@ -164,5 +181,8 @@ func init() {
 	addCapabilitiesFlag(checkCommand.Flags(), checkParams.capabilities)
 	addSchemaFlags(checkCommand.Flags(), checkParams.schema)
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
+	addRegoV1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
+		"check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
+	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
 	RootCommand.AddCommand(checkCommand)
 }

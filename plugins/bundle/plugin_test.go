@@ -27,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/internal/runtime"
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
@@ -107,6 +108,385 @@ func TestPluginOneShot(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestPluginOneShotV1Compatible(t *testing.T) {
+	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x",
+			module: `package foo
+import future.keywords
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, shadowed import (no error)",
+			module: `package foo
+import future.keywords
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0",
+			v1Compatible: true,
+			module: `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, shadowed import",
+			v1Compatible: true,
+			module: `package foo
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+
+			ctx := context.Background()
+			manager := getTestManager()
+			plugin := New(&Config{}, manager)
+			bundleName := "test-bundle"
+			plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+			plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+			ensurePluginState(t, plugin, plugins.StateNotReady)
+
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+				Data:     map[string]interface{}{},
+				Modules: []bundle.ModuleFile{
+					{
+						Path:   "/foo/bar",
+						Parsed: ast.MustParseModuleWithOpts(tc.module, popts),
+						Raw:    []byte(tc.module),
+					},
+				},
+				Etag: "foo",
+			}
+
+			b.Manifest.Init()
+
+			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Size: snapshotBundleSize})
+
+			if tc.expErrs != nil {
+				ensurePluginState(t, plugin, plugins.StateNotReady)
+
+				if status, ok := plugin.status[bundleName]; !ok {
+					t.Fatalf("Expected to find status for %s, found nil", bundleName)
+				} else if status.Type != bundle.SnapshotBundleType {
+					t.Fatalf("expected snapshot bundle but got %v", status.Type)
+				} else if errs := status.Errors; len(errs) != len(tc.expErrs) {
+					t.Fatalf("expected errors:\n\n%v\n\nbut got:\n\n%v", tc.expErrs, errs)
+				} else {
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, err := range errs {
+							if strings.Contains(err.Error(), expErr) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", expErr, errs)
+						}
+					}
+				}
+			} else {
+				ensurePluginState(t, plugin, plugins.StateOK)
+
+				if status, ok := plugin.status[bundleName]; !ok {
+					t.Fatalf("Expected to find status for %s, found nil", bundleName)
+				} else if status.Type != bundle.SnapshotBundleType {
+					t.Fatalf("expected snapshot bundle but got %v", status.Type)
+				} else if status.Size != snapshotBundleSize {
+					t.Fatalf("expected snapshot bundle size %d but got %d", snapshotBundleSize, status.Size)
+				}
+
+				txn := storage.NewTransactionOrDie(ctx, manager.Store)
+				defer manager.Store.Abort(ctx, txn)
+
+				ids, err := manager.Store.ListPolicies(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				} else if len(ids) != 1 {
+					t.Fatal("Expected 1 policy")
+				}
+
+				bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+				exp := []byte(tc.module)
+				if err != nil {
+					t.Fatal(err)
+				} else if !bytes.Equal(bs, exp) {
+					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+				}
+			}
+		})
+	}
+}
+
+func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager := getTestManager()
+
+	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.Info = info
+
+	plugin := New(&Config{}, manager)
+
+	bundleName := "test-bundle"
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	// authz rules with no error
+	authzModule := `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identity == "foo"
+		}`
+
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// authz rules with errors
+	authzModule = `package system.authz
+
+		default allow := false
+
+		allow {
+          input.identty == "foo"            # type error 1
+		}
+
+        allow {
+          helper1
+        }
+
+        helper1 {
+          helper2
+        }
+
+        helper2 {
+          input.method == 123               # type error 2
+		}
+
+        dont_type_check_me {
+          input.methd == "GET"               # type error 3
+		}`
+
+	b = bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 2 {
+		t.Fatalf("expected 2 errors but got %v", len(status.Errors))
+	}
+
+	// disable authorization to ensure bundle activates with bad authz policy
+	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin.manager.Info = info
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
+	}
+
+	// enable authorization but skip type checking of known input schemas
+	info, err = runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true, SkipKnownSchemaCheck: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plugin.manager.Info = info
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
+	}
+}
+
+func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager := getTestManager()
+
+	s := "/foo/authz/allow"
+	manager.Config.DefaultAuthorizationDecision = &s
+
+	info, err := runtime.Term(runtime.Params{Config: nil, IsAuthorizationEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.Info = info
+
+	plugin := New(&Config{}, manager)
+
+	bundleName := "test-bundle"
+
+	plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+
+	ensurePluginState(t, plugin, plugins.StateNotReady)
+
+	module := "package foo\n\ncorge=1"
+
+	authzModule := `package foo.authz
+
+		default allow := false
+
+		allow {
+          input.identty == "foo"            # type error 1
+		}
+
+        allow {
+          helper
+        }
+
+        helper {
+          input.method == 123               # type error 2
+		}
+
+        dont_type_check_me {
+          input.methd == "GET"               # type error 3
+		}`
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/authz.rego",
+				Path:   "/authz.rego",
+				Parsed: ast.MustParseModule(authzModule),
+				Raw:    []byte(authzModule),
+			},
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 2 {
+		t.Fatalf("expected 2 errors but got %v", len(status.Errors))
+	}
+
+	// no authz policy
+	b = bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     map[string]interface{}{},
+		Modules: []bundle.ModuleFile{
+			{
+				Path:   "/foo/bar",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New()})
+
+	if status, ok := plugin.status[bundleName]; !ok {
+		t.Fatalf("Expected to find status for %s, found nil", bundleName)
+	} else if len(status.Errors) != 0 {
+		t.Fatalf("expected 0 errors but got %v", len(status.Errors))
 	}
 }
 
@@ -590,7 +970,7 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateOK)
 
-	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName, nil)
+	result, err := plugin.loadBundleFromDisk(plugin.bundlePersistPath, bundleName, nil)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -628,6 +1008,191 @@ func TestPluginOneShotBundlePersistence(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestPluginOneShotBundlePersistenceV1Compatible(t *testing.T) {
+	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x",
+			module: `package foo
+import future.keywords
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, shadowed import (no error)",
+			module: `package foo
+import future.keywords
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0",
+			v1Compatible: true,
+			module: `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, shadowed import",
+			v1Compatible: true,
+			module: `package foo
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+
+			ctx := context.Background()
+			manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			dir := t.TempDir()
+
+			bundleName := "test-bundle"
+			bundleSource := Source{
+				Persist: true,
+			}
+
+			bundles := map[string]*Source{}
+			bundles[bundleName] = &bundleSource
+
+			plugin := New(&Config{Bundles: bundles}, manager)
+
+			plugin.status[bundleName] = &Status{Name: bundleName, Metrics: metrics.New()}
+			plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
+			plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+			ensurePluginState(t, plugin, plugins.StateNotReady)
+
+			// simulate a bundle download error with no bundle on disk
+			plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+			if plugin.status[bundleName].Message == "" {
+				t.Fatal("expected error but got none")
+			}
+
+			ensurePluginState(t, plugin, plugins.StateNotReady)
+
+			// download a bundle and persist to disk. Then verify the bundle persisted to disk
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				Modules: []bundle.ModuleFile{
+					{
+						URL:    "/foo/bar.rego",
+						Path:   "/foo/bar.rego",
+						Parsed: ast.MustParseModuleWithOpts(tc.module, popts),
+						Raw:    []byte(tc.module),
+					},
+				},
+				Etag: "foo",
+			}
+
+			b.Manifest.Init()
+			expBndl := b.Copy() // We're opting out of roundtripping in storage/inmem, so we copy ourselves.
+
+			var buf bytes.Buffer
+			if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			plugin.oneShot(ctx, bundleName, download.Update{Bundle: &b, Metrics: metrics.New(), Raw: &buf})
+
+			if tc.expErrs != nil {
+				ensurePluginState(t, plugin, plugins.StateNotReady)
+
+				if status, ok := plugin.status[bundleName]; !ok {
+					t.Fatalf("Expected to find status for %s, found nil", bundleName)
+				} else if status.Type != bundle.SnapshotBundleType {
+					t.Fatalf("expected snapshot bundle but got %v", status.Type)
+				} else if errs := status.Errors; len(errs) != len(tc.expErrs) {
+					t.Fatalf("expected errors:\n\n%v\n\nbut got:\n\n%v", tc.expErrs, errs)
+				} else {
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, err := range errs {
+							if strings.Contains(err.Error(), expErr) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", expErr, errs)
+						}
+					}
+				}
+			} else {
+				ensurePluginState(t, plugin, plugins.StateOK)
+
+				result, err := plugin.loadBundleFromDisk(plugin.bundlePersistPath, bundleName, nil)
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+
+				if !result.Equal(expBndl) {
+					t.Fatalf("expected the downloaded bundle to be equal to the one loaded from disk: result=%v, exp=%v", result, expBndl)
+				}
+
+				// simulate a bundle download error and verify that the bundle on disk is activated
+				plugin.oneShot(ctx, bundleName, download.Update{Error: fmt.Errorf("unknown error")})
+
+				ensurePluginState(t, plugin, plugins.StateOK)
+
+				txn := storage.NewTransactionOrDie(ctx, manager.Store)
+				defer manager.Store.Abort(ctx, txn)
+
+				ids, err := manager.Store.ListPolicies(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				} else if len(ids) != 1 {
+					t.Fatal("Expected 1 policy")
+				}
+
+				bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+				exp := []byte(tc.module)
+				if err != nil {
+					t.Fatal(err)
+				} else if !bytes.Equal(bs, exp) {
+					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+				}
+
+				data, err := manager.Store.Read(ctx, txn, storage.Path{})
+				expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "foo", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+				if err != nil {
+					t.Fatal(err)
+				} else if !reflect.DeepEqual(data, expData) {
+					t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+				}
+			}
+		})
 	}
 }
 
@@ -692,7 +1257,7 @@ func TestPluginOneShotSignedBundlePersistence(t *testing.T) {
 	ensurePluginState(t, plugin, plugins.StateOK)
 
 	// load signed bundle from disk
-	result, err := loadBundleFromDisk(plugin.bundlePersistPath, bundleName, bundles[bundleName])
+	result, err := plugin.loadBundleFromDisk(plugin.bundlePersistPath, bundleName, bundles[bundleName])
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -805,6 +1370,168 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 		t.Fatal(err)
 	} else if !reflect.DeepEqual(data, expData) {
 		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
+func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
+	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x",
+			module: `package foo
+import future.keywords
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, shadowed import (no error)",
+			module: `package foo
+import future.keywords
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0",
+			v1Compatible: true,
+			module: `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, shadowed import",
+			v1Compatible: true,
+			module: `package foo
+import data.foo
+import data.bar as foo
+corge contains 1 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+
+			ctx := context.Background()
+			manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+			if err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			dir := t.TempDir()
+
+			bundleName := "test-bundle"
+			bundleSource := Source{
+				Persist: true,
+			}
+
+			bundleNameOther := "test-bundle-other"
+			bundleSourceOther := Source{}
+
+			bundles := map[string]*Source{}
+			bundles[bundleName] = &bundleSource
+			bundles[bundleNameOther] = &bundleSourceOther
+
+			plugin := New(&Config{Bundles: bundles}, manager)
+			plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+			plugin.loadAndActivateBundlesFromDisk(ctx)
+
+			// persist a bundle to disk and then load it
+			b := bundle.Bundle{
+				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				Modules: []bundle.ModuleFile{
+					{
+						URL:    "/foo/bar.rego",
+						Path:   "/foo/bar.rego",
+						Parsed: ast.MustParseModuleWithOpts(tc.module, popts),
+						Raw:    []byte(tc.module),
+					},
+				},
+			}
+
+			b.Manifest.Init()
+
+			var buf bytes.Buffer
+			if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			err = plugin.saveBundleToDisk(bundleName, &buf)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			plugin.loadAndActivateBundlesFromDisk(ctx)
+
+			if tc.expErrs != nil {
+				if status, ok := plugin.status[bundleName]; !ok {
+					t.Fatalf("Expected to find status for %s, found nil", bundleName)
+				} else if status.Type != bundle.SnapshotBundleType {
+					t.Fatalf("expected snapshot bundle but got %v", status.Type)
+				} else if errs := status.Errors; len(errs) != len(tc.expErrs) {
+					t.Fatalf("expected errors:\n\n%v\n\nbut got:\n\n%v", tc.expErrs, errs)
+				} else {
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, err := range errs {
+							if strings.Contains(err.Error(), expErr) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", expErr, errs)
+						}
+					}
+				}
+			} else {
+				txn := storage.NewTransactionOrDie(ctx, manager.Store)
+				defer manager.Store.Abort(ctx, txn)
+
+				ids, err := manager.Store.ListPolicies(ctx, txn)
+				if err != nil {
+					t.Fatal(err)
+				} else if len(ids) != 1 {
+					t.Fatal("Expected 1 policy")
+				}
+
+				bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+				exp := []byte(tc.module)
+				if err != nil {
+					t.Fatal(err)
+				} else if !bytes.Equal(bs, exp) {
+					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+				}
+
+				data, err := manager.Store.Read(ctx, txn, storage.Path{})
+				expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+				if err != nil {
+					t.Fatal(err)
+				} else if !reflect.DeepEqual(data, expData) {
+					t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+				}
+			}
+		})
 	}
 }
 
@@ -2257,15 +2984,17 @@ func TestUpgradeLegacyBundleToMuiltiBundleSameBundle(t *testing.T) {
 	}
 }
 
-func TestUpgradeLegacyBundleToMuiltiBundleNewBundles(t *testing.T) {
+func TestUpgradeLegacyBundleToMultiBundleNewBundles(t *testing.T) {
 	ctx := context.Background()
 	manager := getTestManager()
+
 	plugin := Plugin{
 		manager:     manager,
 		status:      map[string]*Status{},
 		etags:       map[string]string{},
 		downloaders: map[string]Loader{},
 	}
+
 	bundleName := "test-bundle"
 	plugin.status[bundleName] = &Status{Name: bundleName}
 	plugin.downloaders[bundleName] = download.New(download.Config{}, plugin.manager.Client(""), bundleName)
@@ -2485,7 +3214,7 @@ func TestSaveBundleToDiskOverWrite(t *testing.T) {
 		t.Fatalf("unexpected error %v", err)
 	}
 
-	actual, err := loadBundleFromDisk(plugin.bundlePersistPath, "foo", nil)
+	actual, err := plugin.loadBundleFromDisk(plugin.bundlePersistPath, "foo", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2520,8 +3249,11 @@ func TestSaveCurrentBundleToDisk(t *testing.T) {
 
 func TestLoadBundleFromDisk(t *testing.T) {
 
+	manager := getTestManager()
+	plugin := New(&Config{}, manager)
+
 	// no bundle on disk
-	_, err := loadBundleFromDisk("foo", "bar", nil)
+	_, err := plugin.loadBundleFromDisk("foo", "bar", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2539,7 +3271,67 @@ func TestLoadBundleFromDisk(t *testing.T) {
 
 	b := writeTestBundleToDisk(t, bundleDir, false)
 
-	result, err := loadBundleFromDisk(dir, bundleName, nil)
+	result, err := plugin.loadBundleFromDisk(dir, bundleName, nil)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	if !result.Equal(b) {
+		t.Fatal("expected the test bundle to be equal to the one loaded from disk")
+	}
+}
+
+func TestLoadBundleFromDiskV1Compatible(t *testing.T) {
+	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}
+
+	manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+	plugin := New(&Config{}, manager)
+
+	// create a test bundle and load it from disk
+	dir := t.TempDir()
+
+	bundleName := "foo"
+	bundleDir := filepath.Join(dir, bundleName)
+
+	err = os.MkdirAll(bundleDir, os.ModePerm)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	// v1.0 policy
+	policy := `package test
+p contains 1 if {
+	input.x == 2
+}`
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "test-revision"},
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    `policy.rego`,
+				Path:   `/policy.rego`,
+				Raw:    []byte(policy),
+				Parsed: ast.MustParseModuleWithOpts(policy, popts),
+			},
+		},
+		Data: map[string]interface{}{},
+	}
+
+	b.Manifest.Init()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.tar.gz"), buf.Bytes(), 0644); err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	result, err := plugin.loadBundleFromDisk(dir, bundleName, nil)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -2550,9 +3342,11 @@ func TestLoadBundleFromDisk(t *testing.T) {
 }
 
 func TestLoadSignedBundleFromDisk(t *testing.T) {
+	manager := getTestManager()
+	plugin := New(&Config{}, manager)
 
 	// no bundle on disk
-	_, err := loadBundleFromDisk("foo", "bar", nil)
+	_, err := plugin.loadBundleFromDisk("foo", "bar", nil)
 	if err != nil {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -2574,7 +3368,7 @@ func TestLoadSignedBundleFromDisk(t *testing.T) {
 		Signing: bundle.NewVerificationConfig(map[string]*keys.Config{"foo": {Key: "secret", Algorithm: "HS256"}}, "foo", "", nil),
 	}
 
-	result, err := loadBundleFromDisk(dir, bundleName, &src)
+	result, err := plugin.loadBundleFromDisk(dir, bundleName, &src)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -2674,6 +3468,193 @@ func TestPluginUsingFileLoader(t *testing.T) {
 
 }
 
+func TestPluginUsingFileLoaderV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			module: `package test
+p[7] {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, shadowed import",
+			module: `package test
+import future.keywords
+import data.foo
+import data.bar as foo
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, keywords not imported",
+			module: `package test
+p contains 7 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			module: `package test
+import future.keywords
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, rego.ve imported",
+			module: `package test
+import rego.v1
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		// parse-time error
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			module: `package test
+p[7] {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		// compile-time error
+		{
+			note:         "v1.0, shadowed import",
+			v1Compatible: true,
+			module: `package test
+import data.foo
+import data.bar as foo
+p contains 7 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			module: `package test
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			module: `package test
+import future.keywords
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, rego.ve imported",
+			v1Compatible: true,
+			module: `package test
+import rego.v1
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+
+			test.WithTempFS(map[string]string{}, func(dir string) {
+
+				b := bundle.Bundle{
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							URL: "test.rego",
+							Raw: []byte(tc.module),
+						},
+					},
+				}
+
+				name := path.Join(dir, "bundle.tar.gz")
+
+				f, err := os.Create(name)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if err := bundle.NewWriter(f).Write(b); err != nil {
+					t.Fatal(err)
+				}
+
+				f.Close()
+
+				manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+				url := "file://" + name
+
+				p := New(&Config{Bundles: map[string]*Source{
+					"test": {
+						SizeLimitBytes: 1e5,
+						Resource:       url,
+					},
+				}}, manager)
+
+				ch := make(chan Status)
+
+				p.Register("test", func(s Status) {
+					ch <- s
+				})
+
+				if err := p.Start(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+
+				s := <-ch
+
+				if tc.expErrs != nil {
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, e := range s.Errors {
+							if strings.Contains(e.Error(), expErr) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+						}
+					}
+				} else {
+					if s.LastSuccessfulActivation.IsZero() {
+						t.Fatal("expected successful activation")
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestPluginUsingDirectoryLoader(t *testing.T) {
 	test.WithTempFS(map[string]string{
 		"test.rego": `package test
@@ -2707,6 +3688,172 @@ func TestPluginUsingDirectoryLoader(t *testing.T) {
 			t.Fatal("expected successful activation")
 		}
 	})
+}
+
+func TestPluginUsingDirectoryLoaderV1Compatible(t *testing.T) {
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		module       string
+		expErrs      []string
+	}{
+		{
+			note: "v0.x, keywords not used",
+			module: `package test
+p[7] {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, shadowed import",
+			module: `package test
+import future.keywords
+import data.foo
+import data.bar as foo
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, keywords not imported",
+			module: `package test
+p contains 7 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x, keywords imported",
+			module: `package test
+import future.keywords
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "v0.x, rego.ve imported",
+			module: `package test
+import rego.v1
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		// parse-time error
+		{
+			note:         "v1.0, keywords not used",
+			v1Compatible: true,
+			module: `package test
+p[7] {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		// compile-time error
+		{
+			note:         "v1.0, shadowed import",
+			v1Compatible: true,
+			module: `package test
+import data.foo
+import data.bar as foo
+p contains 7 if {
+	input.x == 2
+}`,
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note:         "v1.0, keywords not imported",
+			v1Compatible: true,
+			module: `package test
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, keywords imported",
+			v1Compatible: true,
+			module: `package test
+import future.keywords
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+		{
+			note:         "v1.0, rego.ve imported",
+			v1Compatible: true,
+			module: `package test
+import rego.v1
+p contains 7 if {
+	input.x == 2
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			regoVersion := ast.RegoV0
+			if tc.v1Compatible {
+				regoVersion = ast.RegoV1
+			}
+			popts := ast.ParserOptions{RegoVersion: regoVersion}
+
+			test.WithTempFS(map[string]string{
+				"test.rego": tc.module,
+			}, func(dir string) {
+
+				manager, err := plugins.New(nil, "test-instance-id", inmem.New(), plugins.WithParserOptions(popts))
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+				url := "file://" + dir
+
+				p := New(&Config{Bundles: map[string]*Source{
+					"test": {
+						SizeLimitBytes: 1e5,
+						Resource:       url,
+					},
+				}}, manager)
+
+				ch := make(chan Status)
+
+				p.Register("test", func(s Status) {
+					ch <- s
+				})
+
+				if err := p.Start(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+
+				s := <-ch
+
+				if tc.expErrs != nil {
+					for _, expErr := range tc.expErrs {
+						found := false
+						for _, e := range s.Errors {
+							if strings.Contains(e.Error(), expErr) {
+								found = true
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("expected error:\n\n%s\n\nbut got:\n\n%v", expErr, s.Errors)
+						}
+					}
+				} else {
+					if s.LastSuccessfulActivation.IsZero() {
+						t.Fatal("expected successful activation")
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
@@ -2884,6 +4031,203 @@ func TestPluginReadBundleEtagFromDiskStore(t *testing.T) {
 			t.Fatalf("Expected etag foo but got %v", val)
 		}
 	})
+}
+
+func TestPluginStateReconciliationOnReconfigure(t *testing.T) {
+	// setup fake http server with mock bundle
+	mockBundles := map[string]bundle.Bundle{
+		"b1": {
+			Data:    map[string]interface{}{"b1": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b1"},
+			},
+		},
+		"b2": {
+			Data:    map[string]interface{}{"b2": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b2"},
+			},
+		},
+		"b3_frequently_changing": {
+			Data:    map[string]interface{}{"b3": "x1"},
+			Modules: []bundle.ModuleFile{},
+			Manifest: bundle.Manifest{
+				Roots: &[]string{"b3"},
+			},
+		},
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		etag := r.Header.Get("If-None-Match")
+		if etag == name && name != "b3_frequently_changing" {
+			w.WriteHeader(304)
+			return
+		}
+
+		if name != "b3_frequently_changing" {
+			w.Header().Add("Etag", name)
+		}
+		w.WriteHeader(200)
+
+		err := bundle.NewWriter(w).Write(mockBundles[name])
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	// setup plugin pointing at fake server
+	manager := getTestManagerWithOpts([]byte(fmt.Sprintf(`{
+		"services": {
+				"default": {
+					"url": %q
+				}
+			}
+		}`, s.URL)))
+
+	// setup manual trigger mode to simulate the downloader
+	var mode plugins.TriggerMode = "manual"
+	var delay int64 = 10
+	polling := download.PollingConfig{MinDelaySeconds: &delay, MaxDelaySeconds: &delay}
+	serviceName := "default"
+	plugin := New(&Config{
+		Bundles: map[string]*Source{
+			"b1": {
+				Service:        serviceName,
+				Config:         download.Config{Trigger: &mode},
+				Resource:       "/b1",
+				SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes),
+			},
+		},
+	}, manager)
+
+	statusCh := make(chan map[string]*Status)
+
+	// register for bundle updates to observe changes
+	plugin.RegisterBulkListener("test-case", func(st map[string]*Status) {
+		statusCh <- st
+	})
+
+	ctx := context.Background()
+	err := plugin.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// manually trigger bundle download
+	go func() { _ = plugin.Loaders()["b1"].Trigger(ctx) }()
+	<-statusCh
+
+	// validate plugin started as expected
+	ensurePluginState(t, plugin, plugins.StateOK)
+
+	// change the plugin state with multiple stages
+	stages := []struct {
+		name             string
+		cfg              *Config
+		noChangeDetected bool
+	}{
+		{
+			name: "Add a bundle", // b1 is NOT Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "change download config", // both bundles are Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "pass the same config", // should be no change detected
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+			noChangeDetected: true,
+		},
+		{
+			name: "revert download config for one bundle", // both bundles are Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b2": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "remove a bundle", // b1 is Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+			noChangeDetected: true,
+		},
+		{
+			name: "change download config again", // b1 is Not Modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1": {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "add frequently changing bundle",
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1":                     {Service: serviceName, Config: download.Config{Trigger: &mode, Polling: polling}, Resource: "/b1", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b3_frequently_changing": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b3_frequently_changing", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+		{
+			name: "revert download config for Not Modified bundle", // b1 is Not Modified while b3_frequently_changing is modified
+			cfg: &Config{
+				Bundles: map[string]*Source{
+					"b1":                     {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b2", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+					"b3_frequently_changing": {Service: serviceName, Config: download.Config{Trigger: &mode}, Resource: "/b3_frequently_changing", SizeLimitBytes: int64(bundle.DefaultSizeLimitBytes)},
+				},
+			},
+		},
+	}
+
+	for _, stage := range stages {
+		t.Run(stage.name, func(t *testing.T) {
+			plugin.Reconfigure(ctx, stage.cfg)
+
+			if stage.noChangeDetected {
+				ensurePluginState(t, plugin, plugins.StateOK)
+				return
+			}
+
+			// if there is a change in config
+			// Reconfigure sets the plugin state as StateNotReady
+			ensurePluginState(t, plugin, plugins.StateNotReady)
+
+			for name := range stage.cfg.Bundles {
+				go func(name string) {
+					_ = plugin.Loaders()[name].Trigger(ctx)
+				}(name)
+				<-statusCh
+			}
+
+			// after all downloaders are processed the state should
+			// reconcile to StateOK, if there are no errors
+			ensurePluginState(t, plugin, plugins.StateOK)
+		})
+	}
 }
 
 func TestPluginManualTrigger(t *testing.T) {

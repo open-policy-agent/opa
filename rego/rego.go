@@ -594,11 +594,13 @@ type Rego struct {
 	pluginMgr              *plugins.Manager
 	plugins                []TargetPlugin
 	targetPrepState        TargetPluginEval
+	regoVersion            ast.RegoVersion
 }
 
 // Function represents a built-in function that is callable in Rego.
 type Function struct {
 	Name             string
+	Description      string
 	Decl             *types.Function
 	Memoize          bool
 	Nondeterministic bool
@@ -629,6 +631,7 @@ type (
 func RegisterBuiltin1(decl *Function, impl Builtin1) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -642,6 +645,7 @@ func RegisterBuiltin1(decl *Function, impl Builtin1) {
 func RegisterBuiltin2(decl *Function, impl Builtin2) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -655,6 +659,7 @@ func RegisterBuiltin2(decl *Function, impl Builtin2) {
 func RegisterBuiltin3(decl *Function, impl Builtin3) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -668,6 +673,7 @@ func RegisterBuiltin3(decl *Function, impl Builtin3) {
 func RegisterBuiltin4(decl *Function, impl Builtin4) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -681,6 +687,7 @@ func RegisterBuiltin4(decl *Function, impl Builtin4) {
 func RegisterBuiltinDyn(decl *Function, impl BuiltinDyn) {
 	ast.RegisterBuiltin(&ast.Builtin{
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Decl:             decl.Decl,
 		Nondeterministic: decl.Nondeterministic,
 	})
@@ -1187,6 +1194,12 @@ func Strict(yes bool) func(r *Rego) {
 	}
 }
 
+func SetRegoVersion(version ast.RegoVersion) func(r *Rego) {
+	return func(r *Rego) {
+		r.regoVersion = version
+	}
+}
+
 // New returns a new Rego object.
 func New(options ...func(r *Rego)) *Rego {
 
@@ -1213,6 +1226,12 @@ func New(options ...func(r *Rego)) *Rego {
 			WithEnablePrintStatements(r.enablePrintStatements).
 			WithStrict(r.strict).
 			WithUseTypeCheckAnnotations(true)
+
+		// topdown could be target "" or "rego", but both could be overridden by
+		// a target plugin (checked below)
+		if r.target == targetWasm {
+			r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+		}
 	}
 
 	if r.store == nil {
@@ -1252,6 +1271,11 @@ func New(options ...func(r *Rego)) *Rego {
 			}
 		}
 	}
+
+	if t := r.targetPlugin(r.target); t != nil {
+		r.compiler = r.compiler.WithEvalMode(ast.EvalModeIR)
+	}
+
 	return r
 }
 
@@ -1502,6 +1526,7 @@ type PrepareOption func(*PrepareConfig)
 type PrepareConfig struct {
 	doPartialEval   bool
 	disableInlining *[]string
+	builtinFuncs    map[string]*topdown.Builtin
 }
 
 // WithPartialEval configures an option for PrepareForEval
@@ -1518,6 +1543,25 @@ func WithNoInline(paths []string) PrepareOption {
 	return func(p *PrepareConfig) {
 		p.disableInlining = &paths
 	}
+}
+
+// WithBuiltinFuncs carries the rego.Function{1,2,3} per-query function definitions
+// to the target plugins.
+func WithBuiltinFuncs(bis map[string]*topdown.Builtin) PrepareOption {
+	return func(p *PrepareConfig) {
+		if p.builtinFuncs == nil {
+			p.builtinFuncs = make(map[string]*topdown.Builtin, len(bis))
+		}
+		for k, v := range bis {
+			p.builtinFuncs[k] = v
+		}
+	}
+}
+
+// BuiltinFuncs allows retrieving the builtin funcs set via PrepareOption
+// WithBuiltinFuncs.
+func (p *PrepareConfig) BuiltinFuncs() map[string]*topdown.Builtin {
+	return p.builtinFuncs
 }
 
 // PrepareForEval will parse inputs, modules, and query arguments in preparation
@@ -1622,6 +1666,8 @@ func (r *Rego) PrepareForEval(ctx context.Context, opts ...PrepareOption) (Prepa
 			if err != nil {
 				return PreparedEvalQuery{}, err
 			}
+			// always add the builtins provided via rego.FunctionN options
+			opts = append(opts, WithBuiltinFuncs(r.builtinFuncs))
 			r.targetPrepState, err = tgt.PrepareForEval(ctx, pol, opts...)
 			if err != nil {
 				return PreparedEvalQuery{}, err
@@ -1764,7 +1810,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 			return err
 		}
 
-		parsed, err := ast.ParseModule(id, string(bs))
+		parsed, err := ast.ParseModuleWithOpts(id, string(bs), ast.ParserOptions{RegoVersion: r.regoVersion})
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -1774,7 +1820,7 @@ func (r *Rego) parseModules(ctx context.Context, txn storage.Transaction, m metr
 
 	// Parse any passed in as arguments to the Rego object
 	for _, module := range r.modules {
-		p, err := module.Parse()
+		p, err := module.ParseWithOpts(ast.ParserOptions{RegoVersion: r.regoVersion})
 		if err != nil {
 			switch errorWithType := err.(type) {
 			case ast.Errors:
@@ -1806,6 +1852,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	result, err := loader.NewFileLoader().
 		WithMetrics(m).
 		WithProcessAnnotation(true).
+		WithRegoVersion(r.regoVersion).
 		Filtered(r.loadPaths.paths, r.loadPaths.filter)
 	if err != nil {
 		return err
@@ -1836,6 +1883,7 @@ func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metri
 			WithMetrics(m).
 			WithProcessAnnotation(true).
 			WithSkipBundleVerification(r.skipBundleVerification).
+			WithRegoVersion(r.regoVersion).
 			AsBundle(path)
 		if err != nil {
 			return fmt.Errorf("loading error: %s", err)
@@ -1901,13 +1949,14 @@ func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m me
 		// Use this as the single-point of compiling everything only a
 		// single time.
 		opts := &bundle.ActivateOpts{
-			Ctx:          ctx,
-			Store:        r.store,
-			Txn:          txn,
-			Compiler:     r.compilerForTxn(ctx, r.store, txn),
-			Metrics:      m,
-			Bundles:      r.bundles,
-			ExtraModules: r.parsedModules,
+			Ctx:           ctx,
+			Store:         r.store,
+			Txn:           txn,
+			Compiler:      r.compilerForTxn(ctx, r.store, txn),
+			Metrics:       m,
+			Bundles:       r.bundles,
+			ExtraModules:  r.parsedModules,
+			ParserOptions: ast.ParserOptions{RegoVersion: r.regoVersion},
 		}
 		err := bundle.Activate(opts)
 		if err != nil {
@@ -2573,6 +2622,10 @@ type rawModule struct {
 
 func (m rawModule) Parse() (*ast.Module, error) {
 	return ast.ParseModule(m.filename, m.module)
+}
+
+func (m rawModule) ParseWithOpts(opts ast.ParserOptions) (*ast.Module, error) {
+	return ast.ParseModuleWithOpts(m.filename, m.module, opts)
 }
 
 type extraStage struct {

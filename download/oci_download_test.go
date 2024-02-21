@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 	"net/http"
 	"strings"
 	"testing"
@@ -16,10 +18,128 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
-func TestOCIStartStop(t *testing.T) {
+// when changed the layer hash & size should be updated in signed.manifest
+//go:generate go run github.com/open-policy-agent/opa build -b --signing-alg HS256 --signing-key secret testdata/signed_bundle_data --output testdata/signed.tar.gz
+//go:generate go run github.com/open-policy-agent/opa build --v1-compatible -b --signing-alg HS256 --signing-key secret testdata/rego_v1_bundle_data --output testdata/rego_v1.tar.gz
+
+func TestOCIDownloaderWithBundleVerificationConfig(t *testing.T) {
+	vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"default": {Key: "secret", Algorithm: "HS256"}}, "", "", nil)
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:signed", "/tmp/opa/").WithCallback(func(_ context.Context, u Update) {
+		if u.Error != nil {
+			t.Fatalf("expected no error but got: %v", u.Error)
+		}
+		updates <- &u
+	}).WithBundleVerificationConfig(vc)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+		t.Fatal("expected bundle with at least one module but got:", u1)
+	}
+
+	if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+		t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+	}
+
+	d.Stop(ctx)
+
+}
+
+func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		expErr      string
+	}{
+		{
+			note:   "non-1.0 compatible OCI downloader",
+			expErr: "rego_parse_error",
+		},
+		{
+			note:        "1.0 compatible OCI downloader",
+			regoVersion: ast.RegoV1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{"default": {Key: "secret", Algorithm: "HS256"}}, "", "", nil)
+			ctx := context.Background()
+			fixture := newTestFixture(t)
+			fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+
+			// We might get multiple updates, a buffered channel will make sure we save the first one.
+			updates := make(chan *Update, 1)
+
+			config := Config{}
+			if err := config.ValidateAndInjectDefaults(); err != nil {
+				t.Fatal(err)
+			}
+
+			d := NewOCI(config, fixture.client, "ghcr.io/org/repo:rego_v1", "/tmp/opa/").
+				WithBundleParserOpts(ast.ParserOptions{RegoVersion: tc.regoVersion}).
+				WithCallback(func(_ context.Context, u Update) {
+					// We might get multiple updates before the test ends, and we don't want to block indefinitely.
+					select {
+					case updates <- &u:
+					}
+				}).WithBundleVerificationConfig(vc)
+
+			d.Start(ctx)
+
+			// Give time for some download events to occur
+			time.Sleep(1 * time.Second)
+
+			// We only care about the first update
+			u1 := <-updates
+
+			if tc.expErr != "" {
+				if u1.Error == nil {
+					t.Fatalf("expected error but got: %v", u1)
+				} else {
+					if !strings.Contains(u1.Error.Error(), tc.expErr) {
+						t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", tc.expErr, u1.Error)
+					}
+				}
+			} else {
+				if u1.Error != nil {
+					t.Fatalf("expected no error but got: %v", u1.Error)
+				}
+
+				if u1.Bundle == nil || len(u1.Bundle.Modules) == 0 {
+					t.Fatal("expected bundle with at least one module but got:", u1)
+				}
+
+				if !strings.HasSuffix(u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path) {
+					t.Fatalf("expected URL to have path as suffix but got %v and %v", u1.Bundle.Modules[0].URL, u1.Bundle.Modules[0].Path)
+				}
+			}
+
+			d.Stop(ctx)
+		})
+	}
+}
+
+func TestOCIStartStop(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expEtag = "sha256:cc09b0f5ac97b11637c96ff1b0fbbc287c5ba0169813edaa71fe58424e95f0b7"
 
 	updates := make(chan *Update)
 

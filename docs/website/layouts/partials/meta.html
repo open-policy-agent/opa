@@ -1,3 +1,7 @@
+{{ $version := "latest" }}
+{{ if strings.HasPrefix .RelPermalink "/docs/" }}
+  {{ $version = index (split .File.Path "/") 1 -}}
+{{ end -}}
 {{ $isHome      := .IsHome }}
 {{ $isDoc       := eq .Section "docs" }}
 {{ $title       := cond $isHome site.Title .Title }}
@@ -5,11 +9,10 @@
 {{ $pageType    := cond $isHome "website" "article" }}
 {{ $imageUrl    := "/img/logos/opa-horizontal-color.png" | absURL }}
 {{ $twitter     := site.Params.social.twitter }}
-{{ $version     := index (split .File.Path "/") 1 }}
-{{ $page       := trim .RelPermalink "/" }}
-{{ $releases   := site.Data.releases }}
-{{ $latest     := index $releases 1 }}
-{{ $isLatest   := or (eq $version $latest) (eq $version "latest") }}
+{{ $page        := trim .RelPermalink "/" }}
+{{ $releases    := site.Data.releases }}
+{{ $latest      := index $releases 1 }}
+{{ $isLatest    := or (eq $version $latest) (eq $version "latest") }}
 
 
 <!-- Basic metadata -->

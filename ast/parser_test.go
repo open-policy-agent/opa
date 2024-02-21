@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
+	astJSON "github.com/open-policy-agent/opa/ast/json"
 )
 
 const (
@@ -751,13 +752,13 @@ func TestSomeDeclExpr(t *testing.T) {
 	p[x] {
 		some x in {"foo": "bar"}
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseErrorContains(t, "some x, y in ... usage is hinted properly", `
 	p[y] = x {
 		some x, y in {"foo": "bar"}
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.in` for `some x in xs` expressions)")
 
 	assertParseRule(t, "whitespace terminated", `
 
@@ -847,13 +848,13 @@ func TestEvery(t *testing.T) {
 	p {
 		every x, y in {"foo": "bar"} { is_string(x); is_string(y) }
 	}`,
-		"unexpected ident token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
+		"unexpected identifier token: expected \\n or ; or } (hint: `import future.keywords.every` for `every x in xs { ... }` expressions)")
 
 	assertParseErrorContains(t, "not every 'every' gets a hint", `
 	p {
 		every x
 	}`,
-		"unexpected ident token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
+		"unexpected identifier token: expected \\n or ; or }\n\tevery x\n", // this asserts that the tail of the error message doesn't contain a hint
 	)
 
 	assertParseErrorContains(t, "invalid domain (internal.member_2)", "every internal.member_2()", "illegal domain", opts)
@@ -1212,7 +1213,7 @@ func TestImport(t *testing.T) {
 	assertParseImport(t, "white space", "import input.foo.bar[\"white space\"]", &Import{Path: whitespace})
 	assertParseErrorContains(t, "non-ground ref", "import data.foo[x]", "rego_parse_error: unexpected var token: expecting string")
 	assertParseErrorContains(t, "non-string", "import input.foo[0]", "rego_parse_error: unexpected number token: expecting string")
-	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input}, got: foo")
+	assertParseErrorContains(t, "unknown root", "import foo.bar", "rego_parse_error: unexpected import path, must begin with one of: {data, future, input, rego}, got: foo")
 	assertParseErrorContains(t, "bad variable term", "import input as A(", "rego_parse_error: unexpected eof token: expected var")
 
 	_, _, err := ParseStatements("", "package foo\nimport bar.data\ndefault foo=1")
@@ -1257,10 +1258,24 @@ func TestFutureImports(t *testing.T) {
 	}
 	assertParseModule(t, "multiple imports, all kw in options", mod, &parsed, ParserOptions{AllFutureKeywords: true})
 	assertParseModule(t, "multiple imports, single in options", mod, &parsed, ParserOptions{FutureKeywords: []string{"in"}})
+
+	mod = `
+		package p
+		import rego.v1
+		import future.keywords.in
+	`
+	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords.in imported", mod, "rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive")
+
+	mod = `
+		package p
+        import future.keywords
+		import rego.v1
+	`
+	assertParseModuleErrorMatch(t, "rego.v1 and future.keywords imported", mod, "rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive")
 }
 
-func TestFutureImportsExtraction(t *testing.T) {
-	// These tests assert that "import future..." statements in policies cause
+func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
+	// These tests assert that "import future..." and "import rego.v1" statements in policies cause
 	// the proper keywords to be added to the parser's list of known keywords.
 	tests := []struct {
 		note, imp string
@@ -1274,14 +1289,34 @@ func TestFutureImportsExtraction(t *testing.T) {
 		{
 			note: "all keywords imported",
 			imp:  "import future.keywords",
-			exp:  map[string]tokens.Token{"in": tokens.In},
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
 		},
 		{
 			note: "all keywords + single keyword imported",
 			imp: `
 				import future.keywords
 				import future.keywords.in`,
-			exp: map[string]tokens.Token{"in": tokens.In},
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
+		},
+		{
+			note: "rego.v1 imported",
+			imp:  "import rego.v1",
+			exp: map[string]tokens.Token{
+				"in":       tokens.In,
+				"every":    tokens.Every,
+				"contains": tokens.Contains,
+				"if":       tokens.If,
+			},
 		},
 	}
 	for _, tc := range tests {
@@ -1295,6 +1330,588 @@ func TestFutureImportsExtraction(t *testing.T) {
 				act := parser.s.s.Keyword(kw)
 				if act != exp {
 					t.Errorf("expected keyword %q to yield token %v, got %v", kw, exp, act)
+				}
+			}
+		})
+	}
+}
+
+func TestRegoV1Import(t *testing.T) {
+	assertParseErrorContains(t, "rego", "import rego", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.v1 + alias", "import rego.v1 as xyz", "`rego` imports cannot be aliased")
+
+	assertParseImport(t, "import rego.v1",
+		"import rego.v1", &Import{Path: RefTerm(VarTerm("rego"), StringTerm("v1"))},
+		ParserOptions{})
+
+	tests := []struct {
+		note           string
+		module         string
+		expectedErrors []string
+	}{
+		{
+			note: "only rego.v1 imported",
+			module: `package test
+import rego.v1
+p contains 1 if 1 == 1`,
+		},
+		{
+			note: "rego.v1 and future.keywords imported",
+			module: `package test
+import rego.v1
+import future.keywords
+p contains 1 if {
+	input.x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: the `rego.v1` import implies `future.keywords`, these are therefore mutually exclusive"},
+		},
+		{
+			note: "`if` keyword used on rule",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+}`,
+		},
+		{
+			note: "`if` keyword not used on rule",
+			module: `package test
+import rego.v1
+p {
+	input.x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "constant definition",
+			module: `package test
+import rego.v1
+p := 1`,
+		},
+		{
+			note: "`if` keyword used before else body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else if {
+	input.x == 2
+}`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment)",
+			module: `package test
+import rego.v1
+p := "foo" if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "no else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword used before else body (value assignment, but not on primary head) (regression test for #6364)",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else := "bar" if {
+	input.x == 2
+} else := "baz" if input.x == 3
+else := "qux"`,
+		},
+		{
+			note: "`if` keyword not used before else body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} else {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "`if` keyword not used before else body (value assignment)",
+			module: `package test
+import rego.v1
+p := "foo" if {
+	input.x == 1
+} else := "bar" {
+	input.x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (const key)",
+			module: `package test
+import rego.v1
+p contains "q"`,
+		},
+		{
+			note: "`contains` keyword used on partial set rule (ref-head, const key)",
+			module: `package test
+import rego.v1
+p.q contains "r"`,
+		},
+		{
+			note: "`contains` keyword not used on partial set rule (const key)",
+			module: `package test
+import rego.v1
+p.q`,
+			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
+		},
+		{
+			note: "object definition (naked ref-head with implicit `true` value)",
+			module: `package test
+import rego.v1
+p.q.r`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (var key, no body)",
+			module: `package test
+import rego.v1
+p contains input.x`,
+		},
+		{
+			note: "`contains` keyword not used on partial set rule (var key, no body)",
+			module: `package test
+import rego.v1
+p[input.x]`,
+			expectedErrors: []string{"rego_parse_error: `contains` keyword is required for partial set rules"},
+		},
+		{
+			note: "`if` keyword not used on partial object rule (ref-head, var key, implicit `true` value, no body)",
+			module: `package test
+import rego.v1
+p.q[input.x]`,
+			expectedErrors: []string{"rego_parse_error: rule must have value assignment and/or body declaration"},
+		},
+		{
+			note: "`contains` keyword used on partial set rule (var key)",
+			module: `package test
+import rego.v1
+p contains x if { x = input.x}`,
+		},
+		{
+			note: "`if` keyword used on partial map rule (would be multi-value without `if`)",
+			module: `package test
+import rego.v1
+p[x] if { x = input.x}`,
+		},
+		{
+			note: "`contains` and `if` keyword not used on partial rule",
+			module: `package test
+import rego.v1
+p[x] { x = input.x}`,
+			// The developer likely intended a partial set.
+			expectedErrors: []string{
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+				"rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note: "`if` keyword not used on partial object rule (ref-head)",
+			module: `package test
+import rego.v1
+p.q[x] { x = input.x}`,
+			expectedErrors: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+			},
+		},
+		{
+			note: "`if` keyword not used on default rule",
+			module: `package test
+import rego.v1
+default allow := false`,
+		},
+		{
+			note: "function, value assignment, no body",
+			module: `package test
+import rego.v1
+f(x) := x`,
+		},
+		{
+			note: "function, value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, no value assignment, body, with if",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+}`,
+		},
+		{
+			note: "function, no value assignment, body, no if",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, else without body, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else without body, value assignment only on else (regression test for #6364)",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42`,
+		},
+		{
+			note: "function, else with body and if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+}`,
+		},
+		{
+			note: "function, else with body and no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, else with body and no if, no value assignment",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, else with body and no if, value assignment on else",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 if {
+	x == 2
+} else {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on last else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else if {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on primary head",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on first else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else := 1 {
+	x == 2
+} else if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on first else, value assignment on last else",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} else {
+	x == 2
+} else := 42 if {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if on any else, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x if {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function, multiple else with body, no if, value assignment",
+			module: `package test
+import rego.v1
+f(x) := x {
+	x == 1
+} else := 1 {
+	x == 2
+} else := 42 {
+	x == 2
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "rule with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+p {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before rule body"},
+		},
+		{
+			note: "rule with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+		},
+		{
+			note: "rule with chained bodies, `if` on second body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} if {
+	input.x == 2
+} {
+	input.x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` on third/last body",
+			module: `package test
+import rego.v1
+p if {
+	input.x == 1
+} {
+	input.x == 2
+} if {
+	input.x == 3
+}`,
+			expectedErrors: []string{`7:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+		{
+			note: "rule with chained bodies, `if` and `contains` on first body",
+			module: `package test
+import rego.v1
+p contains x if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
+		{
+			note: "function with chained bodies, no `if`",
+			module: `package test
+import rego.v1
+f(x) {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{"rego_parse_error: `if` keyword is required before function body"},
+		},
+		{
+			note: "function with chained bodies, `if` on first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} {
+	x == 2
+} {
+	x == 3
+}`,
+		},
+		{
+			note: "function with chained bodies, `if` on other than first body",
+			module: `package test
+import rego.v1
+f(x) if {
+	x == 1
+} if {
+	x == 2
+} {
+	x == 3
+}`,
+			expectedErrors: []string{`5:3: rego_parse_error: unexpected if keyword
+	} if {
+	  ^`},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			_, errs := ParseModuleWithOpts("", tc.module, ParserOptions{})
+
+			if len(tc.expectedErrors) == 0 && errs != nil {
+				t.Fatalf("expected no errors, got:\n\n%v", errs)
+			}
+
+			actual := ""
+			if errs != nil {
+				actual = errs.Error()
+			}
+
+			for _, expected := range tc.expectedErrors {
+				if !strings.Contains(actual, expected) {
+					t.Errorf("expected error:\n\n%q\n\ngot:\n\n%v", expected, actual)
 				}
 			}
 		})
@@ -2540,6 +3157,14 @@ else := 2
 			err: "else keyword cannot be used on rules with variables in head",
 		},
 		{
+			note: "single-value general ref head with var",
+			rule: `
+a.b[x].c := 1 if false
+else := 2
+`,
+			err: "else keyword cannot be used on rules with variables in head",
+		},
+		{
 			note: "single-value ref head with length 1 (last is var)",
 			rule: `
 a := 1 if false
@@ -3307,9 +3932,9 @@ func TestRuleFromBodyJSONOptions(t *testing.T) {
 	}
 
 	parserOpts := ParserOptions{ProcessAnnotation: true}
-	parserOpts.JSONOptions = &JSONOptions{
-		MarshalOptions: JSONMarshalOptions{
-			IncludeLocation: NodeToggle{
+	parserOpts.JSONOptions = &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
 				Term:           true,
 				Package:        true,
 				Comment:        true,
@@ -3332,6 +3957,35 @@ func TestRuleFromBodyJSONOptions(t *testing.T) {
 			assertParseModuleJSONOptions(t, tc, testModule, parserOpts)
 		})
 	}
+}
+
+func TestRuleFromBodyJSONOptionsLocationOptions(t *testing.T) {
+	parserOpts := ParserOptions{ProcessAnnotation: true}
+	parserOpts.JSONOptions = &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
+				Term:           true,
+				Package:        true,
+				Comment:        true,
+				Import:         true,
+				Rule:           true,
+				Head:           true,
+				Expr:           true,
+				SomeDecl:       true,
+				Every:          true,
+				With:           true,
+				Annotations:    true,
+				AnnotationsRef: true,
+			},
+			IncludeLocationText: true,
+			ExcludeLocationFile: true,
+		},
+	}
+
+	module := `package a.b.c
+			foo := "bar"
+			`
+	assertParseModuleJSONOptions(t, `foo := "bar"`, module, parserOpts)
 }
 
 func TestRuleModulePtr(t *testing.T) {
@@ -4540,7 +5194,7 @@ p { input = "str" }`,
 # - Tyrell Corp.
 # related_resources:
 # - https://example.com
-# - 
+# -
 #  ref: http://john:123@do.re/mi?foo=bar#baz
 #  description: foo bar
 # authors:
@@ -5128,33 +5782,33 @@ func assertParseModuleJSONOptions(t *testing.T, msg string, input string, opts .
 
 	rule := m.Rules[0]
 	if rule.Head.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Head JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Head Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Head.jsonOptions)
 	}
 	if rule.Body[0].jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule Body JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Body Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.Body[0].jsonOptions)
 	}
 	switch terms := rule.Body[0].Terms.(type) {
 	case []*Term:
 		for _, term := range terms {
 			if term.jsonOptions != *opt.JSONOptions {
-				t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
+				t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, term.jsonOptions)
 			}
 		}
 	case *SomeDecl:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	case *Every:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	case *Term:
 		if terms.jsonOptions != *opt.JSONOptions {
-			t.Fatalf("Error on test \"%s\": expected body Term JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
+			t.Fatalf("Error on test \"%s\": expected body Term Options\n%v\n, got\n%v", msg, *opt.JSONOptions, terms.jsonOptions)
 		}
 	}
 	if rule.jsonOptions != *opt.JSONOptions {
-		t.Fatalf("Error on test \"%s\": expected rule JSONOptions\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
+		t.Fatalf("Error on test \"%s\": expected rule Options\n%v\n, got\n%v", msg, *opt.JSONOptions, rule.jsonOptions)
 	}
 }
 
@@ -5162,6 +5816,17 @@ func assertParseModuleError(t *testing.T, msg, input string) {
 	m, err := ParseModule("", input)
 	if err == nil {
 		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
+	}
+}
+
+func assertParseModuleErrorMatch(t *testing.T, msg, input string, expected string) {
+	t.Helper()
+	m, err := ParseModule("", input)
+	if err == nil {
+		t.Errorf("Error on test \"%s\": expected parse error: %v (parsed)", msg, m)
+	}
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("Error on test \"%s\"; expected:\n\n%v\n\ngot:\n\n%v", msg, expected, err)
 	}
 }
 
