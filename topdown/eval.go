@@ -3396,7 +3396,6 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 		body := child.closure(e.body)
 		body.findOne = true
-		//body.suppressEarlyExit = true
 		body.traceEnter(e.body)
 		done := false
 		err := body.eval(func(*eval) error {
