@@ -3245,7 +3245,7 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 }
 
 func (e evalTerm) enumerate(iter unifyIterator) error {
-	var outerEe *outerEarlyExitError = nil
+	var outerEe *outerEarlyExitError
 	switch v := e.term.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
