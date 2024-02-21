@@ -5314,7 +5314,7 @@ package test
 # title: p
 # description: p
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": []*Annotations{{
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
 				Description: "p",
 				Scope:       "rule",
 				Title:       "p",
@@ -5332,7 +5332,7 @@ package test
 # description: p
 # scope: rule
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": []*Annotations{{
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
 				Description: "p",
 				Scope:       "rule",
 				Title:       "p",
@@ -5357,7 +5357,7 @@ package test
 # METADATA
 # title: Four
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": []*Annotations{
+			expAnnotations: map[string][]*Annotations{"data.test.p": {
 				{
 					Scope: "rule",
 					Title: "One",
@@ -5388,7 +5388,7 @@ package test
 # description: doc
 
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": []*Annotations{{
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
 				Description: "doc",
 				Scope:       "document",
 				Title:       "doc",
@@ -5410,7 +5410,7 @@ package test
 # title: p
 # description: p
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": []*Annotations{
+			expAnnotations: map[string][]*Annotations{"data.test.p": {
 				{
 					Description: "doc",
 					Scope:       "document",
@@ -5445,7 +5445,7 @@ p := 1
 # description: q
 q := 1`,
 			expAnnotations: map[string][]*Annotations{
-				"data.test.p": []*Annotations{
+				"data.test.p": {
 					{
 						Description: "doc",
 						Scope:       "document",
@@ -5457,7 +5457,7 @@ q := 1`,
 						Title:       "p",
 					},
 				},
-				"data.test.q": []*Annotations{
+				"data.test.q": {
 					{
 						Description: "q",
 						Scope:       "rule",
