@@ -5,10 +5,17 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
 var rootCA = `-----BEGIN CERTIFICATE-----
@@ -150,7 +157,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 			t.Fatalf("failed to parse PEM cert chain: %v", err)
 		}
 
-		if _, err := verifyX509CertificateChain(parsed); err != nil {
+		if _, err := verifyX509CertificateChain(parsed, x509.VerifyOptions{}); err != nil {
 			t.Error("x509 verification failed when it was expected to succeed")
 		}
 	})
@@ -164,7 +171,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 			t.Fatalf("failed to parse base64 cert chain: %v", err)
 		}
 
-		if _, err := verifyX509CertificateChain(parsed); err != nil {
+		if _, err := verifyX509CertificateChain(parsed, x509.VerifyOptions{}); err != nil {
 			t.Error("x509 verification failed when it was expected to succeed")
 		}
 	})
@@ -177,7 +184,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 			t.Fatalf("failed to parse PEM cert chain: %v", err)
 		}
 
-		if _, err := verifyX509CertificateChain(parsed); err == nil {
+		if _, err := verifyX509CertificateChain(parsed, x509.VerifyOptions{}); err == nil {
 			t.Error("x509 verification succeeded when it was expected to fail")
 		}
 	})
@@ -190,7 +197,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 			t.Fatalf("failed to parse PEM cert chain: %v", err)
 		}
 
-		if _, err := verifyX509CertificateChain(parsed); err == nil {
+		if _, err := verifyX509CertificateChain(parsed, x509.VerifyOptions{}); err == nil {
 			t.Error("x509 verification succeeded when it was expected to fail")
 		}
 	})
@@ -201,7 +208,7 @@ func TestX509ParseAndVerify(t *testing.T) {
 			t.Fatalf("failed to parse leaf cert: %v", err)
 		}
 
-		if _, err := verifyX509CertificateChain(parsed); err == nil {
+		if _, err := verifyX509CertificateChain(parsed, x509.VerifyOptions{}); err == nil {
 			t.Error("x509 verification succeeded when it was expected to fail")
 		}
 	})
@@ -645,5 +652,93 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 			}
 			testData.keyCheck(t, keys)
 		})
+	}
+}
+
+func TestExtractX509VerifyOptions(t *testing.T) {
+	tests := []struct {
+		jsonOption      *ast.Term
+		expectErr       bool
+		expectVerifyOpt x509.VerifyOptions
+	}{
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": 1}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{CurrentTime: "string"}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{MaxConstraintComparisons: "string"}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"KeyUsages" : [1,2,4]}`), // its not a Set
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": 1, CurrentTime: "string", "KeyUsages" : {1,2}}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption:      ast.MustParseTerm(`{}`),
+			expectErr:       false,
+			expectVerifyOpt: x509.VerifyOptions{},
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"KeyUsages" : {1,"KeyUsageAny", "InvalidKeyUsage", "KeyUsageServerAuth", 2}}`),
+			expectErr:  false,
+			expectVerifyOpt: x509.VerifyOptions{
+				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth},
+			},
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, ` +
+				`"MaxConstraintComparisons": 5, "KeyUsages" : {"KeyUsageAny", "KeyUsageServerAuth","KeyUsageClientAuth"}}`),
+			expectErr: false,
+			expectVerifyOpt: x509.VerifyOptions{
+				DNSName:                   "test.com",
+				CurrentTime:               time.Unix(0, 1708447636000000000),
+				MaxConstraintComparisions: 5,
+				KeyUsages:                 []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			},
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, ` +
+				`"MaxConstraintComparisons": 5, "KeyUsages" : {"KeyUsageAny", "KeyUsageAny", 1, 2, "KeyUsageServerAuth","KeyUsageClientAuth"}}`),
+			expectErr: false,
+			expectVerifyOpt: x509.VerifyOptions{
+				DNSName:                   "test.com",
+				CurrentTime:               time.Unix(0, 1708447636000000000),
+				MaxConstraintComparisions: 5,
+				KeyUsages:                 []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		options, _ := builtins.ObjectOperand(testCase.jsonOption.Value, 0)
+		if testCase.expectErr {
+			_, err := extractVerifyOpts(options)
+			if err == nil {
+				t.Fatalf("expected error but got nil error")
+			}
+		} else {
+			vo, err := extractVerifyOpts(options)
+			if err != nil {
+				t.Fatalf("did not expect error but got %s", err)
+			}
+			if !cmp.Equal(vo, testCase.expectVerifyOpt,
+				cmpopts.SortSlices( // ignore the order of ExtKeyUsage values
+					func(ku1, ku2 x509.ExtKeyUsage) bool {
+						return ku1 < ku2
+					},
+				)) {
+
+				t.Fatalf("expected x509.VerifyOptions: %+v \n"+
+					"got: %+v", testCase.expectVerifyOpt, vo)
+			}
+		}
 	}
 }
