@@ -381,16 +381,20 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 }
 
 func (w *writer) writeRules(rules []*ast.Rule, o fmtOpts, comments []*ast.Comment) []*ast.Comment {
-	existingAnnotations, _ := ast.ParseAnnotations(comments)
+	parsedAnnotations, _ := ast.ParseAnnotations(comments)
 
 	for _, rule := range rules {
 
-		if len(existingAnnotations) == 0 {
+		if len(parsedAnnotations) == 0 {
 			for _, an := range rule.Annotations {
 				w.blankLine()
 				w.writeLine("# METADATA")
 				w.writeComments(an.Comments())
 			}
+
+			// add a blank line to separate annotations from trailing comments to avoid errors during
+			// annotation parsing which expects a blank line between them
+			w.blankLine()
 		}
 
 		comments = w.insertComments(comments, rule.Location)
