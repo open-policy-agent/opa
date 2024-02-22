@@ -767,23 +767,9 @@
           {
             "dynamic": {
               "key": {
-                "type": "any"
+                "type": "string"
               },
               "value": {
-                "of": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "of": {
-                      "type": "any"
-                    },
-                    "type": "set"
-                  }
-                ],
                 "type": "any"
               }
             },
