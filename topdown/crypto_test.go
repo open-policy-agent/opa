@@ -674,8 +674,8 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			expectErr:  fmt.Errorf("'MaxConstraintComparisons' should be a number"),
 		},
 		{
-			jsonOption: ast.MustParseTerm(`{"KeyUsages" : [1,2,4]}`), // its not a Set
-			expectErr:  fmt.Errorf("'KeyUsages' should be a set"),
+			jsonOption: ast.MustParseTerm(`{"KeyUsages" : "true"}`),
+			expectErr:  fmt.Errorf("'KeyUsages' should be an Array or Set"),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": 1, CurrentTime: "string", "KeyUsages" : {1,2}}`),
@@ -713,6 +713,18 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 				CurrentTime:               time.Unix(0, 1708447636000000000),
 				MaxConstraintComparisions: 5,
 				KeyUsages:                 []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			},
+		},
+		{ // KeyUsages as an array
+			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, 
+				"MaxConstraintComparisons": 5, 				
+				"KeyUsages" : ["KeyUsageAny", "KeyUsageAny", 1, 2,   
+				"KeyUsageServerAuth","KeyUsageClientAuth"]}`),
+			expectVerifyOpt: x509.VerifyOptions{
+				DNSName:                   "test.com",
+				CurrentTime:               time.Unix(0, 1708447636000000000),
+				MaxConstraintComparisions: 5,
+				KeyUsages:                 []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 			},
 		},
 	}
