@@ -743,22 +743,23 @@ func pruneBundleAnnotations(b *bundle.Bundle) error {
 		for _, annotation := range mf.Parsed.Annotations {
 			p := annotation.GetTargetPath()
 
-			found := false
-			for _, rule := range mf.Parsed.Rules {
-				if p.Equal(rule.Ref()) {
-					annotations = append(annotations, annotation)
-					found = true
-					break
-				}
-			}
-
 			// Prune annotations of non-existing rules, but not packages, as the Rego file is retained
 			if p.Equal(mf.Parsed.Package.Path) {
 				annotations = append(annotations, annotation)
-			} else if !found {
-				prunedAnnotations = append(prunedAnnotations, annotation)
-			}
+			} else {
+				found := false
+				for _, rule := range mf.Parsed.Rules {
+					if p.Equal(rule.Ref()) {
+						annotations = append(annotations, annotation)
+						found = true
+						break
+					}
+				}
 
+				if !found {
+					prunedAnnotations = append(prunedAnnotations, annotation)
+				}
+			}
 		}
 
 		// Drop comments associated with pruned annotations
