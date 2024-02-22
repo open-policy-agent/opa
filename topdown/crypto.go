@@ -222,22 +222,30 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 				return verifyOpt, fmt.Errorf("'MaxConstraintComparisons' should be a number")
 			}
 		case "KeyUsages":
-			ks, ok := options.Get(key).Value.(ast.Set)
-			if ok {
-				// Collect the x509.ExtKeyUsage values by looking up the
-				// mapping of key usage strings to x509.ExtKeyUsage
-				ks.Foreach(func(t *ast.Term) {
-					u, ok := t.Value.(ast.String)
-					if ok {
-						c := u.String()[1 : len(u.String())-1]
-						if t, ok := allowedKeyUsages[c]; ok {
-							verifyOpt.KeyUsages = append(verifyOpt.KeyUsages, t)
-						}
-					}
-				})
-			} else {
-				return verifyOpt, fmt.Errorf("'KeyUsages' should be a set")
+			type forEach interface {
+				Foreach(func(*ast.Term))
 			}
+			var ks forEach
+			switch options.Get(key).Value.(type) {
+			case *ast.Array:
+				ks = options.Get(key).Value.(*ast.Array)
+			case ast.Set:
+				ks = options.Get(key).Value.(ast.Set)
+			default:
+				return verifyOpt, fmt.Errorf("'KeyUsages' should be an Array or Set")
+			}
+
+			// Collect the x509.ExtKeyUsage values by looking up the
+			// mapping of key usage strings to x509.ExtKeyUsage
+			ks.Foreach(func(t *ast.Term) {
+				u, ok := t.Value.(ast.String)
+				if ok {
+					v := u.String()[1 : len(u.String())-1]
+					if k, ok := allowedKeyUsages[v]; ok {
+						verifyOpt.KeyUsages = append(verifyOpt.KeyUsages, k)
+					}
+				}
+			})
 		default:
 			return verifyOpt, fmt.Errorf("invalid key option")
 		}
