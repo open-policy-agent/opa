@@ -394,7 +394,9 @@ func (w *writer) writeRules(rules []*ast.Rule, o fmtOpts, comments []*ast.Commen
 
 			// add a blank line to separate annotations from trailing comments to avoid errors during
 			// annotation parsing which expects a blank line between them
-			w.blankLine()
+			if len(comments) > 0 {
+				w.blankLine()
+			}
 		}
 
 		comments = w.insertComments(comments, rule.Location)
