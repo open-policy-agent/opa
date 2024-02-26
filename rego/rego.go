@@ -118,6 +118,7 @@ type EvalContext struct {
 	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
+	decisionLabel          builtins.DecisionLabels
 	resolvers              []refResolver
 	sortSets               bool
 	copyMaps               bool
@@ -311,6 +312,12 @@ func EvalInterQueryBuiltinCache(c cache.InterQueryCache) EvalOption {
 func EvalNDBuiltinCache(c builtins.NDBCache) EvalOption {
 	return func(e *EvalContext) {
 		e.ndBuiltinCache = c
+	}
+}
+
+func EvalDecisionLabel(dl builtins.DecisionLabels) EvalOption {
+	return func(e *EvalContext) {
+		e.decisionLabel = dl
 	}
 }
 
