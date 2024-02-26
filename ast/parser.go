@@ -17,12 +17,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/open-policy-agent/opa/ast/internal/scanner"
 	"github.com/open-policy-agent/opa/ast/internal/tokens"
 	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/ast/location"
+	"sigs.k8s.io/yaml"
 )
 
 var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
