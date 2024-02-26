@@ -503,6 +503,7 @@ type evalArgs struct {
 	path                string
 	input               interface{}
 	ndbcache            builtins.NDBCache
+	decisionLabel       builtins.DecisionLabels
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
@@ -568,6 +569,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, types.Provenance
 		rego.EvalMetrics(args.m),
 		rego.EvalInterQueryBuiltinCache(args.interQueryCache),
 		rego.EvalNDBuiltinCache(args.ndbcache),
+		rego.EvalDecisionLabel(args.decisionLabel),
 		rego.EvalQueryTracer(args.tracer),
 		rego.EvalMetrics(args.m),
 		rego.EvalQueryTracer(args.profiler),
