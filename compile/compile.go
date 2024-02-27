@@ -1019,22 +1019,22 @@ func (o *optimizer) Do(ctx context.Context) error {
 		}
 
 		if len(pq.Support) != 0 {
-
 			// attach annotations to the module
 			for _, ar := range flattenedAnnotations {
 				for _, module := range pq.Support {
 					if module.Package.Path.Equal(ar.Path) {
 						module.Annotations = append(module.Annotations, ar.Annotations)
 					}
-
-					var annotations []*ast.Annotations
-					for _, rule := range module.Rules {
-						annotations = append(annotations, rule.Annotations...)
-					}
-					module.Annotations = append(module.Annotations, annotations...)
 				}
 			}
 
+			for _, module := range pq.Support {
+				var annotations []*ast.Annotations
+				for _, rule := range module.Rules {
+					annotations = append(annotations, rule.Annotations...)
+				}
+				module.Annotations = append(module.Annotations, annotations...)
+			}
 		}
 
 		if module := o.getSupportForEntrypoint(pq.Queries, e, resultsym, flattenedAnnotations); module != nil {
@@ -1138,6 +1138,13 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 	name := ast.Var(path[len(path)-1].Value.(ast.String))
 	module := &ast.Module{Package: &ast.Package{Path: path[:len(path)-1]}}
 
+	// attach annotations to the module
+	for _, ar := range annotationRefs {
+		if module.Package.Path.Equal(ar.Path) {
+			module.Annotations = append(module.Annotations, ar.Annotations)
+		}
+	}
+
 	ruleAnnotations := findAnnotationsForTerm(e, annotationRefs)
 
 	for _, query := range queries {
@@ -1166,20 +1173,8 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 		}
 
 		module.Rules = append(module.Rules, rule)
+		module.Annotations = append(module.Annotations, ruleAnnotations...)
 	}
-
-	// attach annotations to the module
-	var annotations []*ast.Annotations
-
-	for _, ar := range annotationRefs {
-		if module.Package.Path.Equal(ar.Path) {
-			annotations = append(annotations, ar.Annotations)
-		}
-	}
-
-	annotations = append(annotations, ruleAnnotations...)
-
-	module.Annotations = annotations
 
 	return module
 }

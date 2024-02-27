@@ -658,6 +658,11 @@ func (rule *Rule) Compare(other *Rule) int {
 	if cmp := rule.Body.Compare(other.Body); cmp != 0 {
 		return cmp
 	}
+
+	if cmp := annotationsCompare(rule.Annotations, other.Annotations); cmp != 0 {
+		return cmp
+	}
+
 	return rule.Else.Compare(other.Else)
 }
 
@@ -762,6 +767,10 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 		if rule.Location != nil {
 			data["location"] = rule.Location
 		}
+	}
+
+	if len(rule.Annotations) != 0 {
+		data["annotations"] = rule.Annotations
 	}
 
 	return json.Marshal(data)
