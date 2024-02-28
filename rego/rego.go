@@ -2094,7 +2094,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithBuiltinErrorList(r.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
-		WithDistributedTracingOpts(r.distributedTacingOpts)
+		WithDistributedTracingOpts(r.distributedTacingOpts).
+		WithDecisionLabel(r.decisionLabel)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

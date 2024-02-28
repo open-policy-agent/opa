@@ -53,6 +53,7 @@ type Query struct {
 	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
+	decisionLabel          builtins.DecisionLabels
 	strictBuiltinErrors    bool
 	builtinErrorList       *[]Error
 	strictObjects          bool
@@ -248,6 +249,11 @@ func (q *Query) WithInterQueryBuiltinCache(c cache.InterQueryCache) *Query {
 // WithNDBuiltinCache sets the non-deterministic builtin cache.
 func (q *Query) WithNDBuiltinCache(c builtins.NDBCache) *Query {
 	q.ndBuiltinCache = c
+	return q
+}
+
+func (q *Query) WithDecisionLabel(dl builtins.DecisionLabels) *Query {
+	q.decisionLabel = dl
 	return q
 }
 
@@ -516,6 +522,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		functionMocks:          newFunctionMocksStack(),
 		interQueryBuiltinCache: q.interQueryBuiltinCache,
 		ndBuiltinCache:         q.ndBuiltinCache,
+		decisionLabel:          q.decisionLabel,
 		virtualCache:           newVirtualCache(),
 		comprehensionCache:     newComprehensionCache(),
 		genvarprefix:           q.genvarprefix,

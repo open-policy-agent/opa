@@ -82,6 +82,7 @@ type eval struct {
 	builtins               map[string]*Builtin
 	builtinCache           builtins.Cache
 	ndBuiltinCache         builtins.NDBCache
+	decisionLabel          builtins.DecisionLabels
 	functionMocks          *functionMocksStack
 	virtualCache           *virtualCache
 	comprehensionCache     *comprehensionCache
