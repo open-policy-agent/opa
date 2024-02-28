@@ -587,6 +587,7 @@ type Rego struct {
 	skipBundleVerification bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
+	decisionLabel          builtins.DecisionLabels
 	strictBuiltinErrors    bool
 	builtinErrorList       *[]topdown.Error
 	resolvers              []refResolver
@@ -1116,6 +1117,12 @@ func InterQueryBuiltinCache(c cache.InterQueryCache) func(r *Rego) {
 func NDBuiltinCache(c builtins.NDBCache) func(r *Rego) {
 	return func(r *Rego) {
 		r.ndBuiltinCache = c
+	}
+}
+
+func DecisionLabel(dl builtins.DecisionLabels) func(r *Rego) {
+	return func(r *Rego) {
+		r.decisionLabel = dl
 	}
 }
 

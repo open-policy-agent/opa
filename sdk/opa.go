@@ -282,6 +282,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 			})
 			if record.Error == nil {
 				record.Results = &result.Result
+				record.DecisionLabel =
 			}
 		},
 	)
@@ -546,6 +547,7 @@ func evaluate(ctx context.Context, args evalArgs) (interface{}, types.Provenance
 			rego.PrintHook(args.printHook),
 			rego.StrictBuiltinErrors(args.strictBuiltinErrors),
 			rego.Instrument(args.instrument),
+			rego.DecisionLabel(args.decisionLabel),
 			rego.Runtime(args.runtime)).PrepareForEval(ctx)
 		if err != nil {
 			return nil, err
