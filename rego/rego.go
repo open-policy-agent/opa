@@ -315,12 +315,6 @@ func EvalNDBuiltinCache(c builtins.NDBCache) EvalOption {
 	}
 }
 
-func EvalDecisionLabel(dl builtins.DecisionLabels) EvalOption {
-	return func(e *EvalContext) {
-		e.decisionLabel = dl
-	}
-}
-
 // EvalResolver sets a Resolver for a specified ref path for this evaluation.
 func EvalResolver(ref ast.Ref, r resolver.Resolver) EvalOption {
 	return func(e *EvalContext) {
@@ -389,6 +383,7 @@ func (pq preparedQuery) newEvalContext(ctx context.Context, options []EvalOption
 		printHook:           pq.r.printHook,
 		capabilities:        pq.r.capabilities,
 		strictBuiltinErrors: pq.r.strictBuiltinErrors,
+		decisionLabel:       pq.r.decisionLabel,
 	}
 
 	for _, o := range options {
