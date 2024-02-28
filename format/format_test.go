@@ -516,6 +516,53 @@ a[_x[y][[z, w]]]`,
 			}(),
 			expected: `concat(",", [__local1__], __local0__)`,
 		},
+		{
+			note: "module with annotations",
+			toFmt: func() *ast.Module {
+				raw := `# METADATA
+# title: pkg
+# description: pkg
+# scope: subpackages
+
+# some random comment
+package test
+
+# METADATA
+# title: p
+# description: p
+p := 1
+
+# METADATA
+# title: q
+# description: q
+# scope: rule
+
+# another random comment
+q := 1`
+
+				return ast.MustParseModuleWithOpts(raw, ast.ParserOptions{ProcessAnnotation: true})
+			}(),
+			expected: `# METADATA
+# title: pkg
+# description: pkg
+# scope: subpackages
+
+# some random comment
+package test
+
+# METADATA
+# title: p
+# description: p
+p := 1
+
+# METADATA
+# title: q
+# description: q
+# scope: rule
+
+# another random comment
+q := 1`,
+		},
 	}
 
 	for _, tc := range cases {
