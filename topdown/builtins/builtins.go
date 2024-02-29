@@ -112,12 +112,13 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 type DecisionLabels map[string]ast.Object
 
 func (dl DecisionLabels) Add(k string, v ast.Value) {
-	// TODO: Fill me
+	dl.Add(k, v)
 } // end Add function
 
+// Get function may not be needed, but leaving it in here until I know for sure
 func (dl DecisionLabels) Get(k string) (ast.Value, bool) {
-	// TODO: Fill me and correct output
-	return ast.NewObject(), true
+	v, ok := dl[k]
+	return v, ok
 } // end Get function
 
 // ErrOperand represents an invalid operand has been passed to a built-in
