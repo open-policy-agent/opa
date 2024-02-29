@@ -44,15 +44,16 @@ type (
 		Cache                  builtins.Cache        // built-in function state cache
 		InterQueryBuiltinCache cache.InterQueryCache // cross-query built-in function state cache
 		NDBuiltinCache         builtins.NDBCache     // cache for non-deterministic built-in state
-		Location               *ast.Location         // location of built-in call
-		Tracers                []Tracer              // Deprecated: Use QueryTracers instead
-		QueryTracers           []QueryTracer         // tracer objects for trace() built-in function
-		TraceEnabled           bool                  // indicates whether tracing is enabled for the evaluation
-		QueryID                uint64                // identifies query being evaluated
-		ParentID               uint64                // identifies parent of query being evaluated
-		PrintHook              print.Hook            // provides callback function to use for printing
-		DistributedTracingOpts tracing.Options       // options to be used by distributed tracing.
-		rand                   *rand.Rand            // randomization source for non-security-sensitive operations
+		DecisionLabel          builtins.DecisionLabels
+		Location               *ast.Location   // location of built-in call
+		Tracers                []Tracer        // Deprecated: Use QueryTracers instead
+		QueryTracers           []QueryTracer   // tracer objects for trace() built-in function
+		TraceEnabled           bool            // indicates whether tracing is enabled for the evaluation
+		QueryID                uint64          // identifies query being evaluated
+		ParentID               uint64          // identifies parent of query being evaluated
+		PrintHook              print.Hook      // provides callback function to use for printing
+		DistributedTracingOpts tracing.Options // options to be used by distributed tracing.
+		rand                   *rand.Rand      // randomization source for non-security-sensitive operations
 		Capabilities           *ast.Capabilities
 	}
 
