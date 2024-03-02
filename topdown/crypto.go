@@ -188,12 +188,17 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
 
 	for _, key := range options.Keys() {
-		k := key.String()[1 : len(key.String())-1]
+		k, err := ast.JSON(key.Value)
+		if err != nil {
+			return verifyOpt, err
+		}
+		k = k.(string)
+
 		switch k {
 		case "DNSName":
 			dns, ok := options.Get(key).Value.(ast.String)
 			if ok {
-				verifyOpt.DNSName = dns.String()[1 : len(dns.String())-1]
+				verifyOpt.DNSName = strings.Trim(string(dns), "\"")
 			} else {
 				return verifyOpt, fmt.Errorf("'DNSName' should be a string")
 			}
@@ -237,15 +242,21 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 
 			// Collect the x509.ExtKeyUsage values by looking up the
 			// mapping of key usage strings to x509.ExtKeyUsage
+			var invalidKUsgs []string
 			ks.Foreach(func(t *ast.Term) {
 				u, ok := t.Value.(ast.String)
 				if ok {
-					v := u.String()[1 : len(u.String())-1]
+					v := strings.Trim(string(u), "\"")
 					if k, ok := allowedKeyUsages[v]; ok {
 						verifyOpt.KeyUsages = append(verifyOpt.KeyUsages, k)
+					} else {
+						invalidKUsgs = append(invalidKUsgs, v)
 					}
 				}
 			})
+			if len(invalidKUsgs) > 0 {
+				return x509.VerifyOptions{}, fmt.Errorf("invalid entries for 'KeyUsages' found: %s", invalidKUsgs)
+			}
 		default:
 			return verifyOpt, fmt.Errorf("invalid key option")
 		}

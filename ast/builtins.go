@@ -2339,13 +2339,9 @@ The first certificate is treated as the root and the last is treated as the leaf
 with all others being treated as intermediates.
 
 ` +
-		"Example option object: " +
-		"`options := {\"DNSName\" : \"example.dns.com\", \"CurrentTime\": 1708447636000000000,`" +
-		"`\"KeyUsages\": {\"KeyUsageServerAuth\", \"KeyUsageClientAuth\", \"KeyUsageCodeSigning\"}}` " +
-		"Then this function call will look like: `crypto.x509.parse_and_verify_certificates_with_options(<cert base64 encoded string>, options)`. " +
-		"This options object has the same fields as [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). " +
-		"`CurrentTime` is the number of nanoseconds since the Unix Epoch as a number. " +
-		"List of possible values for `KeyUsages` field are: `[\"KeyUsageAny\", \"KeyUsageServerAuth\",` " +
+		"`options` object has the same fields as [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). " +
+		"`CurrentTime`: Number of nanoseconds since the Unix Epoch as a number. " +
+		"Possible values for `KeyUsages`: `[\"KeyUsageAny\", \"KeyUsageServerAuth\",` " +
 		"`\"KeyUsageClientAuth\", \"KeyUsageCodeSigning\", \"KeyUsageEmailProtection\", \"KeyUsageIPSECEndSystem\",` " +
 		"`\"KeyUsageIPSECTunnel\", \"KeyUsageIPSECUser\", \"KeyUsageTimeStamping\", \"KeyUsageOCSPSigning\",` " +
 		"`\"KeyUsageMicrosoftServerGatedCrypto\", \"KeyUsageNetscapeServerGatedCrypto\",` " +
@@ -2357,7 +2353,7 @@ with all others being treated as intermediates.
 			types.Named("options", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.S, types.A),
-			)).Description("option object to pass extra configs to verify the validity of certificates."),
+			)).Description("object containing extra configs to verify the validity of certificates."),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.B,

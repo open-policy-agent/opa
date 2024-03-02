@@ -690,10 +690,12 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			expectVerifyOpt: x509.VerifyOptions{},
 		},
 		{
-			jsonOption: ast.MustParseTerm(`{"KeyUsages" : {1,"KeyUsageAny", "InvalidKeyUsage", "KeyUsageServerAuth", 2}}`),
-			expectVerifyOpt: x509.VerifyOptions{
-				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny, x509.ExtKeyUsageServerAuth},
-			},
+			jsonOption: ast.MustParseTerm(`{"KeyUsages" : {"KeyUsageAny", "InvalidKeyUsage", "KeyUsageServerAuth"}}`),
+			expectErr:  fmt.Errorf("invalid entries for 'KeyUsages' found: %s", []string{"InvalidKeyUsage"}),
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"KeyUsages" : ["1","KeyUsageAny", "InvalidKeyUsage", "KeyUsageServerAuth", "2"]}`),
+			expectErr:  fmt.Errorf("invalid entries for 'KeyUsages' found: %s", []string{"1", "InvalidKeyUsage", "2"}),
 		},
 		{
 			jsonOption: ast.MustParseTerm(`{"DNSName": "test.com", "CurrentTime": 1708447636000000000, ` +
