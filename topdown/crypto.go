@@ -188,25 +188,17 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err error) {
 
 	for _, key := range options.Keys() {
-<<<<<<< HEAD
-		k := key.String()[1 : len(key.String())-1]
-=======
 		k, err := ast.JSON(key.Value)
 		if err != nil {
 			return verifyOpt, err
 		}
 		k = k.(string)
 
->>>>>>> 5eda48e29e5c7212cb8a076982d60b2e8d5f8cdf
 		switch k {
 		case "DNSName":
 			dns, ok := options.Get(key).Value.(ast.String)
 			if ok {
-<<<<<<< HEAD
-				verifyOpt.DNSName = dns.String()[1 : len(dns.String())-1]
-=======
 				verifyOpt.DNSName = strings.Trim(string(dns), "\"")
->>>>>>> 5eda48e29e5c7212cb8a076982d60b2e8d5f8cdf
 			} else {
 				return verifyOpt, fmt.Errorf("'DNSName' should be a string")
 			}
