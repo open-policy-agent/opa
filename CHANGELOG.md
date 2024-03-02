@@ -5,6 +5,44 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## 0.62.0
+
+> **_NOTES:_**
+>
+> * The minimum version of Go required to build the OPA module is **1.20**
+
+This release contains a mix of improvements and bugfixes.
+
+### Runtime, Tooling, SDK
+
+- cmd: Add environment variable backups for command-line flags ([#6508](https://github.com/open-policy-agent/opa/pull/6508)) authored by @colinjlacy
+- download/oci: Add missing `WithBundleParserOpts` method to OCI downloader ([#6571](https://github.com/open-policy-agent/opa/pull/6571)) authored by @slonka
+- logging: avoid `%!F(MISSING)` in logs by skipping calls to the `{Debug,Info,Warn,Error}f` functions when there are no arguments ([#6555](https://github.com/open-policy-agent/opa/pull/6555)) authored by @srenatus
+
+### Topdown and Rego
+
+- ast+cmd: Allow bundle to contain calls to unknown Rego functions when inspected ([#6591](https://github.com/open-policy-agent/opa/issues/6591)) authored by @johanfylling
+- topdown/http: Respect `raise_error` flag during input validation ([#6553](https://github.com/open-policy-agent/opa/pull/6553)) authored by @ashutosh-narkar
+
+### Docs + Website + Ecosystem
+
+- Add OpaDotNet to ecosystem projects ([#6554](https://github.com/open-policy-agent/opa/pull/6554)) authored by @me-viper
+- Add updated logos for Permit.io and OPAL ([#6562](https://github.com/open-policy-agent/opa/pull/6562)) authored by @danielbass37
+- docs: Update description of the url path usage when accessing values inside object and array documents for v1/data GET and POST ([#6567](https://github.com/open-policy-agent/opa/pull/6567)) authored by @ashutosh-narkar
+- docs: Use `application/yaml` instead of `application/x-yaml` as the former is now a recognized content type ([#6565](https://github.com/open-policy-agent/opa/pull/6565)) authored by @anderseknert
+
+### Miscellaneous
+- Add Elastic to ADOPTERS.md ([#6568](https://github.com/open-policy-agent/opa/pull/6568)) authored by @orouz
+- Dependency updates; notably:
+  - bump golang 1.21.5 -> 1.22 ([#6595](https://github.com/open-policy-agent/opa/pull/6595)) authored by @srenatus
+  - bump google.golang.org/grpc from 1.61.0 to 1.62.0
+  - bump golang.org/x/net from 0.19.0 to 0.21.0
+  - bump github.com/containerd/containerd from 1.7.12 to 1.7.13
+  - bump aquasecurity/trivy-action from 0.16.1 to 0.17.0
+  - bump github.com/prometheus/client_golang from 1.18.0 to 1.19.0
+  - bump github.com/opencontainers/image-spec from 1.1.0-rc5 to 1.1.0-rc6
+
+
 ## 0.61.0
 
 This release contains a mix of new features and bugfixes.
