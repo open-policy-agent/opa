@@ -130,6 +130,11 @@ production users that have added themselves (in alphabetical order):
   the best practices in the admission controller. They also use [confest](https://github.com/open-policy-agent/conftest) to
   enforce policies in their CI/CD pipeline.
 
+* [Mia-Platform](https://mia-platform.eu/) uses OPA to run RBAC authorization policies
+  distributed within the application microservices. They built [Rönd](https://github.com/rond-authz/rond)
+  sidecar to intercept API invocation in the kubernetes ecosystem and created an extensible
+  RBAC solution that protects the application with little-to-none changes to the existing codebase.
+
 * [Netflix](https://www.netflix.com) uses OPA as a method of enforcing
   access control in microservices across a variety of languages and
   frameworks for thousands of instances in their cloud
