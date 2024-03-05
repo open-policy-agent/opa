@@ -2239,15 +2239,15 @@ func (p *Parser) validateDefaultRuleArgs(rule *Rule) bool {
 // We explicitly use yaml unmarshalling, to accommodate for the '_' in 'related_resources',
 // which isn't handled properly by json for some reason.
 type rawAnnotation struct {
-	Scope            string                 `yaml:"scope"`
-	Title            string                 `yaml:"title"`
-	Entrypoint       bool                   `yaml:"entrypoint"`
-	Description      string                 `yaml:"description"`
-	Organizations    []string               `yaml:"organizations"`
-	RelatedResources []interface{}          `yaml:"related_resources"`
-	Authors          []interface{}          `yaml:"authors"`
-	Schemas          []rawSchemaAnnotation  `yaml:"schemas"`
-	Custom           map[string]interface{} `yaml:"custom"`
+	Scope            string                 `json:"scope"`
+	Title            string                 `json:"title"`
+	Entrypoint       bool                   `json:"entrypoint"`
+	Description      string                 `json:"description"`
+	Organizations    []string               `json:"organizations"`
+	RelatedResources []interface{}          `json:"related_resources"`
+	Authors          []interface{}          `json:"authors"`
+	Schemas          []rawSchemaAnnotation  `json:"schemas"`
+	Custom           map[string]interface{} `json:"custom"`
 }
 
 type rawSchemaAnnotation map[string]interface{}
@@ -2329,7 +2329,7 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 			if err != nil {
 				return nil, err
 			}
-		case map[interface{}]interface{}:
+		case map[string]interface{}, map[interface{}]interface{}:
 			w, err := convertYAMLMapKeyTypes(v, nil)
 			if err != nil {
 				return nil, fmt.Errorf("invalid schema definition: %w", err)
@@ -2520,6 +2520,15 @@ func parseAuthorString(s string) (*AuthorAnnotation, error) {
 func convertYAMLMapKeyTypes(x interface{}, path []string) (interface{}, error) {
 	var err error
 	switch x := x.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{}, len(x))
+		for k, v := range x {
+			result[k], err = convertYAMLMapKeyTypes(v, append(path, k))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return result, nil
 	case map[interface{}]interface{}:
 		result := make(map[string]interface{}, len(x))
 		for k, v := range x {

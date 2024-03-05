@@ -4849,7 +4849,7 @@ public_servers[server] {
 	ports[k].networks[l] = networks[m].id;
 	networks[m].public = true
 }`,
-			expError: "test.rego:14: rego_parse_error: yaml: line 7: could not find expected ':'",
+			expError: "rego_parse_error: error converting YAML to JSON: yaml: line 7: could not find expected ':'",
 		},
 		{
 			note: "Ill-structured (invalid) annotation document path",
@@ -4912,15 +4912,15 @@ public_servers[server] {
 	networks[m].public = true
 }`,
 			expNumComments: 5,
-			expError:       "rego_parse_error: yaml: unmarshal errors:\n  line 3: cannot unmarshal !!str",
-			expErrorRow:    11,
+			expError:       "rego_parse_error: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go struct field",
+			expErrorRow:    8,
 		},
 		{
 			note: "Ill-structured (invalid) annotation with control character (vertical tab)",
 			module: "# METADATA\n" +
 				"# title: foo\vbar\n" +
 				"package opa.examples\n",
-			expError: "rego_parse_error: yaml: control characters are not allowed",
+			expError: "rego_parse_error: error converting YAML to JSON: yaml: control characters are not allowed",
 		},
 		{
 			note: "Indentation error in yaml",
@@ -4943,7 +4943,7 @@ public_servers[server] {
 	networks[m].public = true
 }`,
 			expNumComments: 6,
-			expError:       "rego_parse_error: yaml: line 3: did not find expected key",
+			expError:       "rego_parse_error: error converting YAML to JSON: yaml: line 3: did not find expected key",
 		},
 		{
 			note: "Multiple rules with and without metadata",
@@ -5246,14 +5246,14 @@ p { input = "str" }`,
 							"a", "b",
 						},
 						"map": map[string]interface{}{
-							"a": 1,
+							"a": float64(1),
 							"b": 2.2,
 							"c": map[string]interface{}{
 								"3": "d",
 								"4": "e",
 							},
 						},
-						"number": 42,
+						"number": float64(42),
 						"string": "foo bar baz",
 						"flag":   nil,
 					},
