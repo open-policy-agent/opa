@@ -806,6 +806,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Cache:                  e.builtinCache,
 		InterQueryBuiltinCache: e.interQueryBuiltinCache,
 		NDBuiltinCache:         e.ndBuiltinCache,
+		DecisionLabel:          e.decisionLabel,
 		Location:               e.query[e.index].Location,
 		QueryTracers:           e.tracers,
 		TraceEnabled:           e.traceEnabled,
