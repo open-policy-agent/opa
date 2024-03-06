@@ -2339,8 +2339,9 @@ The first certificate is treated as the root and the last is treated as the leaf
 with all others being treated as intermediates.
 
 ` +
-		"`options` object has the same fields as [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). " +
-		"`CurrentTime`: Number of nanoseconds since the Unix Epoch as a number. " +
+		"`options` object supports four fields which maps to same fields in [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). " +
+		"`DNSName`, `CurrentTime`: Nanoseconds since the Unix Epoch as a number " +
+		"`MaxConstraintComparisons` and `KeyUsages`." +
 		"Possible values for `KeyUsages`: `[\"KeyUsageAny\", \"KeyUsageServerAuth\",` " +
 		"`\"KeyUsageClientAuth\", \"KeyUsageCodeSigning\", \"KeyUsageEmailProtection\", \"KeyUsageIPSECEndSystem\",` " +
 		"`\"KeyUsageIPSECTunnel\", \"KeyUsageIPSECUser\", \"KeyUsageTimeStamping\", \"KeyUsageOCSPSigning\",` " +
