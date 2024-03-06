@@ -13,30 +13,52 @@ func init() {
 }
 
 // Operands (http.go Line 128) reference the Decl field from the Builtin Struct and are insanely useful in here
-func builtinDecisionLabelAdd(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinDecisionLabelAdd(bctx BuiltinContext, operands []*ast.Term, _ func(*ast.Term) error) error {
 
-	// TODO: Make sure all of this is aligned to the ast definition of the Built-in
-	// both operands need to be pulled in
-	obj, err := builtins.ObjectOperand(operands[0].Value, 1)
+	// validate the operands as Strings
+	//   key as String
+	//   value as String representation of JSON
+	key, err := validateKeyStringOperand(operands[0], 1)
 	if err != nil {
 		return handleBuiltinErr(ast.DecisionLabelAdd.Name, bctx.Location, err)
-	}
-
-	// From here down is HTTPSend specific (Working on changing that)
-	// validate both operands
-	// operand [0] should be a string (key)
-	// operand [1] should be a string (value) as well
-	// make a local function for validation
-	req, err := validateHTTPRequestOperand(operands[0], 1)
+	} // end if
+	value, err := validateValueStringOperand(operands[1], 2)
 	if err != nil {
 		return handleBuiltinErr(ast.DecisionLabelAdd.Name, bctx.Location, err)
-	}
+	} // end if
 
-	result, err := getHTTPResponse(bctx, req)
-	if err != nil {
-		return handleBuiltinErr(ast.DecisionLabelAdd.Name, bctx.Location, err)
-	}
-	return iter(result)
+	// use validated operands to assign the DecisionLabel field of the BuiltinContext
+	return assignOperandsToDecisionLabel(bctx, key, value)
+
 }
 
-// Need to ensure proper state is accessed, related to ast, no further information right now.
+func validateKeyStringOperand(term *ast.Term, pos int) (ast.String, error) {
+
+	keyStr, err := builtins.StringOperand(term.Value, pos)
+	if err != nil {
+		return "", err // nil cannot be used as return value for ast.String; used empty String
+	}
+
+	return keyStr, nil
+
+}
+
+func validateValueStringOperand(term *ast.Term, pos int) (ast.String, error) {
+
+	valueStr, err := builtins.StringOperand(term.Value, pos)
+	if err != nil {
+		return "", err // nil cannot be used as return value for ast.String; used empty String
+	}
+
+	return valueStr, nil
+
+}
+
+func assignOperandsToDecisionLabel(bctx BuiltinContext, key, value ast.String) error {
+
+	bctx.DecisionLabel.Add(key.String(), value)
+
+	// TODO: make a proper error here
+	return nil
+
+}
