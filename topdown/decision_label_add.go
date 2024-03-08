@@ -58,7 +58,10 @@ func assignOperandsToDecisionLabel(bctx BuiltinContext, key, value ast.String) e
 
 	bctx.DecisionLabel.Add(key.String(), value)
 
-	// TODO: make a proper error here
+	if _, ok := bctx.DecisionLabel.Get(key.String()); !ok {
+		return ast.NewError(InternalErr, bctx.Location, "Entry for %s is was not added", key.String())
+	}
+
 	return nil
 
 }
