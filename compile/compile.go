@@ -1029,11 +1029,9 @@ func (o *optimizer) Do(ctx context.Context) error {
 			}
 
 			for _, module := range pq.Support {
-				var annotations []*ast.Annotations
 				for _, rule := range module.Rules {
-					annotations = append(annotations, rule.Annotations...)
+					module.Annotations = append(module.Annotations, rule.Annotations...)
 				}
-				module.Annotations = append(module.Annotations, annotations...)
 			}
 		}
 

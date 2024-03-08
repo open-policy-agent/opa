@@ -5573,6 +5573,90 @@ q := 1`
 	}
 }
 
+func TestAnnotationsAttachedToRuleDocScopeBeforeRule(t *testing.T) {
+
+	module := `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+import rego.v1
+
+# METADATA
+# title: p1
+# description: p1
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+p contains x if {
+	input.x == 1
+	x := "hello"
+}
+
+# METADATA
+# title: p2
+# description: p2
+p contains x if {
+	input.x == 2
+	x := "world"
+}
+
+# METADATA
+# title: q
+# description: q
+q := 1`
+
+	pm, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a1 := []*Annotations{
+		{
+			Description: "p1",
+			Scope:       "rule",
+			Title:       "p1",
+		},
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+	}
+
+	a2 := []*Annotations{
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+		{
+			Description: "p2",
+			Scope:       "rule",
+			Title:       "p2",
+		},
+	}
+
+	a3 := []*Annotations{
+		{
+			Description: "q",
+			Scope:       "rule",
+			Title:       "q",
+		},
+	}
+
+	expAnnotations := [][]*Annotations{a1, a2, a3}
+
+	for i, rule := range pm.Rules {
+		if annotationsCompare(expAnnotations[i], rule.Annotations) != 0 {
+			t.Fatalf("expected %v but got %v", expAnnotations[i], rule.Annotations)
+		}
+	}
+}
+
 func TestAnnotationsAugmentedError(t *testing.T) {
 	tests := []struct {
 		note           string

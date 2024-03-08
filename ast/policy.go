@@ -674,7 +674,7 @@ func (rule *Rule) Copy() *Rule {
 
 	cpy.Annotations = make([]*Annotations, len(rule.Annotations))
 	for i, a := range rule.Annotations {
-		cpy.Annotations[i] = a.Copy(a.GetRule())
+		cpy.Annotations[i] = a.Copy(&cpy)
 	}
 
 	if cpy.Else != nil {
