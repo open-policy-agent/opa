@@ -1106,15 +1106,44 @@ func (w *writer) writeIterableLine(elements []interface{}, comments []*ast.Comme
 func (w *writer) objectWriter() entryWriter {
 	return func(x interface{}, comments []*ast.Comment) []*ast.Comment {
 		entry := x.([2]*ast.Term)
+
+		call, isCall := entry[0].Value.(ast.Call)
+
+		paren := false
+		if isCall && ast.Or.Ref().Equal(call[0].Value) && entry[0].Location.Text[0] == 40 { // Starts with "("
+			paren = true
+			w.write("(")
+		}
+
 		comments = w.writeTerm(entry[0], comments)
+		if paren {
+			w.write(")")
+		}
+
 		w.write(": ")
+
+		call, isCall = entry[1].Value.(ast.Call)
+		if isCall && ast.Or.Ref().Equal(call[0].Value) && entry[1].Location.Text[0] == 40 { // Starts with "("
+			w.write("(")
+			defer w.write(")")
+		}
+
 		return w.writeTerm(entry[1], comments)
 	}
 }
 
 func (w *writer) listWriter() entryWriter {
 	return func(x interface{}, comments []*ast.Comment) []*ast.Comment {
-		return w.writeTerm(x.(*ast.Term), comments)
+		t, ok := x.(*ast.Term)
+		if ok {
+			call, isCall := t.Value.(ast.Call)
+			if isCall && ast.Or.Ref().Equal(call[0].Value) && t.Location.Text[0] == 40 { // Starts with "("
+				w.write("(")
+				defer w.write(")")
+			}
+		}
+
+		return w.writeTerm(t, comments)
 	}
 }
 
