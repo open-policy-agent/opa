@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -655,6 +656,81 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 	}
 }
 
+func TestParseAndVerifyX509CertsWithOptions(t *testing.T) {
+
+	chain := strings.Join([]string{rootCA, intermediateCA, leaf}, "\n")
+
+	parsed, err := getX509CertsFromString(chain)
+	if err != nil {
+		t.Fatalf("failed to parse PEM cert chain: %v", err)
+	}
+
+	dnsName := parsed[2].DNSNames[0]
+	notBefore, notAfter := parsed[2].NotBefore, parsed[2].NotAfter
+	invalidBefore := notBefore.Add(-time.Minute).UnixNano()
+	invalidAfter := notAfter.Add(time.Minute).UnixNano()
+	// This certificate has "KeyUsageServerAuth", "KeyUsageClientAuth" as key usages. So these are used
+	// in following tests.
+
+	tests := []struct {
+		jsonOption *ast.Term
+		expectErr  bool
+	}{
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": "bad.dns.com"}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"CurrentTime": ` + strconv.FormatInt(invalidBefore, 10) + `}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"CurrentTime": ` + strconv.FormatInt(invalidAfter, 10) + `}`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"CurrentTime": ` + strconv.FormatInt(notBefore.UnixNano(), 10) + `}`),
+			expectErr:  false,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": "` + dnsName + `" }`),
+			expectErr:  false,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"KeyUsages": ["KeyUsageServerAuth", "KeyUsageClientAuth", "KeyUsageCodeSigning"] }`),
+			expectErr:  false,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"KeyUsages": ["KeyUsageCodeSigning"] }`),
+			expectErr:  true,
+		},
+		{
+			jsonOption: ast.MustParseTerm(`{"DNSName": "` + dnsName + `", "CurrentTime": ` + strconv.FormatInt(notBefore.UnixNano(), 10) + `, "KeyUsages": ["KeyUsageServerAuth", "KeyUsageCodeSigning"] }`),
+			expectErr:  false,
+		},
+	}
+
+	for _, testCase := range tests {
+		options, _ := builtins.ObjectOperand(testCase.jsonOption.Value, 0)
+		vo, err := extractVerifyOpts(options)
+		if err != nil {
+			t.Fatalf("Unexpected error in extracting options: %s", err)
+		}
+
+		_, err = verifyX509CertificateChain(parsed, vo)
+		if testCase.expectErr {
+			if err == nil {
+				t.Fatalf("expected error in verifying cert chain, but got nil error")
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("did not expect error, but got error: %s", err)
+			}
+		}
+	}
+
+}
+
 func TestExtractX509VerifyOptions(t *testing.T) {
 	tests := []struct {
 		jsonOption      *ast.Term
@@ -738,12 +814,11 @@ func TestExtractX509VerifyOptions(t *testing.T) {
 			if err != nil {
 				t.Fatalf("did not expect error but got %s", err)
 			}
-			if !cmp.Equal(vo, testCase.expectVerifyOpt,
-				cmpopts.SortSlices( // ignore the order of ExtKeyUsage values
-					func(ku1, ku2 x509.ExtKeyUsage) bool {
-						return ku1 < ku2
-					},
-				)) {
+			// ignore the order of ExtKeyUsage values
+			if !cmp.Equal(vo, testCase.expectVerifyOpt, cmpopts.SortSlices(
+				func(ku1, ku2 x509.ExtKeyUsage) bool {
+					return ku1 < ku2
+				})) {
 
 				t.Fatalf("expected x509.VerifyOptions: %+v \n"+
 					"got: %+v", testCase.expectVerifyOpt, vo)
