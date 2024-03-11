@@ -177,3 +177,38 @@ cases:
     query: data.test.p = x
     want_error: complete rules must not produce multiple outputs
     want_error_code: eval_conflict_error
+
+  - note: "disjunction/complete: conflict involving early-exit complete rule, data array enumeration"
+    data:
+      arr: [1, 2]
+    modules:
+      - |
+        package test
+
+        p {
+          q
+        }
+        q := data.arr[_]
+    query: data.test.p = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error
+
+  - note: "disjunction/complete: conflict involving early-exit complete rule, data object enumeration"
+    data:
+      obj:
+        a: 1
+        b: 2
+    modules:
+      - |
+        package test
+
+        p {
+          q
+        }
+        q := data.obj[_]
+    query: data.test.p = x
+    want_error: complete rules must not produce multiple outputs
+    want_error_code: eval_conflict_error
+
+# TODO: data set (possible?)
+# TODO: data object

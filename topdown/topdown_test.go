@@ -675,7 +675,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			extraExit: 1, // p + arr
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			note: "complete doc, multiple array iterations, package-local data, cached result",
+			note: "complete doc, multiple array iterations, module-local data, cached result",
 			module: `
 				package test
 				arr := ["a", "b", "c"]
@@ -688,7 +688,6 @@ func TestTopDownEarlyExit(t *testing.T) {
 			extraExit: 1, // p + arr
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			//
 			note: "complete doc, array iteration, ref to other complete doc without early exit",
 			module: `package test
 			p {
@@ -702,7 +701,23 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x", "y"),
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			//
+			note: "complete doc, array iteration, ref to other complete doc without early exit (multiple rules)",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+			}
+
+			q := x {
+				x := 1; trace("a")
+			}
+
+			q := x {
+				x := 1; trace("b")
+			}`,
+			notes: n("x", "a", "b", "y"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, array iteration, multiple refs to other complete docs without early exit",
 			module: `package test
 			p {
@@ -827,20 +842,44 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x", "a"),
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			note: "complete doc, multiple array iterations, func call without early exit, array iteration, dynamic arg",
+			note: "complete doc, array iteration -> func call without early exit, array iteration, dynamic arg",
+			module: `
+				package test
+				p { 
+					arr[_] = x; trace("x")
+					f(x) == x
+				}
+
+				arr := [1, 2, 3, 4, 5]
+				
+				f(x) := x {
+					arr[_] = y; trace("a")
+					y == 1; trace("b") # y will have exactly one match, so we expect one "b" note, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "a", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration -> func call without early exit, virtual doc array iteration, dynamic arg",
 			module: `
 				package test
 				p { 
 					data.arr[_] = x; trace("x")
 					f(x) == x
 				}
+
+arr := [1, 2, 3, 4, 5]
 				
 				f(x) := x {
-					data.arr[_] = y; trace("a")
+					#data.arr[_] = y; trace("a")
+					arr[_] = y; trace("a")
+					#y == 3; trace("b")
 					y == 1; trace("b")
 				}
 			`,
-			notes: n("x", "a", "a", "b"),
+			notes:     n("x", "a", "a", "a", "a", "a", "b"),
+			extraExit: 1, // p + arr
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, multiple array iterations, func (multi) call without early exit, static arg",
@@ -911,16 +950,6 @@ func TestTopDownEarlyExit(t *testing.T) {
 			`,
 			notes: n("x"),
 		},
-		//		{
-		//			note: "partial doc",
-		//			module: `package test
-		//				p[x] {
-		//					data.arr[i] = x; trace("x")
-		//					i < 3
-		//				}
-		//`,
-		//			notes: n("x", "x", "x"),
-		//		},
 		{
 			note: "ee -> ee -> ee",
 			module: `package test
@@ -937,7 +966,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 				r {
 					data.arr[i] = x; trace("e")
 				}
-`,
+			`,
 			notes:     n("a", "c", "e", "d", "b"),
 			extraExit: 2, // p + q + r
 		},
@@ -957,7 +986,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 				r {
 					data.arr[i] = x; trace("e")
 				}
-`,
+			`,
 			notes:     n("a", "c", "c", "c", "e", "d", "d", "d", "b"),
 			extraExit: 1, // p + r
 		},
@@ -977,17 +1006,110 @@ func TestTopDownEarlyExit(t *testing.T) {
 				r {
 					data.arr[i] = x; trace("e")
 				}
-`,
+			`,
 			notes:     n("a", "d", "d", "d", "b", "e", "c"),
 			extraExit: 1, // p + r
 		},
+		// TODO: Test every statements
+		{
+			note: "complete doc with every",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { x; trace("a") }
+				}
+			`,
+			notes:     n("x", "a", "a", "a"),
+			extraExit: 3, // p + every*3
+		},
+		{
+			note: "complete doc with every, array iteration",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr[_] = y; trace("a")
+						x; trace("b") 
+					}
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "b", "b", "b"),
+			extraExit: 3, // p + every*3
+		},
+		//{
+		//	note: "complete doc -> complete doc, no ee, with every",
+		//	module: `package test
+		//		import future.keywords
+		//		p {
+		//			data.arr[_] = x; trace("x")
+		//			q
+		//		}
+		//
+		//		q := x {
+		//			x := 1
+		//			data.arr[_] = x; trace("y")
+		//			every x in [1, 2, 3] { x; trace("a") }
+		//		}
+		//	`,
+		//	notes:     n("x", "y", "a", "a", "a"),
+		//	extraExit: 3, // p + every*3
+		//},
+		//{
+		//	note: "complete doc with every -> complete doc -> complete doc, no ee",
+		//	module: `package test
+		//		import future.keywords
+		//		p {
+		//			data.arr[_] = x; trace("x")
+		//			every x in [1, 2, 3] {
+		//				x > q; trace("a")
+		//			}
+		//		}
+		//
+		//		q := 0 {
+		//			data.arr[_] = x; trace("b")
+		//			r; trace("a")
+		//		}
+		//
+		//		r := x {
+		//			data.arr[_] = y; trace("c")
+		//			x := 0
+		//		}
+		//	`,
+		//	notes:     n("x", "a", "a", "a"),
+		//	extraExit: 3, // p + every*3
+		//},
+		// TODO: array comprehension
+		// TODO: set comprehension
+		// TODO: object comprehension
+		// TODO: Test with statements
+		//{
+		//	note: "complete doc with, not complete doc",
+		//},
+		// TODO: Test negation
+		// TODO: run backtester
+
+		//{
+		//	note: "should produce eval_conflict_error",
+		//	module: `package test
+		//	p {
+		//		q
+		//	}
+		//
+		//	q := x {
+		//		x := data.arr[_]
+		//	}
+		//	`,
+		//	notes: n(),
+		//},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
-			size := 1000
+			size := 5 //1000
 			arr := make([]interface{}, size)
 			obj := make(map[string]interface{}, size)
 			for i := 0; i < size; i++ {

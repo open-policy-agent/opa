@@ -325,17 +325,26 @@ func (e *eval) evalExpr(iter evalIterator) error {
 	if e.index >= len(e.query) {
 		err := iter(e)
 		if err != nil {
-			ee, ok := err.(*earlyExitError)
-			if !ok {
+			switch err := err.(type) {
+			case *outerEarlyExitError:
+				if !e.findOne {
+					if e.suppressEarlyExit {
+						return nil
+					}
+					return &outerEarlyExitError{prev: err, e: e}
+				}
+				return &earlyExitError{prev: err, e: e}
+			case *earlyExitError:
+				if !e.findOne {
+					if e.suppressEarlyExit {
+						return nil
+					}
+					return &outerEarlyExitError{prev: err, e: e}
+				}
+				return &earlyExitError{prev: err, e: e}
+			default:
 				return err
 			}
-			if !e.findOne {
-				if e.suppressEarlyExit {
-					return nil
-				}
-				return &outerEarlyExitError{prev: ee, e: e}
-			}
-			return &earlyExitError{prev: ee, e: e}
 		}
 		if e.findOne && !e.partial() { // we've found one!
 			return &earlyExitError{e: e}
@@ -2158,6 +2167,8 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return err
 	}
 
+	var outerEe *outerEarlyExitError
+
 	if doc != nil {
 		switch doc := doc.(type) {
 		case *ast.Array:
@@ -2166,8 +2177,15 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
 				})
+
 				if err != nil {
-					return err
+					if oee, ok := err.(*outerEarlyExitError); ok {
+						if outerEe == nil {
+							outerEe = oee
+						}
+					} else {
+						return err
+					}
 				}
 			}
 		case ast.Object:
@@ -2176,16 +2194,29 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				if err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
 				}); err != nil {
-					return err
+					if oee, ok := err.(*outerEarlyExitError); ok {
+						if outerEe == nil {
+							outerEe = oee
+						}
+					} else {
+						return err
+					}
 				}
 			}
 		case ast.Set:
-			err := doc.Iter(func(elem *ast.Term) error {
-				return e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
+			if err := doc.Iter(func(elem *ast.Term) error {
+				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, elem)
 				})
-			})
-			if err != nil {
+				if oee, ok := err.(*outerEarlyExitError); ok {
+					if outerEe == nil {
+						outerEe = oee
+					}
+					return nil
+				}
+
+				return err
+			}); err != nil {
 				return err
 			}
 		}
@@ -2204,6 +2235,9 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		}
 	}
 
+	if outerEe != nil {
+		return outerEe
+	}
 	return nil
 }
 
@@ -2984,6 +3018,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		return nil
 	}
 
+	// TODO: Explain why we don't suppress EE on cache hit.
 	if cached != nil {
 		e.e.instr.counterIncr(evalOpVirtualCacheHit)
 		return e.evalTerm(iter, cached, e.bindings)
@@ -3033,12 +3068,12 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 			return err
 		}
 
-		if outerEe != nil {
-			return outerEe
-		}
-
 		if prev == nil {
 			e.e.virtualCache.Put(e.plugged[:e.pos+1], nil)
+		}
+
+		if outerEe != nil {
+			return outerEe
 		}
 
 		return nil
@@ -3073,6 +3108,7 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 			return err
 		}
 
+		// TODO: trace redo if EE-err && !findOne(?)
 		child.traceRedo(rule)
 		return nil
 	})
@@ -3265,7 +3301,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			}
 		}
 	case ast.Object:
-		return v.Iter(func(k, _ *ast.Term) error {
+		if err := v.Iter(func(k, _ *ast.Term) error {
 			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(k))
 			})
@@ -3276,7 +3312,9 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 				return nil
 			}
 			return err
-		})
+		}); err != nil {
+			return err
+		}
 	case ast.Set:
 		if err := v.Iter(func(elem *ast.Term) error {
 			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
