@@ -991,6 +991,31 @@ arr := [1, 2, 3, 4, 5]
 			extraExit: 1, // p + r
 		},
 		{
+			note: "ee -> no ee (multiple) -> ee",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("c")
+					r; trace("d")
+				}
+
+				q[x] {
+					[4, 5, 6][_] = x; trace("e")
+					r; trace("f")
+				}
+
+				r {
+					data.arr[i] = x; trace("g")
+				}
+			`,
+			notes:     n("a", "c", "c", "c", "d", "d", "d", "e", "e", "e", "f", "f", "f", "g", "b"),
+			extraExit: 1, // p + r
+		},
+		{
 			note: "ee -> (no ee, ee)",
 			module: `package test
 				p {
@@ -1109,7 +1134,7 @@ arr := [1, 2, 3, 4, 5]
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
-			size := 5 //1000
+			size := 1000
 			arr := make([]interface{}, size)
 			obj := make(map[string]interface{}, size)
 			for i := 0; i < size; i++ {

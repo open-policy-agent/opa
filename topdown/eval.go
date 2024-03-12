@@ -2,6 +2,7 @@ package topdown
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -50,9 +51,9 @@ func (ee *earlyExitError) Error() string {
 	return fmt.Sprintf("%v: early exit", ee.e.query)
 }
 
-type outerEarlyExitError earlyExitError
+type deferredEarlyExitError earlyExitError
 
-func (ee *outerEarlyExitError) Error() string {
+func (ee deferredEarlyExitError) Error() string {
 	return fmt.Sprintf("%v: outer early exit", ee.e.query)
 }
 
@@ -105,7 +106,7 @@ type eval struct {
 	printHook              print.Hook
 	tracingOpts            tracing.Options
 	findOne                bool
-	suppressEarlyExit      bool
+	suppressEarlyExit      bool // FIXME: can we get rid of this?
 	strictObjects          bool
 }
 
@@ -314,6 +315,16 @@ func (e *eval) eval(iter evalIterator) error {
 }
 
 func (e *eval) evalExpr(iter evalIterator) error {
+	wrapErr := func(err error) error {
+		if !e.findOne {
+			if e.suppressEarlyExit {
+				return nil
+			}
+			// The current rule/function doesn't support EE, but a caller (somewhere down the call stack) does.
+			return &deferredEarlyExitError{prev: err, e: e}
+		}
+		return &earlyExitError{prev: err, e: e}
+	}
 
 	if e.cancel != nil && e.cancel.Cancelled() {
 		return &Error{
@@ -324,28 +335,18 @@ func (e *eval) evalExpr(iter evalIterator) error {
 
 	if e.index >= len(e.query) {
 		err := iter(e)
+
 		if err != nil {
 			switch err := err.(type) {
-			case *outerEarlyExitError:
-				if !e.findOne {
-					if e.suppressEarlyExit {
-						return nil
-					}
-					return &outerEarlyExitError{prev: err, e: e}
-				}
-				return &earlyExitError{prev: err, e: e}
+			case *deferredEarlyExitError:
+				return wrapErr(err)
 			case *earlyExitError:
-				if !e.findOne {
-					if e.suppressEarlyExit {
-						return nil
-					}
-					return &outerEarlyExitError{prev: err, e: e}
-				}
-				return &earlyExitError{prev: err, e: e}
+				return wrapErr(err)
 			default:
 				return err
 			}
 		}
+
 		if e.findOne && !e.partial() { // we've found one!
 			return &earlyExitError{e: e}
 		}
@@ -1864,11 +1865,11 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 	var prev *ast.Term
 
 	return withSuppressEarlyExit(func() error {
-		var outerEe *outerEarlyExitError
+		var outerEe *deferredEarlyExitError
 		for _, rule := range e.ir.Rules {
 			next, err := e.evalOneRule(iter, rule, cacheKey, prev, findOne)
 			if err != nil {
-				if oee, ok := err.(*outerEarlyExitError); ok {
+				if oee, ok := err.(*deferredEarlyExitError); ok {
 					if outerEe == nil {
 						outerEe = oee
 					}
@@ -1880,7 +1881,7 @@ func (e evalFunc) evalValue(iter unifyIterator, argCount int, findOne bool) erro
 				for _, erule := range e.ir.Else[rule] {
 					next, err = e.evalOneRule(iter, erule, cacheKey, prev, findOne)
 					if err != nil {
-						if oee, ok := err.(*outerEarlyExitError); ok {
+						if oee, ok := err.(*deferredEarlyExitError); ok {
 							if outerEe == nil {
 								outerEe = oee
 							}
@@ -2167,7 +2168,17 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		return err
 	}
 
-	var outerEe *outerEarlyExitError
+	var outerEe *deferredEarlyExitError
+	handleErr := func(err error) error {
+		var oee *deferredEarlyExitError
+		if errors.As(err, &oee) {
+			if outerEe == nil {
+				outerEe = oee
+			}
+			return nil
+		}
+		return err
+	}
 
 	if doc != nil {
 		switch doc := doc.(type) {
@@ -2178,29 +2189,18 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 					return e.next(iter, k)
 				})
 
-				if err != nil {
-					if oee, ok := err.(*outerEarlyExitError); ok {
-						if outerEe == nil {
-							outerEe = oee
-						}
-					} else {
-						return err
-					}
+				if err := handleErr(err); err != nil {
+					return err
 				}
 			}
 		case ast.Object:
 			ki := doc.KeysIterator()
 			for k, more := ki.Next(); more; k, more = ki.Next() {
-				if err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
+				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
-				}); err != nil {
-					if oee, ok := err.(*outerEarlyExitError); ok {
-						if outerEe == nil {
-							outerEe = oee
-						}
-					} else {
-						return err
-					}
+				})
+				if err := handleErr(err); err != nil {
+					return err
 				}
 			}
 		case ast.Set:
@@ -2208,14 +2208,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				err := e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, elem)
 				})
-				if oee, ok := err.(*outerEarlyExitError); ok {
-					if outerEe == nil {
-						outerEe = oee
-					}
-					return nil
-				}
-
-				return err
+				return handleErr(err)
 			}); err != nil {
 				return err
 			}
@@ -3028,12 +3021,12 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
 		var prev *ast.Term
-		var outerEe *outerEarlyExitError
+		var outerEe *deferredEarlyExitError
 
 		for _, rule := range e.ir.Rules {
 			next, err := e.evalValueRule(iter, rule, prev, findOne)
 			if err != nil {
-				if oee, ok := err.(*outerEarlyExitError); ok {
+				if oee, ok := err.(*deferredEarlyExitError); ok {
 					if outerEe == nil {
 						outerEe = oee
 					}
@@ -3045,7 +3038,7 @@ func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
 				for _, erule := range e.ir.Else[rule] {
 					next, err = e.evalValueRule(iter, erule, prev, findOne)
 					if err != nil {
-						if oee, ok := err.(*outerEarlyExitError); ok {
+						if oee, ok := err.(*deferredEarlyExitError); ok {
 							if outerEe == nil {
 								outerEe = oee
 							}
@@ -3281,7 +3274,18 @@ func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
 }
 
 func (e evalTerm) enumerate(iter unifyIterator) error {
-	var outerEe *outerEarlyExitError
+	var outerEe *deferredEarlyExitError
+	handleErr := func(err error) error {
+		var oee *deferredEarlyExitError
+		if errors.As(err, &oee) {
+			if outerEe == nil {
+				outerEe = oee
+			}
+			return nil
+		}
+		return err
+	}
+
 	switch v := e.term.Value.(type) {
 	case *ast.Array:
 		for i := 0; i < v.Len(); i++ {
@@ -3290,14 +3294,8 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 				return e.next(iter, k)
 			})
 
-			if err != nil {
-				if oee, ok := err.(*outerEarlyExitError); ok {
-					if outerEe == nil {
-						outerEe = oee
-					}
-				} else {
-					return err
-				}
+			if err := handleErr(err); err != nil {
+				return err
 			}
 		}
 	case ast.Object:
@@ -3305,13 +3303,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			err := e.e.biunify(k, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(k))
 			})
-			if oee, ok := err.(*outerEarlyExitError); ok {
-				if outerEe == nil {
-					outerEe = oee
-				}
-				return nil
-			}
-			return err
+			return handleErr(err)
 		}); err != nil {
 			return err
 		}
@@ -3320,14 +3312,7 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 			err := e.e.biunify(elem, e.ref[e.pos], e.termbindings, e.bindings, func() error {
 				return e.next(iter, e.termbindings.Plug(elem))
 			})
-			if oee, ok := err.(*outerEarlyExitError); ok {
-				if outerEe == nil {
-					outerEe = oee
-				}
-				return nil
-			}
-
-			return err
+			return handleErr(err)
 		}); err != nil {
 			return err
 		}
@@ -3779,7 +3764,7 @@ func refContainsNonScalar(ref ast.Ref) bool {
 func suppressEarlyExit(err error) error {
 	if ee, ok := err.(*earlyExitError); ok {
 		return ee.prev
-	} else if oee, ok := err.(*outerEarlyExitError); ok {
+	} else if oee, ok := err.(*deferredEarlyExitError); ok {
 		return oee.prev
 	}
 	return err
