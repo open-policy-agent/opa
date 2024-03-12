@@ -146,6 +146,7 @@ func builtinCryptoX509ParseAndVerifyCertificatesWithOptions(_ BuiltinContext, op
 	if err != nil {
 		return err
 	}
+
 	options, err := builtins.ObjectOperand(operands[1].Value, 2)
 	if err != nil {
 		return err
