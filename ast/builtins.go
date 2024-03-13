@@ -2344,7 +2344,7 @@ with all others being treated as intermediates.`,
 			types.Named("options", types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.S, types.A),
-			)).Description("object containing extra configs to verify the validity of certificates. `options` object supports four fields which maps to same fields in [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). `DNSName`, `CurrentTime`: Nanoseconds since the Unix Epoch as a number, `MaxConstraintComparisons` and `KeyUsages`. Possible values for `KeyUsages`: `[\"KeyUsageAny\", \"KeyUsageServerAuth\", \"KeyUsageClientAuth\", \"KeyUsageCodeSigning\", \"KeyUsageEmailProtection\", \"KeyUsageIPSECEndSystem\", \"KeyUsageIPSECTunnel\", \"KeyUsageIPSECUser\", \"KeyUsageTimeStamping\", \"KeyUsageOCSPSigning\", \"KeyUsageMicrosoftServerGatedCrypto\", \"KeyUsageNetscapeServerGatedCrypto\", \"KeyUsageMicrosoftCommercialCodeSigning\", \"KeyUsageMicrosoftKernelCodeSigning\"]`"),
+			)).Description("object containing extra configs to verify the validity of certificates."),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.B,
