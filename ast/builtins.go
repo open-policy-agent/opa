@@ -2329,7 +2329,7 @@ with all others being treated as intermediates.`,
 }
 
 var CryptoX509ParseAndVerifyCertificatesWithOptions = &Builtin{
-	Name: "crypto.x509.verify_certificates_with_options",
+	Name: "crypto.x509.parse_and_verify_certificates_with_options",
 	Description: `Returns one or more certificates from the given string containing PEM
 or base64 encoded DER certificates after verifying the supplied certificates form a complete
 certificate chain back to a trusted root. A config option passed as the second argument can
