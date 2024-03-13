@@ -525,7 +525,7 @@ func builtinCryptoHmacEqual(_ BuiltinContext, operands []*ast.Term, iter func(*a
 func init() {
 	RegisterBuiltinFunc(ast.CryptoX509ParseCertificates.Name, builtinCryptoX509ParseCertificates)
 	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificates.Name, builtinCryptoX509ParseAndVerifyCertificates)
-	//RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificatesWithOptions.Name, builtinCryptoX509ParseAndVerifyCertificatesWithOptions)
+	RegisterBuiltinFunc(ast.CryptoX509ParseAndVerifyCertificatesWithOptions.Name, builtinCryptoX509ParseAndVerifyCertificatesWithOptions)
 	RegisterBuiltinFunc(ast.CryptoMd5.Name, builtinCryptoMd5)
 	RegisterBuiltinFunc(ast.CryptoSha1.Name, builtinCryptoSha1)
 	RegisterBuiltinFunc(ast.CryptoSha256.Name, builtinCryptoSha256)
