@@ -1,9 +1,12 @@
 ---
 title: OPA Permissions Wrapper
+labels:
+  category: authorization
+  layer: application
 software:
-- Backstage
+- backstage
 inventors:
-- Peter Macdonald
+- petermacdonald
 tutorials: # optional, links to tutorials for the integration
 - https://github.com/Parsifal-M/backstage-opa-plugins/blob/main/plugins/permission-backend-module-opa-wrapper/README.md
 code: # optional, links to code for the integration
