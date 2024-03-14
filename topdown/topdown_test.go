@@ -812,7 +812,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			extraExit: 1, // p + f()
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			note: "complete doc, multiple array iterations, func call without early exit, static arg",
+			note: "complete doc, array iteration, func call without early exit, static arg",
 			module: `
 				package test
 				p { 
@@ -1253,22 +1253,56 @@ arr := [1, 2, 3, 4, 5]
 		//{
 		//	note: "complete doc with, not complete doc",
 		//},
-		// TODO: Test negation
+		// negation
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q := false {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q := x {
+					x := false
+					data.arr_small[_] = y; trace("q")
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, aborted ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q {
+					data.arr_small[_] = x; trace("q")
+					false
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
 		// TODO: run backtester
-
-		//{
-		//	note: "should produce eval_conflict_error",
-		//	module: `package test
-		//	p {
-		//		q
-		//	}
-		//
-		//	q := x {
-		//		x := data.arr[_]
-		//	}
-		//	`,
-		//	notes: n(),
-		//},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
@@ -1328,33 +1362,6 @@ arr := [1, 2, 3, 4, 5]
 		})
 	}
 }
-
-//type PrintTracer struct {
-//	depths map[uint64]int
-//	depth  int
-//}
-//
-//func (t *PrintTracer) GetOrSetDepth(qid uint64, pqid uint64) int {
-//	if t.depths == nil {
-//		t.depths = map[uint64]int{}
-//	}
-//	depth := t.depths[qid]
-//	if depth == 0 {
-//		depth = t.depths[pqid]
-//		depth++
-//		t.depths[qid] = depth
-//	}
-//	return depth
-//}
-//
-//func (t *PrintTracer) Enabled() bool {
-//	return true
-//}
-//
-//func (t *PrintTracer) Trace(e *Event) {
-//	t.depth = t.GetOrSetDepth(e.QueryID, e.ParentID)
-//	fmt.Fprintf(os.Stderr, formatEvent(e, t.depth))
-//}
 
 func TestTopDownEvery(t *testing.T) {
 	n := func(ns ...string) []string { return ns }
