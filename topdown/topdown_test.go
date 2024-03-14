@@ -1246,13 +1246,124 @@ arr := [1, 2, 3, 4, 5]
 			notes:     n("x", "a", "a", "c", "b", "b", "b", "b", "b", "b"),
 			extraExit: 8, // p + every*3*2 + arr + r
 		},
-		// TODO: array comprehension
-		// TODO: set comprehension
-		// TODO: object comprehension
-		// TODO: Test with statements
-		//{
-		//	note: "complete doc with, not complete doc",
-		//},
+		// array comprehensions
+		{
+			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := [v | v = data.arr[_]; q]; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := [v | v = data.arr[_]; q]; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// set comprehensions
+		{
+			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {v | v = data.arr[_]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {v | v = data.arr[_]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// object comprehensions
+		{
+			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {k: v | v = data.arr[k]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {k: v | v = data.arr[k]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// TODO: with statements
 		// negation
 		{
 			note: "complete doc, array iteration, ee -> negated complete doc, ee",
