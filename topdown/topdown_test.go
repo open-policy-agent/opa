@@ -827,7 +827,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x", "a"),
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			note: "complete doc, multiple array iterations, func call without early exit, dynamic arg",
+			note: "complete doc, array iteration -> func call without early exit, dynamic arg",
 			module: `
 				package test
 				p { 
@@ -842,6 +842,46 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x", "a"),
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, set iteration -> func call without early exit, dynamic arg",
+			module: `
+				package test
+				s := { 1, 2, 3 }
+
+				p { 
+					s[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + o
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, object iteration -> func call without early exit, dynamic arg",
+			module: `
+				package test
+				o := {
+					"a": 1,
+					"b": 2,
+					"c": 3,
+				}
+
+				p { 
+					o[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + o
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, array iteration -> func call without early exit, array iteration, dynamic arg",
 			module: `
 				package test
@@ -850,14 +890,59 @@ func TestTopDownEarlyExit(t *testing.T) {
 					f(x) == x
 				}
 
-				arr := [1, 2, 3, 4, 5]
+				arr := [1, 2, 3, 4, 2]
 				
 				f(x) := x {
 					arr[_] = y; trace("a")
+					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "a", "b", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, set iteration -> func call without early exit, set iteration, dynamic arg",
+			module: `
+				package test
+
+				s := { 1, 2, 3, 4, 5 }
+
+				p { 
+					s[_] = x; trace("x")
+					f(x) == x
+				}
+
+				f(x) := x {
+					s[_] = y; trace("a")
 					y == 1; trace("b") # y will have exactly one match, so we expect one "b" note, and an exhaustive number of "a" notes
 				}
 			`,
 			notes:     n("x", "a", "a", "a", "a", "a", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, object iteration -> func call without early exit, object iteration, dynamic arg",
+			module: `
+				package test
+
+				o := { 
+					"a": 1,
+					"b": 2,
+					"c": 3,
+					"d": 2,
+				}
+
+				p { 
+					o[_] = x; trace("x")
+					f(x) == x
+				}
+
+				f(x) := x {
+					o[_] = y; trace("a")
+					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "b", "b"),
 			extraExit: 1, // p + arr
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
@@ -872,17 +957,15 @@ func TestTopDownEarlyExit(t *testing.T) {
 arr := [1, 2, 3, 4, 5]
 				
 				f(x) := x {
-					#data.arr[_] = y; trace("a")
 					arr[_] = y; trace("a")
-					#y == 3; trace("b")
-					y == 1; trace("b")
+					y == 3; trace("b")
 				}
 			`,
 			notes:     n("x", "a", "a", "a", "a", "a", "b"),
 			extraExit: 1, // p + arr
 		},
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
-			note: "complete doc, multiple array iterations, func (multi) call without early exit, static arg",
+			note: "complete doc, array iteration -> func (multi) call without early exit, static arg",
 			module: `
 				package test
 				p { 
@@ -1035,7 +1118,7 @@ arr := [1, 2, 3, 4, 5]
 			notes:     n("a", "d", "d", "d", "b", "e", "c"),
 			extraExit: 1, // p + r
 		},
-		// TODO: Test every statements
+		// every statements
 		{
 			note: "complete doc with every",
 			module: `package test
@@ -1049,7 +1132,7 @@ arr := [1, 2, 3, 4, 5]
 			extraExit: 3, // p + every*3
 		},
 		{
-			note: "complete doc with every, array iteration",
+			note: "complete doc -> every, array iteration",
 			module: `package test
 				import future.keywords
 				p {
@@ -1063,48 +1146,106 @@ arr := [1, 2, 3, 4, 5]
 			notes:     n("x", "a", "a", "a", "b", "b", "b"),
 			extraExit: 3, // p + every*3
 		},
-		//{
-		//	note: "complete doc -> complete doc, no ee, with every",
-		//	module: `package test
-		//		import future.keywords
-		//		p {
-		//			data.arr[_] = x; trace("x")
-		//			q
-		//		}
-		//
-		//		q := x {
-		//			x := 1
-		//			data.arr[_] = x; trace("y")
-		//			every x in [1, 2, 3] { x; trace("a") }
-		//		}
-		//	`,
-		//	notes:     n("x", "y", "a", "a", "a"),
-		//	extraExit: 3, // p + every*3
-		//},
-		//{
-		//	note: "complete doc with every -> complete doc -> complete doc, no ee",
-		//	module: `package test
-		//		import future.keywords
-		//		p {
-		//			data.arr[_] = x; trace("x")
-		//			every x in [1, 2, 3] {
-		//				x > q; trace("a")
-		//			}
-		//		}
-		//
-		//		q := 0 {
-		//			data.arr[_] = x; trace("b")
-		//			r; trace("a")
-		//		}
-		//
-		//		r := x {
-		//			data.arr[_] = y; trace("c")
-		//			x := 0
-		//		}
-		//	`,
-		//	notes:     n("x", "a", "a", "a"),
-		//	extraExit: 3, // p + every*3
-		//},
+		{
+			note: "complete doc -> every, array iteration -> complete doc with ee -> complete doc no ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr_small[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr_small[_] = y; trace("e1")
+						x
+						q; trace("e2")
+					}
+				}
+
+				q {
+					data.arr_small[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r := x {
+					x := 1
+					data.arr_small[_] = y; trace("r1")
+				}
+			`,
+			notes:     n("x", "e1", "e1", "e1", "q1", "r1", "r1", "r1", "r1", "r1", "q2", "e2", "e2", "e2"),
+			extraExit: 4, // p + every*3 + q
+		},
+		{
+			note: "complete doc -> every, array iteration -> complete doc no ee -> complete doc with ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr_small[_] = y; trace("e1")
+						x
+						q; trace("e2")
+					}
+				}
+
+				q := x {
+					x := 1
+					data.arr_small[_] = y; trace("q1")
+					r; trace("q2")
+				}
+
+				r {
+					data.arr[_] = y; trace("r1")
+				}
+			`,
+			notes:     n("x", "e1", "e1", "e1", "q1", "q1", "q1", "q1", "q1", "r1", "q2", "q2", "q2", "q2", "q2", "e2", "e2", "e2"),
+			extraExit: 4, // p + every*3 + r
+		},
+		{
+			note: "complete doc -> complete doc, no ee, with every",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+
+				arr := [1, 2]
+		
+				q := x {
+					x := 1
+					arr[_] = y; trace("a")
+					every v in [1, 2, 3] { 
+						v; trace("b") # we expect 3*len(arr)==6 "b" notes
+					}
+				}
+			`,
+			notes:     n("x", "a", "a", "b", "b", "b", "b", "b", "b"),
+			extraExit: 7, // p + every*3*2 + arr
+		},
+		{
+			note: "complete doc -> complete doc, no ee, with every -> complete doc ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+
+				arr := [1, 2]
+		
+				q := x {
+					x := 1
+					arr[_] = y; trace("a")
+					every v in [1, 2, 3] { 
+						v; r; trace("b") # we expect 3*len(arr)==6 "b" notes
+					}
+				}
+	
+				r {
+					data.arr[_] = x; trace("c")
+				}
+			`,
+			notes:     n("x", "a", "a", "c", "b", "b", "b", "b", "b", "b"),
+			extraExit: 8, // p + every*3*2 + arr + r
+		},
 		// TODO: array comprehension
 		// TODO: set comprehension
 		// TODO: object comprehension
@@ -1142,8 +1283,9 @@ arr := [1, 2, 3, 4, 5]
 				obj[strconv.Itoa(i)] = i
 			}
 			data := map[string]interface{}{
-				"arr": arr,
-				"obj": obj,
+				"arr":       arr,
+				"arr_small": []int{1, 2, 3, 4, 5},
+				"obj":       obj,
 			}
 
 			store := inmem.NewFromObject(data)

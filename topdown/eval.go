@@ -106,7 +106,6 @@ type eval struct {
 	printHook              print.Hook
 	tracingOpts            tracing.Options
 	findOne                bool
-	suppressEarlyExit      bool // FIXME: can we get rid of this?
 	strictObjects          bool
 }
 
@@ -317,9 +316,6 @@ func (e *eval) eval(iter evalIterator) error {
 func (e *eval) evalExpr(iter evalIterator) error {
 	wrapErr := func(err error) error {
 		if !e.findOne {
-			if e.suppressEarlyExit {
-				return nil
-			}
 			// The current rule/function doesn't support EE, but a caller (somewhere down the call stack) does.
 			return &deferredEarlyExitError{prev: err, e: e}
 		}
@@ -2215,6 +2211,10 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		}
 	}
 
+	if outerEe != nil {
+		return outerEe
+	}
+
 	if e.node == nil {
 		return nil
 	}
@@ -2228,9 +2228,6 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		}
 	}
 
-	if outerEe != nil {
-		return outerEe
-	}
 	return nil
 }
 
@@ -3318,7 +3315,6 @@ func (e evalTerm) enumerate(iter unifyIterator) error {
 		}
 	}
 
-	// FIXME: What if we get multiple outerEarlyExitErrors?
 	if outerEe != nil {
 		return outerEe
 	}
@@ -3406,7 +3402,6 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 
 	domain := e.e.closure(e.generator)
-	domain.suppressEarlyExit = true
 	all := true // all generator evaluations yield one successful body evaluation
 
 	domain.traceEnter(e.expr)
@@ -3432,11 +3427,15 @@ func (e evalEvery) eval(iter unifyIterator) error {
 		}
 
 		child.traceRedo(e.expr)
-		return err
+
+		// We don't want to abort the generator domain enumeration with EE.
+		return suppressEarlyExit(err)
 	})
+
 	if err != nil {
 		return err
 	}
+
 	if all {
 		err := iter()
 		domain.traceExit(e.expr)
