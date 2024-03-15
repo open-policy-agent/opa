@@ -700,6 +700,7 @@ func (ap *clientTLSAuthPlugin) Prepare(req *http.Request) error {
 type awsSigningAuthPlugin struct {
 	AWSEnvironmentCredentials *awsEnvironmentCredentialService `json:"environment_credentials,omitempty"`
 	AWSMetadataCredentials    *awsMetadataCredentialService    `json:"metadata_credentials,omitempty"`
+	AWSAssumeRoleCredentials  *awsAssumeRoleCredentialService  `json:"assume_role_credentials,omitempty"`
 	AWSWebIdentityCredentials *awsWebIdentityCredentialService `json:"web_identity_credentials,omitempty"`
 	AWSProfileCredentials     *awsProfileCredentialService     `json:"profile_credentials,omitempty"`
 
@@ -796,6 +797,11 @@ func (ap *awsSigningAuthPlugin) awsCredentialService() awsCredentialService {
 		chain.addService(ap.AWSEnvironmentCredentials)
 	}
 
+	if ap.AWSAssumeRoleCredentials != nil {
+		ap.AWSAssumeRoleCredentials.logger = ap.logger
+		chain.addService(ap.AWSAssumeRoleCredentials)
+	}
+
 	if ap.AWSWebIdentityCredentials != nil {
 		ap.AWSWebIdentityCredentials.logger = ap.logger
 		chain.addService(ap.AWSWebIdentityCredentials)
@@ -851,6 +857,7 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 	cfgs := map[bool]int{}
 	cfgs[ap.AWSEnvironmentCredentials != nil]++
 	cfgs[ap.AWSMetadataCredentials != nil]++
+	cfgs[ap.AWSAssumeRoleCredentials != nil]++
 	cfgs[ap.AWSWebIdentityCredentials != nil]++
 	cfgs[ap.AWSProfileCredentials != nil]++
 
@@ -861,6 +868,12 @@ func (ap *awsSigningAuthPlugin) validateAndSetDefaults(serviceType string) error
 	if ap.AWSMetadataCredentials != nil {
 		if ap.AWSMetadataCredentials.RegionName == "" {
 			return errors.New("at least aws_region must be specified for AWS metadata credential service")
+		}
+	}
+
+	if ap.AWSAssumeRoleCredentials != nil {
+		if err := ap.AWSAssumeRoleCredentials.populateFromEnv(); err != nil {
+			return err
 		}
 	}
 

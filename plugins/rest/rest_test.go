@@ -624,6 +624,56 @@ func TestNew(t *testing.T) {
 			},
 		},
 		{
+			name: "S3AssumeRoleMissingEnvVars",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"assume_role_credentials": {}
+					},
+				}
+			}`,
+			wantErr: true,
+		},
+		{
+			name: "S3AssumeRoleCredsMissingSigningPlugin",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"assume_role_credentials": {}
+					},
+				}
+			}`,
+			env: map[string]string{
+				awsRoleArnEnvVar: "TEST",
+				accessKeyEnvVar:  "TEST",
+				secretKeyEnvVar:  "TEST",
+				awsRegionEnvVar:  "us-west-1",
+			},
+			wantErr: true,
+		},
+		{
+			name: "S3AssumeRoleCreds",
+			input: `{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"s3_signing": {
+						"assume_role_credentials": {"aws_signing": {"environment_credentials": {}}}
+					},
+				}
+			}`,
+			env: map[string]string{
+				awsRoleArnEnvVar: "TEST",
+				accessKeyEnvVar:  "TEST",
+				secretKeyEnvVar:  "TEST",
+				awsRegionEnvVar:  "us-west-1",
+			},
+		},
+		{
 			name: "ValidGCPMetadataIDTokenOptions",
 			input: `{
 				"name": "foo",
