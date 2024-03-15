@@ -572,6 +572,52 @@ containers have at most one associated IAM role.
 | `services[_].credentials.s3_signing.metadata_credentials.aws_region` | `string` | No | The AWS region to use for the AWS signing service credential method. If unset, the `AWS_REGION` environment variable must be set |
 | `services[_].credentials.s3_signing.metadata_credentials.iam_role` | `string` | No | The IAM role to use for the AWS signing service credential method |
 
+
+##### Using AWS Security Token Service (AWS STS) via AssumeRole
+If specifying `assume_role_credentials`, OPA will use [AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+to obtain temporary security credentials for accessing AWS resources. In order to retrieve temporary security credentials from STS
+via [AssumeRole](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html) valid AWS security credentials are required.
+
+{{< info >}}
+For using `services[_].credentials.s3_signing.assume_role_credentials`, a method for setting the AWS credentials has to be specified in the `services[_].credentials.s3_signing.assume_role_credentials.aws_signing`.
+The value of `services[_].credentials.s3_signing.assume_role_credentials.aws_signing.service` is set to `STS`. Several methods of obtaining the necessary credentials are available; exactly one must be specified,
+see description for `services[_].credentials.s3_signing`. Currently supported methods are `services[_].credentials.s3_signing.environment_credentials`, `services[_].credentials.s3_signing.profile_credentials` and
+`services[_].credentials.s3_signing.metadata_credentials`. OPA will follow this *internally defined* order of precedence when multiple credential providers are specified.
+{{< /info >}}
+
+
+| Field                                                             | Type | Required | Description |
+|-------------------------------------------------------------------| --- | -- | --- |
+| `services[_].credentials.s3_signing.assume_role_credentials.aws_region` | `string` | Yes | The AWS region to use for the sts regional endpoint. Uses the global endpoint by default |
+| `services[_].credentials.s3_signing.assume_role_credentials.iam_role_arn` | `string` | Yes | The IAM Role ARN to be assumed. Can also be set via the `AWS_ROLE_ARN` environment variable (config takes precedence) |
+| `services[_].credentials.s3_signing.assume_role_credentials.aws_signing` | `{}`    | Yes | AWS credentials for signing requests. |
+| `services[_].credentials.s3_signing.assume_role_credentials.session_name` | `string` | No | The session name used to identify the assumed role session. Default: `open-policy-agent` |
+| `services[_].credentials.s3_signing.assume_role_credentials.aws_domain` | `string` | No | The AWS domain name to use. Default: `amazonaws.com`. Can also be set via the `AWS_DOMAIN` environment variable (config takes precedence) |
+
+##### Example
+
+Using Assume Role Credentials type with EC2 Metadata Credentials signing plugin.
+
+```yaml
+services:
+  remote:
+    url: ${BUNDLE_SERVICE_URL}
+    credentials:
+      assume_role_credentials:
+        aws_region: us-east-1
+        iam_role_arn: arn:aws::iam::123456789012:role/demo
+        session_name: demo
+        aws_signing: # similar to s3_signing
+          metadata_credentials:
+            aws_region: us-east-1
+            iam_role: s3access
+
+bundles:
+  authz:
+    service: remote
+    resource: bundles/http/example/authz.tar.gz
+```
+
 ##### Using EKS IAM Roles for Service Account (Web Identity) Credentials
 If specifying `web_identity_credentials`, OPA will expect to find environment variables for `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`, in accordance with the convention used by the [AWS EKS IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
