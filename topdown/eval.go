@@ -54,7 +54,7 @@ func (ee *earlyExitError) Error() string {
 type deferredEarlyExitError earlyExitError
 
 func (ee deferredEarlyExitError) Error() string {
-	return fmt.Sprintf("%v: outer early exit", ee.e.query)
+	return fmt.Sprintf("%v: deferred early exit", ee.e.query)
 }
 
 type eval struct {
