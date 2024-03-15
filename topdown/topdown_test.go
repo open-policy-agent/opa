@@ -1415,7 +1415,7 @@ arr := [1, 2, 3, 4, 5]
 					input.x[_] = x; trace("r")
 				}
 			`,
-			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			notes:     n("p1", "q1", "r", "r", "r", "r", "r", "q2", "p2"),
 			extraExit: 1, // p + q
 		},
 		{
