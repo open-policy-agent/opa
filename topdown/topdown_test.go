@@ -1363,7 +1363,85 @@ arr := [1, 2, 3, 4, 5]
 			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
 			extraExit: 1, // p + q
 		},
-		// TODO: with statements
+		// with statements
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr; trace("p2")
+				}
+
+				q {
+					input.x[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q := v {
+					v := 1
+					input.x[_] = x; trace("q")
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q {
+					input.x[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r := v {
+					v := 1
+					input.x[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, no ee -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q := v {
+					v := 1
+					input.x[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r {
+					input.x[_] = x; trace("r")
+				}
+			`,
+			// data.test.r is evaluated twice, as 'with' in data.test.p will pop the virtual cache before redoes.
+			// Cache is however maintained through redo-sequence, so data.test.r result will be found in cache from there.
+			notes:     n("p1", "q1", "q1", "q1", "q1", "q1", "q2", "q2", "q2", "q2", "q2", "r", "r", "p2"),
+			extraExit: 2, // p + r + r
+		},
 		// negation
 		{
 			note: "complete doc, array iteration, ee -> negated complete doc, ee",
