@@ -2877,7 +2877,7 @@ allow if {
 ### Schemas
 
 The `schemas` annotation is a list of key value pairs, associating schemas to data values.
-In-depth information on this topic can be found [here](../schemas#schema-annotations).
+In-depth information on this topic can be found [here](#annotations).
 
 #### Schema Reference Format
 

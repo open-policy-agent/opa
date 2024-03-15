@@ -5,6 +5,7 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -577,6 +578,84 @@ func TestV4Signing(t *testing.T) {
 		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
 		assertEq("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			req.Header.Get("X-Amz-Content-Sha256"), t)
+		assertEq("20190424T181457Z", req.Header.Get("X-Amz-Date"), t)
+		assertEq("MYAWSSECURITYTOKENGOESHERE", req.Header.Get("X-Amz-Security-Token"), t)
+	}
+}
+
+func TestV4SigningUnsignedPayload(t *testing.T) {
+	ts := ec2CredTestServer{}
+	ts.start()
+	defer ts.stop()
+
+	// happy path: sign correctly
+	cs := &awsMetadataCredentialService{
+		RoleName:        "my_iam_role", // not present
+		RegionName:      "us-east-1",
+		credServicePath: ts.server.URL + "/latest/meta-data/iam/security-credentials/",
+		tokenPath:       ts.server.URL + "/latest/api/token",
+		logger:          logging.Get(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)}
+
+	// force a non-random source so that we can predict the v4a signing key and, thus, signature
+	myReader := strings.NewReader("000000000000000000000000000000000")
+	aws.SetRandomSource(myReader)
+	defer func() { aws.SetRandomSource(rand.Reader) }()
+
+	tests := []struct {
+		disablePayloadSigning bool
+		expectedAuthorization []string
+		expectedShaHeaderVal  string
+	}{
+		{
+			disablePayloadSigning: true,
+			expectedAuthorization: []string{
+				"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/s3/aws4_request," +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token," +
+					"Signature=3682e55f6d86d3372003b3d28c74aa960f076d91fce833b129ae76415a12e5e4",
+			},
+			expectedShaHeaderVal: "UNSIGNED-PAYLOAD",
+		},
+		{
+			disablePayloadSigning: false,
+			expectedAuthorization: []string{
+				"AWS4-HMAC-SHA256 Credential=MYAWSACCESSKEYGOESHERE/20190424/us-east-1/s3/aws4_request," +
+					"SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token," +
+					"Signature=d3f0561abae5e35d9ee2c15e678bb7acacc4b4743707a8f7fbcbfdb519078990",
+			},
+			expectedShaHeaderVal: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+	}
+	for _, test := range tests {
+		creds, err := cs.credentials(context.Background())
+		if err != nil {
+			t.Fatal("unexpected error getting credentials")
+		}
+		req, _ := http.NewRequest("GET", "https://mybucket.s3.amazonaws.com/bundle.tar.gz", strings.NewReader(""))
+		var body []byte
+		if req.Body == nil {
+			body = []byte("")
+		} else {
+			body, _ = io.ReadAll(req.Body)
+			req.Body = io.NopCloser(bytes.NewReader(body))
+		}
+
+		authHeader, awsHeaders := aws.SignV4(req.Header, req.Method, req.URL, body, "s3", creds, time.Unix(1556129697, 0).UTC(), test.disablePayloadSigning)
+		req.Header.Set("Authorization", authHeader)
+		for k, v := range awsHeaders {
+			req.Header.Add(k, v)
+		}
+
+		// expect mandatory headers
+		assertEq("mybucket.s3.amazonaws.com", req.Header.Get("Host"), t)
+		assertIn(test.expectedAuthorization, req.Header.Get("Authorization"), t)
+		assertEq(test.expectedShaHeaderVal, req.Header.Get("X-Amz-Content-Sha256"), t)
 		assertEq("20190424T181457Z", req.Header.Get("X-Amz-Date"), t)
 		assertEq("MYAWSSECURITYTOKENGOESHERE", req.Header.Get("X-Amz-Security-Token"), t)
 	}
