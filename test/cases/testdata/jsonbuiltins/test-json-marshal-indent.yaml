@@ -11,12 +11,12 @@ cases:
     note: jsonbuiltins/marshal-indent explicit indent
     query: data.test.p = x
     want_result:
-      - x: |
-      [
-        1234567890,
-        2000000,
-        1000000000
-      ]
+      - x: |-
+          [
+            1234567890,
+            2000000,
+            1000000000
+          ]
   - data: {}
     modules:
       - |
@@ -25,12 +25,12 @@ cases:
         p = x {
           json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], x)
         }
-    note: jsonbuiltins/marshal-indent explicit indent
+    note: jsonbuiltins/marshal-indent implicit indent
     query: data.test.p = x
     want_result:
-      - x: |
-      [
-      \t1234567890,
-      \t2000000,
-      \t1000000000
-      ]
+      - x: |-
+          [
+          \t1234567890,
+          \t2000000,
+          \t1000000000
+          ]
