@@ -8,7 +8,7 @@ cases:
         p = x {
           json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ", x)
         }
-    note: jsonbuiltins/marshal-indent explicit indent
+    note: jsonbuiltins/marshal_indent-explicit
     query: data.test.p = x
     want_result:
       - x: |-
@@ -23,14 +23,14 @@ cases:
         package test
 
         p = x {
-          json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], x)
+          json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, x)
         }
-    note: jsonbuiltins/marshal-indent implicit indent
+    note: jsonbuiltins/marshal_indent-nulled
     query: data.test.p = x
     want_result:
       - x: |-
           [
-          \t1234567890,
-          \t2000000,
-          \t1000000000
+          	1234567890,
+          	2000000,
+          	1000000000
           ]
