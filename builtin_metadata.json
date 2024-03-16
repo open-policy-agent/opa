@@ -10361,15 +10361,15 @@
         "type": "any"
       },
       {
-        "description": "the string to indent with, defaults to \\t (tab character, 0x09) if unset",
+        "description": "the string to indent with, defaults to `\\t` (tab character, 0x09) if null",
         "name": "indent",
-        "type": "any\u003c???, null, string\u003e"
+        "type": "any\u003cnull, string\u003e"
       }
     ],
     "available": [
       "edge"
     ],
-    "description": "Serializes the input term to indented JSON, including line breaks. One or more copies of the indent string are emitted before each JSON element depending on indent level.",
+    "description": "Serializes the input term to indented JSON, including line breaks. One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
     "introduced": "edge",
     "result": {
       "description": "the JSON string representation of `x`",
