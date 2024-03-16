@@ -1717,7 +1717,7 @@ var JSONMarshalIndent = &Builtin{
 			types.Named("indent", types.NewAny(
 				types.S,
 				types.NewNull(),
-			)).Description("the string to indent with, defaults to \\t (tab character, 0x09) if unset"),
+			)).Description("the string to indent with, defaults to \\t (tab character, 0x09) if null"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`"),
 	),
