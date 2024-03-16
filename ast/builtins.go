@@ -142,6 +142,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Encoding
 	JSONMarshal,
+	JSONMarshalIndent,
 	JSONUnmarshal,
 	JSONIsValid,
 	Base64Encode,
