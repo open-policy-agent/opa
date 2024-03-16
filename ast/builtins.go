@@ -1710,14 +1710,14 @@ var JSONMarshal = &Builtin{
 var JSONMarshalIndent = &Builtin{
 	Name: "json.marshal_indent",
 	Description: "Serializes the input term to indented JSON, including line breaks. " +
-		"One or more copies of the indent string are emitted before each JSON element depending on indent level.",
+		"One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.A).Description("the term to serialize"),
 			types.Named("indent", types.NewAny(
 				types.S,
 				types.NewNull(),
-			)).Description("the string to indent with, defaults to \\t (tab character, 0x09) if null"),
+			)).Description("the string to indent with, defaults to `\\t` (tab character, 0x09) if null"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`"),
 	),
