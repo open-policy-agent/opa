@@ -59,6 +59,7 @@
       "hex.encode",
       "json.is_valid",
       "json.marshal",
+      "json.marshal_indent",
       "json.unmarshal",
       "urlquery.decode",
       "urlquery.decode_object",
@@ -10351,6 +10352,31 @@
       "type": "string"
     },
     "wasm": true
+  },
+  "json.marshal_indent": {
+    "args": [
+      {
+        "description": "the term to serialize",
+        "name": "x",
+        "type": "any"
+      },
+      {
+        "description": "the string to indent with, defaults to \\t (tab character, 0x09) if unset",
+        "name": "indent",
+        "type": "any\u003c???, null, string\u003e"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Serializes the input term to indented JSON, including line breaks. One or more copies of the indent string are emitted before each JSON element depending on indent level.",
+    "introduced": "edge",
+    "result": {
+      "description": "the JSON string representation of `x`",
+      "name": "y",
+      "type": "string"
+    },
+    "wasm": false
   },
   "json.match_schema": {
     "args": [

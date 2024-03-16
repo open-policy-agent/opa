@@ -2148,6 +2148,32 @@
       }
     },
     {
+      "name": "json.marshal_indent",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "of": [
+              null,
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.match_schema",
       "decl": {
         "args": [

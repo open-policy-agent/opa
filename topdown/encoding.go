@@ -35,6 +35,39 @@ func builtinJSONMarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	return iter(ast.StringTerm(string(bs)))
 }
 
+func builtinJSONMarshalIndent(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	asJSON, err := ast.JSON(operands[0].Value)
+	if err != nil {
+		return err
+	}
+
+	var indentWith string
+
+	switch operands[1].Value.(type) {
+	case ast.String:
+		indentOp, err := builtins.StringOperand(operands[1].Value, 2)
+		if err != nil {
+			return err
+		}
+
+		indentWith = string(indentOp)
+
+	case ast.Null:
+		indentWith = "\t"
+
+	default:
+		return builtins.NewOperandTypeErr(2, operands[1].Value, "string", "null")
+	}
+
+	bs, err := json.MarshalIndent(asJSON, "", indentWith)
+	if err != nil {
+		return err
+	}
+
+	return iter(ast.StringTerm(string(bs)))
+}
+
 func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
 	str, err := builtins.StringOperand(operands[0].Value, 1)
@@ -299,6 +332,7 @@ func builtinHexDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 func init() {
 	RegisterBuiltinFunc(ast.JSONMarshal.Name, builtinJSONMarshal)
+	RegisterBuiltinFunc(ast.JSONMarshalIndent.Name, builtinJSONMarshalIndent)
 	RegisterBuiltinFunc(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
 	RegisterBuiltinFunc(ast.JSONIsValid.Name, builtinJSONIsValid)
 	RegisterBuiltinFunc(ast.Base64Encode.Name, builtinBase64Encode)
