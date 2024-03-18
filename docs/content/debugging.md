@@ -74,7 +74,7 @@ decision_logs:
 It might be preferable to send these logs to an HTTP endpoint or other system, to learn more about decision logging,
 take a look at the [Decision Logging documentation](../management-decision-logs).
 
-## Metrics, Heath and Status APIs
+## Metrics, Health and Status APIs
 
 Like other cloud-native tools, OPA exposes `/metrics` and `/health` endpoints that can be used to understand the
 state of an OPA instance at any given time.
