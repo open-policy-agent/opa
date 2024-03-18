@@ -21,7 +21,11 @@ weight: 90
 restrictedtoc: true
 ---
 
-The OPA executable provides the following commands.
+The OPA executable provides the following commands. Note that command line arguments may either be provided as
+traditional flags, or as environment variables. The expected format of environment variables used for this purpose
+follows the pattern OPA_<COMMAND>_<FLAG> where COMMAND is the command name in uppercase (like EVAL) and FLAG is the
+flag name in uppercase (like STRICT), i.e. OPA_EVAL_STRICT would be equivalent to passing the --strict flag to the
+eval command.
 
 `
 
