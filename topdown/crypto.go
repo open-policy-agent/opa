@@ -193,7 +193,10 @@ func extractVerifyOpts(options ast.Object) (verifyOpt x509.VerifyOptions, err er
 		if err != nil {
 			return verifyOpt, err
 		}
-		k = k.(string)
+		k, ok := k.(string)
+		if !ok {
+			continue
+		}
 
 		switch k {
 		case "DNSName":
