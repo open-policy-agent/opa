@@ -2502,6 +2502,10 @@ func TestEventV1ToAST(t *testing.T) {
 		}),
 	}.AsValue())
 
+	var decisionLabel interface{} = ast.MustJSON(builtins.DecisionLabel{
+		"foo": ast.NewObject([1]*ast.String{"bar"}),
+	})
+
 	cases := []struct {
 		note  string
 		event EventV1
@@ -2637,6 +2641,25 @@ func TestEventV1ToAST(t *testing.T) {
 				Timestamp:      time.Now(),
 				inputAST:       astInput,
 				NDBuiltinCache: &ndbCacheExample,
+			},
+		},
+		{
+			note: "event with decision_label",
+			event: EventV1{
+				Labels:     map[string]string{"foo": "1", "bar": "2"},
+				DecisionID: "1234567890",
+				Bundles: map[string]BundleInfoV1{
+					"b1": {"revision7"},
+					"b2": {"0"},
+					"b3": {},
+				},
+				Input:         &goInput,
+				Path:          "/http/authz/allow",
+				RequestedBy:   "[::1]:59943",
+				Result:        &result,
+				Timestamp:     time.Now(),
+				inputAST:      astInput,
+				DecisionLabel: &decisionLabel,
 			},
 		},
 		{
