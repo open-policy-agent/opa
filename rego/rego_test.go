@@ -2574,6 +2574,21 @@ func TestNDBCacheMarshalUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestEvalWithDecisionLabel(t *testing.T) {
+
+	query := "decision.label.add(\"foo\": \"bar\")"
+
+	decisionLabel := builtins.DecisionLabel{"foo": ast.NewObject([2]*ast.Term{ast.StringTerm("bar")})}
+
+	ctx := context.Background()
+
+	_, err := New(Query(query), DecisionLabel(decisionLabel)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestStrictBuiltinErrors(t *testing.T) {
 	_, err := New(Query("1/0"), StrictBuiltinErrors(true)).Eval(context.Background())
 	if err == nil {
