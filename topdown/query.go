@@ -53,7 +53,7 @@ type Query struct {
 	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
-	decisionLabel          builtins.DecisionLabels
+	decisionLabel          builtins.DecisionLabel
 	strictBuiltinErrors    bool
 	builtinErrorList       *[]Error
 	strictObjects          bool
@@ -252,7 +252,7 @@ func (q *Query) WithNDBuiltinCache(c builtins.NDBCache) *Query {
 	return q
 }
 
-func (q *Query) WithDecisionLabel(dl builtins.DecisionLabels) *Query {
+func (q *Query) WithDecisionLabel(dl builtins.DecisionLabel) *Query {
 	q.decisionLabel = dl
 	return q
 }

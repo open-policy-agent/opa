@@ -118,7 +118,7 @@ type EvalContext struct {
 	earlyExit              bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
-	decisionLabel          builtins.DecisionLabels
+	decisionLabel          builtins.DecisionLabel
 	resolvers              []refResolver
 	sortSets               bool
 	copyMaps               bool
@@ -582,7 +582,7 @@ type Rego struct {
 	skipBundleVerification bool
 	interQueryBuiltinCache cache.InterQueryCache
 	ndBuiltinCache         builtins.NDBCache
-	decisionLabel          builtins.DecisionLabels
+	decisionLabel          builtins.DecisionLabel
 	strictBuiltinErrors    bool
 	builtinErrorList       *[]topdown.Error
 	resolvers              []refResolver
@@ -1115,7 +1115,7 @@ func NDBuiltinCache(c builtins.NDBCache) func(r *Rego) {
 	}
 }
 
-func DecisionLabel(dl builtins.DecisionLabels) func(r *Rego) {
+func DecisionLabel(dl builtins.DecisionLabel) func(r *Rego) {
 	return func(r *Rego) {
 		r.decisionLabel = dl
 	}

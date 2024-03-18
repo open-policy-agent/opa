@@ -259,7 +259,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		}
 	}
 
-	dl := options.DecisionLabel.(builtins.DecisionLabels)
+	dl := options.DecisionLabel.(builtins.DecisionLabel)
 
 	result, err := opa.executeTransaction(
 		ctx,
@@ -508,7 +508,7 @@ type evalArgs struct {
 	path                string
 	input               interface{}
 	ndbcache            builtins.NDBCache
-	decisionLabel       builtins.DecisionLabels
+	decisionLabel       builtins.DecisionLabel
 	m                   metrics.Metrics
 	strictBuiltinErrors bool
 	tracer              topdown.QueryTracer
