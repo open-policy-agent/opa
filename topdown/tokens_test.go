@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -472,12 +471,7 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
 	  }, x)`
 
-	// go1.20 and beyond
 	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.GRp6wIqDZuYnvQH50hnIy559LdrjUux76v1ynxX6lH0XtlgwreyR16x2JMnuElo79X3zUbqlWrZITICv86arew"
-	if strings.HasPrefix(runtime.Version(), "go1.19") { // we don't use go1.18 anymore
-		encodedSigned = "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.05wmHY3NomU1jr7yvusBvKwhthRklPuJhUPOkoeIn5e5n_GXvE25EfRs9AJK2wOy6NoY2ljhj07M9BMtV0dfyA"
-	}
-
 	for i := 0; i < 10; i++ {
 		q := NewQuery(ast.MustParseBody(query)).
 			WithSeed(&cng{}).

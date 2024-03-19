@@ -5,7 +5,11 @@ weight: 90
 restrictedtoc: true
 ---
 
-The OPA executable provides the following commands.
+The OPA executable provides the following commands. Note that command line arguments may either be provided as
+traditional flags, or as environment variables. The expected format of environment variables used for this purpose
+follows the pattern OPA_<COMMAND>_<FLAG> where COMMAND is the command name in uppercase (like EVAL) and FLAG is the
+flag name in uppercase (like STRICT), i.e. OPA_EVAL_STRICT would be equivalent to passing the --strict flag to the
+eval command.
 
 ## opa bench
 
@@ -614,6 +618,7 @@ opa exec <path> [<path> [...]] [flags]
       --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
       --set stringArray                      override config values on the command line (use commas to specify multiple values)
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
+      --timeout duration                     set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)
       --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```
 

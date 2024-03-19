@@ -37,7 +37,8 @@ In order to complete this tutorial, the following prerequisites needs to be met:
 * Docker
 * OPA server running at an endpoint reachable by the AWS Lambda function, either within the same AWS environment, or
   elsewhere. While developing your CloudFormation policies, a good option is to run OPA locally, but exposed to the
-  public via a service like [ngrok](https://ngrok.com/).
+  public via a service like [tunnelmole](https://tunnelmole.com/docs), an open source tunneling tool or [ngrok](https://ngrok.com/),
+  a popular closed source tunneling tool.
 
 ## Steps
 

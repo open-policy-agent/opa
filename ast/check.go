@@ -93,6 +93,8 @@ func (tc *typeChecker) WithInputType(tpe types.Type) *typeChecker {
 	return tc
 }
 
+// WithAllowUndefinedFunctionCalls sets the type checker to allow references to undefined functions.
+// Additionally, the 'CheckUndefinedFuncs' and 'CheckSafetyRuleBodies' compiler stages are skipped.
 func (tc *typeChecker) WithAllowUndefinedFunctionCalls(allow bool) *typeChecker {
 	tc.allowUndefinedFuncs = allow
 	return tc

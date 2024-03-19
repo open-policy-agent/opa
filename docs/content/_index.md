@@ -794,12 +794,19 @@ your own machine.
 
 ### 1. Download OPA
 
-To get started download an OPA binary for your platform from GitHub releases:
+To get started download an OPA binary for your platform from
+[GitHub releases](https://github.com/open-policy-agent/opa/releases):
 
-On macOS (64-bit):
+On macOS (ARM 64-bit):
 
 ```shell
-curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_amd64
+curl -L -o opa https://openpolicyagent.org/downloads/{{< current_version >}}/opa_darwin_arm64_static
+```
+
+Or using Homebrew:
+
+```shell
+brew install opa
 ```
 
 On Linux (64-bit):

@@ -219,6 +219,24 @@ declare2 := 2 {
 	false
 }
 
+declare3 := {1, 2, 3}
+
+declare4 := {4, 5, 6}
+
+union_object := {"response": (declare3 | declare4)}
+
+union_set := {(declare3 | declare4)}
+
+union_list := [(declare3 | declare4)]
+
+union_set_2 := {(declare3 | declare4)}
+
+union_object_multi_line := {"response": (declare3 | declare4)}
+
+union_object_key := {(declare3 | declare4): "foo"}
+
+union_object_key_multi_line := {(declare3 | declare4): "foo"}
+
 # more comments!
 # more comments!
 # more comments!
