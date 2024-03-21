@@ -1491,7 +1491,6 @@ arr := [1, 2, 3, 4, 5]
 			`,
 			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
 		},
-		// TODO: run backtester
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
