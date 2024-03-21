@@ -392,6 +392,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("a", "b"),
 		},
 		{
+			note: "complete doc: other complete doc that cannot exit early, one undefined",
+			module: `
+				package test
+				p { q }
+
+				q = x { x := true; trace("a"); false }
+				q = x { x := true; trace("b") }`,
+			notes: n("a", "b"),
+		},
+		{
 			note: "complete doc: other complete doc that cannot exit early (else)",
 			module: `
 				package test
@@ -400,6 +410,49 @@ func TestTopDownEarlyExit(t *testing.T) {
 				q = x { x := true; trace("a"); false }
 				else = x { x := true; trace("b") }`,
 			notes: n("a", "b"),
+		},
+		{
+			note: "complete doc: other complete doc that cannot exit early, partial doc",
+			module: `
+				package test
+				p { q }
+
+				q[x] { 
+					x := [1, 2, 3][_]; trace("a")
+				}`,
+			notes: n("a", "a", "a"),
+		},
+		{
+			note: "complete doc, iteration: other partial doc that cannot exit early",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x") 
+					q 
+				}
+
+				q[x] { 
+					x := [1, 2, 3][_]; trace("a")
+				}`,
+			notes: n("x", "a", "a", "a"),
+		},
+		{
+			note: "complete doc, iteration: multiple other partial docs that cannot exit early",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+		
+				q[x] {
+					x := [1, 2, 3][_]; trace("a")
+				}
+		
+				q[x] {
+					x := [4, 5, 6][_]; trace("b")
+				}`,
+			notes: n("x", "a", "a", "a", "b", "b", "b"),
 		},
 		{
 			note: "complete doc: other function that cannot exit early",
@@ -488,6 +541,454 @@ func TestTopDownEarlyExit(t *testing.T) {
 			notes: n("x"),
 		},
 		{
+			note: "complete doc, multiple array iteration",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					data.arr[_] = z; trace("z")
+				}
+			`,
+			notes: n("x", "y", "z"),
+		},
+		{
+			note: "complete doc, multiple array iteration, ref to other complete doc with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+			`,
+			notes:     n("a", "b", "x", "y", "q"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, multiple array iteration, ref to multiple other complete docs with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				# Not called because of EE
+				q { 
+					data.arr[_] = a; trace("c")
+					data.arr[_] = b; trace("d")
+				}
+			`,
+			notes:     n("a", "b", "x", "y", "q"),
+			extraExit: 1, // p + q
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, ref to other complete doc with iteration and cached result",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q1")
+					q; trace("q2") # result of q in cache
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+			`,
+			notes:     n("x", "y", "q1", "q2", "a", "b"),
+			extraExit: 1, // p + q
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, ref to multiple other complete docs with iteration and cached result",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q1")
+					q; trace("q2") # result of q in cache
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				# Not called because of EE
+				q { 
+					data.arr[_] = a; trace("c")
+					data.arr[_] = b; trace("d")
+				}
+			`,
+			notes:     n("x", "y", "q1", "q2", "a", "b"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, multiple array iterations, ref to other multiple complete docs with iteration",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("x") 
+					data.arr[_] = y; trace("y")
+					q; trace("q")
+					r; trace("r")
+				}
+
+				q { 
+					data.arr[_] = a; trace("a")
+					data.arr[_] = b; trace("b")
+				}
+
+				r { 
+					data.arr[_] = c; trace("c")
+					data.arr[_] = d; trace("d")
+				}
+			`,
+			notes:     n("x", "y", "a", "b", "q", "c", "d", "r"),
+			extraExit: 2, // p + q + r
+		},
+		{
+			note: "complete doc, array iteration, package-local data",
+			module: `
+				package test
+				arr := ["a", "b", "c"]
+				p { 
+					arr[_] = x; trace("x")
+				}
+			`,
+			notes:     n("x"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, multiple array iterations, module-local data, cached result",
+			module: `
+				package test
+				arr := ["a", "b", "c"]
+				p { 
+					arr[_] = x; trace("x") 
+					arr[_] = y; trace("y") # arr in cache
+				}
+			`,
+			notes:     n("x", "y"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration, ref to other complete doc without early exit",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+			}
+
+			q := x {
+				x := 1
+			}`,
+			notes: n("x", "y"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration, ref to other complete doc without early exit (multiple rules)",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+			}
+
+			q := x {
+				x := 1; trace("a")
+			}
+
+			q := x {
+				x := 1; trace("b")
+			}`,
+			notes: n("x", "a", "b", "y"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration, multiple refs to other complete docs without early exit",
+			module: `package test
+			p {
+				data.arr[_]; trace("x")
+				q; trace("y")
+				r; trace("z")
+			}
+
+			q := x {
+				x := 1
+			}
+
+			r := x {
+				x := 2
+			}`,
+			notes: n("x", "y", "z"),
+		},
+		{
+			note: "complete doc, array iteration, func call with early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{
+			note: "complete doc, multiple array iterations, func call multiple early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+				
+				f(x) := 1 {
+					trace("b")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{
+			note: "complete doc, multiple array iterations, func call without early exit",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					trace("a")
+				}
+				
+				f(x) := 1 {
+					trace("b")
+				}
+
+				f(x) := 2 {
+					trace("c")
+					false # to avoid eval_conflict_error error
+				}
+			`,
+			notes: n("x", "a", "b", "c"),
+		},
+		{
+			note: "complete doc, multiple array iterations, func call with early exit and iteration",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := 1 {
+					data.arr[_] = a; trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + f()
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration, func call without early exit, static arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes: n("x", "a"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration -> func call without early exit, dynamic arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes: n("x", "a"),
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, set iteration -> func call without early exit, dynamic arg",
+			module: `
+				package test
+				s := { 1, 2, 3 }
+
+				p { 
+					s[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + o
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, object iteration -> func call without early exit, dynamic arg",
+			module: `
+				package test
+				o := {
+					"a": 1,
+					"b": 2,
+					"c": 3,
+				}
+
+				p { 
+					o[_] = x; trace("x")
+					f(x) == x
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+			`,
+			notes:     n("x", "a"),
+			extraExit: 1, // p + o
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration -> func call without early exit, array iteration, dynamic arg",
+			module: `
+				package test
+				p { 
+					arr[_] = x; trace("x")
+					f(x) == x
+				}
+
+				arr := [1, 2, 3, 4, 2]
+				
+				f(x) := x {
+					arr[_] = y; trace("a")
+					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "a", "b", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, set iteration -> func call without early exit, set iteration, dynamic arg",
+			module: `
+				package test
+
+				s := { 1, 2, 3, 4, 5 }
+
+				p { 
+					s[_] = x; trace("x")
+					f(x) == x
+				}
+
+				f(x) := x {
+					s[_] = y; trace("a")
+					y == 1; trace("b") # y will have exactly one match, so we expect one "b" note, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "a", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, object iteration -> func call without early exit, object iteration, dynamic arg",
+			module: `
+				package test
+
+				o := { 
+					"a": 1,
+					"b": 2,
+					"c": 3,
+					"d": 2,
+				}
+
+				p { 
+					o[_] = x; trace("x")
+					f(x) == x
+				}
+
+				f(x) := x {
+					o[_] = y; trace("a")
+					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "b", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration -> func call without early exit, virtual doc array iteration, dynamic arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(x) == x
+				}
+
+arr := [1, 2, 3, 4, 5]
+				
+				f(x) := x {
+					arr[_] = y; trace("a")
+					y == 3; trace("b")
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "a", "a", "b"),
+			extraExit: 1, // p + arr
+		},
+		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
+			note: "complete doc, array iteration -> func (multi) call without early exit, static arg",
+			module: `
+				package test
+				p { 
+					data.arr[_] = x; trace("x")
+					f(1) == 1
+				}
+				
+				f(x) := x {
+					trace("a")
+				}
+
+				f(x) := x {
+					trace("b")
+					false
+				}
+
+				f(x) := x {
+					trace("c")
+				}
+			`,
+			notes: n("x", "a", "b", "c"),
+		},
+		{
 			note: "complete doc, obj iteration",
 			module: `
 				package test
@@ -532,21 +1033,481 @@ func TestTopDownEarlyExit(t *testing.T) {
 			`,
 			notes: n("x"),
 		},
+		{
+			note: "ee -> ee -> ee",
+			module: `package test
+				p {
+					data.arr[_] = x; trace("a")
+					q; trace("b")
+				}
+
+				q {
+					data.arr[_] = x; trace("c")
+					r; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+			`,
+			notes:     n("a", "c", "e", "d", "b"),
+			extraExit: 2, // p + q + r
+		},
+		{
+			note: "ee -> no ee -> ee",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("c")
+					r; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+			`,
+			notes:     n("a", "c", "c", "c", "e", "d", "d", "d", "b"),
+			extraExit: 1, // p + r
+		},
+		{
+			note: "ee -> no ee (multiple) -> ee",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("c")
+					r; trace("d")
+				}
+
+				q[x] {
+					[4, 5, 6][_] = x; trace("e")
+					r; trace("f")
+				}
+
+				r {
+					data.arr[i] = x; trace("g")
+				}
+			`,
+			notes:     n("a", "c", "c", "c", "d", "d", "d", "e", "e", "e", "f", "f", "f", "g", "b"),
+			extraExit: 1, // p + r
+		},
+		{
+			note: "ee -> (no ee, ee)",
+			module: `package test
+				p {
+					data.arr[i] = x; trace("a")
+					q; trace("b")
+					r; trace("c")
+				}
+
+				q[x] {
+					[1, 2, 3][_] = x; trace("d")
+				}
+
+				r {
+					data.arr[i] = x; trace("e")
+				}
+			`,
+			notes:     n("a", "d", "d", "d", "b", "e", "c"),
+			extraExit: 1, // p + r
+		},
+		// every statements
+		{
+			note: "complete doc with every",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { x; trace("a") }
+				}
+			`,
+			notes:     n("x", "a", "a", "a"),
+			extraExit: 3, // p + every*3
+		},
+		{
+			note: "complete doc -> every, array iteration",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr[_] = y; trace("a")
+						x; trace("b") 
+					}
+				}
+			`,
+			notes:     n("x", "a", "a", "a", "b", "b", "b"),
+			extraExit: 3, // p + every*3
+		},
+		{
+			note: "complete doc -> every, array iteration -> complete doc with ee -> complete doc no ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr_small[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr_small[_] = y; trace("e1")
+						x
+						q; trace("e2")
+					}
+				}
+
+				q {
+					data.arr_small[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r := x {
+					x := 1
+					data.arr_small[_] = y; trace("r1")
+				}
+			`,
+			notes:     n("x", "e1", "e1", "e1", "q1", "r1", "r1", "r1", "r1", "r1", "q2", "e2", "e2", "e2"),
+			extraExit: 4, // p + every*3 + q
+		},
+		{
+			note: "complete doc -> every, array iteration -> complete doc no ee -> complete doc with ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					every x in [1, 2, 3] { 
+						data.arr_small[_] = y; trace("e1")
+						x
+						q; trace("e2")
+					}
+				}
+
+				q := x {
+					x := 1
+					data.arr_small[_] = y; trace("q1")
+					r; trace("q2")
+				}
+
+				r {
+					data.arr[_] = y; trace("r1")
+				}
+			`,
+			notes:     n("x", "e1", "e1", "e1", "q1", "q1", "q1", "q1", "q1", "r1", "q2", "q2", "q2", "q2", "q2", "e2", "e2", "e2"),
+			extraExit: 4, // p + every*3 + r
+		},
+		{
+			note: "complete doc -> complete doc, no ee, with every",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+
+				arr := [1, 2]
+		
+				q := x {
+					x := 1
+					arr[_] = y; trace("a")
+					every v in [1, 2, 3] { 
+						v; trace("b") # we expect 3*len(arr)==6 "b" notes
+					}
+				}
+			`,
+			notes:     n("x", "a", "a", "b", "b", "b", "b", "b", "b"),
+			extraExit: 7, // p + every*3*2 + arr
+		},
+		{
+			note: "complete doc -> complete doc, no ee, with every -> complete doc ee",
+			module: `package test
+				import future.keywords
+				p {
+					data.arr[_] = x; trace("x")
+					q
+				}
+
+				arr := [1, 2]
+		
+				q := x {
+					x := 1
+					arr[_] = y; trace("a")
+					every v in [1, 2, 3] { 
+						v; r; trace("b") # we expect 3*len(arr)==6 "b" notes
+					}
+				}
+	
+				r {
+					data.arr[_] = x; trace("c")
+				}
+			`,
+			notes:     n("x", "a", "a", "c", "b", "b", "b", "b", "b", "b"),
+			extraExit: 8, // p + every*3*2 + arr + r
+		},
+		// array comprehensions
+		{
+			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := [v | v = data.arr[_]; q]; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := [v | v = data.arr[_]; q]; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// set comprehensions
+		{
+			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {v | v = data.arr[_]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {v | v = data.arr[_]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// object comprehensions
+		{
+			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {k: v | v = data.arr[k]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					y := {k: v | v = data.arr[k]; q}; trace("p2")
+				}
+		
+				q {
+					data.arr[_] = x; trace("q")
+					r
+				}
+
+				r := v {
+					v := 1
+					data.arr_small[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q", "r", "r", "r", "r", "r", "p2"),
+			extraExit: 1, // p + q
+		},
+		// with statements
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr; trace("p2")
+				}
+
+				q {
+					input.x[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q := v {
+					v := 1
+					input.x[_] = x; trace("q")
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, ee -> complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q {
+					input.x[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r := v {
+					v := 1
+					input.x[_] = x; trace("r")
+				}
+			`,
+			notes:     n("p1", "q1", "r", "r", "r", "r", "r", "q2", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> with -> complete doc, no ee -> complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					q with input.x as data.arr_small; trace("p2")
+				}
+
+				q := v {
+					v := 1
+					input.x[_] = x; trace("q1")
+					r; trace("q2")
+				}
+
+				r {
+					input.x[_] = x; trace("r")
+				}
+			`,
+			// data.test.r is evaluated twice, as 'with' in data.test.p will pop the virtual cache before redoes.
+			// Cache is however maintained through redo-sequence, so data.test.r result will be found in cache from there.
+			notes:     n("p1", "q1", "q1", "q1", "q1", "q1", "q2", "q2", "q2", "q2", "q2", "r", "r", "p2"),
+			extraExit: 2, // p + r + r
+		},
+		// negation
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q := false {
+					data.arr[_] = x; trace("q")
+				}
+			`,
+			notes:     n("p1", "q", "p2"),
+			extraExit: 1, // p + q
+		},
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, no ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q := x {
+					x := false
+					data.arr_small[_] = y; trace("q")
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
+		{
+			note: "complete doc, array iteration, ee -> negated complete doc, aborted ee",
+			module: `
+				package test
+				p {
+					data.arr[_] = x; trace("p1")
+					not q; trace("p2")
+				}
+		
+				q {
+					data.arr_small[_] = x; trace("q")
+					false
+				}
+			`,
+			notes: n("p1", "q", "q", "q", "q", "q", "p2"),
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			countExit := 1 + tc.extraExit
 			ctx := context.Background()
 			compiler := compileModules([]string{tc.module})
-			arr := make([]interface{}, 1000)
-			obj := make(map[string]interface{}, 1000)
-			for i := 0; i < 1000; i++ {
+			size := 1000
+			arr := make([]interface{}, size)
+			obj := make(map[string]interface{}, size)
+			for i := 0; i < size; i++ {
 				arr[i] = i
 				obj[strconv.Itoa(i)] = i
 			}
 			data := map[string]interface{}{
-				"arr": arr,
-				"obj": obj,
+				"arr":       arr,
+				"arr_small": []int{1, 2, 3, 4, 5},
+				"obj":       obj,
 			}
 
 			store := inmem.NewFromObject(data)
@@ -578,10 +1539,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			sort.Strings(tc.notes)
 			if !reflect.DeepEqual(notes, tc.notes) {
 				t.Errorf("unexpected note traces, expected %v, got %v", tc.notes, notes)
-				PrettyTrace(os.Stderr, *buf)
 			}
 			if exp, act := countExit, exits["early"]; exp != act {
 				t.Errorf("expected %d early exit events, got %d", exp, act)
+			}
+
+			if t.Failed() {
 				PrettyTrace(os.Stderr, *buf)
 			}
 		})
