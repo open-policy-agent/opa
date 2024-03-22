@@ -483,7 +483,8 @@ main contains "hello" if {
 							defer cancel()
 							go func() {
 								err := runExecWithContext(ctx, params)
-								if err != nil {
+								// we cancelled the context, so we expect that error
+								if err != nil && err.Error() != "context canceled" {
 									t.Error(err)
 									return
 								}
