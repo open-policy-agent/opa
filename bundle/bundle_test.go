@@ -1695,8 +1695,9 @@ func TestMerge(t *testing.T) {
 			},
 			wantBundle: &Bundle{
 				Manifest: Manifest{
-					Revision: "abcdef",
-					Roots:    &[]string{""},
+					Revision:    "abcdef",
+					Roots:       &[]string{""},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Modules: []ModuleFile{
 					{
@@ -1733,6 +1734,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"bar",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1777,6 +1779,7 @@ func TestMerge(t *testing.T) {
 						"logs",
 						"authz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				WasmModules: []WasmModuleFile{
 					{
@@ -1833,6 +1836,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Modules: []ModuleFile{
 					{
@@ -1881,6 +1885,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{
 					"foo": map[string]interface{}{
@@ -1916,6 +1921,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1951,7 +1957,8 @@ func TestMerge(t *testing.T) {
 			wantBundle: &Bundle{
 				Data: map[string]interface{}{},
 				Manifest: Manifest{
-					Roots: &[]string{"a", "b"},
+					Roots:       &[]string{"a", "b"},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				PlanModules: []PlanModuleFile{
 					{
@@ -2012,4 +2019,8 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func pointTo[T any](x T) *T {
+	return &x
 }

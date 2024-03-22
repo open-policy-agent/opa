@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/open-policy-agent/opa/ast"
 	astJSON "github.com/open-policy-agent/opa/ast/json"
 	"github.com/open-policy-agent/opa/format"
@@ -123,14 +124,25 @@ type Manifest struct {
 	Revision      string         `json:"revision"`
 	Roots         *[]string      `json:"roots,omitempty"`
 	WasmResolvers []WasmResolver `json:"wasm,omitempty"`
-	// RegoVersion
+	// RegoVersion is the global Rego version for the bundle described by this Manifest.
+	// The Rego version of individual files can be overridden in FileRegoVersions.
 	// We don't use ast.RegoVersion here, as this iota type's order isn't guaranteed to be stable over time.
 	// We use a pointer so that we can support hand-made bundles that don't have an explicit version appropriately.
 	// E.g. in OPA 0.x if --v1-compatible is used when consuming the bundle, and there is no specified version,
 	// we should default to v1; if --v1-compatible isn't used, we should default to v0. In OPA 1.0, no --x-compatible
 	// flag and no explicit bundle version should default to v1.
-	RegoVersion *int                   `json:"rego_version,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	RegoVersion *int `json:"rego_version,omitempty"`
+	// FileRegoVersions is a map from file paths to Rego versions.
+	// This allows individual files to override the global Rego version specified by RegoVersion.
+	FileRegoVersions map[string]int         `json:"file_rego_versions,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+
+	compiledFileRegoVersions []fileRegoVersion
+}
+
+type fileRegoVersion struct {
+	path    glob.Glob
+	version int
 }
 
 // WasmResolver maps a wasm module to an entrypoint ref.
@@ -686,8 +698,12 @@ func (r *Reader) Read() (Bundle, error) {
 	popts := r.ParserOptions()
 	popts.RegoVersion = bundle.RegoVersion(popts.RegoVersion)
 	for _, mf := range modules {
+		modulePopts := popts
+		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.Path, popts.RegoVersion); err != nil {
+			return bundle, err
+		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
-		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), popts)
+		mf.Parsed, err = ast.ParseModuleWithOpts(mf.Path, string(mf.Raw), modulePopts)
 		r.metrics.Timer(metrics.RegoModuleParse).Stop()
 		if err != nil {
 			return bundle, err
@@ -1165,6 +1181,50 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 	b.Manifest.SetRegoVersion(v)
 }
 
+// RegoVersionForFile returns the rego-version for the specified file path.
+// If there is no defined version for the given path, the default version def is returned.
+// If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
+func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
+	if version, err := b.Manifest.numericRegoVersionForFile(path); err != nil {
+		return def, err
+	} else if version == nil {
+		return def, nil
+	} else if *version == 0 {
+		return ast.RegoV0, nil
+	} else if *version == 1 {
+		return ast.RegoV1, nil
+	} else {
+		return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
+	}
+}
+
+func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
+	var version *int
+
+	if len(m.FileRegoVersions) != len(m.compiledFileRegoVersions) {
+		m.compiledFileRegoVersions = make([]fileRegoVersion, 0, len(m.FileRegoVersions))
+		for pattern, v := range m.FileRegoVersions {
+			if compiled, err := glob.Compile(pattern); err != nil {
+				return nil, fmt.Errorf("failed to compile glob pattern %s: %s", pattern, err)
+			} else {
+				m.compiledFileRegoVersions = append(m.compiledFileRegoVersions, fileRegoVersion{compiled, v})
+			}
+		}
+	}
+
+	for _, fv := range m.compiledFileRegoVersions {
+		if fv.path.Match(path) {
+			version = &fv.version
+			break
+		}
+	}
+
+	if version == nil {
+		version = m.RegoVersion
+	}
+	return version, nil
+}
+
 // Equal returns true if this bundle's contents equal the other bundle's
 // contents.
 func (b Bundle) Equal(other Bundle) bool {
@@ -1315,13 +1375,20 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 // will have an empty revision except in the special case where a single bundle is provided
 // (and in that case the bundle is just returned unmodified.)
 func Merge(bundles []*Bundle) (*Bundle, error) {
+	return MergeWithRegoVersion(bundles, ast.RegoV0)
+}
+
+func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bundle, error) {
 
 	if len(bundles) == 0 {
 		return nil, errors.New("expected at least one bundle")
 	}
 
 	if len(bundles) == 1 {
-		return bundles[0], nil
+		result := bundles[0]
+		// We respect the bundle rego-version, defaulting to the provided rego version if not set.
+		result.SetRegoVersion(result.RegoVersion(regoVersion))
+		return result, nil
 	}
 
 	var roots []string
@@ -1350,14 +1417,27 @@ func Merge(bundles []*Bundle) (*Bundle, error) {
 		result.WasmModules = append(result.WasmModules, b.WasmModules...)
 		result.PlanModules = append(result.PlanModules, b.PlanModules...)
 
-		if b.Manifest.RegoVersion != nil {
-			if result.Manifest.RegoVersion == nil {
-				result.Manifest.RegoVersion = b.Manifest.RegoVersion
-			} else if *result.Manifest.RegoVersion != *b.Manifest.RegoVersion {
-				return nil, fmt.Errorf("conflicting bundle rego versions: %v and %v", *result.Manifest.RegoVersion, *b.Manifest.RegoVersion)
+		if b.Manifest.RegoVersion != nil || len(b.Manifest.FileRegoVersions) > 0 {
+			// we drop the bundle-global rego versions and record individual rego versions for each module.
+
+			if result.Manifest.FileRegoVersions == nil {
+				result.Manifest.FileRegoVersions = map[string]int{}
+			}
+			for _, m := range b.Modules {
+				if v, err := b.RegoVersionForFile(m.Path, b.RegoVersion(regoVersion)); err != nil {
+					return nil, err
+				} else {
+					if v != regoVersion {
+						// only record the rego version if it's different from one applied globally to the result bundle
+						result.Manifest.FileRegoVersions[m.Path] = v.Int()
+					}
+				}
 			}
 		}
 	}
+
+	// We respect the bundle rego-version, defaulting to the provided rego version if not set.
+	result.SetRegoVersion(result.RegoVersion(regoVersion))
 
 	if result.Data == nil {
 		result.Data = map[string]interface{}{}

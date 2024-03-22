@@ -463,13 +463,10 @@ func (c *Compiler) initBundle() error {
 			bundles = append(bundles, load.Bundles[k])
 		}
 
-		result, err := bundle.Merge(bundles)
+		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion)
 		if err != nil {
 			return fmt.Errorf("bundle merge failed: %v", err)
 		}
-
-		// We respect the bundle rego-version, defaulting to the compiler rego version if not set.
-		result.SetRegoVersion(result.RegoVersion(c.regoVersion))
 
 		c.bundle = result
 		return nil
