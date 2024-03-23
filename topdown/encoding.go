@@ -42,7 +42,7 @@ func builtinJSONMarshalIndent(_ BuiltinContext, operands []*ast.Term, iter func(
 		return err
 	}
 
-	var indentWith string
+	var indentWith, prefixWith string
 
 	switch operands[1].Value.(type) {
 	case ast.String:
@@ -60,12 +60,32 @@ func builtinJSONMarshalIndent(_ BuiltinContext, operands []*ast.Term, iter func(
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "string", "null")
 	}
 
-	bs, err := json.MarshalIndent(asJSON, "", indentWith)
+	switch operands[2].Value.(type) {
+	case ast.String:
+		prefixOp, err := builtins.StringOperand(operands[2].Value, 3)
+		if err != nil {
+			return err
+		}
+
+		prefixWith = string(prefixOp)
+
+	case ast.Null:
+		prefixWith = ""
+
+	default:
+		return builtins.NewOperandTypeErr(3, operands[2].Value, "string", "null")
+	}
+
+	bs, err := json.MarshalIndent(asJSON, prefixWith, indentWith)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(string(bs)))
+	/*
+		Golang's json.marshalIndent() function will not prefix the first line of emitted JSON with the specified prefix string.
+
+	*/
+	return iter(ast.StringTerm(prefixWith + string(bs)))
 }
 
 func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
