@@ -6,7 +6,7 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ")
+          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ", null)
         }
     note: jsonbuiltins/marshal_indent-explicit
     query: data.test.p = x
@@ -23,7 +23,7 @@ cases:
         package test
 
         p = x {
-          json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, x)
+          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, null)
         }
     note: jsonbuiltins/marshal_indent-nulled
     query: data.test.p = x
@@ -34,3 +34,49 @@ cases:
           	2000000,
           	1000000000
           ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, "JSON => ")
+        }
+    note: jsonbuiltins/marshal_indent-prefix
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          JSON => [
+          JSON => 	1234567890,
+          JSON => 	2000000,
+          JSON => 	1000000000
+          JSON => ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_indent({"foo": "bar", "bar": "baz"}, null, "JSON => ")
+        }
+    note: jsonbuiltins/marshal_indent-object
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          JSON => {
+          JSON => 	"bar": "baz",
+          JSON => 	"foo": "bar"
+          JSON => }
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_indent([], "    ", "---")
+        }
+    note: jsonbuiltins/marshal_indent-empty-array
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          ---[]
