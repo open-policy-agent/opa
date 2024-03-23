@@ -4910,7 +4910,7 @@ large or mixed workspaces.
 
 - Status API messages now include a dump of OPA's Prometheus metric
   registry. This increases the Status API message size significantly
-  (~6KB). If you are indexing the the Status API messages, consider
+  (~6KB). If you are indexing the Status API messages, consider
   removing the metrics. Nonetheless, for Status API implementations,
   having access to the Prometheus metrics is important for monitoring
   the health of the OPAs.

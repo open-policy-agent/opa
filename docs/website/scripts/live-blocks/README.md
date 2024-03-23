@@ -13,7 +13,7 @@ on page load.
 ## Scripts
 `package.json` contains a bunch of scripts, in some cases it calls things in the `live-blocks/scripts/` folder.
 The most important of these is `inject` which calls a bunch of other scripts to add live docs functionality
-to an otherwise fully built site. All of these scripts can be run from the the `docs/` folder using `make live-blocks-<script name>`
+to an otherwise fully built site. All of these scripts can be run from the `docs/` folder using `make live-blocks-<script name>`
 or from the root of this repository using `make docs-live-blocks-<script name>`.
 
 You probably want to run `install-deps` to automatically install JS dependencies. When testing, you might want to use something like
