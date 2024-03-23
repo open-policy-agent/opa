@@ -54,7 +54,7 @@ func TestEnablePrintStatementsForBundles(t *testing.T) {
 	buf := SafeBuffer{}
 
 	logger := logging.New()
-	logger.SetLevel(logging.Debug) // set to debug to see the the bundle download skip message
+	logger.SetLevel(logging.Debug) // set to debug to see the bundle download skip message
 	logger.SetOutput(&buf)
 	params.Logger = logger
 
