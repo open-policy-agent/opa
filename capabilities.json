@@ -2164,6 +2164,17 @@
               }
             ],
             "type": "any"
+          },
+          {
+            "of": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "any"
           }
         ],
         "result": {

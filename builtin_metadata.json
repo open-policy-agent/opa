@@ -10361,18 +10361,23 @@
         "type": "any"
       },
       {
-        "description": "the string to indent with, defaults to `\\t` (tab character, 0x09) if null",
+        "description": "the string to indent with, defaults to `\\t` (horizontal tab character, 0x09) if null",
         "name": "indent",
+        "type": "any\u003cnull, string\u003e"
+      },
+      {
+        "description": "the string to prefix additional lines with, defaults to empty-string if null",
+        "name": "prefix",
         "type": "any\u003cnull, string\u003e"
       }
     ],
     "available": [
       "edge"
     ],
-    "description": "Serializes the input term to indented JSON, including line breaks. One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
+    "description": "Serializes the input term to indented JSON, including line breaks, with optional prefix. One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
     "introduced": "edge",
     "result": {
-      "description": "the JSON string representation of `x`",
+      "description": "the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate",
       "name": "y",
       "type": "string"
     },
