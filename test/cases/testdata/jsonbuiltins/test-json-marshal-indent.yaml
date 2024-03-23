@@ -6,7 +6,7 @@ cases:
         package test
 
         p = x {
-          json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ", x)
+          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ")
         }
     note: jsonbuiltins/marshal_indent-explicit
     query: data.test.p = x
