@@ -1721,7 +1721,7 @@ var JSONMarshalIndent = &Builtin{
 			types.Named("prefix", types.NewAny(
 				types.S,
 				types.NewNull(),
-			)).Description("the string to prefix additional lines with, defaults to empty-string if null"),
+			)).Description("the string to prefix lines with, defaults to empty-string if null"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate"),
 	),

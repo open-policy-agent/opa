@@ -10366,7 +10366,7 @@
         "type": "any\u003cnull, string\u003e"
       },
       {
-        "description": "the string to prefix additional lines with, defaults to empty-string if null",
+        "description": "the string to prefix lines with, defaults to empty-string if null",
         "name": "prefix",
         "type": "any\u003cnull, string\u003e"
       }
