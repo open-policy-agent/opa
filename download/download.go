@@ -405,6 +405,13 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			longPoll: d.longPollingEnabled,
 		}, nil
 	default:
+		if d.logger.GetLevel() == logging.Debug && resp.Body != nil {
+			body, err := io.ReadAll(resp.Body)
+			if err == nil {
+				d.logger.Debug("bundle download error response with response body: %s", body)
+			}
+		}
+
 		return nil, HTTPError{StatusCode: resp.StatusCode}
 	}
 }

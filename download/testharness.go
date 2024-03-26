@@ -257,6 +257,7 @@ type testServer struct {
 	t              *testing.T
 	customAuth     func(http.ResponseWriter, *http.Request) error
 	expCode        int
+	expResp        string
 	expEtag        string
 	expAuth        string
 	bundles        map[string]bundle.Bundle
@@ -374,6 +375,11 @@ func (t *testServer) handle(w http.ResponseWriter, r *http.Request) {
 
 	if t.expCode != 0 {
 		w.WriteHeader(t.expCode)
+
+		if t.expResp != "" {
+			w.Write([]byte(t.expResp))
+		}
+
 		return
 	}
 
