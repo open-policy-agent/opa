@@ -959,9 +959,6 @@ func applyPatches(ctx context.Context, store storage.Store, txn storage.Transact
 
 		// apply the patch
 		if err := store.Write(ctx, txn, op, path, pat.Value); err != nil {
-			if op == storage.RemoveOp {
-				return suppressNotFound(err)
-			}
 			return err
 		}
 	}
