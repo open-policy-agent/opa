@@ -576,7 +576,7 @@ operation to perform. Valid options include:
 
 |  op | Description  |
 |-----|--------------|
-| `"remove"` | The `"path"` specified will be removed from OPA's in-memory store. The `"value"` field is ignored for `"remove"` operations. |
+| `"remove"` | The `"path"` specified will be removed from OPA's in-memory store. The `"value"` field is ignored for `"remove"` operations. The target path must exist for the operation to be successful. |
 | `"replace"` | The value at the specified `"path"` will be replaced by the new value defined by the `"value"` field. The target path must exist for the operation to be successful. |
 | `"upsert"` | The `"value"` will be set at the specified `"path"`. If the `"path"` specifies an array index, the `"value"` is inserted into the array at the specified index. If the `"path"` specifies an object member that does not already exist, a new member is added to the object. If the object member exists, its value is replaced. If the `"path"` does not exist, OPA will create and add it to its in-memory store. |
 
