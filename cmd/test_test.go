@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1216,15 +1217,15 @@ test_l if {
 
 func TestWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
-		note              string
-		bundleRegoVersion int
-		module            string
-		expErr            string
+		note   string
+		files  map[string]string
+		expErr string
 	}{
 		{
-			note:              "v0.x bundle, no imports",
-			bundleRegoVersion: 0,
-			module: `package test
+			note: "v0.x bundle, no imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
 
 l1 := {1, 3, 5}
 l2 contains v if {
@@ -1234,12 +1235,14 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
 			expErr: "rego_parse_error",
 		},
 		{
-			note:              "v0.x bundle, rego.v1 imported",
-			bundleRegoVersion: 0,
-			module: `package test
+			note: "v0.x bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
 
 import rego.v1
 
@@ -1251,11 +1254,13 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
 		},
 		{
-			note:              "v0.x bundle, future.keywords imported",
-			bundleRegoVersion: 0,
-			module: `package test
+			note: "v0.x bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
 
 import future.keywords
 
@@ -1267,12 +1272,55 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
 		},
 
 		{
-			note:              "v1.0 bundle, no imports",
-			bundleRegoVersion: 1,
-			module: `package test
+			note: "v1.0 bundle, no imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
 
 l1 := {1, 3, 5}
 l2 contains v if {
@@ -1282,11 +1330,13 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
 		},
 		{
-			note:              "v1.0 bundle, rego.v1 imported",
-			bundleRegoVersion: 1,
-			module: `package test
+			note: "v1.0 bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
 
 import rego.v1
 
@@ -1298,11 +1348,13 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
 		},
 		{
-			note:              "v1.0 bundle, future.keywords imported",
-			bundleRegoVersion: 1,
-			module: `package test
+			note: "v1.0 bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
 
 import future.keywords
 
@@ -1314,10 +1366,62 @@ l2 contains v if {
 test_l if {
 	l1 == l2
 }`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
 		},
 	}
 
-	loadTypes := []loadType{loadBundle, loadTarball}
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
 
 	v1CompatibleFlagCases := []struct {
 		note string
@@ -1331,40 +1435,36 @@ test_l if {
 		},
 	}
 
-	for _, loadType := range loadTypes {
+	for _, bundleType := range bundleTypeCases {
 		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
 			for _, tc := range tests {
 
-				t.Run(fmt.Sprintf("%s, %s, %s", loadType, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
 					files := map[string]string{}
-
-					if loadType == loadTarball {
+					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						files["test.rego"] = tc.module
-						files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+						for k, v := range tc.files {
+							files[k] = v
+						}
 					}
 
 					test.WithTempFS(files, func(root string) {
-						if loadType == loadTarball {
-							f, err := os.Create(filepath.Join(root, "bundle.tar.gz"))
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							files := make([][2]string, 0, len(tc.files))
+							for k, v := range tc.files {
+								files = append(files, [2]string{k, v})
+							}
+							buf := archive.MustWriteTarGz(files)
+							bf, err := os.Create(p)
 							if err != nil {
-								t.Fatal(err)
+								t.Fatalf("Unexpected error: %v", err)
 							}
-
-							testBundle := bundle.Bundle{
-								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
-								Data:     map[string]interface{}{},
-								Modules: []bundle.ModuleFile{
-									{
-										Path: "test.rego",
-										Raw:  []byte(tc.module),
-									},
-								},
-							}
-
-							if err := bundle.Write(f, testBundle); err != nil {
-								t.Fatal(err)
+							_, err = bf.Write(buf.Bytes())
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
 							}
 						}
 
@@ -1378,14 +1478,7 @@ test_l if {
 						testParams.output = &buf
 						testParams.errOutput = &errBuf
 
-						var paths []string
-						if loadType == loadTarball {
-							paths = []string{filepath.Join(root, "bundle.tar.gz")}
-						} else {
-							paths = []string{root}
-						}
-
-						exitCode, _ := opaTest(paths, testParams)
+						exitCode, _ := opaTest([]string{p}, testParams)
 						if tc.expErr != "" {
 							if exitCode == 0 {
 								t.Fatalf("expected non-zero exit code")

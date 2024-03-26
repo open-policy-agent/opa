@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	sdk_test "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/util"
@@ -320,87 +320,187 @@ main contains "hello" if {
 
 func TestExecWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
-		note              string
-		bundleRegoVersion int
-		module            string
-		expErrs           []string
+		note    string
+		files   map[string]string
+		expErrs []string
 	}{
 		{
-			note:              "v0.x bundle, no keywords used",
-			bundleRegoVersion: 0,
-			module: `package system
+			note: "v0.x bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
 main["hello"] {
 	input.foo == "bar"
 }`,
+			},
 		},
 		{
-			note:              "v0.x bundle, no keywords imported",
-			bundleRegoVersion: 0,
-			module: `package system
+			note: "v0.x bundle, no keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
 			expErrs: []string{
 				"rego_parse_error: var cannot be used for rule name",
 				"rego_parse_error: string cannot be used for rule name",
 			},
 		},
 		{
-			note:              "v0.x bundle, keywords imported",
-			bundleRegoVersion: 0,
-			module: `package system
+			note: "v0.x bundle, keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
 import future.keywords
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
 		},
 		{
-			note:              "v0.x bundle, rego.v1 imported",
-			bundleRegoVersion: 0,
-			module: `package system
+			note: "v0.x bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
 import rego.v1
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main["hello"] {
+	p[_] == 42
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
 		},
 
 		{
-			note:              "v1.0 bundle, no keywords used",
-			bundleRegoVersion: 1,
-			module: `package system
+			note: "v1.0 bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
 main["hello"] {
 	input.foo == "bar"
 }`,
+			},
 			expErrs: []string{
 				"rego_parse_error: `if` keyword is required before rule body",
 				"rego_parse_error: `contains` keyword is required for partial set rules",
 			},
 		},
 		{
-			note:              "v1.0 bundle, no keywords imported",
-			bundleRegoVersion: 1,
-			module: `package system
+			note: "v1.0 bundle, no keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
 		},
 		{
-			note:              "v1.0 bundle, keywords imported",
-			bundleRegoVersion: 1,
-			module: `package system
+			note: "v1.0 bundle, keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
 import future.keywords
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
 		},
 		{
-			note:              "v1.0 bundle, rego.v1 imported",
-			bundleRegoVersion: 1,
-			module: `package system
+			note: "v1.0 bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
 import rego.v1
 main contains "hello" if {
 	input.foo == "bar"
 }`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p contains 42 {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+				"rego_parse_error: set cannot be used for rule name",
+			},
 		},
 	}
 
@@ -436,36 +536,30 @@ main contains "hello" if {
 						"files/test.json": `{"foo": "bar"}`,
 					}
 					if bundleType.tar {
-						files["bundle/bundle.tar.gz"] = ""
+						files["bundle.tar.gz"] = ""
 					} else {
-						files["bundle/test.rego"] = tc.module
-						files["bundle/.manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+						for k, v := range tc.files {
+							files[k] = v
+						}
 					}
 
 					test.WithTempFS(files, func(root string) {
-						var p string
+						p := root
 						if bundleType.tar {
-							b := bundle.Bundle{
-								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
-								Data:     map[string]interface{}{},
-								Modules: []bundle.ModuleFile{
-									{
-										Path: "test.rego",
-										Raw:  []byte(tc.module),
-									},
-								},
+							p = filepath.Join(root, "bundle.tar.gz")
+							files := make([][2]string, 0, len(tc.files))
+							for k, v := range tc.files {
+								files = append(files, [2]string{k, v})
 							}
-							p = filepath.Join(root, "bundle", "bundle.tar.gz")
-							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+							buf := archive.MustWriteTarGz(files)
+							bf, err := os.Create(p)
 							if err != nil {
-								t.Fatalf("Unexpected error: %s", err)
+								t.Fatalf("Unexpected error: %v", err)
 							}
-							err = bundle.Write(f, b)
+							_, err = bf.Write(buf.Bytes())
 							if err != nil {
-								t.Fatalf("Unexpected error: %s", err)
+								t.Fatalf("Unexpected error: %v", err)
 							}
-						} else {
-							p = filepath.Join(root, "bundle")
 						}
 
 						var buf bytes.Buffer

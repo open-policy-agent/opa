@@ -85,6 +85,8 @@ func TestManifestEqual(t *testing.T) {
 	}
 	assertEqual()
 
+	// rego-version
+
 	n.RegoVersion = pointTo(1)
 	assertNotEqual()
 
@@ -92,6 +94,22 @@ func TestManifestEqual(t *testing.T) {
 	assertNotEqual()
 
 	m.RegoVersion = pointTo(1)
+	assertEqual()
+
+	n.FileRegoVersions = map[string]int{
+		"foo": 1,
+	}
+	assertNotEqual()
+
+	m.FileRegoVersions = map[string]int{
+		"foo": 1,
+	}
+	assertEqual()
+
+	n.FileRegoVersions["*/bar"] = 0
+	assertNotEqual()
+
+	m.FileRegoVersions["*/bar"] = 0
 	assertEqual()
 }
 

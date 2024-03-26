@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -1068,33 +1069,59 @@ func TestLoadAndActivateBundleFromDiskWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
 		note              string
 		bundleRegoVersion int
-		bundle            string
+		modules           map[string]versionedModule
 	}{
 		{
-			note:              "v0.x",
+			note:              "v0 bundle",
 			bundleRegoVersion: 0,
-			bundle: `package config
-import future.keywords
+			modules: map[string]versionedModule{
+				"policy.rego": {-1, `package config
 
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
-plugins.test_plugin := v if { 
+plugins.test_plugin := v { 
 	v := {"a": "b"}
 }
+
+services.acmecorp.url := v {
+	v := "http://localhost:8181"
+}
+
+bundles.authz.service := v {
+	v := "localhost"
+}`},
+			},
+		},
+		{
+			note:              "v0 bundle, v1 per-file override",
+			bundleRegoVersion: 0,
+			modules: map[string]versionedModule{
+				"policy1.rego": {-1, `package config
+
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v { 
+	v := {"a": "b"}
+}`},
+				"policy2.rego": {1, `package config
+
 services.acmecorp.url := v if {
 	v := "http://localhost:8181"
 }
+
 bundles.authz.service := v if {
 	v := "localhost"
-}
-`,
+}`},
+			},
 		},
 		{
-			note:              "v1.0",
+			note:              "v1 bundle",
 			bundleRegoVersion: 1,
 			// no future.keywords import
-			bundle: `package config
+			modules: map[string]versionedModule{
+				"policy.rego": {-1, `package config
 labels.x := "label value changed"
 default_decision := "bar/baz"
 default_authorization_decision := "baz/qux"
@@ -1106,8 +1133,31 @@ services.acmecorp.url := v if {
 }
 bundles.authz.service := v if {
 	v := "localhost"
+}`},
+			},
+		},
+		{
+			note:              "v1 bundle, v0 per-file override",
+			bundleRegoVersion: 1,
+			modules: map[string]versionedModule{
+				"policy1.rego": {0, `package config
+
+labels.x := "label value changed"
+default_decision := "bar/baz"
+default_authorization_decision := "baz/qux"
+plugins.test_plugin := v { 
+	v := {"a": "b"}
+}`},
+				"policy2.rego": {-1, `package config
+
+services.acmecorp.url := v if {
+	v := "http://localhost:8181"
 }
-`,
+
+bundles.authz.service := v if {
+	v := "localhost"
+}`},
+			},
 		},
 	}
 
@@ -1144,7 +1194,7 @@ bundles.authz.service := v if {
 			ensurePluginState(t, disco, plugins.StateNotReady)
 
 			// persist a bundle to disk and then load it
-			initialBundle := makeModuleBundleWithRegoVersion(1, tc.bundle, tc.bundleRegoVersion)
+			initialBundle := makeBundleWithRegoVersion(1, tc.bundleRegoVersion, tc.modules)
 
 			initialBundle.Manifest.Init()
 
@@ -2543,7 +2593,7 @@ func makeModuleBundle(n int, s string, popts ast.ParserOptions) *bundleApi.Bundl
 	}
 }
 
-func makeModuleBundleWithRegoVersion(n int, s string, regoVersion int) *bundleApi.Bundle {
+func makeModuleBundleWithRegoVersion(revision int, bundle string, regoVersion int) *bundleApi.Bundle {
 	popts := ast.ParserOptions{}
 	if regoVersion == 0 {
 		popts.RegoVersion = ast.RegoV0
@@ -2552,19 +2602,54 @@ func makeModuleBundleWithRegoVersion(n int, s string, regoVersion int) *bundleAp
 	}
 	return &bundleApi.Bundle{
 		Manifest: bundleApi.Manifest{
-			Revision:    fmt.Sprintf("test-revision-%v", n),
+			Revision:    fmt.Sprintf("test-revision-%v", revision),
 			RegoVersion: &regoVersion,
 		},
 		Modules: []bundleApi.ModuleFile{
 			{
 				URL:    `policy.rego`,
 				Path:   `/policy.rego`,
-				Raw:    []byte(s),
-				Parsed: ast.MustParseModuleWithOpts(s, popts),
+				Raw:    []byte(bundle),
+				Parsed: ast.MustParseModuleWithOpts(bundle, popts),
 			},
 		},
 		Data: map[string]interface{}{},
 	}
+}
+
+type versionedModule struct {
+	version int
+	module  string
+}
+
+func makeBundleWithRegoVersion(revision int, bundleRegoVersion int, modules map[string]versionedModule) *bundleApi.Bundle {
+	b := bundleApi.Bundle{
+		Manifest: bundleApi.Manifest{
+			Revision:         fmt.Sprintf("test-revision-%v", revision),
+			RegoVersion:      &bundleRegoVersion,
+			FileRegoVersions: map[string]int{},
+		},
+		Data: map[string]interface{}{},
+	}
+
+	for k, v := range modules {
+		p := path.Join("/", k)
+		popts := ast.ParserOptions{}
+		if v.version >= 0 {
+			b.Manifest.FileRegoVersions[p] = v.version
+			popts.RegoVersion = ast.RegoVersionFromInt(v.version)
+		} else {
+			popts.RegoVersion = ast.RegoVersionFromInt(bundleRegoVersion)
+		}
+		b.Modules = append(b.Modules, bundleApi.ModuleFile{
+			URL:    k,
+			Path:   p,
+			Raw:    []byte(v.module),
+			Parsed: ast.MustParseModuleWithOpts(v.module, popts),
+		})
+	}
+
+	return &b
 }
 
 func getTestManager(t *testing.T, conf string) *plugins.Manager {

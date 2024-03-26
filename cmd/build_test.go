@@ -984,6 +984,222 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 	})
 }
 
+func TestBuildBundleModeWithManifestRegoVersion(t *testing.T) {
+	tests := []struct {
+		note        string
+		roots       []string
+		files       map[string]string
+		expManifest string
+		expErrs     []string
+	}{
+		{
+			note: "v0 bundle rego-version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"test.rego": `package test
+
+p[42] {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":0}`,
+		},
+		{
+			note: "v1 bundle rego-version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"test.rego": `package test
+
+p contains 42 if {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":1}`,
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p[1] {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p contains 2 if {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"*/test2.rego":1}}`,
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override, missing v1 keywords in v1 file",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p[1] {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p[2] {
+	input.x == 1
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override, v1 keywords but no v1 imports in v0 file",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p contains 1 if {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p contains 2 if {
+	input.x == 1
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note:  "multiple bundles with different rego-versions",
+			roots: []string{"bundle1", "bundle2"},
+			files: map[string]string{
+				"bundle1/.manifest": `{
+	"roots": ["test1"],
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"bundle1/test1.rego": `package test1
+p[1] {
+	input.x == 1
+}`,
+				"bundle1/test2.rego": `package test1
+p contains 2 if {
+	input.x == 1
+}`,
+				"bundle2/.manifest": `{
+	"roots": ["test2"],
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/test4.rego": 0
+	}
+}`,
+				"bundle2/test3.rego": `package test2
+p contains 3 if {
+	input.x == 1
+}`,
+				"bundle2/test4.rego": `package test2
+p[4] {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":["test1","test2"],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle1/test2.rego":1,"%ROOT%/bundle2/test3.rego":1}}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.bundleMode = true
+
+				var roots []string
+				if len(tc.roots) == 0 {
+					roots = []string{root}
+				} else {
+					for _, r := range tc.roots {
+						roots = append(roots, path.Join(root, r))
+					}
+				}
+				err := dobuild(params, roots)
+				if tc.expErrs != nil {
+					if err == nil {
+						t.Fatal("expected error but got none")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer f.Close()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+
+						if f.Name == "/.manifest" {
+							b, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
+							}
+							expManifest := strings.ReplaceAll(tc.expManifest, "%ROOT%", root)
+							if !strings.Contains(string(b), expManifest) {
+								t.Fatalf("expected manifest:\n\n%v\n\nbut got:\n\n%v", expManifest, string(b))
+							}
+						}
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestBuildWithV1CompatibleFlag(t *testing.T) {
 	tests := []struct {
 		note          string

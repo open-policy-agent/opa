@@ -198,6 +198,9 @@ func (m Manifest) Equal(other Manifest) bool {
 	if m.RegoVersion != nil && other.RegoVersion != nil && *m.RegoVersion != *other.RegoVersion {
 		return false
 	}
+	if !reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
+		return false
+	}
 
 	if !reflect.DeepEqual(m.Metadata, other.Metadata) {
 		return false
@@ -1204,11 +1207,11 @@ func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {
 	if len(m.FileRegoVersions) != len(m.compiledFileRegoVersions) {
 		m.compiledFileRegoVersions = make([]fileRegoVersion, 0, len(m.FileRegoVersions))
 		for pattern, v := range m.FileRegoVersions {
-			if compiled, err := glob.Compile(pattern); err != nil {
+			compiled, err := glob.Compile(pattern)
+			if err != nil {
 				return nil, fmt.Errorf("failed to compile glob pattern %s: %s", pattern, err)
-			} else {
-				m.compiledFileRegoVersions = append(m.compiledFileRegoVersions, fileRegoVersion{compiled, v})
 			}
+			m.compiledFileRegoVersions = append(m.compiledFileRegoVersions, fileRegoVersion{compiled, v})
 		}
 	}
 
@@ -1424,13 +1427,13 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 				result.Manifest.FileRegoVersions = map[string]int{}
 			}
 			for _, m := range b.Modules {
-				if v, err := b.RegoVersionForFile(m.Path, b.RegoVersion(regoVersion)); err != nil {
+				v, err := b.RegoVersionForFile(m.Path, b.RegoVersion(regoVersion))
+				if err != nil {
 					return nil, err
-				} else {
-					if v != regoVersion {
-						// only record the rego version if it's different from one applied globally to the result bundle
-						result.Manifest.FileRegoVersions[m.Path] = v.Int()
-					}
+				}
+				if v != regoVersion {
+					// only record the rego version if it's different from one applied globally to the result bundle
+					result.Manifest.FileRegoVersions[m.Path] = v.Int()
 				}
 			}
 		}

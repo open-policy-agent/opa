@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -810,29 +811,34 @@ a contains 4 if {
 
 func TestBenchMainWithBundleRegoVersion(t *testing.T) {
 	tests := []struct {
-		note              string
-		bundleRegoVersion int
-		module            string
-		query             string
-		expErrs           []string
+		note                   string
+		bundleRegoVersion      int
+		bundleFileRegoVersions map[string]int
+		modules                map[string]string
+		query                  string
+		expErrs                []string
 	}{
 		// These tests are slow, so we're not being completely exhaustive here.
 		{
-			note:              "v0.x bundle",
+			note:              "v0 bundle",
 			bundleRegoVersion: 0,
-			module: `package test
+			modules: map[string]string{
+				"test.rego": `package test
 a[4] {
 	1 == 1
 }`,
+			},
 			query: `data.test.a`,
 		},
 		{
-			note:              "v0.x bundle, no keywords imported",
+			note:              "v0 bundle, no keywords imported",
 			bundleRegoVersion: 0,
-			module: `package test
+			modules: map[string]string{
+				"test.rego": `package test
 a contains 4 if {
 	1 == 1
 }`,
+			},
 			query: `data.test.a`,
 			expErrs: []string{
 				"rego_parse_error: var cannot be used for rule name",
@@ -840,12 +846,32 @@ a contains 4 if {
 			},
 		},
 		{
-			note:              "v1.0 bundle, keywords not used",
-			bundleRegoVersion: 1,
-			module: `package test
+			note:              "v0 bundle, v1 per-file override",
+			bundleRegoVersion: 0,
+			bundleFileRegoVersions: map[string]int{
+				"*/test2.rego": 1,
+			},
+			modules: map[string]string{
+				"test1.rego": `package test
 a[4] {
 	1 == 1
 }`,
+				"test2.rego": `package test
+b contains 4 if {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+		},
+		{
+			note:              "v1 bundle, keywords not used",
+			bundleRegoVersion: 1,
+			modules: map[string]string{
+				"test.rego": `package test
+a[4] {
+	1 == 1
+}`,
+			},
 			query: `data.test.a`,
 			expErrs: []string{
 				"rego_parse_error: `if` keyword is required before rule body",
@@ -853,12 +879,14 @@ a[4] {
 			},
 		},
 		{
-			note:              "v1.0, no keywords imported",
+			note:              "v1, no keywords imported",
 			bundleRegoVersion: 1,
-			module: `package test
+			modules: map[string]string{
+				"test.rego": `package test
 a contains 4 if {
 	1 == 1
 }`,
+			},
 			query: `data.test.a`,
 		},
 	}
@@ -897,22 +925,37 @@ a contains 4 if {
 					if bundleType.tar {
 						files["bundle.tar.gz"] = ""
 					} else {
-						files["test.rego"] = tc.module
-						files[".manifest"] = fmt.Sprintf(`{"rego_version": %d}`, tc.bundleRegoVersion)
+						for k, v := range tc.modules {
+							files[k] = v
+						}
+
+						manifest := bundle.Manifest{
+							RegoVersion:      &tc.bundleRegoVersion,
+							FileRegoVersions: tc.bundleFileRegoVersions,
+						}
+						manifest.Init()
+						if b, err := json.Marshal(manifest); err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						} else {
+							files[".manifest"] = string(b)
+						}
 					}
 
 					test.WithTempFS(files, func(root string) {
 						p := root
 						if bundleType.tar {
 							b := bundle.Bundle{
-								Manifest: bundle.Manifest{RegoVersion: &tc.bundleRegoVersion},
-								Data:     map[string]interface{}{},
-								Modules: []bundle.ModuleFile{
-									{
-										Path: "test.rego",
-										Raw:  []byte(tc.module),
-									},
+								Manifest: bundle.Manifest{
+									RegoVersion:      &tc.bundleRegoVersion,
+									FileRegoVersions: tc.bundleFileRegoVersions,
 								},
+								Data: map[string]interface{}{},
+							}
+							for k, v := range tc.modules {
+								b.Modules = append(b.Modules, bundle.ModuleFile{
+									Path: k,
+									Raw:  []byte(v),
+								})
 							}
 							p = filepath.Join(root, "bundle.tar.gz")
 							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
