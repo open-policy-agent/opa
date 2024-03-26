@@ -1234,7 +1234,7 @@ func (expr *Expr) Equal(other *Expr) bool {
 //
 // 1. Declarations are always less than other expressions.
 // 2. Preceding expression (by Index) is always less than the other expression.
-// 3. Non-negated expressions are always less than than negated expressions.
+// 3. Non-negated expressions are always less than negated expressions.
 // 4. Single term expressions are always less than built-in expressions.
 //
 // Otherwise, the expression terms are compared normally. If both expressions

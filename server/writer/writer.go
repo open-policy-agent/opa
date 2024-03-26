@@ -42,7 +42,7 @@ func ErrorAuto(w http.ResponseWriter, err error) {
 }
 
 // ErrorString writes a response with specified status, code, and message set to
-// the the err's string representation.
+// the err's string representation.
 func ErrorString(w http.ResponseWriter, status int, code string, err error) {
 	Error(w, status, types.NewErrorV1(code, err.Error()))
 }
