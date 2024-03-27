@@ -207,6 +207,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Crypto
 	CryptoX509ParseCertificates,
 	CryptoX509ParseAndVerifyCertificates,
+	CryptoX509ParseAndVerifyCertificatesWithOptions,
 	CryptoMd5,
 	CryptoSha1,
 	CryptoSha256,
@@ -2319,6 +2320,31 @@ with all others being treated as intermediates.`,
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("certs", types.S).Description("base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs"),
+		),
+		types.Named("output", types.NewArray([]types.Type{
+			types.B,
+			types.NewArray(nil, types.NewObject(nil, types.NewDynamicProperty(types.S, types.A))),
+		}, nil)).Description("array of `[valid, certs]`: if the input certificate chain could be verified then `valid` is `true` and `certs` is an array of X.509 certificates represented as objects; if the input certificate chain could not be verified then `valid` is `false` and `certs` is `[]`"),
+	),
+}
+
+var CryptoX509ParseAndVerifyCertificatesWithOptions = &Builtin{
+	Name: "crypto.x509.parse_and_verify_certificates_with_options",
+	Description: `Returns one or more certificates from the given string containing PEM
+or base64 encoded DER certificates after verifying the supplied certificates form a complete
+certificate chain back to a trusted root. A config option passed as the second argument can
+be used to configure the validation options used.
+
+The first certificate is treated as the root and the last is treated as the leaf,
+with all others being treated as intermediates.`,
+
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("certs", types.S).Description("base64 encoded DER or PEM data containing two or more certificates where the first is a root CA, the last is a leaf certificate, and all others are intermediate CAs"),
+			types.Named("options", types.NewObject(
+				nil,
+				types.NewDynamicProperty(types.S, types.A),
+			)).Description("object containing extra configs to verify the validity of certificates. `options` object supports four fields which maps to same fields in [x509.VerifyOptions struct](https://pkg.go.dev/crypto/x509#VerifyOptions). `DNSName`, `CurrentTime`: Nanoseconds since the Unix Epoch as a number, `MaxConstraintComparisons` and `KeyUsages`. `KeyUsages` is list and can have possible values as in: `\"KeyUsageAny\"`, `\"KeyUsageServerAuth\"`, `\"KeyUsageClientAuth\"`, `\"KeyUsageCodeSigning\"`, `\"KeyUsageEmailProtection\"`, `\"KeyUsageIPSECEndSystem\"`, `\"KeyUsageIPSECTunnel\"`, `\"KeyUsageIPSECUser\"`, `\"KeyUsageTimeStamping\"`, `\"KeyUsageOCSPSigning\"`, `\"KeyUsageMicrosoftServerGatedCrypto\"`, `\"KeyUsageNetscapeServerGatedCrypto\"`, `\"KeyUsageMicrosoftCommercialCodeSigning\"`, `\"KeyUsageMicrosoftKernelCodeSigning\"` "),
 		),
 		types.Named("output", types.NewArray([]types.Type{
 			types.B,
