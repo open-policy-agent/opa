@@ -78,17 +78,23 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
+	cmd.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
 	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
 
 	RootCommand.AddCommand(cmd)
 }
 
 func runExec(params *exec.Params) error {
-	return runExecWithContext(context.Background(), params)
+	ctx := context.Background()
+	if params.Timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, params.Timeout)
+		defer cancel()
+	}
+	return runExecWithContext(ctx, params)
 }
 
 func runExecWithContext(ctx context.Context, params *exec.Params) error {
-
 	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String(), params.LogTimestampFormat)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
@@ -120,7 +126,18 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 		return fmt.Errorf("runtime error: %w", err)
 	}
 
-	<-ready
+	select {
+	case <-ctx.Done():
+		err := ctx.Err()
+		if err == context.DeadlineExceeded {
+			return fmt.Errorf("exec error: timed out before OPA was ready. This can happen when a remote bundle is malformed, or the timeout is set too low for normal OPA initialization")
+		}
+		// Note(philipc): Previously, exec would simply eat the context
+		// cancellation error. We now propagate that upwards to the caller.
+		return err
+	case <-ready:
+		// Do nothing; proceed as normal.
+	}
 
 	if err := exec.Exec(ctx, opa, params); err != nil {
 		return fmt.Errorf("exec error: %w", err)

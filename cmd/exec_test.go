@@ -267,7 +267,9 @@ main contains "hello" if {
 					defer cancel()
 					go func() {
 						err := runExecWithContext(ctx, params)
-						if err != nil {
+						// Note(philipc): Catch the expected cancellation
+						// errors, allowing unexpected test failures through.
+						if err != context.Canceled {
 							t.Error(err)
 							return
 						}
@@ -692,4 +694,48 @@ func TestFailFlagCases(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestExecTimeoutWithMalformedRemoteBundle(t *testing.T) {
+	test.WithTempFS(map[string]string{}, func(dir string) {
+		// Note(philipc): We add the "raw bundles" flag so that we can stuff a
+		// malformed bundle into the mock bundle server. Otherwise, the server
+		// will just return 503 errors forever, because it won't be able to
+		// build the bundle on its end.
+		s := sdk_test.MustNewServer(
+			sdk_test.RawBundles(true),
+			sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+				"example.rego": `
+				package example
+
+				p := bits.sand(42, 43)  # typo of bits.and
+			`,
+			}))
+
+		defer s.Stop()
+
+		var buf bytes.Buffer
+		params := exec.NewParams(&buf)
+		_ = params.OutputFormat.Set("json")
+		params.ConfigOverrides = []string{
+			"services.test.url=" + s.URL(),
+			"bundles.test.resource=/bundles/bundle.tar.gz",
+		}
+
+		// Note(philipc): We can set this timeout almost arbitrarily high or
+		// low-- the test will time out before it ever succeeds, due to the
+		// faulty bundle.
+		params.Timeout = time.Millisecond * 50
+
+		params.Paths = append(params.Paths, dir)
+		err := runExec(params)
+		if err == nil {
+			t.Fatalf("Expected error, got nil instead.")
+		}
+
+		exp := "exec error: timed out before OPA was ready."
+		if !strings.HasPrefix(err.Error(), exp) {
+			t.Fatalf("Expected error: %s, got %s", exp, err.Error())
+		}
+	})
 }

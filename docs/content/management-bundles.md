@@ -576,7 +576,7 @@ operation to perform. Valid options include:
 
 |  op | Description  |
 |-----|--------------|
-| `"remove"` | The `"path"` specified will be removed from OPA's in-memory store. The `"value"` field is ignored for `"remove"` operations. |
+| `"remove"` | The `"path"` specified will be removed from OPA's in-memory store. The `"value"` field is ignored for `"remove"` operations. The target path must exist for the operation to be successful. |
 | `"replace"` | The value at the specified `"path"` will be replaced by the new value defined by the `"value"` field. The target path must exist for the operation to be successful. |
 | `"upsert"` | The `"value"` will be set at the specified `"path"`. If the `"path"` specifies an array index, the `"value"` is inserted into the array at the specified index. If the `"path"` specifies an object member that does not already exist, a new member is added to the object. If the object member exists, its value is replaced. If the `"path"` does not exist, OPA will create and add it to its in-memory store. |
 
@@ -827,6 +827,32 @@ bundles:
 
 **NOTE:** the S3 `url` is the bucket's regional endpoint.
 
+
+##### Assume Role Credentials
+
+```yaml
+services:
+  s3:
+    url: https://my-example-opa-bucket.s3.us-east-1.amazonaws.com
+    credentials:
+      s3_signing:
+        assume_role_credentials:
+          aws_region: us-east-1
+          iam_role_arn: arn:aws::iam::123456789012:role/demo
+          session_name: my-open-policy-agent # Optional. Default: open-policy-agent
+          aws_signing: # similar to s3_signing
+            metadata_credentials:
+              aws_region: us-east-1
+              iam_role: s3access
+
+bundles:
+  authz:
+    service: s3
+    resource: bundle.tar.gz
+```
+
+**NOTE:** the S3 `url` is the bucket's regional endpoint.
+
 ##### Web Identity Credentials
 
 ```yaml
@@ -852,9 +878,10 @@ bundles:
 Multiple AWS credential providers can be configured. OPA will follow an *internally defined* order to try each of the credential provider given in the configuration till success. Following order of precedence is followed when multiple credential provider is given in the configuration
 
 1. Environment Credential
-2. Web Identity Credential
-3. Profile Credential
-4. Metadata Credential
+1. Assume Role Credential
+1. Web Identity Credential
+1. Profile Credential
+1. Metadata Credential
 
 ```yaml
 services:

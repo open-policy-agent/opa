@@ -31,6 +31,7 @@ type Params struct {
 	Fail                bool           // exits with non-zero exit code on undefined policy decision or empty policy decision result or other errors
 	FailDefined         bool           // exits with non-zero exit code on 'not undefined policy decisiondefined' or 'not empty policy decision result' or other errors
 	FailNonEmpty        bool           // exits with non-zero exit code on non-empty set (array) results
+	Timeout             time.Duration  // timeout to prevent infinite hangs. If set to 0, the command will never time out
 	V1Compatible        bool           // use OPA 1.0 compatibility mode
 	Logger              logging.Logger // Logger override. If set to nil, the default logger is used.
 }

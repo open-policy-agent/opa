@@ -5,6 +5,15 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### `opa exec` now supports a timeout flag
+
+Previously, `opa exec` could end up in situations [where it might hang forever](https://github.com/open-policy-agent/opa/issues/6613).
+This can be very undesirable behavior in build pipelines and CI systems!
+
+`opa exec` now supports a timeout flag, identically to how `opa eval` does. Example:
+
+    opa exec --decision /test/p --timeout 10s /dev/null
+
 ## 0.62.1
 
 This is a security fix release for the fixes published in [Golang 1.22.1](https://groups.google.com/g/golang-announce/c/5pwGVUPoMbg).
@@ -4901,7 +4910,7 @@ large or mixed workspaces.
 
 - Status API messages now include a dump of OPA's Prometheus metric
   registry. This increases the Status API message size significantly
-  (~6KB). If you are indexing the the Status API messages, consider
+  (~6KB). If you are indexing the Status API messages, consider
   removing the metrics. Nonetheless, for Status API implementations,
   having access to the Prometheus metrics is important for monitoring
   the health of the OPAs.

@@ -135,3 +135,59 @@ func TestOauth2WithAWSKMS(t *testing.T) {
 		t.Errorf("OAuth2.AWSSigningPlugin.kmsSignPlugin isn't setup")
 	}
 }
+
+func TestAssumeRoleWithNoSigningProvider(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "https://my-example-opa-bucket.s3.eu-north-1.amazonaws.com",
+		"credentials": {
+			"s3_signing": {
+				"service": "s3",
+				"assume_role_credentials": {}
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.config.Credentials.S3Signing.NewClient(client.config)
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	expErrMsg := "a AWS signing plugin must be specified when AssumeRole credential provider is enabled"
+	if err.Error() != expErrMsg {
+		t.Fatalf("expected error: %v but got: %v", expErrMsg, err)
+	}
+}
+
+func TestAssumeRoleWithUnsupportedSigningProvider(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "https://my-example-opa-bucket.s3.eu-north-1.amazonaws.com",
+		"credentials": {
+			"s3_signing": {
+				"service": "s3",
+				"assume_role_credentials": {"aws_signing": {"web_identity_credentials": {}}}
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.config.Credentials.S3Signing.NewClient(client.config)
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	expErrMsg := "unsupported AWS signing plugin with AssumeRole credential provider"
+	if err.Error() != expErrMsg {
+		t.Fatalf("expected error: %v but got: %v", expErrMsg, err)
+	}
+}
