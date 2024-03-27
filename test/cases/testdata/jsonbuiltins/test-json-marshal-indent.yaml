@@ -80,3 +80,28 @@ cases:
     want_result:
       - x: |-
           ---[]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_indent([[[[[[[]]]]]]], "    ", null)
+        }
+    note: jsonbuiltins/marshal_indent-deep-array
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          [
+              [
+                  [
+                      [
+                          [
+                              [
+                                  []
+                              ]
+                          ]
+                      ]
+                  ]
+              ]
+          ]
