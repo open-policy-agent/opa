@@ -81,10 +81,7 @@ func builtinJSONMarshalIndent(_ BuiltinContext, operands []*ast.Term, iter func(
 		return err
 	}
 
-	/*
-		Golang's json.marshalIndent() function will not prefix the first line of emitted JSON with the specified prefix string.
-
-	*/
+	// json.MarshalIndent() function will not prefix the first line of emitted JSON
 	return iter(ast.StringTerm(prefixWith + string(bs)))
 }
 
