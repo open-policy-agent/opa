@@ -111,6 +111,11 @@ func (a *Annotations) EndLoc() *Location {
 	return a.comments[count-1].Location
 }
 
+// Comments returns the comments associated with this annotation.
+func (a *Annotations) Comments() []*Comment {
+	return a.comments
+}
+
 // Compare returns an integer indicating if a is less than, equal to, or greater
 // than other.
 func (a *Annotations) Compare(other *Annotations) int {
@@ -176,6 +181,26 @@ func (a *Annotations) GetTargetPath() Ref {
 		return n.Path
 	case *Rule:
 		return n.Ref().GroundPrefix()
+	default:
+		return nil
+	}
+}
+
+func (a *Annotations) GetPackage() *Package {
+	switch n := a.node.(type) {
+	case *Package:
+		return n
+	case *Rule:
+		return n.Module.Package
+	default:
+		return nil
+	}
+}
+
+func (a *Annotations) GetRule() *Rule {
+	switch n := a.node.(type) {
+	case *Rule:
+		return n
 	default:
 		return nil
 	}
@@ -507,6 +532,37 @@ func (a *Annotations) toObject() (*Object, *Error) {
 	}
 
 	return &obj, nil
+}
+
+func attachRuleAnnotations(mod *Module) {
+	// make a copy of the annotations
+	cpy := make([]*Annotations, len(mod.Annotations))
+	for i, a := range mod.Annotations {
+		cpy[i] = a.Copy(a.node)
+	}
+
+	for _, rule := range mod.Rules {
+		var j int
+		var found bool
+		for i, a := range cpy {
+			if rule.Loc().Row > a.Location.Row {
+				if rule.Ref().Equal(a.GetTargetPath()) {
+					rule.Annotations = append(rule.Annotations, a)
+
+					if a.Scope == annotationScopeRule {
+						j = i
+						found = true
+					}
+				}
+			} else {
+				break
+			}
+		}
+
+		if found && j < len(cpy) {
+			cpy = append(cpy[:j], cpy[j+1:]...)
+		}
+	}
 }
 
 func attachAnnotationsNodes(mod *Module) Errors {

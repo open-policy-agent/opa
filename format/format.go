@@ -199,7 +199,7 @@ func AstWithOpts(x interface{}, opts Opts) ([]byte, error) {
 		}
 		w.writeModule(x, o)
 	case *ast.Package:
-		w.writePackage(x, nil)
+		w.writePackage(x, nil, nil)
 	case *ast.Import:
 		w.writeImports([]*ast.Import{x}, nil)
 	case *ast.Rule:
@@ -283,13 +283,18 @@ type writer struct {
 }
 
 func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
+
 	var pkg *ast.Package
 	var others []interface{}
 	var comments []*ast.Comment
+	var annotations []*ast.Annotations
 	visitor := ast.NewGenericVisitor(func(x interface{}) bool {
 		switch x := x.(type) {
 		case *ast.Comment:
 			comments = append(comments, x)
+			return true
+		case *ast.Annotations:
+			annotations = append(annotations, x)
 			return true
 		case *ast.Import, *ast.Rule:
 			others = append(others, x)
@@ -307,13 +312,17 @@ func (w *writer) writeModule(module *ast.Module, o fmtOpts) {
 		return locLess(comments[i], comments[j])
 	})
 
+	sort.Slice(annotations, func(i, j int) bool {
+		return locLess(annotations[i], annotations[j])
+	})
+
 	sort.Slice(others, func(i, j int) bool {
 		return locLess(others[i], others[j])
 	})
 
 	comments = trimTrailingWhitespaceInComments(comments)
 
-	comments = w.writePackage(pkg, comments)
+	comments = w.writePackage(pkg, comments, annotations)
 	var imports []*ast.Import
 	var rules []*ast.Rule
 	for len(others) > 0 {
@@ -339,11 +348,24 @@ func trimTrailingWhitespaceInComments(comments []*ast.Comment) []*ast.Comment {
 	return comments
 }
 
-func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment) []*ast.Comment {
+func (w *writer) writePackage(pkg *ast.Package, comments []*ast.Comment, annotations []*ast.Annotations) []*ast.Comment {
+	parsedAnnotations, _ := ast.ParseAnnotations(comments)
+
 	comments = w.insertComments(comments, pkg.Location)
 
 	w.startLine()
+
+	if len(parsedAnnotations) == 0 {
+		for _, an := range annotations {
+			if an.Scope == "package" || an.Scope == "subpackages" {
+				w.writeLine("# METADATA")
+				w.writeComments(an.Comments())
+			}
+		}
+	}
+
 	w.write(pkg.String())
+
 	w.blankLine()
 
 	return comments
@@ -359,10 +381,30 @@ func (w *writer) writeComments(comments []*ast.Comment) {
 }
 
 func (w *writer) writeRules(rules []*ast.Rule, o fmtOpts, comments []*ast.Comment) []*ast.Comment {
+	parsedAnnotations, _ := ast.ParseAnnotations(comments)
+
 	for _, rule := range rules {
+
+		if len(parsedAnnotations) == 0 {
+			for _, an := range rule.Annotations {
+				w.blankLine()
+				w.writeLine("# METADATA")
+				w.writeComments(an.Comments())
+			}
+
+			// add a blank line to separate annotations from trailing comments to avoid errors during
+			// annotation parsing which expects a blank line between them
+			if len(rule.Annotations) > 0 && len(comments) > 0 {
+				w.blankLine()
+			}
+		}
+
 		comments = w.insertComments(comments, rule.Location)
+
 		comments = w.writeRule(rule, false, o, comments)
+
 		w.blankLine()
+
 	}
 	return comments
 }

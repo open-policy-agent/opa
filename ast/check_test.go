@@ -2328,6 +2328,7 @@ p { input = "foo" }`}},
 			as, errors := BuildAnnotationSet(modules)
 			typeenv, checkErrors := newTypeChecker().WithSchemaSet(schemaSet).CheckTypes(oldTypeEnv, elems, as)
 			errors = append(errors, checkErrors...)
+
 			if len(errors) > 0 {
 				for _, e := range errors {
 					if tc.err == "" || !strings.Contains(e.Error(), tc.err) {

@@ -2191,11 +2191,13 @@ func (c *Compiler) parseMetadataBlocks() {
 
 			if len(mod.Annotations) == 0 {
 				var errs Errors
-				mod.Annotations, errs = parseAnnotations(mod.Comments)
+				mod.Annotations, errs = ParseAnnotations(mod.Comments)
 				errs = append(errs, attachAnnotationsNodes(mod)...)
 				for _, err := range errs {
 					c.err(err)
 				}
+
+				attachRuleAnnotations(mod)
 			}
 		}
 	}

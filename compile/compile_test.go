@@ -2016,6 +2016,56 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 		},
 		{
+			note:        "rule pruning (with metadata block)",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]`,
+			},
+			wantModules: map[string]string{
+				"optimized/test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p = __result__ { 1 = input.x; __result__ = true }
+
+# METADATA
+# title: p
+# description: p
+p = __result__ { 2 = input.x; __result__ = true }
+
+# METADATA
+# title: p
+# description: p
+p = __result__ { 3 = input.x; __result__ = true }`,
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+q[1]
+q[2]
+q[3]`,
+			},
+		},
+		{
 			note:        "support rules",
 			entrypoints: []string{"data.test.p"},
 			modules: map[string]string{
@@ -2048,6 +2098,51 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 		},
 		{
+			note:        "support rules (with metadata block)",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+default p = false
+
+# METADATA
+# title: p
+# description: p
+p { q[input.x] }
+
+q[1]
+q[2]`,
+			},
+			wantModules: map[string]string{
+				"optimized/test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+default p = false
+
+# METADATA
+# title: p
+# description: p
+p = true { 1 = input.x }
+
+# METADATA
+# title: p
+# description: p
+p = true { 2 = input.x }`,
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+q[1]
+q[2]`,
+			},
+		},
+		{
 			note:        "support rules, ref heads",
 			entrypoints: []string{"data.test.p.q.r"},
 			modules: map[string]string{
@@ -2074,6 +2169,53 @@ func TestOptimizerOutput(t *testing.T) {
 
 					q[1]
 					q[2]
+				`,
+			},
+		},
+		{
+			note:        "support rules, ref heads (with metadata block)",
+			entrypoints: []string{"data.test.p.q.r"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+default p.q.r = false
+
+# METADATA
+# title: foo
+# description: foo
+p.q.r { q[input.x] }
+
+q[1]
+q[2]`,
+			},
+			wantModules: map[string]string{
+				"optimized/test/p/q.rego": `
+package test.p.q
+
+default r = false
+
+# METADATA
+# title: foo
+# description: foo
+r = true { 1 = input.x }
+
+# METADATA
+# title: foo
+# description: foo
+r = true { 2 = input.x }
+
+				`,
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+q[1]
+
+q[2]
 				`,
 			},
 		},
@@ -2123,6 +2265,74 @@ func TestOptimizerOutput(t *testing.T) {
 			},
 		},
 		{
+			note:        "multiple entrypoints (with metadata block)",
+			entrypoints: []string{"data.test.p", "data.test.r", "data.test.s"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p {
+	q[input.x]
+}
+
+# METADATA
+# title: r
+# description: r
+r {
+	q[input.x]
+}
+
+# METADATA
+# title: s
+# description: s
+s {
+	q[input.x]
+}
+
+q[1]`,
+			},
+			wantModules: map[string]string{
+				"optimized/test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p = __result__ { 1 = input.x; __result__ = true }`,
+				"optimized/test.1.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: r
+# description: r
+r = __result__ { 1 = input.x; __result__ = true }`,
+				"optimized/test.2.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: s
+# description: s
+s = __result__ { 1 = input.x; __result__ = true }`,
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+q[1] { true }`,
+			},
+		},
+		{
 			note:        "package pruning",
 			entrypoints: []string{"data.test.foo"},
 			modules: map[string]string{
@@ -2130,6 +2340,25 @@ func TestOptimizerOutput(t *testing.T) {
 					package test.foo.bar
 
 					p = true
+				`,
+			},
+			wantModules: map[string]string{
+				"optimized/test.rego": `
+					package test
+
+					foo = __result__ { __result__ = {"bar": {"p": true}} }`,
+			},
+		},
+		{
+			note:        "package pruning (with metadata block)",
+			entrypoints: []string{"data.test.foo"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test.foo.bar
+
+p = true
 				`,
 			},
 			wantModules: map[string]string{
@@ -2182,6 +2411,91 @@ func TestOptimizerOutput(t *testing.T) {
 					t { p }
 					r = true { t with q as {3} }
 				`,
+			},
+		},
+		{
+			note:        "entrypoint dependent integrity (with metadata block)",
+			entrypoints: []string{"data.test.p"},
+			modules: map[string]string{
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p { q[input.x] }
+
+# METADATA
+# title: q
+# description: q
+q[x] {
+	s[x]
+}
+
+# METADATA
+# title: s
+# description: s
+s[1]
+s[2]
+
+# METADATA
+# title: t
+# description: t
+t {
+	p
+}
+
+# METADATA
+# title: r
+# description: r
+r { t with q as {3} }`,
+			},
+			wantModules: map[string]string{
+				"optimized/test.1.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p = __result__ { data.test.q[input.x]; __result__ = true }`,
+				"optimized/test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: q
+# description: q
+q[1] { true }
+
+# METADATA
+# title: q
+# description: q
+q[2] { true }`,
+				"test.rego": `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: s
+# description: s
+s[1] { true }
+s[2] { true }
+
+# METADATA
+# title: t
+# description: t
+t { p }
+
+# METADATA
+# title: r
+# description: r
+r = true { t with q as {3} }`,
 			},
 		},
 		{
@@ -2464,7 +2778,7 @@ func TestOptimizerOutput(t *testing.T) {
 			}
 
 			exp := &bundle.Bundle{
-				Modules: getModuleFiles(tc.wantModules, false),
+				Modules: getModuleFiles(tc.wantModules, false, true),
 				Data:    original.Data, // data is not pruned at all today
 			}
 
@@ -2547,7 +2861,7 @@ func TestRefSet(t *testing.T) {
 func getOptimizer(modules map[string]string, data string, entries []string, roots []string, ns string) *optimizer {
 
 	b := &bundle.Bundle{
-		Modules: getModuleFiles(modules, true),
+		Modules: getModuleFiles(modules, true, true),
 	}
 
 	if data != "" {
@@ -2578,7 +2892,7 @@ func getOptimizer(modules map[string]string, data string, entries []string, root
 	return o
 }
 
-func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile {
+func getModuleFiles(src map[string]string, includeRaw bool, processAnnotation bool) []bundle.ModuleFile {
 
 	keys := make([]string, 0, len(src))
 	for k := range src {
@@ -2589,7 +2903,7 @@ func getModuleFiles(src map[string]string, includeRaw bool) []bundle.ModuleFile 
 	modules := make([]bundle.ModuleFile, 0, len(keys))
 
 	for _, k := range keys {
-		module, err := ast.ParseModule(k, src[k])
+		module, err := ast.ParseModuleWithOpts(k, src[k], ast.ParserOptions{ProcessAnnotation: processAnnotation})
 		if err != nil {
 			panic(err)
 		}
