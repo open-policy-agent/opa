@@ -26,7 +26,7 @@ of the system.
 
 {{< info >}}
 The examples in this section try to represent the best practices. As such, they
-make use of keywords that will become standard keywords in [OPA v1.0](./opa-v1),
+make use of keywords that will become standard keywords in [OPA v1.0](../opa-1),
 but have been introduced gradually.
 [See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
@@ -756,7 +756,7 @@ The sample code in this section make use of the data defined in [Examples](#exam
 
 {{< info >}}
 Rule definitions can be more expressive when using the _future keywords_ `contains` and
-`if` which will become standard in [OPA v1.0](./opa-v1).
+`if` which will become standard in [OPA v1.0](../opa-1).
 
 To follow along as-is, please import the keywords, or preferably, import `rego.v1`:
 
@@ -1640,12 +1640,12 @@ In the first stage, users could opt-in to using the new keywords via a special i
 
 {{< info >}}
 It is recommended to use the `rego.v1` import instead of `future.keywords` imports,
-as this will ensure that your policy is compatible with the future release of [OPA v1.0](./opa-v1).
+as this will ensure that your policy is compatible with the future release of [OPA v1.0](../opa-1).
 If the `rego.v1` import is present in a module, then `future.keywords` and
 `future.keywords.*` import is implied, and not allowed.
 {{< /info >}}
 
-In [OPA v1.0](./opa-v1), the new keywords will become _standard_, and
+In [OPA v1.0](../opa-1), the new keywords will become _standard_, and
 the import will become a no-op that can safely be removed. This should give all
 users ample time to update their policies, so that the new keyword will not cause
 clashes with existing variable names.

@@ -1387,7 +1387,7 @@ non-empty-set   = "{" term { "," term } "}"
 empty-set       = "set(" ")"
 ```
 
-Note that the grammar corresponds to Rego with `rego.v1` enabled (See ([OPA v1.0](./opa-1) for more info).
+Note that the grammar corresponds to Rego with `rego.v1` enabled (See ([OPA v1.0](../opa-1) for more info).
 
 The grammar defined above makes use of the following syntax. See [the Wikipedia page on EBNF](https://en.wikipedia.org/wiki/Extended_Backus–Naur_Form) for more details:
 
