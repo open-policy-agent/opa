@@ -59,7 +59,7 @@
       "hex.encode",
       "json.is_valid",
       "json.marshal",
-      "json.marshal_indent",
+      "json.marshal_with_options",
       "json.unmarshal",
       "urlquery.decode",
       "urlquery.decode_object",
@@ -10353,7 +10353,7 @@
     },
     "wasm": true
   },
-  "json.marshal_indent": {
+  "json.marshal_with_options": {
     "args": [
       {
         "description": "the term to serialize",
@@ -10361,20 +10361,15 @@
         "type": "any"
       },
       {
-        "description": "the string to indent with, defaults to `\\t` (horizontal tab character, 0x09) if null",
-        "name": "indent",
-        "type": "any\u003cnull, string\u003e"
-      },
-      {
-        "description": "the string to prefix lines with, defaults to empty-string if null",
-        "name": "prefix",
-        "type": "any\u003cnull, string\u003e"
+        "description": "encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)",
+        "name": "opts",
+        "type": "any\u003cnull, object[string: any]\u003e"
       }
     ],
     "available": [
       "edge"
     ],
-    "description": "Serializes the input term to indented JSON, including line breaks, with optional prefix. One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
+    "description": "Serializes the input term to multiline JSON, with specified formatting options (indent/prefix). One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
     "introduced": "edge",
     "result": {
       "description": "the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate",

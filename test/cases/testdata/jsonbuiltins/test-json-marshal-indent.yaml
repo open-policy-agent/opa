@@ -6,9 +6,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], "  ", null)
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": "  ", "prefix": null})
         }
-    note: jsonbuiltins/marshal_indent-explicit
+    note: jsonbuiltins/marshal_with_options-explicit
     query: data.test.p = x
     want_result:
       - x: |-
@@ -23,9 +23,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, null)
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null)
         }
-    note: jsonbuiltins/marshal_indent-nulled
+    note: jsonbuiltins/marshal_with_options-nulled
     query: data.test.p = x
     want_result:
       - x: |-
@@ -40,9 +40,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null, "JSON => ")
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": null, "prefix": "JSON => "})
         }
-    note: jsonbuiltins/marshal_indent-prefix
+    note: jsonbuiltins/marshal_with_options-prefix
     query: data.test.p = x
     want_result:
       - x: |-
@@ -57,9 +57,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent({"foo": "bar", "bar": "baz"}, null, "JSON => ")
+          x := json.marshal_with_options({"foo": "bar", "bar": "baz"}, {"indent": null, "prefix": "JSON => "})
         }
-    note: jsonbuiltins/marshal_indent-object
+    note: jsonbuiltins/marshal_with_options-object
     query: data.test.p = x
     want_result:
       - x: |-
@@ -73,9 +73,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([], "    ", "---")
+          x := json.marshal_with_options([], {"indent": "    ", "prefix": "---"})
         }
-    note: jsonbuiltins/marshal_indent-empty-array
+    note: jsonbuiltins/marshal_with_options-empty-array
     query: data.test.p = x
     want_result:
       - x: |-
@@ -86,9 +86,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_indent([[[[[[[]]]]]]], "    ", null)
+          x := json.marshal_with_options([[[[[[[]]]]]]], {"indent": "    ", "prefix": null})
         }
-    note: jsonbuiltins/marshal_indent-deep-array
+    note: jsonbuiltins/marshal_with_options-deep-array
     query: data.test.p = x
     want_result:
       - x: |-
@@ -105,3 +105,29 @@ cases:
                   ]
               ]
           ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([], {"indent": "    ", "prefix": null, "include_winning_lottery_numbers": true})
+        }
+    note: jsonbuiltins/marshal_with_options-invalid-key
+    query: data.test.p = x
+    strict_error: true
+    want_error: object contained unknown key "include_winning_lottery_numbers"
+    want_error_code: eval_type_error
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([], {"indent": {}, "prefix": null})
+        }
+    note: jsonbuiltins/marshal_with_options-invalid-value
+    query: data.test.p = x
+    strict_error: true
+    want_error: "\"indent\" contained invalid type"
+    want_error_code: eval_type_error

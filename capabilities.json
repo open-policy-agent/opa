@@ -2148,7 +2148,7 @@
       }
     },
     {
-      "name": "json.marshal_indent",
+      "name": "json.marshal_with_options",
       "decl": {
         "args": [
           {
@@ -2160,18 +2160,15 @@
                 "type": "null"
               },
               {
-                "type": "string"
-              }
-            ],
-            "type": "any"
-          },
-          {
-            "of": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string"
+                "dynamic": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
               }
             ],
             "type": "any"
