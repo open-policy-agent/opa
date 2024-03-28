@@ -9,16 +9,16 @@ This release contains a mix of features, performance improvements, and bugfixes.
 
 ### Runtime, Tooling, SDK
 
-- cmd/exec: Add `--timeout` flag to `opa exec` to prevent infinite hangs. (#6633) ([#6613](https://github.com/open-policy-agent/opa/issues/6613)) authored by @philipaconrad
+- cmd/exec: Add `--timeout` flag to `opa exec` to prevent infinite hangs. ([#6613](https://github.com/open-policy-agent/opa/issues/6613)) authored by @philipaconrad
 - download: Surface bundle download errors via debug logging ([#6609](https://github.com/open-policy-agent/opa/issues/6609)) authored by @ashutosh-narkar reported by @nevumx
 - topdown: Fixing overactive Early Exit suppression ([#6566](https://github.com/open-policy-agent/opa/issues/6566)) authored by @johanfylling reported by @ashwinhb
+- plugins/rest: Add support to get temp creds via AssumeRole ([#6634](https://github.com/open-policy-agent/opa/pull/6634)) authored by @ashutosh-narkar
 
 ### Topdown and Rego
 
 - topdown: Adding a new `crypto.x509.parse_and_verify_certificates_with_options` built-in function. ([#5882](https://github.com/open-policy-agent/opa/issues/5882)) authored by @yogisinha reported by @IxDay
 - format: Preserve brackets around set union operation ([#6588](https://github.com/open-policy-agent/opa/issues/6588)) authored by @ashutosh-narkar reported by @HarshPathakhp
 - aws: Support for Unsigned Payload or provided content sha256 in AWS signing ([#6581](https://github.com/open-policy-agent/opa/pull/6611)) authored by @prasanthj
-- plugins/rest: Add support to get temp creds via AssumeRole ([#6634](https://github.com/open-policy-agent/opa/pull/6634)) authored by @ashutosh-narkar
 
 ### Docs + Website + Ecosystem
 
