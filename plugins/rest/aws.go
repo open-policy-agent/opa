@@ -448,7 +448,7 @@ func (cs *awsAssumeRoleCredentialService) refreshFromService(ctx context.Context
 		return err
 	}
 
-	err = aws.SignRequest(req, "STS", signingCreds, time.Now(), cs.AWSSigningPlugin.AWSSignatureVersion)
+	err = aws.SignRequest(req, "sts", signingCreds, time.Now(), cs.AWSSigningPlugin.AWSSignatureVersion)
 	if err != nil {
 		return err
 	}
