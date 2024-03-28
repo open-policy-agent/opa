@@ -35,6 +35,80 @@ func builtinJSONMarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	return iter(ast.StringTerm(string(bs)))
 }
 
+func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+
+	asJSON, err := ast.JSON(operands[0].Value)
+	if err != nil {
+		return err
+	}
+
+	indentWith := "\t"
+	prefixWith := ""
+
+	switch operands[1].Value.(type) {
+	case ast.Null:
+		// Do nothing - use default parameters
+	case ast.Object:
+		marshalOpts, err := builtins.ObjectOperand(operands[1].Value, 2)
+		if err != nil {
+			return err
+		}
+
+		for idx, k := range marshalOpts.Keys() {
+
+			val := marshalOpts.Get(k)
+
+			key, err := builtins.StringOperand(k.Value, 2)
+			if err != nil {
+				return err
+			}
+
+			switch key {
+
+			case "prefix":
+				switch val.Value.(type) {
+				case ast.Null:
+					// Do nothing - use default param
+				default:
+					prefixOpt, err := builtins.StringOperand(val.Value, idx)
+					if err != nil {
+						return builtins.NewOperandErr(2, "key %s contained invalid type: %v", key, err)
+					}
+					prefixWith = string(prefixOpt)
+				}
+
+			case "indent":
+				switch val.Value.(type) {
+				case ast.Null:
+					// Do nothing - use default param
+				default:
+					indentOpt, err := builtins.StringOperand(val.Value, idx)
+					if err != nil {
+						return builtins.NewOperandErr(2, "key %s contained invalid type: %v", key, err)
+
+					}
+					indentWith = string(indentOpt)
+				}
+
+			default:
+				return builtins.NewOperandErr(2, "object contained unknown key %s", key)
+			}
+
+		}
+
+	default:
+		return builtins.NewOperandTypeErr(2, operands[1].Value, "object", "null")
+	}
+
+	bs, err := json.MarshalIndent(asJSON, prefixWith, indentWith)
+	if err != nil {
+		return err
+	}
+
+	// json.MarshalIndent() function will not prefix the first line of emitted JSON
+	return iter(ast.StringTerm(prefixWith + string(bs)))
+}
+
 func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
 	str, err := builtins.StringOperand(operands[0].Value, 1)
@@ -299,6 +373,7 @@ func builtinHexDecode(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 
 func init() {
 	RegisterBuiltinFunc(ast.JSONMarshal.Name, builtinJSONMarshal)
+	RegisterBuiltinFunc(ast.JSONMarshalWithOptions.Name, builtinJSONMarshalWithOpts)
 	RegisterBuiltinFunc(ast.JSONUnmarshal.Name, builtinJSONUnmarshal)
 	RegisterBuiltinFunc(ast.JSONIsValid.Name, builtinJSONIsValid)
 	RegisterBuiltinFunc(ast.Base64Encode.Name, builtinBase64Encode)

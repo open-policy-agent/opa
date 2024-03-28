@@ -2192,6 +2192,39 @@
       }
     },
     {
+      "name": "json.marshal_with_options",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "of": [
+              {
+                "type": "null"
+              },
+              {
+                "dynamic": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "any"
+                  }
+                },
+                "type": "object"
+              }
+            ],
+            "type": "any"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.match_schema",
       "decl": {
         "args": [

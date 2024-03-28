@@ -142,6 +142,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Encoding
 	JSONMarshal,
+	JSONMarshalWithOptions,
 	JSONUnmarshal,
 	JSONIsValid,
 	Base64Encode,
@@ -1703,6 +1704,29 @@ var JSONMarshal = &Builtin{
 			types.Named("x", types.A).Description("the term to serialize"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`"),
+	),
+	Categories: encoding,
+}
+
+var JSONMarshalWithOptions = &Builtin{
+	Name: "json.marshal_with_options",
+	Description: "Serializes the input term to multiline JSON, with specified formatting options (indent/prefix). " +
+		"One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("x", types.A).Description("the term to serialize"),
+			types.Named("opts", types.NewAny(
+				types.NewNull(),
+				types.NewObject(
+					nil,
+					types.NewDynamicProperty(
+						types.S,
+						types.A,
+					),
+				),
+			)).Description("encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)"),
+		),
+		types.Named("y", types.S).Description("the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate"),
 	),
 	Categories: encoding,
 }
