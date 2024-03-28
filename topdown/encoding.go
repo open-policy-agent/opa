@@ -58,9 +58,9 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 
 			val := marshalOpts.Get(k)
 
-			key, err := builtins.StringOperand(k.Value, 2)
+			key, err := builtins.StringOperand(k.Value, idx)
 			if err != nil {
-				return err
+				return builtins.NewOperandErr(2, "failed to stringify key %v at index %d: %v", k, idx, err)
 			}
 
 			switch key {
@@ -72,7 +72,7 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 				default:
 					prefixOpt, err := builtins.StringOperand(val.Value, idx)
 					if err != nil {
-						return builtins.NewOperandErr(2, "key %s contained invalid type: %v", key, err)
+						return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
 					}
 					prefixWith = string(prefixOpt)
 				}
@@ -84,7 +84,7 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 				default:
 					indentOpt, err := builtins.StringOperand(val.Value, idx)
 					if err != nil {
-						return builtins.NewOperandErr(2, "key %s contained invalid type: %v", key, err)
+						return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
 
 					}
 					indentWith = string(indentOpt)

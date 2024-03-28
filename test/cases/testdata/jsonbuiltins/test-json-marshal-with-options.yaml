@@ -134,16 +134,3 @@ cases:
     strict_error: true
     want_error: object contained unknown key "include_winning_lottery_numbers"
     want_error_code: eval_type_error
-  - data: {}
-    modules:
-      - |
-        package test
-
-        p = x {
-          x := json.marshal_with_options([], {"indent": {}, "prefix": null})
-        }
-    note: jsonbuiltins/marshal_with_options-invalid-value
-    query: data.test.p = x
-    strict_error: true
-    want_error: "\"indent\" contained invalid type"
-    want_error_code: eval_type_error

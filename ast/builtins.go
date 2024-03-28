@@ -1718,11 +1718,11 @@ var JSONMarshalWithOptions = &Builtin{
 			types.Named("opts", types.NewAny(
 				types.NewNull(),
 				types.NewObject(
-					nil,
-					types.NewDynamicProperty(
-						types.S,
-						types.A,
-					),
+					[]*types.StaticProperty{
+						types.NewStaticProperty("indent", types.NewAny(types.S, types.NewNull())),
+						types.NewStaticProperty("prefix", types.NewAny(types.S, types.NewNull())),
+					},
+					types.NewDynamicProperty(types.S, types.A),
 				),
 			)).Description("encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)"),
 		),
