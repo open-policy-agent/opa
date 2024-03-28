@@ -421,6 +421,11 @@ The `json.marshal_with_options` builtin's `opts` parameter accepts the following
 | ``indent`` | No | ``string`` | ``"\\t"`` <br/> (Horizontal tab, character 0x09) | The string to use when indenting nested keys in the emitted JSON. One or more copies of this string will be included before child elements in every object or array. |
 | ``prefix`` | No | ``string`` | ``""`` <br/> (empty) | The string to prefix lines with in the emitted JSON. One copy of this string will be prepended to each line. |
 
+Default values will be used if:
+* `opts` is null or an empty object.
+* `opts` does not contain the named property.
+* `opts` contains the named property, but its value is `null`.
+
 {{< builtin-table cat=tokensign title="Token Signing" >}}
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
