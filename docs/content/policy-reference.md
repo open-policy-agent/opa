@@ -414,6 +414,13 @@ The following table shows examples of how ``glob.match`` works:
 {{< builtin-table types >}}
 {{< builtin-table encoding >}}
 
+The `json.marshal_with_options` builtin's `opts` parameter accepts the following properties:
+
+| Field | Required | Type | Default | Description |
+| :---- | :------- | :--- | :------ | :---------- |
+| ``indent`` | No | ``string`` | ``"\\t"`` <br/> (Horizontal tab, character 0x09) | The string to use when indenting nested keys in the emitted JSON. One or more copies of this string will be included before child elements in every object or array. |
+| ``prefix`` | No | ``string`` | ``""`` <br/> (empty) | The string to prefix lines with in the emitted JSON. One copy of this string will be prepended to each line. |
+
 {{< builtin-table cat=tokensign title="Token Signing" >}}
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
