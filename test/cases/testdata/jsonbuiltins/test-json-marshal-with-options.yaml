@@ -73,6 +73,22 @@ cases:
         package test
 
         p = x {
+          x := json.marshal_with_options({"foo": "bar", "bar": "baz"}, {"prefix": "JSON => "})
+        }
+    note: jsonbuiltins/marshal_with_options-missing-key
+    query: data.test.p = x
+    want_result:
+      - x: |-
+          JSON => {
+          JSON => 	"bar": "baz",
+          JSON => 	"foo": "bar"
+          JSON => }
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
           x := json.marshal_with_options([], {"indent": "    ", "prefix": "---"})
         }
     note: jsonbuiltins/marshal_with_options-empty-array
