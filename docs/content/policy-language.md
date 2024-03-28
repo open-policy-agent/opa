@@ -26,8 +26,8 @@ of the system.
 
 {{< info >}}
 The examples in this section try to represent the best practices. As such, they
-make use of keywords that are meant to become standard keywords at some point in
-time, but have been introduced gradually.
+make use of keywords that will become standard keywords in [OPA v1.0](./opa-v1),
+but have been introduced gradually.
 [See the docs on _future keywords_](#future-keywords) for more information.
 {{< /info >}}
 
@@ -756,7 +756,7 @@ The sample code in this section make use of the data defined in [Examples](#exam
 
 {{< info >}}
 Rule definitions can be more expressive when using the _future keywords_ `contains` and
-`if`.
+`if` which will become standard in [OPA v1.0](./opa-v1).
 
 To follow along as-is, please import the keywords, or preferably, import `rego.v1`:
 
@@ -773,15 +773,6 @@ The following rule defines a set containing the hostnames of all servers:
 
 ```live:eg/data/rules:module:read_only
 hostnames contains name if {
-    name := sites[_].servers[_].hostname
-}
-```
-
-Note that the [(future) keywords `contains` and `if`](#future-keywords) are optional here.
-If future keywords are not available to you, you can define the same rule as follows:
-
-```live:eg/data/rules2:module:read_only
-hostnames[name] {
     name := sites[_].servers[_].hostname
 }
 ```
@@ -805,7 +796,7 @@ First, the rule defines a set document where the contents are defined by the var
 
 For a more formal definition of the rule syntax, see the [Policy Reference](../policy-reference/#grammar) document.
 
-Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attribute from all of the objects in the `servers` collection. From reading the fragment in isolation we cannot tell whether the fragment refers to arrays or objects. We only know that it refers to a collections of values.
+Second, the `sites[_].servers[_].hostname` fragment selects the `hostname` attribute from all the objects in the `servers` collection. From reading the fragment in isolation we cannot tell whether the fragment refers to arrays or objects. We only know that it refers to a collections of values.
 
 Third, the `name := sites[_].servers[_].hostname` expression binds the value of the `hostname` attribute to the variable `name`, which is also declared in the head of the rule.
 
@@ -893,21 +884,6 @@ instances[x]
 ```live:eg/data/incremental_rule:output
 ```
 
-Note that the [(future) keywords `contains` and `if`](#future-keywords) are optional here.
-If future keywords are not available to you, you can define the same rule as follows:
-
-```live:eg/data/incremental_rule2:module
-instances[instance] {
-    server := sites[_].servers[_]
-    instance := {"address": server.hostname, "name": server.name}
-}
-
-instances[instance] {
-    container := containers[_]
-    instance := {"address": container.ipaddress, "name": container.name}
-}
-```
-
 ### Complete Definitions
 
 In addition to rules that _partially_ define sets and objects, Rego also
@@ -962,15 +938,8 @@ max_memory with user as "johnson"
 ```live:eg/conflicting_rules/undefined:output:expect_undefined
 ```
 
-In some cases, having an undefined result for a document is not desirable. In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
-
-Note that the [(future) keyword `if`](#future-keywords) is optional here.
-If future keywords are not available to you, you can define complete rules like this:
-
-```live:eg/conflicting_rules2:module
-max_memory := 32 { power_users[user] }
-max_memory := 4 { restricted_users[user] }
-```
+In some cases, having an undefined result for a document is not desirable.
+In those cases, policies can use the [Default Keyword](#default-keyword) to provide a fallback value.
 
 ### Rule Heads containing References
 
@@ -1173,16 +1142,6 @@ trim_and_split("   foo.bar ")
 ```
 
 ```live:eg/basic_function:output
-```
-
-Note that the [(future) keyword `if`](#future-keywords) is optional here.
-If future keywords are not available to you, you can define the same function as follows:
-
-```live:eg/basic_function2:module:read_only
-trim_and_split(s) := x {
-     t := trim(s, " ")
-     x := split(t, ".")
-}
 ```
 
 Functions may have an arbitrary number of inputs, but exactly one output. Function arguments may be any kind of term. For example, suppose we have the following function:
@@ -1672,39 +1631,32 @@ http_servers contains server if {
 
 ## Future Keywords
 
-To ensure backwards-compatibility, new keywords (like `every`) are introduced slowly.
-In the first stage, users can opt-in to using the new keywords via a special import:
+To ensure backwards-compatibility, new keywords (like `every`) were introduced slowly.
+In the first stage, users could opt-in to using the new keywords via a special import:
 
 * `import future.keywords` introduces _all_ future keywords, and
 * `import future.keywords.x` _only_ introduces the `x` keyword -- see below for all known future keywords.
-* `import rego.v1` introduces all future keywords, and enforces the use of `if` and `contains` in rule heads where applicable.
-
-{{< danger >}}
-Using `import future.keywords` to import all future keywords means an **opt-out of a
-safety measure**:
-
-With a new version of OPA, the set of "all" future keywords can grow, and policies that
-worked with the previous version of OPA stop working.
-
-This **cannot happen** when you selectively import the future keywords as you need them.
-{{< /danger>}}
-
-At some point in the future, the keyword will become _standard_, and the import will
-become a no-op that can safely be removed. This should give all users ample time to
-update their policies, so that the new keyword will not cause clashes with existing
-variable names.
+* **Recommended** `import rego.v1` introduces all future keywords, and enforces the use of `if` and `contains` in rule heads where applicable.
 
 {{< info >}}
-It is recomended to use `rego.v1` import instead of `future.keywords` imports, as this will ensure that your policy is compatible with the future release of OPA 1.0.
-If the `rego.v1` import is present in a module, then `future.keywords` and `future.keywords.*` import is implied, and not allowed.
+It is recommended to use the `rego.v1` import instead of `future.keywords` imports,
+as this will ensure that your policy is compatible with the future release of [OPA v1.0](./opa-v1).
+If the `rego.v1` import is present in a module, then `future.keywords` and
+`future.keywords.*` import is implied, and not allowed.
 {{< /info >}}
 
+In [OPA v1.0](./opa-v1), the new keywords will become _standard_, and
+the import will become a no-op that can safely be removed. This should give all
+users ample time to update their policies, so that the new keyword will not cause
+clashes with existing variable names.
 
+{{< info >}}
 Note that some future keyword imports have consequences on pretty-printing:
 If `contains` or `if` are imported, the pretty-printer will use them as applicable
 when formatting the modules.
+{{< /info >}}
 
-This is the list of all future keywords known to OPA:
+This is the list of all future keywords that will become standard in OPA v1.0:
 
 ### `future.keywords.in`
 
