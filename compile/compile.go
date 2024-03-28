@@ -463,7 +463,7 @@ func (c *Compiler) initBundle() error {
 			bundles = append(bundles, load.Bundles[k])
 		}
 
-		result, err := bundle.Merge(bundles)
+		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion)
 		if err != nil {
 			return fmt.Errorf("bundle merge failed: %v", err)
 		}
@@ -476,6 +476,7 @@ func (c *Compiler) initBundle() error {
 	// contents. That would require changes to the loader to preserve the
 	// locations where base documents were mounted under data.
 	result := &bundle.Bundle{}
+	result.SetRegoVersion(c.regoVersion)
 	if len(c.roots) > 0 {
 		result.Manifest.Roots = &c.roots
 	}

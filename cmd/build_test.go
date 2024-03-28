@@ -63,7 +63,7 @@ func TestBuildProducesBundle(t *testing.T) {
 			} else if err != nil {
 				t.Fatal(err)
 			}
-			if f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
+			if f.Name == "/.manifest" || f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego") {
 				continue
 			}
 			t.Fatal("unexpected file:", f.Name)
@@ -382,7 +382,7 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 			switch {
 			case f.Name == "/plan.json":
 				found = true
-			case f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego"): // expected
+			case f.Name == "/.manifest" || f.Name == "/data.json" || strings.HasSuffix(f.Name, "/test.rego"): // expected
 			default:
 				t.Errorf("unexpected file: %s", f.Name)
 			}
@@ -646,6 +646,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -678,6 +679,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -729,6 +731,7 @@ bar := "baz"
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p3",
@@ -773,6 +776,7 @@ p := 1
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p",
@@ -812,6 +816,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -839,6 +844,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
+	"rego_version": 0,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -970,11 +976,228 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 			files = append(files, filepath.Base(f.Name))
 		}
 
-		expected := 4
+		// We additionally expect a manifest file
+		expected := 5
 		if len(files) != expected {
 			t.Fatalf("expected %v files but got %v", expected, len(files))
 		}
 	})
+}
+
+func TestBuildBundleModeWithManifestRegoVersion(t *testing.T) {
+	tests := []struct {
+		note        string
+		roots       []string
+		files       map[string]string
+		expManifest string
+		expErrs     []string
+	}{
+		{
+			note: "v0 bundle rego-version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"test.rego": `package test
+
+p[42] {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":0}`,
+		},
+		{
+			note: "v1 bundle rego-version",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"test.rego": `package test
+
+p contains 42 if {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":1}`,
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p[1] {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p contains 2 if {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"*/test2.rego":1}}`,
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override, missing v1 keywords in v1 file",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p[1] {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p[2] {
+	input.x == 1
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v0 bundle rego-version, v1 per-file override, v1 keywords but no v1 imports in v0 file",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+
+p contains 1 if {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+
+p contains 2 if {
+	input.x == 1
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note:  "multiple bundles with different rego-versions",
+			roots: []string{"bundle1", "bundle2"},
+			files: map[string]string{
+				"bundle1/.manifest": `{
+	"roots": ["test1"],
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"bundle1/test1.rego": `package test1
+p[1] {
+	input.x == 1
+}`,
+				"bundle1/test2.rego": `package test1
+p contains 2 if {
+	input.x == 1
+}`,
+				"bundle2/.manifest": `{
+	"roots": ["test2"],
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/test4.rego": 0
+	}
+}`,
+				"bundle2/test3.rego": `package test2
+p contains 3 if {
+	input.x == 1
+}`,
+				"bundle2/test4.rego": `package test2
+p[4] {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":["test1","test2"],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle1/test2.rego":1,"%ROOT%/bundle2/test3.rego":1}}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(tc.files, func(root string) {
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.bundleMode = true
+
+				var roots []string
+				if len(tc.roots) == 0 {
+					roots = []string{root}
+				} else {
+					for _, r := range tc.roots {
+						roots = append(roots, path.Join(root, r))
+					}
+				}
+				err := dobuild(params, roots)
+				if tc.expErrs != nil {
+					if err == nil {
+						t.Fatal("expected error but got none")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer f.Close()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+
+						if f.Name == "/.manifest" {
+							b, err := io.ReadAll(tr)
+							if err != nil {
+								t.Fatal(err)
+							}
+							expManifest := strings.ReplaceAll(tc.expManifest, "%ROOT%", root)
+							if !strings.Contains(string(b), expManifest) {
+								t.Fatalf("expected manifest:\n\n%v\n\nbut got:\n\n%v", expManifest, string(b))
+							}
+						}
+					}
+				}
+			})
+		})
+	}
 }
 
 func TestBuildWithV1CompatibleFlag(t *testing.T) {
@@ -1006,6 +1229,8 @@ func TestBuildWithV1CompatibleFlag(t *testing.T) {
 			},
 			// Imports are preserved
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
 				"test.rego": `package test
 
 import rego.v1
@@ -1027,6 +1252,8 @@ allow if {
 			},
 			// Imports are preserved
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
 				"test.rego": `package test
 
 import future.keywords.if
@@ -1048,6 +1275,8 @@ allow if {
 			},
 			// Imports are not added in
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1068,6 +1297,8 @@ allow if {
 			},
 			// the rego.v1 import is obsolete in rego-v1, and is removed
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1088,6 +1319,8 @@ allow if {
 			},
 			// future.keywords imports are obsolete in rego-v1, and are removed
 			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"test.rego": `package test
 
 allow if {
@@ -1095,6 +1328,17 @@ allow if {
 }
 `,
 			},
+		},
+		{
+			note:         "1.0 compatibility: missing keywords",
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				allow[1] {
+					1 < 2
+				}`,
+			},
+			expectedErr: "rego_parse_error",
 		},
 	}
 
@@ -1142,6 +1386,7 @@ allow if {
 
 					tr := tar.NewReader(gr)
 
+					foundFiles := map[string]struct{}{}
 					for {
 						f, err := tr.Next()
 						if err == io.EOF {
@@ -1149,6 +1394,7 @@ allow if {
 						} else if err != nil {
 							t.Fatal(err)
 						}
+						foundFiles[path.Base(f.Name)] = struct{}{}
 						expectedFile := tc.expectedFiles[path.Base(f.Name)]
 						if expectedFile != "" {
 							data, err := io.ReadAll(tr)
@@ -1157,8 +1403,14 @@ allow if {
 							}
 							actualFile := string(data)
 							if actualFile != expectedFile {
-								t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+								t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
 							}
+						}
+					}
+
+					for expectedFile := range tc.expectedFiles {
+						if _, ok := foundFiles[expectedFile]; !ok {
+							t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
 						}
 					}
 				}
@@ -1186,6 +1438,8 @@ p[k] contains v if {
 `,
 			},
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1213,6 +1467,8 @@ p[k] contains v if {
 			// OPA 0.x is run with the --rego-v1 flag.
 			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1235,6 +1491,8 @@ p[k] contains v if {
 `,
 			},
 			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
 				"/optimized/test/p.rego": `package test.p
 
 foo contains __local1__1 if {
@@ -1272,6 +1530,7 @@ foo contains __local1__1 if {
 
 				tr := tar.NewReader(gr)
 
+				foundFiles := map[string]struct{}{}
 				for {
 					f, err := tr.Next()
 					if err == io.EOF {
@@ -1279,6 +1538,7 @@ foo contains __local1__1 if {
 					} else if err != nil {
 						t.Fatal(err)
 					}
+					foundFiles[f.Name] = struct{}{}
 					expectedFile := tc.expectedFiles[f.Name]
 					if expectedFile != "" {
 						data, err := io.ReadAll(tr)
@@ -1287,8 +1547,14 @@ foo contains __local1__1 if {
 						}
 						actualFile := string(data)
 						if actualFile != expectedFile {
-							t.Fatalf("expected optimized module:\n\n%v\n\ngot:\n\n%v", expectedFile, actualFile)
+							t.Fatalf("expected file %s to be:\n\n%v\n\ngot:\n\n%v", f.Name, expectedFile, actualFile)
 						}
+					}
+				}
+
+				for expectedFile := range tc.expectedFiles {
+					if _, ok := foundFiles[expectedFile]; !ok {
+						t.Fatalf("expected file %s not found in bundle, got: %v", expectedFile, foundFiles)
 					}
 				}
 			})

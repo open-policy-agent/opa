@@ -7,6 +7,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -804,6 +805,205 @@ a contains 4 if {
 					}
 				})
 			})
+		}
+	}
+}
+
+func TestBenchMainWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note                   string
+		bundleRegoVersion      int
+		bundleFileRegoVersions map[string]int
+		modules                map[string]string
+		query                  string
+		expErrs                []string
+	}{
+		// These tests are slow, so we're not being completely exhaustive here.
+		{
+			note:              "v0 bundle",
+			bundleRegoVersion: 0,
+			modules: map[string]string{
+				"test.rego": `package test
+a[4] {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+		},
+		{
+			note:              "v0 bundle, no keywords imported",
+			bundleRegoVersion: 0,
+			modules: map[string]string{
+				"test.rego": `package test
+a contains 4 if {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note:              "v0 bundle, v1 per-file override",
+			bundleRegoVersion: 0,
+			bundleFileRegoVersions: map[string]int{
+				"*/test2.rego": 1,
+			},
+			modules: map[string]string{
+				"test1.rego": `package test
+a[4] {
+	1 == 1
+}`,
+				"test2.rego": `package test
+b contains 4 if {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+		},
+		{
+			note:              "v1 bundle, keywords not used",
+			bundleRegoVersion: 1,
+			modules: map[string]string{
+				"test.rego": `package test
+a[4] {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note:              "v1, no keywords imported",
+			bundleRegoVersion: 1,
+			modules: map[string]string{
+				"test.rego": `package test
+a contains 4 if {
+	1 == 1
+}`,
+			},
+			query: `data.test.a`,
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	modes := []struct {
+		name string
+		e2e  bool
+	}{
+		{
+			name: "run",
+		},
+		{
+			name: "e2e",
+			e2e:  true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, mode := range modes {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, tc.note, mode.name), func(t *testing.T) {
+					files := map[string]string{}
+
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						for k, v := range tc.modules {
+							files[k] = v
+						}
+
+						manifest := bundle.Manifest{
+							RegoVersion:      &tc.bundleRegoVersion,
+							FileRegoVersions: tc.bundleFileRegoVersions,
+						}
+						manifest.Init()
+						if b, err := json.Marshal(manifest); err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						} else {
+							files[".manifest"] = string(b)
+						}
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							b := bundle.Bundle{
+								Manifest: bundle.Manifest{
+									RegoVersion:      &tc.bundleRegoVersion,
+									FileRegoVersions: tc.bundleFileRegoVersions,
+								},
+								Data: map[string]interface{}{},
+							}
+							for k, v := range tc.modules {
+								b.Modules = append(b.Modules, bundle.ModuleFile{
+									Path: k,
+									Raw:  []byte(v),
+								})
+							}
+							p = filepath.Join(root, "bundle.tar.gz")
+							f, err := os.OpenFile(p, os.O_WRONLY, os.ModePerm)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+							err = bundle.Write(f, b)
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+						}
+
+						params := testBenchParams()
+						_ = params.outputFormat.Set(evalPrettyOutput)
+
+						params.e2e = mode.e2e
+						err := params.bundlePaths.Set(p)
+						if err != nil {
+							t.Fatalf("Unexpected error: %s", err)
+						}
+
+						args := []string{tc.query}
+
+						var buf bytes.Buffer
+						rc, err := benchMain(args, params, &buf, &goBenchRunner{})
+
+						if len(tc.expErrs) > 0 {
+							if rc == 0 {
+								t.Fatalf("Expected non-zero return code")
+							}
+
+							output := buf.String()
+							for _, expErr := range tc.expErrs {
+								if !strings.Contains(output, expErr) {
+									t.Fatalf("Expected error:\n\n%s\n\ngot:\n\n%s", expErr, output)
+								}
+							}
+						} else {
+							if err != nil {
+								t.Fatalf("Unexpected error: %s", err)
+							}
+							if rc != 0 {
+								t.Fatalf("Unexpected return code %d, expected 0", rc)
+							}
+						}
+					})
+				})
+			}
 		}
 	}
 }
