@@ -343,7 +343,7 @@ jobs:
         if: ${{ failure() }}
 
       - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v2
+        uses: peaceiris/actions-hugo@v3
         with:
           # keep this version in sync with the version in netlify.toml
           hugo-version: '0.113.0'
