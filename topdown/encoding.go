@@ -138,9 +138,9 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 	if shouldPrettyPrint {
 		// json.MarshalIndent() function will not prefix the first line of emitted JSON
 		return iter(ast.StringTerm(prefixWith + string(bs)))
-	} else {
-		return iter(ast.StringTerm(string(bs)))
 	}
+
+	return iter(ast.StringTerm(string(bs)))
 
 }
 
