@@ -104,9 +104,10 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 					explicitPrettyPrint, ok := val.Value.(ast.Boolean)
 					if !ok {
 						return builtins.NewOperandErr(2, "key %s failed cast to bool", key)
-					} else {
-						shouldPrettyPrint = bool(explicitPrettyPrint)
 					}
+
+					shouldPrettyPrint = bool(explicitPrettyPrint)
+
 				}
 
 			default:
