@@ -1719,6 +1719,7 @@ var JSONMarshalWithOptions = &Builtin{
 				types.NewNull(),
 				types.NewObject(
 					[]*types.StaticProperty{
+						types.NewStaticProperty("pretty", types.NewAny(types.B)),
 						types.NewStaticProperty("indent", types.NewAny(types.S, types.NewNull())),
 						types.NewStaticProperty("prefix", types.NewAny(types.S, types.NewNull())),
 					},

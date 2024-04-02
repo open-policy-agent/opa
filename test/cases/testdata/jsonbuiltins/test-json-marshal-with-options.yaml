@@ -28,12 +28,36 @@ cases:
     note: jsonbuiltins/marshal_with_options-nulled
     query: data.test.p = x
     want_result:
+      - x: "[1234567890,2000000,1000000000]"
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"pretty": true})
+        }
+    note: jsonbuiltins/marshal_with_options-defaults
+    query: data.test.p = x
+    want_result:
       - x: |-
           [
           	1234567890,
           	2000000,
           	1000000000
           ]
+  - data: {}
+    modules:
+      - |
+        package test
+
+        p = x {
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"pretty": false, "prefix": "NO!", "indent": "BAD!"})
+        }
+    note: jsonbuiltins/marshal_with_options-explicit-disable
+    query: data.test.p = x
+    want_result:
+      - x: "[1234567890,2000000,1000000000]"
   - data: {}
     modules:
       - |

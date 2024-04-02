@@ -44,6 +44,9 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 
 	indentWith := "\t"
 	prefixWith := ""
+	implicitPrettyPrint := false
+	userDeclaredExplicitPrettyPrint := false
+	shouldPrettyPrint := false
 
 	switch operands[1].Value.(type) {
 	case ast.Null:
@@ -75,6 +78,7 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 						return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
 					}
 					prefixWith = string(prefixOpt)
+					implicitPrettyPrint = true
 				}
 
 			case "indent":
@@ -88,6 +92,21 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 
 					}
 					indentWith = string(indentOpt)
+					implicitPrettyPrint = true
+				}
+
+			case "pretty":
+				switch val.Value.(type) {
+				case ast.Null:
+					// Do nothing - use default param
+				default:
+					userDeclaredExplicitPrettyPrint = true
+					explicitPrettyPrint, ok := val.Value.(ast.Boolean)
+					if !ok {
+						return builtins.NewOperandErr(2, "key %s failed cast to bool", key)
+					} else {
+						shouldPrettyPrint = bool(explicitPrettyPrint)
+					}
 				}
 
 			default:
@@ -100,13 +119,29 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 		return builtins.NewOperandTypeErr(2, operands[1].Value, "object", "null")
 	}
 
-	bs, err := json.MarshalIndent(asJSON, prefixWith, indentWith)
+	if !userDeclaredExplicitPrettyPrint {
+		shouldPrettyPrint = implicitPrettyPrint
+	}
+
+	var bs []byte
+
+	if shouldPrettyPrint {
+		bs, err = json.MarshalIndent(asJSON, prefixWith, indentWith)
+	} else {
+		bs, err = json.Marshal(asJSON)
+	}
+
 	if err != nil {
 		return err
 	}
 
-	// json.MarshalIndent() function will not prefix the first line of emitted JSON
-	return iter(ast.StringTerm(prefixWith + string(bs)))
+	if shouldPrettyPrint {
+		// json.MarshalIndent() function will not prefix the first line of emitted JSON
+		return iter(ast.StringTerm(prefixWith + string(bs)))
+	} else {
+		return iter(ast.StringTerm(string(bs)))
+	}
+
 }
 
 func builtinJSONUnmarshal(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

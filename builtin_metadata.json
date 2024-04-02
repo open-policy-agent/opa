@@ -10389,7 +10389,7 @@
       {
         "description": "encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)",
         "name": "opts",
-        "type": "any\u003cnull, object\u003cindent: any\u003cnull, string\u003e, prefix: any\u003cnull, string\u003e\u003e[string: any]\u003e"
+        "type": "any\u003cnull, object\u003cindent: any\u003cnull, string\u003e, prefix: any\u003cnull, string\u003e, pretty: any\u003cboolean\u003e\u003e[string: any]\u003e"
       }
     ],
     "available": [

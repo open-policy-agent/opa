@@ -2240,6 +2240,17 @@
                       ],
                       "type": "any"
                     }
+                  },
+                  {
+                    "key": "pretty",
+                    "value": {
+                      "of": [
+                        {
+                          "type": "boolean"
+                        }
+                      ],
+                      "type": "any"
+                    }
                   }
                 ],
                 "type": "object"
