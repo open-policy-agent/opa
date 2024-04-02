@@ -2,57 +2,83 @@ package topdown
 
 import (
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/topdown/builtins"
 	"testing"
 )
 
-func TestValidateKeyStringOperand(t *testing.T) {
+// builtinDecisionLabelAdd test
+//   happy path
+//   invalid inputs
+// should cover below tests (but below tests do offer specificity of errors encountered)
 
-	input := ast.StringTerm("foo")
+// how to build BuiltinContext
+//   needs DecisionLabel in bctx
+//   any other validation fields
 
-	if _, err := validateKeyStringOperand(input, 1); err != nil {
-		t.Fatalf("String Key %s was not properly validated.", input.String())
+// create ast.Term Strings/Ints for input
+
+// call Builtin function passing all inputs in
+// read Error type to determine what failed
+// t.Fatalf() statement and return
+
+func TestBuiltinDecisionLabelAdd(t *testing.T) {
+
+	// inputs
+	bctx := BuiltinContext{DecisionLabel: builtins.DecisionLabel{}}
+	key := ast.StringTerm("foo")
+	value := ast.StringTerm("bar")
+	inputs := []*ast.Term{
+		key,
+		value,
+	}
+
+	if err := builtinDecisionLabelAdd(bctx, inputs, nil); err != nil {
+		t.Fatalf("Value %s for Key %s was not added to the DecisionLabel Object.", value.Value.String(), key.Value.String())
 	}
 
 }
 
-func TestValidateKeyStringOperandInvalidKeyType(t *testing.T) {
+func TestBuiltinDecisionLabelAddInvalidInputs(t *testing.T) {
 
-	input := ast.IntNumberTerm(1337)
+	// inputs
+	bctx := BuiltinContext{DecisionLabel: builtins.DecisionLabel{}}
+	key := ast.IntNumberTerm(1337)
+	value := ast.IntNumberTerm(1812)
+	inputs := []*ast.Term{
+		key,
+		value,
+	}
 
-	if _, err := validateKeyStringOperand(input, 1); err == nil {
-		t.Fatalf("Non-String Key %s passed validation.", input.Value)
+	if err := builtinDecisionLabelAdd(bctx, inputs, nil); err == nil {
+		t.Fatalf("Invalid inputs for Key %s and Value %s were added to the DecisionLabel Object.", key.Value.String(), value.Value.String())
 	}
 
 }
 
-func TestValidateValueStringOperand(t *testing.T) {
+func TestBuiltinDecisionLabelAddSameKeySecondEntry(t *testing.T) {
 
-	input := ast.StringTerm("bar")
+	bctx := BuiltinContext{DecisionLabel: builtins.DecisionLabel{}}
+	key := ast.StringTerm("foo")
+	value1, value2 := ast.StringTerm("bar"), ast.StringTerm("baz")
+	inputs1, inputs2 := []*ast.Term{
+		key,
+		value1,
+	},
+		[]*ast.Term{
+			key,
+			value2,
+		}
 
-	if _, err := validateValueStringOperand(input, 2); err != nil {
-		t.Fatalf("String Value %s was not properly validated.", input.String())
+	if err := builtinDecisionLabelAdd(bctx, inputs1, nil); err != nil {
+		t.Fatalf("first pair of Key %s and Vlue %s was not properly assigned.", key.Value.String(), value1.Value.String())
 	}
 
-}
-
-func TestValidateValueStringOperandInvalidValueType(t *testing.T) {
-
-	input := ast.IntNumberTerm(1338)
-
-	if _, err := validateValueStringOperand(input, 2); err == nil {
-		t.Fatalf("Non-String Value %s passed validation.", input.Value)
+	if err := builtinDecisionLabelAdd(bctx, inputs2, nil); err != nil {
+		if value, ok := bctx.DecisionLabel.Get(key.String()); ok {
+			if value == value1.Value {
+				t.Fatalf("Original ")
+			}
+		}
 	}
-
-}
-
-func TestAssignOperandsToDecisionLabel(t *testing.T) {
-
-	//ctx := context.Background()
-	//key := ast.StringTerm("foo")
-	//value := ast.StringTerm("bar")
-
-}
-
-func TestAssignOperandsToDecisionLabelSameKeySecondEntry(t *testing.T) {
 
 }
