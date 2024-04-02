@@ -70,14 +70,16 @@ func TestBuiltinDecisionLabelAddSameKeySecondEntry(t *testing.T) {
 		}
 
 	if err := builtinDecisionLabelAdd(bctx, inputs1, nil); err != nil {
-		t.Fatalf("first pair of Key %s and Vlue %s was not properly assigned.", key.Value.String(), value1.Value.String())
+		t.Fatalf("First pair of Key %s and Value %s was not properly assigned.", key.Value.String(), value1.Value.String())
 	}
 
 	if err := builtinDecisionLabelAdd(bctx, inputs2, nil); err != nil {
-		if value, ok := bctx.DecisionLabel.Get(key.String()); ok {
-			if value == value1.Value {
-				t.Fatalf("Original ")
-			}
+		t.Fatalf("Second pair of Key %s and Value %s was not properly assigned.", key.Value.String(), value2.Value.String())
+	}
+
+	if value, ok := bctx.DecisionLabel.Get(key.String()); ok {
+		if value == value1.Value {
+			t.Fatalf("Original value %s still present for Key %s after secondary assignment.", value1.Value.String(), key.Value.String())
 		}
 	}
 
