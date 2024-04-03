@@ -1390,11 +1390,11 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 		result := bundles[0]
 		// We respect the bundle rego-version, defaulting to the provided rego version if not set.
 		result.SetRegoVersion(result.RegoVersion(regoVersion))
-		if fileRegoVersions, err := bundleRegoVersions(result, result.RegoVersion(regoVersion)); err != nil {
+		fileRegoVersions, err := bundleRegoVersions(result, result.RegoVersion(regoVersion))
+		if err != nil {
 			return nil, err
-		} else {
-			result.Manifest.FileRegoVersions = fileRegoVersions
 		}
+		result.Manifest.FileRegoVersions = fileRegoVersions
 		return result, nil
 	}
 
@@ -1429,12 +1429,12 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 				result.Manifest.FileRegoVersions = map[string]int{}
 			}
 
-			if fileRegoVersions, err := bundleRegoVersions(b, regoVersion); err != nil {
+			fileRegoVersions, err := bundleRegoVersions(b, regoVersion)
+			if err != nil {
 				return nil, err
-			} else {
-				for k, v := range fileRegoVersions {
-					result.Manifest.FileRegoVersions[k] = v
-				}
+			}
+			for k, v := range fileRegoVersions {
+				result.Manifest.FileRegoVersions[k] = v
 			}
 		}
 	}
