@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -405,10 +406,11 @@ func (m *Manifest) validateAndInjectDefaults(b Bundle) error {
 
 // ModuleFile represents a single module contained in a bundle.
 type ModuleFile struct {
-	URL    string
-	Path   string
-	Raw    []byte
-	Parsed *ast.Module
+	URL          string
+	Path         string
+	RelativePath string
+	Raw          []byte
+	Parsed       *ast.Module
 }
 
 // WasmModuleFile represents a single wasm module contained in a bundle.
@@ -633,9 +635,10 @@ func (r *Reader) Read() (Bundle, error) {
 
 			// Modules are parsed after we've had a chance to read the manifest
 			mf := ModuleFile{
-				URL:  f.URL(),
-				Path: fullPath,
-				Raw:  bs,
+				URL:          f.URL(),
+				Path:         fullPath,
+				RelativePath: path,
+				Raw:          bs,
 			}
 			modules = append(modules, mf)
 		} else if filepath.Base(path) == WasmFile {
@@ -702,7 +705,7 @@ func (r *Reader) Read() (Bundle, error) {
 	popts.RegoVersion = bundle.RegoVersion(popts.RegoVersion)
 	for _, mf := range modules {
 		modulePopts := popts
-		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.Path, popts.RegoVersion); err != nil {
+		if modulePopts.RegoVersion, err = bundle.RegoVersionForFile(mf.RelativePath, popts.RegoVersion); err != nil {
 			return bundle, err
 		}
 		r.metrics.Timer(metrics.RegoModuleParse).Start()
@@ -1391,6 +1394,11 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 		result := bundles[0]
 		// We respect the bundle rego-version, defaulting to the provided rego version if not set.
 		result.SetRegoVersion(result.RegoVersion(regoVersion))
+		if fileRegoVersions, err := bundleRegoVersions(result, result.RegoVersion(regoVersion)); err != nil {
+			return nil, err
+		} else {
+			result.Manifest.FileRegoVersions = fileRegoVersions
+		}
 		return result, nil
 	}
 
@@ -1421,19 +1429,15 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 		result.PlanModules = append(result.PlanModules, b.PlanModules...)
 
 		if b.Manifest.RegoVersion != nil || len(b.Manifest.FileRegoVersions) > 0 {
-			// we drop the bundle-global rego versions and record individual rego versions for each module.
-
 			if result.Manifest.FileRegoVersions == nil {
 				result.Manifest.FileRegoVersions = map[string]int{}
 			}
-			for _, m := range b.Modules {
-				v, err := b.RegoVersionForFile(m.Path, b.RegoVersion(regoVersion))
-				if err != nil {
-					return nil, err
-				}
-				if v != regoVersion {
-					// only record the rego version if it's different from one applied globally to the result bundle
-					result.Manifest.FileRegoVersions[m.Path] = v.Int()
+
+			if fileRegoVersions, err := bundleRegoVersions(b, regoVersion); err != nil {
+				return nil, err
+			} else {
+				for k, v := range fileRegoVersions {
+					result.Manifest.FileRegoVersions[k] = v
 				}
 			}
 		}
@@ -1453,6 +1457,51 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 	}
 
 	return &result, nil
+}
+
+func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion) (map[string]int, error) {
+	fileRegoVersions := map[string]int{}
+
+	// we drop the bundle-global rego versions and record individual rego versions for each module.
+	for _, m := range bundle.Modules {
+		// We fetch rego-version by the path relative to the bundle root, as the complete path of the module might
+		// contain the path between OPA working directory and the bundle root.
+		v, err := bundle.RegoVersionForFile(bundleRelativePath(m), bundle.RegoVersion(regoVersion))
+		if err != nil {
+			return nil, err
+		}
+		// only record the rego version if it's different from one applied globally to the result bundle
+		if v != regoVersion {
+			// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
+			// to the module inside the merged bundle.
+			fileRegoVersions[bundleAbsolutePath(m)] = v.Int()
+		}
+	}
+
+	return fileRegoVersions, nil
+}
+
+func bundleRelativePath(m ModuleFile) string {
+	p := m.RelativePath
+	if p == "" {
+		if m.URL != "" {
+			p = m.URL
+		} else {
+			p = m.Path
+		}
+	}
+	return p
+}
+
+func bundleAbsolutePath(m ModuleFile) string {
+	p := m.URL
+	if p == "" {
+		p = m.Path
+	}
+	if !path.IsAbs(p) {
+		p = "/" + p
+	}
+	return path.Clean(p)
 }
 
 // RootPathsOverlap takes in two bundle root paths and returns true if they overlap.

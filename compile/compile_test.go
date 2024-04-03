@@ -431,6 +431,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				},
 			},
 			expGlobalRegoVersion: pointTo(0),
+			expFileRegoVersions:  map[string]int{},
 		},
 		{
 			note: "single bundle, global rego version",
@@ -445,6 +446,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				},
 			},
 			expGlobalRegoVersion: pointTo(1),
+			expFileRegoVersions:  map[string]int{},
 		},
 		{
 			note: "no global rego versions",
@@ -528,12 +530,16 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Data: map[string]interface{}{},
 					Modules: []bundle.ModuleFile{
 						{
-							Path: "a/test1.rego",
-							Raw:  []byte("package a"),
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
 						},
 						{
-							Path: "a/test2.rego",
-							Raw:  []byte("package a"),
+							Path:         "a/test2.rego",
+							URL:          "a/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package a"),
 						},
 					},
 				},
@@ -542,7 +548,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						Roots:       &[]string{"b"},
 						RegoVersion: pointTo(1),
 						FileRegoVersions: map[string]int{
-							"b/test1.rego": 0,
+							"/test1.rego": 0,
 						},
 					},
 					Data: map[string]interface{}{},
@@ -550,12 +556,16 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						{
 							// we don't expect this file to get an individual rego-version in the result, as
 							// it has the same rego-version as the global rego-version
-							Path: "b/test1.rego",
-							Raw:  []byte("package b"),
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
 						},
 						{
-							Path: "b/test2.rego",
-							Raw:  []byte("package b"),
+							Path:         "b/test2.rego",
+							URL:          "b/test2.rego",
+							RelativePath: "/test2.rego",
+							Raw:          []byte("package b"),
 						},
 					},
 				},
@@ -569,12 +579,16 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 						// we don't expect these files to get individual rego-versions in the result,
 						// as they have the same rego-version as the global rego-version
 						{
-							Path: "c/test1.rego",
-							Raw:  []byte("package c"),
+							Path:         "c/test1.rego",
+							URL:          "c/test1.rego",
+							RelativePath: "test1.rego",
+							Raw:          []byte("package c"),
 						},
 						{
-							Path: "c/test2.rego",
-							Raw:  []byte("package c"),
+							Path:         "c/test2.rego",
+							URL:          "c/test2.rego",
+							RelativePath: "test2.rego",
+							Raw:          []byte("package c"),
 						},
 					},
 				},
@@ -584,9 +598,9 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			expGlobalRegoVersion: pointTo(0),
 			// rego-versions is expected for all modules with different rego-version than the global rego-version
 			expFileRegoVersions: map[string]int{
-				"a/test1.rego": 1,
-				"a/test2.rego": 1,
-				"b/test2.rego": 1,
+				"/a/test1.rego": 1,
+				"/a/test2.rego": 1,
+				"/b/test2.rego": 1,
 			},
 		},
 		{
@@ -645,11 +659,11 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			regoVersion:          ast.RegoV0,
 			expGlobalRegoVersion: pointTo(0),
 			expFileRegoVersions: map[string]int{
-				"a/foo/test.rego": 1,
-				"a/bar/test.rego": 1,
-				"a/baz/test.rego": 1,
-				"b/foo/test.rego": 1,
-				"b/baz/test.rego": 1,
+				"/a/foo/test.rego": 1,
+				"/a/bar/test.rego": 1,
+				"/a/baz/test.rego": 1,
+				"/b/foo/test.rego": 1,
+				"/b/baz/test.rego": 1,
 			},
 		},
 	}

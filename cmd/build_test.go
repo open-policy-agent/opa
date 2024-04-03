@@ -1036,7 +1036,7 @@ p contains 2 if {
 	input.x == 1
 }`,
 			},
-			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"*/test2.rego":1}}`,
+			expManifest: `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/test2.rego":1}}`,
 		},
 		{
 			note: "v0 bundle rego-version, v1 per-file override, missing v1 keywords in v1 file",

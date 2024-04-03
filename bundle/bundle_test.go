@@ -1713,9 +1713,10 @@ func TestMerge(t *testing.T) {
 			},
 			wantBundle: &Bundle{
 				Manifest: Manifest{
-					Revision:    "abcdef",
-					Roots:       &[]string{""},
-					RegoVersion: pointTo(0), // Default rego-version
+					Revision:         "abcdef",
+					Roots:            &[]string{""},
+					RegoVersion:      pointTo(0), // Default rego-version
+					FileRegoVersions: map[string]int{},
 				},
 				Modules: []ModuleFile{
 					{
