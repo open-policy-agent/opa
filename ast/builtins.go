@@ -1710,8 +1710,8 @@ var JSONMarshal = &Builtin{
 
 var JSONMarshalWithOptions = &Builtin{
 	Name: "json.marshal_with_options",
-	Description: "Serializes the input term to multiline JSON, with specified formatting options (indent/prefix). " +
-		"One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
+	Description: "Serializes the input term JSON, with additional formatting options via the `opts` parameter. " +
+		"`opts` accepts keys `pretty` (enable multi-line/formatted JSON), `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`).",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.A).Description("the term to serialize"),
@@ -1725,7 +1725,7 @@ var JSONMarshalWithOptions = &Builtin{
 					},
 					types.NewDynamicProperty(types.S, types.A),
 				),
-			)).Description("encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)"),
+			)).Description("encoding options"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate"),
 	),
