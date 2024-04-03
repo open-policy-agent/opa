@@ -978,9 +978,7 @@ update {
 
 func modulesToString(modules []bundle.ModuleFile) string {
 	var buf bytes.Buffer
-	//result := make([]string, len(modules))
 	for i, m := range modules {
-		//result[i] = m.Parsed.String()
 		buf.WriteString(strconv.Itoa(i))
 		buf.WriteString(":\n")
 		buf.WriteString(string(m.Raw))
@@ -1621,6 +1619,28 @@ q[3]
 			wantEntrypoints: map[string]struct{}{
 				"test/nested": {},
 				"test/p":      {},
+			},
+		},
+		{
+			note:        "overlapping manual entrypoints + annotation entrypoints",
+			entrypoints: []string{"test/p"},
+			modules: map[string]string{
+				"test.rego": `
+package test
+
+# METADATA
+# entrypoint: true
+p {
+	q[input.x]
+}
+
+q[1]
+q[2]
+q[3]
+				`,
+			},
+			wantEntrypoints: map[string]struct{}{
+				"test/p": {},
 			},
 		},
 		{
