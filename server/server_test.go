@@ -4119,7 +4119,7 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 	})
 
 	// Check that v1 reader function behaves correctly.
-	inp, err := readInputPostV1(req.WithContext(ctx))
+	inp, goInp, err := readInputPostV1(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4130,18 +4130,26 @@ func TestServerUsesAuthorizerParsedBody(t *testing.T) {
 		t.Fatalf("expected %v but got %v", exp, inp)
 	}
 
+	if exp.Value.Compare(ast.MustInterfaceToValue(*goInp)) != 0 {
+		t.Fatalf("expected %v but got %v", exp, *goInp)
+	}
+
 	// Check that v0 reader function behaves correctly.
 	ctx = authorizer.SetBodyOnContext(req.Context(), map[string]interface{}{
 		"foo": "good",
 	})
 
-	inp, err = readInputV0(req.WithContext(ctx))
+	inp, goInp, err = readInputV0(req.WithContext(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if exp.Value.Compare(inp) != 0 {
 		t.Fatalf("expected %v but got %v", exp, inp)
+	}
+
+	if exp.Value.Compare(ast.MustInterfaceToValue(*goInp)) != 0 {
+		t.Fatalf("expected %v but got %v", exp, *goInp)
 	}
 }
 
