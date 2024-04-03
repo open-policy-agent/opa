@@ -756,7 +756,7 @@ p contains v if {
 				".manifest": `{
 	"rego_version": 0,
 	"file_rego_versions": {
-		"*/policy2.rego": 1
+		"/policy2.rego": 1
 	}
 }`,
 				"policy1.rego": `package test
@@ -770,13 +770,33 @@ p contains 2 if {
 			},
 		},
 		{
+			note:              "v0 bundle, v1 per-file override (glob)",
+			bundleRegoVersion: 0,
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/bar/*.rego": 1
+	}
+}`,
+				"foo/policy1.rego": `package test
+p[1] {
+	v := input.x
+}`,
+				"bar/policy2.rego": `package test
+p contains 2 if {
+	v := input.x
+}`,
+			},
+		},
+		{
 			note:              "v0 bundle, v1 per-file override, incompatible",
 			bundleRegoVersion: 0,
 			files: map[string]string{
 				".manifest": `{
 	"rego_version": 0,
 	"file_rego_versions": {
-		"*/policy2.rego": 1
+		"/policy2.rego": 1
 	}
 }`,
 				"policy1.rego": `package test
@@ -850,7 +870,7 @@ p contains v if {
 				".manifest": `{
 	"rego_version": 1,
 	"file_rego_versions": {
-		"*/policy1.rego": 0
+		"/policy1.rego": 0
 	}
 }`,
 				"policy1.rego": `package test
@@ -864,13 +884,33 @@ p contains 2 if {
 			},
 		},
 		{
+			note:              "v1 bundle, v0 per-file override",
+			bundleRegoVersion: 1,
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/foo/*.rego": 0
+	}
+}`,
+				"foo/policy1.rego": `package test
+p[1] {
+	v := input.x
+}`,
+				"bar/policy2.rego": `package test
+p contains 2 if {
+	v := input.x
+}`,
+			},
+		},
+		{
 			note:              "v1 bundle, v0 per-file override, incompatible",
 			bundleRegoVersion: 1,
 			files: map[string]string{
 				".manifest": `{
 	"rego_version": 1,
 	"file_rego_versions": {
-		"*/policy1.rego": 0
+		"/policy1.rego": 0
 	}
 }`,
 				"policy1.rego": `package test

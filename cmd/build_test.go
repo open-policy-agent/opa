@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/loader"
 	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1166,7 +1167,9 @@ p[4] {
 					if err != nil {
 						t.Fatal(err)
 					}
-					defer f.Close()
+					defer func() {
+						_ = f.Close()
+					}()
 
 					gr, err := gzip.NewReader(f)
 					if err != nil {
@@ -1193,6 +1196,376 @@ p[4] {
 								t.Fatalf("expected manifest:\n\n%v\n\nbut got:\n\n%v", expManifest, string(b))
 							}
 						}
+					}
+				}
+			})
+		})
+	}
+}
+
+func TestBuildBundleFromOtherBundles(t *testing.T) {
+	type bundleInfo map[string]string
+
+	tests := []struct {
+		note         string
+		v1Compatible bool
+		bundles      map[string]bundleInfo
+		expBundle    bundleInfo
+		expErrs      []string
+	}{
+		{
+			note: "single bundle",
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					"policy.rego": `package test
+p {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "single bundle, --v1-compatible",
+			v1Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					"policy.rego": `package test
+p if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
+				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+
+p if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note: "single v0 bundle",
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{"rego_version": 0}`,
+					"policy.rego": `package test
+p {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "single v0 bundle, --v1-compatible",
+			v1Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{"rego_version": 0}`,
+					"policy.rego": `package test
+p {
+	input.x == 1
+}`,
+				},
+			},
+			// We don't expect parse/compile errors, as the bundle rego-version is 0, which overrides the --v1-compatible flag.
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note: "single v0 bundle, v1 per-file override",
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy_1.rego": 1
+	}
+}`,
+					"policy_0.rego": `package test
+p {
+	input.x == 1
+}`,
+					"policy_1.rego": `package test
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_1.rego":1}}
+`,
+				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "single v0 bundle, v1 per-file override, --v1-compatible",
+			v1Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy_1.rego": 1
+	}
+}`,
+					"policy_0.rego": `package test
+p {
+	input.x == 1
+}`,
+					"policy_1.rego": `package test
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_1.rego":1}}
+`,
+				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note: "v0 bundle + v1 bundle",
+			bundles: map[string]bundleInfo{
+				"bundle_v0.tar.gz": {
+					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
+					"policy.rego": `package test1
+p {
+	input.x == 1
+}`,
+				},
+				"bundle_v1.tar.gz": {
+					".manifest": `{"roots": ["test2"], "rego_version": 1}`,
+					"policy.rego": `package test2
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":["test1","test2"],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle_v1.tar.gz/policy.rego":1}}
+`,
+				"%ROOT%/bundle_v0.tar.gz/policy.rego": `package test1
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle_v1.tar.gz/policy.rego": `package test2
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "v0 bundle + v1 bundle, --v1-compatible",
+			v1Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle_v0.tar.gz": {
+					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
+					"policy.rego": `package test1
+p {
+	input.x == 1
+}`,
+				},
+				"bundle_v1.tar.gz": {
+					".manifest": `{"roots": ["test2"], "rego_version": 1}`,
+					"policy.rego": `package test2
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				// We get a v1 bundle with a v0 per-file override
+				"/.manifest": `{"revision":"","roots":["test1","test2"],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle_v0.tar.gz/policy.rego":0}}
+`,
+				"%ROOT%/bundle_v0.tar.gz/policy.rego": `package test1
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle_v1.tar.gz/policy.rego": `package test2
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTempFS(nil, func(root string) {
+				var roots []string
+				for name, files := range tc.bundles {
+					p := filepath.Join(root, name)
+					roots = append(roots, p)
+					filePairs := make([][2]string, 0, len(files))
+					for k, v := range files {
+						filePairs = append(filePairs, [2]string{k, v})
+					}
+					buf := archive.MustWriteTarGz(filePairs)
+					bf, err := os.Create(p)
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+					_, err = bf.Write(buf.Bytes())
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
+				}
+
+				params := newBuildParams()
+				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.bundleMode = true
+				params.v1Compatible = tc.v1Compatible
+
+				err := dobuild(params, roots)
+				if tc.expErrs != nil {
+					if err == nil {
+						t.Fatal("expected error but got none")
+					}
+					for _, expErr := range tc.expErrs {
+						if !strings.Contains(err.Error(), expErr) {
+							t.Fatalf("expected error:\n\n%q\n\nbut got:\n\n%v", expErr, err)
+						}
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					f, err := os.Open(params.outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer func() {
+						_ = f.Close()
+					}()
+
+					gr, err := gzip.NewReader(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					tr := tar.NewReader(gr)
+
+					for {
+						f, err := tr.Next()
+						if err == io.EOF {
+							break
+						} else if err != nil {
+							t.Fatal(err)
+						}
+
+						found := false
+						for expName, expVal := range tc.expBundle {
+							expName = strings.ReplaceAll(expName, "%ROOT%", root)
+							if f.Name == expName {
+								found = true
+								b, err := io.ReadAll(tr)
+								if err != nil {
+									t.Fatal(err)
+								}
+								expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
+								if string(b) != expVal {
+									t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
+								}
+								break
+							}
+						}
+						if !found {
+							t.Fatalf("unexpected file in bundle: %v", f.Name)
+						}
+
+						//if f.Name == "/policy.rego" {
+						//	b, err := io.ReadAll(tr)
+						//	if err != nil {
+						//		t.Fatal(err)
+						//	}
+						//	if string(b) != tc.expBundle["policy.rego"] {
+						//		t.Fatalf("expected policy.rego:\n\n%v\n\nbut got:\n\n%v", tc.expBundle["policy.rego"], string(b))
+						//	}
+						//}
 					}
 				}
 			})
@@ -1463,9 +1836,7 @@ p[k] contains v if {
 			},
 			// Note: the rego.v1 import isn't added to the optimized module.
 			// This is ok, as the bundle was built with the --v1-compatible flag,
-			// and is therefore only guaranteed to work with OPA 1.0 or when
-			// OPA 0.x is run with the --rego-v1 flag.
-			// TODO: add rego-v1 flag to bundle, so `opa run` etc. doesn't need the --rego-v1 flag to consume it.
+			// and is tagged with a rego-version to inform the consumer.
 			expectedFiles: map[string]string{
 				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
 `,

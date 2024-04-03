@@ -974,7 +974,7 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 				".manifest": `{
 					"rego_version": 0,
 					"file_rego_versions": {
-						"*/policy2.rego": 1
+						"/policy2.rego": 1
 					}
 				}`,
 				"policy1.rego": `package test
@@ -990,12 +990,33 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 			},
 		},
 		{
+			note: "v0 bundle, v1 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 0,
+					"file_rego_versions": {
+						"/bar/*.rego": 1
+					}
+				}`,
+				"foo/policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"bar/policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
 			note: "v0 bundle, v1 per-file override, incompatible",
 			files: map[string]string{
 				".manifest": `{
 					"rego_version": 0,
 					"file_rego_versions": {
-						"*/policy2.rego": 1
+						"/policy2.rego": 1
 					}
 				}`,
 				"policy1.rego": `package test
@@ -1065,7 +1086,7 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 				".manifest": `{
 					"rego_version": 1,
 					"file_rego_versions": {
-						"*/policy1.rego": 0
+						"/policy1.rego": 0
 					}
 				}`,
 				"policy1.rego": `package test
@@ -1081,12 +1102,33 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 			},
 		},
 		{
+			note: "v1 bundle, v0 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 1,
+					"file_rego_versions": {
+						"/foo/*.rego": 0
+					}
+				}`,
+				"foo/policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"bar/policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
 			note: "v1 bundle, v0 per-file override, incompatible",
 			files: map[string]string{
 				".manifest": `{
 					"rego_version": 1,
 					"file_rego_versions": {
-						"*/policy1.rego": 0
+						"/policy1.rego": 0
 					}
 				}`,
 				"policy1.rego": `package test

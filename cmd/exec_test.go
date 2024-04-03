@@ -376,6 +376,25 @@ main contains "hello" if {
 				".manifest": `{
 	"rego_version": 0,
 	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
 		"*/policy2.rego": 1
 	}
 }`,
@@ -395,7 +414,7 @@ main contains "hello" if {
 				".manifest": `{
 	"rego_version": 0,
 	"file_rego_versions": {
-		"*/policy2.rego": 1
+		"/policy2.rego": 1
 	}
 }`,
 				"policy1.rego": `package system
@@ -465,6 +484,25 @@ main contains "hello" if {
 				".manifest": `{
 	"rego_version": 1,
 	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
 		"*/policy1.rego": 0
 	}
 }`,
@@ -484,7 +522,7 @@ main contains "hello" if {
 				".manifest": `{
 	"rego_version": 1,
 	"file_rego_versions": {
-		"*/policy1.rego": 0
+		"/policy1.rego": 0
 	}
 }`,
 				"policy1.rego": `package system
