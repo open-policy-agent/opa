@@ -884,22 +884,13 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *interface{}, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
 	logger := s.getDecisionLogger(br)
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
-	}
-
-	var rawInput *interface{}
-	if input != nil {
-		x, err := ast.JSON(input)
-		if err != nil {
-			return nil, err
-		}
-		rawInput = &x
 	}
 
 	var ndbCache builtins.NDBCache
@@ -2277,7 +2268,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pretty := pretty(r)
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2347,7 +2338,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, request.Input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
