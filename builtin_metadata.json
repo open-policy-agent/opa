@@ -10485,7 +10485,7 @@
         "type": "any"
       },
       {
-        "description": "encoding options - accepts keys `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`)",
+        "description": "encoding options",
         "name": "opts",
         "type": "any\u003cnull, object\u003cindent: any\u003cnull, string\u003e, prefix: any\u003cnull, string\u003e, pretty: any\u003cboolean\u003e\u003e[string: any]\u003e"
       }
@@ -10493,7 +10493,7 @@
     "available": [
       "edge"
     ],
-    "description": "Serializes the input term to multiline JSON, with specified formatting options (indent/prefix). One or more copies of the indent string are emitted before each child JSON element, depending on indent level.",
+    "description": "Serializes the input term JSON, with additional formatting options via the `opts` parameter. `opts` accepts keys `pretty` (enable multi-line/formatted JSON), `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`).",
     "introduced": "edge",
     "result": {
       "description": "the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate",
