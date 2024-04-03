@@ -1235,6 +1235,49 @@ func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
 	}
 }
 
+func TestGracefulTracerShutdown(t *testing.T) {
+	fs := map[string]string{
+		"/config.yaml": `{"distributed_tracing": {"type": "grpc"}}`,
+	}
+
+	test.WithTempFS(fs, func(testDirRoot string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+		defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+
+		logger := logging.New()
+		stdout := bytes.NewBuffer(nil)
+		logger.SetOutput(stdout)
+		logger.SetLevel(logging.Warn)
+
+		params := NewParams()
+		params.ConfigFile = filepath.Join(testDirRoot, "/config.yaml")
+		params.Addrs = &[]string{"localhost:0"}
+		params.GracefulShutdownPeriod = 1
+		params.Logger = logger
+
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		if rt.traceExporter == nil {
+			t.Fatal("traceExporter should not be nil")
+		}
+
+		done := make(chan struct{})
+		go func() {
+			rt.StartServer(ctx)
+			close(done)
+		}()
+		<-done
+
+		expected := "Failed to shutdown OpenTelemetry trace exporter gracefully."
+		if strings.Contains(stdout.String(), expected) {
+			t.Fatalf("Expected no output containing: \"%v\"", expected)
+		}
+	})
+}
+
 func TestUrlPathToConfigOverride(t *testing.T) {
 	params := NewParams()
 	params.Paths = []string{"https://www.example.com/bundles/bundle.tar.gz"}
