@@ -48,6 +48,7 @@ type OPA struct {
 	hooks        hooks.Hooks
 	config       []byte
 	v1Compatible bool
+	managerOpts  []func(*plugins.Manager)
 }
 
 type state struct {
@@ -88,6 +89,7 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.console = opts.ConsoleLogger
 	opa.plugins = opts.Plugins
 	opa.v1Compatible = opts.V1Compatible
+	opa.managerOpts = opts.ManagerOpts
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -141,6 +143,7 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 	if opa.v1Compatible {
 		opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
 	}
+	opts = append(opts, opa.managerOpts...)
 	manager, err := plugins.New(
 		bs,
 		opa.id,
