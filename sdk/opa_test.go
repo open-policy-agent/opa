@@ -18,6 +18,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	promdto "github.com/prometheus/client_model/go"
+
 	"github.com/fortytw2/leaktest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -2771,4 +2774,73 @@ p { print("XXX") }
 	if e.Message != "XXX" || e.Fields["line"].(string) != "/x.rego:4" {
 		t.Fatal("expected print output but got:", e)
 	}
+}
+
+func TestConfigurableManagerOpts(t *testing.T) {
+	ctx := context.Background()
+
+	server := sdktest.MustNewServer(
+		sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+			"main.rego": `
+package system
+
+main = true
+
+str = "foo"
+
+loopback = input
+`,
+		}),
+	)
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"status": {
+			"prometheus": true
+		}
+	}`, server.URL())
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID:     "sdk-id-0",
+		Config: strings.NewReader(config),
+		ManagerOpts: []func(manager *plugins.Manager){
+			plugins.WithPrometheusRegister(prometheus.DefaultRegisterer),
+		},
+	})
+
+	defer opa.Stop(ctx)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	registeredMetrics := toMetricMap(m)
+
+	if registeredMetrics["opa_info"] == false {
+		t.Errorf("expected metric 'opa_info' to be registered but it was not")
+	}
+}
+
+func toMetricMap(metrics []*promdto.MetricFamily) map[string]bool {
+	metricMap := make(map[string]bool, len(metrics))
+	for _, m := range metrics {
+		metricMap[m.GetName()] = true
+	}
+	return metricMap
 }
