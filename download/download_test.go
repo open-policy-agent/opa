@@ -770,6 +770,51 @@ func TestFailureUnexpected(t *testing.T) {
 	}
 }
 
+func TestFailureUnexpectedWithResponseBody(t *testing.T) {
+
+	ctx := context.Background()
+
+	expResp := "this is a bad http response"
+
+	fixture := newTestFixture(t)
+	fixture.server.expCode = 500
+	fixture.server.expResp = expResp
+
+	defer fixture.server.stop()
+
+	d := New(Config{}, fixture.client, "/bundles/test/bundle1")
+
+	logger := test.New()
+	logger.SetLevel(logging.Debug)
+	d.logger = logger
+
+	err := d.oneShot(ctx)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var hErr HTTPError
+	if !errors.As(err, &hErr) {
+		t.Fatal("expected HTTPError")
+	}
+	if hErr.StatusCode != 500 {
+		t.Fatal("expected status code 500")
+	}
+
+	expectLogged := fmt.Sprintf("bundle download error response with response body: %s", expResp)
+
+	var found bool
+	for _, entry := range logger.Entries() {
+		if entry.Message == expectLogged {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected log entry: %s", expectLogged)
+	}
+}
+
 func TestEtagInResponse(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)

@@ -1006,8 +1006,9 @@ func TestWebIdentityCredentialService(t *testing.T) {
 
 	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
 	ts := stsTestServer{
-		t:         t,
-		accessKey: testAccessKey,
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: true,
 	}
 	ts.start()
 	defer ts.stop()
@@ -1090,6 +1091,255 @@ func TestWebIdentityCredentialService(t *testing.T) {
 		creds, err = cs.credentials(context.Background())
 		assertErr("failed to parse credential response from STS service: EOF", err, t)
 	})
+}
+
+func TestAssumeRoleCredentialServiceUsingWrongSigningProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-1")
+
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	ts := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: false,
+	}
+	ts.start()
+	defer ts.stop()
+	cs := awsAssumeRoleCredentialService{
+		stsURL: ts.server.URL,
+		logger: logging.Get(),
+	}
+
+	// wrong path: no AWS signing plugin
+	err := cs.populateFromEnv()
+	assertErr("a AWS signing plugin must be specified when AssumeRole credential provider is enabled", err, t)
+
+	// wrong path: unsupported AWS signing plugin
+	cs.AWSSigningPlugin = &awsSigningAuthPlugin{AWSWebIdentityCredentials: &awsWebIdentityCredentialService{}}
+	err = cs.populateFromEnv()
+	assertErr("unsupported AWS signing plugin with AssumeRole credential provider", err, t)
+}
+
+func TestAssumeRoleCredentialServiceUsingEnvCredentialsProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-1")
+
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	ts := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: false,
+	}
+	ts.start()
+	defer ts.stop()
+	cs := awsAssumeRoleCredentialService{
+		stsURL:           ts.server.URL,
+		logger:           logging.Get(),
+		AWSSigningPlugin: &awsSigningAuthPlugin{AWSEnvironmentCredentials: &awsEnvironmentCredentialService{}},
+	}
+
+	// wrong path: no AWS IAM Role ARN set in environment or config
+	err := cs.populateFromEnv()
+	assertErr("no AWS_ROLE_ARN set in environment or configuration", err, t)
+	t.Setenv("AWS_ROLE_ARN", "role:arn")
+
+	// happy path: set AWS IAM Role ARN as env var
+	err = cs.populateFromEnv()
+	if err != nil {
+		t.Fatalf("Error while getting env vars: %s", err)
+	}
+
+	// happy path: set AWS IAM Role ARN in config
+	os.Unsetenv("AWS_ROLE_ARN")
+	cs.RoleArn = "role:arn"
+
+	err = cs.populateFromEnv()
+	if err != nil {
+		t.Fatalf("Error while getting env vars: %s", err)
+	}
+
+	// wrong path: refresh and get credentials but signing credentials not set via env variables
+	_, err = cs.credentials(context.Background())
+	assertErr("no AWS_ACCESS_KEY_ID set in environment", err, t)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "MYAWSACCESSKEYGOESHERE")
+
+	_, err = cs.credentials(context.Background())
+	assertErr("no AWS_SECRET_ACCESS_KEY set in environment", err, t)
+
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "MYAWSSECRETACCESSKEYGOESHERE")
+
+	// happy path: refresh and get credentials
+	creds, _ := cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: refresh with session and get credentials
+	cs.expiration = time.Now()
+	cs.SessionName = "TEST_SESSION"
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: don't refresh as credentials not expired so STS not called
+	// verify existing credentials haven't changed
+	ts.accessKey = "OTHERKEY"
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: refresh expired credentials
+	// verify new credentials are set
+	cs.expiration = time.Now()
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, ts.accessKey, t)
+}
+
+func TestAssumeRoleCredentialServiceUsingProfileCredentialsProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-1")
+
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	ts := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: false,
+	}
+	ts.start()
+	defer ts.stop()
+
+	defaultKey := "MYAWSACCESSKEYGOESHERE"
+	defaultSecret := "MYAWSSECRETACCESSKEYGOESHERE"
+	defaultSessionToken := "AQoEXAMPLEH4aoAH0gNCAPy"
+
+	config := fmt.Sprintf(`
+[foo]
+aws_access_key_id=%v
+aws_secret_access_key=%v
+aws_session_token=%v
+`, defaultKey, defaultSecret, defaultSessionToken)
+
+	files := map[string]string{
+		"example.ini": config,
+	}
+
+	test.WithTempFS(files, func(path string) {
+		cfgPath := filepath.Join(path, "example.ini")
+
+		cs := awsAssumeRoleCredentialService{
+			stsURL:           ts.server.URL,
+			logger:           logging.Get(),
+			AWSSigningPlugin: &awsSigningAuthPlugin{AWSProfileCredentials: &awsProfileCredentialService{Path: cfgPath, Profile: "foo"}},
+		}
+
+		// wrong path: no AWS IAM Role ARN set in environment or config
+		err := cs.populateFromEnv()
+		assertErr("no AWS_ROLE_ARN set in environment or configuration", err, t)
+		t.Setenv("AWS_ROLE_ARN", "role:arn")
+
+		// happy path: set AWS IAM Role ARN as env var
+		err = cs.populateFromEnv()
+		if err != nil {
+			t.Fatalf("Error while getting env vars: %s", err)
+		}
+
+		// happy path: set AWS IAM Role ARN in config
+		os.Unsetenv("AWS_ROLE_ARN")
+		cs.RoleArn = "role:arn"
+
+		err = cs.populateFromEnv()
+		if err != nil {
+			t.Fatalf("Error while getting env vars: %s", err)
+		}
+
+		// happy path: refresh and get credentials
+		creds, _ := cs.credentials(context.Background())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: refresh with session and get credentials
+		cs.expiration = time.Now()
+		cs.SessionName = "TEST_SESSION"
+		creds, _ = cs.credentials(context.Background())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: don't refresh as credentials not expired so STS not called
+		// verify existing credentials haven't changed
+		ts.accessKey = "OTHERKEY"
+		creds, _ = cs.credentials(context.Background())
+		assertEq(creds.AccessKey, testAccessKey, t)
+
+		// happy path: refresh expired credentials
+		// verify new credentials are set
+		cs.expiration = time.Now()
+		creds, _ = cs.credentials(context.Background())
+		assertEq(creds.AccessKey, ts.accessKey, t)
+	})
+}
+
+func TestAssumeRoleCredentialServiceUsingMetadataCredentialsProvider(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-1")
+
+	testAccessKey := "ASgeIAIOSFODNN7EXAMPLE"
+	ts := stsTestServer{
+		t:                         t,
+		accessKey:                 testAccessKey,
+		assumeRoleWithWebIdentity: false,
+	}
+	ts.start()
+	defer ts.stop()
+
+	tsMetadata := ec2CredTestServer{}
+	tsMetadata.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 300)}
+	tsMetadata.start()
+	defer tsMetadata.stop()
+
+	cs := awsAssumeRoleCredentialService{
+		stsURL: ts.server.URL,
+		logger: logging.Get(),
+		AWSSigningPlugin: &awsSigningAuthPlugin{AWSMetadataCredentials: &awsMetadataCredentialService{RoleName: "my_iam_role", credServicePath: tsMetadata.server.URL + "/latest/meta-data/iam/security-credentials/",
+			tokenPath: tsMetadata.server.URL + "/latest/api/token"}},
+	}
+
+	// wrong path: no AWS IAM Role ARN set in environment or config
+	err := cs.populateFromEnv()
+	assertErr("no AWS_ROLE_ARN set in environment or configuration", err, t)
+	t.Setenv("AWS_ROLE_ARN", "role:arn")
+
+	// happy path: set AWS IAM Role ARN as env var
+	err = cs.populateFromEnv()
+	if err != nil {
+		t.Fatalf("Error while getting env vars: %s", err)
+	}
+
+	// happy path: set AWS IAM Role ARN in config
+	os.Unsetenv("AWS_ROLE_ARN")
+	cs.RoleArn = "role:arn"
+
+	err = cs.populateFromEnv()
+	if err != nil {
+		t.Fatalf("Error while getting env vars: %s", err)
+	}
+
+	// happy path: refresh and get credentials
+	creds, _ := cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: refresh with session and get credentials
+	cs.expiration = time.Now()
+	cs.SessionName = "TEST_SESSION"
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: don't refresh as credentials not expired so STS not called
+	// verify existing credentials haven't changed
+	ts.accessKey = "OTHERKEY"
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, testAccessKey, t)
+
+	// happy path: refresh expired credentials
+	// verify new credentials are set
+	cs.expiration = time.Now()
+	creds, _ = cs.credentials(context.Background())
+	assertEq(creds.AccessKey, ts.accessKey, t)
 }
 
 func TestStsPath(t *testing.T) {
@@ -1186,11 +1436,12 @@ func TestStsPathFromEnv(t *testing.T) {
 	}
 }
 
-// simulate EC2 metadata service
+// simulate AWS Security Token Service (AWS STS)
 type stsTestServer struct {
-	t         *testing.T
-	server    *httptest.Server
-	accessKey string
+	t                         *testing.T
+	server                    *httptest.Server
+	accessKey                 string
+	assumeRoleWithWebIdentity bool
 }
 
 func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
@@ -1199,7 +1450,12 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil || r.PostForm.Get("Action") != "AssumeRoleWithWebIdentity" {
+	if err := r.ParseForm(); err != nil {
+		w.WriteHeader(400)
+		return
+	}
+
+	if r.PostForm.Get("Action") != "AssumeRoleWithWebIdentity" && r.PostForm.Get("Action") != "AssumeRole" {
 		w.WriteHeader(400)
 		return
 	}
@@ -1210,17 +1466,22 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.PostForm.Get("WebIdentityToken")
-	if token != "good-token" {
-		w.WriteHeader(401)
-		return
+	if t.assumeRoleWithWebIdentity {
+		token := r.PostForm.Get("WebIdentityToken")
+		if token != "good-token" {
+			w.WriteHeader(401)
+			return
+		}
+		w.WriteHeader(200)
 	}
-	w.WriteHeader(200)
 
 	sessionName := r.PostForm.Get("RoleSessionName")
 
-	// Taken from STS docs: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
-	xmlResponse := `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+	var xmlResponse string
+
+	if t.assumeRoleWithWebIdentity {
+		// Taken from STS docs: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
+		xmlResponse = `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
 	<AssumeRoleWithWebIdentityResult>
 	  <SubjectFromWebIdentityToken>amzn1.account.AF6RHO7KZU5XRVQJGXK6HB56KR2A</SubjectFromWebIdentityToken>
 	  <Audience>client.5498841531868486423.1548@apps.example.com</Audience>
@@ -1240,6 +1501,36 @@ func (t *stsTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	  <RequestId>ad4156e9-bce1-11e2-82e6-6b6efEXAMPLE</RequestId>
 	</ResponseMetadata>
   </AssumeRoleWithWebIdentityResponse>`
+	} else {
+		// Taken from STS docs: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+		xmlResponse = `<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+<AssumeRoleResult>
+<SourceIdentity>DevUser123</SourceIdentity>
+<AssumedRoleUser>
+  <Arn>arn:aws:sts::123456789012:assumed-role/demo/John</Arn>
+  <AssumedRoleId>ARO123EXAMPLE123:%[1]s</AssumedRoleId>
+</AssumedRoleUser>
+<Credentials>
+  <SessionToken>
+   AQoDYXdzEPT//////////wEXAMPLEtc764bNrC9SAPBSM22wDOk4x4HIZ8j4FZTwdQW
+   LWsKWHGBuFqwAeMicRXmxfpSPfIeoIYRqTflfKD8YUuwthAx7mSEI/qkPpKPi/kMcGd
+   QrmGdeehM4IC1NtBmUpp2wUE8phUZampKsburEDy0KPkyQDYwT7WZ0wq5VSXDvp75YU
+   9HFvlRd8Tx6q6fE8YQcHNVXAkiY9q6d+xo0rKwT38xVqr7ZD0u0iPPkUL64lIZbqBAz
+   +scqKmlzm8FDrypNC9Yjc8fPOLn9FX9KSYvKTr4rvx3iSIlTJabIQwj2ICCR/oLxBA==
+  </SessionToken>
+  <SecretAccessKey>
+   wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY
+  </SecretAccessKey>
+  <Expiration>%s</Expiration>
+  <AccessKeyId>%s</AccessKeyId>
+</Credentials>
+<PackedPolicySize>8</PackedPolicySize>
+</AssumeRoleResult>
+<ResponseMetadata>
+<RequestId>c6104cbe-af31-11e0-8154-cbc7ccf896c7</RequestId>
+</ResponseMetadata>
+</AssumeRoleResponse>`
+	}
 
 	_, _ = w.Write([]byte(fmt.Sprintf(xmlResponse, sessionName, time.Now().Add(time.Hour).Format(time.RFC3339), t.accessKey)))
 }
