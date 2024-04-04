@@ -1013,6 +1013,76 @@ func TestHTTPSendCaching(t *testing.T) {
 			expectedReqCount: 3,
 		},
 		{
+			note: "http.send GET different headers but still cached because ignored",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "cache_ignored_headers": ["h2"]})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v3"}, "cache_ignored_headers": ["h2"]}) # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET cache miss different headers (force_cache enabled)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v3"}, "force_cache": true, "force_cache_duration_seconds": 300})
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET cache miss different headers in cache key",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2", "h3": "v3"}, "cache_ignored_headers": ["h2"]})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v21"}, "cache_ignored_headers": ["h2"]})
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 2,
+		},
+		{
+			note: "http.send GET different headers but still cached because ignored (force_cache enabled)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2"]})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v3"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2"]}) # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET different cache_ignored_headers but still cached (force_cache enabled)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2"]})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2", "h3": "v3"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2", "h3"]}) # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET different cache_ignored_headers (one of them is nil) but still cached (force_cache enabled)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1"}, "force_cache": true, "force_cache_duration_seconds": 300})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2"]}) # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
+			note: "http.send GET different cache_ignored_headers (one of them is empty) but still cached (force_cache enabled)",
+			ruleTemplate: `p = x {
+									r1 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": []})
+									r2 = http.send({"method": "get", "url": "%URL%", "force_json_decode": true, "headers": {"h1": "v1", "h2": "v2"}, "force_cache": true, "force_cache_duration_seconds": 300, "cache_ignored_headers": ["h2"]}) # cached
+									x = r1.body
+								}`,
+			response:         `{"x": 1}`,
+			expectedReqCount: 1,
+		},
+		{
 			note: "http.send POST cache miss different body",
 			ruleTemplate: `p = x {
 									r1 = http.send({"method": "post", "url": "%URL%", "force_json_decode": true, "headers": {"h2": "v2"}, "body": "{\"foo\": 42}"})
@@ -1185,6 +1255,9 @@ func TestHTTPSendIntraQueryCaching(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed create request object: %v", err)
 			}
+			cacheKeyObj, _ := cacheKey.(ast.Object)
+			cacheKeyObj.Insert(ast.StringTerm("cache_ignored_headers"), ast.NullTerm())
+			cacheKey, _ = cacheKeyObj.(ast.Value)
 
 			if _, found := interQueryCache.Get(cacheKey); found != tc.expectedInterQueryCacheHit {
 				t.Fatalf("Expected inter-query cache hit: %v, got: %v", tc.expectedInterQueryCacheHit, found)
@@ -1603,6 +1676,9 @@ func TestHTTPSendInterQueryForceCachingRefresh(t *testing.T) {
 				if err != nil {
 					t.Fatalf("failed create request object on query %d: %v", i, err)
 				}
+				cacheKeyObj, _ := cacheKey.(ast.Object)
+				cacheKeyObj.Insert(ast.StringTerm("cache_ignored_headers"), ast.NullTerm())
+				cacheKey, _ = cacheKeyObj.(ast.Value)
 
 				val, found := interQueryCache.Get(cacheKey)
 				if !found {
@@ -2157,7 +2233,7 @@ func TestInterQueryCheckCacheError(t *testing.T) {
 	input := ast.MustParseTerm(`{"force_cache": true}`)
 	inputObj := input.Value.(ast.Object)
 
-	_, err := newHTTPRequestExecutor(BuiltinContext{Context: context.Background()}, inputObj)
+	_, err := newHTTPRequestExecutor(BuiltinContext{Context: context.Background()}, inputObj, inputObj)
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
