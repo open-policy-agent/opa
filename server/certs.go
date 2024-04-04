@@ -179,7 +179,7 @@ func (s *Server) certLoopNotify(logger logging.Logger) Loop {
 			for {
 				err = s.reloadTLSConfig(s.manager.Logger())
 				if err == nil {
-					logger.Info("TLS config reloaded after retrying", retries)
+					logger.Info("TLS config reloaded")
 					break
 				}
 
