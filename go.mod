@@ -24,6 +24,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc6
 	github.com/peterh/liner v1.2.2
 	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_model v0.5.0
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/sergi/go-diff v1.3.1
 	github.com/sirupsen/logrus v1.9.3
@@ -40,7 +41,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.21.0
 	go.opentelemetry.io/otel/trace v1.21.0
 	go.uber.org/automaxprocs v1.5.3
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.23.0
 	golang.org/x/time v0.5.0
 	google.golang.org/grpc v1.62.1
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
@@ -82,7 +83,6 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
