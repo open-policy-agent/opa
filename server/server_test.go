@@ -5146,14 +5146,28 @@ func TestCertPoolReloading(t *testing.T) {
 		},
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/data", serverAddress), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// make a request and check that the server doesn't trust the client cert yet since it has no CA cert
+	retries = 10
+	expectedError := "remote error: tls"
+	for {
+		if retries == 0 {
+			t.Fatal("server didn't return expected error before deadline")
+		}
 
-	_, err = client.Do(req)
-	if !strings.Contains(err.Error(), "remote error: tls") {
-		t.Fatalf("expected unknown certificate authority error but got: %s", err)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/data", serverAddress), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = client.Do(req)
+		if !strings.Contains(err.Error(), expectedError) {
+			t.Log("retrying, expected error:", expectedError, "but got:", err)
+			retries--
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+
+		break
 	}
 
 	// update the cert pool file to include the CA cert
@@ -5255,7 +5269,7 @@ func TestCertPoolReloading(t *testing.T) {
 		}
 
 		if !strings.Contains(err.Error(), "remote error: tls") {
-			t.Fatalf("expected unknown certificate authority error but got: %s", err)
+			t.Fatalf("expected unknown certificate authority error (server has different CA) but got: %s", err)
 		}
 
 		break
