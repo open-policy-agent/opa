@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc6
 	github.com/peterh/liner v1.2.2
 	github.com/prometheus/client_golang v1.19.0
-	github.com/prometheus/client_model v0.5.0
+	github.com/prometheus/client_model v0.6.1
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/sergi/go-diff v1.3.1
 	github.com/sirupsen/logrus v1.9.3
