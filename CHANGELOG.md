@@ -5,6 +5,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+The `go` stanza of OPA's `go.mod` had become out of sync: Projects importing OPA as a Go library would see their `go` stanza moved to 1.21 (if it wasn't that before).
+This was introduced with v0.63.0, but the main branch's `go.mod` still claimed to be a `go 1.20` compatible.
+Now, it states the true state of affairs: OPA, used as Go dependency, requires at least Go 1.21, and thus works with all officially supported Go versions (1.21.x and 1.22.x).
+
 ## 0.63.0
 
 This release contains a mix of features, performance improvements, and bugfixes.
