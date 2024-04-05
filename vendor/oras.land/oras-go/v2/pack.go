@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"time"
 
@@ -53,7 +54,7 @@ var (
 	ErrInvalidDateTimeFormat = errors.New("invalid date and time format")
 
 	// ErrMissingArtifactType is returned by [PackManifest] when
-	// packManifestVersion is PackManifestVersion1_1_RC4 and artifactType is
+	// packManifestVersion is PackManifestVersion1_1 and artifactType is
 	// empty and the config media type is set to
 	// "application/vnd.oci.empty.v1+json".
 	ErrMissingArtifactType = errors.New("missing artifact type")
@@ -71,7 +72,15 @@ const (
 	// PackManifestVersion1_1_RC4 represents the OCI Image Manifest defined
 	// in image-spec v1.1.0-rc4.
 	// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/manifest.md
-	PackManifestVersion1_1_RC4 PackManifestVersion = 2
+	//
+	// Deprecated: This constant is deprecated and not recommended for future use.
+	// Use [PackManifestVersion1_1] instead.
+	PackManifestVersion1_1_RC4 PackManifestVersion = PackManifestVersion1_1
+
+	// PackManifestVersion1_1 represents the OCI Image Manifest defined in
+	// image-spec v1.1.0.
+	// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md
+	PackManifestVersion1_1 PackManifestVersion = 2
 )
 
 // PackManifestOptions contains optional parameters for [PackManifest].
@@ -98,16 +107,16 @@ type PackManifestOptions struct {
 
 // mediaTypeRegexp checks the format of media types.
 // References:
-//   - https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/schema/defs-descriptor.json#L7
+//   - https://github.com/opencontainers/image-spec/blob/v1.1.0/schema/defs-descriptor.json#L7
 //   - https://datatracker.ietf.org/doc/html/rfc6838#section-4.2
 var mediaTypeRegexp = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9!#$&-^_.+]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&-^_.+]{0,126}$`)
 
 // PackManifest generates an OCI Image Manifest based on the given parameters
 // and pushes the packed manifest to a content storage using pusher. The version
 // of the manifest to be packed is determined by packManifestVersion
-// (Recommended value: PackManifestVersion1_1_RC4).
+// (Recommended value: PackManifestVersion1_1).
 //
-//   - If packManifestVersion is [PackManifestVersion1_1_RC4]:
+//   - If packManifestVersion is [PackManifestVersion1_1]:
 //     artifactType MUST NOT be empty unless opts.ConfigDescriptor is specified.
 //   - If packManifestVersion is [PackManifestVersion1_0]:
 //     if opts.ConfigDescriptor is nil, artifactType will be used as the
@@ -122,8 +131,8 @@ func PackManifest(ctx context.Context, pusher content.Pusher, packManifestVersio
 	switch packManifestVersion {
 	case PackManifestVersion1_0:
 		return packManifestV1_0(ctx, pusher, artifactType, opts)
-	case PackManifestVersion1_1_RC4:
-		return packManifestV1_1_RC4(ctx, pusher, artifactType, opts)
+	case PackManifestVersion1_1:
+		return packManifestV1_1(ctx, pusher, artifactType, opts)
 	default:
 		return ocispec.Descriptor{}, fmt.Errorf("PackManifestVersion(%v): %w", packManifestVersion, errdef.ErrUnsupported)
 	}
@@ -283,9 +292,9 @@ func packManifestV1_1_RC2(ctx context.Context, pusher content.Pusher, configMedi
 	return pushManifest(ctx, pusher, manifest, manifest.MediaType, manifest.Config.MediaType, manifest.Annotations)
 }
 
-// packManifestV1_1_RC4 packs an image manifest defined in image-spec v1.1.0-rc4.
-// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc4/manifest.md#guidelines-for-artifact-usage
-func packManifestV1_1_RC4(ctx context.Context, pusher content.Pusher, artifactType string, opts PackManifestOptions) (ocispec.Descriptor, error) {
+// packManifestV1_1 packs an image manifest defined in image-spec v1.1.0.
+// Reference: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage
+func packManifestV1_1(ctx context.Context, pusher content.Pusher, artifactType string, opts PackManifestOptions) (ocispec.Descriptor, error) {
 	if artifactType == "" && (opts.ConfigDescriptor == nil || opts.ConfigDescriptor.MediaType == ocispec.MediaTypeEmptyJSON) {
 		// artifactType MUST be set when config.mediaType is set to the empty value
 		return ocispec.Descriptor{}, ErrMissingArtifactType
@@ -412,9 +421,8 @@ func ensureAnnotationCreated(annotations map[string]string, annotationCreatedKey
 
 	// copy the original annotation map
 	copied := make(map[string]string, len(annotations)+1)
-	for k, v := range annotations {
-		copied[k] = v
-	}
+	maps.Copy(copied, annotations)
+
 	// set creation time in RFC 3339 format
 	// reference: https://github.com/opencontainers/image-spec/blob/v1.1.0-rc2/annotations.md#pre-defined-annotation-keys
 	now := time.Now().UTC()

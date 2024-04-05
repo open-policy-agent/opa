@@ -157,3 +157,76 @@ func (noCache) GetToken(ctx context.Context, registry string, scheme Scheme, key
 func (noCache) Set(ctx context.Context, registry string, scheme Scheme, key string, fetch func(context.Context) (string, error)) (string, error) {
 	return fetch(ctx)
 }
+
+// hostCache is an auth cache that ignores scopes.  Uses only the registry's hostname to find a token.
+type hostCache struct {
+	Cache
+}
+
+// GetToken implements Cache.
+func (c *hostCache) GetToken(ctx context.Context, registry string, scheme Scheme, key string) (string, error) {
+	return c.Cache.GetToken(ctx, registry, scheme, "")
+}
+
+// Set implements Cache.
+func (c *hostCache) Set(ctx context.Context, registry string, scheme Scheme, key string, fetch func(context.Context) (string, error)) (string, error) {
+	return c.Cache.Set(ctx, registry, scheme, "", fetch)
+}
+
+// fallbackCache tries the primary cache then falls back to the secondary cache.
+type fallbackCache struct {
+	primary   Cache
+	secondary Cache
+}
+
+// GetScheme implements Cache.
+func (fc *fallbackCache) GetScheme(ctx context.Context, registry string) (Scheme, error) {
+	scheme, err := fc.primary.GetScheme(ctx, registry)
+	if err == nil {
+		return scheme, nil
+	}
+
+	// fallback
+	return fc.secondary.GetScheme(ctx, registry)
+}
+
+// GetToken implements Cache.
+func (fc *fallbackCache) GetToken(ctx context.Context, registry string, scheme Scheme, key string) (string, error) {
+	token, err := fc.primary.GetToken(ctx, registry, scheme, key)
+	if err == nil {
+		return token, nil
+	}
+
+	// fallback
+	return fc.secondary.GetToken(ctx, registry, scheme, key)
+}
+
+// Set implements Cache.
+func (fc *fallbackCache) Set(ctx context.Context, registry string, scheme Scheme, key string, fetch func(context.Context) (string, error)) (string, error) {
+	token, err := fc.primary.Set(ctx, registry, scheme, key, fetch)
+	if err != nil {
+		return "", err
+	}
+
+	return fc.secondary.Set(ctx, registry, scheme, key, func(ctx context.Context) (string, error) {
+		return token, nil
+	})
+}
+
+// NewSingleContextCache creates a host-based cache for optimizing the auth flow for non-compliant registries.
+// It is intended to be used in a single context, such as pulling from a single repository.
+// This cache should not be shared.
+//
+// Note: [NewCache] should be used for compliant registries as it can be shared
+// across context and will generally make less re-authentication requests.
+func NewSingleContextCache() Cache {
+	cache := NewCache()
+	return &fallbackCache{
+		primary: cache,
+		// We can re-use the came concurrentCache here because the key space is different
+		// (keys are always empty for the hostCache) so there is no collision.
+		// Even if there is a collision it is not an issue.
+		// Re-using saves a little memory.
+		secondary: &hostCache{cache},
+	}
+}

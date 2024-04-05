@@ -29,7 +29,6 @@ import (
 	"oras.land/oras-go/v2/internal/docker"
 	"oras.land/oras-go/v2/internal/interfaces"
 	"oras.land/oras-go/v2/internal/platform"
-	"oras.land/oras-go/v2/internal/registryutil"
 	"oras.land/oras-go/v2/internal/syncutil"
 	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote/auth"
@@ -91,7 +90,7 @@ func TagN(ctx context.Context, target Target, srcReference string, dstReferences
 			if err != nil {
 				return ocispec.Descriptor{}, err
 			}
-			ctx = registryutil.WithScopeHint(ctx, ref, auth.ActionPull, auth.ActionPush)
+			ctx = auth.AppendRepositoryScope(ctx, ref, auth.ActionPull, auth.ActionPush)
 		}
 
 		desc, contentBytes, err := FetchBytes(ctx, target, srcReference, FetchBytesOptions{
@@ -149,7 +148,7 @@ func Tag(ctx context.Context, target Target, src, dst string) (ocispec.Descripto
 			if err != nil {
 				return ocispec.Descriptor{}, err
 			}
-			ctx = registryutil.WithScopeHint(ctx, ref, auth.ActionPull, auth.ActionPush)
+			ctx = auth.AppendRepositoryScope(ctx, ref, auth.ActionPull, auth.ActionPush)
 		}
 		desc, rc, err := refFetcher.FetchReference(ctx, src)
 		if err != nil {
