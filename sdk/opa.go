@@ -246,7 +246,6 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		Path:           options.Path,
 		Input:          &options.Input,
 		NDBuiltinCache: &options.NDBCache,
-		DecisionLabel:  &options.DecisionLabel,
 		Metrics:        options.Metrics,
 		DecisionID:     options.DecisionID,
 	}
@@ -259,7 +258,7 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 		}
 	}
 
-	dl := options.DecisionLabel.(builtins.DecisionLabel)
+	dl := builtins.DecisionLabel{}
 
 	result, err := opa.executeTransaction(
 		ctx,
@@ -298,11 +297,10 @@ func (opa *OPA) Decision(ctx context.Context, options DecisionOptions) (*Decisio
 
 // DecisionOptions contains parameters for query evaluation.
 type DecisionOptions struct {
-	Now                 time.Time   // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
-	Path                string      // specifies name of policy decision to evaluate (e.g., example/allow)
-	Input               interface{} // specifies value of the input document to evaluate policy with
-	NDBCache            interface{} // specifies the non-deterministic builtins cache to use for evaluation.
-	DecisionLabel       interface{}
+	Now                 time.Time           // specifies wallclock time used for time.now_ns(), decision log timestamp, etc.
+	Path                string              // specifies name of policy decision to evaluate (e.g., example/allow)
+	Input               interface{}         // specifies value of the input document to evaluate policy with
+	NDBCache            interface{}         // specifies the non-deterministic builtins cache to use for evaluation.
 	StrictBuiltinErrors bool                // treat built-in function errors as fatal
 	Tracer              topdown.QueryTracer // specifies the tracer to use for evaluation, optional
 	Metrics             metrics.Metrics     // specifies the metrics to use for preparing and evaluation, optional
