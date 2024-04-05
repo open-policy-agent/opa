@@ -1726,7 +1726,7 @@ main = time.now_ns()
 
 	// testing here
 	decisionLabel := builtins.DecisionLabel{}
-	decisionLabel.Add("foo", ast.NewObject([2]*ast.Term{ast.StringTerm("bar")}))
+	decisionLabel.Add("foo", "bar")
 
 	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
 		DecisionLabel: decisionLabel,

@@ -2578,7 +2578,7 @@ func TestEvalWithDecisionLabel(t *testing.T) {
 
 	query := "decision.label.add(\"foo\": \"bar\")"
 
-	decisionLabel := builtins.DecisionLabel{"foo": ast.NewObject([2]*ast.Term{ast.StringTerm("bar")})}
+	decisionLabel := builtins.DecisionLabel{"foo": "bar"}
 
 	ctx := context.Background()
 

@@ -2503,7 +2503,7 @@ func TestEventV1ToAST(t *testing.T) {
 	}.AsValue())
 
 	var decisionLabel interface{} = ast.MustJSON(builtins.DecisionLabel{
-		"foo": ast.NewObject([1]*ast.String{"bar"}),
+		"foo": "bar",
 	})
 
 	cases := []struct {
