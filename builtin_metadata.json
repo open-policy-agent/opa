@@ -10487,7 +10487,7 @@
       {
         "description": "encoding options",
         "name": "opts",
-        "type": "any\u003cnull, object\u003cindent: any\u003cnull, string\u003e, prefix: any\u003cnull, string\u003e, pretty: any\u003cboolean\u003e\u003e[string: any]\u003e"
+        "type": "object\u003cindent: string, prefix: string, pretty: boolean\u003e[string: any]"
       }
     ],
     "available": [

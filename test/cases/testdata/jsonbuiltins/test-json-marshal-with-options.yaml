@@ -6,9 +6,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": "  ", "prefix": null})
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": "  "})
         }
-    note: jsonbuiltins/marshal_with_options-explicit
+    note: jsonbuiltins/marshal_with_options-explicit-indent
     query: data.test.p = x
     want_result:
       - x: |-
@@ -23,9 +23,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], null)
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {})
         }
-    note: jsonbuiltins/marshal_with_options-nulled
+    note: jsonbuiltins/marshal_with_options-empty-object
     query: data.test.p = x
     want_result:
       - x: "[1234567890,2000000,1000000000]"
@@ -64,7 +64,7 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"indent": null, "prefix": "JSON => "})
+          x := json.marshal_with_options([1234500000 + 67890, 1e6 * 2, 1e109 / 1e100], {"prefix": "JSON => "})
         }
     note: jsonbuiltins/marshal_with_options-prefix
     query: data.test.p = x
@@ -81,25 +81,9 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options({"foo": "bar", "bar": "baz"}, {"indent": null, "prefix": "JSON => "})
-        }
-    note: jsonbuiltins/marshal_with_options-object
-    query: data.test.p = x
-    want_result:
-      - x: |-
-          JSON => {
-          JSON => 	"bar": "baz",
-          JSON => 	"foo": "bar"
-          JSON => }
-  - data: {}
-    modules:
-      - |
-        package test
-
-        p = x {
           x := json.marshal_with_options({"foo": "bar", "bar": "baz"}, {"prefix": "JSON => "})
         }
-    note: jsonbuiltins/marshal_with_options-missing-key
+    note: jsonbuiltins/marshal_with_options-object
     query: data.test.p = x
     want_result:
       - x: |-
@@ -126,7 +110,7 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options([[[[[[[]]]]]]], {"indent": "    ", "prefix": null})
+          x := json.marshal_with_options([[[[[[[]]]]]]], {"indent": "    "})
         }
     note: jsonbuiltins/marshal_with_options-deep-array
     query: data.test.p = x
@@ -151,7 +135,7 @@ cases:
         package test
 
         p = x {
-          x := json.marshal_with_options([], {"indent": "    ", "prefix": null, "include_winning_lottery_numbers": true})
+          x := json.marshal_with_options([], {"indent": "    ", "include_winning_lottery_numbers": true})
         }
     note: jsonbuiltins/marshal_with_options-invalid-key
     query: data.test.p = x

@@ -2199,64 +2199,35 @@
             "type": "any"
           },
           {
-            "of": [
+            "dynamic": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "static": [
               {
-                "type": "null"
+                "key": "indent",
+                "value": {
+                  "type": "string"
+                }
               },
               {
-                "dynamic": {
-                  "key": {
-                    "type": "string"
-                  },
-                  "value": {
-                    "type": "any"
-                  }
-                },
-                "static": [
-                  {
-                    "key": "indent",
-                    "value": {
-                      "of": [
-                        {
-                          "type": "null"
-                        },
-                        {
-                          "type": "string"
-                        }
-                      ],
-                      "type": "any"
-                    }
-                  },
-                  {
-                    "key": "prefix",
-                    "value": {
-                      "of": [
-                        {
-                          "type": "null"
-                        },
-                        {
-                          "type": "string"
-                        }
-                      ],
-                      "type": "any"
-                    }
-                  },
-                  {
-                    "key": "pretty",
-                    "value": {
-                      "of": [
-                        {
-                          "type": "boolean"
-                        }
-                      ],
-                      "type": "any"
-                    }
-                  }
-                ],
-                "type": "object"
+                "key": "prefix",
+                "value": {
+                  "type": "string"
+                }
+              },
+              {
+                "key": "pretty",
+                "value": {
+                  "type": "boolean"
+                }
               }
             ],
-            "type": "any"
+            "type": "object"
           }
         ],
         "result": {

@@ -423,9 +423,8 @@ The `json.marshal_with_options` builtin's `opts` parameter accepts the following
 | ``prefix`` | No | ``string`` | ``""`` <br/> (empty) | The string to prefix lines with in the emitted JSON. One copy of this string will be prepended to each line. |
 
 Default values will be used if:
-* `opts` is null or an empty object.
+* `opts` is an empty object.
 * `opts` does not contain the named property.
-* `opts` contains the named property, but its value is `null`.
 
 {{< builtin-table cat=tokensign title="Token Signing" >}}
 

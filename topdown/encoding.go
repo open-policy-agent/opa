@@ -48,76 +48,52 @@ func builtinJSONMarshalWithOpts(_ BuiltinContext, operands []*ast.Term, iter fun
 	userDeclaredExplicitPrettyPrint := false
 	shouldPrettyPrint := false
 
-	switch operands[1].Value.(type) {
-	case ast.Null:
-		// Do nothing - use default parameters
-	case ast.Object:
-		marshalOpts, err := builtins.ObjectOperand(operands[1].Value, 2)
+	marshalOpts, err := builtins.ObjectOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	for idx, k := range marshalOpts.Keys() {
+
+		val := marshalOpts.Get(k)
+
+		key, err := builtins.StringOperand(k.Value, idx)
 		if err != nil {
-			return err
+			return builtins.NewOperandErr(2, "failed to stringify key %v at index %d: %v", k, idx, err)
 		}
 
-		for idx, k := range marshalOpts.Keys() {
+		switch key {
 
-			val := marshalOpts.Get(k)
-
-			key, err := builtins.StringOperand(k.Value, idx)
+		case "prefix":
+			prefixOpt, err := builtins.StringOperand(val.Value, idx)
 			if err != nil {
-				return builtins.NewOperandErr(2, "failed to stringify key %v at index %d: %v", k, idx, err)
+				return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
+			}
+			prefixWith = string(prefixOpt)
+			implicitPrettyPrint = true
+
+		case "indent":
+			indentOpt, err := builtins.StringOperand(val.Value, idx)
+			if err != nil {
+				return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
+
+			}
+			indentWith = string(indentOpt)
+			implicitPrettyPrint = true
+
+		case "pretty":
+			userDeclaredExplicitPrettyPrint = true
+			explicitPrettyPrint, ok := val.Value.(ast.Boolean)
+			if !ok {
+				return builtins.NewOperandErr(2, "key %s failed cast to bool", key)
 			}
 
-			switch key {
+			shouldPrettyPrint = bool(explicitPrettyPrint)
 
-			case "prefix":
-				switch val.Value.(type) {
-				case ast.Null:
-					// Do nothing - use default param
-				default:
-					prefixOpt, err := builtins.StringOperand(val.Value, idx)
-					if err != nil {
-						return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
-					}
-					prefixWith = string(prefixOpt)
-					implicitPrettyPrint = true
-				}
-
-			case "indent":
-				switch val.Value.(type) {
-				case ast.Null:
-					// Do nothing - use default param
-				default:
-					indentOpt, err := builtins.StringOperand(val.Value, idx)
-					if err != nil {
-						return builtins.NewOperandErr(2, "key %s failed cast to string: %v", key, err)
-
-					}
-					indentWith = string(indentOpt)
-					implicitPrettyPrint = true
-				}
-
-			case "pretty":
-				switch val.Value.(type) {
-				case ast.Null:
-					// Do nothing - use default param
-				default:
-					userDeclaredExplicitPrettyPrint = true
-					explicitPrettyPrint, ok := val.Value.(ast.Boolean)
-					if !ok {
-						return builtins.NewOperandErr(2, "key %s failed cast to bool", key)
-					}
-
-					shouldPrettyPrint = bool(explicitPrettyPrint)
-
-				}
-
-			default:
-				return builtins.NewOperandErr(2, "object contained unknown key %s", key)
-			}
-
+		default:
+			return builtins.NewOperandErr(2, "object contained unknown key %s", key)
 		}
 
-	default:
-		return builtins.NewOperandTypeErr(2, operands[1].Value, "object", "null")
 	}
 
 	if !userDeclaredExplicitPrettyPrint {

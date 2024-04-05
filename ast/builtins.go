@@ -1715,16 +1715,13 @@ var JSONMarshalWithOptions = &Builtin{
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("x", types.A).Description("the term to serialize"),
-			types.Named("opts", types.NewAny(
-				types.NewNull(),
-				types.NewObject(
-					[]*types.StaticProperty{
-						types.NewStaticProperty("pretty", types.NewAny(types.B)),
-						types.NewStaticProperty("indent", types.NewAny(types.S, types.NewNull())),
-						types.NewStaticProperty("prefix", types.NewAny(types.S, types.NewNull())),
-					},
-					types.NewDynamicProperty(types.S, types.A),
-				),
+			types.Named("opts", types.NewObject(
+				[]*types.StaticProperty{
+					types.NewStaticProperty("pretty", types.B),
+					types.NewStaticProperty("indent", types.S),
+					types.NewStaticProperty("prefix", types.S),
+				},
+				types.NewDynamicProperty(types.S, types.A),
 			)).Description("encoding options"),
 		),
 		types.Named("y", types.S).Description("the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate"),
