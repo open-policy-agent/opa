@@ -326,6 +326,12 @@ func (c *Compiler) Build(ctx context.Context) error {
 		return err
 	}
 
+	// Dedup entrypoint refs, if both CLI and entrypoint metadata annotations
+	// were used.
+	if err := c.dedupEntrypointRefs(); err != nil {
+		return err
+	}
+
 	if err := c.optimize(ctx); err != nil {
 		return err
 	}
@@ -429,6 +435,27 @@ func (c *Compiler) checkNumEntrypoints() error {
 	return nil
 }
 
+// Note(philipc): When an entrypoint is provided on the CLI and from an
+// entrypoint annotation, it can lead to duplicates in the slice of
+// entrypoint refs. This can cause panics down the line due to c.entrypoints
+// being a different length than c.entrypointrefs. As a result, we have to
+// trim out the duplicates.
+func (c *Compiler) dedupEntrypointRefs() error {
+	// Build list of entrypoint refs, without duplicates.
+	newEntrypointRefs := make([]*ast.Term, 0, len(c.entrypointrefs))
+	entrypointRefSet := make(map[string]struct{}, len(c.entrypointrefs))
+	for i, r := range c.entrypointrefs {
+		refString := r.String()
+		// Store only the first index in the list that matches.
+		if _, ok := entrypointRefSet[refString]; !ok {
+			entrypointRefSet[refString] = struct{}{}
+			newEntrypointRefs = append(newEntrypointRefs, c.entrypointrefs[i])
+		}
+	}
+	c.entrypointrefs = newEntrypointRefs
+	return nil
+}
+
 // Bundle returns the compiled bundle. This function can be called to retrieve the
 // output of the compiler (as an alternative to having the bundle written to a stream.)
 func (c *Compiler) Bundle() *bundle.Bundle {
@@ -506,7 +533,6 @@ func (c *Compiler) initBundle() error {
 }
 
 func (c *Compiler) optimize(ctx context.Context) error {
-
 	if c.optimizationLevel <= 0 {
 		var err error
 		c.compiler, err = compile(c.capabilities, c.bundle, c.debug, c.enablePrintStatements)

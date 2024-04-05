@@ -884,22 +884,13 @@ func (s *Server) instrumentHandler(handler func(http.ResponseWriter, *http.Reque
 	return httpHandler
 }
 
-func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
+func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.Transaction, parsedQuery ast.Body, input ast.Value, rawInput *interface{}, m metrics.Metrics, explainMode types.ExplainModeV1, includeMetrics, includeInstrumentation, pretty bool) (*types.QueryResponseV1, error) {
 	results := types.QueryResponseV1{}
 	logger := s.getDecisionLogger(br)
 
 	var buf *topdown.BufferTracer
 	if explainMode != types.ExplainOffV1 {
 		buf = topdown.NewBufferTracer()
-	}
-
-	var rawInput *interface{}
-	if input != nil {
-		x, err := ast.JSON(input)
-		if err != nil {
-			return nil, err
-		}
-		rawInput = &x
 	}
 
 	var ndbCache builtins.NDBCache
@@ -1037,20 +1028,10 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	ctx := logging.WithDecisionID(r.Context(), decisionID)
 	annotateSpan(ctx, decisionID)
 
-	input, err := readInputV0(r)
+	input, goInput, err := readInputV0(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, fmt.Errorf("unexpected parse error for input: %w", err))
 		return
-	}
-
-	var goInput *interface{}
-	if input != nil {
-		x, err := ast.JSON(input)
-		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
-			return
-		}
-		goInput = &x
 	}
 
 	// Prepare for query.
@@ -1455,24 +1436,15 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 	inputs := r.URL.Query()[types.ParamInputV1]
 
 	var input ast.Value
+	var goInput *interface{}
 
 	if len(inputs) > 0 {
 		var err error
-		input, err = readInputGetV1(inputs[len(inputs)-1])
+		input, goInput, err = readInputGetV1(inputs[len(inputs)-1])
 		if err != nil {
 			writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 			return
 		}
-	}
-
-	var goInput *interface{}
-	if input != nil {
-		x, err := ast.JSON(input)
-		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
-			return
-		}
-		goInput = &x
 	}
 
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -1687,20 +1659,10 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 
 	m.Timer(metrics.RegoInputParse).Start()
 
-	input, err := readInputPostV1(r)
+	input, goInput, err := readInputPostV1(r)
 	if err != nil {
 		writer.ErrorString(w, http.StatusBadRequest, types.CodeInvalidParameter, err)
 		return
-	}
-
-	var goInput *interface{}
-	if input != nil {
-		x, err := ast.JSON(input)
-		if err != nil {
-			writer.ErrorString(w, http.StatusInternalServerError, types.CodeInvalidParameter, fmt.Errorf("could not marshal input: %w", err))
-			return
-		}
-		goInput = &x
 	}
 
 	m.Timer(metrics.RegoInputParse).Stop()
@@ -2277,7 +2239,7 @@ func (s *Server) v1QueryGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pretty := pretty(r)
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, nil, nil, m, explainMode, includeMetrics(r), includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2347,7 +2309,7 @@ func (s *Server) v1QueryPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
+	results, err := s.execQuery(ctx, br, txn, parsedQuery, input, request.Input, m, explainMode, includeMetrics, includeInstrumentation, pretty)
 	if err != nil {
 		switch err := err.(type) {
 		case ast.Errors:
@@ -2761,17 +2723,18 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 	return zero
 }
 
-func readInputV0(r *http.Request) (ast.Value, error) {
+func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
-		return ast.InterfaceToValue(parsed)
+		v, err := ast.InterfaceToValue(parsed)
+		return v, &parsed, err
 	}
 
 	// decompress the input if sent as zip
 	body, err := readPlainBody(r)
 	if err != nil {
-		return nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
 	var x interface{}
@@ -2779,41 +2742,44 @@ func readInputV0(r *http.Request) (ast.Value, error) {
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
 		bs, err := io.ReadAll(body)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(bs) > 0 {
 			if err = util.Unmarshal(bs, &x); err != nil {
-				return nil, fmt.Errorf("body contains malformed input document: %w", err)
+				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
 		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&x); err != nil && err != io.EOF {
-			return nil, fmt.Errorf("body contains malformed input document: %w", err)
+			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
 	}
 
-	return ast.InterfaceToValue(x)
+	v, err := ast.InterfaceToValue(x)
+	return v, &x, err
 }
 
-func readInputGetV1(str string) (ast.Value, error) {
+func readInputGetV1(str string) (ast.Value, *interface{}, error) {
 	var input interface{}
 	if err := util.UnmarshalJSON([]byte(str), &input); err != nil {
-		return nil, fmt.Errorf("parameter contains malformed input document: %w", err)
+		return nil, nil, fmt.Errorf("parameter contains malformed input document: %w", err)
 	}
-	return ast.InterfaceToValue(input)
+	v, err := ast.InterfaceToValue(input)
+	return v, &input, err
 }
 
-func readInputPostV1(r *http.Request) (ast.Value, error) {
+func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 
 	parsed, ok := authorizer.GetBodyOnContext(r.Context())
 	if ok {
 		if obj, ok := parsed.(map[string]interface{}); ok {
 			if input, ok := obj["input"]; ok {
-				return ast.InterfaceToValue(input)
+				v, err := ast.InterfaceToValue(input)
+				return v, &input, err
 			}
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var request types.DataRequestV1
@@ -2821,7 +2787,7 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 	// decompress the input if sent as zip
 	body, err := readPlainBody(r)
 	if err != nil {
-		return nil, fmt.Errorf("could not decompress the body: %w", err)
+		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
 
 	ct := r.Header.Get("Content-Type")
@@ -2830,25 +2796,26 @@ func readInputPostV1(r *http.Request) (ast.Value, error) {
 	if strings.Contains(ct, "yaml") {
 		bs, err := io.ReadAll(body)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(bs) > 0 {
 			if err = util.Unmarshal(bs, &request); err != nil {
-				return nil, fmt.Errorf("body contains malformed input document: %w", err)
+				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
 		dec := util.NewJSONDecoder(body)
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
-			return nil, fmt.Errorf("body contains malformed input document: %w", err)
+			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
 	}
 
 	if request.Input == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	return ast.InterfaceToValue(*request.Input)
+	v, err := ast.InterfaceToValue(*request.Input)
+	return v, request.Input, err
 }
 
 type compileRequest struct {
