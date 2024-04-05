@@ -109,14 +109,13 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type DecisionLabel map[string]ast.Object
+type DecisionLabel map[ast.String]ast.String
 
-func (dl DecisionLabel) Add(k string, v ast.Value) {
-	dl.Add(k, v)
+func (dl DecisionLabel) Add(k ast.String, v ast.String) {
+	dl[k] = v
 } // end Add function
 
-// Get function may not be needed, but leaving it in here until I know for sure
-func (dl DecisionLabel) Get(k string) (ast.Value, bool) {
+func (dl DecisionLabel) Get(k ast.String) (ast.String, bool) {
 	v, ok := dl[k]
 	return v, ok
 } // end Get function

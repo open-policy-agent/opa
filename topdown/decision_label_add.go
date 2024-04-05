@@ -56,9 +56,9 @@ func validateValueStringOperand(term *ast.Term, pos int) (ast.String, error) {
 
 func assignOperandsToDecisionLabel(bctx BuiltinContext, key, value ast.String) error {
 
-	bctx.DecisionLabel.Add(key.String(), value)
+	bctx.DecisionLabel.Add(key, value)
 
-	if _, ok := bctx.DecisionLabel.Get(key.String()); !ok {
+	if _, ok := bctx.DecisionLabel.Get(key); !ok {
 		return ast.NewError(InternalErr, bctx.Location, "Entry for %s was not added", key.String())
 	}
 

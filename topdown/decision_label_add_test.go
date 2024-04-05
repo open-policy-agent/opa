@@ -77,7 +77,7 @@ func TestBuiltinDecisionLabelAddSameKeySecondEntry(t *testing.T) {
 		t.Fatalf("Second pair of Key %s and Value %s was not properly assigned.", key.Value.String(), value2.Value.String())
 	}
 
-	if value, ok := bctx.DecisionLabel.Get(key.String()); ok {
+	if value, ok := bctx.DecisionLabel.Get(ast.String(key.String())); ok {
 		if value == value1.Value {
 			t.Fatalf("Original value %s still present for Key %s after secondary assignment.", value1.Value.String(), key.Value.String())
 		}
