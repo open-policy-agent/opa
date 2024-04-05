@@ -414,6 +414,18 @@ The following table shows examples of how ``glob.match`` works:
 {{< builtin-table types >}}
 {{< builtin-table encoding >}}
 
+The `json.marshal_with_options` builtin's `opts` parameter accepts the following properties:
+
+| Field | Required | Type | Default | Description |
+| :---- | :------- | :--- | :------ | :---------- |
+| ``pretty`` | No | ``bool`` | `true` if `indent` or `prefix` are declared, <br/>`false` otherwise | Enables multi-line, human-readable JSON output ("pretty-printing"). <br/>If this property is `true`, then objects will be marshaled into multi-line JSON with either user-specified or default indent/prefix options. If this property is `false`, `indent`/`prefix` will be ignored and this builtin functions identically to `json.marshal()`. |
+| ``indent`` | No | ``string`` | ``"\t"`` <br/> (Horizontal tab, character 0x09) | The string to use when indenting nested keys in the emitted JSON. One or more copies of this string will be included before child elements in every object or array. |
+| ``prefix`` | No | ``string`` | ``""`` <br/> (empty) | The string to prefix lines with in the emitted JSON. One copy of this string will be prepended to each line. |
+
+Default values will be used if:
+* `opts` is an empty object.
+* `opts` does not contain the named property.
+
 {{< builtin-table cat=tokensign title="Token Signing" >}}
 
 OPA provides two builtins that implement JSON Web Signature [RFC7515](https://tools.ietf.org/html/rfc7515) functionality.
