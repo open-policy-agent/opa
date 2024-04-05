@@ -60,6 +60,7 @@
       "hex.encode",
       "json.is_valid",
       "json.marshal",
+      "json.marshal_with_options",
       "json.unmarshal",
       "urlquery.decode",
       "urlquery.decode_object",
@@ -10475,6 +10476,31 @@
       "type": "string"
     },
     "wasm": true
+  },
+  "json.marshal_with_options": {
+    "args": [
+      {
+        "description": "the term to serialize",
+        "name": "x",
+        "type": "any"
+      },
+      {
+        "description": "encoding options",
+        "name": "opts",
+        "type": "object\u003cindent: string, prefix: string, pretty: boolean\u003e[string: any]"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Serializes the input term JSON, with additional formatting options via the `opts` parameter. `opts` accepts keys `pretty` (enable multi-line/formatted JSON), `prefix` (string to prefix lines with, default empty string) and `indent` (string to indent with, default `\\t`).",
+    "introduced": "edge",
+    "result": {
+      "description": "the JSON string representation of `x`, with configured prefix/indent string(s) as appropriate",
+      "name": "y",
+      "type": "string"
+    },
+    "wasm": false
   },
   "json.match_schema": {
     "args": [

@@ -2192,6 +2192,51 @@
       }
     },
     {
+      "name": "json.marshal_with_options",
+      "decl": {
+        "args": [
+          {
+            "type": "any"
+          },
+          {
+            "dynamic": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "any"
+              }
+            },
+            "static": [
+              {
+                "key": "indent",
+                "value": {
+                  "type": "string"
+                }
+              },
+              {
+                "key": "prefix",
+                "value": {
+                  "type": "string"
+                }
+              },
+              {
+                "key": "pretty",
+                "value": {
+                  "type": "boolean"
+                }
+              }
+            ],
+            "type": "object"
+          }
+        ],
+        "result": {
+          "type": "string"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "json.match_schema",
       "decl": {
         "args": [
