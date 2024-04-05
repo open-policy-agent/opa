@@ -109,6 +109,9 @@ func (c *NDBCache) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// DecisionLabel contains the Policy result data. The expected
+// inputs will be Strings, with the value representing a JSON
+// message body.
 type DecisionLabel map[ast.String]ast.String
 
 func (dl DecisionLabel) Add(k ast.String, v ast.String) {

@@ -1729,7 +1729,7 @@ main = time.now_ns()
 	decisionLabel.Add("foo", "bar")
 
 	if _, err := opa.Decision(ctx, sdk.DecisionOptions{
-		DecisionLabel: decisionLabel,
+		Now: time.Unix(0, 1619868194450288000).UTC(),
 	}); err != nil {
 		t.Fatal(err)
 	}

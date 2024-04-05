@@ -6,21 +6,6 @@ import (
 	"testing"
 )
 
-// builtinDecisionLabelAdd test
-//   happy path
-//   invalid inputs
-// should cover below tests (but below tests do offer specificity of errors encountered)
-
-// how to build BuiltinContext
-//   needs DecisionLabel in bctx
-//   any other validation fields
-
-// create ast.Term Strings/Ints for input
-
-// call Builtin function passing all inputs in
-// read Error type to determine what failed
-// t.Fatalf() statement and return
-
 func TestBuiltinDecisionLabelAdd(t *testing.T) {
 
 	// inputs

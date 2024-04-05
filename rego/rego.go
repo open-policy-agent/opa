@@ -1115,6 +1115,7 @@ func NDBuiltinCache(c builtins.NDBCache) func(r *Rego) {
 	}
 }
 
+// DecisionLabel sets the Policy result data.
 func DecisionLabel(dl builtins.DecisionLabel) func(r *Rego) {
 	return func(r *Rego) {
 		r.decisionLabel = dl

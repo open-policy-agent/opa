@@ -35,25 +35,25 @@ type (
 	// BuiltinContext contains context from the evaluator that may be used by
 	// built-in functions.
 	BuiltinContext struct {
-		Context                context.Context       // request context that was passed when query started
-		Metrics                metrics.Metrics       // metrics registry for recording built-in specific metrics
-		Seed                   io.Reader             // randomization source
-		Time                   *ast.Term             // wall clock time
-		Cancel                 Cancel                // atomic value that signals evaluation to halt
-		Runtime                *ast.Term             // runtime information on the OPA instance
-		Cache                  builtins.Cache        // built-in function state cache
-		InterQueryBuiltinCache cache.InterQueryCache // cross-query built-in function state cache
-		NDBuiltinCache         builtins.NDBCache     // cache for non-deterministic built-in state
-		DecisionLabel          builtins.DecisionLabel
-		Location               *ast.Location   // location of built-in call
-		Tracers                []Tracer        // Deprecated: Use QueryTracers instead
-		QueryTracers           []QueryTracer   // tracer objects for trace() built-in function
-		TraceEnabled           bool            // indicates whether tracing is enabled for the evaluation
-		QueryID                uint64          // identifies query being evaluated
-		ParentID               uint64          // identifies parent of query being evaluated
-		PrintHook              print.Hook      // provides callback function to use for printing
-		DistributedTracingOpts tracing.Options // options to be used by distributed tracing.
-		rand                   *rand.Rand      // randomization source for non-security-sensitive operations
+		Context                context.Context        // request context that was passed when query started
+		Metrics                metrics.Metrics        // metrics registry for recording built-in specific metrics
+		Seed                   io.Reader              // randomization source
+		Time                   *ast.Term              // wall clock time
+		Cancel                 Cancel                 // atomic value that signals evaluation to halt
+		Runtime                *ast.Term              // runtime information on the OPA instance
+		Cache                  builtins.Cache         // built-in function state cache
+		InterQueryBuiltinCache cache.InterQueryCache  // cross-query built-in function state cache
+		NDBuiltinCache         builtins.NDBCache      // cache for non-deterministic built-in state
+		DecisionLabel          builtins.DecisionLabel // map of non-deterministic Policy result data
+		Location               *ast.Location          // location of built-in call
+		Tracers                []Tracer               // Deprecated: Use QueryTracers instead
+		QueryTracers           []QueryTracer          // tracer objects for trace() built-in function
+		TraceEnabled           bool                   // indicates whether tracing is enabled for the evaluation
+		QueryID                uint64                 // identifies query being evaluated
+		ParentID               uint64                 // identifies parent of query being evaluated
+		PrintHook              print.Hook             // provides callback function to use for printing
+		DistributedTracingOpts tracing.Options        // options to be used by distributed tracing.
+		rand                   *rand.Rand             // randomization source for non-security-sensitive operations
 		Capabilities           *ast.Capabilities
 	}
 
