@@ -239,13 +239,12 @@ func (m Manifest) Copy() Manifest {
 
 func (m Manifest) String() string {
 	m.Init()
-	var v string
 	if m.RegoVersion != nil {
-		v = fmt.Sprintf(", rego_version: %d", *m.RegoVersion)
-	} else {
-		v = ""
+		return fmt.Sprintf("<revision: %q, rego_version: %d, roots: %v, wasm: %+v, metadata: %+v>",
+			m.Revision, *m.RegoVersion, *m.Roots, m.WasmResolvers, m.Metadata)
 	}
-	return fmt.Sprintf("<revision: %q%s, roots: %v, wasm: %+v, metadata: %+v>", m.Revision, v, *m.Roots, m.WasmResolvers, m.Metadata)
+	return fmt.Sprintf("<revision: %q, roots: %v, wasm: %+v, metadata: %+v>",
+		m.Revision, *m.Roots, m.WasmResolvers, m.Metadata)
 }
 
 func (m Manifest) rootSet() stringSet {
@@ -1380,6 +1379,12 @@ func Merge(bundles []*Bundle) (*Bundle, error) {
 	return MergeWithRegoVersion(bundles, ast.RegoV0)
 }
 
+// MergeWithRegoVersion creates a merged bundle from the provided bundles, similar to Merge.
+// If more than one bundle is provided, the rego version of the result bundle is set to the provided rego version.
+// Any Rego files in a bundle of conflicting rego version will be marked in the result's manifest with the rego version
+// of its original bundle. If the Rego file already had an overriding rego version, it will be preserved.
+// If a single bundle is provided, it will retain any rego version information it already had. If it has none, the
+// provided rego version will be applied to it.
 func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bundle, error) {
 
 	if len(bundles) == 0 {

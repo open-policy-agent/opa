@@ -470,54 +470,129 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 			expGlobalRegoVersion: pointTo(1),
 		},
 		{
-			note: "global rego versions", // we expect the global rego version to be dropped
+			note: "global rego versions, v1 bundles, v0 provided",
 			bundles: []*bundle.Bundle{
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
 						RegoVersion: pointTo(1),
 					},
-					Data:    map[string]interface{}{},
-					Modules: []bundle.ModuleFile{},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
 				},
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
 						RegoVersion: pointTo(1),
 					},
-					Data:    map[string]interface{}{},
-					Modules: []bundle.ModuleFile{},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+					},
 				},
 			},
 			regoVersion: ast.RegoV0,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
 			expGlobalRegoVersion: pointTo(0),
-			expFileRegoVersions:  map[string]int{},
+			expFileRegoVersions: map[string]int{
+				"/a/test1.rego": 1,
+				"/b/test1.rego": 1,
+			},
 		},
 		{
-			note: "different global rego versions", // we expect the global rego version to be dropped
+			note: "global rego versions, v0 bundles, v1 provided",
 			bundles: []*bundle.Bundle{
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"a"},
 						RegoVersion: pointTo(0),
 					},
-					Data:    map[string]interface{}{},
-					Modules: []bundle.ModuleFile{},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
+				},
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"b"},
+						RegoVersion: pointTo(0),
+					},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+					},
+				},
+			},
+			regoVersion: ast.RegoV1,
+			// global rego-version in bundles are dropped in favor of the provided rego-version
+			expGlobalRegoVersion: pointTo(1),
+			expFileRegoVersions: map[string]int{
+				"/a/test1.rego": 0,
+				"/b/test1.rego": 0,
+			},
+		},
+		{
+			note: "different global rego versions",
+			bundles: []*bundle.Bundle{
+				{
+					Manifest: bundle.Manifest{
+						Roots:       &[]string{"a"},
+						RegoVersion: pointTo(0),
+					},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "a/test1.rego",
+							URL:          "a/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package a"),
+						},
+					},
 				},
 				{
 					Manifest: bundle.Manifest{
 						Roots:       &[]string{"b"},
 						RegoVersion: pointTo(1),
 					},
-					Data:    map[string]interface{}{},
-					Modules: []bundle.ModuleFile{},
+					Data: map[string]interface{}{},
+					Modules: []bundle.ModuleFile{
+						{
+							Path:         "b/test1.rego",
+							URL:          "b/test1.rego",
+							RelativePath: "/test1.rego",
+							Raw:          []byte("package b"),
+						},
+					},
 				},
 			},
 			regoVersion: ast.RegoV0,
 			// global rego-version in bundles are dropped in favor of the provided rego-version
 			expGlobalRegoVersion: pointTo(0),
-			expFileRegoVersions:  map[string]int{},
+			expFileRegoVersions: map[string]int{
+				"/b/test1.rego": 1,
+			},
 		},
 		{
 			note: "different global rego versions, per-file overrides",
