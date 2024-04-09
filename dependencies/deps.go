@@ -98,7 +98,7 @@ func Base(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
 	return dedup(baseRefs.toSlice()), nil
 }
 
-func base(compiler *ast.Compiler, x interface{}, baseRefs *refSet) error {
+func base(compiler *ast.Compiler, x interface{}, baseRefs *dependencies) error {
 	refs, err := Minimal(x)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func Virtual(compiler *ast.Compiler, x interface{}) ([]ast.Ref, error) {
 	return dedup(virtualRefs.toSlice()), nil
 }
 
-func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *refSet) error {
+func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *dependencies) error {
 	refs, err := Minimal(x)
 	if err != nil {
 		return err
@@ -167,13 +167,13 @@ func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *refSet) error {
 	return nil
 }
 
-type refSet struct {
+type dependencies struct {
 	refs         *util.HashMap
 	visitedRules *util.HashMap
 }
 
-func newRefSet() *refSet {
-	return &refSet{
+func newRefSet() *dependencies {
+	return &dependencies{
 		refs: util.NewHashMap(func(a, b util.T) bool {
 			return a.(ast.Ref).Equal(b.(ast.Ref))
 		}, func(a util.T) int {
@@ -187,20 +187,20 @@ func newRefSet() *refSet {
 	}
 }
 
-func (rs *refSet) add(r ast.Ref) {
+func (rs *dependencies) add(r ast.Ref) {
 	rs.refs.Put(r, r)
 }
 
-func (rs *refSet) visit(rule *ast.Rule) {
+func (rs *dependencies) visit(rule *ast.Rule) {
 	rs.visitedRules.Put(rule, rule)
 }
 
-func (rs *refSet) visited(rule *ast.Rule) bool {
+func (rs *dependencies) visited(rule *ast.Rule) bool {
 	_, found := rs.visitedRules.Get(rule)
 	return found
 }
 
-func (rs *refSet) toSlice() []ast.Ref {
+func (rs *dependencies) toSlice() []ast.Ref {
 	var result []ast.Ref
 	rs.refs.Iter(func(k, _ util.T) bool {
 		result = append(result, k.(ast.Ref))
