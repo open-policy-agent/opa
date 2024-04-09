@@ -169,7 +169,7 @@ func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *refSet) error {
 
 type refSet struct {
 	refs         *util.HashMap
-	visitedRules map[int][]*ast.Rule
+	visitedRules *util.HashMap
 }
 
 func newRefSet() *refSet {
@@ -179,7 +179,11 @@ func newRefSet() *refSet {
 		}, func(a util.T) int {
 			return a.(ast.Ref).Hash()
 		}),
-		visitedRules: map[int][]*ast.Rule{},
+		visitedRules: util.NewHashMap(func(a, b util.T) bool {
+			return a.(*ast.Rule).Equal(b.(*ast.Rule))
+		}, func(a util.T) int {
+			return a.(*ast.Rule).Ref().Hash()
+		}),
 	}
 }
 
@@ -188,24 +192,12 @@ func (rs *refSet) add(r ast.Ref) {
 }
 
 func (rs *refSet) visit(rule *ast.Rule) {
-	h := rule.Ref().Hash()
-	l := rs.visitedRules[h]
-	if l == nil {
-		l = []*ast.Rule{}
-	}
-	l = append(l, rule)
-	rs.visitedRules[h] = l
+	rs.visitedRules.Put(rule, rule)
 }
 
 func (rs *refSet) visited(rule *ast.Rule) bool {
-	h := rule.Ref().Hash()
-	l := rs.visitedRules[h]
-	for _, r := range l {
-		if r.Equal(rule) {
-			return true
-		}
-	}
-	return false
+	_, found := rs.visitedRules.Get(rule)
+	return found
 }
 
 func (rs *refSet) toSlice() []ast.Ref {
