@@ -311,17 +311,17 @@ A simple example is a regex to match a valid Rego variable. With a regular strin
 
 Composite values define collections. In simple cases, composite values can be treated as constants like [Scalar Values](#scalar-values):
 
-```live:eg/cube:module
-cube := {"width": 3, "height": 4, "depth": 5}
+```live:eg/cuboid:module
+cuboid := {"width": 3, "height": 4, "depth": 5}
 ```
 
 The result:
 
-```live:eg/cube:query:merge_down
-cube.width
+```live:eg/cuboid:query:merge_down
+cuboid.width
 ```
 
-```live:eg/cube:output
+```live:eg/cuboid:output
 ```
 
 Composite values can also be defined in terms of [Variables](#variables) or [References](#references). For example:
@@ -382,11 +382,11 @@ collections of unique values. Just like other composite values, sets can be
 defined in terms of scalars, variables, references, and other composite values.
 For example:
 
-```live:eg/cube/sets:query:merge_down
-s := {cube.width, cube.height, cube.depth}
+```live:eg/cuboid/sets:query:merge_down
+s := {cuboid.width, cuboid.height, cuboid.depth}
 ```
 
-```live:eg/cube/sets:output
+```live:eg/cuboid/sets:output
 ```
 
 > Set documents are collections of values without keys. OPA represents set
