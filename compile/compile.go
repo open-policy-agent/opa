@@ -298,7 +298,7 @@ func (c *Compiler) Build(ctx context.Context) error {
 		}
 	}
 
-	if err := c.initBundle(); err != nil {
+	if err := c.initBundle(false); err != nil {
 		return err
 	}
 
@@ -435,7 +435,7 @@ func (c *Compiler) Bundle() *bundle.Bundle {
 	return c.bundle
 }
 
-func (c *Compiler) initBundle() error {
+func (c *Compiler) initBundle(usePath bool) error {
 	// If the bundle is already set, skip file loading.
 	if c.bundle != nil {
 		return nil
@@ -463,7 +463,7 @@ func (c *Compiler) initBundle() error {
 			bundles = append(bundles, load.Bundles[k])
 		}
 
-		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion)
+		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion, usePath)
 		if err != nil {
 			return fmt.Errorf("bundle merge failed: %v", err)
 		}

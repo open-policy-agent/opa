@@ -1380,16 +1380,18 @@ func mktree(path []string, value interface{}) (map[string]interface{}, error) {
 // will have an empty revision except in the special case where a single bundle is provided
 // (and in that case the bundle is just returned unmodified.)
 func Merge(bundles []*Bundle) (*Bundle, error) {
-	return MergeWithRegoVersion(bundles, ast.RegoV0)
+	return MergeWithRegoVersion(bundles, ast.RegoV0, false)
 }
 
 // MergeWithRegoVersion creates a merged bundle from the provided bundles, similar to Merge.
-// If more than one bundle is provided, the rego version of the result bundle is set to the provided rego version.
+// If more than one bundle is provided, the rego version of the result bundle is set to the provided regoVersion.
 // Any Rego files in a bundle of conflicting rego version will be marked in the result's manifest with the rego version
 // of its original bundle. If the Rego file already had an overriding rego version, it will be preserved.
 // If a single bundle is provided, it will retain any rego version information it already had. If it has none, the
-// provided rego version will be applied to it.
-func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bundle, error) {
+// provided regoVersion will be applied to it.
+// If usePath is true, per-file rego-versions will be calculated using the file's ModuleFile.Path; otherwise, the file's
+// ModuleFile.URL will be used.
+func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion, usePath bool) (*Bundle, error) {
 
 	if len(bundles) == 0 {
 		return nil, errors.New("expected at least one bundle")
@@ -1399,7 +1401,7 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 		result := bundles[0]
 		// We respect the bundle rego-version, defaulting to the provided rego version if not set.
 		result.SetRegoVersion(result.RegoVersion(regoVersion))
-		fileRegoVersions, err := bundleRegoVersions(result, result.RegoVersion(regoVersion))
+		fileRegoVersions, err := bundleRegoVersions(result, result.RegoVersion(regoVersion), usePath)
 		if err != nil {
 			return nil, err
 		}
@@ -1438,7 +1440,7 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 				result.Manifest.FileRegoVersions = map[string]int{}
 			}
 
-			fileRegoVersions, err := bundleRegoVersions(b, regoVersion)
+			fileRegoVersions, err := bundleRegoVersions(b, regoVersion, usePath)
 			if err != nil {
 				return nil, err
 			}
@@ -1464,14 +1466,14 @@ func MergeWithRegoVersion(bundles []*Bundle, regoVersion ast.RegoVersion) (*Bund
 	return &result, nil
 }
 
-func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion) (map[string]int, error) {
+func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion, usePath bool) (map[string]int, error) {
 	fileRegoVersions := map[string]int{}
 
 	// we drop the bundle-global rego versions and record individual rego versions for each module.
 	for _, m := range bundle.Modules {
 		// We fetch rego-version by the path relative to the bundle root, as the complete path of the module might
 		// contain the path between OPA working directory and the bundle root.
-		v, err := bundle.RegoVersionForFile(bundleRelativePath(m), bundle.RegoVersion(regoVersion))
+		v, err := bundle.RegoVersionForFile(bundleRelativePath(m, usePath), bundle.RegoVersion(regoVersion))
 		if err != nil {
 			return nil, err
 		}
@@ -1479,29 +1481,31 @@ func bundleRegoVersions(bundle *Bundle, regoVersion ast.RegoVersion) (map[string
 		if v != regoVersion {
 			// We store the rego version by the absolute path to the bundle root, as this will be the - possibly new - path
 			// to the module inside the merged bundle.
-			fileRegoVersions[bundleAbsolutePath(m)] = v.Int()
+			fileRegoVersions[bundleAbsolutePath(m, usePath)] = v.Int()
 		}
 	}
 
 	return fileRegoVersions, nil
 }
 
-func bundleRelativePath(m ModuleFile) string {
+func bundleRelativePath(m ModuleFile, usePath bool) string {
 	p := m.RelativePath
 	if p == "" {
-		if m.URL != "" {
-			p = m.URL
-		} else {
+		if usePath {
 			p = m.Path
+		} else {
+			p = m.URL
 		}
 	}
 	return p
 }
 
-func bundleAbsolutePath(m ModuleFile) string {
-	p := m.URL
-	if p == "" {
+func bundleAbsolutePath(m ModuleFile, usePath bool) string {
+	var p string
+	if usePath {
 		p = m.Path
+	} else {
+		p = m.URL
 	}
 	if !path.IsAbs(p) {
 		p = "/" + p

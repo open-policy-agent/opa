@@ -734,14 +734,17 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{
 						{
 							Path: "a/foo/test.rego",
+							URL:  "a/foo/test.rego",
 							Raw:  []byte("package a"),
 						},
 						{
 							Path: "a/bar/test.rego",
+							URL:  "a/bar/test.rego",
 							Raw:  []byte("package a"),
 						},
 						{
 							Path: "a/baz/test.rego",
+							URL:  "a/baz/test.rego",
 							Raw:  []byte("package a"),
 						},
 					},
@@ -759,14 +762,17 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{
 						{
 							Path: "b/foo/test.rego",
+							URL:  "b/foo/test.rego",
 							Raw:  []byte("package b"),
 						},
 						{
 							Path: "b/bar/test.rego",
+							URL:  "b/bar/test.rego",
 							Raw:  []byte("package b"),
 						},
 						{
 							Path: "b/baz/test.rego",
+							URL:  "b/baz/test.rego",
 							Raw:  []byte("package b"),
 						},
 					},
@@ -793,7 +799,7 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 				}
 			}
 
-			result, err := bundle.MergeWithRegoVersion(tc.bundles, tc.regoVersion)
+			result, err := bundle.MergeWithRegoVersion(tc.bundles, tc.regoVersion, false)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
