@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
@@ -1210,6 +1211,339 @@ test_l if {
 					}
 				})
 			})
+		}
+	}
+}
+
+func TestWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note   string
+		files  map[string]string
+		expErr string
+	}{
+		{
+			note: "v0.x bundle, no imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v0.x bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+
+		{
+			note: "v1.0 bundle, no imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2[v] {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}`,
+				"policy2.rego": `package test
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{}
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						for k, v := range tc.files {
+							files[k] = v
+						}
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							files := make([][2]string, 0, len(tc.files))
+							for k, v := range tc.files {
+								files = append(files, [2]string{k, v})
+							}
+							buf := archive.MustWriteTarGz(files)
+							bf, err := os.Create(p)
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+							_, err = bf.Write(buf.Bytes())
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+						}
+
+						var buf bytes.Buffer
+						var errBuf bytes.Buffer
+
+						testParams := newTestCommandParams()
+						testParams.v1Compatible = v1CompatibleFlag.used
+						testParams.bundleMode = true
+						testParams.count = 1
+						testParams.output = &buf
+						testParams.errOutput = &errBuf
+
+						exitCode, _ := opaTest([]string{p}, testParams)
+						if tc.expErr != "" {
+							if exitCode == 0 {
+								t.Fatalf("expected non-zero exit code")
+							}
+
+							if actual := errBuf.String(); !strings.Contains(actual, tc.expErr) {
+								t.Fatalf("expected error output to contain:\n\n%q\n\nbut got:\n\n%q", tc.expErr, actual)
+							}
+						} else {
+							if exitCode != 0 {
+								t.Fatalf("unexpected exit code: %d", exitCode)
+							}
+
+							if errBuf.Len() > 0 {
+								t.Fatalf("expected no error output but got:\n\n%q", buf.String())
+							}
+
+							expected := "PASS: 1/1"
+							if actual := buf.String(); !strings.Contains(actual, expected) {
+								t.Fatalf("expected output to contain:\n\n%s\n\nbut got:\n\n%q", expected, actual)
+							}
+						}
+					})
+				})
+			}
 		}
 	}
 }

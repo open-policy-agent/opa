@@ -43,6 +43,20 @@ const (
 	RegoV1
 )
 
+func (v RegoVersion) Int() int {
+	if v == RegoV1 {
+		return 1
+	}
+	return 0
+}
+
+func RegoVersionFromInt(i int) RegoVersion {
+	if i == 1 {
+		return RegoV1
+	}
+	return RegoV0
+}
+
 // Note: This state is kept isolated from the parser so that we
 // can do efficient shallow copies of these values when doing a
 // save() and restore().

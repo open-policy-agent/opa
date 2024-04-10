@@ -3,12 +3,16 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-policy-agent/opa/cmd/internal/exec"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	loggingtest "github.com/open-policy-agent/opa/logging/test"
 	sdk_test "github.com/open-policy-agent/opa/sdk/test"
 	"github.com/open-policy-agent/opa/util"
@@ -311,6 +315,351 @@ main contains "hello" if {
 				}
 			})
 		})
+	}
+}
+
+func TestExecWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note    string
+		files   map[string]string
+		expErrs []string
+	}{
+		{
+			note: "v0.x bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v0.x bundle, no keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: string cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x bundle, keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main["hello"] {
+	p[_] == 42
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+
+		{
+			note: "v1.0 bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1.0 bundle, no keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p[42] {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package system
+p contains 42 {
+	input.foo == "bar"
+}`,
+				"policy2.rego": `package system
+main contains "hello" if {
+	42 in p
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+				"rego_parse_error: set cannot be used for rule name",
+			},
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{
+						"files/test.json": `{"foo": "bar"}`,
+					}
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						for k, v := range tc.files {
+							files[k] = v
+						}
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							files := make([][2]string, 0, len(tc.files))
+							for k, v := range tc.files {
+								files = append(files, [2]string{k, v})
+							}
+							buf := archive.MustWriteTarGz(files)
+							bf, err := os.Create(p)
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+							_, err = bf.Write(buf.Bytes())
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+						}
+
+						var buf bytes.Buffer
+						params := exec.NewParams(&buf)
+						params.Paths = append(params.Paths, root+"/files/")
+						params.BundlePaths = []string{p}
+						params.V1Compatible = v1CompatibleFlag.used
+						_ = params.OutputFormat.Set("json")
+
+						if len(tc.expErrs) > 0 {
+							testLogger := loggingtest.New()
+							params.Logger = testLogger
+
+							ctx, cancel := context.WithCancel(context.Background())
+							defer cancel()
+							go func() {
+								err := runExecWithContext(ctx, params)
+								// we cancelled the context, so we expect that error
+								if err != nil && err.Error() != "context canceled" {
+									t.Error(err)
+									return
+								}
+							}()
+
+							if !test.Eventually(t, 5*time.Second, func() bool {
+								for _, expErr := range tc.expErrs {
+									found := false
+									for _, e := range testLogger.Entries() {
+										if strings.Contains(e.Message, expErr) {
+											found = true
+											break
+										}
+									}
+									if !found {
+										return false
+									}
+								}
+								return true
+							}) {
+								t.Fatalf("timed out waiting for logged errors:\n\n%v\n\ngot\n\n%v:", tc.expErrs, testLogger.Entries())
+							}
+						} else {
+							err := runExec(params)
+							if err != nil {
+								t.Fatal(err)
+							}
+
+							output := util.MustUnmarshalJSON(bytes.ReplaceAll(buf.Bytes(), []byte(root), nil))
+
+							exp := util.MustUnmarshalJSON([]byte(`{"result": [{
+			"path": "/files/test.json",
+			"result": ["hello"]
+		}]}`))
+
+							if !reflect.DeepEqual(output, exp) {
+								t.Fatal("Expected:", exp, "Got:", output)
+							}
+						}
+					})
+				})
+			}
+		}
 	}
 }
 

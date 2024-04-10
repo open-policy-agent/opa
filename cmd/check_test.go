@@ -6,11 +6,15 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -492,5 +496,421 @@ p contains x if {
 				}
 			})
 		})
+	}
+}
+
+func TestCheckWithBundleRegoVersion(t *testing.T) {
+	cases := []struct {
+		note    string
+		files   map[string]string
+		expErrs []string
+	}{
+		{
+			note: "v0.x bundle, illegal keywords",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+			},
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+import rego.v1
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported, NOT v1 compliant (parser)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+import rego.v1
+p contains x {
+	x := [1,2,3]
+}
+
+q.r`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported, NOT v1 compliant (compiler)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+import rego.v1
+
+import data.foo
+import data.bar as foo
+`,
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note: "v0.x bundle, keywords imported, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+import future.keywords.if
+import future.keywords.contains
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v0.x bundle, no imports, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+p := 1
+`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file overrides, compliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+p[x] {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file overrides (glob), compliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+p[x] {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file overrides, incompliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"/policy2.rego": 1
+	}
+}`,
+				"policy1.rego": `package test
+p[x] {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q[x] {
+	x := [1,2,3]
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+
+		{
+			note: "v1.0 bundle, keywords used but not imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import rego.v1
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported, NOT v1 compliant (parser)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import rego.v1
+p contains x {
+	x := [1,2,3]
+}
+
+q.r`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported, NOT v1 compliant (compiler)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import rego.v1
+
+import data.foo
+import data.bar as foo
+`,
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
+		{
+			note: "v1.0 bundle, keywords imported, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import future.keywords.if
+import future.keywords.contains
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1.0 bundle, keywords imported, NOT v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import future.keywords.contains
+p contains x {
+	x := [1,2,3]
+}
+
+q.r`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `if` keyword is required before rule body",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1.0 bundle, keywords imported, NOT v1 compliant (compiler)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+import future.keywords.if
+
+input := 1 if {
+	1 == 2
+}`,
+			},
+			expErrs: []string{
+				"rego_compile_error: rules must not shadow input (use a different rule name)",
+			},
+		},
+		{
+			note: "v1.0 bundle, no imports, v1 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+p := 1
+`,
+			},
+		},
+		{
+			note: "v1.0 bundle, no imports, NOT v1 compliant but v0 compliant (compiler)",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+p.x`,
+			},
+			expErrs: []string{
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v1.0 bundle, no imports, v1 compliant but NOT v0 compliant",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file overrides, compliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+p[x] {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file overrides (glob), compliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+p[x] {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q contains x if {
+	x := [1,2,3]
+}`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file overrides, incompliant",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy1.rego": 0
+	}
+}`,
+				"policy1.rego": `package test
+p contains x if {
+	x := [1,2,3]
+}`,
+				"policy2.rego": `package test
+q contains x if {
+	x := [1,2,3]
+}`,
+			},
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+			},
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	v1CompatibleFlagCases := []struct {
+		note string
+		used bool
+	}{
+		{
+			"no --v1-compatible", false,
+		},
+		{
+			"--v1-compatible", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, v1CompatibleFlag := range v1CompatibleFlagCases {
+			for _, tc := range cases {
+				t.Run(fmt.Sprintf("%s, %s, %s", bundleType.note, v1CompatibleFlag.note, tc.note), func(t *testing.T) {
+					files := map[string]string{}
+
+					if bundleType.tar {
+						files["bundle.tar.gz"] = ""
+					} else {
+						for k, v := range tc.files {
+							files[k] = v
+						}
+					}
+
+					test.WithTempFS(files, func(root string) {
+						p := root
+						if bundleType.tar {
+							p = filepath.Join(root, "bundle.tar.gz")
+							files := make([][2]string, 0, len(tc.files))
+							for k, v := range tc.files {
+								files = append(files, [2]string{k, v})
+							}
+							buf := archive.MustWriteTarGz(files)
+							bf, err := os.Create(p)
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+							_, err = bf.Write(buf.Bytes())
+							if err != nil {
+								t.Fatalf("Unexpected error: %v", err)
+							}
+						}
+
+						params := newCheckParams()
+						params.bundleMode = true
+						params.v1Compatible = v1CompatibleFlag.used
+
+						err := checkModules(params, []string{p})
+						switch {
+						case err != nil && len(tc.expErrs) > 0:
+							for _, expErr := range tc.expErrs {
+								if !strings.Contains(err.Error(), expErr) {
+									t.Fatalf("expected err:\n\n%v\n\ngot:\n\n%v", expErr, err)
+								}
+							}
+							return // don't read back bundle below
+						case err != nil && len(tc.expErrs) == 0:
+							t.Fatalf("unexpected error: %v", err)
+						case err == nil && len(tc.expErrs) > 0:
+							t.Fatalf("expected error:\n\n%v\n\ngot: none", tc.expErrs)
+						}
+					})
+				})
+			}
+		}
 	}
 }
