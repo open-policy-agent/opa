@@ -170,12 +170,26 @@ func (s *Server) certLoopNotify(logger logging.Logger) Loop {
 		for evt := range watcher.Events {
 			removalMask := fsnotify.Remove | fsnotify.Rename
 			mask := fsnotify.Create | fsnotify.Write | removalMask
-			if (evt.Op & mask) != 0 {
+			if (evt.Op & mask) == 0 {
+				continue
+			}
+
+			// retry logic here handles cases where the files are still being written to as events are triggered.
+			retries := 0
+			for {
 				err = s.reloadTLSConfig(s.manager.Logger())
-				if err != nil {
-					logger.Error("failed to reload TLS config: %s", err)
+				if err == nil {
+					logger.Info("TLS config reloaded")
+					break
 				}
-				logger.Info("TLS config reloaded")
+
+				retries++
+				if retries >= 5 {
+					logger.Error("Failed to reload TLS config after retrying: %s", err)
+					break
+				}
+
+				time.Sleep(100 * time.Millisecond)
 			}
 		}
 
