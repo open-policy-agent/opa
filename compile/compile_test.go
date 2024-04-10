@@ -230,6 +230,22 @@ p[1] {
 				"rego_parse_error: `contains` keyword is required for partial set rules",
 			},
 		},
+		{
+			note: "v1 bundle rego version, duplicate imports",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"test.rego": `package test
+import data.foo
+import data.foo
+
+p contains 1 if {
+	input.x == 2
+}`,
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
+			},
+		},
 		// file overrides
 		{
 			note: "v0 bundle rego version, v1 file override",
@@ -285,7 +301,32 @@ p["B"] {
 			},
 			expErrs: []string{
 				"rego_parse_error: `if` keyword is required before rule body",
-				" rego_parse_error: `contains` keyword is required for partial set rules",
+				"rego_parse_error: `contains` keyword is required for partial set rules",
+			},
+		},
+		{
+			note: "v0 bundle rego version, v1 file override, duplicate imports",
+			files: map[string]string{
+				".manifest": `{
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"test1.rego": `package test
+p["A"] {
+	input.x == 1
+}`,
+				"test2.rego": `package test
+import data.foo
+import data.foo
+
+p contains "B" if {
+	input.x == 2
+}`,
+			},
+			expErrs: []string{
+				"rego_compile_error: import must not shadow import data.foo",
 			},
 		},
 		{

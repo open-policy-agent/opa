@@ -645,7 +645,7 @@ q[x] {
 		},
 
 		{
-			note: "v1.0 bundle, imports used but not imported",
+			note: "v1.0 bundle, keywords used but not imported",
 			files: map[string]string{
 				".manifest": `{"rego_version": 1}`,
 				"policy.rego": `package test

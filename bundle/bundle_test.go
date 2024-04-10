@@ -51,10 +51,6 @@ func TestManifestEqual(t *testing.T) {
 		}
 	}
 
-	pointTo := func(x int) *int {
-		return &x
-	}
-
 	assertEqual()
 
 	n.Revision = "xxx"
