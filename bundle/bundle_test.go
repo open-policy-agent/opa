@@ -80,6 +80,82 @@ func TestManifestEqual(t *testing.T) {
 		"foo": "bar",
 	}
 	assertEqual()
+
+	// rego-version
+
+	n.RegoVersion = pointTo(1)
+	assertNotEqual()
+
+	m.RegoVersion = pointTo(0)
+	assertNotEqual()
+
+	m.RegoVersion = pointTo(1)
+	assertEqual()
+
+	n.FileRegoVersions = map[string]int{
+		"foo": 1,
+	}
+	assertNotEqual()
+
+	m.FileRegoVersions = map[string]int{
+		"foo": 1,
+	}
+	assertEqual()
+
+	n.FileRegoVersions["*/bar"] = 0
+	assertNotEqual()
+
+	m.FileRegoVersions["*/bar"] = 0
+	assertEqual()
+}
+
+func TestBundleRegoVersion(t *testing.T) {
+	b := Bundle{}
+
+	if b.Manifest.RegoVersion != nil {
+		t.Fatal("expected nil")
+	}
+
+	// No rego-version set, expect default
+	if b.RegoVersion(ast.RegoV0) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+
+	// Set rego-version to v0
+	b.SetRegoVersion(ast.RegoV0)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 0 {
+		t.Fatal("expected v0")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
+
+	// Set rego-version to v1
+	b.SetRegoVersion(ast.RegoV1)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 1 {
+		t.Fatal("expected v1")
+	}
+
+	if b.RegoVersion(ast.RegoV0) != ast.RegoV1 {
+		t.Fatal("expected v1")
+	}
+
+	// Set rego-version to v0-compat1
+	b.SetRegoVersion(ast.RegoV0CompatV1)
+
+	if b.Manifest.RegoVersion == nil || *b.Manifest.RegoVersion != 0 {
+		t.Fatal("expected v0")
+	}
+
+	if b.RegoVersion(ast.RegoV1) != ast.RegoV0 {
+		t.Fatal("expected v0")
+	}
 }
 
 func TestRead(t *testing.T) {
@@ -1227,7 +1303,7 @@ func TestWriterSkipEmptyManifest(t *testing.T) {
 		}
 
 		if f.Name != "/data.json" {
-			t.Fatal("expected only /data.json but got:", f.Name)
+			t.Fatal("expected only /data.json and /.manifest but got:", f.Name)
 		}
 	}
 }
@@ -1633,8 +1709,10 @@ func TestMerge(t *testing.T) {
 			},
 			wantBundle: &Bundle{
 				Manifest: Manifest{
-					Revision: "abcdef",
-					Roots:    &[]string{""},
+					Revision:         "abcdef",
+					Roots:            &[]string{""},
+					RegoVersion:      pointTo(0), // Default rego-version
+					FileRegoVersions: map[string]int{},
 				},
 				Modules: []ModuleFile{
 					{
@@ -1671,6 +1749,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"bar",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1715,6 +1794,7 @@ func TestMerge(t *testing.T) {
 						"logs",
 						"authz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				WasmModules: []WasmModuleFile{
 					{
@@ -1771,6 +1851,7 @@ func TestMerge(t *testing.T) {
 						"foo",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Modules: []ModuleFile{
 					{
@@ -1819,6 +1900,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{
 					"foo": map[string]interface{}{
@@ -1854,6 +1936,7 @@ func TestMerge(t *testing.T) {
 						"foo/bar",
 						"baz",
 					},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				Data: map[string]interface{}{},
 			},
@@ -1889,7 +1972,8 @@ func TestMerge(t *testing.T) {
 			wantBundle: &Bundle{
 				Data: map[string]interface{}{},
 				Manifest: Manifest{
-					Roots: &[]string{"a", "b"},
+					Roots:       &[]string{"a", "b"},
+					RegoVersion: pointTo(0), // Default rego-version
 				},
 				PlanModules: []PlanModuleFile{
 					{
@@ -1950,4 +2034,8 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func pointTo[T any](x T) *T {
+	return &x
 }

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-policy-agent/opa/internal/file/archive"
 	"github.com/open-policy-agent/opa/loader"
 
 	"github.com/open-policy-agent/opa/internal/report"
@@ -879,6 +880,326 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 					params.GracefulShutdownPeriod = 1
 					params.Logger = logging.NewNoOpLogger()
 					params.V1Compatible = tc.v1Compatible
+
+					rt, err := NewRuntime(ctx, params)
+
+					if tc.expErr != "" {
+						if err == nil {
+							t.Fatal("Expected error but got nil")
+						}
+						if !strings.Contains(err.Error(), tc.expErr) {
+							t.Fatalf("Expected error:\n\n%v\n\ngot:\n\n%v", tc.expErr, err.Error())
+						}
+					} else {
+						if err != nil {
+							t.Fatalf("Unexpected error %v", err)
+						}
+
+						initChannel := rt.Manager.ServerInitializedChannel()
+						done := make(chan struct{})
+						go func() {
+							rt.StartServer(ctx)
+							close(done)
+						}()
+						<-done
+						select {
+						case <-initChannel:
+							return
+						default:
+							t.Fatal("expected ServerInitializedChannel to be closed")
+						}
+					}
+				})
+			})
+		}
+	}
+}
+
+func TestServerInitializedWithBundleRegoVersion(t *testing.T) {
+	tests := []struct {
+		note   string
+		files  map[string]string
+		expErr string
+	}{
+		{
+			note: "v0.x bundle, keywords not imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error: var cannot be used for rule name",
+		},
+		{
+			note: "v0.x bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v0.x bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v0.x bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 0}`,
+				"policy.rego": `package test
+				p {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 0,
+					"file_rego_versions": {
+						"/policy2.rego": 1
+					}
+				}`,
+				"policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 0,
+					"file_rego_versions": {
+						"/bar/*.rego": 1
+					}
+				}`,
+				"foo/policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"bar/policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v0 bundle, v1 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 0,
+					"file_rego_versions": {
+						"/policy2.rego": 1
+					}
+				}`,
+				"policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"policy2.rego": `package test
+				q[2] {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error",
+		},
+
+		{
+			note: "v1.0 bundle, keywords not imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v1.0 bundle, rego.v1 imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+				import rego.v1
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v1.0 bundle, future.keywords imported",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+				import future.keywords.if
+				p if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v1.0 bundle, no keywords used",
+			files: map[string]string{
+				".manifest": `{"rego_version": 1}`,
+				"policy.rego": `package test
+				p {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error: `if` keyword is required before rule body",
+		},
+		{
+			note: "v1 bundle, v0 per-file override",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 1,
+					"file_rego_versions": {
+						"/policy1.rego": 0
+					}
+				}`,
+				"policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override (glob)",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 1,
+					"file_rego_versions": {
+						"/foo/*.rego": 0
+					}
+				}`,
+				"foo/policy1.rego": `package test
+				p[1] {
+					input.x == 1
+				}
+				`,
+				"bar/policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+		},
+		{
+			note: "v1 bundle, v0 per-file override, incompatible",
+			files: map[string]string{
+				".manifest": `{
+					"rego_version": 1,
+					"file_rego_versions": {
+						"/policy1.rego": 0
+					}
+				}`,
+				"policy1.rego": `package test
+				p contains 1 if {
+					input.x == 1
+				}
+				`,
+				"policy2.rego": `package test
+				q contains 2 if {
+					input.x == 1
+				}
+				`,
+			},
+			expErr: "rego_parse_error",
+		},
+	}
+
+	bundleTypeCases := []struct {
+		note string
+		tar  bool
+	}{
+		{
+			"bundle dir", false,
+		},
+		{
+			"bundle tar", true,
+		},
+	}
+
+	for _, bundleType := range bundleTypeCases {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("%s, %s", bundleType.note, tc.note), func(t *testing.T) {
+				files := map[string]string{}
+				if bundleType.tar {
+					files["bundle.tar.gz"] = ""
+				} else {
+					for k, v := range tc.files {
+						files[k] = v
+					}
+				}
+
+				test.WithTempFS(files, func(root string) {
+					p := root
+					if bundleType.tar {
+						p = filepath.Join(root, "bundle.tar.gz")
+						files := make([][2]string, 0, len(tc.files))
+						for k, v := range tc.files {
+							files = append(files, [2]string{k, v})
+						}
+						buf := archive.MustWriteTarGz(files)
+						bf, err := os.Create(p)
+						if err != nil {
+							t.Fatalf("Unexpected error: %v", err)
+						}
+						_, err = bf.Write(buf.Bytes())
+						if err != nil {
+							t.Fatalf("Unexpected error: %v", err)
+						}
+					}
+
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+					defer cancel()
+					var output bytes.Buffer
+
+					params := NewParams()
+					params.Output = &output
+					params.Paths = []string{p}
+					params.BundleMode = true
+					params.Addrs = &[]string{"localhost:0"}
+					params.GracefulShutdownPeriod = 1
+					params.Logger = logging.NewNoOpLogger()
 
 					rt, err := NewRuntime(ctx, params)
 

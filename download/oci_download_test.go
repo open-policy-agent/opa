@@ -7,12 +7,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/bundle"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/bundle"
 
 	"github.com/open-policy-agent/opa/keys"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -67,9 +68,9 @@ func TestOCIDownloaderWithRegoV1Bundle(t *testing.T) {
 		regoVersion ast.RegoVersion
 		expErr      string
 	}{
+		// The bundle contains a v1 rego_version attr, so we expect no errors regardless of parser regoVersion.
 		{
-			note:   "non-1.0 compatible OCI downloader",
-			expErr: "rego_parse_error",
+			note: "non-1.0 compatible OCI downloader",
 		},
 		{
 			note:        "1.0 compatible OCI downloader",

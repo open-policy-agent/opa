@@ -298,7 +298,7 @@ func (c *Compiler) Build(ctx context.Context) error {
 		}
 	}
 
-	if err := c.initBundle(); err != nil {
+	if err := c.initBundle(false); err != nil {
 		return err
 	}
 
@@ -369,7 +369,7 @@ func (c *Compiler) Build(ctx context.Context) error {
 	}
 
 	if c.regoVersion == ast.RegoV1 {
-		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, false, false); err != nil {
+		if err := c.bundle.FormatModulesForRegoVersion(c.regoVersion, true, false); err != nil {
 			return err
 		}
 	} else {
@@ -462,7 +462,7 @@ func (c *Compiler) Bundle() *bundle.Bundle {
 	return c.bundle
 }
 
-func (c *Compiler) initBundle() error {
+func (c *Compiler) initBundle(usePath bool) error {
 	// If the bundle is already set, skip file loading.
 	if c.bundle != nil {
 		return nil
@@ -490,7 +490,7 @@ func (c *Compiler) initBundle() error {
 			bundles = append(bundles, load.Bundles[k])
 		}
 
-		result, err := bundle.Merge(bundles)
+		result, err := bundle.MergeWithRegoVersion(bundles, c.regoVersion, usePath)
 		if err != nil {
 			return fmt.Errorf("bundle merge failed: %v", err)
 		}
@@ -503,6 +503,7 @@ func (c *Compiler) initBundle() error {
 	// contents. That would require changes to the loader to preserve the
 	// locations where base documents were mounted under data.
 	result := &bundle.Bundle{}
+	result.SetRegoVersion(c.regoVersion)
 	if len(c.roots) > 0 {
 		result.Manifest.Roots = &c.roots
 	}
