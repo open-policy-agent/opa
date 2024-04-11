@@ -36,9 +36,9 @@ A policy that makes use of these keywords, but doesn't import `future.keywords` 
 
 To avoid breaking existing policies and give users a chance to update them such that these future keywords don’t clash with, for example, existing variable names, a new flag called `--v0-compatible` will be added to OPA commands such as `opa run` to maintain backward compatibility. 
 OPA’s Go SDK and Go API will be equipped with similar functionality, as well. 
-In addition to this, the bundle manifest will also be updated to include a bit that indicates whether pre-OPA v1.0 behavior is desired.
-This should be useful for cases when pre-OPA v1.0 functionality is desired but the users themselves have no control over the OPA deployment and hence cannot set the CLI flag.
-OPA tooling such as the `opa build` command will be equipped with a new flag that will allow users to control the relevant bit in the manifest. 
+
+Starting from OPA `v0.64.0`, the bundle manifest includes rego-version information that indicates whether contained modules are compatible with OPA v0.x or OPA v1.0.
+This is useful for cases where users have limited control over the OPA deployment and hence cannot set the CLI `--v1-compatible`/`--v0-compatible` flags on the OPA runtime consuming the bundle. 
 
 ### Enforce use of `if` and `contains` keywords in rule head declarations
 
@@ -146,6 +146,9 @@ This will make Rego code easier to author and read; thereby making it simpler fo
 By default, OPA v1.0 will require the usage of `if` and `contains` as described above, but to maintain backward compatibility for policies written pre-OPA v1.0, a new flag called `--v0-compatible` will be added to OPA commands such as `opa run`, to avoid breaking existing policies and give users time to update them. 
 Similar functionality will be added to OPA’s Go SDK and Go API to assist users that embed OPA as a library in their Go services and also to OPA’s build command.
 
+Starting from OPA `v0.64.0`, the bundle manifest includes rego-version information that indicates whether contained modules are compatible with OPA v0.x or OPA v1.0.
+This is useful for cases where users have limited control over the OPA deployment and hence cannot set the CLI `--v1-compatible`/`--v0-compatible` flags on the OPA runtime consuming the bundle.
+
 ### Prohibit duplicate imports
 
 The Rego compiler supports [strict mode](../policy-language/#strict-mode) which enforces additional constraints and safety checks during compilation. 
@@ -164,6 +167,9 @@ An import shadowing another is most likely an authoring error and probably unint
 
 If pre-OPA v1.0 behavior is desired where this check is only enforced when `strict mode` is enabled, a new `--v0-compatible` flag will be added to the OPA CLI to achieve that.
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
+
+Starting from OPA `v0.64.0`, the bundle manifest includes rego-version information that indicates whether contained modules are compatible with OPA v0.x or OPA v1.0.
+This is useful for cases where users have limited control over the OPA deployment and hence cannot set the CLI `--v1-compatible`/`--v0-compatible` flags on the OPA runtime consuming the bundle.
 
 ### `input` and `data` keywords are reserved
 
@@ -188,6 +194,9 @@ Note, using the [with](../policy-language/#with-keyword) keyword to insert value
 OPA v1.0 will enforce this check by default. If pre-OPA v1.0 behavior is desired where this check is only enforced when `strict mode` is enabled, a new flag `--v0-compatible` will be added to the OPA CLI to achieve that.
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
 
+Starting from OPA `v0.64.0`, the bundle manifest includes rego-version information that indicates whether contained modules are compatible with OPA v0.x or OPA v1.0.
+This is useful for cases where users have limited control over the OPA deployment and hence cannot set the CLI `--v1-compatible`/`--v0-compatible` flags on the OPA runtime consuming the bundle.
+
 ### Prohibit use of deprecated builtins
 
 The Rego compiler supports [strict mode](../policy-language/#strict-mode), which enforces additional constraints and safety checks during compilation. 
@@ -209,6 +218,9 @@ In some cases, new built-in functions have been added that provide functionality
 
 If pre-OPA v1.0 behavior is desired, where this check is only enforced when `strict` mode is enabled, a new flag `--v0-compatible` will be added to the OPA CLI to achieve that. 
 Similar functionality will be added to OPA’s Go SDK, Go API and build command.
+
+Starting from OPA `v0.64.0`, the bundle manifest includes rego-version information that indicates whether contained modules are compatible with OPA v0.x or OPA v1.0.
+This is useful for cases where users have limited control over the OPA deployment and hence cannot set the CLI `--v1-compatible`/`--v0-compatible` flags on the OPA runtime consuming the bundle.
 
 ### Binding the OPA server to the `localhost` interface by default
 
@@ -241,6 +253,8 @@ The `--v1-compatible` flag is currently supported on the following commands:
 Note (*): the `check` and `fmt` commands also support the `--rego-v1` flag, which will check/format Rego modules as if compatible with the Rego syntax of _both_ the current 0.x OPA version and OPA v1.0.
 If both flags are used at the same time, `--rego-v1` takes precedence over `--v1-compatible`.
 
-{{< info >}}
-Support for more commands will be added over time, leading up to the release of OPA 1.0.
-{{< /info >}}
+## Rego-versioned bundles
+
+A bundle built with OPA `v0.64.0` or later, contains rego-version information in its [manifest](../management-bundles/#bundle-file-format), which the OPA consuming that bundle will use when processing the contained modules.
+A bundle's internal rego-version takes precedence over the presence of the `--v1-compatible` flag; therefore, prerequisite knowledge about what Rego syntax any consumed bundle contains is not needed.
+The `--v1-compatible` flag (and `--v0-compatible` in v1.0) on the `opa build` command allows the user to control the rego-version of the built bundle.
