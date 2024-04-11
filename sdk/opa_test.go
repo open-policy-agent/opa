@@ -2845,7 +2845,7 @@ func toMetricMap(metrics []*promdto.MetricFamily) map[string]bool {
 	return metricMap
 }
 
-func TestActivateOptimizedV1Bundles(t *testing.T) {
+func TestActivateV1Bundles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
 
@@ -2860,11 +2860,8 @@ func TestActivateOptimizedV1Bundles(t *testing.T) {
 			}
 		},
 		"bundles": {
-			"policy1": {
-				"resource": "/policy1.tar.gz"
-			},
-			"policy2": {
-				"resource": "/policy2.tar.gz"
+			"v1bundle": {
+				"resource": "/v1bundle.tar.gz"
 			}
 		}
 	}`, server.URL)
@@ -2872,6 +2869,7 @@ func TestActivateOptimizedV1Bundles(t *testing.T) {
 	opa, err := sdk.New(ctx, sdk.Options{
 		ID:           "sdk-id-0",
 		Config:       strings.NewReader(config),
+		Logger:       logging.New(),
 		V1Compatible: true,
 	})
 
@@ -2882,7 +2880,7 @@ func TestActivateOptimizedV1Bundles(t *testing.T) {
 	}
 
 	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
-		Path: "policy2/authz",
+		Path: "v1bundle/authz",
 		Input: map[string]interface{}{
 			"role": "admin",
 		},
