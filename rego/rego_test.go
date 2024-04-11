@@ -2576,7 +2576,7 @@ func TestNDBCacheMarshalUnmarshalJSON(t *testing.T) {
 
 func TestEvalWithDecisionLabel(t *testing.T) {
 
-	query := "decision.label.add(\"foo\": \"bar\")"
+	query := "decision.label.add(\"foo\", \"bar\")"
 
 	decisionLabel := builtins.DecisionLabel{"foo": "bar"}
 
