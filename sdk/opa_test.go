@@ -2844,3 +2844,52 @@ func toMetricMap(metrics []*promdto.MetricFamily) map[string]bool {
 	}
 	return metricMap
 }
+
+func TestActivateV1Bundles(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.FileServer(http.Dir("testdata")).ServeHTTP(w, r)
+	}))
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+				"url": %q
+			}
+		},
+		"bundles": {
+			"v1bundle": {
+				"resource": "/v1bundle.tar.gz"
+			}
+		}
+	}`, server.URL)
+
+	opa, err := sdk.New(ctx, sdk.Options{
+		ID:           "sdk-id-0",
+		Config:       strings.NewReader(config),
+		Logger:       logging.New(),
+		V1Compatible: true,
+	})
+
+	defer opa.Stop(ctx)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := opa.Decision(context.Background(), sdk.DecisionOptions{
+		Path: "v1bundle/authz",
+		Input: map[string]interface{}{
+			"role": "admin",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if d.Result != true {
+		t.Errorf("expected result to be true, got %v", d.Result)
+	}
+}
