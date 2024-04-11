@@ -1374,50 +1374,126 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 }
 
 func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
+	type update struct {
+		modules map[string]string
+		expErrs []string
+	}
 	// Note: modules are parsed before passed to plugin, so any expected errors must be triggered by the compiler stage.
 	tests := []struct {
 		note         string
 		v1Compatible bool
-		module       string
-		expErrs      []string
+		updates      []update
 	}{
 		{
 			note: "v0.x",
-			module: `package foo
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
 import future.keywords
 corge contains 1 if {
 	input.x == 2
 }`,
+					},
+				},
+			},
 		},
 		{
 			note: "v0.x, shadowed import (no error)",
-			module: `package foo
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
 import future.keywords
 import data.foo
 import data.bar as foo
 corge contains 1 if {
 	input.x == 2
 }`,
+					},
+				},
+			},
 		},
 		{
 			note:         "v1.0",
 			v1Compatible: true,
-			module: `package foo
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
 corge contains 1 if {
 	input.x == 2
 }`,
+					},
+				},
+			},
 		},
 		{
 			note:         "v1.0, shadowed import",
 			v1Compatible: true,
-			module: `package foo
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
 import data.foo
 import data.bar as foo
 corge contains 1 if {
 	input.x == 2
 }`,
-			expErrs: []string{
-				"rego_compile_error: import must not shadow import data.foo",
+					},
+					expErrs: []string{
+						"rego_compile_error: import must not shadow import data.foo",
+					},
+				},
+			},
+		},
+		{
+			note:         "v1.0, module updated",
+			v1Compatible: true,
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+					},
+				},
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
+corge contains 2 if {
+	input.x == 3
+}`,
+					},
+				},
+			},
+		},
+		{
+			note:         "v1.0, module updated, shadowed import",
+			v1Compatible: true,
+			updates: []update{
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
+corge contains 1 if {
+	input.x == 2
+}`,
+					},
+				},
+				{
+					modules: map[string]string{
+						"/foo/bar.rego": `package foo
+import data.foo
+import data.bar as foo
+corge contains 2 if {
+	input.x == 3
+}`,
+					},
+					expErrs: []string{
+						"rego_compile_error: import must not shadow import data.foo",
+					},
+				},
 			},
 		},
 	}
@@ -1455,80 +1531,88 @@ corge contains 1 if {
 
 			plugin.loadAndActivateBundlesFromDisk(ctx)
 
-			// persist a bundle to disk and then load it
-			b := bundle.Bundle{
-				Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
-				Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
-				Modules: []bundle.ModuleFile{
-					{
-						URL:    "/foo/bar.rego",
-						Path:   "/foo/bar.rego",
-						Parsed: ast.MustParseModuleWithOpts(tc.module, popts),
-						Raw:    []byte(tc.module),
-					},
-				},
-			}
+			for _, update := range tc.updates {
+				// persist a bundle to disk and then load it
+				b := bundle.Bundle{
+					Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+					Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+				}
+				for url, module := range update.modules {
+					b.Modules = append(b.Modules, bundle.ModuleFile{
+						URL:    url,
+						Path:   url,
+						Parsed: ast.MustParseModuleWithOpts(module, popts),
+						Raw:    []byte(module),
+					})
+				}
 
-			b.Manifest.Init()
+				b.Manifest.Init()
 
-			var buf bytes.Buffer
-			if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
-				t.Fatal("unexpected error:", err)
-			}
+				var buf bytes.Buffer
+				if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+					t.Fatal("unexpected error:", err)
+				}
 
-			err = plugin.saveBundleToDisk(bundleName, &buf)
-			if err != nil {
-				t.Fatalf("unexpected error %v", err)
-			}
+				err = plugin.saveBundleToDisk(bundleName, &buf)
+				if err != nil {
+					t.Fatalf("unexpected error %v", err)
+				}
 
-			plugin.loadAndActivateBundlesFromDisk(ctx)
+				plugin.loadAndActivateBundlesFromDisk(ctx)
 
-			if tc.expErrs != nil {
-				if status, ok := plugin.status[bundleName]; !ok {
-					t.Fatalf("Expected to find status for %s, found nil", bundleName)
-				} else if status.Type != bundle.SnapshotBundleType {
-					t.Fatalf("expected snapshot bundle but got %v", status.Type)
-				} else if errs := status.Errors; len(errs) != len(tc.expErrs) {
-					t.Fatalf("expected errors:\n\n%v\n\nbut got:\n\n%v", tc.expErrs, errs)
-				} else {
-					for _, expErr := range tc.expErrs {
-						found := false
-						for _, err := range errs {
-							if strings.Contains(err.Error(), expErr) {
-								found = true
-								break
+				if update.expErrs != nil {
+					if status, ok := plugin.status[bundleName]; !ok {
+						t.Fatalf("Expected to find status for %s, found nil", bundleName)
+					} else if status.Type != bundle.SnapshotBundleType {
+						t.Fatalf("expected snapshot bundle but got %v", status.Type)
+					} else if errs := status.Errors; len(errs) != len(update.expErrs) {
+						t.Fatalf("expected errors:\n\n%v\n\nbut got:\n\n%v", update.expErrs, errs)
+					} else {
+						for _, expErr := range update.expErrs {
+							found := false
+							for _, err := range errs {
+								if strings.Contains(err.Error(), expErr) {
+									found = true
+									break
+								}
+							}
+							if !found {
+								t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", expErr, errs)
 							}
 						}
-						if !found {
-							t.Fatalf("expected error:\n\n%v\n\nbut got:\n\n%v", expErr, errs)
+					}
+				} else {
+					txn := storage.NewTransactionOrDie(ctx, manager.Store)
+					fatal := func(args ...any) {
+						manager.Store.Abort(ctx, txn)
+						t.Fatal(args...)
+					}
+
+					ids, err := manager.Store.ListPolicies(ctx, txn)
+					if err != nil {
+						fatal(err)
+					}
+					for _, id := range ids {
+						bs, err := manager.Store.GetPolicy(ctx, txn, id)
+						p, _ := strings.CutPrefix(id, bundleName)
+						module := update.modules[p]
+						exp := []byte(module)
+						if err != nil {
+							fatal(err)
+						} else if !bytes.Equal(bs, exp) {
+							fatal("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
 						}
 					}
-				}
-			} else {
-				txn := storage.NewTransactionOrDie(ctx, manager.Store)
-				defer manager.Store.Abort(ctx, txn)
 
-				ids, err := manager.Store.ListPolicies(ctx, txn)
-				if err != nil {
-					t.Fatal(err)
-				} else if len(ids) != 1 {
-					t.Fatal("Expected 1 policy")
-				}
+					data, err := manager.Store.Read(ctx, txn, storage.Path{})
+					expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+					if err != nil {
+						fatal(err)
+					} else if !reflect.DeepEqual(data, expData) {
+						fatal("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+					}
 
-				bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
-				exp := []byte(tc.module)
-				if err != nil {
-					t.Fatal(err)
-				} else if !bytes.Equal(bs, exp) {
-					t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
-				}
-
-				data, err := manager.Store.Read(ctx, txn, storage.Path{})
-				expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test-bundle": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
-				if err != nil {
-					t.Fatal(err)
-				} else if !reflect.DeepEqual(data, expData) {
-					t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+					manager.Store.Abort(ctx, txn)
 				}
 			}
 		})
