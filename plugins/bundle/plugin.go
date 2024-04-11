@@ -597,13 +597,14 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 		var activateErr error
 
 		opts := &bundle.ActivateOpts{
-			Ctx:      ctx,
-			Store:    p.manager.Store,
-			Txn:      txn,
-			TxnCtx:   params.Context,
-			Compiler: compiler,
-			Metrics:  p.status[name].Metrics,
-			Bundles:  map[string]*bundle.Bundle{name: b},
+			Ctx:           ctx,
+			Store:         p.manager.Store,
+			Txn:           txn,
+			TxnCtx:        params.Context,
+			Compiler:      compiler,
+			Metrics:       p.status[name].Metrics,
+			Bundles:       map[string]*bundle.Bundle{name: b},
+			ParserOptions: p.manager.ParserOptions(),
 		}
 
 		if p.manager.Info != nil {
