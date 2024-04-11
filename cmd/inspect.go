@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -110,7 +111,8 @@ func doInspect(params inspectCommandParams, path string, out io.Writer) error {
 		return pr.JSON(out, info)
 
 	default:
-		if info.Manifest.Revision != "" || len(*info.Manifest.Roots) != 0 || len(info.Manifest.Metadata) != 0 {
+		if info.Manifest.Revision != "" || len(*info.Manifest.Roots) != 0 || len(info.Manifest.Metadata) != 0 ||
+			info.Manifest.RegoVersion != nil {
 			if err := populateManifest(out, info.Manifest); err != nil {
 				return err
 			}
@@ -147,6 +149,10 @@ func validateInspectParams(p *inspectCommandParams, args []string) error {
 func populateManifest(out io.Writer, m bundle.Manifest) error {
 	t := generateTableWithKeys(out, "field", "value")
 	var lines [][]string
+
+	if m.RegoVersion != nil {
+		lines = append(lines, []string{"Rego Version", truncateTableStr(strconv.Itoa(*m.RegoVersion))})
+	}
 
 	if m.Revision != "" {
 		lines = append(lines, []string{"Revision", truncateTableStr(m.Revision)})
