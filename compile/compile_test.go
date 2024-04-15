@@ -1608,11 +1608,18 @@ update {
 			for _, useMemoryFS := range []bool{false, true} {
 				test.WithTestFS(tc.files, useMemoryFS, func(root string, fsys fs.FS) {
 
+					caps := ast.CapabilitiesForThisVersion()
+					caps.Features = []string{
+						ast.FeatureRefHeadStringPrefixes,
+						ast.FeatureRefHeads,
+					}
+
 					compiler := New().
 						WithFS(fsys).
 						WithPaths(root).
 						WithOptimizationLevel(1).
-						WithEntrypoints(tc.entrypoint)
+						WithEntrypoints(tc.entrypoint).
+						WithCapabilities(caps)
 
 					err := compiler.Build(context.Background())
 					if err != nil {
@@ -1637,6 +1644,150 @@ update {
 					}
 				})
 			}
+		})
+	}
+}
+
+func TestCompilerOptimizationSupportRegoVersion(t *testing.T) {
+	tests := []struct {
+		note                string
+		modulesRegoVersion  ast.RegoVersion
+		regoV1ImportCapable bool
+		entrypoint          string
+		files               map[string]string
+		expected            []string
+	}{
+		{
+			note:                "v0 module, rego.v1 capable",
+			modulesRegoVersion:  ast.RegoV0,
+			regoV1ImportCapable: true,
+			entrypoint:          "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p {
+    input.x == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+import rego.v1
+
+p if {
+	input.x = 1
+}
+`,
+			},
+		},
+		{
+			note:                "v0 module, not rego.v1 capable",
+			modulesRegoVersion:  ast.RegoV0,
+			regoV1ImportCapable: false,
+			entrypoint:          "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p {
+    input.x == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+p {
+	input.x = 1
+}
+`,
+			},
+		},
+		{
+			note:                "v0-compat_v1 module, rego.v1 capable",
+			modulesRegoVersion:  ast.RegoV0CompatV1,
+			regoV1ImportCapable: true,
+			entrypoint:          "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+
+import rego.v1 
+
+p if {
+    input.x == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+import rego.v1
+
+p if {
+	input.x = 1
+}
+`,
+			},
+		},
+		{
+			note:                "v1 module, rego.v1 capable",
+			modulesRegoVersion:  ast.RegoV1,
+			regoV1ImportCapable: true,
+			entrypoint:          "test/p",
+			files: map[string]string{
+				"test.rego": `package test
+p if {
+    input.x == 1
+}`,
+			},
+			expected: []string{
+				`package test
+
+p if {
+	input.x = 1
+}
+`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			test.WithTestFS(tc.files, true, func(root string, fsys fs.FS) {
+				capabilities := ast.CapabilitiesForThisVersion()
+				capabilities.Features = []string{
+					ast.FeatureRefHeadStringPrefixes,
+					ast.FeatureRefHeads,
+				}
+				if tc.regoV1ImportCapable {
+					capabilities.Features = append(capabilities.Features, ast.FeatureRegoV1Import)
+				}
+
+				compiler := New().
+					WithCapabilities(capabilities).
+					WithRegoVersion(tc.modulesRegoVersion).
+					WithFS(fsys).
+					WithPaths(root).
+					WithOptimizationLevel(1).
+					WithEntrypoints(tc.entrypoint)
+
+				err := compiler.Build(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if len(compiler.bundle.Modules) != len(tc.expected) {
+					t.Fatalf("expected %v modules but got: %v:\n\n%v",
+						len(tc.expected), len(compiler.bundle.Modules), modulesToString(compiler.bundle.Modules))
+				}
+
+				actual := make(map[string]struct{})
+				for _, m := range compiler.bundle.Modules {
+					actual[string(m.Raw)] = struct{}{}
+				}
+
+				for _, e := range tc.expected {
+					if _, ok := actual[e]; !ok {
+						t.Fatalf("expected to find module:\n\n%v\n\nin bundle but got:\n\n%v",
+							e, modulesToString(compiler.bundle.Modules))
+					}
+				}
+			})
 		})
 	}
 }
