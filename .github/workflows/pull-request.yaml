@@ -22,7 +22,7 @@ jobs:
         run: make clean generate
 
       - name: Upload generated artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: generated
           path: |
@@ -49,13 +49,19 @@ jobs:
             run: ubuntu-22.04
             targets: ci-go-ci-build-linux-static
             go_tags: GO_TAGS="-tags=opa_no_oci"
+            variant_name: opa_no_ci
             arch: arm64
           - os: windows
             run: ubuntu-22.04
             targets: ci-go-ci-build-windows
+            arch: amd64
+          # Note(philipc): The underlying make targets also build arm64_static,
+          # but the downstream targets only want the amd64 binaries, so amd64 is
+          # the artifact name we upload the darwin target to.
           - os: darwin
             run: macos-latest
             targets: ci-build-darwin ci-build-darwin-arm64-static
+            arch: amd64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -71,7 +77,7 @@ jobs:
         if: matrix.os == 'darwin'
 
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
 
@@ -81,11 +87,18 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         timeout-minutes: 30
 
-      - name: Upload binaries
-        uses: actions/upload-artifact@v3
-        if: always()
+      - name: Upload binaries - No Go tags
+        uses: actions/upload-artifact@v4
+        if: ${{ matrix.go_tags == '' }}
         with:
-          name: binaries
+          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
+          path: _release
+
+      - name: Upload binaries - Go tag variants
+        uses: actions/upload-artifact@v4
+        if: ${{ matrix.go_tags != '' && matrix.variant_name != '' }}
+        with:
+          name: binaries-variant-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.variant_name }}
           path: _release
 
   go-test:
@@ -114,7 +127,7 @@ jobs:
           go-version: ${{ steps.go_version.outputs.go_version }}
 
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
 
@@ -170,7 +183,7 @@ jobs:
               - 'test/cases/**'
 
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
         if: steps.changes.outputs.wasm == 'true'
@@ -196,7 +209,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
 
@@ -215,7 +228,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
 
@@ -238,9 +251,10 @@ jobs:
           platforms: arm64
 
       - name: Download release binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: binaries
+          pattern: binaries-*
+          merge-multiple: true
           path: _release
 
       - name: Test amd64 images
@@ -251,30 +265,39 @@ jobs:
         env:
           GOARCH: arm64
 
+  # Note(philipc): We only run the amd64 targets.
   smoke-test-binaries:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.run }}
     needs: go-build
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: linux
+            run: ubuntu-22.04
             exec: opa_linux_amd64
-          - os: ubuntu-22.04
+            arch: amd64
+          - os: linux
+            run: ubuntu-22.04
             exec: opa_linux_amd64_static
+            arch: amd64
             wasm: disabled
-          - os: macos-latest
+          - os: darwin
+            run: macos-latest
             exec: opa_darwin_amd64
-          - os: windows-latest
+            arch: amd64
+          - os: windows
+            run: windows-latest
             exec: opa_windows_amd64.exe
+            arch: amd64
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
       - name: Download release binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: binaries
+          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: _release
 
       - name: Test binaries (Rego)
@@ -296,7 +319,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download generated artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: generated
       - uses: actions/setup-go@v5
@@ -346,7 +369,7 @@ jobs:
         uses: peaceiris/actions-hugo@v3
         with:
           # keep this version in sync with the version in netlify.toml
-          hugo-version: '0.113.0'
+          hugo-version: "0.113.0"
           extended: true
 
       - name: Build docs site and test integrations data

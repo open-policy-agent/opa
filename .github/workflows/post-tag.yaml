@@ -3,7 +3,7 @@ name: Post Tag
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   generate:
@@ -40,10 +40,10 @@ jobs:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: binaries
+          name: binaries-linux-windows
           path: _release
 
   release-build-darwin:
@@ -70,10 +70,10 @@ jobs:
           TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
 
       - name: Upload binaries (darwin)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: binaries
+          name: binaries-darwin
           path: _release
 
   build:
@@ -89,9 +89,10 @@ jobs:
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
       - name: Download release binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: binaries
+          pattern: binaries-*
+          merge-multiple: true
           path: _release
 
       - name: Set up Docker Buildx
