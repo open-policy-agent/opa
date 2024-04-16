@@ -7,6 +7,10 @@ package console
 import (
 	"encoding/json"
 	"flag"
+	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/plugins/logs"
+	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/types"
 	"os"
 	"strings"
 	"testing"
@@ -128,5 +132,84 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 		if !fd.found {
 			t.Errorf("Missing expected field in decision log: %s\n\nEntry: %+v\n\n", field, entry)
 		}
+	}
+}
+
+func TestConsoleLogDecisionWithExtraFields(t *testing.T) {
+
+	rego.RegisterBuiltin1(
+		&rego.Function{
+			Name: "hello",
+			Decl: types.NewFunction(types.Args(types.S), types.S),
+		},
+		func(bctx rego.BuiltinContext, a *ast.Term) (*ast.Term, error) {
+			logs.SetExtra(bctx.Context, "foo", "bar")
+			if str, ok := a.Value.(ast.String); ok {
+				return ast.StringTerm("hello, " + string(str)), nil
+			}
+			return nil, nil
+		},
+	)
+
+	policy := `
+	package test_extra
+
+	msg := hello(input.term)
+	`
+
+	err := testRuntime.UploadPolicy(t.Name(), strings.NewReader(policy))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := map[string]string{
+		"term": "world",
+	}
+
+	expected := "hello, world"
+
+	resultJSON, err := testRuntime.GetDataWithInput("test_extra/msg", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsedBody := struct {
+		Result string `json:"result"`
+	}{}
+
+	err = json.Unmarshal(resultJSON, &parsedBody)
+	if err != nil {
+		t.Fatalf("Failed to parse body: \n\nActual: %s\n\nExpected: {\"result\": \"STRING\"}\n\nerr = %s ", string(resultJSON), err)
+	}
+
+	if parsedBody.Result != expected {
+		t.Fatalf("Unexpected result: %v", parsedBody.Result)
+	}
+
+	var entry test.LogEntry
+	var found bool
+
+	for _, entry = range testRuntime.ConsoleLogger.Entries() {
+		if entry.Message == "Decision Log" {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("Did not find 'Decision Log' event in captured log entries")
+	}
+
+	extra, ok := entry.Fields["extra"]
+	if !ok {
+		t.Errorf("Did not find the 'extra' field")
+	}
+
+	extraMap, ok := extra.(map[string]interface{})
+	if !ok {
+		t.Errorf("Expected extra to be a map, got: %v\n", extra)
+	}
+
+	if extraMap["foo"] != "bar" {
+		t.Errorf("Unexpected value: %v", extraMap["foo"])
 	}
 }
