@@ -1680,6 +1680,50 @@ p if {
 			},
 		},
 		{
+			note:                "v0 module, rego.v1 capable, rule name conflict with keyword",
+			modulesRegoVersion:  ast.RegoV0,
+			regoV1ImportCapable: true,
+			entrypoint:          "test/contains",
+			files: map[string]string{
+				"test.rego": `package test
+contains {
+    input.x == 1
+}`,
+			},
+			// rego.v1 import not used, since rule name conflicts with future keyword
+			expected: []string{
+				`package test
+
+contains {
+	input.x = 1
+}
+`,
+			},
+		},
+		{
+			note:                "v0 module, rego.v1 capable, rule ref conflict with keyword",
+			modulesRegoVersion:  ast.RegoV0,
+			regoV1ImportCapable: true,
+			entrypoint:          "test/contains",
+			files: map[string]string{
+				"test.rego": `package test
+contains[input.x][input.y] {
+    input.z == 1
+}`,
+			},
+			// rego.v1 import not used, since leading var in rule ref conflicts with future keyword
+			expected: []string{
+				`package test
+
+contains[__local0__1][__local1__1] {
+	input.z = 1
+	__local0__1 = input.x
+	__local1__1 = input.y
+}
+`,
+			},
+		},
+		{
 			note:                "v0 module, not rego.v1 capable",
 			modulesRegoVersion:  ast.RegoV0,
 			regoV1ImportCapable: false,

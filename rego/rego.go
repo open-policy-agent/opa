@@ -2457,6 +2457,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 
 			if applyRegoVersion {
 				support[i].SetRegoVersion(ast.RegoV0CompatV1)
+			} else {
+				support[i].SetRegoVersion(r.regoVersion)
 			}
 		}
 	} else {
