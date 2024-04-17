@@ -1,9 +1,10 @@
 package topdown
 
 import (
+	"testing"
+
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/topdown/builtins"
-	"testing"
 )
 
 func TestBuiltinDecisionLabelAdd(t *testing.T) {
