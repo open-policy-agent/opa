@@ -1693,11 +1693,451 @@ plugins.test_plugin := v if {
 	}
 }
 
+func TestReconfigureWithLocalOverride(t *testing.T) {
+	ctx := context.Background()
+
+	bootConfigRaw := []byte(`{
+		"labels": {"x": "y"},
+		"services": {
+			"localhost": {
+				"url": "http://localhost:9999"
+			}
+		},
+		"discovery": {"name": "config"},
+        "default_decision": "/http/example/authz/allow",
+		"keys": {
+			"local_key": {
+				"key": "some_private_key",
+				"scope": "write"
+			}
+		},
+        "decision_logs": {"console": true},
+        "nd_builtin_cache": false,
+        "distributed_tracing": {"type": "grpc"},
+        "caching": {"inter_query_builtin_cache": {"max_size_bytes": 10000000, "forced_eviction_threshold_percentage": 90}}
+	}`)
+
+	manager, err := plugins.New(bootConfigRaw, "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var bootConfig map[string]interface{}
+	err = util.Unmarshal(bootConfigRaw, &bootConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager, BootConfig(bootConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// new label added in service config and boot config overrides existing label
+	serviceBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"labels": {"x": "new_value", "y": "new label"}
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if !strings.Contains(disco.status.Message, "labels.x") {
+		t.Fatal("expected key \"labels.x\" to be overridden")
+	}
+
+	exp := map[string]string{"x": "y", "y": "new label", "id": "test-id", "version": version.Version}
+	if !reflect.DeepEqual(manager.Labels(), exp) {
+		t.Errorf("Expected labels (%v) but got %v", exp, manager.Labels())
+	}
+
+	// `default_authorization_decision` is not specified in the boot config. Hence, it will get a default value.
+	// We're specifying it in the service config so, it should take precedence.
+	serviceBundle = makeDataBundle(2, `
+		{
+			"config": {
+				"default_authorization_decision": "/http/example/system/allow"
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	expAuthzRule := "/http/example/system/allow"
+	if *manager.Config.DefaultAuthorizationDecision != expAuthzRule {
+		t.Errorf("Expected default authorization decision %v but got %v", expAuthzRule, *manager.Config.DefaultAuthorizationDecision)
+	}
+
+	// `default_decision` is specified in both boot and service config. The former should take precedence.
+	serviceBundle = makeDataBundle(3, `
+		{
+			"config": {
+				"default_decision": "/http/example/authz/allow/something"
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if !strings.Contains(disco.status.Message, "default_decision") {
+		t.Fatal("expected key \"default_decision\" to be overridden")
+	}
+
+	expAuthzRule = "/http/example/authz/allow"
+	if *manager.Config.DefaultDecision != expAuthzRule {
+		t.Fatalf("Expected default decision %v but got %v", expAuthzRule, *manager.Config.DefaultDecision)
+	}
+
+	// `nd_builtin_cache` is specified in both boot and service config. The former should take precedence.
+	serviceBundle = makeDataBundle(4, `
+		{
+			"config": {
+				"nd_builtin_cache": true
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if !strings.Contains(disco.status.Message, "nd_builtin_cache") {
+		t.Fatal("expected key \"nd_builtin_cache\" to be overridden")
+	}
+
+	if manager.Config.NDBuiltinCache {
+		t.Fatal("Expected nd_builtin_cache value to be false")
+	}
+
+	// `persistence_directory` not specified in boot config. The service config value should be used.
+	serviceBundle = makeDataBundle(5, `
+		{
+			"config": {
+				"persistence_directory": "test"
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory != "test" {
+		t.Fatal("Unexpected update to persistence directory")
+	}
+
+	// nested: overriding a value in an existing config
+	serviceBundle = makeDataBundle(6, `
+		{
+			"config": {
+				"decision_logs": {"console": false, "reporting": {"max_delay_seconds": 15, "min_delay_seconds": 10}}
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	} else if !strings.Contains(disco.status.Message, "decision_logs.console") {
+		t.Fatal("expected key \"decision_logs.console\" to be overridden")
+	}
+
+	dlPlugin := logs.Lookup(disco.manager)
+	config := dlPlugin.Config()
+
+	actualMax := time.Duration(*config.Reporting.MaxDelaySeconds) / time.Nanosecond
+	expectedMax := time.Duration(15) * time.Second
+
+	if actualMax != expectedMax {
+		t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMax, actualMax)
+	}
+
+	actualMin := time.Duration(*config.Reporting.MinDelaySeconds) / time.Nanosecond
+	expectedMin := time.Duration(10) * time.Second
+
+	if actualMin != expectedMin {
+		t.Fatalf("Expected maximum polling interval: %v but got %v", expectedMin, actualMin)
+	}
+
+	if !config.ConsoleLogs {
+		t.Fatal("Expected console decision logging to be enabled")
+	}
+
+	// nested: adding a value in an existing config
+	// only `stale_entry_eviction_period_seconds` should be used from the service config as the boot config defines
+	// the other fields
+	serviceBundle = makeDataBundle(7, `
+		{
+			"config": {
+				"caching": {"inter_query_builtin_cache": {"max_size_bytes": 200, "stale_entry_eviction_period_seconds": 10, "forced_eviction_threshold_percentage": 200}}
+			}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	if disco.status == nil {
+		t.Fatal("Expected to find status, found nil")
+	}
+
+	expectedOverriddenKeys := []string{"caching.inter_query_builtin_cache.max_size_bytes", "caching.inter_query_builtin_cache.forced_eviction_threshold_percentage"}
+	for _, k := range expectedOverriddenKeys {
+		if !strings.Contains(disco.status.Message, k) {
+			t.Fatalf("expected key \"%v\" to be overridden", k)
+		}
+	}
+
+	cacheConf, err := cache.ParseCachingConfig(manager.Config.Caching)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	maxSize := new(int64)
+	*maxSize = 10000000
+	period := new(int64)
+	*period = 10
+	threshold := new(int64)
+	*threshold = 90
+	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold}}
+
+	if !reflect.DeepEqual(cacheConf, expectedCacheConf) {
+		t.Fatalf("want %v got %v", expectedCacheConf, cacheConf)
+	}
+
+	// no corresponding service config entry
+	serviceBundle = makeDataBundle(8, `
+		{
+			"config": {}
+		}
+	`)
+
+	disco.oneShot(ctx, download.Update{Bundle: serviceBundle})
+
+	var dtConfig map[string]interface{}
+	err = util.Unmarshal(manager.Config.DistributedTracing, &dtConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ty, ok := dtConfig["type"]
+	if !ok {
+		t.Fatal("Expected config for distributed tracing")
+	}
+
+	if ty != "grpc" {
+		t.Fatalf("Expected distributed tracing \"grpc\" but got %v", ty)
+	}
+}
+
+func TestMergeValuesAndListOverrides(t *testing.T) {
+	tests := []struct {
+		name     string
+		dest     map[string]interface{}
+		src      map[string]interface{}
+		expected map[string]interface{}
+		override []string
+	}{
+		{
+			name: "Simple merge",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"c": 3,
+				"d": 4,
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": 2,
+				"c": 3,
+				"d": 4,
+			},
+			override: []string{},
+		},
+		{
+			name: "Nested merge",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+				},
+			},
+			src: map[string]interface{}{
+				"b": map[string]interface{}{
+					"bb": 20,
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+					"bb": 20,
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			override: []string{},
+		},
+		{
+			name: "Simple overridden keys",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"b": 20,
+				"c": 3,
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": 20,
+				"c": 3,
+			},
+			override: []string{"b"},
+		},
+		{
+			name: "Nested overridden keys",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+					"bb": 20,
+				},
+			},
+			src: map[string]interface{}{
+				"b": map[string]interface{}{
+					"bb": 200,
+					"bc": 300,
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+					"bb": 200,
+					"bc": 300,
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			override: []string{"b.bb"},
+		},
+		{
+			name: "Multiple Nested overridden keys",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+					"bb": 20,
+				},
+				"c": map[string]interface{}{
+					"ca": 10,
+					"cb": 20,
+					"cc": 30,
+				},
+			},
+			src: map[string]interface{}{
+				"b": map[string]interface{}{
+					"bb": 200,
+					"bc": 300,
+				},
+				"c": map[string]interface{}{
+					"ca": 300,
+					"cd": 400,
+				},
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": 10,
+					"bb": 200,
+					"bc": 300,
+				},
+				"c": map[string]interface{}{
+					"ca": 300,
+					"cb": 20,
+					"cc": 30,
+					"cd": 400,
+				},
+			},
+			override: []string{"b.bb", "c.ca"},
+		},
+		{
+			name: "Nested overridden keys - 2",
+			dest: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": map[string]interface{}{"bba": "1"},
+				},
+				"c": 2,
+			},
+			src: map[string]interface{}{
+				"b": map[string]interface{}{
+					"ba": map[string]interface{}{"bba": "2"},
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			expected: map[string]interface{}{
+				"a": 1,
+				"b": map[string]interface{}{
+					"ba": map[string]interface{}{"bba": "2"},
+				},
+				"c": map[string]interface{}{
+					"ca": 30,
+				},
+			},
+			override: []string{"b.ba.bba", "c"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, overriddenKeys := mergeValuesAndListOverrides(tc.dest, tc.src, "")
+			if !reflect.DeepEqual(result, tc.expected) {
+				t.Errorf("Expected result %v but got %v", tc.expected, result)
+			}
+
+			if len(overriddenKeys) != len(tc.override) {
+				t.Fatal("Mismatch between expected and actual overridden keys")
+			}
+
+			for _, k1 := range tc.override {
+				found := false
+				for _, k2 := range overriddenKeys {
+					if k1 == k2 {
+						found = true
+					}
+				}
+
+				if !found {
+					t.Errorf("Expected overridden keys %v but got %v", tc.override, overriddenKeys)
+				}
+			}
+		})
+	}
+}
+
 func TestReconfigureWithUpdates(t *testing.T) {
 
 	ctx := context.Background()
 
-	manager, err := plugins.New([]byte(`{
+	bootConfigRaw := []byte(`{
 		"labels": {"x": "y"},
 		"services": {
 			"localhost": {
@@ -1717,12 +2157,20 @@ func TestReconfigureWithUpdates(t *testing.T) {
 			}
 		},
 		"persistence_directory": "test"
-	}`), "test-id", inmem.New())
+	}`)
+
+	manager, err := plugins.New(bootConfigRaw, "test-id", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	disco, err := New(manager)
+	var bootConfig map[string]interface{}
+	err = util.Unmarshal(bootConfigRaw, &bootConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	disco, err := New(manager, BootConfig(bootConfig))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2029,7 +2477,7 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatal("Erased discovery plugin configuration")
 	}
 
-	// update persistence directory
+	// update persistence directory in the service config and check that its boot config value is not overridden
 	updatedBundle = makeDataBundle(14, `
 		{
 			"config": {
@@ -2043,8 +2491,8 @@ func TestReconfigureWithUpdates(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory != "my_bundles" {
-		t.Fatal("Did not update persistence directory")
+	if manager.Config.PersistenceDirectory == nil || *manager.Config.PersistenceDirectory == "my_bundles" {
+		t.Fatal("Unexpected update to persistence directory")
 	}
 }
 
