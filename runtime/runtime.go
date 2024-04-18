@@ -431,7 +431,13 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics))
+	var bootConfig map[string]interface{}
+	err = util.Unmarshal(config, &bootConfig)
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+
+	disco, err := discovery.New(manager, discovery.Factories(registeredPlugins), discovery.Metrics(metrics), discovery.BootConfig(bootConfig))
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}

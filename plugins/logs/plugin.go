@@ -559,6 +559,11 @@ func (p *Plugin) Stop(ctx context.Context) {
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 }
 
+// Config returns the plugin's current configuration
+func (p *Plugin) Config() *Config {
+	return &p.config
+}
+
 func (p *Plugin) flushDecisions(ctx context.Context) {
 	p.logger.Info("Flushing decision logs.")
 

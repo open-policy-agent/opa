@@ -9,6 +9,24 @@ The `go` stanza of OPA's `go.mod` had become out of sync: Projects importing OPA
 This was introduced with v0.63.0, but the main branch's `go.mod` still claimed to be a `go 1.20` compatible.
 Now, it states the true state of affairs: OPA, used as Go dependency, requires at least Go 1.21, and thus works with all officially supported Go versions (1.21.x and 1.22.x).
 
+#### Breaking Change
+
+##### Bootstrap configuration overrides Discovered configuration
+
+Previously if Discovery was enabled, other features like bundle downloading and status reporting could not be configured manually.
+The reason for this was to prevent OPAs being deployed that could not be controlled through discovery. It's possible that
+the system serving the discovered config is unaware of all options locally available in OPA. Hence, we relax the configuration
+check when discovery is enabled so that the bootstrap configuration can contain plugin configurations. In case of conflicts,
+the bootstrap configuration for plugins wins. These local configuration overrides from the bootstrap configuration are included
+in the Status API messages so that management systems can get visibility into the local overrides.
+
+**In general, the bootstrap configuration overrides the discovered configuration.** Previously this was not the case for all
+configuration fields. For example, if the discovered configuration changes the `labels` section, only labels that are
+additional compared to the bootstrap configuration are used, all other changes are ignored. This implies labels in the
+bootstrap configuration override those in the discovered configuration. But for fields such as `default_decision`, `default_authorization_decision`,
+`nd_builtin_cache`, the discovered configuration would override the bootstrap configuration. Now the behavior is more consistent
+for the entire configuration and helps to avoid accidental configuration errors.
+
 ## 0.63.0
 
 This release contains a mix of features, performance improvements, and bugfixes.
