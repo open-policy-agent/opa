@@ -896,6 +896,32 @@
       }
     },
     {
+      "name": "decision.label.add",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "any"
+          }
+        ],
+        "result": {
+          "dynamic": {
+            "key": {
+              "type": "string"
+            },
+            "value": {
+              "type": "any"
+            }
+          },
+          "type": "object"
+        },
+        "type": "function"
+      },
+      "nondeterministic": true
+    },
+    {
       "name": "div",
       "decl": {
         "args": [
