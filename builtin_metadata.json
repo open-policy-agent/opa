@@ -49,6 +49,9 @@
       "crypto.x509.parse_keypair",
       "crypto.x509.parse_rsa_private_key"
     ],
+    "decision": [
+      "decision.label.add"
+    ],
     "encoding": [
       "base64.decode",
       "base64.encode",
