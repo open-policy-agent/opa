@@ -104,11 +104,11 @@ type Compiler struct {
 	//                |         +--- c (R2)
 	//                |
 	//                +--- p (R4)
-	RuleTree *TreeNode
+	RuleTree *RuleTree
 
 	// Graph contains dependencies between rules. An edge (u,v) is added to the
 	// graph if rule 'u' refers to the virtual document defined by 'v'.
-	Graph *Graph
+	Graph *Graph[*Rule]
 
 	// TypeEnv holds type information for values inferred by the compiler.
 	TypeEnv *TypeEnv
@@ -122,7 +122,7 @@ type Compiler struct {
 
 	localvargen             *localVarGenerator
 	moduleLoader            ModuleLoader
-	ruleIndices             *util.HashMap
+	ruleIndices             *util.HashMap[Ref, RuleIndex]
 	stages                  []stage
 	maxErrs                 int
 	sorted                  []string // list of sorted module names
@@ -297,10 +297,10 @@ func NewCompiler() *Compiler {
 		Modules:       map[string]*Module{},
 		RewrittenVars: map[Var]Var{},
 		Required:      &Capabilities{},
-		ruleIndices: util.NewHashMap(func(a, b util.T) bool {
+		ruleIndices: util.NewHashMap[Ref, RuleIndex](func(a, b any) bool {
 			r1, r2 := a.(Ref), b.(Ref)
 			return r1.Equal(r2)
-		}, func(x util.T) int {
+		}, func(x any) int {
 			return x.(Ref).Hash()
 		}),
 		maxErrs:               CompileErrorLimitDefault,
@@ -567,7 +567,7 @@ func (c *Compiler) GetRulesExact(ref Ref) (rules []*Rule) {
 		}
 	}
 
-	return extractRules(node.Values)
+	return node.Values
 }
 
 // GetRulesForVirtualDocument returns a slice of rules that produce the virtual
@@ -594,11 +594,11 @@ func (c *Compiler) GetRulesForVirtualDocument(ref Ref) (rules []*Rule) {
 			return nil
 		}
 		if len(node.Values) > 0 {
-			return extractRules(node.Values)
+			return node.Values
 		}
 	}
 
-	return extractRules(node.Values)
+	return node.Values
 }
 
 // GetRulesWithPrefix returns a slice of rules that share the prefix ref.
@@ -626,10 +626,10 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 		}
 	}
 
-	var acc func(node *TreeNode)
+	var acc func(node *RuleTree)
 
-	acc = func(node *TreeNode) {
-		rules = append(rules, extractRules(node.Values)...)
+	acc = func(node *RuleTree) {
+		rules = append(rules, node.Values...)
 		for _, child := range node.Children {
 			if child.Hide {
 				continue
@@ -640,14 +640,6 @@ func (c *Compiler) GetRulesWithPrefix(ref Ref) (rules []*Rule) {
 
 	acc(node)
 
-	return rules
-}
-
-func extractRules(s []util.T) []*Rule {
-	rules := make([]*Rule, len(s))
-	for i := range s {
-		rules[i] = s[i].(*Rule)
-	}
 	return rules
 }
 
@@ -735,13 +727,13 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 	node := c.RuleTree
 
 	set := map[*Rule]struct{}{}
-	var walk func(node *TreeNode, i int)
-	walk = func(node *TreeNode, i int) {
+	var walk func(node *RuleTree, i int)
+	walk = func(node *RuleTree, i int) {
 		switch {
 		case i >= len(ref):
 			// We've reached the end of the reference and want to collect everything
 			// under this "prefix".
-			node.DepthFirst(func(descendant *TreeNode) bool {
+			node.DepthFirst(func(descendant *RuleTree) bool {
 				insertRules(set, descendant.Values)
 				if opts.IncludeHiddenModules {
 					return false
@@ -786,9 +778,9 @@ func (c *Compiler) GetRulesDynamicWithOpts(ref Ref, opts RulesOptions) []*Rule {
 }
 
 // Utility: add all rule values to the set.
-func insertRules(set map[*Rule]struct{}, rules []util.T) {
+func insertRules(set map[*Rule]struct{}, rules []*Rule) {
 	for _, rule := range rules {
-		set[rule.(*Rule)] = struct{}{}
+		set[rule] = struct{}{}
 	}
 }
 
@@ -801,7 +793,7 @@ func (c *Compiler) RuleIndex(path Ref) RuleIndex {
 	if !ok {
 		return nil
 	}
-	return r.(RuleIndex)
+	return r
 }
 
 // PassesTypeCheck determines whether the given body passes type checking
@@ -814,11 +806,6 @@ func (c *Compiler) PassesTypeCheck(body Body) bool {
 
 // PassesTypeCheckRules determines whether the given rules passes type checking
 func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
-	elems := []util.T{}
-
-	for _, rule := range rules {
-		elems = append(elems, rule)
-	}
 
 	// Load the global input schema if one was provided.
 	if c.schemaSet != nil {
@@ -862,7 +849,7 @@ func (c *Compiler) PassesTypeCheckRules(rules []*Rule) Errors {
 		c.TypeEnv = checker.Env(c.builtins)
 	}
 
-	_, errs := checker.CheckTypes(c.TypeEnv, elems, as)
+	_, errs := checker.CheckTypes(c.TypeEnv, rules, as)
 	return errs
 }
 
@@ -892,11 +879,12 @@ func (c *Compiler) counterAdd(name string, n uint64) {
 
 func (c *Compiler) buildRuleIndices() {
 
-	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *RuleTree) bool {
 		if len(node.Values) == 0 {
 			return false
 		}
-		rules := extractRules(node.Values)
+		rules := make([]*Rule, len(node.Values))
+		copy(rules, node.Values)
 		hasNonGroundRef := false
 		for _, r := range rules {
 			hasNonGroundRef = !r.Head.Ref().IsGround()
@@ -910,8 +898,8 @@ func (c *Compiler) buildRuleIndices() {
 			// b.c.d := 2
 			// b.c.d2.e[x] := 3 { x := input.x }
 			for _, child := range node.Children {
-				child.DepthFirst(func(c *TreeNode) bool {
-					rules = append(rules, extractRules(c.Values)...)
+				child.DepthFirst(func(c *RuleTree) bool {
+					rules = append(rules, c.Values...)
 					return false
 				})
 			}
@@ -1008,13 +996,13 @@ func stringMapToSortedSlice(xs map[string]struct{}) []string {
 // checkRecursion ensures that there are no recursive definitions, i.e., there are
 // no cycles in the Graph.
 func (c *Compiler) checkRecursion() {
-	eq := func(a, b util.T) bool {
-		return a.(*Rule) == b.(*Rule)
+	eq := func(a, b *Rule) bool {
+		return a == b
 	}
 
-	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *RuleTree) bool {
 		for _, rule := range node.Values {
-			for node := rule.(*Rule); node != nil; node = node.Else {
+			for node := rule; node != nil; node = node.Else {
 				c.checkSelfPath(node.Loc(), eq, node, node)
 			}
 		}
@@ -1022,9 +1010,9 @@ func (c *Compiler) checkRecursion() {
 	})
 }
 
-func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b util.T) bool, a, b util.T) {
+func (c *Compiler) checkSelfPath(loc *Location, eq func(a, b *Rule) bool, a, b *Rule) {
 	tr := NewGraphTraversal(c.Graph)
-	if p := util.DFSPath(tr, eq, a, b); len(p) > 0 {
+	if p := util.DFSPath[*Rule](tr, eq, a, b); len(p) > 0 {
 		n := make([]string, 0, len(p))
 		for _, x := range p {
 			n = append(n, astNodeToString(x))
@@ -1041,7 +1029,7 @@ func astNodeToString(x interface{}) string {
 func (c *Compiler) checkRuleConflicts() {
 	rw := rewriteVarsInRef(c.RewrittenVars)
 
-	c.RuleTree.DepthFirst(func(node *TreeNode) bool {
+	c.RuleTree.DepthFirst(func(node *RuleTree) bool {
 		if len(node.Values) == 0 {
 			return false // go deeper
 		}
@@ -1054,8 +1042,7 @@ func (c *Compiler) checkRuleConflicts() {
 		name := ""
 		var conflicts []Ref
 
-		for _, rule := range node.Values {
-			r := rule.(*Rule)
+		for _, r := range node.Values {
 			ref := r.Ref()
 			name = rw(ref.Copy()).String() // varRewriter operates in-place
 			kinds[r.Head.RuleKind()] = struct{}{}
@@ -1112,13 +1099,13 @@ func (c *Compiler) checkRuleConflicts() {
 
 		switch {
 		case conflicts != nil:
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "rule %v conflicts with %v", name, conflicts))
+			c.err(NewError(TypeErr, node.Values[0].Loc(), "rule %v conflicts with %v", name, conflicts))
 
 		case len(kinds) > 1 || len(arities) > 1 || (completeRules >= 1 && partialRules >= 1):
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "conflicting rules %v found", name))
+			c.err(NewError(TypeErr, node.Values[0].Loc(), "conflicting rules %v found", name))
 
 		case defaultRules > 1:
-			c.err(NewError(TypeErr, node.Values[0].(*Rule).Loc(), "multiple default rules %s found", name))
+			c.err(NewError(TypeErr, node.Values[0].Loc(), "multiple default rules %s found", name))
 		}
 
 		return false
@@ -1653,11 +1640,11 @@ func (c *Compiler) err(err *Error) {
 	c.Errors = append(c.Errors, err)
 }
 
-func (c *Compiler) getExports() *util.HashMap {
+func (c *Compiler) getExports() *util.HashMap[Ref, []Ref] {
 
-	rules := util.NewHashMap(func(a, b util.T) bool {
+	rules := util.NewHashMap[Ref, []Ref](func(a, b any) bool {
 		return a.(Ref).Equal(b.(Ref))
-	}, func(v util.T) int {
+	}, func(v any) int {
 		return v.(Ref).Hash()
 	})
 
@@ -1672,18 +1659,18 @@ func (c *Compiler) getExports() *util.HashMap {
 	return rules
 }
 
-func hashMapAdd(rules *util.HashMap, pkg, rule Ref) {
+func hashMapAdd(rules *util.HashMap[Ref, []Ref], pkg, rule Ref) {
 	prev, ok := rules.Get(pkg)
 	if !ok {
 		rules.Put(pkg, []Ref{rule})
 		return
 	}
-	for _, p := range prev.([]Ref) {
+	for _, p := range prev {
 		if p.Equal(rule) {
 			return
 		}
 	}
-	rules.Put(pkg, append(prev.([]Ref), rule))
+	rules.Put(pkg, append(prev, rule))
 }
 
 func (c *Compiler) GetAnnotationSet() *AnnotationSet {
@@ -1744,7 +1731,7 @@ func (c *Compiler) resolveAllRefs() {
 
 		var ruleExports []Ref
 		if x, ok := rules.Get(mod.Package.Path); ok {
-			ruleExports = x.([]Ref)
+			ruleExports = x
 		}
 
 		globals := getGlobals(mod.Package, ruleExports, mod.Imports)
@@ -2680,7 +2667,7 @@ func (c *Compiler) setGraph() {
 	list := func(r Ref) []*Rule {
 		return c.GetRulesDynamicWithOpts(r, RulesOptions{IncludeHiddenModules: true})
 	}
-	c.Graph = NewGraph(c.Modules, list)
+	c.Graph = NewRuleGraph(c.Modules, list)
 }
 
 type queryCompiler struct {
@@ -2848,7 +2835,7 @@ func (qc *queryCompiler) resolveRefs(qctx *QueryContext, body Body) (Body, error
 			var ruleExports []Ref
 			rules := qc.compiler.getExports()
 			if exist, ok := rules.Get(pkg.Path); ok {
-				ruleExports = exist.([]Ref)
+				ruleExports = exist
 			}
 
 			globals = getGlobals(qctx.Package, ruleExports, qctx.Imports)
@@ -3330,22 +3317,22 @@ func (n *ModuleTreeNode) DepthFirst(f func(*ModuleTreeNode) bool) {
 
 // TreeNode represents a node in the rule tree. The rule tree is keyed by
 // rule path.
-type TreeNode struct {
+type RuleTree struct {
 	Key      Value
-	Values   []util.T
-	Children map[Value]*TreeNode
+	Values   []*Rule
+	Children map[Value]*RuleTree
 	Sorted   []Value
 	Hide     bool
 }
 
-func (n *TreeNode) String() string {
+func (n *RuleTree) String() string {
 	return fmt.Sprintf("<TreeNode key:%v values:%v sorted:%v hide:%v>", n.Key, n.Values, n.Sorted, n.Hide)
 }
 
 // NewRuleTree returns a new TreeNode that represents the root
 // of the rule tree populated with the given rules.
-func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
-	root := TreeNode{
+func NewRuleTree(mtree *ModuleTreeNode) *RuleTree {
+	root := RuleTree{
 		Key: mtree.Key,
 	}
 
@@ -3367,7 +3354,7 @@ func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
 		node.Hide = true
 	}
 
-	root.DepthFirst(func(x *TreeNode) bool {
+	root.DepthFirst(func(x *RuleTree) bool {
 		x.sort()
 		return false
 	})
@@ -3375,12 +3362,12 @@ func NewRuleTree(mtree *ModuleTreeNode) *TreeNode {
 	return &root
 }
 
-func (n *TreeNode) add(path Ref, rule *Rule) {
+func (n *RuleTree) add(path Ref, rule *Rule) {
 	node, tail := n.find(path)
 	if len(tail) > 0 {
 		sub := treeNodeFromRef(tail, rule)
 		if node.Children == nil {
-			node.Children = make(map[Value]*TreeNode, 1)
+			node.Children = make(map[Value]*RuleTree, 1)
 		}
 		node.Children[sub.Key] = sub
 		node.Sorted = append(node.Sorted, sub.Key)
@@ -3392,7 +3379,7 @@ func (n *TreeNode) add(path Ref, rule *Rule) {
 }
 
 // Size returns the number of rules in the tree.
-func (n *TreeNode) Size() int {
+func (n *RuleTree) Size() int {
 	s := len(n.Values)
 	for _, c := range n.Children {
 		s += c.Size()
@@ -3401,7 +3388,7 @@ func (n *TreeNode) Size() int {
 }
 
 // Child returns n's child with key k.
-func (n *TreeNode) Child(k Value) *TreeNode {
+func (n *RuleTree) Child(k Value) *RuleTree {
 	switch k.(type) {
 	case Ref, Call:
 		return nil
@@ -3411,7 +3398,7 @@ func (n *TreeNode) Child(k Value) *TreeNode {
 }
 
 // Find dereferences ref along the tree
-func (n *TreeNode) Find(ref Ref) *TreeNode {
+func (n *RuleTree) Find(ref Ref) *RuleTree {
 	node := n
 	for _, r := range ref {
 		node = node.Child(r.Value)
@@ -3426,7 +3413,7 @@ func (n *TreeNode) Find(ref Ref) *TreeNode {
 // - If matching fails immediately, the tail will contain the full ref.
 // - Partial matching will result in a tail of non-zero length.
 // - A complete match will result in a 0 length tail.
-func (n *TreeNode) find(ref Ref) (*TreeNode, Ref) {
+func (n *RuleTree) find(ref Ref) (*RuleTree, Ref) {
 	node := n
 	for i := range ref {
 		next := node.Child(ref[i].Value)
@@ -3442,7 +3429,7 @@ func (n *TreeNode) find(ref Ref) (*TreeNode, Ref) {
 
 // DepthFirst performs a depth-first traversal of the rule tree rooted at n. If
 // f returns true, traversal will not continue to the children of n.
-func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
+func (n *RuleTree) DepthFirst(f func(*RuleTree) bool) {
 	if f(n) {
 		return
 	}
@@ -3451,28 +3438,28 @@ func (n *TreeNode) DepthFirst(f func(*TreeNode) bool) {
 	}
 }
 
-func (n *TreeNode) sort() {
+func (n *RuleTree) sort() {
 	sort.Slice(n.Sorted, func(i, j int) bool {
 		return n.Sorted[i].Compare(n.Sorted[j]) < 0
 	})
 }
 
-func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
+func treeNodeFromRef(ref Ref, rule *Rule) *RuleTree {
 	depth := len(ref) - 1
 	key := ref[depth].Value
-	node := &TreeNode{
+	node := &RuleTree{
 		Key:      key,
 		Children: nil,
 	}
 	if rule != nil {
-		node.Values = []util.T{rule}
+		node.Values = []*Rule{rule}
 	}
 
 	for i := len(ref) - 2; i >= 0; i-- {
 		key := ref[i].Value
-		node = &TreeNode{
+		node = &RuleTree{
 			Key:      key,
-			Children: map[Value]*TreeNode{ref[i+1].Value: node},
+			Children: map[Value]*RuleTree{ref[i+1].Value: node},
 			Sorted:   []Value{ref[i+1].Value},
 		}
 	}
@@ -3480,13 +3467,12 @@ func treeNodeFromRef(ref Ref, rule *Rule) *TreeNode {
 }
 
 // flattenChildren flattens all children's rule refs into a sorted array.
-func (n *TreeNode) flattenChildren() []Ref {
+func (n *RuleTree) flattenChildren() []Ref {
 	ret := newRefSet()
 	for _, sub := range n.Children { // we only want the children, so don't use n.DepthFirst() right away
-		sub.DepthFirst(func(x *TreeNode) bool {
+		sub.DepthFirst(func(x *RuleTree) bool {
 			for _, r := range x.Values {
-				rule := r.(*Rule)
-				ret.AddPrefix(rule.Ref())
+				ret.AddPrefix(r.Ref())
 			}
 			return false
 		})
@@ -3499,21 +3485,23 @@ func (n *TreeNode) flattenChildren() []Ref {
 }
 
 // Graph represents the graph of dependencies between rules.
-type Graph struct {
-	adj    map[util.T]map[util.T]struct{}
-	radj   map[util.T]map[util.T]struct{}
-	nodes  map[util.T]struct{}
-	sorted []util.T
+type Graph[T comparable] struct {
+	adj    map[T]map[T]struct{}
+	radj   map[T]map[T]struct{}
+	nodes  map[T]struct{}
+	sorted []T
 }
 
-// NewGraph returns a new Graph based on modules. The list function must return
-// the rules referred to directly by the ref.
-func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
+type RuleGraph = Graph[*Rule]
 
-	graph := &Graph{
-		adj:    map[util.T]map[util.T]struct{}{},
-		radj:   map[util.T]map[util.T]struct{}{},
-		nodes:  map[util.T]struct{}{},
+// NewRuleGraph returns a new Graph based on modules. The list function must return
+// the rules referred to directly by the ref.
+func NewRuleGraph(modules map[string]*Module, list func(Ref) []*Rule) *RuleGraph {
+
+	graph := &RuleGraph{
+		adj:    map[*Rule]map[*Rule]struct{}{},
+		radj:   map[*Rule]map[*Rule]struct{}{},
+		nodes:  map[*Rule]struct{}{},
 		sorted: nil,
 	}
 
@@ -3554,27 +3542,27 @@ func NewGraph(modules map[string]*Module, list func(Ref) []*Rule) *Graph {
 }
 
 // Dependencies returns the set of rules that x depends on.
-func (g *Graph) Dependencies(x util.T) map[util.T]struct{} {
+func (g *Graph[T]) Dependencies(x T) map[T]struct{} {
 	return g.adj[x]
 }
 
 // Dependents returns the set of rules that depend on x.
-func (g *Graph) Dependents(x util.T) map[util.T]struct{} {
+func (g *Graph[T]) Dependents(x T) map[T]struct{} {
 	return g.radj[x]
 }
 
 // Sort returns a slice of rules sorted by dependencies. If a cycle is found,
 // ok is set to false.
-func (g *Graph) Sort() (sorted []util.T, ok bool) {
+func (g *Graph[T]) Sort() (sorted []T, ok bool) {
 	if g.sorted != nil {
 		return g.sorted, true
 	}
 
-	sorter := &graphSort{
-		sorted: make([]util.T, 0, len(g.nodes)),
+	sorter := &graphSort[T]{
+		sorted: make([]T, 0, len(g.nodes)),
 		deps:   g.Dependencies,
-		marked: map[util.T]struct{}{},
-		temp:   map[util.T]struct{}{},
+		marked: map[T]struct{}{},
+		temp:   map[T]struct{}{},
 	}
 
 	for node := range g.nodes {
@@ -3587,7 +3575,7 @@ func (g *Graph) Sort() (sorted []util.T, ok bool) {
 	return g.sorted, true
 }
 
-func (g *Graph) addDependency(u util.T, v util.T) {
+func (g *Graph[T]) addDependency(u T, v T) {
 
 	if _, ok := g.nodes[u]; !ok {
 		g.addNode(u)
@@ -3599,7 +3587,7 @@ func (g *Graph) addDependency(u util.T, v util.T) {
 
 	edges, ok := g.adj[u]
 	if !ok {
-		edges = map[util.T]struct{}{}
+		edges = map[T]struct{}{}
 		g.adj[u] = edges
 	}
 
@@ -3607,30 +3595,30 @@ func (g *Graph) addDependency(u util.T, v util.T) {
 
 	edges, ok = g.radj[v]
 	if !ok {
-		edges = map[util.T]struct{}{}
+		edges = map[T]struct{}{}
 		g.radj[v] = edges
 	}
 
 	edges[u] = struct{}{}
 }
 
-func (g *Graph) addNode(n util.T) {
+func (g *Graph[T]) addNode(n T) {
 	g.nodes[n] = struct{}{}
 }
 
-type graphSort struct {
-	sorted []util.T
-	deps   func(util.T) map[util.T]struct{}
-	marked map[util.T]struct{}
-	temp   map[util.T]struct{}
+type graphSort[T comparable] struct {
+	sorted []T
+	deps   func(T) map[T]struct{}
+	marked map[T]struct{}
+	temp   map[T]struct{}
 }
 
-func (sort *graphSort) Marked(node util.T) bool {
+func (sort *graphSort[T]) Marked(node T) bool {
 	_, marked := sort.marked[node]
 	return marked
 }
 
-func (sort *graphSort) Visit(node util.T) (ok bool) {
+func (sort *graphSort[T]) Visit(node T) (ok bool) {
 	if _, ok := sort.temp[node]; ok {
 		return false
 	}
@@ -3650,22 +3638,22 @@ func (sort *graphSort) Visit(node util.T) (ok bool) {
 }
 
 // GraphTraversal is a Traversal that understands the dependency graph
-type GraphTraversal struct {
-	graph   *Graph
-	visited map[util.T]struct{}
+type GraphTraversal[T comparable] struct {
+	graph   *Graph[T]
+	visited map[T]struct{}
 }
 
 // NewGraphTraversal returns a Traversal for the dependency graph
-func NewGraphTraversal(graph *Graph) *GraphTraversal {
-	return &GraphTraversal{
+func NewGraphTraversal[T comparable](graph *Graph[T]) *GraphTraversal[T] {
+	return &GraphTraversal[T]{
 		graph:   graph,
-		visited: map[util.T]struct{}{},
+		visited: map[T]struct{}{},
 	}
 }
 
 // Edges lists all dependency connections for a given node
-func (g *GraphTraversal) Edges(x util.T) []util.T {
-	r := []util.T{}
+func (g *GraphTraversal[T]) Edges(x T) []T {
+	r := []T{}
 	for v := range g.graph.Dependencies(x) {
 		r = append(r, v)
 	}
@@ -3673,7 +3661,7 @@ func (g *GraphTraversal) Edges(x util.T) []util.T {
 }
 
 // Visited returns whether a node has been visited, setting a node to visited if not
-func (g *GraphTraversal) Visited(u util.T) bool {
+func (g *GraphTraversal[T]) Visited(u T) bool {
 	_, ok := g.visited[u]
 	g.visited[u] = struct{}{}
 	return ok
@@ -5513,7 +5501,7 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 			// and edge case anyways.
 			if child := node.Child(ref[len(ref)-1].Value); child != nil {
 				for _, v := range child.Values {
-					if len(v.(*Rule).Head.Args) > 0 {
+					if len(v.Head.Args) > 0 {
 						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 							return false, err // err may be nil
 						}
@@ -5566,7 +5554,7 @@ func validateWithBuiltinTarget(bi *Builtin, target Ref, loc *location.Location) 
 	return nil
 }
 
-func validateWithFunctionValue(bs map[string]*Builtin, unsafeMap map[string]struct{}, ruleTree *TreeNode, value *Term) (bool, *Error) {
+func validateWithFunctionValue(bs map[string]*Builtin, unsafeMap map[string]struct{}, ruleTree *RuleTree, value *Term) (bool, *Error) {
 	if v, ok := value.Value.(Ref); ok {
 		if ruleTree.Find(v) != nil { // ref exists in rule tree
 			return true, nil
@@ -5605,7 +5593,7 @@ func isBuiltinRefOrVar(bs map[string]*Builtin, unsafeBuiltinsMap map[string]stru
 	return false, nil
 }
 
-func isVirtual(node *TreeNode, ref Ref) bool {
+func isVirtual(node *RuleTree, ref Ref) bool {
 	for i := range ref {
 		child := node.Child(ref[i].Value)
 		if child == nil {

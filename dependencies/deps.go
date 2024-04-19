@@ -168,20 +168,20 @@ func virtual(compiler *ast.Compiler, x interface{}, virtualRefs *dependencies) e
 }
 
 type dependencies struct {
-	refs         *util.HashMap
-	visitedRules *util.HashMap
+	refs         *util.HashMap[ast.Ref, ast.Ref]
+	visitedRules *util.HashMap[*ast.Rule, *ast.Rule]
 }
 
 func newRefSet() *dependencies {
 	return &dependencies{
-		refs: util.NewHashMap(func(a, b util.T) bool {
+		refs: util.NewHashMap[ast.Ref, ast.Ref](func(a, b any) bool {
 			return a.(ast.Ref).Equal(b.(ast.Ref))
-		}, func(a util.T) int {
+		}, func(a any) int {
 			return a.(ast.Ref).Hash()
 		}),
-		visitedRules: util.NewHashMap(func(a, b util.T) bool {
+		visitedRules: util.NewHashMap[*ast.Rule, *ast.Rule](func(a, b any) bool {
 			return a.(*ast.Rule).Equal(b.(*ast.Rule))
-		}, func(a util.T) int {
+		}, func(a any) int {
 			return a.(*ast.Rule).Ref().Hash()
 		}),
 	}
@@ -202,8 +202,8 @@ func (rs *dependencies) visited(rule *ast.Rule) bool {
 
 func (rs *dependencies) toSlice() []ast.Ref {
 	var result []ast.Ref
-	rs.refs.Iter(func(k, _ util.T) bool {
-		result = append(result, k.(ast.Ref))
+	rs.refs.Iter(func(k ast.Ref, _ ast.Ref) bool {
+		result = append(result, k)
 		return false
 	})
 	return result
@@ -332,7 +332,7 @@ func extractEq(exprs ast.Body) (vars map[ast.Var][]ast.Ref, others []*ast.Expr) 
 	return vars, others
 }
 
-func expandRef(r ast.Ref, vars map[ast.Var]*util.HashMap) []ast.Ref {
+func expandRef(r ast.Ref, vars map[ast.Var]*util.HashMap[ast.Ref, any]) []ast.Ref {
 	head, rest := r[0], r[1:]
 	if ast.RootDocumentNames.Contains(head) {
 		return []ast.Ref{r}
@@ -345,18 +345,18 @@ func expandRef(r ast.Ref, vars map[ast.Var]*util.HashMap) []ast.Ref {
 	}
 
 	var expanded []ast.Ref
-	rs.Iter(func(a, _ util.T) bool {
-		ref := a.(ast.Ref)
+	rs.Iter(func(a ast.Ref, _ any) bool {
+		ref := a
 		expanded = append(expanded, append(ref.Copy(), rest...))
 		return false
 	})
 	return expanded
 }
 
-func joinVarRefs(vars map[ast.Var][]ast.Ref) map[ast.Var]*util.HashMap {
-	joined := map[ast.Var]*util.HashMap{}
+func joinVarRefs(vars map[ast.Var][]ast.Ref) map[ast.Var]*util.HashMap[ast.Ref, any] {
+	joined := make(map[ast.Var]*util.HashMap[ast.Ref, any])
 	for v := range vars {
-		joined[v] = util.NewHashMap(refEq, refHash)
+		joined[v] = util.NewHashMap[ast.Ref, any](refEq, refHash)
 	}
 
 	done := false
@@ -378,9 +378,8 @@ func joinVarRefs(vars map[ast.Var][]ast.Ref) map[ast.Var]*util.HashMap {
 					panic("not reached")
 				}
 
-				joined[h].Iter(func(a, _ util.T) bool {
-					jr := a.(ast.Ref)
-					join := append(jr.Copy(), rest...)
+				joined[h].Iter(func(r ast.Ref, _ any) bool {
+					join := append(r.Copy(), rest...)
 					if _, ok := joined[v].Get(join); !ok {
 						joined[v].Put(join, struct{}{})
 						done = false
@@ -394,7 +393,7 @@ func joinVarRefs(vars map[ast.Var][]ast.Ref) map[ast.Var]*util.HashMap {
 	return joined
 }
 
-func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*util.HashMap) (headRefs []ast.Ref, leftover []*ast.Expr) {
+func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*util.HashMap[ast.Ref, any]) (headRefs []ast.Ref, leftover []*ast.Expr) {
 	for _, expr := range others {
 		if term, ok := expr.Terms.(*ast.Term); ok {
 			if r, ok := term.Value.(ast.Ref); ok {
@@ -413,7 +412,7 @@ func resolveOthers(others []*ast.Expr, headVars ast.VarSet, joined map[ast.Var]*
 	return headRefs, leftover
 }
 
-func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor, usedVars ast.VarSet, headVars ast.VarSet) {
+func resolveRemainingVars(joined map[ast.Var]*util.HashMap[ast.Ref, any], visitor *skipVisitor, usedVars ast.VarSet, headVars ast.VarSet) {
 	for v, refs := range joined {
 		skipped := false
 
@@ -421,9 +420,8 @@ func resolveRemainingVars(joined map[ast.Var]*util.HashMap, visitor *skipVisitor
 			skipped = true
 		}
 
-		refs.Iter(func(a, _ util.T) bool {
+		refs.Iter(func(r ast.Ref, _ any) bool {
 			visitor.skipped = skipped
-			r := a.(ast.Ref)
 			ast.NewGenericVisitor(visitor.Visit).Walk(r)
 			return false
 		})
@@ -439,13 +437,13 @@ func containsPrefix(refs []ast.Ref, r ast.Ref) bool {
 	return false
 }
 
-func refEq(a, b util.T) bool {
+func refEq(a, b any) bool {
 	ar, aok := a.(ast.Ref)
 	br, bok := b.(ast.Ref)
 	return aok && bok && ar.Equal(br)
 }
 
-func refHash(a util.T) int {
+func refHash(a any) int {
 	return a.(ast.Ref).Hash()
 }
 

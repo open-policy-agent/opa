@@ -409,8 +409,8 @@ func TestCompilerGetExports(t *testing.T) {
 		// TODO(sr): add multi-val rule, and ref-with-var single-value rule.
 	}
 
-	hashMap := func(ms map[string][]string) *util.HashMap {
-		rules := util.NewHashMap(func(a, b util.T) bool {
+	hashMap := func(ms map[string][]string) *util.HashMap[Ref, []Ref] {
+		rules := util.NewHashMap[Ref, []Ref](func(a, b any) bool {
 			switch a := a.(type) {
 			case Ref:
 				return a.Equal(b.(Ref))
@@ -428,7 +428,7 @@ func TestCompilerGetExports(t *testing.T) {
 			default:
 				panic("unreachable")
 			}
-		}, func(v util.T) int {
+		}, func(v any) int {
 			return v.(Ref).Hash()
 		})
 		for r, rs := range ms {
@@ -747,7 +747,7 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 				t.Fatal(c.Errors)
 			}
 			tree := c.RuleTree
-			tree.DepthFirst(func(n *TreeNode) bool {
+			tree.DepthFirst(func(n *RuleTree) bool {
 				t.Log(n)
 				if !sort.SliceIsSorted(n.Sorted, func(i, j int) bool {
 					return n.Sorted[i].Compare(n.Sorted[j]) < 0
@@ -788,7 +788,7 @@ c.d.e = 1 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -815,10 +815,10 @@ d.e = 2 if true`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("c.d.e"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("c.d.e"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := MustParseRef("d.e"), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("d.e"), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -853,7 +853,7 @@ d.e.f = 2 if true`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d", exp, act)
 		}
-		if exp, act := MustParseRef("d.e.f"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("d.e.f"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
 	})
@@ -880,22 +880,22 @@ b[d] { d := "bar" }`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+		if act := node.Values[0].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := VarTerm("c"), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := VarTerm("c"), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+		if act := node.Values[1].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := VarTerm("d"), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := VarTerm("d"), node.Values[1].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -921,22 +921,22 @@ b[2]`
 		if exp, act := 0, len(node.Children); exp != act {
 			t.Errorf("expected %d children, found %d", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[0].(*Rule).Head.Value; act != nil {
+		if act := node.Values[0].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
-		if exp, act := (Ref{VarTerm("b")}), node.Values[1].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := (Ref{VarTerm("b")}), node.Values[1].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if act := node.Values[1].(*Rule).Head.Value; act != nil {
+		if act := node.Values[1].Head.Value; act != nil {
 			t.Errorf("expected rule value nil, found %v", act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[1].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[1].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -972,13 +972,13 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[1]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("b[1]"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Value; !exp.Equal(act) {
 			t.Errorf("expected rule value %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(1), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(1), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 
@@ -990,13 +990,13 @@ b[2] = 2`
 		if exp, act := 1, len(node.Values); exp != act {
 			t.Fatalf("expected %d values, found %d: %v", exp, act, node.Values)
 		}
-		if exp, act := MustParseRef("b[2]"), node.Values[0].(*Rule).Head.Ref(); !exp.Equal(act) {
+		if exp, act := MustParseRef("b[2]"), node.Values[0].Head.Ref(); !exp.Equal(act) {
 			t.Errorf("expected rule ref %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Value; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[0].Head.Value; !exp.Equal(act) {
 			t.Errorf("expected rule value %v, found %v", exp, act)
 		}
-		if exp, act := IntNumberTerm(2), node.Values[0].(*Rule).Head.Key; !exp.Equal(act) {
+		if exp, act := IntNumberTerm(2), node.Values[0].Head.Key; !exp.Equal(act) {
 			t.Errorf("expected rule key %v, found %v", exp, act)
 		}
 	})
@@ -1024,7 +1024,7 @@ p = 1`
 	})
 }
 
-func depth(n *TreeNode) int {
+func depth(n *RuleTree) int {
 	d := -1
 	for _, m := range n.Children {
 		if d0 := depth(m); d0 > d {
@@ -7937,7 +7937,7 @@ func TestCompilerSetGraph(t *testing.T) {
 	r := mod2.Rules[0]
 	mod5 := c.Modules["mod5"]
 
-	edges := map[util.T]struct{}{
+	edges := map[*Rule]struct{}{
 		q: {},
 		r: {},
 	}
@@ -7949,7 +7949,7 @@ func TestCompilerSetGraph(t *testing.T) {
 	// NOTE(tsandall): this is the correct result but it's chosen arbitrarily for the test.
 	expDependents := []struct {
 		x    *Rule
-		want map[util.T]struct{}
+		want map[*Rule]struct{}
 	}{
 		{
 			x:    p,
@@ -7957,11 +7957,11 @@ func TestCompilerSetGraph(t *testing.T) {
 		},
 		{
 			x:    q,
-			want: map[util.T]struct{}{p: {}, mod5.Rules[1]: {}, mod5.Rules[3]: {}, mod5.Rules[5]: {}},
+			want: map[*Rule]struct{}{p: {}, mod5.Rules[1]: {}, mod5.Rules[3]: {}, mod5.Rules[5]: {}},
 		},
 		{
 			x:    r,
-			want: map[util.T]struct{}{p: {}},
+			want: map[*Rule]struct{}{p: {}},
 		},
 	}
 

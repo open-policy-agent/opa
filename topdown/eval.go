@@ -2085,7 +2085,7 @@ type evalTree struct {
 	bindings  *bindings
 	rterm     *ast.Term
 	rbindings *bindings
-	node      *ast.TreeNode
+	node      *ast.RuleTree
 }
 
 func (e evalTree) eval(iter unifyIterator) error {
@@ -2124,7 +2124,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 
 func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 
-	var node *ast.TreeNode
+	var node *ast.RuleTree
 
 	cpy := e
 	cpy.plugged[e.pos] = plugged
@@ -2262,7 +2262,7 @@ func (e evalTree) extent() (*ast.Term, error) {
 
 // leaves builds a tree from evaluating the full rule tree extent, by recursing into all
 // branches, and building up objects as it goes.
-func (e evalTree) leaves(plugged ast.Ref, node *ast.TreeNode) (ast.Object, error) {
+func (e evalTree) leaves(plugged ast.Ref, node *ast.RuleTree) (ast.Object, error) {
 
 	if e.node == nil {
 		return nil, nil

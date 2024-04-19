@@ -25,26 +25,24 @@ func newTestTraversal(g map[int][]int) *testTraversal {
 	}
 }
 
-func (t *testTraversal) Edges(x T) []T {
-	r := []T{}
-	for _, v := range t.g[x.(int)] {
-		r = append(r, v)
-	}
+func (t *testTraversal) Edges(x int) []int {
+	var r []int
+	r = append(r, t.g[x]...)
 	return r
 }
 
-func (t *testTraversal) Equals(a, b T) bool {
-	return a.(int) == b.(int)
+func (t *testTraversal) Equals(a, b int) bool {
+	return a == b
 }
 
-func (t *testTraversal) Iter(x T) bool {
-	t.ordered = append(t.ordered, x.(int))
-	return t.stop != nil && *t.stop == x.(int)
+func (t *testTraversal) Iter(x int) bool {
+	t.ordered = append(t.ordered, x)
+	return t.stop != nil && *t.stop == x
 }
 
-func (t *testTraversal) Visited(x T) bool {
-	_, ok := t.visited[x.(int)]
-	t.visited[x.(int)] = struct{}{}
+func (t *testTraversal) Visited(x int) bool {
+	_, ok := t.visited[x]
+	t.visited[x] = struct{}{}
 	return ok
 }
 
@@ -60,7 +58,7 @@ func TestDFSStop(t *testing.T) {
 	stop := 6
 	t1.stop = &stop
 
-	stopped := DFS(t1, t1.Iter, 1)
+	stopped := DFS[int](t1, t1.Iter, 1)
 
 	if !stopped {
 		t.Fatalf("Expected DFS to stop but got: %v", t1.ordered)
@@ -85,7 +83,7 @@ func TestBFSStop(t *testing.T) {
 	stop := 4
 	t1.stop = &stop
 
-	stopped := BFS(t1, t1.Iter, 1)
+	stopped := BFS[int](t1, t1.Iter, 1)
 
 	if !stopped {
 		t.Fatalf("Expected DFS to stop but got: %v", t1.ordered)
@@ -108,7 +106,7 @@ func TestDFS(t *testing.T) {
 
 	t1 := newTestTraversal(g)
 
-	stopped := DFS(t1, t1.Iter, 1)
+	stopped := DFS[int](t1, t1.Iter, 1)
 	if stopped {
 		t.Fatalf("Did not expect traversal to stop")
 	}
@@ -130,7 +128,7 @@ func TestBFS(t *testing.T) {
 
 	t1 := newTestTraversal(g)
 
-	stopped := BFS(t1, t1.Iter, 1)
+	stopped := BFS[int](t1, t1.Iter, 1)
 	if stopped {
 		t.Fatalf("Did not expect traversal to stop")
 	}
@@ -153,21 +151,21 @@ func TestDFSPath(t *testing.T) {
 	}
 
 	t1 := newTestTraversal(g)
-	p1 := DFSPath(t1, t1.Equals, 1, 2)
+	p1 := DFSPath[int](t1, t1.Equals, 1, 2)
 
-	if !reflect.DeepEqual(p1, []T{1, 2}) {
+	if !reflect.DeepEqual(p1, []int{1, 2}) {
 		t.Errorf("Expected DFS(1,2) to equal {1,2} but got: %v", p1)
 	}
 
 	t2 := newTestTraversal(g)
-	p2 := DFSPath(t2, t2.Equals, 1, 4)
+	p2 := DFSPath[int](t2, t2.Equals, 1, 4)
 
-	if !reflect.DeepEqual(p2, []T{1, 2, 4}) {
+	if !reflect.DeepEqual(p2, []int{1, 2, 4}) {
 		t.Errorf("Expected DFS(1,4) to equal {1,2,4} but got: %v", p2)
 	}
 
 	t3 := newTestTraversal(g)
-	p3 := DFSPath(t3, t3.Equals, 1, 0xadbeef)
+	p3 := DFSPath[int](t3, t3.Equals, 1, 0xadbeef)
 	if len(p3) != 0 {
 		t.Errorf("Expected DFS(1,0xadbeef to be empty but got: %v", p3)
 	}

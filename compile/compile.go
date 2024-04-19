@@ -1230,9 +1230,8 @@ func transitiveDocumentDependents(compiler *ast.Compiler, ref *ast.Term, deps ma
 
 func transitiveDependents(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {
 	for x := range compiler.Graph.Dependents(rule) {
-		other := x.(*ast.Rule)
-		deps[other] = struct{}{}
-		transitiveDependents(compiler, other, deps)
+		deps[x] = struct{}{}
+		transitiveDependents(compiler, x, deps)
 	}
 }
 

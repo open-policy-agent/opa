@@ -5,7 +5,7 @@
 package util
 
 // Traversal defines a basic interface to perform traversals.
-type Traversal interface {
+type Traversal[T any] interface {
 
 	// Edges should return the neighbours of node "u".
 	Edges(u T) []T
@@ -17,14 +17,14 @@ type Traversal interface {
 }
 
 // Equals should return true if node "u" equals node "v".
-type Equals func(u T, v T) bool
+type Equals[T any] func(u T, v T) bool
 
 // Iter should return true to indicate stop.
-type Iter func(u T) bool
+type Iter[T any] func(u T) bool
 
 // DFS performs a depth first traversal calling f for each node starting from u.
 // If f returns true, traversal stops and DFS returns true.
-func DFS(t Traversal, f Iter, u T) bool {
+func DFS[T any](t Traversal[T], f Iter[T], u T) bool {
 	lifo := NewLIFO(u)
 	for lifo.Size() > 0 {
 		next, _ := lifo.Pop()
@@ -43,7 +43,7 @@ func DFS(t Traversal, f Iter, u T) bool {
 
 // BFS performs a breadth first traversal calling f for each node starting from
 // u. If f returns true, traversal stops and BFS returns true.
-func BFS(t Traversal, f Iter, u T) bool {
+func BFS[T any](t Traversal[T], f Iter[T], u T) bool {
 	fifo := NewFIFO(u)
 	for fifo.Size() > 0 {
 		next, _ := fifo.Pop()
@@ -62,7 +62,7 @@ func BFS(t Traversal, f Iter, u T) bool {
 
 // DFSPath returns a path from node a to node z found by performing
 // a depth first traversal. If no path is found, an empty slice is returned.
-func DFSPath(t Traversal, eq Equals, a, z T) []T {
+func DFSPath[T any](t Traversal[T], eq Equals[T], a, z T) []T {
 	p := dfsRecursive(t, eq, a, z, []T{})
 	for i := len(p)/2 - 1; i >= 0; i-- {
 		o := len(p) - i - 1
@@ -71,7 +71,7 @@ func DFSPath(t Traversal, eq Equals, a, z T) []T {
 	return p
 }
 
-func dfsRecursive(t Traversal, eq Equals, u, z T, path []T) []T {
+func dfsRecursive[T any](t Traversal[T], eq Equals[T], u, z T, path []T) []T {
 	if t.Visited(u) {
 		return path
 	}

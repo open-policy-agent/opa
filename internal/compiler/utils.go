@@ -59,9 +59,8 @@ func getRulesWithDependencies(compiler *ast.Compiler, ref ast.Ref) []*ast.Rule {
 
 func transitiveDependencies(compiler *ast.Compiler, rule *ast.Rule, deps map[*ast.Rule]struct{}) {
 	for x := range compiler.Graph.Dependencies(rule) {
-		other := x.(*ast.Rule)
-		deps[other] = struct{}{}
-		transitiveDependencies(compiler, other, deps)
+		deps[x] = struct{}{}
+		transitiveDependencies(compiler, x, deps)
 	}
 }
 

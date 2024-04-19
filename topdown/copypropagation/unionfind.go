@@ -14,16 +14,16 @@ import (
 type rankFunc func(*unionFindRoot, *unionFindRoot) (*unionFindRoot, *unionFindRoot)
 
 type unionFind struct {
-	roots   *util.HashMap
+	roots   *util.HashMap[ast.Value, *unionFindRoot]
 	parents *ast.ValueMap
 	rank    rankFunc
 }
 
 func newUnionFind(rank rankFunc) *unionFind {
 	return &unionFind{
-		roots: util.NewHashMap(func(a util.T, b util.T) bool {
+		roots: util.NewHashMap[ast.Value, *unionFindRoot](func(a, b any) bool {
 			return a.(ast.Value).Compare(b.(ast.Value)) == 0
-		}, func(v util.T) int {
+		}, func(v any) int {
 			return v.(ast.Value).Hash()
 		}),
 		parents: ast.NewValueMap(),
@@ -53,7 +53,7 @@ func (uf *unionFind) Find(v ast.Value) (*unionFindRoot, bool) {
 
 	if parent.Compare(v) == 0 {
 		r, ok := uf.roots.Get(v)
-		return r.(*unionFindRoot), ok
+		return r, ok
 	}
 
 	return uf.Find(parent)
@@ -93,13 +93,13 @@ func (uf *unionFind) String() string {
 		map[string]ast.Value{},
 	}
 
-	uf.roots.Iter(func(k util.T, v util.T) bool {
+	uf.roots.Iter(func(k ast.Value, v *unionFindRoot) bool {
 		o.Roots[k.(ast.Value).String()] = struct {
 			Constant *ast.Term
 			Key      ast.Value
 		}{
-			v.(*unionFindRoot).constant,
-			v.(*unionFindRoot).key,
+			v.constant,
+			v.key,
 		}
 		return true
 	})

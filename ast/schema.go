@@ -13,30 +13,30 @@ import (
 
 // SchemaSet holds a map from a path to a schema.
 type SchemaSet struct {
-	m *util.HashMap
+	m *util.HashMap[Ref, any]
 }
 
 // NewSchemaSet returns an empty SchemaSet.
 func NewSchemaSet() *SchemaSet {
 
-	eqFunc := func(a, b util.T) bool {
+	eqFunc := func(a, b any) bool {
 		return a.(Ref).Equal(b.(Ref))
 	}
 
-	hashFunc := func(x util.T) int { return x.(Ref).Hash() }
+	hashFunc := func(x any) int { return x.(Ref).Hash() }
 
 	return &SchemaSet{
-		m: util.NewHashMap(eqFunc, hashFunc),
+		m: util.NewHashMap[Ref, any](eqFunc, hashFunc),
 	}
 }
 
 // Put inserts a raw schema into the set.
-func (ss *SchemaSet) Put(path Ref, raw interface{}) {
+func (ss *SchemaSet) Put(path Ref, raw any) {
 	ss.m.Put(path, raw)
 }
 
 // Get returns the raw schema identified by the path.
-func (ss *SchemaSet) Get(path Ref) interface{} {
+func (ss *SchemaSet) Get(path Ref) any {
 	if ss == nil {
 		return nil
 	}
@@ -47,7 +47,7 @@ func (ss *SchemaSet) Get(path Ref) interface{} {
 	return x
 }
 
-func loadSchema(raw interface{}, allowNet []string) (types.Type, error) {
+func loadSchema(raw any, allowNet []string) (types.Type, error) {
 
 	jsonSchema, err := compileSchema(raw, allowNet)
 	if err != nil {

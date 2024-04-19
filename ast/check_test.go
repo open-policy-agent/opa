@@ -661,7 +661,7 @@ func TestCheckInferenceRules(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			var elems []util.T
+			var elems []*Rule
 
 			// Convert test rules into rule slice for call.
 			for i := range tc.rules {
@@ -732,7 +732,7 @@ func TestCheckInferenceOverlapWithRules(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			var elems []util.T
+			var elems []*Rule
 
 			// Convert test rules into rule slice for "warmup" call.
 			for i := range tc.rules {
@@ -1325,7 +1325,7 @@ func TestFunctionTypeInferenceUnappliedWithObjectVarKey(t *testing.T) {
 		f(x) = y { y = {x: 1} }
 	`)
 
-	elems := []util.T{
+	elems := []*Rule{
 		module.Rules[0],
 	}
 
@@ -1513,8 +1513,8 @@ func TestCheckErrorOrdering(t *testing.T) {
 		p { data.test.q = 2 }  # type error: bool = number
 	`)
 
-	input := make([]util.T, len(mod.Rules))
-	inputReversed := make([]util.T, len(mod.Rules))
+	input := make([]*Rule, len(mod.Rules))
+	inputReversed := make([]*Rule, len(mod.Rules))
 
 	for i := range input {
 		input[i] = mod.Rules[i]
@@ -1562,7 +1562,7 @@ func newTestEnv(rs []string) *TypeEnv {
 
 	// We preallocate enough for at least the base rules.
 	// Else cases will cause reallocs, but that's okay.
-	elems := make([]util.T, 0, len(rs))
+	elems := make([]*Rule, 0, len(rs))
 
 	for i := range rs {
 		rule := MustParseRule(rs[i])
@@ -2305,7 +2305,7 @@ p { input = "foo" }`}},
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
 			var modules []*Module
-			var elems []util.T
+			var elems []*Rule
 
 			for i, module := range tc.modules {
 				mod, err := ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module, ParserOptions{

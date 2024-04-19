@@ -13,13 +13,13 @@ import (
 // ValueMap represents a key/value map between AST term values. Any type of term
 // can be used as a key in the map.
 type ValueMap struct {
-	hashMap *util.HashMap
+	hashMap *util.HashMap[Value, Value]
 }
 
 // NewValueMap returns a new ValueMap.
 func NewValueMap() *ValueMap {
 	vs := &ValueMap{
-		hashMap: util.NewHashMap(valueEq, valueHash),
+		hashMap: util.NewHashMap[Value, Value](valueEq, valueHash),
 	}
 	return vs
 }
@@ -92,9 +92,7 @@ func (vs *ValueMap) Iter(iter func(Value, Value) bool) bool {
 	if vs == nil {
 		return false
 	}
-	return vs.hashMap.Iter(func(kt, vt util.T) bool {
-		k := kt.(Value)
-		v := vt.(Value)
+	return vs.hashMap.Iter(func(k, v Value) bool {
 		return iter(k, v)
 	})
 }
@@ -122,11 +120,11 @@ func (vs *ValueMap) String() string {
 	return vs.hashMap.String()
 }
 
-func valueHash(v util.T) int {
+func valueHash(v any) int {
 	return v.(Value).Hash()
 }
 
-func valueEq(a, b util.T) bool {
+func valueEq(a, b any) bool {
 	av := a.(Value)
 	bv := b.(Value)
 	return av.Compare(bv) == 0

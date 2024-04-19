@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/types"
-	"github.com/open-policy-agent/opa/util"
 )
 
 type varRewriter func(Ref) Ref
@@ -156,10 +155,10 @@ func (tc *typeChecker) CheckBody(env *TypeEnv, body Body) (*TypeEnv, Errors) {
 // CheckTypes runs type checking on the rules returns a TypeEnv if no errors
 // are found. The resulting TypeEnv wraps the provided one. The resulting
 // TypeEnv will be able to resolve types of refs that refer to rules.
-func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []util.T, as *AnnotationSet) (*TypeEnv, Errors) {
+func (tc *typeChecker) CheckTypes(env *TypeEnv, sorted []*Rule, as *AnnotationSet) (*TypeEnv, Errors) {
 	env = tc.newEnv(env)
 	for _, s := range sorted {
-		tc.checkRule(env, as, s.(*Rule))
+		tc.checkRule(env, as, s)
 	}
 	tc.errs.Sort()
 	return env, tc.errs
@@ -744,8 +743,8 @@ func (rc *refChecker) checkRef(curr *TypeEnv, node *typeTreeNode, ref Ref, idx i
 
 		case RootDocumentNames.Contains(ref[0]):
 			if idx != 0 {
-				node.Children().Iter(func(_, child util.T) bool {
-					_ = rc.checkRef(curr, child.(*typeTreeNode), ref, idx+1) // ignore error
+				node.Children().Iter(func(_ Value, child *typeTreeNode) bool {
+					_ = rc.checkRef(curr, child, ref, idx+1) // ignore error
 					return false
 				})
 				return nil
@@ -1090,8 +1089,8 @@ func newArgError(loc *Location, builtinName Ref, msg string, have []types.Type, 
 }
 
 func getOneOfForNode(node *typeTreeNode) (result []Value) {
-	node.Children().Iter(func(k, _ util.T) bool {
-		result = append(result, k.(Value))
+	node.Children().Iter(func(k Value, v *typeTreeNode) bool {
+		result = append(result, k)
 		return false
 	})
 

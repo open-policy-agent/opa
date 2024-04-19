@@ -45,11 +45,11 @@ func TestHashMapOverwrite(t *testing.T) {
 }
 
 func TestHashMapIter(t *testing.T) {
-	m := NewHashMap(func(a, b T) bool {
+	m := NewHashMap[float64, struct{}](func(a, b any) bool {
 		n1 := a.(float64)
 		n2 := b.(float64)
 		return n1 == n2
-	}, func(v T) int {
+	}, func(v any) int {
 		n := v.(float64)
 		return int(n)
 	})
@@ -62,12 +62,12 @@ func TestHashMapIter(t *testing.T) {
 	if len(m.table) != 2 {
 		panic(fmt.Sprintf("Expected collision: %v", m))
 	}
-	results := map[T]T{}
-	m.Iter(func(k T, v T) bool {
+	results := make(map[float64]struct{})
+	m.Iter(func(k float64, v struct{}) bool {
 		results[k] = v
 		return false
 	})
-	expected := map[T]T{
+	expected := map[float64]struct{}{
 		float64(1):   value,
 		float64(2):   value,
 		float64(1.4): value,
@@ -168,12 +168,12 @@ func TestHashMapString(t *testing.T) {
 	}
 }
 
-func stringHashMap() *HashMap {
-	return NewHashMap(func(a, b T) bool {
+func stringHashMap() *HashMap[string, string] {
+	return NewHashMap[string, string](func(a, b any) bool {
 		s1 := a.(string)
 		s2 := b.(string)
 		return s1 == s2
-	}, func(v T) int {
+	}, func(v any) int {
 		s := v.(string)
 		h := fnv.New64a()
 		h.Write([]byte(s))

@@ -26,12 +26,12 @@ func TestLIFO(t *testing.T) {
 	}
 
 	x, ok := lifo.Peek()
-	if ok || x != nil {
+	if ok {
 		t.Fatalf("Expected peek() == nil, false but got: %v (ok=%v)", x, ok)
 	}
 
 	x, ok = lifo.Pop()
-	if ok || x != nil {
+	if ok {
 		t.Fatalf("Expected pop() == nil, false but got: %v (ok=%v)", x, ok)
 	}
 
@@ -64,12 +64,12 @@ func TestFIFO(t *testing.T) {
 	}
 
 	x, ok := fifo.Peek()
-	if ok || x != nil {
+	if ok {
 		t.Fatalf("Expected peek() == nil, false but got: %v (ok=%v)", x, ok)
 	}
 
 	x, ok = fifo.Pop()
-	if ok || x != nil {
+	if ok {
 		t.Fatalf("Expected pop() == nil, false but got: %v (ok=%v)", x, ok)
 	}
 

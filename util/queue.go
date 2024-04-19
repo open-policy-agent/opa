@@ -5,20 +5,20 @@
 package util
 
 // LIFO represents a simple LIFO queue.
-type LIFO struct {
-	top  *queueNode
+type LIFO[T any] struct {
+	top  *queueNode[T]
 	size int
 }
 
-type queueNode struct {
+type queueNode[T any] struct {
 	v    T
-	next *queueNode
+	next *queueNode[T]
 }
 
 // NewLIFO returns a new LIFO queue containing elements ts starting with the
 // left-most argument at the bottom.
-func NewLIFO(ts ...T) *LIFO {
-	s := &LIFO{}
+func NewLIFO[T any](ts ...T) *LIFO[T] {
+	s := new(LIFO[T])
 	for i := range ts {
 		s.Push(ts[i])
 	}
@@ -26,25 +26,25 @@ func NewLIFO(ts ...T) *LIFO {
 }
 
 // Push adds a new element onto the LIFO.
-func (s *LIFO) Push(t T) {
-	node := &queueNode{v: t, next: s.top}
+func (s *LIFO[T]) Push(t T) {
+	node := &queueNode[T]{v: t, next: s.top}
 	s.top = node
 	s.size++
 }
 
 // Peek returns the top of the LIFO. If LIFO is empty, returns nil, false.
-func (s *LIFO) Peek() (T, bool) {
+func (s *LIFO[T]) Peek() (T, bool) {
 	if s.top == nil {
-		return nil, false
+		return empty[T](), false
 	}
 	return s.top.v, true
 }
 
 // Pop returns the top of the LIFO and removes it. If LIFO is empty returns
 // nil, false.
-func (s *LIFO) Pop() (T, bool) {
+func (s *LIFO[T]) Pop() (T, bool) {
 	if s.top == nil {
-		return nil, false
+		return empty[T](), false
 	}
 	node := s.top
 	s.top = node.next
@@ -53,21 +53,21 @@ func (s *LIFO) Pop() (T, bool) {
 }
 
 // Size returns the size of the LIFO.
-func (s *LIFO) Size() int {
+func (s *LIFO[T]) Size() int {
 	return s.size
 }
 
 // FIFO represents a simple FIFO queue.
-type FIFO struct {
-	front *queueNode
-	back  *queueNode
+type FIFO[T any] struct {
+	front *queueNode[T]
+	back  *queueNode[T]
 	size  int
 }
 
 // NewFIFO returns a new FIFO queue containing elements ts starting with the
 // left-most argument at the front.
-func NewFIFO(ts ...T) *FIFO {
-	s := &FIFO{}
+func NewFIFO[T any](ts ...T) *FIFO[T] {
+	s := new(FIFO[T])
 	for i := range ts {
 		s.Push(ts[i])
 	}
@@ -75,8 +75,8 @@ func NewFIFO(ts ...T) *FIFO {
 }
 
 // Push adds a new element onto the LIFO.
-func (s *FIFO) Push(t T) {
-	node := &queueNode{v: t, next: nil}
+func (s *FIFO[T]) Push(t T) {
+	node := &queueNode[T]{v: t, next: nil}
 	if s.front == nil {
 		s.front = node
 		s.back = node
@@ -88,18 +88,18 @@ func (s *FIFO) Push(t T) {
 }
 
 // Peek returns the top of the LIFO. If LIFO is empty, returns nil, false.
-func (s *FIFO) Peek() (T, bool) {
+func (s *FIFO[T]) Peek() (T, bool) {
 	if s.front == nil {
-		return nil, false
+		return empty[T](), false
 	}
 	return s.front.v, true
 }
 
 // Pop returns the top of the LIFO and removes it. If LIFO is empty returns
 // nil, false.
-func (s *FIFO) Pop() (T, bool) {
+func (s *FIFO[T]) Pop() (T, bool) {
 	if s.front == nil {
-		return nil, false
+		return empty[T](), false
 	}
 	node := s.front
 	s.front = node.next
@@ -108,6 +108,11 @@ func (s *FIFO) Pop() (T, bool) {
 }
 
 // Size returns the size of the LIFO.
-func (s *FIFO) Size() int {
+func (s *FIFO[T]) Size() int {
 	return s.size
+}
+
+func empty[T any]() T {
+	var empty T
+	return empty
 }
