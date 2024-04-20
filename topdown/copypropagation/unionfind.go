@@ -94,7 +94,7 @@ func (uf *unionFind) String() string {
 	}
 
 	uf.roots.Iter(func(k ast.Value, v *unionFindRoot) bool {
-		o.Roots[k.(ast.Value).String()] = struct {
+		o.Roots[k.String()] = struct {
 			Constant *ast.Term
 			Key      ast.Value
 		}{

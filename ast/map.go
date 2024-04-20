@@ -72,7 +72,7 @@ func (vs *ValueMap) Len() int {
 func (vs *ValueMap) Get(k Value) Value {
 	if vs != nil {
 		if v, ok := vs.hashMap.Get(k); ok {
-			return v.(Value)
+			return v
 		}
 	}
 	return nil
