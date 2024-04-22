@@ -222,7 +222,7 @@ endif
 .PHONY: wasm-rego-test
 wasm-rego-test: generate
 ifeq ($(DOCKER_RUNNING), 1)
-	GOVERSION=$(GOVERSION) ./build/run-wasm-rego-tests.sh
+	GOVERSION=$(GOVERSION) DOCKER_UID=$(DOCKER_UID) DOCKER_GID=$(DOCKER_GID) ./build/run-wasm-rego-tests.sh
 else
 	@echo "Docker not installed or not running. Skipping Rego-WASM test."
 endif
