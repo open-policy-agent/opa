@@ -1761,14 +1761,15 @@ func (r *Rego) prepare(ctx context.Context, qType queryType, extras []extraStage
 		return err
 	}
 
-	futureImports := []*ast.Import{}
+	queryImports := []*ast.Import{}
 	for _, imp := range imports {
-		if imp.Path.Value.(ast.Ref).HasPrefix(ast.Ref([]*ast.Term{ast.FutureRootDocument})) {
-			futureImports = append(futureImports, imp)
+		path := imp.Path.Value.(ast.Ref)
+		if path.HasPrefix([]*ast.Term{ast.FutureRootDocument}) || path.HasPrefix([]*ast.Term{ast.RegoRootDocument}) {
+			queryImports = append(queryImports, imp)
 		}
 	}
 
-	r.parsedQuery, err = r.parseQuery(futureImports, r.metrics)
+	r.parsedQuery, err = r.parseQuery(queryImports, r.metrics)
 	if err != nil {
 		return err
 	}
@@ -1921,7 +1922,7 @@ func (r *Rego) parseRawInput(rawInput *interface{}, m metrics.Metrics) (ast.Valu
 	return ast.InterfaceToValue(*rawPtr)
 }
 
-func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.Body, error) {
+func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Body, error) {
 	if r.parsedQuery != nil {
 		return r.parsedQuery, nil
 	}
@@ -1929,12 +1930,27 @@ func (r *Rego) parseQuery(futureImports []*ast.Import, m metrics.Metrics) (ast.B
 	m.Timer(metrics.RegoQueryParse).Start()
 	defer m.Timer(metrics.RegoQueryParse).Stop()
 
-	popts, err := future.ParserOptionsFromFutureImports(futureImports)
+	popts, err := future.ParserOptionsFromFutureImports(queryImports)
+	if err != nil {
+		return nil, err
+	}
+	popts, err = parserOptionsFromRegoVersionImport(queryImports, popts)
 	if err != nil {
 		return nil, err
 	}
 	popts.SkipRules = true
 	return ast.ParseBodyWithOpts(r.query, popts)
+}
+
+func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) (ast.ParserOptions, error) {
+	for _, imp := range imports {
+		path := imp.Path.Value.(ast.Ref)
+		if ast.Compare(path, ast.RegoV1CompatibleRef) == 0 {
+			popts.RegoVersion = ast.RegoV1
+			return popts, nil
+		}
+	}
+	return popts, nil
 }
 
 func (r *Rego) compileModules(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {

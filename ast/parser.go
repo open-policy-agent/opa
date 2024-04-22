@@ -2630,7 +2630,7 @@ func (p *Parser) regoV1Import(imp *Import) {
 	path := imp.Path.Value.(Ref)
 
 	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
-		p.errorf(imp.Path.Location, "invalid import, must be `%s`", RegoV1CompatibleRef)
+		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
 		return
 	}
 
