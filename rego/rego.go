@@ -1945,14 +1945,9 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 func parserOptionsFromRegoVersionImport(imports []*ast.Import, popts ast.ParserOptions) (ast.ParserOptions, error) {
 	for _, imp := range imports {
 		path := imp.Path.Value.(ast.Ref)
-		if !path.HasPrefix([]*ast.Term{ast.RegoRootDocument}) {
-			continue
-		}
 		if ast.Compare(path, ast.RegoV1CompatibleRef) == 0 {
 			popts.RegoVersion = ast.RegoV1
 			return popts, nil
-		} else {
-			return popts, fmt.Errorf("invalid import `%s`, must be `%s`", path, ast.RegoV1CompatibleRef)
 		}
 	}
 	return popts, nil
