@@ -2294,3 +2294,83 @@ p contains 2 if {
 		}
 	}
 }
+
+func TestWithQueryImports(t *testing.T) {
+	tests := []struct {
+		note    string
+		query   string
+		imports []string
+		exp     string
+		expErrs []string
+	}{
+		{
+			note:  "no imports, none required",
+			query: "1 + 2",
+			exp:   "3\n",
+		},
+		{
+			note:    "future keyword used, future.keywords imported",
+			query:   `"b" in ["a", "b", "c"]`,
+			imports: []string{"future.keywords.in"},
+			exp:     "true\n",
+		},
+		{
+			note:    "future keyword used, rego.v1 imported",
+			query:   `"b" in ["a", "b", "c"]`,
+			imports: []string{"rego.v1"},
+			exp:     "true\n",
+		},
+		{
+			note:    "future keyword used, invalid rego.v2 imported",
+			query:   `"b" in ["a", "b", "c"]`,
+			imports: []string{"rego.v2"},
+			expErrs: []string{
+				"1:8: rego_parse_error: invalid import `rego.v2`, must be `rego.v1`",
+			},
+		},
+		{
+			note:  "future keyword used, no imports",
+			query: `"b" in ["a", "b", "c"]`,
+			expErrs: []string{
+				"1:5: rego_unsafe_var_error: var in is unsafe (hint: `import future.keywords.in` to import a future keyword)",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			params := newEvalCommandParams()
+			_ = params.outputFormat.Set(evalPrettyOutput)
+			params.imports = newrepeatedStringFlag(tc.imports)
+
+			var buf bytes.Buffer
+
+			defined, err := eval([]string{tc.query}, params, &buf)
+
+			if len(tc.expErrs) == 0 {
+				if err != nil {
+					t.Fatalf("Unexpected error: %v, buf: %s", err, buf.String())
+				}
+
+				if !defined {
+					t.Fatal("expected result to be defined")
+				}
+
+				if buf.String() != tc.exp {
+					t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, buf.String())
+				}
+			} else {
+				if err == nil {
+					t.Fatal("expected error, got none")
+				}
+
+				actual := buf.String()
+				for _, expErr := range tc.expErrs {
+					if !strings.Contains(actual, expErr) {
+						t.Fatalf("expected error:\n\n%v\n\ngot\n\n%v", expErr, actual)
+					}
+				}
+			}
+		})
+	}
+}

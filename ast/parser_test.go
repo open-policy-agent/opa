@@ -1337,9 +1337,10 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 }
 
 func TestRegoV1Import(t *testing.T) {
-	assertParseErrorContains(t, "rego", "import rego", "invalid import, must be `rego.v1`")
-	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import, must be `rego.v1`")
-	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import, must be `rego.v1`")
+	assertParseErrorContains(t, "rego", "import rego", "invalid import `rego`, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import `rego.foo`, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.foo.bar", "import rego.foo.bar", "invalid import `rego.foo.bar`, must be `rego.v1`")
+	assertParseErrorContains(t, "rego.v1.bar", "import rego.v1.bar", "invalid import `rego.v1.bar`, must be `rego.v1`")
 	assertParseErrorContains(t, "rego.v1 + alias", "import rego.v1 as xyz", "`rego` imports cannot be aliased")
 
 	assertParseImport(t, "import rego.v1",
