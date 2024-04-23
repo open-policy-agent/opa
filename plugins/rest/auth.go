@@ -541,6 +541,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	bodyRaw, err := io.ReadAll(response.Body)
 	if err != nil {
