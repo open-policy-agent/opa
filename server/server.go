@@ -1050,7 +1050,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 	}
 
 	if useDefaultDecisionPath {
-		urlPath = s.defaultDecisionPath
+		urlPath = s.generateDefaultDecisionPath()
 	}
 
 	logger := s.getDecisionLogger(br)
