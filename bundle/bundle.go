@@ -1082,8 +1082,15 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveMo
 	var err error
 
 	for i, module := range b.Modules {
+		opts := format.Opts{}
+		if preserveModuleRegoVersion {
+			opts.RegoVersion = module.Parsed.RegoVersion()
+		} else {
+			opts.RegoVersion = version
+		}
+
 		if module.Raw == nil {
-			module.Raw, err = format.AstWithOpts(module.Parsed, format.Opts{RegoVersion: version})
+			module.Raw, err = format.AstWithOpts(module.Parsed, opts)
 			if err != nil {
 				return err
 			}
@@ -1091,13 +1098,6 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveMo
 			path := module.URL
 			if useModulePath {
 				path = module.Path
-			}
-
-			opts := format.Opts{}
-			if preserveModuleRegoVersion {
-				opts.RegoVersion = module.Parsed.RegoVersion()
-			} else {
-				opts.RegoVersion = version
 			}
 
 			module.Raw, err = format.SourceWithOpts(path, module.Raw, opts)

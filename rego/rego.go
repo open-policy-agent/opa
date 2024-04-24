@@ -2421,6 +2421,53 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		return nil, err
 	}
 
+	if r.regoVersion == ast.RegoV0 && (r.capabilities == nil || r.capabilities.ContainsFeature(ast.FeatureRegoV1Import)) {
+		// If the target rego-version in v0, and the rego.v1 import is available, then we attempt to apply it to support modules.
+
+		for i, mod := range support {
+			if mod.RegoVersion() != ast.RegoV0 {
+				continue
+			}
+
+			// We can't apply the RegoV0CompatV1 version to the support module if it contains rules or vars that
+			// conflict with future keywords.
+			applyRegoVersion := true
+
+			ast.WalkRules(mod, func(r *ast.Rule) bool {
+				name := r.Head.Name
+				if name == "" && len(r.Head.Reference) > 0 {
+					name = r.Head.Reference[0].Value.(ast.Var)
+				}
+				if ast.IsFutureKeyword(name.String()) {
+					applyRegoVersion = false
+					return true
+				}
+				return false
+			})
+
+			if applyRegoVersion {
+				ast.WalkVars(mod, func(v ast.Var) bool {
+					if ast.IsFutureKeyword(v.String()) {
+						applyRegoVersion = false
+						return true
+					}
+					return false
+				})
+			}
+
+			if applyRegoVersion {
+				support[i].SetRegoVersion(ast.RegoV0CompatV1)
+			} else {
+				support[i].SetRegoVersion(r.regoVersion)
+			}
+		}
+	} else {
+		// If the target rego-version is not v0, then we apply the target rego-version to the support modules.
+		for i := range support {
+			support[i].SetRegoVersion(r.regoVersion)
+		}
+	}
+
 	pq := &PartialQueries{
 		Queries: queries,
 		Support: support,

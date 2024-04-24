@@ -1313,6 +1313,143 @@ time.clock(input.y, time.clock(input.x))
 	}
 }
 
+func TestEvalPartialRegoVersionOutput(t *testing.T) {
+	tests := []struct {
+		note                string
+		regoV1ImportCapable bool
+		v1Compatible        bool
+		query               string
+		module              string
+		expected            string
+	}{
+		{
+			note:                "v0, no future keywords",
+			regoV1ImportCapable: true,
+			query:               "data.test.p",
+			module: `package test
+
+p[v] {
+	v := input.v
+}
+`,
+			expected: `# Query 1
+data.partial.test.p = _term_0_0
+_term_0_0
+
+# Module 1
+package partial.test
+
+import rego.v1
+
+p contains __local0__1 if __local0__1 = input.v
+`,
+		},
+		{
+			note:                "v0, no future keywords, not rego.v1 import capable",
+			regoV1ImportCapable: false,
+			query:               "data.test.p",
+			module: `package test
+
+p[v] {
+	v := input.v
+}
+`,
+			expected: `# Query 1
+data.partial.test.p = _term_0_0
+_term_0_0
+
+# Module 1
+package partial.test
+
+p[__local0__1] {
+	__local0__1 = input.v
+}
+`,
+		},
+		{
+			note:                "v0, future keywords",
+			regoV1ImportCapable: true,
+			query:               "data.test.p",
+			module: `package test
+
+import rego.v1
+
+p contains v if {
+	v := input.v
+}
+`,
+			expected: `# Query 1
+data.partial.test.p = _term_0_0
+_term_0_0
+
+# Module 1
+package partial.test
+
+import rego.v1
+
+p contains __local0__1 if __local0__1 = input.v
+`,
+		},
+		{
+			note:                "v1",
+			regoV1ImportCapable: true,
+			v1Compatible:        true,
+			query:               "data.test.p",
+			module: `package test
+
+p contains v if {
+	v := input.v
+}
+`,
+			expected: `# Query 1
+data.partial.test.p = _term_0_0
+_term_0_0
+
+# Module 1
+package partial.test
+
+p contains __local0__1 if __local0__1 = input.v
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"test.rego": tc.module,
+			}
+
+			test.WithTempFS(files, func(path string) {
+				params := newEvalCommandParams()
+				_ = params.dataPaths.Set(filepath.Join(path, "test.rego"))
+				params.partial = true
+				params.shallowInlining = true
+				params.v1Compatible = tc.v1Compatible
+				_ = params.outputFormat.Set(evalSourceOutput)
+
+				if !tc.regoV1ImportCapable {
+					caps := newcapabilitiesFlag()
+					caps.C = ast.CapabilitiesForThisVersion()
+					caps.C.Features = []string{
+						ast.FeatureRefHeadStringPrefixes,
+						ast.FeatureRefHeads,
+					}
+					params.capabilities = caps
+				}
+
+				buf := new(bytes.Buffer)
+				_, err := eval([]string{tc.query}, params, buf)
+				if err != nil {
+					t.Fatal("unexpected error:", err)
+				}
+				if actual := buf.String(); actual != tc.expected {
+					t.Errorf("expected output %q\ngot %q", tc.expected, actual)
+				}
+			})
+		})
+	}
+}
+
 func TestEvalDiscardOutput(t *testing.T) {
 	tests := map[string]struct {
 		query, format, expected string

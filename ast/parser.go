@@ -2570,6 +2570,11 @@ var futureKeywords = map[string]tokens.Token{
 	"if":       tokens.If,
 }
 
+func IsFutureKeyword(s string) bool {
+	_, ok := futureKeywords[s]
+	return ok
+}
+
 func (p *Parser) futureImport(imp *Import, allowedFutureKeywords map[string]tokens.Token) {
 	path := imp.Path.Value.(Ref)
 
