@@ -32,6 +32,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
 	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/util"
 	"github.com/open-policy-agent/opa/version"
 )
 
@@ -183,9 +184,16 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		close(ready)
 	})
 
+	var bootConfig map[string]interface{}
+	err = util.Unmarshal(opa.config, &bootConfig)
+	if err != nil {
+		return err
+	}
+
 	d, err := discovery.New(manager,
 		discovery.Factories(opa.plugins),
 		discovery.Hooks(opa.hooks),
+		discovery.BootConfig(bootConfig),
 	)
 	if err != nil {
 		return err

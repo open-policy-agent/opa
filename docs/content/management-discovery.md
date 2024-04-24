@@ -24,9 +24,9 @@ ways to structure the discovery bundle:
 > option.
 
 If discovery is enabled, other features like bundle downloading and status
-reporting **cannot** be configured manually. Similarly, discovered configuration
-cannot override the original discovery settings in the configuration file that
-OPA was booted with.
+reporting **can** be configured manually. In case of conflicts, the bootstrap configuration
+for plugins would override the discovered configuration. **In general, the bootstrap configuration
+overrides the discovered configuration.**
 
 See the [Configuration Reference](../configuration) for configuration details.
 
