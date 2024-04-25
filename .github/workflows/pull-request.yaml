@@ -59,7 +59,7 @@ jobs:
           # but the downstream targets only want the amd64 binaries, so amd64 is
           # the artifact name we upload the darwin target to.
           - os: darwin
-            run: macos-latest
+            run: macos-14
             targets: ci-build-darwin ci-build-darwin-arm64-static
             arch: amd64
     steps:
@@ -112,7 +112,7 @@ jobs:
           - os: linux
             run: ubuntu-22.04
           - os: darwin
-            run: macos-latest
+            run: macos-14
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -282,7 +282,7 @@ jobs:
             arch: amd64
             wasm: disabled
           - os: darwin
-            run: macos-latest
+            run: macos-13
             exec: opa_darwin_amd64
             arch: amd64
           - os: windows
@@ -314,7 +314,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-22.04, macos-14]
         version: ["1.20"]
     steps:
       - uses: actions/checkout@v4
