@@ -55,13 +55,14 @@ jobs:
             run: ubuntu-22.04
             targets: ci-go-ci-build-windows
             arch: amd64
-          # Note(philipc): The underlying make targets also build arm64_static,
-          # but the downstream targets only want the amd64 binaries, so amd64 is
-          # the artifact name we upload the darwin target to.
+          - os: darwin
+            run: macos-13
+            targets: ci-build-darwin
+            arch: amd64
           - os: darwin
             run: macos-14
-            targets: ci-build-darwin ci-build-darwin-arm64-static
-            arch: amd64
+            targets: ci-build-darwin-arm64-static
+            arch: arm64
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -285,6 +286,10 @@ jobs:
             run: macos-13
             exec: opa_darwin_amd64
             arch: amd64
+          - os: darwin
+            run: macos-14
+            exec: opa_darwin_arm64_static
+            arch: arm64
           - os: windows
             run: windows-latest
             exec: opa_windows_amd64.exe
