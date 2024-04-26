@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -751,7 +752,7 @@ func mergeValuesAndListOverrides(dest map[string]interface{}, src map[string]int
 		nextMap, ok := v.(map[string]interface{})
 		// If it isn't another map, overwrite the value
 		if !ok {
-			if dest[k] != v {
+			if !reflect.DeepEqual(dest[k], v) {
 				overriddenKeys = append(overriddenKeys, fullKey)
 			}
 			dest[k] = v
