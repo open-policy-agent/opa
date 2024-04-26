@@ -290,6 +290,7 @@ jobs:
             run: macos-14
             exec: opa_darwin_arm64_static
             arch: arm64
+            wasm: disabled
           - os: windows
             run: windows-latest
             exec: opa_windows_amd64.exe
