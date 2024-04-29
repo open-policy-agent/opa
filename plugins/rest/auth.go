@@ -708,6 +708,7 @@ type awsSigningAuthPlugin struct {
 	AWSService          string `json:"service,omitempty"`
 	AWSSignatureVersion string `json:"signature_version,omitempty"`
 
+	host          string
 	ecrAuthPlugin *ecrAuthPlugin
 	kmsSignPlugin *awsKMSSignPlugin
 
@@ -827,6 +828,13 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 		return nil, err
 	}
 
+	url, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	ap.host = url.Host
+
 	if ap.logger == nil {
 		ap.logger = c.logger
 	}
@@ -839,6 +847,13 @@ func (ap *awsSigningAuthPlugin) NewClient(c Config) (*http.Client, error) {
 }
 
 func (ap *awsSigningAuthPlugin) Prepare(req *http.Request) error {
+	if ap.host != req.URL.Host {
+		// Return early if the host does not match.
+		// This can happen when the OCI registry responded with a redirect to another host.
+		// For instance, ECR redirects to S3 and the ECR auth header should not be included in the S3 request.
+		return nil
+	}
+
 	switch ap.AWSService {
 	case "ecr":
 		return ap.ecrAuthPlugin.Prepare(req)
