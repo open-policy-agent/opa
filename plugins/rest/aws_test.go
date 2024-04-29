@@ -1586,6 +1586,54 @@ func TestECRAuthPluginRequestsAuthorizationToken(t *testing.T) {
 	}
 }
 
+func TestECRAuthPluginRequestsRedirection(t *testing.T) {
+	// Environment credentials to sign the ecr get authorization token request
+	t.Setenv(accessKeyEnvVar, "blablabla")
+	t.Setenv(secretKeyEnvVar, "tatata")
+	t.Setenv(awsRegionEnvVar, "us-east-1")
+	t.Setenv(sessionTokenEnvVar, "lalala")
+
+	ap := awsSigningAuthPlugin{
+		logger:                    logging.NewNoOpLogger(),
+		AWSEnvironmentCredentials: &awsEnvironmentCredentialService{},
+		host:                      "somewhere.com",
+		AWSService:                "ecr",
+	}
+
+	apECR := newECRAuthPlugin(&ap)
+	apECR.ecr = &ecrStub{token: aws.ECRAuthorizationToken{
+		AuthorizationToken: "secret",
+	}}
+
+	ap.ecrAuthPlugin = apECR
+
+	// Request to the host specified in the plugin configuration
+	req := httptest.NewRequest("", "http://somewhere.com", nil)
+
+	if err := ap.Prepare(req); err != nil {
+		t.Errorf("ecrAuthPlugin.Prepare() = %q", err)
+	}
+
+	got := req.Header.Get("Authorization")
+	want := "Basic secret"
+	if got != want {
+		t.Errorf("req.Header.Get(\"Authorization\") = %q, want %q", got, want)
+	}
+
+	// Redirection to another host
+	req = httptest.NewRequest("", "http://somewhere-else.com", nil)
+
+	if err := ap.Prepare(req); err != nil {
+		t.Errorf("ecrAuthPlugin.Prepare() = %q", err)
+	}
+
+	got = req.Header.Get("Authorization")
+	want = ""
+	if got != want {
+		t.Errorf("req.Header.Get(\"Authorization\") = %q, want %q", got, want)
+	}
+}
+
 type ecrStub struct {
 	token aws.ECRAuthorizationToken
 }
