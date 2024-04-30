@@ -1989,6 +1989,69 @@ func TestMergeValuesAndListOverrides(t *testing.T) {
 			override: []string{},
 		},
 		{
+			name: "Simple Non-map override -1",
+			dest: map[string]interface{}{
+				"a": []interface{}{"bar"},
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"a": 3,
+			},
+			expected: map[string]interface{}{
+				"a": 3,
+				"b": 2,
+			},
+			override: []string{"a"},
+		},
+		{
+			name: "Simple Non-map override -2",
+			dest: map[string]interface{}{
+				"a": 3,
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"a": []interface{}{"bar"},
+			},
+			expected: map[string]interface{}{
+				"a": []interface{}{"bar"},
+				"b": 2,
+			},
+			override: []string{"a"},
+		},
+		{
+			name: "Non-map override -1",
+			dest: map[string]interface{}{
+				"a": []interface{}{"bar"},
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"a": []string{"foo"},
+			},
+			expected: map[string]interface{}{
+				"a": []string{"foo"},
+				"b": 2,
+			},
+			override: []string{"a"},
+		},
+		{
+			name: "Non-map override -2",
+			dest: map[string]interface{}{
+				"a": map[string]interface{}{
+					"aa": 10,
+					"ab": 20,
+				},
+				"b": 2,
+			},
+			src: map[string]interface{}{
+				"a": []interface{}{"foo"},
+			},
+			expected: map[string]interface{}{
+				"a": []interface{}{"foo"},
+				"b": 2,
+			},
+			override: []string{"a"},
+		},
+		{
 			name: "Simple overridden keys",
 			dest: map[string]interface{}{
 				"a": 1,

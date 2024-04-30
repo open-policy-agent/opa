@@ -349,7 +349,7 @@ func Source(w io.Writer, r Output) error {
 
 	for i := range r.Partial.Support {
 		fmt.Fprintf(w, "# Module %d\n", i+1)
-		bs, err := format.AstWithOpts(r.Partial.Support[i], format.Opts{IgnoreLocations: true})
+		bs, err := format.AstWithOpts(r.Partial.Support[i], format.Opts{IgnoreLocations: true, RegoVersion: r.Partial.Support[i].RegoVersion()})
 		if err != nil {
 			return err
 		}

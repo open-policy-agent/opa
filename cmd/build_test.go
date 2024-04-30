@@ -1792,14 +1792,70 @@ allow if {
 	}
 }
 
-func TestBuildWithV1CompatibleFlagOptimized(t *testing.T) {
+func TestBuildOptimizedWithRegoVersion(t *testing.T) {
 	tests := []struct {
-		note          string
-		files         map[string]string
-		expectedFiles map[string]string
+		note                string
+		v1Compatible        bool
+		regoV1ImportCapable bool
+		files               map[string]string
+		expectedFiles       map[string]string
 	}{
 		{
-			note: "No imports",
+			note:                "v0, no future keywords",
+			v1Compatible:        false,
+			regoV1ImportCapable: true,
+			files: map[string]string{
+				"test.rego": `package test
+# METADATA
+# entrypoint: true
+p[v] {
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				// rego.v1 import added to optimized support module
+				"/optimized/test.rego": `package test
+
+import rego.v1
+
+p contains __local0__1 if {
+	__local0__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note:                "v0, No future keywords, not rego.v1 import capable",
+			v1Compatible:        false,
+			regoV1ImportCapable: false,
+			files: map[string]string{
+				"test.rego": `package test
+# METADATA
+# entrypoint: true
+p[v] {
+	v := input.v
+}
+`,
+			},
+			expectedFiles: map[string]string{
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				// rego.v1 import NOT added to optimized support module
+				"/optimized/test.rego": `package test
+
+p[__local0__1] {
+	__local0__1 = input.v
+}
+`,
+			},
+		},
+		{
+			note:                "v1, No imports",
+			v1Compatible:        true,
+			regoV1ImportCapable: true,
 			files: map[string]string{
 				"test.rego": `package test
 # METADATA
@@ -1822,7 +1878,9 @@ foo contains __local1__1 if {
 			},
 		},
 		{
-			note: "rego.v1 imported",
+			note:                "v1, rego.v1 imported",
+			v1Compatible:        true,
+			regoV1ImportCapable: true,
 			files: map[string]string{
 				"test.rego": `package test
 import rego.v1
@@ -1849,7 +1907,9 @@ foo contains __local1__1 if {
 			},
 		},
 		{
-			note: "future.keywords imported",
+			note:                "v1, future.keywords imported",
+			v1Compatible:        true,
+			regoV1ImportCapable: true,
 			files: map[string]string{
 				"test.rego": `package test
 import future.keywords
@@ -1879,8 +1939,18 @@ foo contains __local1__1 if {
 			test.WithTempFS(tc.files, func(root string) {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
-				params.v1Compatible = true
+				params.v1Compatible = tc.v1Compatible
 				params.optimizationLevel = 1
+
+				if !tc.regoV1ImportCapable {
+					caps := newcapabilitiesFlag()
+					caps.C = ast.CapabilitiesForThisVersion()
+					caps.C.Features = []string{
+						ast.FeatureRefHeadStringPrefixes,
+						ast.FeatureRefHeads,
+					}
+					params.capabilities = caps
+				}
 
 				err := dobuild(params, []string{root})
 

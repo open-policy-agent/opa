@@ -686,6 +686,13 @@
       "PreRelease": "",
       "Metadata": ""
     },
+    "json.marshal_with_options": {
+      "Major": 0,
+      "Minor": 64,
+      "Patch": 0,
+      "PreRelease": "",
+      "Metadata": ""
+    },
     "json.match_schema": {
       "Major": 0,
       "Minor": 50,

@@ -3873,6 +3873,46 @@ func TestUnversionedPost(t *testing.T) {
 	if f.recorder.Body.String() != expectedBody {
 		t.Errorf("Expected %s got %s", expectedBody, f.recorder.Body.String())
 	}
+
+	// update the default decision path
+	s := "http/authz"
+	f.server.manager.Config.DefaultDecision = &s
+
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, post())
+
+	if f.recorder.Code != 404 {
+		t.Fatalf("Expected not found before policy added but got %v", f.recorder)
+	}
+
+	expectedBody = `{
+  "code": "undefined_document",
+  "message": "document missing: data.http.authz"
+}
+`
+	if f.recorder.Body.String() != expectedBody {
+		t.Fatalf("Expected %s got %s", expectedBody, f.recorder.Body.String())
+	}
+
+	module = `
+	package http.authz
+
+	agg = x {
+		sum(input.foo.bar, x)
+	}
+	`
+
+	if err := f.v1("PUT", "/policies/test", module, 200, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	f.reset()
+	f.server.Handler.ServeHTTP(f.recorder, post())
+
+	expected = "{\"agg\":6}\n"
+	if f.recorder.Code != 200 || f.recorder.Body.String() != expected {
+		t.Fatalf(`Expected HTTP 200 / %v but got: %v`, expected, f.recorder)
+	}
 }
 
 func TestQueryV1Explain(t *testing.T) {

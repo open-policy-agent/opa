@@ -544,7 +544,8 @@ func (c *Compiler) optimize(ctx context.Context) error {
 		WithEntrypoints(c.entrypointrefs).
 		WithDebug(c.debug.Writer()).
 		WithShallowInlining(c.optimizationLevel <= 1).
-		WithEnablePrintStatements(c.enablePrintStatements)
+		WithEnablePrintStatements(c.enablePrintStatements).
+		WithRegoVersion(c.regoVersion)
 
 	if c.ns != "" {
 		o = o.WithPartialNamespace(c.ns)
@@ -869,6 +870,7 @@ type optimizer struct {
 	shallow               bool
 	debug                 debug.Debug
 	enablePrintStatements bool
+	regoVersion           ast.RegoVersion
 }
 
 func newOptimizer(c *ast.Capabilities, b *bundle.Bundle) *optimizer {
@@ -906,6 +908,11 @@ func (o *optimizer) WithShallowInlining(yes bool) *optimizer {
 
 func (o *optimizer) WithPartialNamespace(ns string) *optimizer {
 	o.nsprefix = ns
+	return o
+}
+
+func (o *optimizer) WithRegoVersion(regoVersion ast.RegoVersion) *optimizer {
+	o.regoVersion = regoVersion
 	return o
 }
 
@@ -958,6 +965,8 @@ func (o *optimizer) Do(ctx context.Context) error {
 			rego.ParsedUnknowns(unknowns),
 			rego.Compiler(o.compiler),
 			rego.Store(store),
+			rego.Capabilities(o.capabilities),
+			rego.SetRegoVersion(o.regoVersion),
 		)
 
 		o.debug.Printf("optimizer: entrypoint: %v", e)

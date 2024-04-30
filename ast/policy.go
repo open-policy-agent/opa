@@ -407,6 +407,12 @@ func (mod *Module) RegoVersion() RegoVersion {
 	return mod.regoVersion
 }
 
+// SetRegoVersion sets the RegoVersion for the module.
+// Note: Setting a rego-version that does not match the module's rego-version might have unintended consequences.
+func (mod *Module) SetRegoVersion(v RegoVersion) {
+	mod.regoVersion = v
+}
+
 // NewComment returns a new Comment object.
 func NewComment(text []byte) *Comment {
 	return &Comment{

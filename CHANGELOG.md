@@ -5,13 +5,24 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-The `go` stanza of OPA's `go.mod` had become out of sync: Projects importing OPA as a Go library would see their `go` stanza moved to 1.21 (if it wasn't that before).
-This was introduced with v0.63.0, but the main branch's `go.mod` still claimed to be a `go 1.20` compatible.
-Now, it states the true state of affairs: OPA, used as Go dependency, requires at least Go 1.21, and thus works with all officially supported Go versions (1.21.x and 1.22.x).
+## 0.64.1
 
-#### Breaking Change
+This is a bug fix release addressing the following issues:
 
-##### Bootstrap configuration overrides Discovered configuration
+- ci: Pin GitHub Actions macos runner version. The architecture of the GitHub Actions Runner `macos-latest` was changed from `amd64` to `arm64` and as a result `darwin/amd64` binary wasn't released ([#6720](https://github.com/open-policy-agent/opa/issues/6720)) authored by @suzuki-shunsuke
+- plugins/discovery: Update comparison logic used in the discovery plugin for handling overrides. This fixes a panic that resulted from the comparison of uncomparable types ([#6723](https://github.com/open-policy-agent/opa/pull/6723)) authored by @ashutosh-narkar
+
+## 0.64.0
+
+> **_NOTES:_**
+>
+> * The minimum version of Go required to build the OPA module is **1.21**
+
+This release contains a mix of features, a new builtin function (`json.marshal_with_options()`), performance improvements, and bugfixes.
+
+### Breaking Change
+
+#### Bootstrap configuration overrides Discovered configuration
 
 Previously if Discovery was enabled, other features like bundle downloading and status reporting could not be configured manually.
 The reason for this was to prevent OPAs being deployed that could not be controlled through discovery. It's possible that
@@ -25,7 +36,52 @@ configuration fields. For example, if the discovered configuration changes the `
 additional compared to the bootstrap configuration are used, all other changes are ignored. This implies labels in the
 bootstrap configuration override those in the discovered configuration. But for fields such as `default_decision`, `default_authorization_decision`,
 `nd_builtin_cache`, the discovered configuration would override the bootstrap configuration. Now the behavior is more consistent
-for the entire configuration and helps to avoid accidental configuration errors.
+for the entire configuration and helps to avoid accidental configuration errors. ([#5722](https://github.com/open-policy-agent/opa/issues/5722)) authored by @ashutosh-narkar
+
+### Add `rego_version` attribute to the bundle manifest
+
+A new global `rego_version` attribute is added to the bundle manifest, to inform the OPA runtime about what Rego version (`v0`/`v1`) to
+use while parsing/compiling contained Rego files. There is also a new `file_rego_versions` attribute which allows individual
+files to override the global Rego version specified by `rego_version`.
+
+When the version of the contained Rego is advertised by the bundle through this attribute, it is not required to run OPA with the
+`--v1-compatible` (or future `--v0-compatible`) flag in order to correctly parse, compile and evaluate the bundle's modules.
+
+A bundle's `rego_version` attribute takes precedence over any applied `--v1-compatible`/`--v0-compatible` flag.  ([#6578](https://github.com/open-policy-agent/opa/issues/6578)) authored by @johanfylling
+
+### Runtime, Tooling, SDK
+- compile: Fix panic from CLI + metadata entrypoint overlaps. The panic occurs when `opa build` was provided an entrypoint from both a CLI flag, and via entrypoint metadata annotation. ([#6661](https://github.com/open-policy-agent/opa/issues/6661)) authored by @philipaconrad
+- cmd/deps: Improve memory footprint and execution time of `deps` command for policies with high dependency connectivity ([#6685](https://github.com/open-policy-agent/opa/issues/6685)) authored by @johanfylling
+- server: Keep default decision path in-sync with manager's config ([#6697](https://github.com/open-policy-agent/opa/issues/6697)) authored by @ashutosh-narkar
+- server: Remove unnecessary AST-to-JSON conversions ([#6665](https://github.com/open-policy-agent/opa/pull/6665)) and ([#6669](https://github.com/open-policy-agent/opa/pull/6669)) authored by @koponen-styra
+- sdk: Allow customizations of the plugin manager via SDK ([#6662](https://github.com/open-policy-agent/opa/issues/6662)) authored by @xico42
+- sdk: Fix issue where active parser options aren't propagated to module reload during bundle activation resulting in errors while activating bundles with `v1` syntax ([#6689](https://github.com/open-policy-agent/opa/pull/6689)) authored by @xico42
+- plugins/rest: Close response body in OAuth2 client credentials flow ([#6708](https://github.com/open-policy-agent/opa/pull/6708)) authored by @johanneslarsson
+
+### Topdown and Rego
+- ast: Import `rego.v1` in `v0` support modules when applicable ([#6450](https://github.com/open-policy-agent/opa/issues/6450)) authored by @johanfylling
+- rego: Set query Rego version from configured imports ([#6701](https://github.com/open-policy-agent/opa/issues/6701)) authored by @johanfylling
+- topdown: New `json.marshal_with_options()` builtin for indented/"pretty-printed" and/or line-prefixed JSON ([#6630](https://github.com/open-policy-agent/opa/issues/6630)) authored by @sean-r-williams
+
+### Docs, Website, Ecosystem
+- Add Raygun to ecosystem projects ([#6712](https://github.com/open-policy-agent/opa/pull/6712)) authored by @johndbro1
+- Add env0 to ecosystem projects ([#6658](https://github.com/open-policy-agent/opa/pull/6658)) authored by @yarivg
+- Add Rego Language Comparisons to ecosystem projects ([#6663](https://github.com/open-policy-agent/opa/pull/6663)) authored by @charlieegan3
+- docs/configuration: Tidy up headers in Services section ([#6695](https://github.com/open-policy-agent/opa/pull/6695)) authored by @tsandall
+- docs: Use cuboid rather than cube to explain concepts of sets and composite values in policy-language section of documentation ([#6691](https://github.com/open-policy-agent/opa/pull/6691)) authored by @kd-labs
+
+### Miscellaneous
+- go.{mod,sum}: Update the `go` stanza of OPA's `go.mod` to `go 1.21`. OPA, used as Go dependency, requires at least `go 1.21`, and thus works with all officially supported Go versions (`1.21.x` and `1.22.x`) ([#6678](https://github.com/open-policy-agent/opa/pull/6678)) authored by @srenatus
+- ci: Update Github Actions for Node 20. This change updates the `upload-artifact` and `download-artifact` Github actions to the latest version (v4) ([#6670](https://github.com/open-policy-agent/opa/pull/6670)) authored by @philipaconrad
+- build: Update WASM Rego test generation docker command to address CVE-2022-24765 in Git ([#6703](https://github.com/open-policy-agent/opa/issues/6703)) authored by @ashutosh-narkar
+- Dependency updates; notably:
+  - build(go): bump 1.22.1 -> 1.22.2 ([#6672](https://github.com/open-policy-agent/opa/pull/6672)) authored by @srenatus
+  - build(deps): bump aquasecurity/trivy-action from 0.18.0 to 0.19.0
+  - build(deps): bump github.com/containerd/containerd from 1.7.14 to 1.7.15
+  - build(deps): bump github.com/prometheus/client_model from 0.5.0 to 0.6.1
+  - build(deps): bump golang.org/x/net from 0.22.0 to 0.24.0
+  - build(deps): bump google.golang.org/grpc from 1.62.1 to 1.63.2
+
 
 ## 0.63.0
 
