@@ -140,7 +140,7 @@ status_code := 200 if {
 body := "Authentication Failed" if status_code == 401
 body := "Unauthorized Request"  if status_code == 403
 
-dynamic_metadata := {"foo", "bar"}
+dynamic_metadata := {"foo": "bar"}
 
 is_token_valid if {
 	token.valid
