@@ -208,7 +208,7 @@ When Envoy receives a policy decision, it expects a JSON object with the followi
 * `headers` (optional): an object mapping a string header name to a string header value (e.g. key "x-ext-auth-allow" has value "yes")
 * `response_headers_to_add` (optional): an object mapping a string header name to a string header value
 * `request_headers_to_remove` (optional): is an array of string header names
-* `http_status` (optional): a number representing the HTTP status code
+* `status_code` (optional): a number representing the HTTP status code
 * `body` (optional): the response body
 * `dynamic_metadata` (optional): an object representing dynamic metadata to be consumed by the next Envoy filter.
 
@@ -220,7 +220,7 @@ result["headers"] := headers
 result["response_headers_to_add"] := response_headers_to_add
 result["request_headers_to_remove"] := request_headers_to_remove
 result["body"] := body
-result["http_status"] := status_code
+result["status_code"] := status_code
 result["dynamic_metadata"] := dynamic_metadata
 ```
 
