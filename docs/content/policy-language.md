@@ -338,6 +338,24 @@ d := {"a": a, "x": [b, c]}
 
 By defining composite values in terms of variables and references, rules can define abstractions over raw data and other rules.
 
+### Arrays
+
+Arrays are ordered collections of values. Arrays in Rego are zero-indexed, and may contain any value, including
+variable references.
+
+```live:eg/arrays:module:merge_down
+arr := [1, "two", 3]
+```
+
+```live:eg/arrays/lookup:query:merge_down
+last := arr[2]
+```
+
+```live:eg/arrays/lookup:output:merge_down
+```
+
+Use arrays when order matters and duplicate values should be allowed.
+
 ### Objects
 
 Objects are unordered key-value collections. In Rego, any value type can be
