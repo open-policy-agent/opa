@@ -31,9 +31,7 @@ func DoRequestWithClient(req *http.Request, client *http.Client, desc string, lo
 	}
 
 	if resp.StatusCode != 200 {
-		if logger.GetLevel() == logging.Debug {
-			logger.Debug("Error response with response body: %s", body)
-		}
+		logger.Debug("Error response with response body: %s", body)
 		// could be 404 for role that's not available, but cover all the bases
 		return nil, errors.New(desc + " HTTP request returned unexpected status: " + resp.Status)
 	}
