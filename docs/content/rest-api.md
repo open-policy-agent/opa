@@ -1169,8 +1169,9 @@ Content-Type: application/json
 Execute a simple query.
 
 OPA serves POST requests without a URL path by querying for the document at
-path `/data/system/main`. The content of that document defines the response
-entirely.
+path `/data/system/main` by default. The content of that document defines the response
+entirely. This default can be overridden by the `default_decision` configuration. See the [Configuration Reference](../configuration/#miscellaneous)
+for more information.
 
 #### Request Headers
 
