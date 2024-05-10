@@ -28,6 +28,7 @@ type PrettyReporter struct {
 	Output                   io.Writer
 	Verbose                  bool
 	FailureLine              bool
+	LocalVars                bool
 	BenchmarkResults         bool
 	BenchMarkShowAllocations bool
 	BenchMarkGoBenchFormat   bool
@@ -55,14 +56,41 @@ func (r PrettyReporter) Report(ch chan *Result) error {
 		results = append(results, tr)
 	}
 
-	if fail > 0 && r.Verbose {
+	if fail > 0 && (r.Verbose || r.FailureLine) {
 		fmt.Fprintln(r.Output, "FAILURES")
 		r.hl()
 
 		for _, failure := range failures {
 			fmt.Fprintln(r.Output, failure)
-			fmt.Fprintln(r.Output)
-			topdown.PrettyTraceWithLocation(newIndentingWriter(r.Output), failure.Trace)
+			if r.Verbose {
+				fmt.Fprintln(r.Output)
+				topdown.PrettyTraceWithOpts(newIndentingWriter(r.Output), failure.Trace, topdown.PrettyTraceOptions{
+					Locations:     true,
+					ExprVariables: r.LocalVars,
+				})
+			}
+
+			if r.FailureLine {
+				fmt.Fprintln(r.Output)
+				for i := len(failure.Trace) - 1; i >= 0; i-- {
+					e := failure.Trace[i]
+					if e.Op == topdown.FailOp && e.Location != nil && e.QueryID != 0 {
+						if expr, isExpr := e.Node.(*ast.Expr); isExpr {
+							if _, isEvery := expr.Terms.(*ast.Every); isEvery {
+								// We're interested in the failing expression inside the every body.
+								continue
+							}
+						}
+						_, _ = fmt.Fprintf(newIndentingWriter(r.Output), "%s:%d:\n", e.Location.File, e.Location.Row)
+						if err := topdown.PrettyEvent(newIndentingWriter(r.Output, 4), e, topdown.PrettyEventOpts{PrettyVars: r.LocalVars}); err != nil {
+							return err
+						}
+						_, _ = fmt.Fprintln(r.Output)
+						break
+					}
+				}
+			}
+
 			fmt.Fprintln(r.Output)
 		}
 
@@ -216,12 +244,18 @@ func (r JSONCoverageReporter) Report(ch chan *Result) error {
 }
 
 type indentingWriter struct {
-	w io.Writer
+	w      io.Writer
+	indent int
 }
 
-func newIndentingWriter(w io.Writer) indentingWriter {
+func newIndentingWriter(w io.Writer, indent ...int) indentingWriter {
+	i := 2
+	if len(indent) > 0 {
+		i = indent[0]
+	}
 	return indentingWriter{
-		w: w,
+		w:      w,
+		indent: i,
 	}
 }
 
@@ -231,7 +265,7 @@ func (w indentingWriter) Write(bs []byte) (int, error) {
 	indent := true
 	for _, b := range bs {
 		if indent {
-			wrote, err := w.w.Write([]byte("  "))
+			wrote, err := w.w.Write([]byte(strings.Repeat(" ", w.indent)))
 			if err != nil {
 				return written, err
 			}

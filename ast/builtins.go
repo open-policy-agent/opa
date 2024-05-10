@@ -300,6 +300,15 @@ var DefaultBuiltins = [...]*Builtin{
 	InternalPrint,
 }
 
+var inverseBuiltins = map[*Builtin]*Builtin{
+	Equal:         NotEqual,
+	NotEqual:      Equal,
+	GreaterThan:   LessThanEq,
+	GreaterThanEq: LessThan,
+	LessThan:      GreaterThanEq,
+	LessThanEq:    GreaterThan,
+}
+
 // BuiltinMap provides a convenient mapping of built-in names to
 // built-in definitions.
 var BuiltinMap map[string]*Builtin
@@ -3324,6 +3333,13 @@ func (b *Builtin) Expr(operands ...*Term) *Expr {
 	return &Expr{
 		Terms: ts,
 	}
+}
+
+func (b *Builtin) InvExpr(operands ...*Term) *Expr {
+	if inverse, ok := inverseBuiltins[b]; ok {
+		return inverse.Expr(operands...)
+	}
+	return nil
 }
 
 // Call creates a new term for the built-in with the given operands.

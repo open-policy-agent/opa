@@ -1299,3 +1299,7 @@ func removeUnifyOps(trace []*Event) (result []*Event) {
 	}
 	return
 }
+
+func TestPrettyTraceWithLocalVars(t *testing.T) {
+
+}

@@ -1211,6 +1211,463 @@ func TestEvalDebugTraceJSONOutput(t *testing.T) {
 	}
 }
 
+func TestEvalPrettyTrace(t *testing.T) {
+	tests := []struct {
+		note        string
+		query       string
+		includeVars bool
+		files       map[string]string
+		expected    string
+	}{
+		{
+			note:        "simple without vars",
+			query:       "data.test.p",
+			includeVars: false,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	x := 1
+	y := 2
+	z := 3
+	x == z - y
+} 
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _
+query:1 %.*%         | Eval data.test.p = _
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)
+%.*%/test.rego:4     | Enter data.test.p
+%.*%/test.rego:5     | | Eval x = 1
+%.*%/test.rego:6     | | Eval y = 2
+%.*%/test.rego:7     | | Eval z = 3
+%.*%/test.rego:8     | | Eval minus(z, y, __local3__)
+%.*%/test.rego:8     | | Eval x = __local3__
+%.*%/test.rego:4     | | Exit data.test.p early
+query:1 %.*%         | Exit data.test.p = _
+query:1 %.*%         Redo data.test.p = _
+query:1 %.*%         | Redo data.test.p = _
+%.*%/test.rego:4     | Redo data.test.p
+%.*%/test.rego:8     | | Redo x = __local3__
+%.*%/test.rego:8     | | Redo minus(z, y, __local3__)
+%.*%/test.rego:7     | | Redo z = 3
+%.*%/test.rego:6     | | Redo y = 2
+%.*%/test.rego:5     | | Redo x = 1
+true
+`,
+		},
+		{
+			note:        "simple with vars",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	x := 1
+	y := 2
+	z := 3
+	x == z - y
+} 
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _                                {}
+query:1 %.*%         | Eval data.test.p = _                               {}
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)     {}
+%.*%/test.rego:4     | Enter data.test.p                                  {}
+%.*%/test.rego:5     | | Eval x = 1                                       {}
+%.*%/test.rego:6     | | Eval y = 2                                       {}
+%.*%/test.rego:7     | | Eval z = 3                                       {}
+%.*%/test.rego:8     | | Eval minus(z, y, __local3__)                     {y: 2, z: 3}
+%.*%/test.rego:8     | | Eval x = __local3__                              {__local3__: 1, x: 1}
+%.*%/test.rego:4     | | Exit data.test.p early                           {}
+query:1 %.*%         | Exit data.test.p = _                               {_: true, data.test.p: true}
+query:1 %.*%         Redo data.test.p = _                                 {_: true, data.test.p: true}
+query:1 %.*%         | Redo data.test.p = _                               {_: true, data.test.p: true}
+%.*%/test.rego:4     | Redo data.test.p                                   {}
+%.*%/test.rego:8     | | Redo x = __local3__                              {__local3__: 1, x: 1}
+%.*%/test.rego:8     | | Redo minus(z, y, __local3__)                     {__local3__: 1, y: 2, z: 3}
+%.*%/test.rego:7     | | Redo z = 3                                       {z: 3}
+%.*%/test.rego:6     | | Redo y = 2                                       {y: 2}
+%.*%/test.rego:5     | | Redo x = 1                                       {x: 1}
+true
+`,
+		},
+		{
+			note:        "large var",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+v := {
+		"foo": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+		"bar": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+		"baz": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+		"qux": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+	}
+
+p if {
+	x := v
+
+	x.foo[_] == "a"
+} 
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%          Enter data.test.p = _                                  {}
+query:1 %.*%          | Eval data.test.p = _                                 {}
+query:1 %.*%          | Index data.test.p (matched 1 rule, early exit)       {}
+%.*%/test.rego:11     | Enter data.test.p                                    {}
+%.*%/test.rego:12     | | Eval x = data.test.v                               {}
+%.*%/test.rego:12     | | Index data.test.v (matched 1 rule, early exit)     {}
+%.*%/test.rego:4      | | Enter data.test.v                                  {}
+%.*%/test.rego:4      | | | Eval true                                        {}
+%.*%/test.rego:4      | | | Exit data.test.v early                           {}
+%.*%/test.rego:14     | | Eval x.foo[_] = "a"                                {x: {"bar": ["a", "b", "c", "d", ...}
+%.*%/test.rego:11     | | Exit data.test.p early                             {}
+query:1 %.*%          | Exit data.test.p = _                                 {_: true, data.test.p: true}
+query:1 %.*%          Redo data.test.p = _                                   {_: true, data.test.p: true}
+query:1 %.*%          | Redo data.test.p = _                                 {_: true, data.test.p: true}
+%.*%/test.rego:11     | Redo data.test.p                                     {}
+%.*%/test.rego:14     | | Redo x.foo[_] = "a"                                {_: 0, x: {"bar": ["a", "b", "c", "d", ...}
+%.*%/test.rego:12     | | Redo x = data.test.v                               {data.test.v: {"bar": ["a", "b", "c", "d", ..., x: {"bar": ["a", "b", "c", "d", ...}
+%.*%/test.rego:4      | | | Redo true                                        {}
+true
+`,
+		},
+		{
+			note:        "func call",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	x := 1
+	y := 2
+	z := 3
+	z == f(x, y)
+}
+
+f(a, b) := c if {
+	c := a + b
+}
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%          Enter data.test.p = _                                {}
+query:1 %.*%          | Eval data.test.p = _                               {}
+query:1 %.*%          | Index data.test.p (matched 1 rule, early exit)     {}
+%.*%/test.rego:4      | Enter data.test.p                                  {}
+%.*%/test.rego:5      | | Eval x = 1                                       {}
+%.*%/test.rego:6      | | Eval y = 2                                       {}
+%.*%/test.rego:7      | | Eval z = 3                                       {}
+%.*%/test.rego:8      | | Eval data.test.f(x, y, __local6__)               {x: 1, y: 2}
+%.*%/test.rego:8      | | Index data.test.f (matched 1 rule)               {x: 1, y: 2}
+%.*%/test.rego:11     | | Enter data.test.f                                {}
+%.*%/test.rego:12     | | | Eval plus(a, b, __local7__)                    {a: 1, b: 2}
+%.*%/test.rego:12     | | | Eval c = __local7__                            {__local7__: 3}
+%.*%/test.rego:11     | | | Exit data.test.f                               {a: 1, b: 2, c: 3}
+%.*%/test.rego:8      | | Eval z = __local6__                              {__local6__: 3, z: 3}
+%.*%/test.rego:4      | | Exit data.test.p early                           {}
+query:1 %.*%          | Exit data.test.p = _                               {_: true, data.test.p: true}
+query:1 %.*%          Redo data.test.p = _                                 {_: true, data.test.p: true}
+query:1 %.*%          | Redo data.test.p = _                               {_: true, data.test.p: true}
+%.*%/test.rego:4      | Redo data.test.p                                   {}
+%.*%/test.rego:8      | | Redo z = __local6__                              {__local6__: 3, z: 3}
+%.*%/test.rego:8      | | Redo data.test.f(x, y, __local6__)               {__local6__: 3, x: 1, y: 2}
+%.*%/test.rego:12     | | | Redo c = __local7__                            {__local7__: 3, c: 3}
+%.*%/test.rego:12     | | | Redo plus(a, b, __local7__)                    {__local7__: 3, a: 1, b: 2}
+%.*%/test.rego:7      | | Redo z = 3                                       {z: 3}
+%.*%/test.rego:6      | | Redo y = 2                                       {y: 2}
+%.*%/test.rego:5      | | Redo x = 1                                       {x: 1}
+true
+`,
+		},
+		{
+			note:        "every",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	l := ["a", "b", "c"]
+	every x in l {
+		count(x) == 1
+	}
+}
+
+f(a, b) := c if {
+	c := a + b
+}
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _                                                         {}
+query:1 %.*%         | Eval data.test.p = _                                                        {}
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)                              {}
+%.*%/test.rego:4     | Enter data.test.p                                                           {}
+%.*%/test.rego:5     | | Eval l = ["a", "b", "c"]                                                  {}
+%.*%/test.rego:6     | | Eval __local6__ = l                                                       {l: ["a", "b", "c"]}
+%.*%/test.rego:6     | | Eval every x in __local6__ { count(x, __local7__); __local7__ = 1 }       {__local6__: ["a", "b", "c"]}
+%.*%/test.rego:6     | | Enter every x in __local6__ { count(x, __local7__); __local7__ = 1 }      {__local6__: ["a", "b", "c"]}
+%.*%/test.rego:6     | | | Eval __local6__[__local1__] = x                                         {__local6__: ["a", "b", "c"]}
+%.*%/test.rego:7     | | | Enter count(x, __local7__); __local7__ = 1                              {x: "a"}
+%.*%/test.rego:7     | | | | Eval count(x, __local7__)                                             {x: "a"}
+%.*%/test.rego:7     | | | | Eval __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Exit count(x, __local7__); __local7__ = 1 early                       {__local7__: 1, x: "a"}
+%.*%/test.rego:7     | | | Redo count(x, __local7__); __local7__ = 1                               {__local7__: 1, x: "a"}
+%.*%/test.rego:7     | | | | Redo __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Redo count(x, __local7__)                                             {__local7__: 1, x: "a"}
+%.*%/test.rego:6     | | | Redo every x in __local6__ { count(x, __local7__); __local7__ = 1 }     {__local1__: 0, __local6__: ["a", "b", "c"], x: "a"}
+%.*%/test.rego:6     | | | Redo __local6__[__local1__] = x                                         {__local1__: 0, __local6__: ["a", "b", "c"], x: "a"}
+%.*%/test.rego:7     | | | Enter count(x, __local7__); __local7__ = 1                              {x: "b"}
+%.*%/test.rego:7     | | | | Eval count(x, __local7__)                                             {x: "b"}
+%.*%/test.rego:7     | | | | Eval __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Exit count(x, __local7__); __local7__ = 1 early                       {__local7__: 1, x: "b"}
+%.*%/test.rego:7     | | | Redo count(x, __local7__); __local7__ = 1                               {__local7__: 1, x: "b"}
+%.*%/test.rego:7     | | | | Redo __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Redo count(x, __local7__)                                             {__local7__: 1, x: "b"}
+%.*%/test.rego:6     | | | Redo every x in __local6__ { count(x, __local7__); __local7__ = 1 }     {__local1__: 1, __local6__: ["a", "b", "c"], x: "b"}
+%.*%/test.rego:6     | | | Redo __local6__[__local1__] = x                                         {__local1__: 1, __local6__: ["a", "b", "c"], x: "b"}
+%.*%/test.rego:7     | | | Enter count(x, __local7__); __local7__ = 1                              {x: "c"}
+%.*%/test.rego:7     | | | | Eval count(x, __local7__)                                             {x: "c"}
+%.*%/test.rego:7     | | | | Eval __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Exit count(x, __local7__); __local7__ = 1 early                       {__local7__: 1, x: "c"}
+%.*%/test.rego:7     | | | Redo count(x, __local7__); __local7__ = 1                               {__local7__: 1, x: "c"}
+%.*%/test.rego:7     | | | | Redo __local7__ = 1                                                   {__local7__: 1}
+%.*%/test.rego:7     | | | | Redo count(x, __local7__)                                             {__local7__: 1, x: "c"}
+%.*%/test.rego:6     | | | Redo every x in __local6__ { count(x, __local7__); __local7__ = 1 }     {__local1__: 2, __local6__: ["a", "b", "c"], x: "c"}
+%.*%/test.rego:6     | | | Redo __local6__[__local1__] = x                                         {__local1__: 2, __local6__: ["a", "b", "c"], x: "c"}
+%.*%/test.rego:4     | | Exit data.test.p early                                                    {}
+query:1 %.*%         | Exit data.test.p = _                                                        {_: true, data.test.p: true}
+query:1 %.*%         Redo data.test.p = _                                                          {_: true, data.test.p: true}
+query:1 %.*%         | Redo data.test.p = _                                                        {_: true, data.test.p: true}
+%.*%/test.rego:4     | Redo data.test.p                                                            {}
+%.*%/test.rego:6     | | Redo every x in __local6__ { count(x, __local7__); __local7__ = 1 }       {__local6__: ["a", "b", "c"]}
+%.*%/test.rego:6     | | | Exit every x in __local6__ { count(x, __local7__); __local7__ = 1 }     {__local6__: ["a", "b", "c"]}
+%.*%/test.rego:6     | | Redo __local6__ = l                                                       {__local6__: ["a", "b", "c"], l: ["a", "b", "c"]}
+%.*%/test.rego:5     | | Redo l = ["a", "b", "c"]                                                  {l: ["a", "b", "c"]}
+true
+`,
+		},
+		{
+			note:        "rule value",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+a := 1
+
+p if {
+	a + 1 == 2
+	a + 2 == 3
+}
+`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _                                  {}
+query:1 %.*%         | Eval data.test.p = _                                 {}
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)       {}
+%.*%/test.rego:6     | Enter data.test.p                                    {}
+%.*%/test.rego:7     | | Eval __local2__ = data.test.a                      {}
+%.*%/test.rego:7     | | Index data.test.a (matched 1 rule, early exit)     {}
+%.*%/test.rego:4     | | Enter data.test.a                                  {}
+%.*%/test.rego:4     | | | Eval true                                        {}
+%.*%/test.rego:4     | | | Exit data.test.a early                           {}
+%.*%/test.rego:7     | | Eval plus(__local2__, 1, __local0__)               {__local2__: 1}
+%.*%/test.rego:7     | | Eval __local0__ = 2                                {__local0__: 2}
+%.*%/test.rego:8     | | Eval __local3__ = data.test.a                      {data.test.a: 1}
+%.*%/test.rego:8     | | Index data.test.a (matched 1 rule, early exit)     {data.test.a: 1}
+%.*%/test.rego:8     | | Eval plus(__local3__, 2, __local1__)               {__local3__: 1}
+%.*%/test.rego:8     | | Eval __local1__ = 3                                {__local1__: 3}
+%.*%/test.rego:6     | | Exit data.test.p early                             {}
+query:1 %.*%         | Exit data.test.p = _                                 {_: true, data.test.p: true}
+query:1 %.*%         Redo data.test.p = _                                   {_: true, data.test.p: true}
+query:1 %.*%         | Redo data.test.p = _                                 {_: true, data.test.p: true}
+%.*%/test.rego:6     | Redo data.test.p                                     {}
+%.*%/test.rego:8     | | Redo __local1__ = 3                                {__local1__: 3}
+%.*%/test.rego:8     | | Redo plus(__local3__, 2, __local1__)               {__local1__: 3, __local3__: 1}
+%.*%/test.rego:8     | | Redo __local3__ = data.test.a                      {__local3__: 1, data.test.a: 1}
+%.*%/test.rego:7     | | Redo __local0__ = 2                                {__local0__: 2}
+%.*%/test.rego:7     | | Redo plus(__local2__, 1, __local0__)               {__local0__: 2, __local2__: 1}
+%.*%/test.rego:7     | | Redo __local2__ = data.test.a                      {__local2__: 1, data.test.a: 1}
+%.*%/test.rego:4     | | | Redo true                                        {}
+true
+`,
+		},
+		{
+			note:        "input values",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	input.x == 1
+	input.x + input.y == input.z
+}
+`,
+				"input.json": `{
+	"x": 1,
+	"y": 2,
+	"z": 3
+}`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _                                 {}
+query:1 %.*%         | Eval data.test.p = _                                {}
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)      {}
+%.*%/test.rego:4     | Enter data.test.p                                   {}
+%.*%/test.rego:5     | | Eval input.x = 1                                  {}
+%.*%/test.rego:6     | | Eval __local1__ = input.x                         {}
+%.*%/test.rego:6     | | Eval __local2__ = input.y                         {}
+%.*%/test.rego:6     | | Eval plus(__local1__, __local2__, __local0__)     {__local1__: 1, __local2__: 2}
+%.*%/test.rego:6     | | Eval __local0__ = input.z                         {__local0__: 3}
+%.*%/test.rego:4     | | Exit data.test.p early                            {}
+query:1 %.*%         | Exit data.test.p = _                                {_: true, data.test.p: true}
+query:1 %.*%         Redo data.test.p = _                                  {_: true, data.test.p: true}
+query:1 %.*%         | Redo data.test.p = _                                {_: true, data.test.p: true}
+%.*%/test.rego:4     | Redo data.test.p                                    {}
+%.*%/test.rego:6     | | Redo __local0__ = input.z                         {__local0__: 3}
+%.*%/test.rego:6     | | Redo plus(__local1__, __local2__, __local0__)     {__local0__: 3, __local1__: 1, __local2__: 2}
+%.*%/test.rego:6     | | Redo __local2__ = input.y                         {__local2__: 2}
+%.*%/test.rego:6     | | Redo __local1__ = input.x                         {__local1__: 1}
+%.*%/test.rego:5     | | Redo input.x = 1                                  {}
+true
+`,
+		},
+		{
+			note:        "data values",
+			query:       "data.test.p",
+			includeVars: true,
+			files: map[string]string{
+				"test.rego": `package test
+import rego.v1
+
+p if {
+	data.x == 1
+	data.x + data.y == data.z
+}
+`,
+				"data.json": `{
+	"x": 1,
+	"y": 2,
+	"z": 3
+}`,
+			},
+			expected: `%SKIP_LINE%
+query:1 %.*%         Enter data.test.p = _                                 {}
+query:1 %.*%         | Eval data.test.p = _                                {}
+query:1 %.*%         | Index data.test.p (matched 1 rule, early exit)      {}
+%.*%/test.rego:4     | Enter data.test.p                                   {}
+%.*%/test.rego:5     | | Eval data.x = 1                                   {}
+%.*%/test.rego:6     | | Eval __local1__ = data.x                          {}
+%.*%/test.rego:6     | | Eval __local2__ = data.y                          {}
+%.*%/test.rego:6     | | Eval plus(__local1__, __local2__, __local0__)     {__local1__: 1, __local2__: 2}
+%.*%/test.rego:6     | | Eval __local0__ = data.z                          {__local0__: 3}
+%.*%/test.rego:4     | | Exit data.test.p early                            {}
+query:1 %.*%         | Exit data.test.p = _                                {_: true, data.test.p: true}
+query:1 %.*%         Redo data.test.p = _                                  {_: true, data.test.p: true}
+query:1 %.*%         | Redo data.test.p = _                                {_: true, data.test.p: true}
+%.*%/test.rego:4     | Redo data.test.p                                    {}
+%.*%/test.rego:6     | | Redo __local0__ = data.z                          {__local0__: 3}
+%.*%/test.rego:6     | | Redo plus(__local1__, __local2__, __local0__)     {__local0__: 3, __local1__: 1, __local2__: 2}
+%.*%/test.rego:6     | | Redo __local2__ = data.y                          {__local2__: 2}
+%.*%/test.rego:6     | | Redo __local1__ = data.x                          {__local1__: 1}
+%.*%/test.rego:5     | | Redo data.x = 1                                   {}
+true
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var buf bytes.Buffer
+
+			test.WithTempFS(tc.files, func(path string) {
+				params := newEvalCommandParams()
+				_ = params.bundlePaths.Set(path)
+				inputFile := filepath.Join(path, "input.json")
+				if _, err := os.Stat(inputFile); err == nil {
+					params.inputPath = inputFile
+				}
+				_ = params.outputFormat.Set(evalPrettyOutput)
+				_ = params.explain.Set(explainModeFull)
+				params.traceVarValues = tc.includeVars
+				params.disableIndexing = true
+				_ = params.bundlePaths.Set(path)
+
+				_, err := eval([]string{tc.query}, params, &buf)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s\n\n%s", err, buf.String())
+				}
+			})
+
+			actual := buf.String()
+			if !stringsMatch(t, tc.expected, actual) {
+				t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", tc.expected, actual)
+			}
+		})
+	}
+}
+
+func stringsMatch(t *testing.T, expected, actual string) bool {
+	t.Helper()
+
+	var expectedLines []string
+	for _, l := range strings.Split(expected, "\n") {
+		if !strings.Contains(l, "%SKIP_LINE%") {
+			expectedLines = append(expectedLines, l)
+		}
+	}
+
+	actualLines := strings.Split(actual, "\n")
+
+	if len(expectedLines) != len(actualLines) {
+		t.Errorf("Expected %d lines but got %d", len(expectedLines), len(actualLines))
+		return false
+	}
+
+	for i, expectedLine := range expectedLines {
+		actualLine := actualLines[i]
+
+		expectedParts := strings.Split(expectedLine, "%.*%")
+		if len(expectedParts) == 1 {
+			if expectedLine != actualLine {
+				t.Errorf("Mismatch on line %d. Expected:\n\n%s\n\nGot:\n\n%s", i, expectedLine, actualLine)
+				return false
+			}
+		} else if len(expectedParts) == 2 {
+			if !strings.HasPrefix(actualLine, expectedParts[0]) {
+				t.Errorf("Expected line %d to start with:\n\n%s\n\nbut got:\n\n%s", i, expectedParts[0], actualLine)
+				return false
+			}
+			if !strings.HasSuffix(actualLine, expectedParts[1]) {
+				t.Errorf("Expected line %d to end with:\n\n%s\n\nbut got:\n\n%s", i, expectedParts[1], actualLine)
+				return false
+			}
+		} else {
+			t.Fatalf("At most one .* is allowed per line but found %d on line %d:\n\n%s", len(expectedParts)-1, i, expectedLine)
+			return false
+		}
+	}
+
+	return true
+}
+
 func TestResetExprLocations(t *testing.T) {
 
 	// Make sure no panic if passed nil.

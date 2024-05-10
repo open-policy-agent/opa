@@ -2130,6 +2130,7 @@ func (p *Parser) doScan(skipws bool) {
 		p.s.loc.Col = pos.Col
 		p.s.loc.Offset = pos.Offset
 		p.s.loc.Text = p.s.Text(pos.Offset, pos.End)
+		p.s.loc.Tabs = pos.Tabs
 
 		for _, err := range errs {
 			p.error(p.s.Loc(), err.Message)
