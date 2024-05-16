@@ -60,6 +60,7 @@ func (h *LoggingHandler) loggingEnabled(level logging.Level) bool {
 func (h *LoggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var rctx logging.RequestContext
 	rctx.ReqID = atomic.AddUint64(&h.requestID, uint64(1))
+	rctx.HTTPRequestContext = logging.HTTPRequestContext{Header: r.Header.Clone()}
 	recorder := newRecorder(h.logger, w, r, rctx.ReqID, h.loggingEnabled(logging.Debug))
 	t0 := time.Now()
 

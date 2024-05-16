@@ -2958,20 +2958,21 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 	decisionID, _ := logging.DecisionIDFromContext(ctx)
 
 	info := &Info{
-		Txn:        txn,
-		Revision:   l.revision,
-		Bundles:    bundles,
-		Timestamp:  time.Now().UTC(),
-		DecisionID: decisionID,
-		RemoteAddr: rctx.ClientAddr,
-		Path:       path,
-		Query:      query,
-		Input:      goInput,
-		InputAST:   astInput,
-		Results:    goResults,
-		Error:      err,
-		Metrics:    m,
-		RequestID:  rctx.ReqID,
+		Txn:                txn,
+		Revision:           l.revision,
+		Bundles:            bundles,
+		Timestamp:          time.Now().UTC(),
+		DecisionID:         decisionID,
+		RemoteAddr:         rctx.ClientAddr,
+		HTTPRequestContext: rctx.HTTPRequestContext,
+		Path:               path,
+		Query:              query,
+		Input:              goInput,
+		InputAST:           astInput,
+		Results:            goResults,
+		Error:              err,
+		Metrics:            m,
+		RequestID:          rctx.ReqID,
 	}
 
 	if ndbCache != nil {

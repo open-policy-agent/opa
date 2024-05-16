@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"io"
+	"net/http"
 
 	"github.com/sirupsen/logrus"
 )
@@ -210,10 +211,15 @@ const reqCtxKey = requestContextKey("request-context-key")
 // RequestContext represents the request context used to store data
 // related to the request that could be used on logs.
 type RequestContext struct {
-	ClientAddr string
-	ReqID      uint64
-	ReqMethod  string
-	ReqPath    string
+	ClientAddr         string
+	ReqID              uint64
+	ReqMethod          string
+	ReqPath            string
+	HTTPRequestContext HTTPRequestContext
+}
+
+type HTTPRequestContext struct {
+	Header http.Header
 }
 
 // Fields adapts the RequestContext fields to logrus.Fields.
