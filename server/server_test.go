@@ -3491,6 +3491,51 @@ func TestDecisionIDs(t *testing.T) {
 	}
 }
 
+func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
+	f := newFixture(t)
+
+	decisions := []*Info{}
+
+	var nextID int
+
+	f.server = f.server.WithDecisionIDFactory(func() string {
+		nextID++
+		return fmt.Sprint(nextID)
+	}).WithDecisionLoggerWithErr(func(_ context.Context, info *Info) error {
+		decisions = append(decisions, info)
+		return nil
+	})
+
+	req := newReqV1("POST", "/data/nonexistent", `{"input": {"foo": 1}}`)
+	req.Header.Set("foo", "bar")
+	req.Header.Set("foo2", "bar2")
+	req.Header.Add("foo2", "bar3")
+
+	var rctx logging.RequestContext
+	rctx.HTTPRequestContext = logging.HTTPRequestContext{Header: req.Header.Clone()}
+
+	req = req.WithContext(logging.NewContext(req.Context(), &rctx))
+
+	if err := f.executeRequest(req, http.StatusOK, `{"decision_id": "1"}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(decisions) != 1 {
+		t.Fatalf("Expected exactly 1 decision but got: %d", len(decisions))
+	}
+
+	expHeaders := http.Header{}
+	expHeaders.Set("foo", "bar")
+	expHeaders.Add("foo2", "bar2")
+	expHeaders.Add("foo2", "bar3")
+
+	exp := logging.HTTPRequestContext{Header: expHeaders}
+
+	if !reflect.DeepEqual(decisions[0].HTTPRequestContext, exp) {
+		t.Fatalf("Expected HTTP request context %v but got: %v", exp, decisions[0].HTTPRequestContext)
+	}
+}
+
 func TestDecisionLogging(t *testing.T) {
 	f := newFixture(t)
 

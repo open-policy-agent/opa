@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/logging/test"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/plugins"
@@ -151,6 +152,117 @@ func TestPluginCustomBackendAndHTTPServiceAndConsole(t *testing.T) {
 	// check console logger
 	if exp, act := 2, len(testLogger.Entries()); exp != act {
 		t.Fatalf("Console: expected %d events, got %d", exp, act)
+	}
+}
+
+func TestPluginRequestContext(t *testing.T) {
+	ctx := context.Background()
+	manager, _ := plugins.New(nil, "test-instance-id", inmem.New())
+
+	backend := &testPlugin{}
+	manager.Register("test_plugin", backend)
+
+	h1 := http.Header{}
+	h1.Set("foo", "bar")
+
+	h2 := http.Header{}
+	h2.Set("foo", "bar")
+	h2.Add("foo2", "bar")
+	h2.Add("foo2", "bar2")
+
+	cases := []struct {
+		note         string
+		config       []byte
+		decisionInfo *server.Info
+		expected     *RequestContext
+	}{
+		{
+			note:         "no request context config - no request context in decision info",
+			config:       []byte(`{"plugin": "test_plugin"}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (single header) - no request context in decision info",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (single header) - request context in decision info (no header map)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: nil}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (single header) - request context in decision info (with header map)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+		},
+		{
+			note:         "request context in config (multiple headers) - request context in decision info (with header map partial)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo", "foo2"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+		},
+		{
+			note:         "request context in config (multiple headers) - request context in decision info (with header map full)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo", "foo2"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h2}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}, "foo2": []string{"bar", "bar2"}}}},
+		},
+		{
+			note:         "request context in config (single header) - request context in decision info (with header map full)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": ["foo"]}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h2}},
+			expected:     &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: map[string][]string{"foo": []string{"bar"}}}},
+		},
+		{
+			note:         "no request context in config - request context in decision info (with header map)",
+			config:       []byte(`{"plugin": "test_plugin"}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (no http) - request context in decision info (with header map)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (no headers) - request context in decision info (with header map)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     nil,
+		},
+		{
+			note:         "request context in config (empty headers list) - request context in decision info (with header map)",
+			config:       []byte(`{"plugin": "test_plugin", "request_context": {"http": {"headers": []}}}`),
+			decisionInfo: &server.Info{Bundles: map[string]server.BundleInfo{"b1": {Revision: "A"}}, HTTPRequestContext: logging.HTTPRequestContext{Header: h1}},
+			expected:     nil,
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+
+			config, err := ParseConfig(tc.config, nil, []string{"test_plugin"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			plugin := New(config, manager)
+			plugin.Log(ctx, tc.decisionInfo)
+
+			if len(backend.events) == 0 {
+				t.Fatal("expected at least one event")
+			}
+
+			if !reflect.DeepEqual(backend.events[i].RequestContext, tc.expected) {
+				t.Fatalf("unexpected request context, want %+v but got %+v", tc.expected, backend.events[0].RequestContext)
+			}
+		})
 	}
 }
 

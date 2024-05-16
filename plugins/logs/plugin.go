@@ -64,6 +64,7 @@ type EventV1 struct {
 	Timestamp      time.Time               `json:"timestamp"`
 	Metrics        map[string]interface{}  `json:"metrics,omitempty"`
 	RequestID      uint64                  `json:"req_id,omitempty"`
+	RequestContext *RequestContext         `json:"request_context,omitempty"`
 
 	inputAST ast.Value
 }
@@ -71,6 +72,14 @@ type EventV1 struct {
 // BundleInfoV1 describes a bundle associated with a decision log event.
 type BundleInfoV1 struct {
 	Revision string `json:"revision,omitempty"`
+}
+
+type RequestContext struct {
+	HTTPRequest *HTTPRequestContext `json:"http,omitempty"`
+}
+
+type HTTPRequestContext struct {
+	Headers map[string][]string `json:"headers,omitempty"`
 }
 
 // AST returns the BundleInfoV1 as an AST value
@@ -262,17 +271,26 @@ type ReportingConfig struct {
 	Trigger               *plugins.TriggerMode `json:"trigger,omitempty"`                  // trigger mode
 }
 
+type RequestContextConfig struct {
+	HTTPRequest *HTTPRequestContextConfig `json:"http,omitempty"`
+}
+
+type HTTPRequestContextConfig struct {
+	Headers []string `json:"headers,omitempty"`
+}
+
 // Config represents the plugin configuration.
 type Config struct {
-	Plugin          *string         `json:"plugin"`
-	Service         string          `json:"service"`
-	PartitionName   string          `json:"partition_name,omitempty"`
-	Reporting       ReportingConfig `json:"reporting"`
-	MaskDecision    *string         `json:"mask_decision"`
-	DropDecision    *string         `json:"drop_decision"`
-	ConsoleLogs     bool            `json:"console"`
-	Resource        *string         `json:"resource"`
-	NDBuiltinCache  bool            `json:"nd_builtin_cache,omitempty"`
+	Plugin          *string              `json:"plugin"`
+	Service         string               `json:"service"`
+	PartitionName   string               `json:"partition_name,omitempty"`
+	Reporting       ReportingConfig      `json:"reporting"`
+	RequestContext  RequestContextConfig `json:"request_context"`
+	MaskDecision    *string              `json:"mask_decision"`
+	DropDecision    *string              `json:"drop_decision"`
+	ConsoleLogs     bool                 `json:"console"`
+	Resource        *string              `json:"resource"`
+	NDBuiltinCache  bool                 `json:"nd_builtin_cache,omitempty"`
 	maskDecisionRef ast.Ref
 	dropDecisionRef ast.Ref
 }
@@ -618,6 +636,22 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 		Timestamp:      decision.Timestamp,
 		RequestID:      decision.RequestID,
 		inputAST:       decision.InputAST,
+	}
+
+	headers := map[string][]string{}
+	rctx := p.config.RequestContext
+
+	if rctx.HTTPRequest != nil && len(rctx.HTTPRequest.Headers) > 0 && decision.HTTPRequestContext.Header != nil {
+		for _, h := range rctx.HTTPRequest.Headers {
+			values := decision.HTTPRequestContext.Header.Values(h)
+			if len(values) > 0 {
+				headers[h] = decision.HTTPRequestContext.Header.Values(h)
+			}
+		}
+	}
+
+	if len(headers) > 0 {
+		event.RequestContext = &RequestContext{HTTPRequest: &HTTPRequestContext{Headers: headers}}
 	}
 
 	input, err := event.AST()

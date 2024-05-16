@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
@@ -15,25 +16,26 @@ import (
 
 // Info contains information describing a policy decision.
 type Info struct {
-	Txn            storage.Transaction
-	Revision       string // Deprecated: Use `Bundles` instead
-	Bundles        map[string]BundleInfo
-	DecisionID     string
-	TraceID        string
-	SpanID         string
-	RemoteAddr     string
-	Query          string
-	Path           string
-	Timestamp      time.Time
-	Input          *interface{}
-	InputAST       ast.Value
-	Results        *interface{}
-	MappedResults  *interface{}
-	NDBuiltinCache *interface{}
-	Error          error
-	Metrics        metrics.Metrics
-	Trace          []*topdown.Event
-	RequestID      uint64
+	Txn                storage.Transaction
+	Revision           string // Deprecated: Use `Bundles` instead
+	Bundles            map[string]BundleInfo
+	DecisionID         string
+	TraceID            string
+	SpanID             string
+	RemoteAddr         string
+	HTTPRequestContext logging.HTTPRequestContext
+	Query              string
+	Path               string
+	Timestamp          time.Time
+	Input              *interface{}
+	InputAST           ast.Value
+	Results            *interface{}
+	MappedResults      *interface{}
+	NDBuiltinCache     *interface{}
+	Error              error
+	Metrics            metrics.Metrics
+	Trace              []*topdown.Event
+	RequestID          uint64
 }
 
 // BundleInfo contains information describing a bundle.
