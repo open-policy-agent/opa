@@ -44,7 +44,7 @@ cases:
       - |
         package test
         import future.keywords.every
-        
+
         l[1] {
           false
         }
@@ -124,11 +124,11 @@ cases:
       - |
         package test
         import future.keywords.every
-        
+
         l[1] {
           true
         }
-        
+
         l[2] {
           true
         }
