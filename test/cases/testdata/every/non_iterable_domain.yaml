@@ -81,7 +81,7 @@ cases:
         p := 2 {
           every v in foo(1, 2) { v > 1 }
         }
-        
+
         foo(a, b) := a + b
     query: data.test.p = x
     want_result:
