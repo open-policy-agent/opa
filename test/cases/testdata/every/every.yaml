@@ -9,7 +9,33 @@ cases:
         p {
           every x in [] { x != x }
         }
-    note: every/empty domain
+    note: every/empty domain (array)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every x in set() { x != x }
+        }
+    note: every/empty domain (set)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every x in {} { x != x }
+        }
+    note: every/empty domain (object)
     query: data.test.p = x
     want_result:
       - x: true
@@ -22,7 +48,19 @@ cases:
         p {
           every _ in input { true }
         }
-    note: every/domain undefined
+    note: every/domain undefined (input)
+    query: data.test.p = x
+    want_result: []
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every _ in data.foo { true }
+        }
+    note: every/domain undefined (data ref)
     query: data.test.p = x
     want_result: []
   - data:

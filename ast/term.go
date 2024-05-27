@@ -556,6 +556,15 @@ func IsScalar(v Value) bool {
 	return false
 }
 
+// IsIterable returns true if the AST value is an iterable type.
+func IsIterable(x Value) bool {
+	switch x.(type) {
+	case *Array, *object, Set:
+		return true
+	}
+	return false
+}
+
 // Null represents the null value defined by JSON.
 type Null struct{}
 
