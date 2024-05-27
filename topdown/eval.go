@@ -3396,7 +3396,7 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 
 	if pd := e.e.bindings.Plug(e.Domain); pd != nil {
-		if !ast.IsIterable(pd.Value) {
+		if !isIterableValue(pd.Value) {
 			e.e.traceFail(e.expr)
 			return nil
 		}
@@ -3451,6 +3451,15 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 	domain.traceFail(e.expr)
 	return nil
+}
+
+// isIterableValue returns true if the AST value is an iterable type.
+func isIterableValue(x ast.Value) bool {
+	switch x.(type) {
+	case *ast.Array, ast.Object, ast.Set:
+		return true
+	}
+	return false
 }
 
 func (e *evalEvery) save(iter unifyIterator) error {
