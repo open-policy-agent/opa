@@ -893,6 +893,40 @@ func (p *Planner) planExprEvery(e *ast.Expr, iter planiter) error {
 	})
 
 	err := p.planTerm(every.Domain, func() error {
+		// Assert that the domain is a collection type:
+		// block outer
+		//   block a
+		//     isArray
+		//     br 1: break outer, and continue
+		//   block b
+		//     isObject
+		//     br 1: break outer, and continue
+		//   block c
+		//     isSet
+		//     br 1: break outer, and continue
+		//   br 1: invalid domain, break every
+
+		aBlock := &ir.Block{}
+		p.appendStmtToBlock(&ir.IsArrayStmt{Source: p.ltarget}, aBlock)
+		p.appendStmtToBlock(&ir.BreakStmt{Index: 1}, aBlock)
+
+		bBlock := &ir.Block{}
+		p.appendStmtToBlock(&ir.IsObjectStmt{Source: p.ltarget}, bBlock)
+		p.appendStmtToBlock(&ir.BreakStmt{Index: 1}, bBlock)
+
+		cBlock := &ir.Block{}
+		p.appendStmtToBlock(&ir.IsSetStmt{Source: p.ltarget}, cBlock)
+		p.appendStmtToBlock(&ir.BreakStmt{Index: 1}, cBlock)
+
+		outerBlock := &ir.BlockStmt{Blocks: []*ir.Block{
+			{
+				Stmts: []ir.Stmt{
+					&ir.BlockStmt{Blocks: []*ir.Block{aBlock, bBlock, cBlock}},
+					&ir.BreakStmt{Index: 1}},
+			},
+		}}
+		p.appendStmt(outerBlock)
+
 		return p.planScan(every.Key, func(ir.Local) error {
 			p.appendStmt(&ir.ResetLocalStmt{
 				Target: cond1,
