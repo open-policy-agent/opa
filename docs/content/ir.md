@@ -286,6 +286,14 @@ Parameter | Input/Output | Type | Description
 
 This statement is **undefined** if `source` is not an object.
 
+## `IsSetStmt`
+
+Parameter | Input/Output | Type | Description
+--- | --- | --- | ---
+`source` | `input` | `operand` | The value to check.
+
+This statement is **undefined** if `source` is not a set.
+
 ## `IsUndefinedStmt`
 
 Parameter | Input/Output | Type | Description
