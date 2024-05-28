@@ -302,7 +302,6 @@ Parameter | Input/Output | Type | Description
 
 This statement is **undefined** if `source` is not undefined.
 
-
 ## `LenStmt`
 
 Parameter | Input/Output | Type | Description
