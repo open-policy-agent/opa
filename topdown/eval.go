@@ -407,15 +407,9 @@ func (e *eval) evalStep(iter evalIterator) error {
 		})
 	case *ast.Every:
 		eval := evalEvery{
-			e:    e,
-			expr: expr,
-			generator: ast.NewBody(
-				ast.Equality.Expr(
-					ast.RefTerm(terms.Domain, terms.Key).SetLocation(terms.Domain.Location),
-					terms.Value,
-				).SetLocation(terms.Domain.Location),
-			),
-			body: terms.Body,
+			Every: terms,
+			e:     e,
+			expr:  expr,
 		}
 		err = eval.eval(func() error {
 			defined = true
@@ -3390,19 +3384,32 @@ func (e evalTerm) save(iter unifyIterator) error {
 }
 
 type evalEvery struct {
-	e         *eval
-	expr      *ast.Expr
-	generator ast.Body
-	body      ast.Body
+	*ast.Every
+	e    *eval
+	expr *ast.Expr
 }
 
 func (e evalEvery) eval(iter unifyIterator) error {
 	// unknowns in domain or body: save the expression, PE its body
-	if e.e.unknown(e.generator, e.e.bindings) || e.e.unknown(e.body, e.e.bindings) {
+	if e.e.unknown(e.Domain, e.e.bindings) || e.e.unknown(e.Body, e.e.bindings) {
 		return e.save(iter)
 	}
 
-	domain := e.e.closure(e.generator)
+	if pd := e.e.bindings.Plug(e.Domain); pd != nil {
+		if !isIterableValue(pd.Value) {
+			e.e.traceFail(e.expr)
+			return nil
+		}
+	}
+
+	generator := ast.NewBody(
+		ast.Equality.Expr(
+			ast.RefTerm(e.Domain, e.Key).SetLocation(e.Domain.Location),
+			e.Value,
+		).SetLocation(e.Domain.Location),
+	)
+
+	domain := e.e.closure(generator)
 	all := true // all generator evaluations yield one successful body evaluation
 
 	domain.traceEnter(e.expr)
@@ -3413,14 +3420,14 @@ func (e evalEvery) eval(iter unifyIterator) error {
 			// This would do extra work, like iterating needlessly if domain was a large array.
 			return nil
 		}
-		body := child.closure(e.body)
+		body := child.closure(e.Body)
 		body.findOne = true
-		body.traceEnter(e.body)
+		body.traceEnter(e.Body)
 		done := false
 		err := body.eval(func(*eval) error {
-			body.traceExit(e.body)
+			body.traceExit(e.Body)
 			done = true
-			body.traceRedo(e.body)
+			body.traceRedo(e.Body)
 			return nil
 		})
 		if !done {
@@ -3444,6 +3451,15 @@ func (e evalEvery) eval(iter unifyIterator) error {
 	}
 	domain.traceFail(e.expr)
 	return nil
+}
+
+// isIterableValue returns true if the AST value is an iterable type.
+func isIterableValue(x ast.Value) bool {
+	switch x.(type) {
+	case *ast.Array, ast.Object, ast.Set:
+		return true
+	}
+	return false
 }
 
 func (e *evalEvery) save(iter unifyIterator) error {

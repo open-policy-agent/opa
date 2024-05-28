@@ -1,0 +1,151 @@
+---
+cases:
+  - note: "every/non-iter domain: int"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in 42 { v > 1 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: string"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in "foobar" { v > 1 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: bool"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in true { v > 1 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: null"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in null { v > 1 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: built-in call"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in floor(13.37) { v > 1 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: function call"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in foo(1, 2) { v > 1 }
+        }
+
+        foo(a, b) := a + b
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: rule ref"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in q { v > 1 }
+        }
+
+        q := 1
+    query: data.test.p = x
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: data int"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in data.iterate_me { v > 1 }
+        }
+    query: data.test.p = x
+    data:
+      iterate_me: 1
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: input int"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in input.iterate_me { v > 1 }
+        }
+    query: data.test.p = x
+    input:
+      iterate_me: 1
+    want_result:
+      - x: 1
+  - note: "every/non-iter domain: input int (1st level)"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        default p := 1
+
+        p := 2 {
+          every v in input { v > 1 }
+        }
+    query: data.test.p = x
+    input: 1
+    want_result:
+      - x: 1

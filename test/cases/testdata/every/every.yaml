@@ -9,7 +9,50 @@ cases:
         p {
           every x in [] { x != x }
         }
-    note: every/empty domain
+    note: every/empty domain (array)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every x in set() { x != x }
+        }
+    note: every/empty domain (set)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every x in {} { x != x }
+        }
+    note: every/empty domain (object)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        l[1] {
+          false
+        }
+
+        p {
+          every x in l { x != x }
+        }
+    note: every/empty domain (partial rule ref)
     query: data.test.p = x
     want_result:
       - x: true
@@ -22,7 +65,19 @@ cases:
         p {
           every _ in input { true }
         }
-    note: every/domain undefined
+    note: every/domain undefined (input)
+    query: data.test.p = x
+    want_result: []
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every _ in data.foo { true }
+        }
+    note: every/domain undefined (data ref)
     query: data.test.p = x
     want_result: []
   - data:
@@ -48,6 +103,40 @@ cases:
           every k, v in [1, 2] { k+1 == v }
         }
     note: every/simple key/val
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every k, v in {1, 2} { k == v }
+        }
+    note: every/simple key/val (set)
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - data:
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        l[1] {
+          true
+        }
+
+        l[2] {
+          true
+        }
+
+        p {
+          every k, v in l { k == v }
+        }
+    note: every/simple key/val (partial rule ref)
     query: data.test.p = x
     want_result:
       - x: true
