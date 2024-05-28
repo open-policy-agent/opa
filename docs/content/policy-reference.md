@@ -1380,7 +1380,7 @@ set-compr       = "{" term "|" query "}"
 object-compr    = "{" object-item "|" query "}"
 infix-operator  = assign-operator | bool-operator | arith-operator | bin-operator
 bool-operator   = "==" | "!=" | "<" | ">" | ">=" | "<="
-arith-operator  = "+" | "-" | "*" | "/"
+arith-operator  = "+" | "-" | "*" | "/" | "%"
 bin-operator    = "&" | "|"
 assign-operator = ":=" | "="
 ref             = ( var | array | object | set | array-compr | object-compr | set-compr | expr-call ) { ref-arg }
