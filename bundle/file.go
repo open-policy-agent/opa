@@ -370,12 +370,13 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 				f := file{name: header.Name}
 
-				var buf bytes.Buffer
-				if _, err := io.Copy(&buf, t.tr); err != nil {
+				// Note(philipc): We rely on the previous size check in this loop for safety.
+				buf := bytes.NewBuffer(make([]byte, 0, header.Size))
+				if _, err := io.Copy(buf, t.tr); err != nil {
 					return nil, fmt.Errorf("failed to copy file %s: %w", header.Name, err)
 				}
 
-				f.reader = &buf
+				f.reader = buf
 
 				t.files = append(t.files, f)
 			} else if header.Typeflag == tar.TypeDir {
