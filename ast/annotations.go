@@ -520,17 +520,14 @@ func attachRuleAnnotations(mod *Module) {
 		var j int
 		var found bool
 		for i, a := range cpy {
-			if rule.Loc().Row > a.Location.Row {
-				if rule.Ref().Equal(a.GetTargetPath()) {
+			if rule.Ref().Equal(a.GetTargetPath()) {
+				if a.Scope == annotationScopeDocument {
 					rule.Annotations = append(rule.Annotations, a)
-
-					if a.Scope == annotationScopeRule {
-						j = i
-						found = true
-					}
+				} else if a.Scope == annotationScopeRule && rule.Loc().Row > a.Location.Row {
+					j = i
+					found = true
+					rule.Annotations = append(rule.Annotations, a)
 				}
-			} else {
-				break
 			}
 		}
 

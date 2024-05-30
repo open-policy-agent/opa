@@ -5302,7 +5302,7 @@ func TestAnnotationsAttachedToRule(t *testing.T) {
 	tests := []struct {
 		note           string
 		module         string
-		expAnnotations map[string][]*Annotations
+		expAnnotations map[int][]*Annotations
 	}{
 		{
 			note: "single metadata block for rule (implied rule scope)",
@@ -5315,7 +5315,7 @@ package test
 # title: p
 # description: p
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+			expAnnotations: map[int][]*Annotations{9: {{
 				Description: "p",
 				Scope:       "rule",
 				Title:       "p",
@@ -5333,7 +5333,7 @@ package test
 # description: p
 # scope: rule
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+			expAnnotations: map[int][]*Annotations{10: {{
 				Description: "p",
 				Scope:       "rule",
 				Title:       "p",
@@ -5358,7 +5358,7 @@ package test
 # METADATA
 # title: Four
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": {
+			expAnnotations: map[int][]*Annotations{17: {
 				{
 					Scope: "rule",
 					Title: "One",
@@ -5389,7 +5389,7 @@ package test
 # description: doc
 
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+			expAnnotations: map[int][]*Annotations{11: {{
 				Description: "doc",
 				Scope:       "document",
 				Title:       "doc",
@@ -5411,7 +5411,7 @@ package test
 # title: p
 # description: p
 p := 1`,
-			expAnnotations: map[string][]*Annotations{"data.test.p": {
+			expAnnotations: map[int][]*Annotations{14: {
 				{
 					Description: "doc",
 					Scope:       "document",
@@ -5445,8 +5445,8 @@ p := 1
 # title: q
 # description: q
 q := 1`,
-			expAnnotations: map[string][]*Annotations{
-				"data.test.p": {
+			expAnnotations: map[int][]*Annotations{
+				14: {
 					{
 						Description: "doc",
 						Scope:       "document",
@@ -5458,11 +5458,126 @@ q := 1`,
 						Title:       "p",
 					},
 				},
-				"data.test.q": {
+				19: {
 					{
 						Description: "q",
 						Scope:       "rule",
 						Title:       "q",
+					},
+				},
+			},
+		},
+		{
+			note: "document and rule scope (unordered annotations, multiple rules)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# scope: document
+# title: p-rules
+
+# METADATA
+# title: p-1
+# description: p-1
+p[1]
+
+# METADATA
+# title: p-2
+# description: p-2
+p[2]
+
+# METADATA
+# title: q
+# description: q
+q := 1`,
+			expAnnotations: map[int][]*Annotations{
+				13: {
+					{
+						Scope: "document",
+						Title: "p-rules",
+					},
+					{
+						Description: "p-1",
+						Scope:       "rule",
+						Title:       "p-1",
+					},
+				},
+				18: {
+					{
+						Scope: "document",
+						Title: "p-rules",
+					},
+					{
+						Description: "p-2",
+						Scope:       "rule",
+						Title:       "p-2",
+					},
+				},
+				23: {
+					{
+						Description: "q",
+						Scope:       "rule",
+						Title:       "q",
+					},
+				},
+			},
+		},
+		{
+			note: "document and rule scope (unordered annotations, multiple unordered rules)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# scope: document
+# title: p-rules
+
+# METADATA
+# title: p-1
+# description: p-1
+p[1]
+
+# METADATA
+# title: q
+# description: q
+q := 1
+
+# METADATA
+# title: p-2
+# description: p-2
+p[2]
+`,
+			expAnnotations: map[int][]*Annotations{
+				13: {
+					{
+						Scope: "document",
+						Title: "p-rules",
+					},
+					{
+						Description: "p-1",
+						Scope:       "rule",
+						Title:       "p-1",
+					},
+				},
+				18: {
+					{
+						Description: "q",
+						Scope:       "rule",
+						Title:       "q",
+					},
+				},
+				23: {
+					{
+						Scope: "document",
+						Title: "p-rules",
+					},
+					{
+						Description: "p-2",
+						Scope:       "rule",
+						Title:       "p-2",
 					},
 				},
 			},
@@ -5478,13 +5593,14 @@ q := 1`,
 			}
 
 			for _, rule := range pm.Rules {
-				annotations, ok := tc.expAnnotations[rule.Ref().GroundPrefix().String()]
+				annotations, ok := tc.expAnnotations[rule.Location.Row]
 				if !ok {
-					t.Fatal(err)
+					t.Fatalf("No annotations for rule on row %v", rule.Location.Row)
 				}
 
 				if annotationsCompare(annotations, rule.Annotations) != 0 {
-					t.Fatalf("expected %v but got %v", annotations, rule.Annotations)
+					t.Fatalf("expected rule on row %d to have annotations:\n\n%v\n\nbut got:\n\n%v",
+						rule.Location.Row, annotations, rule.Annotations)
 				}
 			}
 		})
