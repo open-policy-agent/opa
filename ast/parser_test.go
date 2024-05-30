@@ -5297,6 +5297,367 @@ p { input = "str" }`,
 	}
 }
 
+func TestAnnotationsAttachedToRule(t *testing.T) {
+
+	tests := []struct {
+		note           string
+		module         string
+		expAnnotations map[string][]*Annotations
+	}{
+		{
+			note: "single metadata block for rule (implied rule scope)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+p := 1`,
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+				Description: "p",
+				Scope:       "rule",
+				Title:       "p",
+			}}},
+		},
+		{
+			note: "single metadata block for rule (explicit rule scope)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: p
+# description: p
+# scope: rule
+p := 1`,
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+				Description: "p",
+				Scope:       "rule",
+				Title:       "p",
+			}}},
+		},
+		{
+			note: "multiple metadata blocks for single rule",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# title: One
+
+# METADATA
+# title: Two
+
+# METADATA
+# title: Three
+
+# METADATA
+# title: Four
+p := 1`,
+			expAnnotations: map[string][]*Annotations{"data.test.p": {
+				{
+					Scope: "rule",
+					Title: "One",
+				},
+				{
+					Scope: "rule",
+					Title: "Two",
+				}, {
+					Scope: "rule",
+					Title: "Three",
+				},
+				{
+					Scope: "rule",
+					Title: "Four",
+				},
+			}},
+		},
+		{
+			note: "document scope",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+p := 1`,
+			expAnnotations: map[string][]*Annotations{"data.test.p": {{
+				Description: "doc",
+				Scope:       "document",
+				Title:       "doc",
+			}}},
+		},
+		{
+			note: "document and rule scope (single rule)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+# METADATA
+# title: p
+# description: p
+p := 1`,
+			expAnnotations: map[string][]*Annotations{"data.test.p": {
+				{
+					Description: "doc",
+					Scope:       "document",
+					Title:       "doc",
+				},
+				{
+					Description: "p",
+					Scope:       "rule",
+					Title:       "p",
+				},
+			}},
+		},
+		{
+			note: "document and rule scope (multiple rules)",
+			module: `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+# METADATA
+# title: p
+# description: p
+p := 1
+
+# METADATA
+# title: q
+# description: q
+q := 1`,
+			expAnnotations: map[string][]*Annotations{
+				"data.test.p": {
+					{
+						Description: "doc",
+						Scope:       "document",
+						Title:       "doc",
+					},
+					{
+						Description: "p",
+						Scope:       "rule",
+						Title:       "p",
+					},
+				},
+				"data.test.q": {
+					{
+						Description: "q",
+						Scope:       "rule",
+						Title:       "q",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+
+			pm, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{ProcessAnnotation: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for _, rule := range pm.Rules {
+				annotations, ok := tc.expAnnotations[rule.Ref().GroundPrefix().String()]
+				if !ok {
+					t.Fatal(err)
+				}
+
+				if annotationsCompare(annotations, rule.Annotations) != 0 {
+					t.Fatalf("expected %v but got %v", annotations, rule.Annotations)
+				}
+			}
+		})
+	}
+}
+
+func TestAnnotationsAttachedToRuleMixScope(t *testing.T) {
+
+	module := `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+import rego.v1
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+# METADATA
+# title: p1
+# description: p1
+p contains x if {
+	input.x == 1
+	x := "hello"
+}
+
+# METADATA
+# title: p2
+# description: p2
+p contains x if {
+	input.x == 2
+	x := "world"
+}
+
+# METADATA
+# title: q
+# description: q
+q := 1`
+
+	pm, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a1 := []*Annotations{
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+		{
+			Description: "p1",
+			Scope:       "rule",
+			Title:       "p1",
+		},
+	}
+
+	a2 := []*Annotations{
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+		{
+			Description: "p2",
+			Scope:       "rule",
+			Title:       "p2",
+		},
+	}
+
+	a3 := []*Annotations{
+		{
+			Description: "q",
+			Scope:       "rule",
+			Title:       "q",
+		},
+	}
+
+	expAnnotations := [][]*Annotations{a1, a2, a3}
+
+	for i, rule := range pm.Rules {
+		if annotationsCompare(expAnnotations[i], rule.Annotations) != 0 {
+			t.Fatalf("expected %v but got %v", expAnnotations[i], rule.Annotations)
+		}
+	}
+}
+
+func TestAnnotationsAttachedToRuleDocScopeBeforeRule(t *testing.T) {
+
+	module := `# METADATA
+# title: pkg
+# description: pkg
+package test
+
+import rego.v1
+
+# METADATA
+# title: p1
+# description: p1
+
+# METADATA
+# scope: document
+# title: doc
+# description: doc
+
+p contains x if {
+	input.x == 1
+	x := "hello"
+}
+
+# METADATA
+# title: p2
+# description: p2
+p contains x if {
+	input.x == 2
+	x := "world"
+}
+
+# METADATA
+# title: q
+# description: q
+q := 1`
+
+	pm, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a1 := []*Annotations{
+		{
+			Description: "p1",
+			Scope:       "rule",
+			Title:       "p1",
+		},
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+	}
+
+	a2 := []*Annotations{
+		{
+			Description: "doc",
+			Scope:       "document",
+			Title:       "doc",
+		},
+		{
+			Description: "p2",
+			Scope:       "rule",
+			Title:       "p2",
+		},
+	}
+
+	a3 := []*Annotations{
+		{
+			Description: "q",
+			Scope:       "rule",
+			Title:       "q",
+		},
+	}
+
+	expAnnotations := [][]*Annotations{a1, a2, a3}
+
+	for i, rule := range pm.Rules {
+		if annotationsCompare(expAnnotations[i], rule.Annotations) != 0 {
+			t.Fatalf("expected %v but got %v", expAnnotations[i], rule.Annotations)
+		}
+	}
+}
+
 func TestAnnotationsAugmentedError(t *testing.T) {
 	tests := []struct {
 		note           string
