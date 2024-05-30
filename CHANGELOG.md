@@ -3,7 +3,39 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.65.0
+
+### Fixes
+
+- Asserting `every` domain is an collection type before evaluation (#6763) ([#6762](https://github.com/open-policy-agent/opa/issues/6762)) authored by @johanfylling
+- Fix OpenTelemetry graceful shutdown. ([#6651](https://github.com/open-policy-agent/opa/issues/6651)) authored by @nicolaschotard reported by @nicolaschotard
+- ci: pin GitHub Actions macos runner version and build for darwin/amd64 ([#6720](https://github.com/open-policy-agent/opa/issues/6720)) authored by @suzuki-shunsuke reported by @suzuki-shunsuke
+- docs: Add arrays to composite values section ([#6727](https://github.com/open-policy-agent/opa/issues/6727)) authored by @anderseknert reported by @SpecLad
+- plugins/logs: Include http request context in decision logs ([#6693](https://github.com/open-policy-agent/opa/issues/6693)) authored by @ashutosh-narkar reported by @stiidk
+
+### Miscellaneous
+
+- --- (authored by @dependabot[bot])
+- Add remainder operator to grammar (#6767) (authored by @anderseknert)
+- Adding documentation for new `IsSetStmt` IR statement (#6764) (authored by @johanfylling)
+- Disable the Authorization header for ECR redirects. (authored by @gdlg)
+- Fix dynamic metadata object in docs (#6709) (authored by @antonioberben)
+- Include annotations in rule AST (#6771) (authored by @ashutosh-narkar)
+- Integrate patch release v0.64.1 (authored by @ashutosh-narkar)
+- Prepare v0.65.0 development (authored by @ashutosh-narkar)
+- Use best practice package name in test examples (#6731) (authored by @asleire)
+- aws: util always read resp.body (#6734) (authored by @johanneslarsson)
+- aws: util remove if debug clause (#6735) (authored by @johanneslarsson)
+- build(deps): bump aquasecurity/trivy-action from 0.19.0 to 0.20.0 (authored by @dependabot[bot])
+- build(deps): bump aquasecurity/trivy-action from 0.20.0 to 0.21.0 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.15 to 1.7.16 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.16 to 1.7.17 (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.24.0 to 0.25.0 (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.63.2 to 1.64.0 (authored by @dependabot[bot])
+- build(go): bump 1.22.2 -> 1.22.3 (authored by @ashutosh-narkar)
+- docs: Update query API doc with details about overridding the def decision path (authored by @ashutosh-narkar)
+- plugins/discovery: Update comparison logic for overrides (authored by @ashutosh-narkar)
 
 ## 0.64.1
 
