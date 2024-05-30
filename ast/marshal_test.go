@@ -444,6 +444,22 @@ func TestRule_MarshalJSON(t *testing.T) {
 			}(),
 			ExpectedJSON: `{"body":[{"index":0,"terms":{"type":"boolean","value":true}}],"head":{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]},"location":{"file":"example.rego","row":6,"col":2}}`,
 		},
+		"annotations included": {
+			Rule: func() *Rule {
+				r := rule.Copy()
+				r.Annotations = []*Annotations{{
+					Scope:         "rule",
+					Title:         "My rule",
+					Entrypoint:    true,
+					Organizations: []string{"org1"},
+					Description:   "My desc",
+					Custom: map[string]interface{}{
+						"foo": "bar",
+					}}}
+				return r
+			}(),
+			ExpectedJSON: `{"annotations":[{"custom":{"foo":"bar"},"description":"My desc","entrypoint":true,"organizations":["org1"],"scope":"rule","title":"My rule"}],"body":[{"index":0,"terms":{"type":"boolean","value":true}}],"head":{"name":"allow","value":{"type":"boolean","value":true},"ref":[{"type":"var","value":"allow"}]}}`,
+		},
 	}
 
 	for name, data := range testCases {

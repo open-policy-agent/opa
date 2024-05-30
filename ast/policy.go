@@ -185,11 +185,12 @@ type (
 	// Rule represents a rule as defined in the language. Rules define the
 	// content of documents that represent policy decisions.
 	Rule struct {
-		Default  bool      `json:"default,omitempty"`
-		Head     *Head     `json:"head"`
-		Body     Body      `json:"body"`
-		Else     *Rule     `json:"else,omitempty"`
-		Location *Location `json:"location,omitempty"`
+		Default     bool           `json:"default,omitempty"`
+		Head        *Head          `json:"head"`
+		Body        Body           `json:"body"`
+		Else        *Rule          `json:"else,omitempty"`
+		Location    *Location      `json:"location,omitempty"`
+		Annotations []*Annotations `json:"annotations,omitempty"`
 
 		// Module is a pointer to the module containing this rule. If the rule
 		// was NOT created while parsing/constructing a module, this should be
@@ -309,8 +310,8 @@ func (mod *Module) Copy() *Module {
 	nodes[mod.Package] = cpy.Package
 
 	cpy.Annotations = make([]*Annotations, len(mod.Annotations))
-	for i := range mod.Annotations {
-		cpy.Annotations[i] = mod.Annotations[i].Copy(nodes[mod.Annotations[i].node])
+	for i, a := range mod.Annotations {
+		cpy.Annotations[i] = a.Copy(nodes[a.node])
 	}
 
 	cpy.Comments = make([]*Comment, len(mod.Comments))
@@ -663,6 +664,11 @@ func (rule *Rule) Compare(other *Rule) int {
 	if cmp := rule.Body.Compare(other.Body); cmp != 0 {
 		return cmp
 	}
+
+	if cmp := annotationsCompare(rule.Annotations, other.Annotations); cmp != 0 {
+		return cmp
+	}
+
 	return rule.Else.Compare(other.Else)
 }
 
@@ -671,6 +677,12 @@ func (rule *Rule) Copy() *Rule {
 	cpy := *rule
 	cpy.Head = rule.Head.Copy()
 	cpy.Body = rule.Body.Copy()
+
+	cpy.Annotations = make([]*Annotations, len(rule.Annotations))
+	for i, a := range rule.Annotations {
+		cpy.Annotations[i] = a.Copy(&cpy)
+	}
+
 	if cpy.Else != nil {
 		cpy.Else = rule.Else.Copy()
 	}
@@ -761,6 +773,10 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 		if rule.Location != nil {
 			data["location"] = rule.Location
 		}
+	}
+
+	if len(rule.Annotations) != 0 {
+		data["annotations"] = rule.Annotations
 	}
 
 	return json.Marshal(data)
