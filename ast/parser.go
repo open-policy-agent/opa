@@ -943,12 +943,10 @@ func (p *Parser) parseHead(defaultRule bool) (*Head, bool) {
 			p.illegal("expected rule value term (e.g., %s[%s] = <VALUE> { ... })", name, head.Key)
 		}
 	case tokens.Assign:
-		s := p.save()
 		p.scan()
 		head.Assign = true
 		head.Value = p.parseTermInfixCall()
 		if head.Value == nil {
-			p.restore(s)
 			switch {
 			case len(head.Args) > 0:
 				p.illegal("expected function value term (e.g., %s(...) := <VALUE> { ... })", name)

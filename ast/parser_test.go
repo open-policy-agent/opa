@@ -2191,13 +2191,37 @@ func TestRule(t *testing.T) {
 	// TODO: expect expressions instead?
 	assertParseErrorContains(t, "empty body", `f(_) = y {}`, "rego_parse_error: found empty body")
 	assertParseErrorContains(t, "empty rule body", "p {}", "rego_parse_error: found empty body")
-	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, `rego_parse_error: unexpected eof token: expected \n or ; or }`)
+	assertParseErrorContains(t, "unmatched braces", `f(x) = y { trim(x, ".", y) `, `rego_parse_error: unexpected eof token: expected \n or ; or }
+	f(x) = y { trim(x, ".", y) 
+	                         ^`)
 
 	assertParseErrorContains(t, "no output", `f(_) = { "foo" = "bar" }`, "rego_parse_error: unexpected eq token: expected rule value term")
-	assertParseErrorContains(t, "no output", `f(_) := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected function value term")
-	assertParseErrorContains(t, "no output", `f := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected rule value term")
-	assertParseErrorContains(t, "no output", `f[_] := { "foo" = "bar" }`, "rego_parse_error: unexpected assign token: expected rule value term")
-	assertParseErrorContains(t, "no output", `default f :=`, "rego_parse_error: unexpected assign token: expected default rule value term")
+
+	assertParseErrorContains(t, "no output", `f(_) := { "foo" = "bar" }`, `rego_parse_error: unexpected eq token: non-terminated set
+	f(_) := { "foo" = "bar" }
+	                ^
+1:17: rego_parse_error: unexpected eq token: expected function value term (e.g., f(...) := <VALUE> { ... })
+	f(_) := { "foo" = "bar" }
+	                ^`)
+
+	assertParseErrorContains(t, "no output", `f := { "foo" = "bar" }`, `rego_parse_error: unexpected eq token: non-terminated set
+	f := { "foo" = "bar" }
+	             ^
+1:14: rego_parse_error: unexpected eq token: expected rule value term (e.g., f := <VALUE> { ... })
+	f := { "foo" = "bar" }
+	             ^`)
+	assertParseErrorContains(t, "no output", `f[_] := { "foo" = "bar" }`, `rego_parse_error: unexpected eq token: non-terminated set
+	f[_] := { "foo" = "bar" }
+	                ^
+1:17: rego_parse_error: unexpected eq token: expected rule value term (e.g., f[_] := <VALUE> { ... })
+	f[_] := { "foo" = "bar" }
+	                ^`)
+	assertParseErrorContains(t, "no output", `default f :=`, `rego_parse_error: unexpected eof token
+	default f :=
+	           ^
+1:12: rego_parse_error: unexpected eof token: expected default rule value term (e.g., default f := <VALUE>)
+	default f :=
+	           ^`)
 
 	// TODO(tsandall): improve error checking here. This is a common mistake
 	// and the current error message is not very good. Need to investigate if the
