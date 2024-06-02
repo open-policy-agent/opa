@@ -45,6 +45,7 @@ type buildParams struct {
 	plugin             string
 	ns                 string
 	v1Compatible       bool
+	followSymlinks     bool
 }
 
 func newBuildParams() buildParams {
@@ -238,6 +239,7 @@ against OPA v0.22.0:
 	buildCommand.Flags().VarP(&buildParams.revision, "revision", "r", "set output bundle revision")
 	buildCommand.Flags().StringVarP(&buildParams.outputFile, "output", "o", "bundle.tar.gz", "set the output filename")
 	buildCommand.Flags().StringVar(&buildParams.ns, "partial-namespace", "partial", "set the namespace to use for partially evaluated files in an optimized bundle")
+	buildCommand.Flags().BoolVar(&buildParams.followSymlinks, "follow-symlinks", false, "follow symlinks in the input set of paths when building the bundle")
 
 	addBundleModeFlag(buildCommand.Flags(), &buildParams.bundleMode, false)
 	addIgnoreFlag(buildCommand.Flags(), &buildParams.ignore)
@@ -302,7 +304,8 @@ func dobuild(params buildParams, args []string) error {
 		WithFilter(buildCommandLoaderFilter(params.bundleMode, params.ignore)).
 		WithBundleVerificationConfig(bvc).
 		WithBundleSigningConfig(bsc).
-		WithPartialNamespace(params.ns)
+		WithPartialNamespace(params.ns).
+		WithFollowSymlinks(params.followSymlinks)
 
 	if params.v1Compatible {
 		compiler = compiler.WithRegoVersion(ast.RegoV1)
