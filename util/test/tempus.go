@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// FIXME: Abort long running tests
 func Eventually(t *testing.T, timeout time.Duration, f func() bool) bool {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -21,6 +22,13 @@ func Eventually(t *testing.T, timeout time.Duration, f func() bool) bool {
 		time.Sleep(10 * time.Millisecond)
 	}
 	return false
+}
+
+func EventuallyOrFatal(t *testing.T, timeout time.Duration, f func() bool) {
+	t.Helper()
+	if !Eventually(t, timeout, f) {
+		t.Fatal("Timeout")
+	}
 }
 
 type BlockingWriter struct {
