@@ -5,7 +5,7 @@ labels:
   layer: application
   category: Feature Flags
 software:
-- go
+- golang
 - oidc
 inventors:
 - flipt
