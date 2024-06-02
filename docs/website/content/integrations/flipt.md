@@ -18,7 +18,7 @@ tutorials:
 docs_features:
   go-integration:
     note: |
-      Flipt's authorization feature uses the Go API to embed Open Policy Agent and evaluate authorization policies
+      Flipt's authorization feature uses the Go API to embed Open Policy Agent and evaluate authorization policies.
       [These docs](https://docs.flipt.io/authorization/overview)
       explain how it works.
 ---
