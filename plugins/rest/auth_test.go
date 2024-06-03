@@ -191,3 +191,129 @@ func TestAssumeRoleWithUnsupportedSigningProvider(t *testing.T) {
 		t.Fatalf("expected error: %v but got: %v", expErrMsg, err)
 	}
 }
+
+func TestOauth2WithClientAssertion(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"credentials": {
+			"oauth2": {
+				"grant_type": "client_credentials",
+				"token_url": "https://localhost",
+				"scopes": ["profile", "opa"],
+				"additional_claims": {
+					"aud": "some audience"
+				},
+				"client_assertion": "abc123"
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.ClientAssertionType != "" {
+		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, defaultClientAssertionType)
+	}
+}
+
+func TestOauth2WithClientAssertionOverrideAssertionType(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"credentials": {
+			"oauth2": {
+				"grant_type": "client_credentials",
+				"token_url": "https://localhost",
+				"scopes": ["profile", "opa"],
+				"additional_claims": {
+					"aud": "some audience"
+				},
+				"client_assertion": "abc123",
+				"client_assertion_type": "urn:ietf:params:oauth:my-thing"
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.ClientAssertionType != "urn:ietf:params:oauth:my-thing" {
+		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, "urn:ietf:params:oauth:my-thing")
+	}
+}
+
+func TestOauth2WithClientAssertionPath(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"credentials": {
+			"oauth2": {
+				"grant_type": "client_credentials",
+				"token_url": "https://localhost",
+				"scopes": ["profile", "opa"],
+				"additional_claims": {
+					"aud": "some audience"
+				},
+				"client_assertion_path": "/var/run/secrets/azure/tokens/azure-identity-token"
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.ClientAssertionType != "" {
+		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, defaultClientAssertionType)
+	}
+}
+
+func TestOauth2WithClientAssertionPathOverrideAssertionType(t *testing.T) {
+	conf := `{
+		"name": "foo",
+		"url": "http://localhost",
+		"credentials": {
+			"oauth2": {
+				"grant_type": "client_credentials",
+				"token_url": "https://localhost",
+				"scopes": ["profile", "opa"],
+				"additional_claims": {
+					"aud": "some audience"
+				},
+				"client_assertion_path": "/var/run/secrets/azure/tokens/azure-identity-token",
+				"client_assertion_type": "urn:ietf:params:oauth:my-thing"
+			}
+		}
+	}`
+
+	client, err := New([]byte(conf), map[string]*keys.Config{})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	if _, err := client.config.Credentials.OAuth2.NewClient(client.config); err != nil {
+		t.Fatalf("OAuth2.NewClient() = %q", err)
+	}
+
+	if client.config.Credentials.OAuth2.ClientAssertionType != "urn:ietf:params:oauth:my-thing" {
+		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, "urn:ietf:params:oauth:my-thing")
+	}
+}
