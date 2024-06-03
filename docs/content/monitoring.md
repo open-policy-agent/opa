@@ -51,7 +51,6 @@ The Prometheus endpoint exports Go runtime metrics as well as HTTP request laten
 | go_memstats_alloc_bytes_total | counter | Total number of bytes allocated, even if freed. | STABLE |
 | go_memstats_buck_hash_sys_bytes | gauge | Number of bytes used by the profiling bucket hash table. | STABLE |
 | go_memstats_frees_total | counter | Total number of frees. | STABLE |
-| go_memstats_gc_cpu_fraction | gauge | The fraction of this program's available CPU time used by the GC since the program started. | STABLE |
 | go_memstats_gc_sys_bytes | gauge | Number of bytes used for garbage collection system metadata. | STABLE |
 | go_memstats_heap_alloc_bytes | gauge | Number of heap bytes allocated and still in use. | STABLE |
 | go_memstats_heap_idle_bytes | gauge | Number of heap bytes waiting to be used. | STABLE |
