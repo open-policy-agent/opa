@@ -21,6 +21,7 @@ evaluation, policy coverage, and more.
 | TextMate | [https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate](https://github.com/open-policy-agent/opa/tree/main/misc/syntax/textmate) |
 | Vim | [https://github.com/tsandall/vim-rego](https://github.com/tsandall/vim-rego) |
 | Visual Studio Code | [https://marketplace.visualstudio.com/items?itemName=tsandall.opa](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) |
+| Zed | [https://github.com/StyraInc/zed-rego](https://github.com/StyraInc/zed-rego) |
 
 ## Rego Playground
 

@@ -4,8 +4,6 @@ subtitle: OPA Integration for the VS Code editor
 labels:
   category: tooling
   layer: editor
-inventors:
-- styra
 code:
 - https://github.com/open-policy-agent/vscode-opa
 videos:
@@ -14,6 +12,8 @@ tutorials:
 - https://docs.styra.com/regal/editor-support#visual-studio-code
 software:
 - editors
+inventors:
+- styra
 docs_features:
   editors:
     note: |
