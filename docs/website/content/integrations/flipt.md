@@ -9,6 +9,8 @@ software:
 - oidc
 inventors:
 - flipt
+blogs:
+- https://blog.flipt.io/authorization-with-open-policy-agent
 code:
 - https://github.com/flipt-io/flipt
 tutorials:
