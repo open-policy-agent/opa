@@ -496,8 +496,6 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			if err != nil {
 				return nil, err
 			}
-		} else if (clientCredentialChecker["client_secret"] && ap.ClientID == "") || (!clientCredentialChecker["client_secret"] && ap.ClientID != "") {
-			return nil, errors.New("client_id and client_secret required")
 		} else if clientCredentialChecker["client_assertion"] {
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
@@ -511,6 +509,10 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			}
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_assertion_path required")
+			}
+		} else if clientCredentialChecker["client_secret"] {
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_secret required")
 			}
 		}
 	}

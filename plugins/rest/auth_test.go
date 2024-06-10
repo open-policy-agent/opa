@@ -204,6 +204,7 @@ func TestOauth2WithClientAssertion(t *testing.T) {
 				"additional_claims": {
 					"aud": "some audience"
 				},
+				"client_id": "123",
 				"client_assertion": "abc123"
 			}
 		}
@@ -218,7 +219,7 @@ func TestOauth2WithClientAssertion(t *testing.T) {
 		t.Fatalf("OAuth2.NewClient() = %q", err)
 	}
 
-	if client.config.Credentials.OAuth2.ClientAssertionType != "" {
+	if client.config.Credentials.OAuth2.ClientAssertionType != defaultClientAssertionType {
 		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, defaultClientAssertionType)
 	}
 }
@@ -235,6 +236,7 @@ func TestOauth2WithClientAssertionOverrideAssertionType(t *testing.T) {
 				"additional_claims": {
 					"aud": "some audience"
 				},
+				"client_id": "123",
 				"client_assertion": "abc123",
 				"client_assertion_type": "urn:ietf:params:oauth:my-thing"
 			}
@@ -267,6 +269,7 @@ func TestOauth2WithClientAssertionPath(t *testing.T) {
 				"additional_claims": {
 					"aud": "some audience"
 				},
+				"client_id": "123",
 				"client_assertion_path": "/var/run/secrets/azure/tokens/azure-identity-token"
 			}
 		}
@@ -281,7 +284,7 @@ func TestOauth2WithClientAssertionPath(t *testing.T) {
 		t.Fatalf("OAuth2.NewClient() = %q", err)
 	}
 
-	if client.config.Credentials.OAuth2.ClientAssertionType != "" {
+	if client.config.Credentials.OAuth2.ClientAssertionType != defaultClientAssertionType {
 		t.Errorf("OAuth2.ClientAssertionType = %v, want = %v", client.config.Credentials.OAuth2.ClientAssertionType, defaultClientAssertionType)
 	}
 }
@@ -298,6 +301,7 @@ func TestOauth2WithClientAssertionPathOverrideAssertionType(t *testing.T) {
 				"additional_claims": {
 					"aud": "some audience"
 				},
+				"client_id": "123",
 				"client_assertion_path": "/var/run/secrets/azure/tokens/azure-identity-token",
 				"client_assertion_type": "urn:ietf:params:oauth:my-thing"
 			}
