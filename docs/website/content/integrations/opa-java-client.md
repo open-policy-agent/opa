@@ -1,5 +1,5 @@
 ---
-title: Authorization for Java
+title: Java Client (Bisnode)
 labels:
   layer: network
   category: application

@@ -2,6 +2,7 @@
 title: App authorization for Clojure
 software:
 - clojure
+- java
 labels:
   layer: network
   category: application

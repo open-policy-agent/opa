@@ -1,5 +1,5 @@
 ---
-title: OPA Wasm Java Gradle SDK
+title: Wasm Java Gradle SDK (sangkeon)
 software:
 - java
 inventors:
@@ -18,4 +18,3 @@ docs_features:
 '
 ---
 SDK to illustrate how to use Wasm compiled Rego policies from a Java application
-

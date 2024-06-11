@@ -1,5 +1,5 @@
 ---
-title: NodeJS express
+title: NodeJS Express (build-security)
 labels:
   category: application
   layer: network
@@ -8,7 +8,7 @@ code:
 inventors:
 - build-security
 software:
-- nodejsexpress
+- javascript
 docs_features:
   rest-api-integration:
     note: |
