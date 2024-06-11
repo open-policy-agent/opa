@@ -2047,7 +2047,7 @@ count(input.x) with count as 3 with input as {}
 
 The `default` keyword allows policies to define a default value for documents
 produced by rules with [Complete Definitions](#complete-definitions). The
-default value is used when all of the rules sharing the same name are undefined.
+default value is used when all the rules sharing the same name are undefined.
 
 For example:
 
@@ -2111,6 +2111,12 @@ function satisfies the following properties:
 * same arity as other functions with the same name
 * arguments should only be plain variables ie. no composite values
 * argument names should not be repeated
+
+{{< info >}}
+A `default` function will still fail (as in not evaluate, even to the default value) if any of the arguments provided in
+the call are **undefined**. The reason for this is that the arguments are evaluated before the function is even called,
+and an undefined argument halts evaluation at that point.
+{{< /info >}}
 
 ## Else Keyword
 
