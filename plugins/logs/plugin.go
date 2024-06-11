@@ -446,7 +446,7 @@ func (po *prepareOnce) drop() {
 	po.once = new(sync.Once)
 }
 
-func (po *prepareOnce) prepare(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
+func (po *prepareOnce) prepareOnce(f func() (*rego.PreparedEvalQuery, error)) (*rego.PreparedEvalQuery, error) {
 	po.once.Do(func() {
 		po.preparedQuery, po.err = f()
 	})
@@ -988,7 +988,7 @@ func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {
 }
 
 func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input ast.Value, event *EventV1) error {
-	pq, err := p.preparedMask.prepare(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedMask.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.maskDecisionRef)))
@@ -1044,7 +1044,7 @@ func (p *Plugin) maskEvent(ctx context.Context, txn storage.Transaction, input a
 func (p *Plugin) dropEvent(ctx context.Context, txn storage.Transaction, input ast.Value) (bool, error) {
 	var err error
 
-	pq, err := p.preparedDrop.prepare(func() (*rego.PreparedEvalQuery, error) {
+	pq, err := p.preparedDrop.prepareOnce(func() (*rego.PreparedEvalQuery, error) {
 		var pq rego.PreparedEvalQuery
 
 		query := ast.NewBody(ast.NewExpr(ast.NewTerm(p.config.dropDecisionRef)))
