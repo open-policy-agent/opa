@@ -2306,6 +2306,11 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 				b.loc = comment.Location
 			}
 		}
+
+		if match == nil && len(b.comments) > 0 {
+			b.loc = b.comments[0].Location
+		}
+
 		return nil, augmentYamlError(err, b.comments)
 	}
 

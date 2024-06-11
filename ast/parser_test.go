@@ -5931,6 +5931,27 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 	}
 }
 
+// https://github.com/open-policy-agent/opa/issues/6587
+func TestAnnotationsParseErrorOnFirstRowGetsCorrectLocation(t *testing.T) {
+	module := `# METADATA
+# description: ` + "`foo` bars" + `
+# title: foo
+package foo`
+
+	_, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	if len(err.(Errors)) != 1 {
+		t.Fatalf("Expected exactly one error but got %v", err)
+	}
+
+	if err.(Errors)[0].Location.Row != 2 {
+		t.Errorf("Expected error on row 2 but got error on row %d", err.(Errors)[0].Location.Row)
+	}
+}
+
 func TestAuthorAnnotation(t *testing.T) {
 	tests := []struct {
 		note     string
