@@ -1,5 +1,5 @@
 {{ define "title" }}
-  {{ site.Title }} | {{ .Title }}
+{{ site.Title }} | {{ .Title }}
 {{ end }}
 
 {{ define "content" }}
@@ -33,7 +33,8 @@
                     {{ range $page := where $.Pages "Section" "ecosystem" }}
                     {{ if eq $page.Params.category $category.key }}
                     {{ $feature := path.BaseName $page.RelPermalink }}
-                    {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict "integrations" $integrations "feature" $feature) }}
+                    {{ $selectedIntegrations := partial "functions/select-integrations-by-docs-feature" (dict
+                    "integrations" $integrations "feature" $feature) }}
 
                     {{ if (gt (len $selectedIntegrations) 1) }}
                     <li>
@@ -54,11 +55,48 @@
         </div>
         {{ end }}
 
+        <h2 id="languages">Language Integrations</h2>
+        <div class="grid-container">
+          <div class="card">
+            <div class="card-body">
+              <div class="card-text">
+                <div>
+                  <p class="mb-4">Integrate natively with OPA directly from your programming language of choice.</p>
+                  <ul>
+                    <li>
+                      <a href="/softwares/javascript/">Javascript &amp; TypeScript</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/java/">Java</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/csharp/">C#</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/golang/">Go</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/clojure/">Clojure</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/rust/">Rust</a>
+                    </li>
+                    <li>
+                      <a href="/softwares/php/">PHP</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {{ partial "ecosystem-cta" }}
 
         <h2>All Integrations</h2>
         {{ $selectedIntegrations := partial "functions/sort-integrations" (dict "integrations" $integrations) }}
-        {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrations" $integrations) }}
+        {{ partial "ecosystem-project-list" (dict "selectedIntegrations" $selectedIntegrations "integrations"
+        $integrations) }}
         <p class="ecosystem-note">Integrations are ordered by the amount of linked content.</p>
 
       </div>
