@@ -394,7 +394,7 @@ package in the Go documentation.
 #### Ecosystem Projects
 
 The Go API is made available to allow other projects to build policy functionality into their
-applications. 
+applications.
 {{<
   ecosystem_feature_link
   key="go-integration"
@@ -410,7 +410,7 @@ applications.
 
 Policies can be evaluated as compiled Wasm binaries. See [OPA Wasm docs](../wasm) for more details.
 
-There are a number of projects already built on OPA Wasm, 
+There are a number of projects already built on OPA Wasm,
 {{<
   ecosystem_feature_link
   key="wasm-integration"

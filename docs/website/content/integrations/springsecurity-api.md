@@ -1,10 +1,10 @@
 ---
-title: Authorization for Java Spring Security
+title: Authorization for Spring Security
 labels:
   layer: network
   category: application
 software:
-- javaspringsecurity
+- java
 code:
 - https://github.com/open-policy-agent/contrib/tree/master/spring_authz
 - https://github.com/Bisnode/opa-spring-security

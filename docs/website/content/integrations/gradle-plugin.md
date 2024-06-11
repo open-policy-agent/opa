@@ -1,5 +1,5 @@
 ---
-title: Gradle Build Plugin
+title: Gradle Build Plugin (Bisnode)
 labels:
   layer: cicd
   category: cicdplugin

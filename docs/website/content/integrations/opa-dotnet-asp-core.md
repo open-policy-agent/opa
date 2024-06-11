@@ -1,5 +1,5 @@
 ---
-title: ASP.NET Core OPA Authorization
+title: .NET Package (me-viper)
 labels:
   category: application
   layer: network
@@ -8,7 +8,8 @@ code:
 - https://github.com/me-viper/OpaDotNet.Extensions
 - https://www.nuget.org/packages/OpaDotNet.Extensions.AspNetCore/
 inventors:
-- andriikurochka
+- me-viper
+software:
+- csharp
 ---
 Open Policy Agent (OPA) ASP.NET core authorization infrastructure
-
