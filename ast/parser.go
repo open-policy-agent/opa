@@ -2373,6 +2373,21 @@ func (b *metadataParser) Parse() (*Annotations, error) {
 	}
 
 	result.Location = b.loc
+
+	// recreate original text of entire metadata block for location text attribute
+	sb := strings.Builder{}
+	sb.WriteString("# METADATA\n")
+
+	lines := bytes.Split(b.buf.Bytes(), []byte{'\n'})
+
+	for _, line := range lines[:len(lines)-1] {
+		sb.WriteString("# ")
+		sb.Write(line)
+		sb.WriteByte('\n')
+	}
+
+	result.Location.Text = []byte(strings.TrimSuffix(sb.String(), "\n"))
+
 	return &result, nil
 }
 
