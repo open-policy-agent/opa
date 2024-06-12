@@ -1,5 +1,5 @@
 ---
-title: OPA Wasm .NET package
+title: Wasm .NET Package (christophwille)
 software:
 - csharp
 inventors:
@@ -19,4 +19,3 @@ docs_features:
 '
 ---
 Call Rego policies in Wasm from C# .NET Core
-

@@ -5931,6 +5931,27 @@ func TestAnnotationsAugmentedError(t *testing.T) {
 	}
 }
 
+// https://github.com/open-policy-agent/opa/issues/6587
+func TestAnnotationsParseErrorOnFirstRowGetsCorrectLocation(t *testing.T) {
+	module := `# METADATA
+# description: ` + "`foo` bars" + `
+# title: foo
+package foo`
+
+	_, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	if len(err.(Errors)) != 1 {
+		t.Fatalf("Expected exactly one error but got %v", err)
+	}
+
+	if err.(Errors)[0].Location.Row != 2 {
+		t.Errorf("Expected error on row 2 but got error on row %d", err.(Errors)[0].Location.Row)
+	}
+}
+
 func TestAuthorAnnotation(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -6188,6 +6209,32 @@ func TestRelatedResourceAnnotation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAnnotationsLocationText(t *testing.T) {
+	module := `# METADATA
+# title: pkg
+# description: a package
+package pkg
+
+import rego.v1
+
+# METADATA
+# title: rule
+allow if {
+	true
+}
+`
+
+	m, err := ParseModuleWithOpts("test.rego", module, ParserOptions{ProcessAnnotation: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertLocationText(t, "# METADATA\n# title: pkg\n# description: a package", m.Annotations[0].Location)
+	assertLocationText(t, "# METADATA\n# title: rule", m.Annotations[1].Location)
+
+	assertLocationText(t, "# METADATA\n# title: rule", m.Rules[0].Annotations[0].Location)
 }
 
 func assertLocationText(t *testing.T, expected string, actual *Location) {

@@ -732,7 +732,7 @@ func TestLoadErrors(t *testing.T) {
 		}
 
 		expected := []string{
-			"bad_doc.json: bad document type",
+			"bad_doc.json: document must be of type object",
 			"a.json: EOF",
 			"b.yaml: error converting YAML to JSON",
 			"empty.rego:0: rego_parse_error: empty module",
