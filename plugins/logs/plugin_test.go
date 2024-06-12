@@ -2350,6 +2350,152 @@ func TestPluginDrop(t *testing.T) {
 	}
 }
 
+func TestPluginMaskErrorHandling(t *testing.T) {
+	rawPolicy := []byte(`
+			package system.log
+			drop {
+				endswith(input.path, "bar")
+			}`)
+	event := &EventV1{Path: "foo/bar"}
+
+	// Setup fixture. Populate store with simple drop policy.
+	ctx := context.Background()
+	store := inmem.New()
+
+	//checks if raw policy is valid and stores policy in store
+	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var output []string
+
+	// Create and start manager. Start is required so that stored policies
+	// get compiled and made available to the plugin.
+	manager, err := plugins.New(
+		nil,
+		"test",
+		store,
+		plugins.EnablePrintStatements(true),
+		plugins.PrintHook(appendingPrintHook{printed: &output}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Instantiate the plugin.
+	cfg := &Config{Service: "svc"}
+	trigger := plugins.DefaultTriggerMode
+	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+
+	plugin := New(cfg, manager)
+
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	input, err := event.AST()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type badTransaction struct {
+		storage.Transaction
+	}
+
+	expErr := "storage_invalid_txn_error: unexpected transaction type *logs.badTransaction"
+	err = plugin.maskEvent(ctx, &badTransaction{}, input, event)
+	if err.Error() != expErr {
+		t.Fatalf("Expected error %v got %v", expErr, err)
+	}
+
+	// We expect the same error on a second call, even though the mask query failed to prepare and won't be prepared again.
+	err = plugin.maskEvent(ctx, nil, input, event)
+	if err.Error() != expErr {
+		t.Fatalf("Expected error %v got %v", expErr, err)
+	}
+}
+
+func TestPluginDropErrorHandling(t *testing.T) {
+	rawPolicy := []byte(`
+			package system.log
+			drop {
+				endswith(input.path, "bar")
+			}`)
+	event := &EventV1{Path: "foo/bar"}
+
+	// Setup fixture. Populate store with simple drop policy.
+	ctx := context.Background()
+	store := inmem.New()
+
+	//checks if raw policy is valid and stores policy in store
+	err := storage.Txn(ctx, store, storage.WriteParams, func(txn storage.Transaction) error {
+		if err := store.UpsertPolicy(ctx, txn, "test.rego", rawPolicy); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var output []string
+
+	// Create and start manager. Start is required so that stored policies
+	// get compiled and made available to the plugin.
+	manager, err := plugins.New(
+		nil,
+		"test",
+		store,
+		plugins.EnablePrintStatements(true),
+		plugins.PrintHook(appendingPrintHook{printed: &output}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Instantiate the plugin.
+	cfg := &Config{Service: "svc"}
+	trigger := plugins.DefaultTriggerMode
+	cfg.validateAndInjectDefaults([]string{"svc"}, nil, &trigger)
+
+	plugin := New(cfg, manager)
+
+	if err := plugin.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	input, err := event.AST()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type badTransaction struct {
+		storage.Transaction
+	}
+
+	expErr := "storage_invalid_txn_error: unexpected transaction type *logs.badTransaction"
+	_, err = plugin.dropEvent(ctx, &badTransaction{}, input)
+	if err.Error() != expErr {
+		t.Fatalf("Expected error %v got %v", expErr, err)
+	}
+
+	// We expect the same error on a second call, even though the drop query failed to prepare and won't be prepared again.
+	_, err = plugin.dropEvent(ctx, nil, input)
+	if err.Error() != expErr {
+		t.Fatalf("Expected error %v got %v", expErr, err)
+	}
+}
+
 type testFixtureOptions struct {
 	ConsoleLogger                  *test.Logger
 	ReportingUploadSizeLimitBytes  int64
