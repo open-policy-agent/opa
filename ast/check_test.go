@@ -2429,7 +2429,7 @@ func TestRemoteSchema(t *testing.T) {
 	schema := `{"type": "boolean"}`
 
 	schemaCalled := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		schemaCalled = true
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(schema))
@@ -2477,7 +2477,7 @@ func TestRemoteSchemaHostNotAllowed(t *testing.T) {
 	schema := `{"type": "boolean"}`
 
 	schemaCalled := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		schemaCalled = true
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(schema))

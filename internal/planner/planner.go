@@ -1523,7 +1523,7 @@ func (p *Planner) planValue(t ast.Value, loc *ast.Location, iter planiter) error
 	}
 }
 
-func (p *Planner) planNull(null ast.Null, iter planiter) error {
+func (p *Planner) planNull(_ ast.Null, iter planiter) error {
 
 	target := p.newLocal()
 

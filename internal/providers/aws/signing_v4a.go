@@ -174,7 +174,7 @@ type httpSigner struct {
 	PayloadHash string
 }
 
-func (s *httpSigner) setRequiredSigningFields(headers http.Header, query url.Values) {
+func (s *httpSigner) setRequiredSigningFields(headers http.Header, _ url.Values) {
 	amzDate := s.Time.Format(timeFormat)
 
 	headers.Set(AmzRegionSetKey, strings.Join(s.RegionSet, ","))

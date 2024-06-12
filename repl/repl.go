@@ -508,9 +508,8 @@ func (r *REPL) cmdShow(args []string) error {
 		}
 		fmt.Fprintln(r.output, string(b))
 		return nil
-	} else {
-		return fmt.Errorf("unknown option '%v'", args[0])
 	}
+	return fmt.Errorf("unknown option '%v'", args[0])
 }
 
 type replDebugState struct {
@@ -688,7 +687,7 @@ func (r *REPL) unsetRule(ctx context.Context, name ast.Var) (bool, error) {
 	return true, nil
 }
 
-func (r *REPL) unsetPackage(ctx context.Context, pkg *ast.Package) (bool, error) {
+func (r *REPL) unsetPackage(_ context.Context, pkg *ast.Package) (bool, error) {
 	path := fmt.Sprintf("%v", pkg.Path)
 	_, ok := r.modules[path]
 	if ok {
@@ -748,7 +747,7 @@ func (r *REPL) recompile(ctx context.Context, cpy *ast.Module) error {
 	return nil
 }
 
-func (r *REPL) compileBody(ctx context.Context, compiler *ast.Compiler, body ast.Body) (ast.Body, *ast.TypeEnv, error) {
+func (r *REPL) compileBody(_ context.Context, compiler *ast.Compiler, body ast.Body) (ast.Body, *ast.TypeEnv, error) {
 	r.timerStart(metrics.RegoQueryCompile)
 	defer r.timerStop(metrics.RegoQueryCompile)
 
@@ -1280,7 +1279,7 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 	return modules, nil
 }
 
-func (r *REPL) printTypes(ctx context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
+func (r *REPL) printTypes(_ context.Context, typeEnv *ast.TypeEnv, body ast.Body) {
 
 	ast.WalkRefs(body, func(ref ast.Ref) bool {
 		fmt.Fprintf(r.output, "# %v: %v\n", ref, typeEnv.Get(ref))

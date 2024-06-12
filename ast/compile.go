@@ -4194,7 +4194,7 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 
 		// Object keys cannot be pattern matched so only walk values.
 		case *object:
-			x.Foreach(func(k, v *Term) {
+			x.Foreach(func(_, v *Term) {
 				vis.Walk(v)
 			})
 

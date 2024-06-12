@@ -1496,7 +1496,7 @@ func (r *Rego) Compile(ctx context.Context, opts ...CompileOption) (*CompileResu
 	return r.compileWasm(modules, queries, compileQueryType) // TODO(sr) control flow is funky here
 }
 
-func (r *Rego) compileWasm(modules []*ast.Module, queries []ast.Body, qType queryType) (*CompileResult, error) {
+func (r *Rego) compileWasm(_ []*ast.Module, queries []ast.Body, qType queryType) (*CompileResult, error) {
 	policy, err := r.planQuery(queries, qType)
 	if err != nil {
 		return nil, err
@@ -1871,7 +1871,7 @@ func (r *Rego) loadFiles(ctx context.Context, txn storage.Transaction, m metrics
 	return nil
 }
 
-func (r *Rego) loadBundles(ctx context.Context, txn storage.Transaction, m metrics.Metrics) error {
+func (r *Rego) loadBundles(_ context.Context, _ storage.Transaction, m metrics.Metrics) error {
 	if len(r.bundlePaths) == 0 {
 		return nil
 	}
@@ -2035,7 +2035,7 @@ func (r *Rego) prepareImports() ([]*ast.Import, error) {
 	return imports, nil
 }
 
-func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, m metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
+func (r *Rego) compileQuery(query ast.Body, imports []*ast.Import, _ metrics.Metrics, extras []extraStage) (ast.QueryCompiler, ast.Body, error) {
 	var pkg *ast.Package
 
 	if r.pkg != "" {
@@ -2476,7 +2476,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 	return pq, nil
 }
 
-func (r *Rego) rewriteQueryToCaptureValue(qc ast.QueryCompiler, query ast.Body) (ast.Body, error) {
+func (r *Rego) rewriteQueryToCaptureValue(_ ast.QueryCompiler, query ast.Body) (ast.Body, error) {
 
 	checkCapture := iteration(query) || len(query) > 1
 
@@ -2593,7 +2593,7 @@ type transactionCloser func(ctx context.Context, err error) error
 // regardless of status.
 func (r *Rego) getTxn(ctx context.Context) (storage.Transaction, transactionCloser, error) {
 
-	noopCloser := func(ctx context.Context, err error) error {
+	noopCloser := func(_ context.Context, _ error) error {
 		return nil // no-op default
 	}
 

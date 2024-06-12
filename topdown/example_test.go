@@ -23,10 +23,7 @@ func ExampleQuery_Iter() {
 	compiler := ast.NewCompiler()
 
 	// Define a dummy query and some data that the query will execute against.
-	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
-	if err != nil {
-		// Handle error.
-	}
+	query, _ := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
 
 	var data map[string]interface{}
 
@@ -36,19 +33,14 @@ func ExampleQuery_Iter() {
 	decoder := json.NewDecoder(bytes.NewBufferString(`{"a": [1,2,3,4]}`))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(&data); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&data)
 
 	// Instantiate the policy engine's storage layer.
 	store := inmem.NewFromObject(data)
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx)
-	if err != nil {
-		// Handle error.
-	}
+	txn, _ := store.NewTransaction(ctx)
 
 	defer store.Abort(ctx, txn)
 
@@ -64,7 +56,7 @@ func ExampleQuery_Iter() {
 	result := []interface{}{}
 
 	// Execute the query and provide a callback function to accumulate the results.
-	err = q.Iter(ctx, func(qr topdown.QueryResult) error {
+	err := q.Iter(ctx, func(qr topdown.QueryResult) error {
 
 		// Each variable in the query will have an associated binding.
 		x := qr[ast.Var("x")]
@@ -96,10 +88,7 @@ func ExampleQuery_Run() {
 	compiler := ast.NewCompiler()
 
 	// Define a dummy query and some data that the query will execute against.
-	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
-	if err != nil {
-		// Handle error.
-	}
+	query, _ := compiler.QueryCompiler().Compile(ast.MustParseBody(`data.a[_] = x; x >= 2`))
 
 	var data map[string]interface{}
 
@@ -109,19 +98,14 @@ func ExampleQuery_Run() {
 	decoder := json.NewDecoder(bytes.NewBufferString(`{"a": [1,2,3,4]}`))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(&data); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&data)
 
 	// Instantiate the policy engine's storage layer.
 	store := inmem.NewFromObject(data)
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx)
-	if err != nil {
-		// Handle error.
-	}
+	txn, _ := store.NewTransaction(ctx)
 
 	defer store.Abort(ctx, txn)
 
@@ -170,19 +154,14 @@ func ExampleQuery_PartialRun() {
 			}
 		]
 	}`))
-	if err := decoder.Decode(&data); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&data)
 
 	// Instantiate the policy engine's storage layer.
 	store := inmem.NewFromObject(data)
 
 	// Create a new transaction. Transactions allow the policy engine to
 	// evaluate the query over a consistent snapshot fo the storage layer.
-	txn, err := store.NewTransaction(ctx)
-	if err != nil {
-		// Handle error.
-	}
+	txn, _ := store.NewTransaction(ctx)
 
 	defer store.Abort(ctx, txn)
 
@@ -206,9 +185,7 @@ func ExampleQuery_PartialRun() {
 
 	// Compile policy.
 	compiler := ast.NewCompiler()
-	if compiler.Compile(modules); compiler.Failed() {
-		// Handle error.
-	}
+	compiler.Compile(modules)
 
 	// Construct query and mark the entire input document as partial.
 	q := topdown.NewQuery(ast.MustParseBody("data.example.allow = true")).
@@ -220,10 +197,7 @@ func ExampleQuery_PartialRun() {
 		WithTransaction(txn)
 
 	// Execute partial evaluation.
-	partial, _, err := q.PartialRun(ctx)
-	if err != nil {
-		// Handle error.
-	}
+	partial, _, _ := q.PartialRun(ctx)
 
 	// Show result of partially evaluating the policy.
 	fmt.Printf("# partial evaluation result (%d items):\n", len(partial))
@@ -249,9 +223,7 @@ func ExampleQuery_PartialRun() {
 	// Compile the partially evaluated policy with the original policy.
 	modules["partial"] = module
 
-	if compiler.Compile(modules); compiler.Failed() {
-		// Handle error.
-	}
+	compiler.Compile(modules)
 
 	// Test different inputs against partially evaluated policy.
 	inputs := []string{
@@ -272,10 +244,7 @@ func ExampleQuery_PartialRun() {
 			WithTransaction(txn).
 			WithInput(ast.MustParseTerm(inputs[i]))
 
-		qrs, err := q.Run(ctx)
-		if err != nil {
-			// Handle error.
-		}
+		qrs, _ := q.Run(ctx)
 
 		// Check if input is allowed.
 		allowed := len(qrs) == 1

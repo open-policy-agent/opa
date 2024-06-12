@@ -211,7 +211,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	// build a list of all files we will iterate over and read, but only one time
 	if d.files == nil {
 		d.files = []string{}
-		err := filepath.Walk(d.root, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(d.root, func(path string, info os.FileInfo, _ error) error {
 			if info != nil && info.Mode().IsRegular() {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 					return nil

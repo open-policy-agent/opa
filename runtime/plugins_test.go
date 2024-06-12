@@ -21,13 +21,13 @@ type Tester struct {
 	startErr error
 }
 
-func (t *Tester) Start(ctx context.Context) error {
+func (t *Tester) Start(_ context.Context) error {
 	return t.startErr
 }
 
-func (t *Tester) Stop(ctx context.Context) {}
+func (t *Tester) Stop(_ context.Context) {}
 
-func (t *Tester) Reconfigure(ctx context.Context, config interface{}) {}
+func (t *Tester) Reconfigure(_ context.Context, _ interface{}) {}
 
 type Config struct {
 	ConfigErr bool `json:"configerr"`
@@ -50,7 +50,7 @@ func (f Factory) Validate(_ *plugins.Manager, config []byte) (interface{}, error
 	return cfg, nil
 }
 
-func (f Factory) New(_ *plugins.Manager, config interface{}) plugins.Plugin {
+func (f Factory) New(_ *plugins.Manager, _ interface{}) plugins.Plugin {
 	return &Tester{}
 }
 

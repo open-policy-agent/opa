@@ -136,7 +136,7 @@ func TestReportWithExtraKeys(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
-	reporter.RegisterGatherer("foobear", func(ctx context.Context) (any, error) {
+	reporter.RegisterGatherer("foobear", func(_ context.Context) (any, error) {
 		return map[string]any{"baz": []string{"one", "two"}}, nil
 	})
 
@@ -222,7 +222,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")

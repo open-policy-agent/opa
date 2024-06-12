@@ -142,7 +142,7 @@ func compileUpto(stage string, modules map[string]*ast.Module, bs []byte, filena
 	if stage != "" {
 		compiler = compiler.WithStageAfter(stage, ast.CompilerStageDefinition{
 			Name: "halt",
-			Stage: func(c *ast.Compiler) *ast.Error {
+			Stage: func(_ *ast.Compiler) *ast.Error {
 				return &ast.Error{
 					Code: "halt",
 				}

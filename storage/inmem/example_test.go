@@ -44,17 +44,12 @@ func Example_read() {
 	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(&data); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&data)
 
 	// Instantiate the storage layer.
 	store := inmem.NewFromObject(data)
 
-	txn, err := store.NewTransaction(ctx)
-	if err != nil {
-		// Handle error.
-	}
+	txn, _ := store.NewTransaction(ctx)
 
 	// Cancel transaction because no writes are performed.
 	defer store.Abort(ctx, txn)
@@ -108,9 +103,7 @@ func Example_write() {
 	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(&data); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&data)
 
 	// Create the new store with the dummy data.
 	store := inmem.NewFromObject(data)
@@ -127,14 +120,9 @@ func Example_write() {
 	decoder = json.NewDecoder(bytes.NewBufferString(examplePatch))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(&patch); err != nil {
-		// Handle error.
-	}
+	_ = decoder.Decode(&patch)
 
-	txn, err := store.NewTransaction(ctx, storage.WriteParams)
-	if err != nil {
-		// Handle error.
-	}
+	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
 
 	// Write values into storage and read result.
 	err0 := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)

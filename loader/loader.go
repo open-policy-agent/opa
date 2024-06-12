@@ -81,7 +81,7 @@ type Filter = filter.LoaderFilter
 // GlobExcludeName excludes files and directories whose names do not match the
 // shell style pattern at minDepth or greater.
 func GlobExcludeName(pattern string, minDepth int) Filter {
-	return func(abspath string, info fs.FileInfo, depth int) bool {
+	return func(_ string, info fs.FileInfo, depth int) bool {
 		match, _ := filepath.Match(pattern, info.Name())
 		return match && depth >= minDepth
 	}
@@ -486,7 +486,7 @@ func AsBundle(path string) (*bundle.Bundle, error) {
 // AllRegos returns a Result object loaded (recursively) with all Rego source
 // files from the specified paths.
 func AllRegos(paths []string) (*Result, error) {
-	return NewFileLoader().Filtered(paths, func(_ string, info os.FileInfo, depth int) bool {
+	return NewFileLoader().Filtered(paths, func(_ string, info os.FileInfo, _ int) bool {
 		return !info.IsDir() && !strings.HasSuffix(info.Name(), bundle.RegoExt)
 	})
 }
@@ -522,7 +522,7 @@ func Paths(path string, recurse bool) (paths []string, err error) {
 	if err != nil {
 		return nil, err
 	}
-	err = filepath.Walk(path, func(f string, info os.FileInfo, err error) error {
+	err = filepath.Walk(path, func(f string, _ os.FileInfo, _ error) error {
 		if !recurse {
 			if path != f && path != filepath.Dir(f) {
 				return filepath.SkipDir

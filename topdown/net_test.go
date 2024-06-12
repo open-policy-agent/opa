@@ -202,7 +202,7 @@ func TestNetLookupIPAddr(t *testing.T) {
 				Capabilities: capabilities,
 			}
 			srv.PatchNet(resolv)
-			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(act *ast.Term) error {
+			err := builtinLookupIPAddr(bctx, []*ast.Term{ast.StringTerm(addr)}, func(_ *ast.Term) error {
 				t.Fatal("expected not to be called")
 				return nil
 			})
