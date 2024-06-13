@@ -1028,47 +1028,25 @@ p contains 2 if {
 	}
 }
 
-func TestCallToUnknownBuiltInFunction(t *testing.T) {
-	files := [][2]string{
-		{"/policy.rego", `package test
-			p {
-				foo.bar(42)
-				contains("foo", "o")
-			}
-		`},
-	}
-
-	buf := archive.MustWriteTarGz(files)
-
-	test.WithTempFS(nil, func(rootDir string) {
-		bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
-
-		bf, err := os.Create(bundleFile)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		_, err = bf.Write(buf.Bytes())
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		var out bytes.Buffer
-		params := newInspectCommandParams()
-		err = params.outputFormat.Set(evalJSONOutput)
-		if err != nil {
-			t.Fatalf("Unexpected error: %s", err)
-		}
-
-		err = doInspect(params, bundleFile, &out)
-		if err != nil {
-			t.Fatalf("Unexpected error %v", err)
-		}
-
-		bs := out.Bytes()
-		output := strings.TrimSpace(string(bs))
-		// Note: unknown foo.bar() built-in doesn't appear in the output, but also didn't cause an error.
-		expected := strings.TrimSpace(`{
+func TestUnknownRefs(t *testing.T) {
+	tests := []struct {
+		note     string
+		files    [][2]string
+		expected string
+	}{
+		{
+			note: "unknown built-in func call",
+			files: [][2]string{
+				{
+					"/policy.rego", `package test
+p {
+	foo.bar(42)
+	contains("foo", "o")
+}`,
+				},
+			},
+			// Note: unknown foo.bar() built-in doesn't appear in the output, but also didn't cause an error.
+			expected: `{
   "manifest": {
     "revision": "",
     "roots": [
@@ -1102,12 +1080,122 @@ func TestCallToUnknownBuiltInFunction(t *testing.T) {
       }
     ]
   }
-}`)
+}`,
+		},
+		{
+			// Happy path
+			note: "ref replaced inside with stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
 
-		if output != expected {
-			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
-		}
-	})
+foo.bar(_) := false
+
+p if {
+	foo.bar(42)
+}
+
+mock(_) := true
+
+test_p if {
+	p with data.test.foo.bar as mock
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "unknown ref replaced inside with stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	data.foo.bar(42)
+}
+
+mock(_) := true
+
+test_p if {
+	p with data.foo.bar as mock
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			buf := archive.MustWriteTarGz(tc.files)
+
+			test.WithTempFS(nil, func(rootDir string) {
+				bundleFile := filepath.Join(rootDir, "bundle.tar.gz")
+
+				bf, err := os.Create(bundleFile)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				_, err = bf.Write(buf.Bytes())
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err)
+				}
+
+				var out bytes.Buffer
+				params := newInspectCommandParams()
+				err = params.outputFormat.Set(evalJSONOutput)
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+
+				err = doInspect(params, bundleFile, &out)
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+
+				bs := out.Bytes()
+				output := strings.TrimSpace(string(bs))
+				if output != tc.expected {
+					t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", tc.expected, output)
+				}
+			})
+		})
+	}
 }
 
 func TestCallToUnknownRegoFunction(t *testing.T) {
