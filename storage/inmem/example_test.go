@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+//revive:disable:empty-block
+
 package inmem_test
 
 import (
@@ -44,12 +46,17 @@ func Example_read() {
 	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
 	decoder.UseNumber()
 
-	_ = decoder.Decode(&data)
+	if err := decoder.Decode(&data); err != nil {
+		// Handle error.
+	}
 
 	// Instantiate the storage layer.
 	store := inmem.NewFromObject(data)
 
-	txn, _ := store.NewTransaction(ctx)
+	txn, err := store.NewTransaction(ctx)
+	if err != nil {
+		// Handle error.
+	}
 
 	// Cancel transaction because no writes are performed.
 	defer store.Abort(ctx, txn)
@@ -103,7 +110,9 @@ func Example_write() {
 	decoder := json.NewDecoder(bytes.NewBufferString(exampleInput))
 	decoder.UseNumber()
 
-	_ = decoder.Decode(&data)
+	if err := decoder.Decode(&data); err != nil {
+		// Handle error.
+	}
 
 	// Create the new store with the dummy data.
 	store := inmem.NewFromObject(data)
@@ -120,9 +129,14 @@ func Example_write() {
 	decoder = json.NewDecoder(bytes.NewBufferString(examplePatch))
 	decoder.UseNumber()
 
-	_ = decoder.Decode(&patch)
+	if err := decoder.Decode(&patch); err != nil {
+		// Handle error.
+	}
 
-	txn, _ := store.NewTransaction(ctx, storage.WriteParams)
+	txn, err := store.NewTransaction(ctx, storage.WriteParams)
+	if err != nil {
+		// Handle error.
+	}
 
 	// Write values into storage and read result.
 	err0 := store.Write(ctx, txn, storage.AddOp, storage.MustParsePath("/users/0/location"), patch)
