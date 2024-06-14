@@ -781,7 +781,9 @@ func PrettyEvent(w io.Writer, e *Event, opts PrettyEventOpts) error {
 		return false
 	})
 
-	walkTestTerms(expr, findVars(true))
+	// If the expression is negated, we can't confidently assert that vars with unknown values are 'undefined',
+	// since the compiler might have opted out of the necessary rewrite.
+	walkTestTerms(expr, findVars(!expr.Negated))
 	coExprs := expr.CogeneratedExprs()
 	for _, coExpr := range coExprs {
 		// Only the current "co-expr" can have undefined vars, if we don't know the value for a var in any other co-expr,

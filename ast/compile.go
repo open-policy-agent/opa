@@ -4566,7 +4566,9 @@ func rewriteEquals(x interface{}) (modified bool) {
 func rewriteTestEqualities(f *equalityFactory, body Body) Body {
 	result := make(Body, 0, len(body))
 	for _, expr := range body {
-		if !expr.Generated {
+		// We can't rewrite negated expressions; if the extracted term is undefined, evaluation would fail before
+		// reaching the negation check.
+		if !expr.Negated && !expr.Generated {
 			switch {
 			case expr.IsEquality():
 				terms := expr.Terms.([]*Term)

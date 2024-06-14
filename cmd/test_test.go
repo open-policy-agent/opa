@@ -1446,6 +1446,66 @@ data.test.test_p: FAIL (%TIME%)
 FAIL: 1/1
 `,
 		},
+		{
+			note: "negated rule ref",
+			files: map[string]string{
+				"/test.rego": `package test
+import rego.v1
+
+a if {true}
+
+test_foo if {
+	not a
+}`,
+				"data.json": `{"a": true}`,
+			},
+			expected: `FAILURES
+--------------------------------------------------------------------------------
+data.test.test_foo: FAIL (%TIME%)
+
+  %ROOT%/test.rego:7:
+    	not a
+    	    |
+    	    true
+
+SUMMARY
+--------------------------------------------------------------------------------
+%ROOT%/test.rego:
+data.test.test_foo: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+`,
+		},
+		{
+			note: "negated data ref",
+			files: map[string]string{
+				"/test.rego": `package test
+import rego.v1
+
+test_foo if {
+	not data.a
+}`,
+				"data.json": `{"a": true}`,
+			},
+			// Because of the negated expr, the compiler will have opted out of rewriting the expression to
+			// capture the value of data.a in a local variable, and since data.a isn't in the local bindings
+			// or in the virtual cache, we don't know if it's undefined or unknown, and therefore can't report
+			// on a value.
+			expected: `FAILURES
+--------------------------------------------------------------------------------
+data.test.test_foo: FAIL (%TIME%)
+
+  %ROOT%/test.rego:5:
+    	not data.a
+
+SUMMARY
+--------------------------------------------------------------------------------
+%ROOT%/test.rego:
+data.test.test_foo: FAIL (%TIME%)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+`,
+		},
 	}
 
 	r := regexp.MustCompile(`FAIL \(.*s\)`)
