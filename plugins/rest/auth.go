@@ -464,16 +464,16 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("token_url required to use https scheme")
 	}
 	if ap.GrantType == grantTypeClientCredentials {
-		clientCredentialChecker := make(map[string]bool)
-		clientCredentialChecker["client_secret"] = ap.ClientSecret != ""
-		clientCredentialChecker["signing_key"] = ap.SigningKeyID != ""
-		clientCredentialChecker["aws_kms"] = ap.AWSKmsKey != nil
-		clientCredentialChecker["client_assertion"] = ap.ClientAssertion != ""
-		clientCredentialChecker["client_assertion_path"] = ap.ClientAssertionPath != ""
+		clientCredentialExists := make(map[string]bool)
+		clientCredentialExists["client_secret"] = ap.ClientSecret != ""
+		clientCredentialExists["signing_key"] = ap.SigningKeyID != ""
+		clientCredentialExists["aws_kms"] = ap.AWSKmsKey != nil
+		clientCredentialExists["client_assertion"] = ap.ClientAssertion != ""
+		clientCredentialExists["client_assertion_path"] = ap.ClientAssertionPath != ""
 
 		var notEmptyVarCount int
 
-		for _, credentialSet := range clientCredentialChecker {
+		for _, credentialSet := range clientCredentialExists {
 			if credentialSet {
 				notEmptyVarCount++
 			}
@@ -487,7 +487,7 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			return nil, errors.New("can only use one of client_secret, signing_key, aws_kms, client_assertion, or client_assertion_path")
 		}
 
-		if clientCredentialChecker["aws_kms"] {
+		if clientCredentialExists["aws_kms"] {
 			if ap.AWSSigningPlugin == nil {
 				return nil, errors.New("aws_kms and aws_signing required")
 			}
@@ -496,21 +496,21 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			if err != nil {
 				return nil, err
 			}
-		} else if clientCredentialChecker["client_assertion"] {
+		} else if clientCredentialExists["client_assertion"] {
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
 			}
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_assertion required")
 			}
-		} else if clientCredentialChecker["client_assertion_path"] {
+		} else if clientCredentialExists["client_assertion_path"] {
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
 			}
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_assertion_path required")
 			}
-		} else if clientCredentialChecker["client_secret"] {
+		} else if clientCredentialExists["client_secret"] {
 			if ap.ClientID == "" {
 				return nil, errors.New("client_id and client_secret required")
 			}
