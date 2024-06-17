@@ -5494,6 +5494,14 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		return false, err
 	}
 
+	isAllowedUnknownFuncCall := false
+	if c.allowUndefinedFuncCalls {
+		switch target.Value.(type) {
+		case Ref, Var:
+			isAllowedUnknownFuncCall = true
+		}
+	}
+
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
@@ -5553,6 +5561,9 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 			return false, err // err may be nil
 		}
+	case isAllowedUnknownFuncCall:
+		// The target isn't a ref to the input doc, data doc, or a known built-in, but it might be a ref to an unknown built-in.
+		return false, nil
 	default:
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a function", InputRootDocument, DefaultRootDocument)
 	}

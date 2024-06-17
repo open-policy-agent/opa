@@ -1084,7 +1084,7 @@ p {
 		},
 		{
 			// Happy path
-			note: "ref replaced inside with stmt",
+			note: "known ref replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
 import rego.v1
@@ -1122,7 +1122,7 @@ test_p if {
 }`,
 		},
 		{
-			note: "unknown ref replaced inside with stmt",
+			note: "unknown ref replaced inside 'with' stmt",
 			files: [][2]string{
 				{"/policy.rego", `package test
 import rego.v1
@@ -1151,6 +1151,228 @@ test_p if {
     ]
   },
   "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "unknown built-in (var) replaced inside 'with' stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	foo(42)
+}
+
+mock(_) := true
+
+test_p if {
+	p with foo as mock
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "unknown built-in (ref) replaced inside 'with' stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	foo.bar(42)
+}
+
+mock(_) := true
+
+test_p if {
+	p with foo.bar as mock
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "call replaced by unknown data ref inside 'with' stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	foo(42)
+}
+
+foo(_) := false
+
+test_p if {
+	p with foo as data.bar
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "eq",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "="
+      }
+    ],
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "call replaced by unknown built-in (var) inside 'with' stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	foo(42)
+}
+
+foo(_) := false
+
+test_p if {
+	# bar is unknown built-in
+	p with foo as bar
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "features": [
+      "rego_v1_import"
+    ]
+  }
+}`,
+		},
+		{
+			note: "call replaced by unknown built-in (ref) inside 'with' stmt",
+			files: [][2]string{
+				{"/policy.rego", `package test
+import rego.v1
+
+p if {
+	foo(42)
+}
+
+foo(_) := false
+
+test_p if {
+	# bar.baz is unknown built-in
+	p with foo as bar.baz
+}`},
+			},
+			expected: `{
+  "manifest": {
+    "revision": "",
+    "roots": [
+      ""
+    ]
+  },
+  "signatures_config": {},
+  "namespaces": {
+    "data.test": [
+      "/policy.rego"
+    ]
+  },
+  "capabilities": {
+    "builtins": [
+      {
+        "name": "eq",
+        "decl": {
+          "args": [
+            {
+              "type": "any"
+            },
+            {
+              "type": "any"
+            }
+          ],
+          "result": {
+            "type": "boolean"
+          },
+          "type": "function"
+        },
+        "infix": "="
+      }
+    ],
     "features": [
       "rego_v1_import"
     ]
