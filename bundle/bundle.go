@@ -1725,11 +1725,14 @@ func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
 }
 
 // Takes an already open file handle and invokes the os.Stat system call on it
-// to determine the file's size.
+// to determine the file's size. Passes any errors from *File.Stat on up to the
+// caller.
 func fstatFileSize(f *os.File) (int64, error) {
 	fileInfo, err := f.Stat()
-	fileSize := fileInfo.Size()
-	return fileSize, err
+	if err != nil {
+		return 0, err
+	}
+	return fileInfo.Size(), nil
 }
 
 func normalizePath(p string) string {
