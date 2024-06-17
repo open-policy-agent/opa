@@ -1696,7 +1696,7 @@ func readFile(f *Descriptor, sizeLimitBytes int64) (bytes.Buffer, error) {
 		}
 		// Prealloc the buffer for the file read.
 		buffer := make([]byte, fileSize)
-		_, err := lf.file.Read(buffer)
+		_, err := io.ReadFull(lf.file, buffer)
 		if err != nil {
 			return buf, err
 		}
