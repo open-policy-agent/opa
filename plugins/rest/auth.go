@@ -551,6 +551,9 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 			if ap.ClientAssertionType == "" {
 				ap.ClientAssertionType = defaultClientAssertionType
 			}
+			if ap.ClientID != "" {
+				body.Add("client_id", ap.ClientID)
+			}
 			body.Add("client_assertion_type", ap.ClientAssertionType)
 			body.Add("client_assertion", ap.ClientAssertion)
 		} else if ap.ClientAssertionPath != "" {
@@ -560,6 +563,9 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 			bytes, err := os.ReadFile(ap.ClientAssertionPath)
 			if err != nil {
 				return nil, err
+			}
+			if ap.ClientID != "" {
+				body.Add("client_id", ap.ClientID)
 			}
 			body.Add("client_assertion_type", ap.ClientAssertionType)
 			body.Add("client_assertion", strings.TrimSpace(string(bytes)))
