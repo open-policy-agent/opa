@@ -6,8 +6,6 @@
 package authorizer
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"io"
 	"net/http"
@@ -165,7 +163,7 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 
 	if expectBody(r.Method, path) {
 		var err error
-		plaintextBody, err := readPlainBody(r)
+		plaintextBody, err := util.ReadMaybeCompressedBody(r)
 		if err != nil {
 			return r, nil, err
 		}
@@ -281,21 +279,4 @@ func GetBodyOnContext(ctx context.Context) (interface{}, bool) {
 		return nil, false
 	}
 	return input.parsed, true
-}
-
-// Note(philipc): Copied over from server/server.go
-func readPlainBody(r *http.Request) (io.ReadCloser, error) {
-	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-		gzReader, err := gzip.NewReader(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		bytesBody, err := io.ReadAll(gzReader)
-		if err != nil {
-			return nil, err
-		}
-		defer gzReader.Close()
-		return io.NopCloser(bytes.NewReader(bytesBody)), err
-	}
-	return r.Body, nil
 }

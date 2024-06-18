@@ -6,7 +6,6 @@ package server
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -1337,7 +1336,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 	m.Timer(metrics.RegoQueryParse).Start()
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		writer.Error(w, http.StatusBadRequest, types.NewErrorV1(types.CodeInvalidParameter, "could not decompress the body"))
 		return
@@ -2732,7 +2731,7 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	}
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -2785,7 +2784,7 @@ func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 	var request types.DataRequestV1
 
 	// decompress the input if sent as zip
-	body, err := readPlainBody(r)
+	body, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -3021,22 +3020,6 @@ func annotateSpan(ctx context.Context, decisionID string) {
 	}
 	trace.SpanFromContext(ctx).
 		SetAttributes(attribute.String(otelDecisionIDAttr, decisionID))
-}
-
-func readPlainBody(r *http.Request) (io.ReadCloser, error) {
-	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-		gzReader, err := gzip.NewReader(r.Body)
-		if err != nil {
-			return nil, err
-		}
-		bytesBody, err := io.ReadAll(gzReader)
-		if err != nil {
-			return nil, err
-		}
-		defer gzReader.Close()
-		return io.NopCloser(bytes.NewReader(bytesBody)), err
-	}
-	return r.Body, nil
 }
 
 func pretty(r *http.Request) bool {

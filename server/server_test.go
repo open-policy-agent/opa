@@ -1682,12 +1682,12 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	}
 }
 
+// Ensure JSON payload is compressed with gzip.
 func mustGZIPPayload(payload []byte) []byte {
-	// Compress JSON payload with gzip
 	var compressedPayload bytes.Buffer
 	gz := gzip.NewWriter(&compressedPayload)
 	if _, err := gz.Write(payload); err != nil {
-		panic(fmt.Errorf("Error closing gzip writer: %w", err))
+		panic(fmt.Errorf("Error writing to gzip writer: %w", err))
 	}
 	if err := gz.Close(); err != nil {
 		panic(fmt.Errorf("Error closing gzip writer: %w", err))
@@ -1702,38 +1702,32 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 		payload               []byte
 		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
 		expRespHTTPStatus     int
-		authzEnabled          bool
 	}{
 		{
 			note:              "empty message",
 			payload:           mustGZIPPayload([]byte{}),
 			expRespHTTPStatus: 401,
-			authzEnabled:      true,
 		},
 		{
 			note:              "empty object",
 			payload:           mustGZIPPayload([]byte(`{}`)),
 			expRespHTTPStatus: 401,
-			authzEnabled:      true,
 		},
 		{
 			note:              "basic authz - fail",
 			payload:           mustGZIPPayload([]byte(`{"user": "bob"}`)),
 			expRespHTTPStatus: 401,
-			authzEnabled:      true,
 		},
 		{
 			note:              "basic authz - pass",
 			payload:           mustGZIPPayload([]byte(`{"user": "alice"}`)),
 			expRespHTTPStatus: 200,
-			authzEnabled:      true,
 		},
 		{
 			note:                  "basic authz - malicious size field",
 			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
 			expRespHTTPStatus:     200,
 			forcePayloadSizeField: 134217728, // 128 MB
-			authzEnabled:          true,
 		},
 	}
 
@@ -1762,28 +1756,25 @@ allow if {
 				panic(err)
 			}
 
-			opts := [](func(*Server)){func(s *Server) {
-				s.WithStore(store)
-			}}
-			if test.authzEnabled {
-				opts = append(opts, func(s *Server) {
+			opts := [](func(*Server)){
+				func(s *Server) {
+					s.WithStore(store)
+				},
+				func(s *Server) {
 					s.WithAuthorization(AuthorizationBasic)
-				})
+				},
 			}
 
 			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t}}`, true), opts...)
 
 			// execute the request
 			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
-			// req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
 			f.reset()
 			f.server.Handler.ServeHTTP(f.recorder, req)
 			if f.recorder.Code != test.expRespHTTPStatus {
 				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
 			}
-			fmt.Println(f.recorder.Body)
-			// panic("AAA")
 		})
 	}
 }
