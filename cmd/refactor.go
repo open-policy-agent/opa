@@ -76,7 +76,7 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			if err := doMove(moveCommandParams, args, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				os.Exit(1)

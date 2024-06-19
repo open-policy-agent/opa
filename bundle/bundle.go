@@ -1191,7 +1191,8 @@ func (b *Bundle) SetRegoVersion(v ast.RegoVersion) {
 // If there is no defined version for the given path, the default version def is returned.
 // If the version does not correspond to ast.RegoV0 or ast.RegoV1, an error is returned.
 func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoVersion, error) {
-	if version, err := b.Manifest.numericRegoVersionForFile(path); err != nil {
+	version, err := b.Manifest.numericRegoVersionForFile(path)
+	if err != nil {
 		return def, err
 	} else if version == nil {
 		return def, nil
@@ -1199,9 +1200,8 @@ func (b *Bundle) RegoVersionForFile(path string, def ast.RegoVersion) (ast.RegoV
 		return ast.RegoV0, nil
 	} else if *version == 1 {
 		return ast.RegoV1, nil
-	} else {
-		return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
 	}
+	return def, fmt.Errorf("unknown bundle rego-version %d for file '%s'", *version, path)
 }
 
 func (m *Manifest) numericRegoVersionForFile(path string) (*int, error) {

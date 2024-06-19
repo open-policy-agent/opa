@@ -520,7 +520,7 @@ recommended as some updates might cause them to be dropped by OPA.
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			exitCode, _ := opaTest(args, testParams)
 			os.Exit(exitCode)
 		},

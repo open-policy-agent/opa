@@ -58,12 +58,12 @@ func TestMain(m *testing.M) {
 	defer os.RemoveAll(tmp)
 
 	certFile = filepath.Join(tmp, "server-cert.pem")
-	if err := copy(certFile0, certFile); err != nil {
+	if err := cpy(certFile0, certFile); err != nil {
 		fatal(err)
 	}
 
 	certKeyFile = filepath.Join(tmp, "server-key.pem")
-	if err := copy(certKeyFile0, certKeyFile); err != nil {
+	if err := cpy(certKeyFile0, certKeyFile); err != nil {
 		fatal(err)
 	}
 
@@ -140,7 +140,7 @@ func newClient() *http.Client {
 	return &c
 }
 
-func copy(from, to string) error {
+func cpy(from, to string) error {
 	src, err := os.Open(from)
 	if err != nil {
 		return err
@@ -182,10 +182,10 @@ func getCert(t *testing.T) *x509.Certificate {
 func replaceCerts(t *testing.T, cert, key string) {
 	t.Helper()
 
-	if err := copy(cert, certFile); err != nil {
+	if err := cpy(cert, certFile); err != nil {
 		t.Fatal(err)
 	}
-	if err := copy(key, certKeyFile); err != nil {
+	if err := cpy(key, certKeyFile); err != nil {
 		t.Fatal(err)
 	}
 }

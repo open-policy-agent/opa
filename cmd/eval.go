@@ -276,7 +276,7 @@ access.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 
 			defined, err := eval(args, params, os.Stdout)
 			if err != nil {

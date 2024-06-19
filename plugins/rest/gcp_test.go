@@ -14,7 +14,7 @@ import (
 func TestGCPMetadataAuthPlugin(t *testing.T) {
 	idToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.Et9HFtf9R3GEMA0IICOfFMVXY7kkTX1wr4qCyhIf58U"
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	s := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	defer s.Close()
 
 	ts := httptest.NewServer(http.Handler(&gcpMetadataHandler{idToken}))

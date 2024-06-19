@@ -39,7 +39,7 @@ func Run(ctx context.Context, paths ...string) ([]*Result, error) {
 
 // RunWithFilter executes all test cases found under files in path. The filter
 // will be applied to exclude files that should not be included.
-func RunWithFilter(ctx context.Context, filter loader.Filter, paths ...string) ([]*Result, error) {
+func RunWithFilter(ctx context.Context, _ loader.Filter, paths ...string) ([]*Result, error) {
 	modules, store, err := Load(paths, nil)
 	if err != nil {
 		return nil, err

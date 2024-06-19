@@ -70,7 +70,7 @@ Print the capabilities of a capabilities file
     }
 
 `,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		RunE: func(*cobra.Command, []string) error {

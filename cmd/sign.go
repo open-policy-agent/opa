@@ -138,7 +138,7 @@ https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-format
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			if err := doSign(args, cmdParams); err != nil {
 				fmt.Println("error:", err)
 				os.Exit(1)

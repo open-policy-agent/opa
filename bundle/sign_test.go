@@ -193,7 +193,7 @@ func TestGeneratePayload(t *testing.T) {
 
 type CustomSigner struct{}
 
-func (*CustomSigner) GenerateSignedToken(files []FileInfo, sc *SigningConfig, keyID string) (string, error) {
+func (*CustomSigner) GenerateSignedToken(_ []FileInfo, _ *SigningConfig, _ string) (string, error) {
 	return "", nil
 }
 

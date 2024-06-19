@@ -346,7 +346,7 @@ func useSocket(rawURL string, tlsConfig *tls.Config) (bool, string, *http.Transp
 	u.RawQuery = v.Encode()
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+	tr.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "unix", socket)
 	}
 	tr.TLSClientConfig = tlsConfig

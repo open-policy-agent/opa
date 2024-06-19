@@ -275,11 +275,11 @@ func runTruncateTest(t *testing.T, dir string) {
 		t.Fatal(err)
 	}
 
-	expectedIds := map[string]struct{}{"policy.rego": {}, "roles/policy.rego": {}}
+	expectedIDs := map[string]struct{}{"policy.rego": {}, "roles/policy.rego": {}}
 
 	for _, id := range ids {
-		if _, ok := expectedIds[id]; !ok {
-			t.Fatalf("Expected list policies to contain %v but got: %v", expectedIds, id)
+		if _, ok := expectedIDs[id]; !ok {
+			t.Fatalf("Expected list policies to contain %v but got: %v", expectedIDs, id)
 		}
 	}
 

@@ -233,7 +233,7 @@ func builtinJWTVerifyRSA(a ast.Value, b ast.Value, hasher func() hash.Hash, veri
 }
 
 // Implements ES256 JWT signature verification.
-func builtinJWTVerifyES256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyES256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha256.New, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
@@ -242,7 +242,7 @@ func builtinJWTVerifyES256(bctx BuiltinContext, operands []*ast.Term, iter func(
 }
 
 // Implements ES384 JWT signature verification
-func builtinJWTVerifyES384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyES384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha512.New384, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
@@ -251,7 +251,7 @@ func builtinJWTVerifyES384(bctx BuiltinContext, operands []*ast.Term, iter func(
 }
 
 // Implements ES512 JWT signature verification
-func builtinJWTVerifyES512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyES512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	result, err := builtinJWTVerify(operands[0].Value, operands[1].Value, sha512.New, verifyES)
 	if err == nil {
 		return iter(ast.NewTerm(result))
@@ -413,7 +413,7 @@ func builtinJWTVerify(a ast.Value, b ast.Value, hasher func() hash.Hash, verify 
 }
 
 // Implements HS256 (secret) JWT signature verification
-func builtinJWTVerifyHS256(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyHS256(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Decode the JSON Web Token
 	token, err := decodeJWT(operands[0].Value)
 	if err != nil {
@@ -442,7 +442,7 @@ func builtinJWTVerifyHS256(bctx BuiltinContext, operands []*ast.Term, iter func(
 }
 
 // Implements HS384 JWT signature verification
-func builtinJWTVerifyHS384(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyHS384(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Decode the JSON Web Token
 	token, err := decodeJWT(operands[0].Value)
 	if err != nil {
@@ -471,7 +471,7 @@ func builtinJWTVerifyHS384(bctx BuiltinContext, operands []*ast.Term, iter func(
 }
 
 // Implements HS512 JWT signature verification
-func builtinJWTVerifyHS512(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinJWTVerifyHS512(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	// Decode the JSON Web Token
 	token, err := decodeJWT(operands[0].Value)
 	if err != nil {
@@ -793,7 +793,7 @@ func verifyRSAPSS(key interface{}, hash crypto.Hash, digest []byte, signature []
 	return nil
 }
 
-func verifyECDSA(key interface{}, hash crypto.Hash, digest []byte, signature []byte) (err error) {
+func verifyECDSA(key interface{}, _ crypto.Hash, digest []byte, signature []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("ECDSA signature verification error: %v", r)
@@ -1048,10 +1048,9 @@ func builtinJWTDecodeVerify(bctx BuiltinContext, operands []*ast.Term, iter func
 			// Nested JWT, go round again with payload as first argument
 			a = p.Value
 			continue
-		} else {
-			// Non-nested JWT (or we've reached the bottom of the nesting).
-			break
 		}
+		// Non-nested JWT (or we've reached the bottom of the nesting).
+		break
 	}
 	payload, err := extractJSONObject(string(p.Value.(ast.String)))
 	if err != nil {

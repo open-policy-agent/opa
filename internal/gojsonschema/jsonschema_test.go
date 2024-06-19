@@ -135,7 +135,7 @@ func TestSuite(t *testing.T) {
 
 	SetAllowNet(nil)
 
-	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, err error) error {
+	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, _ error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {
 			return filepath.SkipDir
 		}
@@ -176,7 +176,7 @@ func TestFormats(t *testing.T) {
 			}
 
 			formatsDirectory := filepath.Join(wd, dir.Name(), "optional", "format")
-			err = filepath.Walk(formatsDirectory, func(path string, fileInfo os.FileInfo, err error) error {
+			err = filepath.Walk(formatsDirectory, func(path string, fileInfo os.FileInfo, _ error) error {
 				if fileInfo == nil || !strings.HasSuffix(fileInfo.Name(), ".json") {
 					return nil
 				}
@@ -190,7 +190,7 @@ func TestFormats(t *testing.T) {
 	}
 }
 
-func Test_ConcurrentNetAccessModification(t *testing.T) {
+func Test_ConcurrentNetAccessModification(_ *testing.T) {
 	go func() {
 		SetAllowNet([]string{"something"})
 	}()

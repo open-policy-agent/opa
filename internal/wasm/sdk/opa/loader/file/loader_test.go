@@ -32,7 +32,7 @@ func TestFileLoader(t *testing.T) {
 	// Start loader, without having a file in place.
 
 	var pd testPolicyData
-	loader, err := new(&pd).WithFile(f.Name()).WithInterval(10 * time.Millisecond).Init()
+	loader, err := newLoader(&pd).WithFile(f.Name()).WithInterval(10 * time.Millisecond).Init()
 	if err != nil {
 		t.Fatal(err.Error())
 	}

@@ -1705,7 +1705,7 @@ func TestUnsafeBuiltins(t *testing.T) {
 		}
 	})
 
-	t.Run("ignore if given compiler", func(t *testing.T) {
+	t.Run("ignore if given compiler", func(_ *testing.T) {
 		r := New(
 			Compiler(ast.NewCompiler()),
 			UnsafeBuiltins(map[string]struct{}{"count": {}}),
@@ -2026,7 +2026,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		},
 		{
 			name: "Store",
-			options: func(path string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego) {
+			options: func(_ string, policies map[string]string, t *testing.T, ctx context.Context) []func(*Rego) {
 				t.Helper()
 				store := mock.New()
 				txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)

@@ -286,11 +286,10 @@ func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, e
 			return nil, err
 		}
 		return a, nil
-
-	} else {
-		t := DefaultTriggerMode
-		return &t, nil
 	}
+
+	t := DefaultTriggerMode
+	return &t, nil
 }
 
 type namedplugin struct {

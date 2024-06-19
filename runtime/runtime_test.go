@@ -161,7 +161,7 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 
 		ch := make(chan error)
 
-		testFunc := func(d time.Duration, err error) {
+		testFunc := func(_ time.Duration, err error) {
 			ch <- err
 		}
 
@@ -1325,7 +1325,7 @@ func getTestServer(update interface{}, statusCode int) (baseURL string, teardown
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 
-	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/v1/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 		bs, _ := json.Marshal(update)
 		w.Header().Set("Content-Type", "application/json")

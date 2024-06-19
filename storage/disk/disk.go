@@ -229,7 +229,7 @@ func (w *wrap) Warningf(f string, as ...interface{}) { w.debugDo(w.l.Warn, f, as
 func (w *wrap) Errorf(f string, as ...interface{})   { w.debugDo(w.l.Error, f, as...) }
 
 // NewTransaction implements the storage.Store interface.
-func (db *Store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+func (db *Store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	var write bool
 	var context *storage.Context
 
@@ -655,7 +655,7 @@ type handle struct {
 	cb func(context.Context, storage.Transaction, storage.TriggerEvent)
 }
 
-func (h *handle) Unregister(ctx context.Context, txn storage.Transaction) {
+func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 	underlying, err := h.db.underlying(txn)
 	if err != nil {
 		panic(err)
@@ -750,7 +750,7 @@ func (db *Store) init(ctx context.Context, txn *badger.Txn, partitions []storage
 	})
 }
 
-func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existing metadata, partitions []storage.Path) error {
+func (db *Store) validatePartitions(_ context.Context, txn *badger.Txn, existing metadata, partitions []storage.Path) error {
 
 	oldPathSet := pathSet(existing.Partitions)
 	newPathSet := pathSet(partitions)
@@ -812,7 +812,7 @@ func (db *Store) validatePartitions(ctx context.Context, txn *badger.Txn, existi
 //
 // Here, we only check if it's a write transaction, for consistency with
 // other implementations, and do nothing.
-func (db *Store) MakeDir(_ context.Context, txn storage.Transaction, path storage.Path) error {
+func (db *Store) MakeDir(_ context.Context, txn storage.Transaction, _ storage.Path) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err

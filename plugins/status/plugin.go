@@ -283,7 +283,7 @@ func (p *Plugin) unregisterAll() {
 }
 
 // Stop stops the plugin.
-func (p *Plugin) Stop(ctx context.Context) {
+func (p *Plugin) Stop(_ context.Context) {
 	p.logger.Info("Stopping status reporter.")
 	p.manager.UnregisterPluginStatusListener(Name)
 	done := make(chan struct{})

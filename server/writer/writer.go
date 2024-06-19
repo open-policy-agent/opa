@@ -17,7 +17,7 @@ import (
 // HTTPStatus is used to set a specific status code
 // Adapted from https://stackoverflow.com/questions/27711154/what-response-code-to-return-on-a-non-supported-http-method-on-rest
 func HTTPStatus(code int) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(code)
 	}
 }

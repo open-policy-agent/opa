@@ -39,7 +39,7 @@ func TestScheduler(t *testing.T) {
 	}
 }
 
-func setup(ctx context.Context, t *testing.T, filename string) *rego.Rego {
+func setup(_ context.Context, t *testing.T, filename string) *rego.Rego {
 
 	// policy compilation
 	c := ast.NewCompiler()

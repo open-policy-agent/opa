@@ -238,7 +238,7 @@ func main() {
 	command := &cobra.Command{
 		Use:   executable,
 		Short: executable,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return run(params)
 		},
 	}

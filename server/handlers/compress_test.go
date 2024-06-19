@@ -27,7 +27,7 @@ type compressHandlerTestScenario struct {
 }
 
 func executeRequest(w *httptest.ResponseRecorder, testScenario compressHandlerTestScenario) {
-	CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	CompressHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, err := io.WriteString(w, requestBody)
 		if err != nil {

@@ -16,7 +16,7 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
-func builtinAnyPrefixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinAnyPrefixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
 	var strs []string
@@ -50,7 +50,7 @@ func builtinAnyPrefixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(
 	return iter(ast.BooleanTerm(anyStartsWithAny(strs, prefixes)))
 }
 
-func builtinAnySuffixMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinAnySuffixMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	a, b := operands[0].Value, operands[1].Value
 
 	var strsReversed []string
@@ -384,12 +384,12 @@ func builtinReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term)
 		return err
 	}
 
-	new, err := builtins.StringOperand(operands[2].Value, 3)
+	n, err := builtins.StringOperand(operands[2].Value, 3)
 	if err != nil {
 		return err
 	}
 
-	return iter(ast.StringTerm(strings.Replace(string(s), string(old), string(new), -1)))
+	return iter(ast.StringTerm(strings.Replace(string(s), string(old), string(n), -1)))
 }
 
 func builtinReplaceN(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {

@@ -58,7 +58,7 @@ type errorWriter struct {
 	ErrMsg string
 }
 
-func (ew errorWriter) Write(p []byte) (n int, err error) {
+func (ew errorWriter) Write(_ []byte) (n int, err error) {
 	return 0, fmt.Errorf(ew.ErrMsg)
 }
 

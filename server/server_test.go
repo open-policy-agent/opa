@@ -4304,23 +4304,23 @@ type queryBindingErrStore struct {
 	storage.PolicyNotSupported
 }
 
-func (s *queryBindingErrStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (s *queryBindingErrStore) Read(_ context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
 	return nil, fmt.Errorf("expected error")
 }
 
-func (*queryBindingErrStore) ListPolicies(ctx context.Context, txn storage.Transaction) ([]string, error) {
+func (*queryBindingErrStore) ListPolicies(_ context.Context, _ storage.Transaction) ([]string, error) {
 	return nil, nil
 }
 
-func (queryBindingErrStore) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+func (queryBindingErrStore) NewTransaction(_ context.Context, _ ...storage.TransactionParams) (storage.Transaction, error) {
 	return nil, nil
 }
 
-func (queryBindingErrStore) Commit(ctx context.Context, txn storage.Transaction) error {
+func (queryBindingErrStore) Commit(_ context.Context, _ storage.Transaction) error {
 	return nil
 }
 
-func (queryBindingErrStore) Abort(ctx context.Context, txn storage.Transaction) {
+func (queryBindingErrStore) Abort(_ context.Context, _ storage.Transaction) {
 
 }
 
@@ -4881,7 +4881,7 @@ func TestMixedAddrTypes(t *testing.T) {
 
 func TestCustomRoute(t *testing.T) {
 	router := mux.NewRouter()
-	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/customEndpoint", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"myCustomResponse": true}`)) // ignore error
 	})
 	f := newFixture(t, func(server *Server) {
@@ -5405,7 +5405,7 @@ func TestCertReloading(t *testing.T) {
 				addr string,
 				initialCert *tls.Certificate,
 				initialCertPool *x509.CertPool,
-				certFilePath, keyFilePath, caCertPath string,
+				certFilePath, keyFilePath, _ string,
 			) *Server {
 				return New().
 					WithAddresses([]string{addr}).

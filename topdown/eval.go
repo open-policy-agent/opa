@@ -1096,9 +1096,9 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 		return err
 	} else if value != nil {
 		return e.biunify(value, b, b1, b2, iter)
-	} else {
-		e.instr.counterIncr(evalOpComprehensionCacheMiss)
 	}
+
+	e.instr.counterIncr(evalOpComprehensionCacheMiss)
 
 	switch a := a.Value.(type) {
 	case *ast.ArrayComprehension:
@@ -2560,7 +2560,7 @@ func (e evalVirtualPartial) evalOneRulePreUnify(iter unifyIterator, rule *ast.Ru
 	}
 
 	// Walk the dynamic portion of rule ref and key to unify vars
-	err := child.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(pos int) error {
+	err := child.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(_ int) error {
 		defined = true
 		return child.eval(func(child *eval) error {
 
@@ -2648,7 +2648,7 @@ func (e evalVirtualPartial) evalOneRulePostUnify(iter unifyIterator, rule *ast.R
 
 	err := child.eval(func(child *eval) error {
 		defined = true
-		return e.e.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(pos int) error {
+		return e.e.biunifyRuleHead(e.pos+1, e.ref, rule, e.bindings, child.bindings, func(_ int) error {
 			return e.evalOneRuleContinue(iter, rule, child)
 		})
 	})
@@ -2724,7 +2724,7 @@ func (e evalVirtualPartial) partialEvalSupport(iter unifyIterator) error {
 	return e.e.saveUnify(term, e.rterm, e.bindings, e.rbindings, iter)
 }
 
-func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, path ast.Ref) (bool, error) {
+func (e evalVirtualPartial) partialEvalSupportRule(rule *ast.Rule, _ ast.Ref) (bool, error) {
 
 	child := e.e.child(rule.Body)
 	child.traceEnter(rule)

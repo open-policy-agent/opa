@@ -20,10 +20,10 @@ func mockRootCmd(writer io.Writer) *cobra.Command {
 		Use:   "opa [opts]",
 		Short: "test root command",
 		Long:  `test root command`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Fprintf(writer, "%v; %v; %v", rootArgs.IntFlag, rootArgs.StrFlag, rootArgs.BoolFlag)
 		},
 	}
@@ -43,10 +43,10 @@ func mockChildCmd(writer io.Writer) *cobra.Command {
 		Use:   "child [opts]",
 		Short: "test child command",
 		Long:  `test child command`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Fprintf(writer, "%v; %v; %v", rootArgs.IntFlag, rootArgs.StrFlag, rootArgs.BoolFlag)
 		},
 	}

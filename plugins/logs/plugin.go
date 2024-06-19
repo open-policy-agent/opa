@@ -577,7 +577,7 @@ func Lookup(manager *plugins.Manager) *Plugin {
 }
 
 // Start starts the plugin.
-func (p *Plugin) Start(ctx context.Context) error {
+func (p *Plugin) Start(_ context.Context) error {
 	p.logger.Info("Starting decision logger.")
 	go p.loop()
 	p.manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateOK})
