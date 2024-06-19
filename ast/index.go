@@ -164,7 +164,7 @@ func (i *baseDocEqIndex) Lookup(resolver ValueResolver) (*IndexResult, error) {
 	return result, nil
 }
 
-func (i *baseDocEqIndex) AllRules(resolver ValueResolver) (*IndexResult, error) {
+func (i *baseDocEqIndex) AllRules(_ ValueResolver) (*IndexResult, error) {
 	tr := newTrieTraversalResult()
 
 	// Walk over the rule trie and accumulate _all_ rules

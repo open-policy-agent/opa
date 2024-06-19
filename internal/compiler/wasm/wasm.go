@@ -1332,7 +1332,7 @@ func (c *Compiler) compileWithStmt(with *ir.WithStmt, result *[]instruction.Inst
 	return nil
 }
 
-func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, loc ir.Location, instrs []instruction.Instruction) []instruction.Instruction {
+func (c *Compiler) compileUpsert(local ir.Local, path []int, value ir.Operand, _ ir.Location, instrs []instruction.Instruction) []instruction.Instruction {
 
 	lcopy := c.genLocal() // holds copy of local
 	instrs = append(instrs, instruction.GetLocal{Index: c.local(local)})

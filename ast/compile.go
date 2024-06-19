@@ -4194,7 +4194,7 @@ func resolveRefsInRule(globals map[Var]*usedRef, rule *Rule) error {
 
 		// Object keys cannot be pattern matched so only walk values.
 		case *object:
-			x.Foreach(func(k, v *Term) {
+			x.Foreach(func(_, v *Term) {
 				vis.Walk(v)
 			})
 
@@ -5494,31 +5494,51 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		return false, err
 	}
 
+	isAllowedUnknownFuncCall := false
+	if c.allowUndefinedFuncCalls {
+		switch target.Value.(type) {
+		case Ref, Var:
+			isAllowedUnknownFuncCall = true
+		}
+	}
+
 	switch {
 	case isDataRef(target):
 		ref := target.Value.(Ref)
-		node := c.RuleTree
+		targetNode := c.RuleTree
 		for i := 0; i < len(ref)-1; i++ {
-			child := node.Child(ref[i].Value)
+			child := targetNode.Child(ref[i].Value)
 			if child == nil {
 				break
 			} else if len(child.Values) > 0 {
 				return false, NewError(CompileErr, target.Loc(), "with keyword cannot partially replace virtual document(s)")
 			}
-			node = child
+			targetNode = child
 		}
 
-		if node != nil {
+		if targetNode != nil {
 			// NOTE(sr): at this point in the compiler stages, we don't have a fully-populated
 			// TypeEnv yet -- so we have to make do with this check to see if the replacement
 			// target is a function. It's probably wrong for arity-0 functions, but those are
 			// and edge case anyways.
-			if child := node.Child(ref[len(ref)-1].Value); child != nil {
+			if child := targetNode.Child(ref[len(ref)-1].Value); child != nil {
 				for _, v := range child.Values {
 					if len(v.(*Rule).Head.Args) > 0 {
 						if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 							return false, err // err may be nil
 						}
+					}
+				}
+			}
+		}
+
+		// If the with-value is a ref to a function, but not a call, we can't rewrite it
+		if r, ok := value.Value.(Ref); ok {
+			// TODO: check that target ref doesn't exist?
+			if valueNode := c.RuleTree.Find(r); valueNode != nil {
+				for _, v := range valueNode.Values {
+					if len(v.(*Rule).Head.Args) > 0 {
+						return false, nil
 					}
 				}
 			}
@@ -5541,6 +5561,9 @@ func validateWith(c *Compiler, unsafeBuiltinsMap map[string]struct{}, expr *Expr
 		if ok, err := validateWithFunctionValue(c.builtins, unsafeBuiltinsMap, c.RuleTree, value); err != nil || ok {
 			return false, err // err may be nil
 		}
+	case isAllowedUnknownFuncCall:
+		// The target isn't a ref to the input doc, data doc, or a known built-in, but it might be a ref to an unknown built-in.
+		return false, nil
 	default:
 		return false, NewError(TypeErr, target.Location, "with keyword target must reference existing %v, %v, or a function", InputRootDocument, DefaultRootDocument)
 	}

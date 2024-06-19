@@ -21,7 +21,7 @@ import (
 	"github.com/open-policy-agent/opa/logging"
 )
 
-func (s *Server) getCertificate(h *tls.ClientHelloInfo) (*tls.Certificate, error) {
+func (s *Server) getCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	s.tlsConfigMtx.RLock()
 	defer s.tlsConfigMtx.RUnlock()
 	return s.cert, nil
@@ -72,7 +72,7 @@ func (s *Server) reloadTLSConfig(logger logging.Logger) error {
 }
 
 // reloadCertificatePool loads the CA cert pool from the given file and returns a new pool if the file has changed.
-func reloadCertificatePool(certPoolFile string, certPoolFileHash []byte, logger logging.Logger) (*x509.CertPool, []byte, bool, error) {
+func reloadCertificatePool(certPoolFile string, certPoolFileHash []byte, _ logging.Logger) (*x509.CertPool, []byte, bool, error) {
 	certPoolHash, err := hash(certPoolFile)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to hash CA cert pool file: %w", err)

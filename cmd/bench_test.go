@@ -382,7 +382,7 @@ func TestBenchMainErrRunningBenchmark(t *testing.T) {
 	var buf bytes.Buffer
 
 	mockRunner := &mockBenchRunner{}
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		return testing.BenchmarkResult{}, errors.New("error error error")
 	}
 
@@ -405,7 +405,7 @@ func TestBenchMainWithCount(t *testing.T) {
 
 	params.count = 25
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -433,7 +433,7 @@ func TestBenchMainWithNegativeCount(t *testing.T) {
 
 	params.count = -1
 	actualCount := 0
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(_ context.Context, _ *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 		actualCount++
 		return testing.BenchmarkResult{}, nil
 	}
@@ -458,7 +458,7 @@ func validateBenchMainPrep(t *testing.T, args []string, params benchmarkCommandP
 
 	mockRunner := &mockBenchRunner{}
 
-	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, params benchmarkCommandParams, f func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
+	mockRunner.onRun = func(ctx context.Context, ectx *evalContext, _ benchmarkCommandParams, _ func(context.Context, ...rego.EvalOption) error) (testing.BenchmarkResult, error) {
 
 		// cheat and use the ectx to evalute the query to ensure the input setup on it was valid
 		r := rego.New(ectx.regoArgs...)

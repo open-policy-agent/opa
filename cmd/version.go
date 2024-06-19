@@ -26,10 +26,10 @@ func init() {
 		Use:   "version",
 		Short: "Print the version of OPA",
 		Long:  "Show version and build information for OPA.",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			generateCmdOutput(os.Stdout, check)
 		},
 	}

@@ -211,7 +211,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 	// build a list of all files we will iterate over and read, but only one time
 	if d.files == nil {
 		d.files = []string{}
-		err := filepath.Walk(d.root, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(d.root, func(path string, info os.FileInfo, _ error) error {
 			if info != nil && info.Mode().IsRegular() {
 				if d.filter != nil && d.filter(filepath.ToSlash(path), info, getdepth(path, false)) {
 					return nil
@@ -370,12 +370,13 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 				f := file{name: header.Name}
 
-				var buf bytes.Buffer
-				if _, err := io.Copy(&buf, t.tr); err != nil {
+				// Note(philipc): We rely on the previous size check in this loop for safety.
+				buf := bytes.NewBuffer(make([]byte, 0, header.Size))
+				if _, err := io.Copy(buf, t.tr); err != nil {
 					return nil, fmt.Errorf("failed to copy file %s: %w", header.Name, err)
 				}
 
-				f.reader = &buf
+				f.reader = buf
 
 				t.files = append(t.files, f)
 			} else if header.Typeflag == tar.TypeDir {

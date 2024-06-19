@@ -1340,7 +1340,10 @@ func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.L
 		i, offset = skipPast(skipOpen, skipClose, loc)
 	}
 
-	for ; i < len(loc.Text) && loc.Text[i] != open; i++ {
+	for ; i < len(loc.Text); i++ {
+		if loc.Text[i] == open {
+			break
+		}
 	}
 
 	if i >= len(loc.Text) {
@@ -1369,7 +1372,10 @@ func closingLoc(skipOpen, skipClose, open, close byte, loc *ast.Location) *ast.L
 
 func skipPast(open, close byte, loc *ast.Location) (int, int) {
 	i := 0
-	for ; i < len(loc.Text) && loc.Text[i] != open; i++ {
+	for ; i < len(loc.Text); i++ {
+		if loc.Text[i] == open {
+			break
+		}
 	}
 
 	state := 1

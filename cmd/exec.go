@@ -53,10 +53,10 @@ specifying the --decision argument and pointing at a specific policy decision,
 e.g., opa exec --decision /foo/bar/baz ...`,
 
 		Args: cobra.MinimumNArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			params.Paths = args
 			params.BundlePaths = bundlePaths.v
 			if err := runExec(params); err != nil {

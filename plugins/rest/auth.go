@@ -751,7 +751,7 @@ func (ap *clientTLSAuthPlugin) NewClient(c Config) (*http.Client, error) {
 	return client, nil
 }
 
-func (ap *clientTLSAuthPlugin) Prepare(req *http.Request) error {
+func (ap *clientTLSAuthPlugin) Prepare(_ *http.Request) error {
 	return nil
 }
 

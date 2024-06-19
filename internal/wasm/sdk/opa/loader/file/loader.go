@@ -45,11 +45,11 @@ type policyData interface {
 // New constructs a new file loader periodically reloading the bundle
 // from a file.
 func New(opa *opa.OPA) *Loader {
-	return new(opa)
+	return newLoader(opa)
 }
 
-// new constructs a new file loader. This is for tests.
-func new(pd policyData) *Loader {
+// newLoader constructs a newLoader file loader. This is for tests.
+func newLoader(pd policyData) *Loader {
 	return &Loader{
 		pd:       pd,
 		interval: DefaultInterval,

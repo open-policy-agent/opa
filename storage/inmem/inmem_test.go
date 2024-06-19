@@ -459,11 +459,11 @@ func TestTruncate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedIds := map[string]struct{}{"policy.rego": {}, "roles/policy.rego": {}}
+	expectedIDs := map[string]struct{}{"policy.rego": {}, "roles/policy.rego": {}}
 
 	for _, id := range ids {
-		if _, ok := expectedIds[id]; !ok {
-			t.Fatalf("Expected list policies to contain %v but got: %v", id, expectedIds)
+		if _, ok := expectedIDs[id]; !ok {
+			t.Fatalf("Expected list policies to contain %v but got: %v", id, expectedIDs)
 		}
 	}
 
@@ -638,9 +638,9 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 	}
 
 	ids, err := store.ListPolicies(ctx, txn)
-	expectedIds := []string{"test"}
-	if err != nil || !reflect.DeepEqual(expectedIds, ids) {
-		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIds, ids, err)
+	expectedIDs := []string{"test"}
+	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 
 	bs, err := store.GetPolicy(ctx, txn, "test")
@@ -658,9 +658,9 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 	}
 
 	ids, err = store.ListPolicies(ctx, txn)
-	expectedIds = []string{"test2"}
-	if err != nil || !reflect.DeepEqual(expectedIds, ids) {
-		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIds, ids, err)
+	expectedIDs = []string{"test2"}
+	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 
 	bs, err = store.GetPolicy(ctx, txn, "test2")
@@ -677,9 +677,9 @@ func TestInMemoryTxnPolicies(t *testing.T) {
 
 	txn = storage.NewTransactionOrDie(ctx, store)
 	ids, err = store.ListPolicies(ctx, txn)
-	expectedIds = []string{"test"}
-	if err != nil || !reflect.DeepEqual(expectedIds, ids) {
-		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIds, ids, err)
+	expectedIDs = []string{"test"}
+	if err != nil || !reflect.DeepEqual(expectedIDs, ids) {
+		t.Fatalf("Expected list policies to return %v but got: %v (err: %v)", expectedIDs, ids, err)
 	}
 
 	if exist, err := store.GetPolicy(ctx, txn, "test2"); !storage.IsNotFound(err) {
@@ -782,7 +782,7 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 
 	var called bool
 	_, err := store.Register(ctx, writeTxn, storage.TriggerConfig{
-		OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+		OnCommit: func(_ context.Context, _ storage.Transaction, evt storage.TriggerEvent) {
 			if !evt.IsZero() {
 				called = true
 			}
@@ -793,7 +793,7 @@ func TestInMemoryTriggersUnregister(t *testing.T) {
 	}
 
 	handle, err := store.Register(ctx, writeTxn, storage.TriggerConfig{
-		OnCommit: func(ctx context.Context, txn storage.Transaction, evt storage.TriggerEvent) {
+		OnCommit: func(_ context.Context, _ storage.Transaction, evt storage.TriggerEvent) {
 			if !evt.IsZero() {
 				t.Fatalf("Callback should have been unregistered")
 			}

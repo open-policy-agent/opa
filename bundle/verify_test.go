@@ -288,7 +288,7 @@ func TestVerifyBundleFile(t *testing.T) {
 
 type CustomVerifier struct{}
 
-func (*CustomVerifier) VerifyBundleSignature(sc SignaturesConfig, bvc *VerificationConfig) (map[string]FileInfo, error) {
+func (*CustomVerifier) VerifyBundleSignature(_ SignaturesConfig, _ *VerificationConfig) (map[string]FileInfo, error) {
 	return map[string]FileInfo{}, nil
 }
 
