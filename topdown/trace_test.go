@@ -1301,5 +1301,171 @@ func removeUnifyOps(trace []*Event) (result []*Event) {
 }
 
 func TestPrettyTraceWithLocalVars(t *testing.T) {
+	{
+		module := `package test
+import rego.v1
 
+p if {
+	x := 1
+	y := 2
+	z := do_math(x, y)
+	z == 3
+}
+
+do_math(a, b) := c if {
+	c := a + b
+}
+`
+
+		ctx := context.Background()
+		compiler := compileModules([]string{module})
+		data := loadSmallTestData()
+		store := inmem.NewFromObject(data)
+		txn := storage.NewTransactionOrDie(ctx, store)
+		defer store.Abort(ctx, txn)
+
+		tracer := NewBufferTracer()
+		query := NewQuery(ast.MustParseBody("data.test = _")).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithTracer(tracer)
+
+		_, err := query.Run(ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		expected := `Enter data.test = _                                  {}
+| Eval data.test = _                                 {}
+| Unify data.test = _                                {}
+| Unify data.test.p = _                              {}
+| Index data.test.do_math (matched 1 rule)           {}
+| Unify data.test.p = _                              {}
+| Index data.test.p (matched 1 rule, early exit)     {}
+| Enter data.test.p                                  {}
+| | Eval x = 1                                       {}
+| | Unify x = 1                                      {}
+| | Eval y = 2                                       {__local0__: 1}
+| | Unify y = 2                                      {__local0__: 1}
+| | Eval data.test.do_math(x, y, __local6__)         {__local0__: 1, __local1__: 2}
+| | Index data.test.do_math (matched 1 rule)         {__local0__: 1, __local1__: 2}
+| | Enter data.test.do_math                          {}
+| | | Unify 1 = a                                    {}
+| | | Unify 2 = b                                    {__local3__: 1}
+| | | Unify __local6__ = c                           {__local3__: 1, __local4__: 2}
+| | | Eval plus(a, b, __local7__)                    {__local3__: 1, __local4__: 2}
+| | | Unify __local7__ = 3                           {__local3__: 1, __local4__: 2}
+| | | Eval c = __local7__                            {__local3__: 1, __local4__: 2, __local7__: 3}
+| | | Unify c = 3                                    {__local3__: 1, __local4__: 2, __local7__: 3}
+| | | Exit data.test.do_math                         {__local3__: 1, __local4__: 2, __local5__: 3, __local7__: 3}
+| | Eval z = __local6__                              {__local0__: 1, __local1__: 2, __local6__: 3}
+| | Unify z = 3                                      {__local0__: 1, __local1__: 2, __local6__: 3}
+| | Eval z = 3                                       {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| | Unify 3 = 3                                      {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| | Exit data.test.p early                           {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| Unify true = _                                     {}
+| Redo data.test.p                                   {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| | Redo z = 3                                       {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| | Redo z = __local6__                              {__local0__: 1, __local1__: 2, __local2__: 3, __local6__: 3}
+| | Redo data.test.do_math(x, y, __local6__)         {__local0__: 1, __local1__: 2, __local6__: 3}
+| | | Redo c = __local7__                            {__local3__: 1, __local4__: 2, __local5__: 3, __local7__: 3}
+| | | Redo plus(a, b, __local7__)                    {__local3__: 1, __local4__: 2, __local7__: 3}
+| | Redo y = 2                                       {__local0__: 1, __local1__: 2}
+| | Redo x = 1                                       {__local0__: 1}
+| Unify _ = {"p": true}                              {}
+| Exit data.test = _                                 {_: {"p": true}}
+Redo data.test = _                                   {_: {"p": true}}
+| Redo data.test = _                                 {_: {"p": true}}
+`
+
+		var buf bytes.Buffer
+		PrettyTraceWithOpts(&buf, *tracer, PrettyTraceOptions{LocalVariables: true})
+		compareBuffers(t, expected, buf.String())
+	}
+}
+
+func TestPrettyTraceExprVars(t *testing.T) {
+	{
+		module := `package test
+import rego.v1
+
+p if {
+	x := 1
+	y := 2
+	z := do_math(x, y)
+	z == 3
+}
+
+do_math(a, b) := c if {
+	c := a + b
+}
+`
+
+		ctx := context.Background()
+		compiler := compileModules([]string{module})
+		data := loadSmallTestData()
+		store := inmem.NewFromObject(data)
+		txn := storage.NewTransactionOrDie(ctx, store)
+		defer store.Abort(ctx, txn)
+
+		tracer := NewBufferTracer()
+		query := NewQuery(ast.MustParseBody("data.test = _")).
+			WithCompiler(compiler).
+			WithStore(store).
+			WithTransaction(txn).
+			WithTracer(tracer)
+
+		_, err := query.Run(ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		expected := `Enter data.test = _                                  {}
+| Eval data.test = _                                 {}
+| Unify data.test = _                                {}
+| Unify data.test.p = _                              {}
+| Index data.test.do_math (matched 1 rule)           {}
+| Unify data.test.p = _                              {}
+| Index data.test.p (matched 1 rule, early exit)     {}
+| Enter data.test.p                                  {}
+| | Eval x = 1                                       {}
+| | Unify x = 1                                      {}
+| | Eval y = 2                                       {}
+| | Unify y = 2                                      {}
+| | Eval data.test.do_math(x, y, __local6__)         {x: 1, y: 2}
+| | Index data.test.do_math (matched 1 rule)         {x: 1, y: 2}
+| | Enter data.test.do_math                          {}
+| | | Unify 1 = a                                    {}
+| | | Unify 2 = b                                    {}
+| | | Unify __local6__ = c                           {}
+| | | Eval plus(a, b, __local7__)                    {a: 1, b: 2}
+| | | Unify __local7__ = 3                           {}
+| | | Eval c = __local7__                            {__local7__: 3}
+| | | Unify c = 3                                    {}
+| | | Exit data.test.do_math                         {a: 1, b: 2, c: 3}
+| | Eval z = __local6__                              {__local6__: 3}
+| | Unify z = 3                                      {}
+| | Eval z = 3                                       {z: 3}
+| | Unify 3 = 3                                      {}
+| | Exit data.test.p early                           {}
+| Unify true = _                                     {}
+| Redo data.test.p                                   {}
+| | Redo z = 3                                       {z: 3}
+| | Redo z = __local6__                              {__local6__: 3, z: 3}
+| | Redo data.test.do_math(x, y, __local6__)         {__local6__: 3, x: 1, y: 2}
+| | | Redo c = __local7__                            {__local7__: 3, c: 3}
+| | | Redo plus(a, b, __local7__)                    {__local7__: 3, a: 1, b: 2}
+| | Redo y = 2                                       {y: 2}
+| | Redo x = 1                                       {x: 1}
+| Unify _ = {"p": true}                              {}
+| Exit data.test = _                                 {_: {"p": true}}
+Redo data.test = _                                   {_: {"p": true}}
+| Redo data.test = _                                 {_: {"p": true}}
+`
+
+		var buf bytes.Buffer
+		PrettyTraceWithOpts(&buf, *tracer, PrettyTraceOptions{ExprVariables: true})
+		compareBuffers(t, expected, buf.String())
+	}
 }

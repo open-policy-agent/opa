@@ -329,7 +329,18 @@ func PrettyTraceWithOpts(w io.Writer, trace []*Event, opts PrettyTraceOptions) {
 
 		if opts.LocalVariables {
 			if locals := event.Locals; locals != nil {
-				row.add(locals.String())
+				keys := sortedKeys(locals)
+
+				buf := new(bytes.Buffer)
+				buf.WriteString("{")
+				for i, k := range keys {
+					if i > 0 {
+						buf.WriteString(", ")
+					}
+					_, _ = fmt.Fprintf(buf, "%v: %s", k, iStrs.Truncate(locals.Get(k).String(), maxExprVarWidth))
+				}
+				buf.WriteString("}")
+				row.add(buf.String())
 			} else {
 				row.add("{}")
 			}
@@ -596,32 +607,6 @@ func (v varInfo) Title() string {
 		return string(v.exprLoc.Text)
 	}
 	return string(v.Name)
-}
-
-func trimLocationText(loc *ast.Location) string {
-	if loc == nil {
-		return ""
-	}
-
-	text := string(loc.Text)
-
-	trim := 0
-	if loc.Col == 0 {
-		trim = loc.Col
-	} else if loc.Col > 0 {
-		trim = loc.Col - 1
-	}
-
-	buf := new(bytes.Buffer)
-	for i, line := range strings.Split(text, "\n") {
-		if i == 0 {
-			buf.WriteString(line)
-		} else {
-			buf.WriteString("\n")
-			buf.WriteString(line[trim:])
-		}
-	}
-	return buf.String()
 }
 
 func padLocationText(loc *ast.Location) string {
