@@ -439,7 +439,7 @@ type mockForInitStartOrdering struct {
 	Started bool
 }
 
-func (m *mockForInitStartOrdering) Start(ctx context.Context) error {
+func (m *mockForInitStartOrdering) Start(_ context.Context) error {
 	m.Started = true
 	if m.Manager.initialized {
 		return nil

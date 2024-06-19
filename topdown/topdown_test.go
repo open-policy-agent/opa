@@ -232,7 +232,7 @@ func TestTopDownQueryCancellation(t *testing.T) {
 func TestTopDownQueryCancellationEvery(t *testing.T) {
 	ctx := context.Background()
 
-	module := func(ev ast.Every, extra ...interface{}) *ast.Module {
+	module := func(ev ast.Every, _ ...interface{}) *ast.Module {
 		t.Helper()
 		m := ast.MustParseModule(`package test
 	p { true }`)
@@ -1735,7 +1735,7 @@ func (*contextPropagationStore) Truncate(context.Context, storage.Transaction, s
 	return nil
 }
 
-func (m *contextPropagationStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (m *contextPropagationStore) Read(ctx context.Context, _ storage.Transaction, _ storage.Path) (interface{}, error) {
 	val := ctx.Value(contextPropagationMock{})
 	m.calls = append(m.calls, val)
 	return nil, nil
@@ -1795,7 +1795,7 @@ func (*astStore) Truncate(context.Context, storage.Transaction, storage.Transact
 	return nil
 }
 
-func (a *astStore) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (a *astStore) Read(_ context.Context, _ storage.Transaction, path storage.Path) (interface{}, error) {
 	if path.String() == a.path {
 		return a.value, nil
 	}

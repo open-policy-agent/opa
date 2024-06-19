@@ -96,7 +96,7 @@ data.policy.is_admin.
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			if err := deps(args, params, os.Stdout); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)

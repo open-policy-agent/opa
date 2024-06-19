@@ -195,7 +195,7 @@ TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1
 
 See https://godoc.org/crypto/tls#pkg-constants for more information.
 `,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -391,7 +391,7 @@ func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
 		cipherSuitesMap[c.Name] = c
 	}
 
-	cipherSuitesIds := []uint16{}
+	cipherSuitesIDs := []uint16{}
 	for _, c := range cipherSuites {
 		val, ok := cipherSuitesMap[c]
 		if !ok {
@@ -405,10 +405,10 @@ func verifyCipherSuites(cipherSuites []string) (*[]uint16, error) {
 			}
 		}
 
-		cipherSuitesIds = append(cipherSuitesIds, val.ID)
+		cipherSuitesIDs = append(cipherSuitesIDs, val.ID)
 	}
 
-	return &cipherSuitesIds, nil
+	return &cipherSuitesIDs, nil
 }
 
 func historyPath() string {

@@ -35,7 +35,7 @@ func (a appendingPrintHook) Print(_ print.Context, s string) error {
 	return nil
 }
 
-func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *mockHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(200)
 }
 
@@ -460,7 +460,7 @@ func TestMakeInputWithBody(t *testing.T) {
 func TestInterQueryCache(t *testing.T) {
 
 	count := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		count++
 	}))

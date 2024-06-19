@@ -627,9 +627,8 @@ func (a *AuthorAnnotation) String() string {
 		return a.Name
 	} else if len(a.Name) == 0 {
 		return fmt.Sprintf("<%s>", a.Email)
-	} else {
-		return fmt.Sprintf("%s <%s>", a.Name, a.Email)
 	}
+	return fmt.Sprintf("%s <%s>", a.Name, a.Email)
 }
 
 // Copy returns a deep copy of rr.

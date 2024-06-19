@@ -82,7 +82,7 @@ by the input location.`,
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			if err := dofindDefinition(findDefinitionParams, os.Stdin, os.Stdout, args); err != nil {
 				fmt.Fprintln(os.Stderr, "error:", err)
 				os.Exit(1)
@@ -111,7 +111,7 @@ func dofindDefinition(params findDefinitionParams, stdin io.Reader, stdout io.Wr
 		}
 		b, err = loader.NewFileLoader().
 			WithSkipBundleVerification(true).
-			WithFilter(func(abspath string, info os.FileInfo, depth int) bool {
+			WithFilter(func(_ string, info os.FileInfo, _ int) bool {
 				// While directories may contain other things of interest for OPA (json, yaml..),
 				// only .rego will work reliably for the purpose of finding definitions
 				return strings.HasPrefix(info.Name(), ".rego")

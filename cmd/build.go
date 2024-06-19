@@ -222,7 +222,7 @@ against OPA v0.22.0:
 			}
 			return env.CmdFlags.CheckEnvironmentVariables(Cmd)
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			if err := dobuild(buildParams, args); err != nil {
 				fmt.Println("error:", err)
 				os.Exit(1)

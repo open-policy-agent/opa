@@ -927,7 +927,7 @@ func TestObjectConcurrentReads(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			var retrieved []*Term
-			o.Foreach(func(k, v *Term) {
+			o.Foreach(func(k, _ *Term) {
 				retrieved = append(retrieved, k)
 			})
 			// Check for sortedness of retrieved results.

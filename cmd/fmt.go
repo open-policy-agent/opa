@@ -64,10 +64,10 @@ to stdout from the 'fmt' command.
 
 If the '--fail' option is supplied, the 'fmt' command will return a non zero exit
 code if a file would be reformatted.`,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PreRunE: func(cmd *cobra.Command, _ []string) error {
 		return env.CmdFlags.CheckEnvironmentVariables(cmd)
 	},
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		os.Exit(opaFmt(args))
 	},
 }

@@ -220,7 +220,7 @@ func (p *Pool) SetPolicyData(ctx context.Context, policy []byte, data []byte) er
 func (p *Pool) SetDataPath(ctx context.Context, path []string, value interface{}) error {
 	p.dataMtx.Lock()
 	defer p.dataMtx.Unlock()
-	return p.updateVMs(func(vm *VM, opts vmOpts) error {
+	return p.updateVMs(func(vm *VM, _ vmOpts) error {
 		return vm.SetDataPath(ctx, path, value)
 	})
 }

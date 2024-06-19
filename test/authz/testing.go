@@ -146,7 +146,7 @@ func generateAuthzProfiles(profile DataSetProfile) []authzProfile {
 	return profiles
 }
 
-func generateAuthzProfile(profile DataSetProfile, i int) authzProfile {
+func generateAuthzProfile(_ DataSetProfile, i int) authzProfile {
 	return authzProfile{
 		Path: generateAuthzPath(i),
 		Methods: []string{

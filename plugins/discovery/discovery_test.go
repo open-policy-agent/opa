@@ -502,7 +502,7 @@ func (r *reconfigureTestPlugin) Start(context.Context) error {
 func (*reconfigureTestPlugin) Stop(context.Context) {
 }
 
-func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, config interface{}) {
+func (r *reconfigureTestPlugin) Reconfigure(_ context.Context, _ interface{}) {
 	r.counts["reconfig"]++
 }
 

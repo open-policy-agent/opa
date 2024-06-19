@@ -2116,7 +2116,7 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 				"test.rego": tc.policy,
 			}
 
-			test.WithTempFS(files, func(path string) {
+			test.WithTempFS(files, func(_ string) {
 				params := newEvalCommandParams()
 				params.strict = true
 

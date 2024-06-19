@@ -2431,10 +2431,11 @@ func augmentYamlError(err error, comments []*Comment) error {
 	return err
 }
 
-func unwrapPair(pair map[string]interface{}) (k string, v interface{}) {
-	for k, v = range pair {
+func unwrapPair(pair map[string]interface{}) (string, interface{}) {
+	for k, v := range pair {
+		return k, v
 	}
-	return
+	return "", nil
 }
 
 var errInvalidSchemaRef = fmt.Errorf("invalid schema reference")
