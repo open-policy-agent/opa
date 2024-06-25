@@ -120,35 +120,35 @@ type Compiler struct {
 	// Capabliities required by the modules that were compiled.
 	Required *Capabilities
 
-	localvargen                              *localVarGenerator
-	moduleLoader                             ModuleLoader
-	ruleIndices                              *util.HashMap
-	stages                                   []stage
-	maxErrs                                  int
-	sorted                                   []string // list of sorted module names
-	pathExists                               func([]string) (bool, error)
-	after                                    map[string][]CompilerStageDefinition
-	metrics                                  metrics.Metrics
-	capabilities                             *Capabilities                 // user-supplied capabilities
-	imports                                  map[string][]*Import          // saved imports from stripping
-	builtins                                 map[string]*Builtin           // universe of built-in functions
-	customBuiltins                           map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap                        map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	deprecatedBuiltinsMap                    map[string]struct{}           // set of deprecated, but not removed, built-in functions
-	enablePrintStatements                    bool                          // indicates if print statements should be elided (default)
-	comprehensionIndices                     map[*Term]*ComprehensionIndex // comprehension key index
-	initialized                              bool                          // indicates if init() has been called
-	debug                                    debug.Debug                   // emits debug information produced during compilation
-	schemaSet                                *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType                                types.Type                    // global input type retrieved from schema set
-	annotationSet                            *AnnotationSet                // hierarchical set of annotations
-	strict                                   bool                          // enforce strict compilation checks
-	keepModules                              bool                          // whether to keep the unprocessed, parse modules (below)
-	parsedModules                            map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
-	useTypeCheckAnnotations                  bool                          // whether to provide annotated information (schemas) to the type checker
-	allowUndefinedFuncCalls                  bool                          // don't error on calls to unknown functions.
-	evalMode                                 CompilerEvalMode
-	rewriteTestRulesToCaptureUnboundDynamics bool
+	localvargen                *localVarGenerator
+	moduleLoader               ModuleLoader
+	ruleIndices                *util.HashMap
+	stages                     []stage
+	maxErrs                    int
+	sorted                     []string // list of sorted module names
+	pathExists                 func([]string) (bool, error)
+	after                      map[string][]CompilerStageDefinition
+	metrics                    metrics.Metrics
+	capabilities               *Capabilities                 // user-supplied capabilities
+	imports                    map[string][]*Import          // saved imports from stripping
+	builtins                   map[string]*Builtin           // universe of built-in functions
+	customBuiltins             map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap          map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	deprecatedBuiltinsMap      map[string]struct{}           // set of deprecated, but not removed, built-in functions
+	enablePrintStatements      bool                          // indicates if print statements should be elided (default)
+	comprehensionIndices       map[*Term]*ComprehensionIndex // comprehension key index
+	initialized                bool                          // indicates if init() has been called
+	debug                      debug.Debug                   // emits debug information produced during compilation
+	schemaSet                  *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType                  types.Type                    // global input type retrieved from schema set
+	annotationSet              *AnnotationSet                // hierarchical set of annotations
+	strict                     bool                          // enforce strict compilation checks
+	keepModules                bool                          // whether to keep the unprocessed, parse modules (below)
+	parsedModules              map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	useTypeCheckAnnotations    bool                          // whether to provide annotated information (schemas) to the type checker
+	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
+	evalMode                   CompilerEvalMode              //
+	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -347,7 +347,7 @@ func NewCompiler() *Compiler {
 		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
-		{"RewriteTestRuleEqualities", "compile_stage_rewrite_test_rule_equalities", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
+		{"RewriteTestRulesForTracing", "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
@@ -471,10 +471,10 @@ func (c *Compiler) WithEvalMode(e CompilerEvalMode) *Compiler {
 	return c
 }
 
-// WithRewriteTestRulesToCaptureUnboundDynamics enables rewriting test rules to capture dynamic values in local variables,
+// WithRewriteTestRules enables rewriting test rules to capture dynamic values in local variables,
 // so they can be accessed by tracing.
-func (c *Compiler) WithRewriteTestRulesToCaptureUnboundDynamics(rewrite bool) *Compiler {
-	c.rewriteTestRulesToCaptureUnboundDynamics = rewrite
+func (c *Compiler) WithRewriteTestRules(rewrite bool) *Compiler {
+	c.rewriteTestRulesForTracing = rewrite
 	return c
 }
 
@@ -2176,7 +2176,7 @@ func (c *Compiler) rewriteDynamicTerms() {
 	}
 }
 
-// rewriteDynamics rewrites equality expressions in test rule bodies to create local vars for statements that would otherwise
+// rewriteTestRuleEqualities rewrites equality expressions in test rule bodies to create local vars for statements that would otherwise
 // not have their values captured through tracing, such as refs and comprehensions not unified/assigned to a local var.
 // For example, given the following module:
 //
@@ -2197,7 +2197,7 @@ func (c *Compiler) rewriteDynamicTerms() {
 // `p` in `test_rule` resolves to `data.test.p`, which won't be an entry in the virtual-cache and must therefore be calculated after-the-fact.
 // If `p` isn't captured in a local var, there is no trivial way to retrieve its value for test reporting.
 func (c *Compiler) rewriteTestRuleEqualities() {
-	if !c.rewriteTestRulesToCaptureUnboundDynamics {
+	if !c.rewriteTestRulesForTracing {
 		return
 	}
 

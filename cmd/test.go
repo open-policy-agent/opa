@@ -350,7 +350,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		WithCapabilities(capabilities).
 		WithSchemas(schemaSet).
 		WithUseTypeCheckAnnotations(true).
-		WithRewriteTestRulesToCaptureUnboundDynamics(testParams.varValues)
+		WithRewriteTestRules(testParams.varValues)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
