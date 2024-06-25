@@ -10679,3 +10679,165 @@ deny {
 		t.Fatal(c.Errors)
 	}
 }
+
+func TestCompilerRewriteTestRulesForTracing(t *testing.T) {
+	tests := []struct {
+		note    string
+		rewrite bool
+		module  string
+		exp     string
+	}{
+		{
+			note: "ref comparison, no rewrite",
+			module: `package test
+import rego.v1
+
+a := 1
+b := 2
+
+test_something if {
+	a == b
+}`,
+			exp: `package test
+        
+a := 1 { true }
+b := 2 { true }
+
+test_something = true { 
+	data.test.a = data.test.b 
+}`,
+		},
+		{
+			note:    "ref comparison, rewrite",
+			rewrite: true,
+			module: `package test
+import rego.v1
+
+a := 1
+b := 2
+
+test_something if {
+	a == b
+}`,
+			// When the test fails on '__local0__ = __local1__', the values for 'a' and 'b' are captured in local bindings,
+			// accessible by the tracer.
+			exp: `package test
+        
+a := 1 { true }
+b := 2 { true }
+
+test_something = true { 
+	__local0__ = data.test.a
+	__local1__ = data.test.b
+	__local0__ = __local1__
+}`,
+		},
+		{
+			note:    "ref comparison, not-stmt, rewrite",
+			rewrite: true,
+			module: `package test
+import rego.v1
+
+a := 1
+b := 2
+
+test_something if {
+	not a == b
+}`,
+			// We don't break out local vars from a not-stmt, as that would change the semantics of the rule.
+			exp: `package test
+
+a := 1 { true }
+b := 2 { true }
+
+test_something = true { 
+	not data.test.a = data.test.b
+}`,
+		},
+		{
+			note: "ref comparison, inside every-stmt, no rewrite",
+			module: `package test
+import rego.v1
+
+a := 1
+b := 2
+l := [1, 2, 3]
+
+test_something if {
+	every x in l {
+		a < b + x
+	}
+}`,
+			exp: `package test
+import future.keywords
+
+a := 1 { true }
+b := 2 { true }
+l := [1, 2, 3] { true }
+
+test_something = true { 
+	__local2__ = data.test.l
+	every __local0__, __local1__ in __local2__ { 
+		__local4__ = data.test.b
+		plus(__local4__, __local1__, __local3__)
+		__local5__ = data.test.a
+		lt(__local5__, __local3__) 
+	} 
+}`,
+		},
+		{
+			note:    "ref comparison, inside every-stmt, rewrite",
+			rewrite: true,
+			module: `package test
+import rego.v1
+
+a := 1
+b := 2
+l := [1, 2, 3]
+
+test_something if {
+	every x in l {
+		a < b + x
+	}
+}`,
+			// When tests contain an 'every' statement, we're interested in the circumstances that made the every fail,
+			// so it's body is rewritten.
+			exp: `package test
+import future.keywords
+        
+a := 1 { true }
+b := 2 { true }
+l := [1, 2, 3] { true }
+
+test_something = true { 
+	__local2__ = data.test.l; 
+	every __local0__, __local1__ in __local2__ { 
+		__local4__ = data.test.b
+		plus(__local4__, __local1__, __local3__)
+		__local5__ = data.test.a
+		lt(__local5__, __local3__) 
+	} 
+}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			ms := map[string]string{
+				"test.rego": tc.module,
+			}
+			c := getCompilerWithParsedModules(ms).
+				WithRewriteTestRules(tc.rewrite)
+
+			compileStages(c, c.rewriteTestRuleEqualities)
+			assertNotFailed(t, c)
+
+			result := c.Modules["test.rego"]
+			exp := MustParseModule(tc.exp)
+			exp.Imports = nil // We strip the imports since the compiler will too
+			if result.Compare(exp) != 0 {
+				t.Fatalf("\nExpected:\n\n%v\n\nGot:\n\n%v", exp, result)
+			}
+		})
+	}
+}

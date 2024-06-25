@@ -14,8 +14,11 @@ import (
 )
 
 func getFakeTraceEvents() []*topdown.Event {
-	node := ast.MustParseExpr("true = false")
-	return []*topdown.Event{
+	return getFakeTraceEventsFor(ast.MustParseExpr("true = false"))
+}
+
+func getFakeTraceEventsFor(node ast.Node, modifiers ...func(e *topdown.Event)) []*topdown.Event {
+	es := []*topdown.Event{
 		{
 			Op:       topdown.FailOp,
 			Node:     node,
@@ -24,6 +27,12 @@ func getFakeTraceEvents() []*topdown.Event {
 			ParentID: 0,
 		},
 	}
+
+	for _, modifier := range modifiers {
+		modifier(es[0])
+	}
+
+	return es
 }
 
 func TestPrettyReporterVerbose(t *testing.T) {
@@ -99,7 +108,7 @@ func TestPrettyReporterVerbose(t *testing.T) {
 --------------------------------------------------------------------------------
 data.foo.bar.test_corge: FAIL (0s)
 
-  query:1     | Fail true = false
+  query:1       | Fail true = false  
 
 SUMMARY
 --------------------------------------------------------------------------------
@@ -131,6 +140,153 @@ ERROR: 1/6
 
 	if exp != str {
 		t.Fatalf("Expected (%d bytes):\n\n%v\n\nGot (%d bytes):\n\n%v", len(exp), exp, len(str), str)
+	}
+}
+
+func TestPrettyReporterFailureLine(t *testing.T) {
+	var buf bytes.Buffer
+
+	// supply fake trace events to verify that traces are suppressed without verbose
+	// flag.
+	ts := []*Result{
+		{
+			Package: "data.foo.bar",
+			Name:    "test_baz",
+			Trace:   getFakeTraceEvents(),
+			Location: &ast.Location{
+				File: "policy1.rego",
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_qux",
+			Error:   fmt.Errorf("some err"),
+			Trace:   getFakeTraceEvents(),
+			Location: &ast.Location{
+				File: "policy1.rego",
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_corge",
+			Fail:    true,
+			Trace: getFakeTraceEventsFor(
+				ast.MustParseExpr("x == y + z"),
+				func(e *topdown.Event) {
+					// QueryID == 0 is not pretty-printed, as this is the base query to eval the test rule; not the test rule itself.
+					e.QueryID = 1
+				},
+				func(e *topdown.Event) {
+					e.Location.File = "policy1.rego"
+					e.Location.Row = 5
+				},
+				func(e *topdown.Event) {
+					e.Locals = ast.NewValueMap()
+					e.Locals.Put(ast.Var("x"), ast.Number("1"))
+					e.Locals.Put(ast.Var("y"), ast.Number("2"))
+					e.Locals.Put(ast.Var("z"), ast.Number("3"))
+				},
+				func(e *topdown.Event) {
+					e.LocalMetadata = map[ast.Var]topdown.VarMetadata{
+						"x": {Name: "x"},
+						"y": {Name: "y"},
+						"z": {Name: "z"},
+					}
+				}),
+			Location: &ast.Location{
+				File: "policy1.rego",
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "todo_test_qux",
+			Skip:    true,
+			Trace:   nil,
+			Location: &ast.Location{
+				File: "policy1.rego",
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_contains_print_pass",
+			Output:  []byte("fake print output\n"),
+			Location: &ast.Location{
+				File: "policy1.rego",
+			},
+		},
+		{
+			Package: "data.foo.bar",
+			Name:    "test_contains_print_fail",
+			Fail:    true,
+			Output:  []byte("fake print output2\n"),
+			Location: &ast.Location{
+				File: "policy2.rego",
+			},
+		},
+		{
+			Package: "data.foo.baz",
+			Name:    "p.q.r.test_quz",
+			Fail:    true,
+			Trace:   getFakeTraceEvents(),
+			Location: &ast.Location{
+				File: "policy3.rego",
+			},
+		},
+	}
+
+	r := PrettyReporter{
+		Output:      &buf,
+		Verbose:     false,
+		FailureLine: true,
+		LocalVars:   true,
+	}
+	ch := resultsChan(ts)
+	if err := r.Report(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	exp := `FAILURES
+--------------------------------------------------------------------------------
+data.foo.bar.test_corge: FAIL (0s)
+
+  policy1.rego:5:
+    x == y + z
+    |    |   |
+    |    |   3
+    |    2
+    1
+
+data.foo.bar.test_contains_print_fail: FAIL (0s)
+
+
+data.foo.baz.p.q.r.test_quz: FAIL (0s)
+
+
+SUMMARY
+--------------------------------------------------------------------------------
+policy1.rego:
+data.foo.bar.test_qux: ERROR (0s)
+  some err
+data.foo.bar.test_corge: FAIL (0s)
+data.foo.bar.todo_test_qux: SKIPPED
+
+policy2.rego:
+data.foo.bar.test_contains_print_fail: FAIL (0s)
+
+  fake print output2
+
+
+policy3.rego:
+data.foo.baz.p.q.r.test_quz: FAIL (0s)
+--------------------------------------------------------------------------------
+PASS: 2/7
+FAIL: 3/7
+SKIPPED: 1/7
+ERROR: 1/7
+`
+
+	if exp != buf.String() {
+		t.Fatalf("Expected:\n\n%v\n\nGot:\n\n%v", exp, buf.String())
 	}
 }
 
