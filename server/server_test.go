@@ -1695,6 +1695,27 @@ func mustGZIPPayload(payload []byte) []byte {
 	return compressedPayload.Bytes()
 }
 
+// generateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
+// Taken from topdown/topdown_bench_test.go
+func generateJSONBenchmarkData(k, v int) map[string]interface{} {
+	// create array of null values that can be iterated over
+	keys := make([]interface{}, k)
+	for i := range keys {
+		keys[i] = nil
+	}
+
+	// create large JSON object value (100,000 entries is about 2MB on disk)
+	values := map[string]interface{}{}
+	for i := 0; i < v; i++ {
+		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
+	}
+
+	return map[string]interface{}{
+		"keys":   keys,
+		"values": values,
+	}
+}
+
 // Ref: https://github.com/open-policy-agent/opa/issues/6804
 func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 	tests := []struct {
@@ -1728,6 +1749,11 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
 			expRespHTTPStatus:     200,
 			forcePayloadSizeField: 134217728, // 128 MB
+		},
+		{
+			note:              "basic authz - huge zip",
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 401,
 		},
 	}
 
