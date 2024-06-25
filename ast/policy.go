@@ -233,7 +233,9 @@ type (
 		Negated   bool        `json:"negated,omitempty"`
 		Location  *Location   `json:"location,omitempty"`
 
-		jsonOptions astJSON.Options
+		jsonOptions   astJSON.Options
+		generatedFrom *Expr
+		generates     []*Expr
 	}
 
 	// SomeDecl represents a variable declaration statement. The symbols are variables.
@@ -1591,6 +1593,46 @@ func (expr *Expr) Vars(params VarVisitorParams) VarSet {
 // The builtin operator must be the first term.
 func NewBuiltinExpr(terms ...*Term) *Expr {
 	return &Expr{Terms: terms}
+}
+
+func (expr *Expr) CogeneratedExprs() []*Expr {
+	visited := map[*Expr]struct{}{}
+	visitCogeneratedExprs(expr, func(e *Expr) bool {
+		if expr.Equal(e) {
+			return true
+		}
+		if _, ok := visited[e]; ok {
+			return true
+		}
+		visited[e] = struct{}{}
+		return false
+	})
+
+	result := make([]*Expr, 0, len(visited))
+	for e := range visited {
+		result = append(result, e)
+	}
+	return result
+}
+
+func (expr *Expr) BaseCogeneratedExpr() *Expr {
+	if expr.generatedFrom == nil {
+		return expr
+	}
+	return expr.generatedFrom.BaseCogeneratedExpr()
+}
+
+func visitCogeneratedExprs(expr *Expr, f func(*Expr) bool) {
+	if parent := expr.generatedFrom; parent != nil {
+		if stop := f(parent); !stop {
+			visitCogeneratedExprs(parent, f)
+		}
+	}
+	for _, child := range expr.generates {
+		if stop := f(child); !stop {
+			visitCogeneratedExprs(child, f)
+		}
+	}
 }
 
 func (d *SomeDecl) String() string {

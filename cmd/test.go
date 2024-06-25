@@ -62,6 +62,7 @@ type testCommandParams struct {
 	output       io.Writer
 	errOutput    io.Writer
 	v1Compatible bool
+	varValues    bool
 }
 
 func newTestCommandParams() testCommandParams {
@@ -348,7 +349,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		WithEnablePrintStatements(!testParams.benchmark).
 		WithCapabilities(capabilities).
 		WithSchemas(schemaSet).
-		WithUseTypeCheckAnnotations(true)
+		WithUseTypeCheckAnnotations(true).
+		WithRewriteTestRules(testParams.varValues)
 
 	info, err := runtime.Term(runtime.Params{})
 	if err != nil {
@@ -384,7 +386,7 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 		SetCompiler(compiler).
 		SetStore(store).
 		CapturePrintOutput(true).
-		EnableTracing(testParams.verbose).
+		EnableTracing(testParams.verbose || testParams.varValues).
 		SetCoverageQueryTracer(coverTracer).
 		SetRuntime(info).
 		SetModules(modules).
@@ -413,6 +415,8 @@ func compileAndSetupTests(ctx context.Context, testParams testCommandParams, sto
 				BenchmarkResults:         testParams.benchmark,
 				BenchMarkShowAllocations: testParams.benchMem,
 				BenchMarkGoBenchFormat:   goBench,
+				FailureLine:              testParams.varValues,
+				LocalVars:                testParams.varValues,
 			}
 		}
 	} else {
@@ -536,6 +540,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	testCommand.Flags().BoolVar(&testParams.benchmark, "bench", false, "benchmark the unit tests")
 	testCommand.Flags().StringVarP(&testParams.runRegex, "run", "r", "", "run only test cases matching the regular expression.")
 	testCommand.Flags().BoolVarP(&testParams.watch, "watch", "w", false, "watch command line files for changes")
+	testCommand.Flags().BoolVar(&testParams.varValues, "var-values", false, "show local variable values in test output")
 
 	// Shared flags
 	addBundleModeFlag(testCommand.Flags(), &testParams.bundleMode, false)

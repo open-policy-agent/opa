@@ -119,6 +119,69 @@ PASS: 3/4
 FAIL: 1/4
 ```
 
+## Enriched Test Report With Variable Values
+
+Sometimes, e.g. when testing rules with complex output, it can be useful to know more about the circumstances that caused a certain expression to fail a test.
+The `--var-values` flag can be used to enrich the test report with the exact expression that caused a test rule to fail, including the values of any variables or references used in the expression.
+
+Consider the following utility module:
+
+```live:example_vars:module:read_only,openable
+package authz
+
+import rego.v1
+
+allowed_actions(user) := [action |
+	user in data.actions[action]
+]
+```
+
+with accompanying tests:
+
+```live:example_vars/test:module:read_only
+package authz_test
+
+import data.authz
+import rego.v1
+
+test_allowed_actions_all_can_read if {
+	users := ["alice", "bob", "jane"]
+	r := ["alice", "bob"]
+	w := ["jane"]
+	p := {"read": r, "write": w}
+
+	every user in users {
+		"read" in authz.allowed_actions(user) with data.actions as p
+	}
+}
+```
+
+Exercising the tests with the `--var-values` flag:
+
+```console
+opa test . --var-values
+FAILURES
+--------------------------------------------------------------------------------
+data.authz_test.test_allowed_actions_all_can_read: FAIL (904µs)
+
+  util_test.rego:13:
+    "read" in authz.allowed_actions(user) with data.actions as p
+              |                     |                          |
+              |                     |                          {"read": ["alice", "bob"], "write": ["jane"]}
+              |                     "jane"
+              ["write"]
+
+SUMMARY
+--------------------------------------------------------------------------------
+util_test.rego:
+data.authz_test.test_allowed_actions_all_can_read: FAIL (904µs)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+The test failed because it expected users with __write__ permission to implicitly also have the __read__ permission, an expectation the function under test didn't meet.
+By including the failing expression and its local variable assignments in the test report, we make troubleshooting easier for the developer, as it's immediately apparent what assertion and combination of parameters caused the test to fail.
+
 ## Test Format
 
 Tests are expressed as standard Rego rules with a convention that the rule

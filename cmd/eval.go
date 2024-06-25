@@ -72,6 +72,7 @@ type evalCommandParams struct {
 	entrypoints         repeatedStringFlag
 	strict              bool
 	v1Compatible        bool
+	traceVarValues      bool
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -307,9 +308,9 @@ access.
 	evalCommand.Flags().VarP(&params.prettyLimit, "pretty-limit", "", "set limit after which pretty output gets truncated")
 	evalCommand.Flags().BoolVarP(&params.failDefined, "fail-defined", "", false, "exits with non-zero exit code on defined/non-empty result and errors")
 	evalCommand.Flags().DurationVar(&params.timeout, "timeout", 0, "set eval timeout (default unlimited)")
-
 	evalCommand.Flags().IntVarP(&params.optimizationLevel, "optimize", "O", 0, "set optimization level")
 	evalCommand.Flags().VarP(&params.entrypoints, "entrypoint", "e", "set slash separated entrypoint path")
+	evalCommand.Flags().BoolVar(&params.traceVarValues, "var-values", false, "show local variable values in pretty trace output")
 
 	// Shared flags
 	addCapabilitiesFlag(evalCommand.Flags(), params.capabilities)
@@ -398,7 +399,12 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 	case evalValuesOutput:
 		err = pr.Values(w, result)
 	case evalPrettyOutput:
-		err = pr.Pretty(w, result)
+		err = pr.PrettyWithOptions(w, result, pr.PrettyOptions{
+			TraceOpts: topdown.PrettyTraceOptions{
+				Locations:     true,
+				ExprVariables: ectx.params.traceVarValues,
+			},
+		})
 	case evalSourceOutput:
 		err = pr.Source(w, result)
 	case evalRawOutput:

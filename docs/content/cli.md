@@ -569,6 +569,7 @@ opa eval <query> [flags]
       --timeout duration                                          set eval timeout (default unlimited)
   -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
       --v1-compatible                                             opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --var-values                                                show local variable values in pretty trace output
 ```
 
 ____
@@ -1129,6 +1130,7 @@ opa test <path> [path [...]] [flags]
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
       --v1-compatible                      opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --var-values                         show local variable values in test output
   -v, --verbose                            set verbose reporting mode
   -w, --watch                              watch command line files for changes
 ```
