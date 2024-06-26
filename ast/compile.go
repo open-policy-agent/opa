@@ -4809,16 +4809,14 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 		result = append(result, expr)
 	case *Every:
 		var extras []*Expr
-		if _, ok := terms.Domain.Value.(Call); ok {
-			extras, terms.Domain = expandExprTerm(gen, terms.Domain)
-		} else {
-			term := NewTerm(gen.Generate()).SetLocation(terms.Domain.Location)
-			eq := Equality.Expr(term, terms.Domain).SetLocation(terms.Domain.Location)
-			eq.Generated = true
-			eq.With = expr.With
-			extras = append(extras, eq)
-			terms.Domain = term
-		}
+
+		term := NewTerm(gen.Generate()).SetLocation(terms.Domain.Location)
+		eq := Equality.Expr(term, terms.Domain).SetLocation(terms.Domain.Location)
+		eq.Generated = true
+		eq.With = expr.With
+		extras = expandExpr(gen, eq)
+		terms.Domain = term
+
 		terms.Body = rewriteExprTermsInBody(gen, terms.Body)
 		result = append(result, extras...)
 		result = append(result, expr)
