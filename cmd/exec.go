@@ -51,7 +51,10 @@ After: Decision Logs
 By default, the 'exec' command executes the "default decision" (specified in
 the OPA configuration) against each input file. This can be overridden by
 specifying the --decision argument and pointing at a specific policy decision,
-e.g., opa exec --decision /foo/bar/baz ...`,
+e.g., opa exec --decision /foo/bar/baz ...
+
+Alternative Usage:
+  ` + RootCommand.Use + ` exec [<path> [...]] --stdin-input [flags]`,
 
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)

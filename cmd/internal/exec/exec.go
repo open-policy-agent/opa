@@ -36,15 +36,20 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 
 	r = &jsonReporter{w: params.Output, buf: make([]result, 0), ctx: &ctx, opa: opa, params: params, decisionFunc: opa.Decision}
 
-	var err error
 	if params.StdIn {
-		err = execOnStdIn()
-	} else {
-		err = execOnInputFiles(params)
+		if err := execOnStdIn(); err != nil {
+			return err
+		}
 	}
-	if err != nil {
+
+	if err := execOnInputFiles(params); err != nil {
 		return err
 	}
+
+	if err := r.Close(); err != nil {
+		return err
+	}
+
 	return r.ReportFailure()
 }
 
@@ -59,7 +64,7 @@ func execOnStdIn() error {
 		return errors.New("cannot execute on empty input; please enter valid json or yaml when using the --stdin-input flag")
 	}
 	r.StoreDecision(&input, stdInPath)
-	return r.Close()
+	return nil
 }
 
 type fileListItem struct {
@@ -87,7 +92,7 @@ func execOnInputFiles(params *Params) error {
 		}
 		r.StoreDecision(input, item.Path)
 	}
-	return r.Close()
+	return nil
 }
 
 func listAllPaths(roots []string) chan fileListItem {
