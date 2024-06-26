@@ -282,8 +282,21 @@ func Values(w io.Writer, r Output) error {
 
 // Pretty prints all of r to w in a human-readable format.
 func Pretty(w io.Writer, r Output) error {
+	return PrettyWithOptions(w, r, PrettyOptions{
+		TraceOpts: topdown.PrettyTraceOptions{
+			Locations: true,
+		},
+	})
+}
+
+type PrettyOptions struct {
+	TraceOpts topdown.PrettyTraceOptions
+}
+
+// PrettyWithOptions prints all of r to w in a human-readable format.
+func PrettyWithOptions(w io.Writer, r Output, opts PrettyOptions) error {
 	if len(r.Explanation) > 0 {
-		if err := prettyExplanation(w, r.Explanation); err != nil {
+		if err := prettyExplanation(w, r.Explanation, opts.TraceOpts); err != nil {
 			return err
 		}
 	}
@@ -554,8 +567,8 @@ func prettyAggregatedProfile(w io.Writer, profile []profiler.ExprStatsAggregated
 	return nil
 }
 
-func prettyExplanation(w io.Writer, explanation []*topdown.Event) error {
-	topdown.PrettyTraceWithLocation(w, explanation)
+func prettyExplanation(w io.Writer, explanation []*topdown.Event, opts topdown.PrettyTraceOptions) error {
+	topdown.PrettyTraceWithOpts(w, explanation, opts)
 	return nil
 }
 

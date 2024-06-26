@@ -120,34 +120,35 @@ type Compiler struct {
 	// Capabliities required by the modules that were compiled.
 	Required *Capabilities
 
-	localvargen             *localVarGenerator
-	moduleLoader            ModuleLoader
-	ruleIndices             *util.HashMap
-	stages                  []stage
-	maxErrs                 int
-	sorted                  []string // list of sorted module names
-	pathExists              func([]string) (bool, error)
-	after                   map[string][]CompilerStageDefinition
-	metrics                 metrics.Metrics
-	capabilities            *Capabilities                 // user-supplied capabilities
-	imports                 map[string][]*Import          // saved imports from stripping
-	builtins                map[string]*Builtin           // universe of built-in functions
-	customBuiltins          map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
-	unsafeBuiltinsMap       map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
-	deprecatedBuiltinsMap   map[string]struct{}           // set of deprecated, but not removed, built-in functions
-	enablePrintStatements   bool                          // indicates if print statements should be elided (default)
-	comprehensionIndices    map[*Term]*ComprehensionIndex // comprehension key index
-	initialized             bool                          // indicates if init() has been called
-	debug                   debug.Debug                   // emits debug information produced during compilation
-	schemaSet               *SchemaSet                    // user-supplied schemas for input and data documents
-	inputType               types.Type                    // global input type retrieved from schema set
-	annotationSet           *AnnotationSet                // hierarchical set of annotations
-	strict                  bool                          // enforce strict compilation checks
-	keepModules             bool                          // whether to keep the unprocessed, parse modules (below)
-	parsedModules           map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
-	useTypeCheckAnnotations bool                          // whether to provide annotated information (schemas) to the type checker
-	allowUndefinedFuncCalls bool                          // don't error on calls to unknown functions.
-	evalMode                CompilerEvalMode
+	localvargen                *localVarGenerator
+	moduleLoader               ModuleLoader
+	ruleIndices                *util.HashMap
+	stages                     []stage
+	maxErrs                    int
+	sorted                     []string // list of sorted module names
+	pathExists                 func([]string) (bool, error)
+	after                      map[string][]CompilerStageDefinition
+	metrics                    metrics.Metrics
+	capabilities               *Capabilities                 // user-supplied capabilities
+	imports                    map[string][]*Import          // saved imports from stripping
+	builtins                   map[string]*Builtin           // universe of built-in functions
+	customBuiltins             map[string]*Builtin           // user-supplied custom built-in functions (deprecated: use capabilities)
+	unsafeBuiltinsMap          map[string]struct{}           // user-supplied set of unsafe built-ins functions to block (deprecated: use capabilities)
+	deprecatedBuiltinsMap      map[string]struct{}           // set of deprecated, but not removed, built-in functions
+	enablePrintStatements      bool                          // indicates if print statements should be elided (default)
+	comprehensionIndices       map[*Term]*ComprehensionIndex // comprehension key index
+	initialized                bool                          // indicates if init() has been called
+	debug                      debug.Debug                   // emits debug information produced during compilation
+	schemaSet                  *SchemaSet                    // user-supplied schemas for input and data documents
+	inputType                  types.Type                    // global input type retrieved from schema set
+	annotationSet              *AnnotationSet                // hierarchical set of annotations
+	strict                     bool                          // enforce strict compilation checks
+	keepModules                bool                          // whether to keep the unprocessed, parse modules (below)
+	parsedModules              map[string]*Module            // parsed, but otherwise unprocessed modules, kept track of when keepModules is true
+	useTypeCheckAnnotations    bool                          // whether to provide annotated information (schemas) to the type checker
+	allowUndefinedFuncCalls    bool                          // don't error on calls to unknown functions.
+	evalMode                   CompilerEvalMode              //
+	rewriteTestRulesForTracing bool                          // rewrite test rules to capture dynamic values for tracing.
 }
 
 // CompilerStage defines the interface for stages in the compiler.
@@ -346,6 +347,7 @@ func NewCompiler() *Compiler {
 		{"CheckSafetyRuleBodies", "compile_stage_check_safety_rule_bodies", c.checkSafetyRuleBodies},
 		{"RewriteEquals", "compile_stage_rewrite_equals", c.rewriteEquals},
 		{"RewriteDynamicTerms", "compile_stage_rewrite_dynamic_terms", c.rewriteDynamicTerms},
+		{"RewriteTestRulesForTracing", "compile_stage_rewrite_test_rules_for_tracing", c.rewriteTestRuleEqualities}, // must run after RewriteDynamicTerms
 		{"CheckRecursion", "compile_stage_check_recursion", c.checkRecursion},
 		{"CheckTypes", "compile_stage_check_types", c.checkTypes}, // must be run after CheckRecursion
 		{"CheckUnsafeBuiltins", "compile_state_check_unsafe_builtins", c.checkUnsafeBuiltins},
@@ -466,6 +468,13 @@ func (c *Compiler) WithAllowUndefinedFunctionCalls(allow bool) *Compiler {
 // WithEvalMode allows setting the CompilerEvalMode of the compiler
 func (c *Compiler) WithEvalMode(e CompilerEvalMode) *Compiler {
 	c.evalMode = e
+	return c
+}
+
+// WithRewriteTestRules enables rewriting test rules to capture dynamic values in local variables,
+// so they can be accessed by tracing.
+func (c *Compiler) WithRewriteTestRules(rewrite bool) *Compiler {
+	c.rewriteTestRulesForTracing = rewrite
 	return c
 }
 
@@ -2162,6 +2171,43 @@ func (c *Compiler) rewriteDynamicTerms() {
 		mod := c.Modules[name]
 		WalkRules(mod, func(rule *Rule) bool {
 			rule.Body = rewriteDynamics(f, rule.Body)
+			return false
+		})
+	}
+}
+
+// rewriteTestRuleEqualities rewrites equality expressions in test rule bodies to create local vars for statements that would otherwise
+// not have their values captured through tracing, such as refs and comprehensions not unified/assigned to a local var.
+// For example, given the following module:
+//
+//	package test
+//
+//	p.q contains v if {
+//		some v in numbers.range(1, 3)
+//	}
+//
+//	p.r := "foo"
+//
+//	test_rule {
+//		p == {
+//			"q": {4, 5, 6}
+//		}
+//	}
+//
+// `p` in `test_rule` resolves to `data.test.p`, which won't be an entry in the virtual-cache and must therefore be calculated after-the-fact.
+// If `p` isn't captured in a local var, there is no trivial way to retrieve its value for test reporting.
+func (c *Compiler) rewriteTestRuleEqualities() {
+	if !c.rewriteTestRulesForTracing {
+		return
+	}
+
+	f := newEqualityFactory(c.localvargen)
+	for _, name := range c.sorted {
+		mod := c.Modules[name]
+		WalkRules(mod, func(rule *Rule) bool {
+			if strings.HasPrefix(string(rule.Head.Name), "test_") {
+				rule.Body = rewriteTestEqualities(f, rule.Body)
+			}
 			return false
 		})
 	}
@@ -4517,6 +4563,41 @@ func rewriteEquals(x interface{}) (modified bool) {
 	return modified
 }
 
+func rewriteTestEqualities(f *equalityFactory, body Body) Body {
+	result := make(Body, 0, len(body))
+	for _, expr := range body {
+		// We can't rewrite negated expressions; if the extracted term is undefined, evaluation would fail before
+		// reaching the negation check.
+		if !expr.Negated && !expr.Generated {
+			switch {
+			case expr.IsEquality():
+				terms := expr.Terms.([]*Term)
+				result, terms[1] = rewriteDynamicsShallow(expr, f, terms[1], result)
+				result, terms[2] = rewriteDynamicsShallow(expr, f, terms[2], result)
+			case expr.IsEvery():
+				// We rewrite equalities inside of every-bodies as a fail here will be the cause of the test-rule fail.
+				// Failures inside other expressions with closures, such as comprehensions, won't cause the test-rule to fail, so we skip those.
+				every := expr.Terms.(*Every)
+				every.Body = rewriteTestEqualities(f, every.Body)
+			}
+		}
+		result = appendExpr(result, expr)
+	}
+	return result
+}
+
+func rewriteDynamicsShallow(original *Expr, f *equalityFactory, term *Term, result Body) (Body, *Term) {
+	switch term.Value.(type) {
+	case Ref, *ArrayComprehension, *SetComprehension, *ObjectComprehension:
+		generated := f.Generate(term)
+		generated.With = original.With
+		result.Append(generated)
+		connectGeneratedExprs(original, generated)
+		return result, result[len(result)-1].Operand(0)
+	}
+	return result, term
+}
+
 // rewriteDynamics will rewrite the body so that dynamic terms (i.e., refs and
 // comprehensions) are bound to vars earlier in the query. This translation
 // results in eager evaluation.
@@ -4608,6 +4689,7 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		generated := f.Generate(term)
 		generated.With = original.With
 		result.Append(generated)
+		connectGeneratedExprs(original, generated)
 		return result, result[len(result)-1].Operand(0)
 	case *Array:
 		for i := 0; i < v.Len(); i++ {
@@ -4636,16 +4718,19 @@ func rewriteDynamicsOne(original *Expr, f *equalityFactory, term *Term, result B
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
+		connectGeneratedExprs(original, extra)
 		return result, result[len(result)-1].Operand(0)
 	case *SetComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
+		connectGeneratedExprs(original, extra)
 		return result, result[len(result)-1].Operand(0)
 	case *ObjectComprehension:
 		var extra *Expr
 		v.Body, extra = rewriteDynamicsComprehensionBody(original, f, v.Body, term)
 		result.Append(extra)
+		connectGeneratedExprs(original, extra)
 		return result, result[len(result)-1].Operand(0)
 	}
 	return result, term
@@ -4713,6 +4798,7 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 		for i := 1; i < len(terms); i++ {
 			var extras []*Expr
 			extras, terms[i] = expandExprTerm(gen, terms[i])
+			connectGeneratedExprs(expr, extras...)
 			if len(expr.With) > 0 {
 				for i := range extras {
 					extras[i].With = expr.With
@@ -4738,6 +4824,13 @@ func expandExpr(gen *localVarGenerator, expr *Expr) (result []*Expr) {
 		result = append(result, expr)
 	}
 	return
+}
+
+func connectGeneratedExprs(parent *Expr, children ...*Expr) {
+	for _, child := range children {
+		child.generatedFrom = parent
+		parent.generates = append(parent.generates, child)
+	}
 }
 
 func expandExprTerm(gen *localVarGenerator, term *Term) (support []*Expr, output *Term) {
