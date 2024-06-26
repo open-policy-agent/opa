@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -1723,6 +1724,7 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 		payload               []byte
 		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
 		expRespHTTPStatus     int
+		expErrorMsg           string
 	}{
 		{
 			note:              "empty message",
@@ -1747,8 +1749,9 @@ func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
 		{
 			note:                  "basic authz - malicious size field",
 			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
-			expRespHTTPStatus:     200,
+			expRespHTTPStatus:     400,
 			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip: invalid checksum",
 		},
 		{
 			note:              "basic authz - huge zip",
@@ -1793,6 +1796,12 @@ allow if {
 
 			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t}}`, true), opts...)
 
+			// Forcibly replace the size trailer field for the gzip blob.
+			// Byte order is little-endian, field is a uint32.
+			if test.forcePayloadSizeField != 0 {
+				binary.LittleEndian.PutUint32(test.payload[len(test.payload)-4:], test.forcePayloadSizeField)
+			}
+
 			// execute the request
 			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
 			req.Header.Set("Content-Encoding", "gzip")
@@ -1800,6 +1809,15 @@ allow if {
 			f.server.Handler.ServeHTTP(f.recorder, req)
 			if f.recorder.Code != test.expRespHTTPStatus {
 				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
+			}
+			if test.expErrorMsg != "" {
+				var serverErr types.ErrorV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &serverErr); err != nil {
+					t.Fatalf("Could not deserialize error message: %s", err.Error())
+				}
+				if serverErr.Message != test.expErrorMsg {
+					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
 			}
 		})
 	}
