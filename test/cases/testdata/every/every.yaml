@@ -240,7 +240,7 @@ cases:
         p {
           every v in [1 / 2, 3, 4 + 5] { v < 9 }
         }
-        
+
         q {
           not p
         }
