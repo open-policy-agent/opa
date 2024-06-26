@@ -79,7 +79,7 @@ func TestExec(t *testing.T) {
 		files       map[string]string
 		stdIn       bool
 		input       string
-		assertion   func(err error)
+		assertion   func(t *testing.T, buf string, err error)
 	}{
 		{
 			description: "should read from valid JSON file and not raise an error",
@@ -96,7 +96,7 @@ func TestExec(t *testing.T) {
 			test_fun
 		}`,
 			},
-			assertion: func(err error) {
+			assertion: func(t *testing.T, _ string, err error) {
 				if err != nil {
 					t.Fatalf("unexpected error raised: %q", err.Error())
 				}
@@ -117,7 +117,7 @@ func TestExec(t *testing.T) {
 			test_fun
 		}`,
 			},
-			assertion: func(err error) {
+			assertion: func(t *testing.T, _ string, err error) {
 				if err == nil {
 					t.Fatalf("expected error, found none")
 				}
@@ -142,9 +142,55 @@ func TestExec(t *testing.T) {
 			},
 			stdIn: true,
 			input: `{"foo": 7}`,
-			assertion: func(err error) {
+			assertion: func(t *testing.T, _ string, err error) {
 				if err != nil {
 					t.Fatalf("unexpected error raised: %q", err.Error())
+				}
+			},
+		},
+		{
+			description: "should read from files and stdin-input if flag is set",
+			files: map[string]string{
+				"files/test.json": `{"foo": 8}`,
+				"bundle/x.rego": `package system
+
+		test_fun := x {
+			x = false
+			x
+		}
+
+		undefined_test {
+			test_fun
+		}`,
+			},
+			stdIn: true,
+			input: `{"foo": 7}`,
+			assertion: func(t *testing.T, output string, err error) {
+				if err != nil {
+					t.Fatalf("unexpected error raised: %q", err.Error())
+				}
+
+				exp := `{
+  "result": [
+    {
+      "path": "--stdin-input",
+      "error": {
+        "code": "opa_undefined_error",
+        "message": "/system/main decision was undefined"
+      }
+    },
+    {
+      "path": "%ROOT%/files/test.json",
+      "error": {
+        "code": "opa_undefined_error",
+        "message": "/system/main decision was undefined"
+      }
+    }
+  ]
+}
+`
+				if output != exp {
+					t.Fatalf("expected output to be:\n\n%s\n\ngot:\n\n%s", exp, output)
 				}
 			},
 		},
@@ -175,11 +221,12 @@ func TestExec(t *testing.T) {
 						os.Remove(tempFile.Name())
 					}()
 					os.Stdin = tempFile
-				} else {
-					if _, ok := tt.files["files/test.json"]; ok {
-						params.Paths = append(params.Paths, dir+"/files/")
-					}
 				}
+
+				if _, ok := tt.files["files/test.json"]; ok {
+					params.Paths = append(params.Paths, dir+"/files/")
+				}
+
 				ctx := context.Background()
 				opa, _ := sdk.New(ctx, sdk.Options{
 					Config:        bytes.NewReader([]byte{}),
@@ -190,7 +237,8 @@ func TestExec(t *testing.T) {
 				})
 
 				err := Exec(ctx, opa, params)
-				tt.assertion(err)
+				output := strings.Replace(buf.String(), dir, "%ROOT%", -1)
+				tt.assertion(t, output, err)
 			})
 		})
 	}
