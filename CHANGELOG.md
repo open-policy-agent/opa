@@ -5,6 +5,29 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Request Body Size Limits
+
+OPA now rejects requests with request bodies larger than a preset maximum size. To control this behavior, two new configuration keys are available: `server.decoding.max_length` and `server.decoding.gzip.max_length`. These control the max size in bytes to allow for an incoming request payload, and the maximum size in bytes to allow for a decompressed gzip request payload, respectively.
+
+Here's an example OPA configuration using the new keys:
+
+```yaml
+# Set max request size to 64 MB and max gzip size (decompressed) to be 128 MB.
+server:
+  decoding:
+    max_length: 67108864
+    gzip:
+      max_length: 134217728
+```
+
+These changes allow improvements in memory usage for the OPA HTTP server, and help OPA deployments avoid some accidental out-of-memory situations.
+
+### Breaking Changes
+
+OPA now automatically rejects very large requests. Requests with a `Content-Length` larger than 128 MB uncompressed, and gzipped requests with payloads that decompress to larger than 256 MB will be rejected, as part of hardening OPA against denial-of-service attacks. Previously, a large enough request could cause an OPA instance to run out of memory in low-memory sidecar deployment scenarios, just from attempting to read the request body into memory.
+
+For most users, no changes will be needed to continue using OPA. However, for those who need to override the default limits, the new `server.decoding.max_length` and `server.decoding.gzip.max_length` configuration fields allow setting higher request size limits.
+
 ## 0.66.0
 
 This release contains a mix of features, performance improvements, and bugfixes.
