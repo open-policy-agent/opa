@@ -3,7 +3,47 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.66.0
+
+### Fixes
+
+- Fix blanket "unexpected assign token" error message / usability issue (#6778) ([#6563](https://github.com/open-policy-agent/opa/issues/6563)) authored by @anderseknert
+- Fix wrong location on metadata parse errors on first line (#6807) ([#6587](https://github.com/open-policy-agent/opa/issues/6587)) authored by @anderseknert
+- Fix/inspect unknowns in with stmt (#6824) ([#6812](https://github.com/open-policy-agent/opa/issues/6812)) authored by @johanfylling reported by @surajupadhyay01
+- Include original text in annotation location text attribute (#6808) ([#6779](https://github.com/open-policy-agent/opa/issues/6779)) authored by @anderseknert
+- Use a better error message when trying to merge non-objects (#6805) ([#6803](https://github.com/open-policy-agent/opa/issues/6803)) authored by @anderseknert
+- ast: expanding nested expressions in `every` domain (#6832) ([#6790](https://github.com/open-policy-agent/opa/issues/6790)) authored by @johanfylling reported by @anakrish
+- docs/content/monitoring: Remove missing prometheus metric `go_memstats_gc_cpu_fraction` ([#6783](https://github.com/open-policy-agent/opa/issues/6783)) authored by @philipaconrad
+- docs: mention that default functions may not evaluate (#6806) ([#6265](https://github.com/open-policy-agent/opa/issues/6265)) authored by @anderseknert
+- plugins/rest: Do local map modification in OAuth2 client credentials flow ([#6769](https://github.com/open-policy-agent/opa/issues/6769)) authored by @eubaranov reported by @eubaranov
+- server/authorizer: Fix gzip payload handling. (#6825) ([#6804](https://github.com/open-policy-agent/opa/issues/6804)) authored by @philipaconrad reported by @nevumx
+
+### Miscellaneous
+
+- Add Flipt to the OPA ecosystem (#6781) (authored by @markphelps)
+- Add page aliases for moved or renamed pages. (#6821) (authored by @charlieegan3)
+- Bumping golangci-lint to v1.59.1 (#6817) (authored by @johanfylling)
+- Fix spelling and grammar of an HTTP (#6786) (authored by @jdbaldry)
+- Prepare v0.66.0 development (#6775) (authored by @johanfylling)
+- add http.send request attribute to ignore headers for caching key (authored by @rudrakhp)
+- build(deps): bump aquasecurity/trivy-action from 0.21.0 to 0.22.0 (authored by @dependabot[bot])
+- build(deps): bump aquasecurity/trivy-action from 0.22.0 to 0.23.0 (#6826) (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.17 to 1.7.18 (authored by @dependabot[bot])
+- build(deps): bump github.com/spf13/cobra from 1.8.0 to 1.8.1 (#6823) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.25.0 to 0.26.0 (authored by @dependabot[bot])
+- build(deps-dev): bump braces in /docs/website/scripts/live-blocks (#6820) (authored by @dependabot[bot])
+- build: bump golang 1.22.3 -> 1.22.4 (authored by @srenatus)
+- build: use chainguard images from dockerhub (#6830) (authored by @srenatus)
+- bundle: Preallocate buffers for file contents. (#6818) (authored by @philipaconrad)
+- cmd/exec: Supporting simultaneous input from stdin and files (#6831) (authored by @johanfylling)
+- cmd/exec: adds --stdin-input (-I) flag for input piping or manual entry (#6822) (authored by @colinjlacy)
+- docs: Revise language SDK content (#6811) (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @)
+- docs: Update generated CLI docs (authored by @)
+- docs: add flipt blog to their ecosystem page (#6789) (authored by @charlieegan3)
+- docs: add vs code and zed to ecosystem page (#6788) (authored by @charlieegan3)
+- plugins: Reduce locks during decision logging (#6797) (authored by @mjungsbluth)
+- trace+tester: Adding local var values to trace and test report (#6815) (authored by @johanfylling)
 
 ## 0.65.0
 
