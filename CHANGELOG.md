@@ -5,6 +5,47 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.66.0
 
+This release contains a mix of features, performance improvements, and bugfixes.
+
+### Improved Test Reports ([2546](https://github.com/open-policy-agent/opa/issues/2546))
+
+The `opa test` command now includes a new `--var-values` flag that enriches reporting of failed tests with the values and locations for variables in the failing expression.
+E.g.:
+
+```
+FAILURES
+--------------------------------------------------------------------------------
+data.test.test_my_policy: FAIL (0ms)
+
+  test.rego:8:
+    	x == y + z
+    	|    |   |
+    	|    |   3
+    	|    y + z: 5
+    	|    y: 2
+    	1
+
+SUMMARY
+--------------------------------------------------------------------------------
+test.rego:
+data.test.test_foo: FAIL (0ms)
+--------------------------------------------------------------------------------
+FAIL: 1/1
+```
+
+Authored by @johanfylling, reported by @grosser.
+
+### Reading stdin in `opa exec` ([#6538](https://github.com/open-policy-agent/opa/issues/6538))
+
+The `opa exec` command now supports reading `input` documents from stdin with the `--stdin-input` (`-I`) flag.
+E.g.:
+
+```shell
+$ echo '{"user": "alice"}' | opa exec --stdin-input --bundle my_bundle
+```
+
+Authored by @colinjlacy, reported by @humbertoc-silva.
+
 ### Topdown and Rego
 
 - ast: Fix blanket "unexpected assign token" error message / usability issue ([#6563](https://github.com/open-policy-agent/opa/issues/6563)) authored by @anderseknert
@@ -18,12 +59,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 - build: Use chainguard images from dockerhub ([#6830](https://github.com/open-policy-agent/opa/pull/6830)) authored by @srenatus
 - bundle: Preallocate buffers for file contents. ([#6818](https://github.com/open-policy-agent/opa/pull/6818)) authored by @philipaconrad
-- cmd/exec: adds `--stdin-input` (`-I`) flag for input piping or manual entry ([#6538]https://github.com/open-policy-agent/opa/issues/6538) authored by @colinjlacy reported by @humbertoc-silva
 - plugins: Reduce locks during decision logging ([#6797](https://github.com/open-policy-agent/opa/pull/6797)) authored by @mjungsbluth
 - plugins/rest: Do local map modification in OAuth2 client credentials flow ([#6769](https://github.com/open-policy-agent/opa/issues/6769)) authored and reported by @eubaranov
 - loader: Use a better error message when trying to merge non-objects ([#6803](https://github.com/open-policy-agent/opa/issues/6803)) authored by @anderseknert
 - server/authorizer: Fix gzip payload handling ([#6804](https://github.com/open-policy-agent/opa/issues/6804)) authored by @philipaconrad reported by @nevumx
-- trace+tester: Adding local var values to trace and test report ([2546](https://github.com/open-policy-agent/opa/issues/2546)) authored by @johanfylling reported by @grosser
 
 ### Docs, Website, Ecosystem
 
@@ -32,7 +71,7 @@ project adheres to [Semantic Versioning](http://semver.org/).
 - docs: Fix spelling and grammar of `an HTTP` ([#6786](https://github.com/open-policy-agent/opa/pull/6786)) authored by @jdbaldry
 - docs/website: Add vs code and zed to ecosystem page ([#6788](https://github.com/open-policy-agent/opa/pull/6788)) authored by @charlieegan3
 - docs/website: Add Flipt to the OPA ecosystem ([#6781](https://github.com/open-policy-agent/opa/pull/6781)) authored by @markphelps
-- docs/website: Add flipt blog to their ecosystem page ([#6789](https://github.com/open-policy-agent/opa/pull/6789)) authored by @charlieegan3
+- docs/website: Add Flipt blog to their ecosystem page ([#6789](https://github.com/open-policy-agent/opa/pull/6789)) authored by @charlieegan3
 - docs/website: Revise language SDK content ([#6811](https://github.com/open-policy-agent/opa/pull/6811)) authored by @charlieegan3
 
 ### Miscellaneous
