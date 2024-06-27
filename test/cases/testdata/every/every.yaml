@@ -219,3 +219,31 @@ cases:
     query: data.test.p = x
     want_result:
       - x: [10]
+  - note: "every/array with calls"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every v in [1 / 2, 3, 4 + 5] { v < 10 }
+        }
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - note: "every/array with calls (fail)"
+    modules:
+      - |
+        package test
+        import future.keywords.every
+
+        p {
+          every v in [1 / 2, 3, 4 + 5] { v < 9 }
+        }
+
+        q {
+          not p
+        }
+    query: data.test.q = x
+    want_result:
+      - x: true

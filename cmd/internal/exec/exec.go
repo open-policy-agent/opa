@@ -2,61 +2,25 @@ package exec
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
-	"time"
+	"strings"
 
-	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/sdk"
-	"github.com/open-policy-agent/opa/util"
 )
 
-type Params struct {
-	Paths               []string       // file paths to execute against
-	Output              io.Writer      // output stream to write normal output to
-	ConfigFile          string         // OPA configuration file path
-	ConfigOverrides     []string       // OPA configuration overrides (--set arguments)
-	ConfigOverrideFiles []string       // OPA configuration overrides (--set-file arguments)
-	OutputFormat        *util.EnumFlag // output format (default: pretty)
-	LogLevel            *util.EnumFlag // log level for plugins
-	LogFormat           *util.EnumFlag // log format for plugins
-	LogTimestampFormat  string         // log timestamp format for plugins
-	BundlePaths         []string       // explicit paths of bundles to inject into the configuration
-	Decision            string         // decision to evaluate (overrides default decision set by configuration)
-	Fail                bool           // exits with non-zero exit code on undefined policy decision or empty policy decision result or other errors
-	FailDefined         bool           // exits with non-zero exit code on 'not undefined policy decisiondefined' or 'not empty policy decision result' or other errors
-	FailNonEmpty        bool           // exits with non-zero exit code on non-empty set (array) results
-	Timeout             time.Duration  // timeout to prevent infinite hangs. If set to 0, the command will never time out
-	V1Compatible        bool           // use OPA 1.0 compatibility mode
-	Logger              logging.Logger // Logger override. If set to nil, the default logger is used.
-}
+var (
+	r       *jsonReporter
+	parsers = map[string]parser{
+		".json": utilParser{},
+		".yaml": utilParser{},
+		".yml":  utilParser{},
+	}
+)
 
-func NewParams(w io.Writer) *Params {
-	return &Params{
-		Output:       w,
-		OutputFormat: util.NewEnumFlag("pretty", []string{"pretty", "json"}),
-		LogLevel:     util.NewEnumFlag("error", []string{"debug", "info", "error"}),
-		LogFormat:    util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
-	}
-}
-
-func (p *Params) validateParams() error {
-	if p.Fail && p.FailDefined {
-		return errors.New("specify --fail or --fail-defined but not both")
-	}
-	if p.FailNonEmpty && p.Fail {
-		return errors.New("specify --fail-non-empty or --fail but not both")
-	}
-	if p.FailNonEmpty && p.FailDefined {
-		return errors.New("specify --fail-non-empty or --fail-defined but not both")
-	}
-	return nil
-}
+const stdInPath = "--stdin-input"
 
 // Exec executes OPA against the supplied files and outputs each result.
 //
@@ -66,18 +30,49 @@ func (p *Params) validateParams() error {
 //   - exit codes set by convention or policy (e.g,. non-empty set => error)
 //   - support for new input file formats beyond JSON and YAML
 func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
-
-	err := params.validateParams()
-	if err != nil {
+	if err := params.validateParams(); err != nil {
 		return err
 	}
 
-	now := time.Now()
-	r := &jsonReporter{w: params.Output, buf: make([]result, 0)}
+	r = &jsonReporter{w: params.Output, buf: make([]result, 0), ctx: &ctx, opa: opa, params: params, decisionFunc: opa.Decision}
 
-	failCount := 0
-	errorCount := 0
+	if params.StdIn {
+		if err := execOnStdIn(); err != nil {
+			return err
+		}
+	}
 
+	if err := execOnInputFiles(params); err != nil {
+		return err
+	}
+
+	if err := r.Close(); err != nil {
+		return err
+	}
+
+	return r.ReportFailure()
+}
+
+func execOnStdIn() error {
+	sr := stdInReader{Reader: os.Stdin}
+	p := utilParser{}
+	raw := sr.ReadInput()
+	input, err := p.Parse(strings.NewReader(raw))
+	if err != nil {
+		return err
+	} else if input == nil {
+		return errors.New("cannot execute on empty input; please enter valid json or yaml when using the --stdin-input flag")
+	}
+	r.StoreDecision(&input, stdInPath)
+	return nil
+}
+
+type fileListItem struct {
+	Path  string
+	Error error
+}
+
+func execOnInputFiles(params *Params) error {
 	for item := range listAllPaths(params.Paths) {
 
 		if item.Error != nil {
@@ -87,94 +82,17 @@ func Exec(ctx context.Context, opa *sdk.OPA, params *Params) error {
 		input, err := parse(item.Path)
 
 		if err != nil {
-			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
-				return err2
-			}
+			r.Report(result{Path: item.Path, Error: err})
 			if params.FailDefined || params.Fail || params.FailNonEmpty {
-				errorCount++
+				r.errorCount++
 			}
 			continue
 		} else if input == nil {
 			continue
 		}
-
-		rs, err := opa.Decision(ctx, sdk.DecisionOptions{
-			Path:  params.Decision,
-			Now:   now,
-			Input: input,
-		})
-		if err != nil {
-			if err2 := r.Report(result{Path: item.Path, Error: err}); err2 != nil {
-				return err2
-			}
-			if (params.FailDefined && !sdk.IsUndefinedErr(err)) || (params.Fail && sdk.IsUndefinedErr(err)) || (params.FailNonEmpty && !sdk.IsUndefinedErr(err)) {
-				errorCount++
-			}
-			continue
-		}
-
-		if err := r.Report(result{Path: item.Path, Result: &rs.Result}); err != nil {
-			return err
-		}
-
-		if (params.FailDefined && rs.Result != nil) || (params.Fail && rs.Result == nil) {
-			failCount++
-		}
-
-		if params.FailNonEmpty && rs.Result != nil {
-			// Check if rs.Result is an array and has one or more members
-			resultArray, isArray := rs.Result.([]interface{})
-			if (!isArray) || (isArray && (len(resultArray) > 0)) {
-				failCount++
-			}
-		}
+		r.StoreDecision(input, item.Path)
 	}
-	if err := r.Close(); err != nil {
-		return err
-	}
-
-	if (params.Fail || params.FailDefined || params.FailNonEmpty) && (failCount > 0 || errorCount > 0) {
-		if params.Fail {
-			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail is set", failCount, errorCount)
-		}
-		if params.FailDefined {
-			return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-defined is set", failCount, errorCount)
-		}
-		return fmt.Errorf("there were %d failures and %d errors counted in the results list, and --fail-non-empty is set", failCount, errorCount)
-	}
-
 	return nil
-}
-
-type result struct {
-	Path   string       `json:"path"`
-	Error  error        `json:"error,omitempty"`
-	Result *interface{} `json:"result,omitempty"`
-}
-
-type jsonReporter struct {
-	w   io.Writer
-	buf []result
-}
-
-func (jr *jsonReporter) Report(r result) error {
-	jr.buf = append(jr.buf, r)
-	return nil
-}
-
-func (jr *jsonReporter) Close() error {
-	enc := json.NewEncoder(jr.w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(struct {
-		Result []result `json:"result"`
-	}{
-		Result: jr.buf,
-	})
-}
-
-type fileListItem struct {
-	Path  string
-	Error error
 }
 
 func listAllPaths(roots []string) chan fileListItem {
@@ -200,31 +118,8 @@ func listAllPaths(roots []string) chan fileListItem {
 	return ch
 }
 
-var parsers = map[string]parser{
-	".json": utilParser{},
-	".yaml": utilParser{},
-	".yml":  utilParser{},
-}
-
-type parser interface {
-	Parse(io.Reader) (interface{}, error)
-}
-
-type utilParser struct {
-}
-
-func (utilParser) Parse(r io.Reader) (interface{}, error) {
-	bs, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	var x interface{}
-	return x, util.Unmarshal(bs, &x)
-}
-
 func parse(p string) (*interface{}, error) {
-
-	parser, ok := parsers[path.Ext(p)]
+	selectedParser, ok := parsers[path.Ext(p)]
 	if !ok {
 		return nil, nil
 	}
@@ -236,7 +131,7 @@ func parse(p string) (*interface{}, error) {
 
 	defer f.Close()
 
-	val, err := parser.Parse(f)
+	val, err := selectedParser.Parse(f)
 	if err != nil {
 		return nil, err
 	}

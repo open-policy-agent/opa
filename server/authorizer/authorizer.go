@@ -151,7 +151,6 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func makeInput(r *http.Request) (*http.Request, interface{}, error) {
-
 	path, err := parsePath(r.URL.Path)
 	if err != nil {
 		return r, nil, err
@@ -164,7 +163,11 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 
 	if expectBody(r.Method, path) {
 		var err error
-		rawBody, err = io.ReadAll(r.Body)
+		plaintextBody, err := util.ReadMaybeCompressedBody(r)
+		if err != nil {
+			return r, nil, err
+		}
+		rawBody, err = io.ReadAll(plaintextBody)
 		if err != nil {
 			return r, nil, err
 		}

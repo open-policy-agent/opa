@@ -771,14 +771,14 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
 
-               some_function {
-                       input.foo == 7
-               }
+              some_function {
+                      input.foo == 7
+              }
 
-               default fail_test := false
-               fail_test {
-                       some_function
-               }`,
+              default fail_test := false
+              fail_test {
+                      some_function
+              }`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: true,
@@ -853,14 +853,14 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
 
-               some_function {
-                       input.foo == 7
-               }
+              some_function {
+                      input.foo == 7
+              }
 
-               default fail_test := false
-               fail_test {
-                       some_function
-               }`,
+              default fail_test := false
+              fail_test {
+                      some_function
+              }`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: false,
@@ -936,14 +936,14 @@ func TestFailFlagCases(t *testing.T) {
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.non.empty.flag
 
-               some_function {
-                       input.foo == 7
-               }
+              some_function {
+                      input.foo == 7
+              }
 
-               default fail_test := false
-               fail_test {
-                       some_function
-               }`,
+              default fail_test := false
+              fail_test {
+                      some_function
+              }`,
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
@@ -1039,6 +1039,116 @@ func TestFailFlagCases(t *testing.T) {
 
 				if !reflect.DeepEqual(output, tt.expected) {
 					t.Errorf("Expected %v, got: %v", tt.expected, output)
+				}
+			})
+		})
+	}
+}
+
+func TestExecWithInvalidInputOptions(t *testing.T) {
+	tests := []struct {
+		description string
+		files       map[string]string
+		stdIn       bool
+		input       string
+		expectError bool
+		expected    string
+	}{
+		{
+			description: "path passed in as arg should not raise error",
+			files: map[string]string{
+				"files/test.json": `{"foo": 7}`,
+				"bundle/x.rego": `package system
+
+		test_fun := x {
+			x = false
+			x
+		}
+
+		undefined_test {
+			test_fun
+		}`,
+			},
+			expectError: false,
+			expected:    "",
+		},
+		{
+			description: "no paths passed in as args should raise error if --stdin-input flag not set",
+			files: map[string]string{
+				"bundle/x.rego": `package system
+
+		test_fun := x {
+			x = false
+			x
+		}
+
+		undefined_test {
+			test_fun
+		}`,
+			},
+			expectError: true,
+			expected:    "requires at least 1 path arg, or the --stdin-input flag",
+		},
+		{
+			description: "should not raise error if --stdin-input flag is set when no paths passed in as args",
+			files: map[string]string{
+				"bundle/x.rego": `package system
+
+		test_fun := x {
+			x = false
+			x
+		}
+
+		undefined_test {
+			test_fun
+		}`,
+			},
+			stdIn:       true,
+			input:       `{"foo": 7}`,
+			expectError: false,
+			expected:    "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			test.WithTempFS(tt.files, func(dir string) {
+				var buf bytes.Buffer
+				params := exec.NewParams(&buf)
+				_ = params.OutputFormat.Set("json")
+				params.BundlePaths = []string{dir + "/bundle/"}
+				if tt.stdIn {
+					params.StdIn = true
+					tempFile, err := os.CreateTemp("", "test")
+					if err != nil {
+						t.Fatalf("unexpected error creating temp file: %q", err.Error())
+					}
+					if _, err := tempFile.Write([]byte(tt.input)); err != nil {
+						t.Fatalf("unexpeced error when writing to temp file: %q", err.Error())
+					}
+					if _, err := tempFile.Seek(0, 0); err != nil {
+						t.Fatalf("unexpected error when rewinding temp file: %q", err.Error())
+					}
+					oldStdin := os.Stdin
+					defer func() {
+						os.Stdin = oldStdin
+						os.Remove(tempFile.Name())
+					}()
+					os.Stdin = tempFile
+				} else {
+					if _, ok := tt.files["files/test.json"]; ok {
+						params.Paths = append(params.Paths, dir+"/files/")
+					}
+				}
+
+				err := runExec(params)
+				if err != nil && !tt.expectError {
+					t.Fatalf("unexpected error in test: %q", err.Error())
+				}
+				if err == nil && tt.expectError {
+					t.Fatalf("expected error %q, but none occurred in test", tt.expected)
+				}
+				if err != nil && err.Error() != tt.expected {
+					t.Fatalf("expected error %q, but got %q", tt.expected, err.Error())
 				}
 			})
 		})

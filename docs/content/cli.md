@@ -599,6 +599,9 @@ the OPA configuration) against each input file. This can be overridden by
 specifying the --decision argument and pointing at a specific policy decision,
 e.g., opa exec --decision /foo/bar/baz ...
 
+Alternative Usage:
+  generate exec [<path> [...]] --stdin-input [flags]
+
 ```
 opa exec <path> [<path> [...]] [flags]
 ```
@@ -619,6 +622,7 @@ opa exec <path> [<path> [...]] [flags]
       --log-timestamp-format string          set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)
       --set stringArray                      override config values on the command line (use commas to specify multiple values)
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
+  -I, --stdin-input                          read input document from stdin rather than a static file
       --timeout duration                     set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)
       --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 ```

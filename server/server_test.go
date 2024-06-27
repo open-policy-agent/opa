@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -1679,6 +1680,146 @@ func TestDataPutV1IfNoneMatch(t *testing.T) {
 	req.Header.Set("If-None-Match", "*")
 	if err := f.executeRequest(req, 304, ""); err != nil {
 		t.Fatalf("Unexpected error from PUT with If-None-Match=*: %v", err)
+	}
+}
+
+// Ensure JSON payload is compressed with gzip.
+func mustGZIPPayload(payload []byte) []byte {
+	var compressedPayload bytes.Buffer
+	gz := gzip.NewWriter(&compressedPayload)
+	if _, err := gz.Write(payload); err != nil {
+		panic(fmt.Errorf("Error writing to gzip writer: %w", err))
+	}
+	if err := gz.Close(); err != nil {
+		panic(fmt.Errorf("Error closing gzip writer: %w", err))
+	}
+	return compressedPayload.Bytes()
+}
+
+// generateJSONBenchmarkData returns a map of `k` keys and `v` key/value pairs.
+// Taken from topdown/topdown_bench_test.go
+func generateJSONBenchmarkData(k, v int) map[string]interface{} {
+	// create array of null values that can be iterated over
+	keys := make([]interface{}, k)
+	for i := range keys {
+		keys[i] = nil
+	}
+
+	// create large JSON object value (100,000 entries is about 2MB on disk)
+	values := map[string]interface{}{}
+	for i := 0; i < v; i++ {
+		values[fmt.Sprintf("key%d", i)] = fmt.Sprintf("value%d", i)
+	}
+
+	return map[string]interface{}{
+		"keys":   keys,
+		"values": values,
+	}
+}
+
+// Ref: https://github.com/open-policy-agent/opa/issues/6804
+func TestDataGetV1CompressedRequestWithAuthorizer(t *testing.T) {
+	tests := []struct {
+		note                  string
+		payload               []byte
+		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
+		expRespHTTPStatus     int
+		expErrorMsg           string
+	}{
+		{
+			note:              "empty message",
+			payload:           mustGZIPPayload([]byte{}),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "empty object",
+			payload:           mustGZIPPayload([]byte(`{}`)),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "basic authz - fail",
+			payload:           mustGZIPPayload([]byte(`{"user": "bob"}`)),
+			expRespHTTPStatus: 401,
+		},
+		{
+			note:              "basic authz - pass",
+			payload:           mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:                  "basic authz - malicious size field",
+			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip: invalid checksum",
+		},
+		{
+			note:              "basic authz - huge zip",
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 401,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := inmem.New()
+			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+			authzPolicy := `package system.authz
+
+import rego.v1
+
+default allow := false # Reject requests by default.
+
+allow if {
+	# Logic to authorize request goes here.
+	input.body.user == "alice"
+}
+`
+
+			if err := store.UpsertPolicy(ctx, txn, "test", []byte(authzPolicy)); err != nil {
+				panic(err)
+			}
+
+			if err := store.Commit(ctx, txn); err != nil {
+				panic(err)
+			}
+
+			opts := [](func(*Server)){
+				func(s *Server) {
+					s.WithStore(store)
+				},
+				func(s *Server) {
+					s.WithAuthorization(AuthorizationBasic)
+				},
+			}
+
+			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t}}`, true), opts...)
+
+			// Forcibly replace the size trailer field for the gzip blob.
+			// Byte order is little-endian, field is a uint32.
+			if test.forcePayloadSizeField != 0 {
+				binary.LittleEndian.PutUint32(test.payload[len(test.payload)-4:], test.forcePayloadSizeField)
+			}
+
+			// execute the request
+			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
+			req.Header.Set("Content-Encoding", "gzip")
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+			if f.recorder.Code != test.expRespHTTPStatus {
+				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
+			}
+			if test.expErrorMsg != "" {
+				var serverErr types.ErrorV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &serverErr); err != nil {
+					t.Fatalf("Could not deserialize error message: %s", err.Error())
+				}
+				if serverErr.Message != test.expErrorMsg {
+					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
+			}
+		})
 	}
 }
 

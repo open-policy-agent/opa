@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,9 +51,11 @@ After: Decision Logs
 By default, the 'exec' command executes the "default decision" (specified in
 the OPA configuration) against each input file. This can be overridden by
 specifying the --decision argument and pointing at a specific policy decision,
-e.g., opa exec --decision /foo/bar/baz ...`,
+e.g., opa exec --decision /foo/bar/baz ...
 
-		Args: cobra.MinimumNArgs(1),
+Alternative Usage:
+  ` + RootCommand.Use + ` exec [<path> [...]] --stdin-input [flags]`,
+
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
 			return env.CmdFlags.CheckEnvironmentVariables(cmd)
 		},
@@ -78,6 +81,7 @@ e.g., opa exec --decision /foo/bar/baz ...`,
 	cmd.Flags().VarP(params.LogLevel, "log-level", "l", "set log level")
 	cmd.Flags().Var(params.LogFormat, "log-format", "set log format")
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
+	cmd.Flags().BoolVarP(&params.StdIn, "stdin-input", "I", false, "read input document from stdin rather than a static file")
 	cmd.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
 	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
 
@@ -95,6 +99,10 @@ func runExec(params *exec.Params) error {
 }
 
 func runExecWithContext(ctx context.Context, params *exec.Params) error {
+	if minimumInputErr := validateMinimumInput(params); minimumInputErr != nil {
+		return minimumInputErr
+	}
+
 	stdLogger, consoleLogger, err := setupLogging(params.LogLevel.String(), params.LogFormat.String(), params.LogTimestampFormat)
 	if err != nil {
 		return fmt.Errorf("config error: %w", err)
@@ -256,5 +264,12 @@ func injectExplicitBundles(root map[string]interface{}, paths []string) error {
 		}
 	}
 
+	return nil
+}
+
+func validateMinimumInput(params *exec.Params) error {
+	if !params.StdIn && len(params.Paths) == 0 {
+		return errors.New("requires at least 1 path arg, or the --stdin-input flag")
+	}
 	return nil
 }
