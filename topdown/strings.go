@@ -310,6 +310,37 @@ func builtinContains(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term
 	return iter(ast.BooleanTerm(strings.Contains(string(s), string(substr))))
 }
 
+func builtinStringCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	s, err := builtins.StringOperand(operands[0].Value, 1)
+	if err != nil {
+		return err
+	}
+
+	substr, err := builtins.StringOperand(operands[1].Value, 2)
+	if err != nil {
+		return err
+	}
+
+	if len(substr) == 0 {
+		return iter(ast.IntNumberTerm(len(s) + 1))
+	}
+
+	baseTerm := string(s)
+	searchTerm := string(substr)
+
+	count := 0
+	for {
+		i := strings.Index(baseTerm, searchTerm)
+		if i == -1 {
+			break
+		}
+		count++
+		baseTerm = baseTerm[i+len(searchTerm):]
+	}
+
+	return iter(ast.IntNumberTerm(count))
+}
+
 func builtinStartsWith(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
@@ -569,6 +600,7 @@ func init() {
 	RegisterBuiltinFunc(ast.IndexOf.Name, builtinIndexOf)
 	RegisterBuiltinFunc(ast.IndexOfN.Name, builtinIndexOfN)
 	RegisterBuiltinFunc(ast.Substring.Name, builtinSubstring)
+	RegisterBuiltinFunc(ast.StringCount.Name, builtinStringCount)
 	RegisterBuiltinFunc(ast.Contains.Name, builtinContains)
 	RegisterBuiltinFunc(ast.StartsWith.Name, builtinStartsWith)
 	RegisterBuiltinFunc(ast.EndsWith.Name, builtinEndsWith)
