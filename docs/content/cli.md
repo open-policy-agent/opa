@@ -599,11 +599,17 @@ the OPA configuration) against each input file. This can be overridden by
 specifying the --decision argument and pointing at a specific policy decision,
 e.g., opa exec --decision /foo/bar/baz ...
 
-Alternative Usage:
-  generate exec [<path> [...]] --stdin-input [flags]
 
 ```
 opa exec <path> [<path> [...]] [flags]
+```
+
+### Examples
+
+```
+  Loading input from stdin:
+    generate exec [<path> [...]] --stdin-input [flags]
+
 ```
 
 ### Options
