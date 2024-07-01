@@ -770,6 +770,38 @@ func TestNew(t *testing.T) {
 			}`,
 			wantErr: true,
 		},
+		{
+			name: "Oauth2CredsClientAssertionPath",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_assertion_path": "/some/file",
+						"scopes": ["profile", "opa"]
+					}
+				}
+			}`, grantTypeClientCredentials),
+		},
+		{
+			name: "Oauth2CredsClientAssertion",
+			input: fmt.Sprintf(`{
+				"name": "foo",
+				"url": "http://localhost",
+				"credentials": {
+					"oauth2": {
+						"grant_type": %q,
+						"token_url": "https://localhost",
+						"client_id": "client_one",
+						"client_assertion": "assertive",
+						"scopes": ["profile", "opa"]
+					}
+				}
+			}`, grantTypeClientCredentials),
+		},
 	}
 
 	var results []Client
