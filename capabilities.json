@@ -3970,6 +3970,23 @@
       }
     },
     {
+      "name": "strings.count",
+      "decl": {
+        "args": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "result": {
+          "type": "number"
+        },
+        "type": "function"
+      }
+    },
+    {
       "name": "strings.render_template",
       "decl": {
         "args": [
