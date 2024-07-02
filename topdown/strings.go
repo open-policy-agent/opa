@@ -321,22 +321,10 @@ func builtinStringCount(_ BuiltinContext, operands []*ast.Term, iter func(*ast.T
 		return err
 	}
 
-	if len(substr) == 0 {
-		return iter(ast.IntNumberTerm(len(s) + 1))
-	}
-
 	baseTerm := string(s)
 	searchTerm := string(substr)
 
-	count := 0
-	for {
-		i := strings.Index(baseTerm, searchTerm)
-		if i == -1 {
-			break
-		}
-		count++
-		baseTerm = baseTerm[i+len(searchTerm):]
-	}
+	count := strings.Count(baseTerm, searchTerm)
 
 	return iter(ast.IntNumberTerm(count))
 }
