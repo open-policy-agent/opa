@@ -47,7 +47,7 @@ func ProcessWatcherUpdate(ctx context.Context, paths []string, removed string, s
 
 func ProcessWatcherUpdateForRegoVersion(ctx context.Context, regoVersion ast.RegoVersion, paths []string, removed string, store storage.Store, filter loader.Filter, asBundle bool,
 	f func(context.Context, storage.Transaction, *initload.LoadPathsResult) error) error {
-	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, paths, filter, asBundle, nil, true, false, nil, nil)
+	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, paths, filter, asBundle, nil, true, false, false, nil, nil)
 	if err != nil {
 		return err
 	}

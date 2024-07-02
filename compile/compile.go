@@ -84,6 +84,7 @@ type Compiler struct {
 	fsys                         fs.FS                      // file system to use when loading paths
 	ns                           string
 	regoVersion                  ast.RegoVersion
+	followSymlinks               bool // optionally follow symlinks in the bundle directory when building the bundle
 }
 
 // New returns a new compiler instance that can be invoked.
@@ -216,6 +217,12 @@ func (c *Compiler) WithBundleVerificationKeyID(keyID string) *Compiler {
 // WithCapabilities sets the capabilities to use while checking policies.
 func (c *Compiler) WithCapabilities(capabilities *ast.Capabilities) *Compiler {
 	c.capabilities = capabilities
+	return c
+}
+
+// WithFollowSymlinks sets whether or not to follow symlinks in the bundle directory when building the bundle
+func (c *Compiler) WithFollowSymlinks(yes bool) *Compiler {
+	c.followSymlinks = yes
 	return c
 }
 
@@ -471,7 +478,17 @@ func (c *Compiler) initBundle(usePath bool) error {
 	// TODO(tsandall): the metrics object should passed through here so we that
 	// we can track read and parse times.
 
-	load, err := initload.LoadPathsForRegoVersion(c.regoVersion, c.paths, c.filter, c.asBundle, c.bvc, false, c.useRegoAnnotationEntrypoints, c.capabilities, c.fsys)
+	load, err := initload.LoadPathsForRegoVersion(
+		c.regoVersion,
+		c.paths,
+		c.filter,
+		c.asBundle,
+		c.bvc,
+		false,
+		c.useRegoAnnotationEntrypoints,
+		c.followSymlinks,
+		c.capabilities,
+		c.fsys)
 	if err != nil {
 		return fmt.Errorf("load error: %w", err)
 	}

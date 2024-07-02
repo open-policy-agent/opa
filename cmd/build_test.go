@@ -2002,3 +2002,229 @@ foo contains __local1__1 if {
 		})
 	}
 }
+
+// TestBuildWithFollowSymlinks tests that the build command follows symlinks when building a bundle.
+// This test uses a local tmp filesystem to create a directory with a symlink to a file in it's root
+// and a local file in the bundle directory, and verifies that the built bundle contains both the symlink
+// and the regular file.
+// There's probably some common utilities that could be extracted at some point but for now this code is
+// local to the test until we need to reuse it elsewhere.
+func TestBuildWithFollowSymlinks(t *testing.T) {
+	rootDir, err := os.MkdirTemp("", "build-follow-symlinks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	bundleDir := path.Join(rootDir, "bundle")
+	err = os.Mkdir(bundleDir, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a regular file in our temp bundle directory
+	err = os.WriteFile(filepath.Join(bundleDir, "foo.rego"), []byte("package foo\none = 1"), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a regular file in the root directory of our tmp directory that we will symlink into the bundle directory later
+	err = os.WriteFile(filepath.Join(rootDir, "bar.rego"), []byte("package foo\ntwo = 2"), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a symlink in the bundle directory to the file in the root directory
+	err = os.Symlink(filepath.Join(rootDir, "bar.rego"), filepath.Join(bundleDir, "bar.rego"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	params := newBuildParams()
+	params.outputFile = path.Join(rootDir, "test.tar.gz")
+	params.bundleMode = true
+	params.followSymlinks = true
+
+	err = dobuild(params, []string{bundleDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify that the bundle is a loadable bundle
+	_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open(params.outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := tar.NewReader(gr)
+
+	// map of file name -> file content
+	expectedFiles := map[string]string{
+		bundleDir + "/foo.rego": "package foo\n\none = 1",
+		bundleDir + "/bar.rego": "package foo\n\ntwo = 2",
+		"/.manifest":            `{"revision":"","roots":[""],"rego_version":0}`,
+		"/data.json":            "{}",
+	}
+
+	foundFiles := make(map[string]string, 4)
+	for f, err := tr.Next(); err != io.EOF; f, err = tr.Next() {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// ensure that all the files are regular files in the bundle
+		// and that no symlinks were copied
+		if mode := f.FileInfo().Mode(); !mode.IsRegular() {
+			t.Fatalf("expected regular file for file %s but got %s", f.FileInfo().Name(), mode.String())
+		}
+		// read the file content
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatalf("failed to read file %s: %v", f.FileInfo().Name(), err)
+		}
+		foundFiles[f.Name] = string(data)
+	}
+
+	if len(foundFiles) != 4 {
+		t.Fatalf("expected four files in bundle but got %d", len(foundFiles))
+	}
+
+	for name, contents := range foundFiles {
+		// trim added whitespace because it's annoying and makes the test less readable
+		contents := strings.Trim(contents, "\n")
+		// check that the file content matches the expected content
+		expectedContent, ok := expectedFiles[name]
+		if !ok {
+			t.Fatalf("unexpected file %s in bundle", name)
+		}
+
+		if contents != expectedContent {
+			t.Fatalf("expected file %s to contain:\n\n%v\n\ngot:\n\n%v", name, expectedContent, contents)
+		}
+	}
+}
+
+// TestBuildWithFollowSymlinksEntireDir tests that the build command can build a bundle from a symlinked directory.
+// This test uses a local tmp filesystem to create a directory with a local file in the bundle directory, and
+// verifies that the built bundle contains the files from the symlinked directory.
+func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
+	rootDir, err := os.MkdirTemp("", "build-follow-symlinks-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	bundleDir := path.Join(rootDir, "src")
+	err = os.Mkdir(bundleDir, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a regular file in our temp bundle directory
+	err = os.WriteFile(filepath.Join(bundleDir, "foo.rego"), []byte("package foo\none = 1"), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	symlinkDir := path.Join(rootDir, "symlink")
+	err = os.Mkdir(symlinkDir, 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a symlink in the symlink directory to the src directory
+	err = os.Symlink(bundleDir, filepath.Join(symlinkDir, "linked"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	params := newBuildParams()
+	params.outputFile = path.Join(rootDir, "test.tar.gz")
+	params.bundleMode = true
+	params.followSymlinks = true
+
+	err = dobuild(params, []string{symlinkDir + "/linked/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify that the bundle is a loadable bundle
+	_, err = loader.NewFileLoader().AsBundle(params.outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open(params.outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := tar.NewReader(gr)
+
+	// map of file name -> file content
+	expectedFiles := map[string]string{
+		path.Join(symlinkDir, "linked", "foo.rego"): "package foo\n\none = 1",
+		"/.manifest": `{"revision":"","roots":[""],"rego_version":0}`,
+		"/data.json": "{}",
+	}
+
+	foundFiles := make(map[string]string, 3)
+	for f, err := tr.Next(); err != io.EOF; f, err = tr.Next() {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// ensure that all the files are regular files in the bundle
+		// and that no symlinks were copied
+		if mode := f.FileInfo().Mode(); !mode.IsRegular() {
+			t.Fatalf("expected regular file for file %s but got %s", f.FileInfo().Name(), mode.String())
+		}
+		// read the file content
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatalf("failed to read file %s: %v", f.FileInfo().Name(), err)
+		}
+		foundFiles[f.Name] = string(data)
+	}
+
+	if len(foundFiles) != 3 {
+		t.Fatalf("expected three files in bundle but got %d", len(foundFiles))
+	}
+
+	for name, contents := range foundFiles {
+		// trim added whitespace because it's annoying and makes the test less readable
+		contents := strings.Trim(contents, "\n")
+		// check that the file content matches the expected content
+		expectedContent, ok := expectedFiles[name]
+		if !ok {
+			t.Fatalf("unexpected file %s in bundle", name)
+		}
+
+		if contents != expectedContent {
+			t.Fatalf("expected file %s to contain:\n\n%v\n\ngot:\n\n%v", name, expectedContent, contents)
+		}
+	}
+}
