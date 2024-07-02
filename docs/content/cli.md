@@ -242,6 +242,7 @@ opa build <path> [<path> [...]] [flags]
       --debug                          enable debug output
   -e, --entrypoint string              set slash separated entrypoint path
       --exclude-files-verify strings   set file names to exclude during bundle verification
+      --follow-symlinks                follow symlinks in the input set of paths when building the bundle
   -h, --help                           help for build
       --ignore strings                 set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
   -O, --optimize int                   set optimization level
