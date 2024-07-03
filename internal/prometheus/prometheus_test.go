@@ -143,6 +143,7 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_tls10server_events_total",
 			"go_godebug_non_default_behavior_httpmuxgo121_events_total",
 			"go_godebug_non_default_behavior_tlsrsakex_events_total",
+			"go_godebug_non_default_behavior_netedns0_events_total", // added in 1.22.5
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
