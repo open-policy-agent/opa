@@ -1115,8 +1115,8 @@ var StringCount = &Builtin{
 	Description: "Returns the number of non-overlapping instances of a substring in a string.",
 	Decl: types.NewFunction(
 		types.Args(
-			types.Named("cheese", types.S).Description("string to search in"),
-			types.Named("e", types.S).Description("substring to look for"),
+			types.Named("search", types.S).Description("string to search in"),
+			types.Named("substring", types.S).Description("substring to look for"),
 		),
 		types.Named("output", types.N).Description("count of occurrences, `0` if not found"),
 	),
