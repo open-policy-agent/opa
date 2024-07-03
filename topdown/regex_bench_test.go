@@ -63,7 +63,7 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 
 						wg := sync.WaitGroup{}
 						for i := 0; i < clientCount; i++ {
-							clientId := i
+							clientID := i
 							wg.Add(1)
 							go func() {
 								for j := 0; j < patternCount; j++ {
@@ -75,12 +75,13 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 										}
 									} else {
 										operands = []*ast.Term{
-											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientId, j))),
-											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%dbar", clientId, j))),
+											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientID, j))),
+											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%dbar", clientID, j))),
 										}
 									}
 									if err := builtinRegexMatch(ctx, operands, iter); err != nil {
-										b.Fatal(err)
+										b.Error(err)
+										return
 									}
 								}
 								wg.Done()
