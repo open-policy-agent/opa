@@ -17387,12 +17387,12 @@
     "args": [
       {
         "description": "string to search in",
-        "name": "cheese",
+        "name": "search",
         "type": "string"
       },
       {
         "description": "substring to look for",
-        "name": "e",
+        "name": "substring",
         "type": "string"
       }
     ],
