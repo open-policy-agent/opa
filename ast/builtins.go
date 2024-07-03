@@ -120,6 +120,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Lower,
 	Upper,
 	Contains,
+	StringCount,
 	StartsWith,
 	EndsWith,
 	Split,
@@ -1105,6 +1106,19 @@ var Contains = &Builtin{
 			types.Named("needle", types.S).Description("substring to look for"),
 		),
 		types.Named("result", types.B).Description("result of the containment check"),
+	),
+	Categories: stringsCat,
+}
+
+var StringCount = &Builtin{
+	Name:        "strings.count",
+	Description: "Returns the number of non-overlapping instances of a substring in a string.",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("search", types.S).Description("string to search in"),
+			types.Named("substring", types.S).Description("substring to look for"),
+		),
+		types.Named("output", types.N).Description("count of occurrences, `0` if not found"),
 	),
 	Categories: stringsCat,
 }
