@@ -8,6 +8,8 @@
 #include "std.h"
 #include "value.h"
 
+static const int MAX_CACHE_SIZE = 100;
+
 struct cache_key {
 public:
     inline cache_key() : pattern(""), delimiters() { }
@@ -100,6 +102,16 @@ opa_value *opa_glob_match(opa_value *pattern, opa_value *delimiters, opa_value *
         {
             return NULL;
         }
+
+		if (c->size() >= MAX_CACHE_SIZE)
+		{
+			// Delete a (semi-)random key to make room for the new one.
+			auto i = c->begin();
+			if (i != c->end())
+			{
+				c->erase(c->begin());
+			}
+		}
 
         cache()->insert(std::make_pair(key, re2));
     }
