@@ -6,14 +6,14 @@ package topdown
 
 import (
 	"fmt"
-	"regexp"
 	"sync"
 	"testing"
 
+	"github.com/gobwas/glob"
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func BenchmarkBuiltinRegexMatch(b *testing.B) {
+func BenchmarkBuiltinGlobMatch(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
 	ctx := BuiltinContext{}
 
@@ -23,22 +23,24 @@ func BenchmarkBuiltinRegexMatch(b *testing.B) {
 				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					// Clearing the cache
-					regexpCache = make(map[string]*regexp.Regexp)
+					globCache = make(map[string]glob.Glob)
 
 					for i := 0; i < patternCount; i++ {
 						var operands []*ast.Term
 						if reusePattern {
 							operands = []*ast.Term{
-								ast.NewTerm(ast.String("foo.*")),
-								ast.NewTerm(ast.String("foobar")),
+								ast.NewTerm(ast.String("foo/*")),
+								ast.NullTerm(),
+								ast.NewTerm(ast.String("foo/bar")),
 							}
 						} else {
 							operands = []*ast.Term{
-								ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
-								ast.NewTerm(ast.String(fmt.Sprintf("foo%dbar", i))),
+								ast.NewTerm(ast.String(fmt.Sprintf("foo/*/%d", i))),
+								ast.NullTerm(),
+								ast.NewTerm(ast.String(fmt.Sprintf("foo/bar/%d", i))),
 							}
 						}
-						if err := builtinRegexMatch(ctx, operands, iter); err != nil {
+						if err := builtinGlobMatch(ctx, operands, iter); err != nil {
 							b.Fatal(err)
 						}
 					}
@@ -48,7 +50,7 @@ func BenchmarkBuiltinRegexMatch(b *testing.B) {
 	}
 }
 
-func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
+func BenchmarkBuiltinGlobMatchAsync(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
 	ctx := BuiltinContext{}
 
@@ -59,7 +61,7 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						// Clearing the cache
-						regexpCache = make(map[string]*regexp.Regexp)
+						globCache = make(map[string]glob.Glob)
 
 						wg := sync.WaitGroup{}
 						for i := 0; i < clientCount; i++ {
@@ -70,16 +72,18 @@ func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 									var operands []*ast.Term
 									if reusePattern {
 										operands = []*ast.Term{
-											ast.NewTerm(ast.String("foo.*")),
-											ast.NewTerm(ast.String("foobar")),
+											ast.NewTerm(ast.String("foo/*")),
+											ast.NullTerm(),
+											ast.NewTerm(ast.String("foo/bar")),
 										}
 									} else {
 										operands = []*ast.Term{
-											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientId, j))),
-											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%dbar", clientId, j))),
+											ast.NewTerm(ast.String(fmt.Sprintf("foo/*/%d/%d", clientId, j))),
+											ast.NullTerm(),
+											ast.NewTerm(ast.String(fmt.Sprintf("foo/bar/%d/%d", clientId, j))),
 										}
 									}
-									if err := builtinRegexMatch(ctx, operands, iter); err != nil {
+									if err := builtinGlobMatch(ctx, operands, iter); err != nil {
 										b.Fatal(err)
 									}
 								}
