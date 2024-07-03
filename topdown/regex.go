@@ -15,6 +15,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
+const regexCacheMaxSize = 100
+
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
@@ -33,7 +35,7 @@ func builtinRegexIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.
 	return iter(ast.BooleanTerm(true))
 }
 
-func builtinRegexMatch(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinRegexMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s1, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func builtinRegexMatch(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	re, err := getRegexp(ctx, string(s1))
+	re, err := getRegexp(string(s1))
 	if err != nil {
 		return err
 	}
@@ -79,7 +81,7 @@ func builtinRegexMatchTemplate(_ BuiltinContext, operands []*ast.Term, iter func
 	return iter(ast.BooleanTerm(re.MatchString(string(match))))
 }
 
-func builtinRegexSplit(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinRegexSplit(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s1, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -88,7 +90,7 @@ func builtinRegexSplit(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	if err != nil {
 		return err
 	}
-	re, err := getRegexp(ctx, string(s1))
+	re, err := getRegexp(string(s1))
 	if err != nil {
 		return err
 	}
@@ -101,23 +103,26 @@ func builtinRegexSplit(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.
 	return iter(ast.NewTerm(ast.NewArray(arr...)))
 }
 
-func getRegexp(ctx BuiltinContext, pat string) (*regexp.Regexp, error) {
-	if ctx.Capabilities != nil && ctx.Capabilities.RegexCache {
-		regexpCacheLock.Lock()
-		defer regexpCacheLock.Unlock()
-		re, ok := regexpCache[pat]
-		if !ok {
-			var err error
-			re, err = regexp.Compile(pat)
-			if err != nil {
-				return nil, err
-			}
-			regexpCache[pat] = re
+func getRegexp(pat string) (*regexp.Regexp, error) {
+	regexpCacheLock.Lock()
+	defer regexpCacheLock.Unlock()
+	re, ok := regexpCache[pat]
+	if !ok {
+		var err error
+		re, err = regexp.Compile(pat)
+		if err != nil {
+			return nil, err
 		}
-		return re, nil
+		if len(regexpCache) >= regexCacheMaxSize {
+			// Delete a (semi-)random key to make room for the new one.
+			for k := range regexpCache {
+				delete(regexpCache, k)
+				break
+			}
+		}
+		regexpCache[pat] = re
 	}
-
-	return regexp.Compile(pat)
+	return re, nil
 }
 
 func getRegexpTemplate(pat string, delimStart, delimEnd byte) (*regexp.Regexp, error) {
@@ -151,7 +156,7 @@ func builtinGlobsMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Te
 	return iter(ast.BooleanTerm(ne))
 }
 
-func builtinRegexFind(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinRegexFind(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s1, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -164,7 +169,7 @@ func builtinRegexFind(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	if err != nil {
 		return err
 	}
-	re, err := getRegexp(ctx, string(s1))
+	re, err := getRegexp(string(s1))
 	if err != nil {
 		return err
 	}
@@ -177,7 +182,7 @@ func builtinRegexFind(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.T
 	return iter(ast.NewTerm(ast.NewArray(arr...)))
 }
 
-func builtinRegexFindAllStringSubmatch(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinRegexFindAllStringSubmatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	s1, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -191,7 +196,7 @@ func builtinRegexFindAllStringSubmatch(ctx BuiltinContext, operands []*ast.Term,
 		return err
 	}
 
-	re, err := getRegexp(ctx, string(s1))
+	re, err := getRegexp(string(s1))
 	if err != nil {
 		return err
 	}
@@ -209,7 +214,7 @@ func builtinRegexFindAllStringSubmatch(ctx BuiltinContext, operands []*ast.Term,
 	return iter(ast.NewTerm(ast.NewArray(outer...)))
 }
 
-func builtinRegexReplace(ctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+func builtinRegexReplace(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	base, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -225,7 +230,7 @@ func builtinRegexReplace(ctx BuiltinContext, operands []*ast.Term, iter func(*as
 		return err
 	}
 
-	re, err := getRegexp(ctx, string(pattern))
+	re, err := getRegexp(string(pattern))
 	if err != nil {
 		return err
 	}

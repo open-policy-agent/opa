@@ -74,8 +74,6 @@ type Capabilities struct {
 	// TODO(sr): support ports to further restrict connection peers
 	// TODO(sr): support restricting `http.send` using the same mechanism (see https://github.com/open-policy-agent/opa/issues/3665)
 	AllowNet []string `json:"allow_net,omitempty"`
-	// FIXME: This is just a temporary measure to toggle the regex built-in's cache on/off
-	RegexCache bool `json:"cache,omitempty"`
 }
 
 // WasmABIVersion captures the Wasm ABI version. Its `Minor` version is indicating

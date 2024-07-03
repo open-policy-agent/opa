@@ -13,27 +13,30 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 )
 
-func BenchmarkBuiltinRegexMatchDifferent(b *testing.B) {
+func BenchmarkBuiltinRegexMatch(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
-	for _, useCache := range []bool{true, false} {
-		for _, regexCount := range []int{10, 100, 1000} {
-			ctx := BuiltinContext{}
-			if useCache {
-				ctx.Capabilities = &ast.Capabilities{
-					RegexCache: true,
-				}
-			}
+	ctx := BuiltinContext{}
 
-			b.Run(fmt.Sprintf("cache=%v, regex-count=%d", useCache, regexCount), func(b *testing.B) {
+	for _, reuseRegex := range []bool{true, false} {
+		for _, regexCount := range []int{10, 100, 1000} {
+			b.Run(fmt.Sprintf("reuse-regex=%v, regex-count=%d", reuseRegex, regexCount), func(b *testing.B) {
 				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					// Clearing the cache
 					regexpCache = make(map[string]*regexp.Regexp)
 
 					for i := 0; i < regexCount; i++ {
-						operands := []*ast.Term{
-							ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
-							ast.NewTerm(ast.String(fmt.Sprintf("foo%dbar", i))),
+						var operands []*ast.Term
+						if reuseRegex {
+							operands = []*ast.Term{
+								ast.NewTerm(ast.String("foo.*")),
+								ast.NewTerm(ast.String("foobar")),
+							}
+						} else {
+							operands = []*ast.Term{
+								ast.NewTerm(ast.String(fmt.Sprintf("foo%d.*", i))),
+								ast.NewTerm(ast.String(fmt.Sprintf("foo%dbar", i))),
+							}
 						}
 						if err := builtinRegexMatch(ctx, operands, iter); err != nil {
 							b.Fatal(err)
@@ -45,51 +48,14 @@ func BenchmarkBuiltinRegexMatchDifferent(b *testing.B) {
 	}
 }
 
-func BenchmarkBuiltinRegexMatchSame(b *testing.B) {
+func BenchmarkBuiltinRegexMatchAsync(b *testing.B) {
 	iter := func(*ast.Term) error { return nil }
-	for _, useCache := range []bool{true, false} {
-		for _, regexCount := range []int{10, 100, 1000} {
-			ctx := BuiltinContext{}
-			if useCache {
-				ctx.Capabilities = &ast.Capabilities{
-					RegexCache: true,
-				}
-			}
+	ctx := BuiltinContext{}
 
-			b.Run(fmt.Sprintf("cache=%v, regex-count=%d", useCache, regexCount), func(b *testing.B) {
-				b.ResetTimer()
-				for n := 0; n < b.N; n++ {
-					// Clearing the cache
-					regexpCache = make(map[string]*regexp.Regexp)
-
-					for i := 0; i < regexCount; i++ {
-						operands := []*ast.Term{
-							ast.NewTerm(ast.String("foo.*")),
-							ast.NewTerm(ast.String("foobar")),
-						}
-						if err := builtinRegexMatch(ctx, operands, iter); err != nil {
-							b.Fatal(err)
-						}
-					}
-				}
-			})
-		}
-	}
-}
-
-func BenchmarkBuiltinRegexMatchDifferentAsync(b *testing.B) {
-	iter := func(*ast.Term) error { return nil }
-	for _, useCache := range []bool{true, false} {
+	for _, reuseRegex := range []bool{true, false} {
 		for _, clientCount := range []int{100, 200} {
 			for _, regexCount := range []int{10, 100, 1000} {
-				ctx := BuiltinContext{}
-				if useCache {
-					ctx.Capabilities = &ast.Capabilities{
-						RegexCache: true,
-					}
-				}
-
-				b.Run(fmt.Sprintf("cache=%v, clients=%d, regex-count=%d", useCache, clientCount, regexCount), func(b *testing.B) {
+				b.Run(fmt.Sprintf("reuse-regex=%v, regex-count=%d, clients=%d", reuseRegex, regexCount, clientCount), func(b *testing.B) {
 					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						// Clearing the cache
@@ -101,51 +67,17 @@ func BenchmarkBuiltinRegexMatchDifferentAsync(b *testing.B) {
 							wg.Add(1)
 							go func() {
 								for j := 0; j < regexCount; j++ {
-									operands := []*ast.Term{
-										ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientId, j))),
-										ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%dbar", clientId, j))),
-									}
-									if err := builtinRegexMatch(ctx, operands, iter); err != nil {
-										b.Fatal(err)
-									}
-								}
-								wg.Done()
-							}()
-						}
-						wg.Wait()
-					}
-				})
-			}
-		}
-	}
-}
-
-func BenchmarkBuiltinRegexMatchSameAsync(b *testing.B) {
-	iter := func(*ast.Term) error { return nil }
-	for _, useCache := range []bool{true, false} {
-		for _, clientCount := range []int{100, 200} {
-			for _, regexCount := range []int{10, 100, 1000} {
-				ctx := BuiltinContext{}
-				if useCache {
-					ctx.Capabilities = &ast.Capabilities{
-						RegexCache: true,
-					}
-				}
-
-				b.Run(fmt.Sprintf("cache=%v, clients=%d, regex-count=%d", useCache, clientCount, regexCount), func(b *testing.B) {
-					b.ResetTimer()
-					for n := 0; n < b.N; n++ {
-						// Clearing the cache
-						regexpCache = make(map[string]*regexp.Regexp)
-
-						wg := sync.WaitGroup{}
-						for i := 0; i < clientCount; i++ {
-							wg.Add(1)
-							go func() {
-								for i := 0; i < regexCount; i++ {
-									operands := []*ast.Term{
-										ast.NewTerm(ast.String("foo.*")),
-										ast.NewTerm(ast.String("foobar")),
+									var operands []*ast.Term
+									if reuseRegex {
+										operands = []*ast.Term{
+											ast.NewTerm(ast.String("foo.*")),
+											ast.NewTerm(ast.String("foobar")),
+										}
+									} else {
+										operands = []*ast.Term{
+											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%d.*", clientId, j))),
+											ast.NewTerm(ast.String(fmt.Sprintf("foo%d_%dbar", clientId, j))),
+										}
 									}
 									if err := builtinRegexMatch(ctx, operands, iter); err != nil {
 										b.Fatal(err)
