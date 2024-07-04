@@ -12,3 +12,43 @@ updates:
     directory: /
     schedule:
       interval: daily
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: gomod
+    directory: /build/replacements/github.com/golang/glog
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /docs/website
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /docs/website/scripts/live-blocks
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /misc/syntax/atom/language-rego
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /vendor/github.com/pelletier/go-toml/v2
+    schedule:
+      interval: daily
+
+  - package-ecosystem: pip
+    directory: /vendor/go.opentelemetry.io/otel
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /wasm
+    schedule:
+      interval: daily
