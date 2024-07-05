@@ -6,6 +6,7 @@
 package logs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -714,9 +715,7 @@ func (p *Plugin) Log(ctx context.Context, decision *server.Info) error {
 	}
 
 	if p.config.Service != "" {
-		p.mtx.Lock()
 		p.encodeAndBufferEvent(event)
-		p.mtx.Unlock()
 	}
 
 	if p.config.Plugin != nil {
@@ -888,12 +887,9 @@ func (p *Plugin) oneShot(ctx context.Context) (ok bool, err error) {
 					continue
 				}
 
-				p.mtx.Lock()
 				for _, event := range events {
 					p.encodeAndBufferEvent(event)
 				}
-				p.mtx.Unlock()
-
 			} else {
 				// requeue the chunk
 				p.mtx.Lock()
@@ -934,7 +930,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		}
 	}
 
-	result, err := p.enc.Write(event)
+	result, err := p.encodeEvent(event)
 	if err != nil {
 		// If there's no ND builtins cache in the event, then we don't
 		// need to retry encoding anything.
@@ -954,7 +950,7 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		newEvent := event
 		newEvent.NDBuiltinCache = nil
 
-		result, err = p.enc.Write(newEvent)
+		result, err = p.encodeEvent(newEvent)
 		if err != nil {
 			if p.metrics != nil {
 				p.metrics.Counter(logEncodingFailureCounterName).Incr()
@@ -968,9 +964,22 @@ func (p *Plugin) encodeAndBufferEvent(event EventV1) {
 		p.metrics.Counter(logNDBDropCounterName).Incr()
 	}
 
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	for _, chunk := range result {
 		p.bufferChunk(p.buffer, chunk)
 	}
+}
+
+func (p *Plugin) encodeEvent(event EventV1) ([][]byte, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(event); err != nil {
+		return nil, err
+	}
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	return p.enc.WriteBytes(buf.Bytes())
 }
 
 func (p *Plugin) bufferChunk(buffer *logBuffer, bs []byte) {

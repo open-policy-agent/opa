@@ -61,8 +61,10 @@ func (enc *chunkEncoder) Write(event EventV1) (result [][]byte, err error) {
 		return nil, err
 	}
 
-	bs := buf.Bytes()
+	return enc.WriteBytes(buf.Bytes())
+}
 
+func (enc *chunkEncoder) WriteBytes(bs []byte) (result [][]byte, err error) {
 	if len(bs) == 0 {
 		return nil, nil
 	} else if int64(len(bs)+2) > enc.limit {
