@@ -182,6 +182,8 @@ Following successful authentication at the token endpoint the returned token wil
 | `services[_].credentials.oauth2.aws_kms.name`      | `string`   | No       | To specify a KMS key, use its key ID, key ARN, alias name, or alias ARN. Required only for signing with AWS KMS.                                                                                |
 | `services[_].credentials.oauth2.aws_kms.algorithm` | `string`   | No       | Specifies the signing algorithm used by the key `aws_kms.name` `(ECDSA_SHA_256, ECDSA_SHA_384 or ECDSA_SHA_512)`. Required only for signing with AWS KMS.                                       |
 | `services[_].credentials.oauth2.aws_signing`       | `{}`       | No       | AWS credentials for signing requests. Required if `aws_kms` is provided. |
+| `services[_].credentials.oauth2.client_assertion_path` | `string` | No | To specify a path to find a client assertion file. Used for Azure Workload Identity. |
+| `services[_].credentials.oauth2.client_assertion` | `string` | No | To specify a client assertion. Used for Azure Workload Identity. |
 
 Two claims will always be included in the issued JWT: `iat` and `exp`. Any other claims will be populated from the `additional_claims` map.
 
@@ -256,6 +258,35 @@ bundles:
     service: remote
     resource: bundles/http/example/authz.tar.gz
 ```
+
+The following is an example of using the client credentials grant type with JWT client authentication via Azure Workload Identity access to the storage account hosting the policies. All referenced environment variables are automatically populated by Azure when deployed via AKS. Note the similarity to [managed identity](#azure-managed-identities-token).
+
+```yaml
+services:
+  azure_storage_account:
+    url: https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/
+    headers:
+      x-ms-version: 2017-11-09
+    response_header_timeout_seconds: 5
+    credentials:
+      oauth2:
+        grant_type: client_credentials
+        client_id: "${AZURE_CLIENT_ID}"
+        client_assertion_path: "${AZURE_FEDERATED_TOKEN_FILE}"
+        token_url: "${AZURE_AUTHORITY_HOST}/${AZURE_TENANT_ID}/oauth2/v2.0/token"
+        scopes:
+          - https://storage.azure.com/.default
+
+bundles:
+  authz:
+    service: azure_storage_account
+    resource: YOUR_CONTAINER/YOUR_POLICY_BUNDLE.tar.gz
+    persist: true
+    polling:
+      min_delay_seconds: 60
+      max_delay_seconds: 120
+```
+
 ### OAuth2 JWT Bearer Grant Type
 
 OPA will authenticate using a bearer token obtained through the OAuth2 [JWT authorization grant](https://tools.ietf.org/html/rfc7523#section-2.1) flow.
@@ -530,6 +561,7 @@ When using a private image from an OCI registry you need to specify an authentic
 
 Examples of setting credentials for pulling private images:
 *AWS ECR* private images usually require at least basic authentication. The credentials to authenticate can be obtained using the AWS CLI command `aws ecr get-login` and those can be passed to the service configuration as basic bearer credentials as follows:
+
 ```yaml
 credentials:
   bearer:
@@ -538,6 +570,7 @@ credentials:
 ```
 
 Other AWS authentication methods also work:
+
 ```yaml
 credentials:
   s3_signing:
@@ -552,6 +585,7 @@ signing requests to other AWS services.
 A special case is that bearer authentication works differently to normal service authentication. The OCI downloader base64-encodes the credentials for you so that they need to be supplied in plain text.
 
 For *GHCR* (Github Container Registry) you can use a developer PAT (personal access token) when downloading a private image. These can be supplied as:
+
 ```yaml
 credentials:
   bearer:
@@ -592,7 +626,6 @@ If none of the existing credential options work for a service, OPA can authentic
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 |`services[_].credentials.plugin`|`string`|No|The name of the plugin to use for authentication|
-
 
 The following is an example of using a custom plugin for service credentials:
 
@@ -882,6 +915,7 @@ Environment variables referenced with the `${...}` notation within the configura
 will be replaced with the value of the environment variable.
 
 Example using `BASE_URL` and `BEARER_TOKEN` environment variables:
+
 ```yaml
 services:
   acmecorp:
@@ -894,6 +928,7 @@ discovery:
   resource: /configuration/example/discovery
   decision: example
 ```
+
 The environment variables `BASE_URL` and `BEARER_TOKEN` will be substituted in when the config
 file is loaded by the OPA runtime.
 
@@ -916,13 +951,15 @@ specified with comma separators (`key1=value,key2=value2,..`). Or with additiona
 parameters.
 
 Example using several different options:
-```
+
+```shell
 opa run \
   --set "default_decision=/http/example/authz/allow" \
   --set "services.acmecorp.url=https://test-env/control-plane-api/v1" \
   --set "services.acmecorp.credentials.bearer.token=\${TOKEN}"
   --set "labels.app=myapp,labels.region=west"
 ```
+
 This is equivalent to a YAML config file that looks like:
 
 ```yaml
@@ -944,6 +981,7 @@ The `--set-file` option is expecting a file path for the value. This allows keep
 files and loading them into the config at run time. For Example:
 
 With a file `/var/run/secrets/bearer_token.txt` that has contents:
+
 ```
 bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm
 ```
@@ -962,6 +1000,7 @@ If using arrays/lists in the configuration the `--set` and `--set-file` override
 patch sub-objects of the list. They will overwrite the entire index with the new object.
 
 For example, a `config.yaml` file with contents:
+
 ```yaml
 services:
   - name: acmecorp
@@ -970,20 +1009,24 @@ services:
       bearer:
         token: ""
 ```
+
 Used with overrides:
-```
+
+```shell
 opa run \
   --config-file config.yaml
   --set-file "services[0].credentials.bearer.token=/var/run/secrets/bearer_token.txt"
 ```
 
 Will result in configuration like:
+
 ```yaml
 services:
   - credentials:
       bearer:
         token: bGFza2RqZmxha3NkamZsa2Fqc2Rsa2ZqYWtsc2RqZmtramRmYWxkc2tm
 ```
+
 Because the entire `0` index was overwritten.
 
 It is highly recommended to use objects/maps instead of lists for configuration for this reason.
@@ -1021,7 +1064,8 @@ plugins:
 ```
 
 You can do this by setting the value with `null`. For example:
-```
+
+```shell
 opa run --set "decision_logs.plugin=my_plugin" --set "plugins.my_plugin=null"
 ```
 

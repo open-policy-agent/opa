@@ -450,6 +450,7 @@ type Reader struct {
 	name                  string
 	persist               bool
 	regoVersion           ast.RegoVersion
+	followSymlinks        bool
 }
 
 // NewReader is deprecated. Use NewCustomReader instead.
@@ -535,6 +536,11 @@ func (r *Reader) WithBundleEtag(etag string) *Reader {
 // WithBundleName specifies the bundle name
 func (r *Reader) WithBundleName(name string) *Reader {
 	r.name = name
+	return r
+}
+
+func (r *Reader) WithFollowSymlinks(yes bool) *Reader {
+	r.followSymlinks = yes
 	return r
 }
 

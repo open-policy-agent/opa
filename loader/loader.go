@@ -103,6 +103,7 @@ type FileLoader interface {
 	WithCapabilities(*ast.Capabilities) FileLoader
 	WithJSONOptions(*astJSON.Options) FileLoader
 	WithRegoVersion(ast.RegoVersion) FileLoader
+	WithFollowSymlinks(bool) FileLoader
 }
 
 // NewFileLoader returns a new FileLoader instance.
@@ -114,14 +115,15 @@ func NewFileLoader() FileLoader {
 }
 
 type fileLoader struct {
-	metrics    metrics.Metrics
-	filter     Filter
-	bvc        *bundle.VerificationConfig
-	skipVerify bool
-	files      map[string]bundle.FileInfo
-	opts       ast.ParserOptions
-	fsys       fs.FS
-	reader     io.Reader
+	metrics        metrics.Metrics
+	filter         Filter
+	bvc            *bundle.VerificationConfig
+	skipVerify     bool
+	files          map[string]bundle.FileInfo
+	opts           ast.ParserOptions
+	fsys           fs.FS
+	reader         io.Reader
+	followSymlinks bool
 }
 
 // WithFS provides an fs.FS to use for loading files. You can pass nil to
@@ -188,6 +190,12 @@ func (fl *fileLoader) WithRegoVersion(version ast.RegoVersion) FileLoader {
 	return fl
 }
 
+// WithFollowSymlinks enables or disables following symlinks when loading files
+func (fl *fileLoader) WithFollowSymlinks(followSymlinks bool) FileLoader {
+	fl.followSymlinks = followSymlinks
+	return fl
+}
+
 // All returns a Result object loaded (recursively) from the specified paths.
 func (fl fileLoader) All(paths []string) (*Result, error) {
 	return fl.Filtered(paths, nil)
@@ -249,6 +257,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
+	bundleLoader = bundleLoader.WithFollowSymlinks(fl.followSymlinks)
 
 	br := bundle.NewCustomReader(bundleLoader).
 		WithMetrics(fl.metrics).
@@ -257,6 +266,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		WithProcessAnnotations(fl.opts.ProcessAnnotation).
 		WithCapabilities(fl.opts.Capabilities).
 		WithJSONOptions(fl.opts.JSONOptions).
+		WithFollowSymlinks(fl.followSymlinks).
 		WithRegoVersion(fl.opts.RegoVersion)
 
 	// For bundle directories add the full path in front of module file names

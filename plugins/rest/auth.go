@@ -40,6 +40,8 @@ import (
 const (
 	// Default to s3 when the service for sigv4 signing is not specified for backwards compatibility
 	awsSigv4SigningDefaultService = "s3"
+	// Default to urn:ietf:params:oauth:client-assertion-type:jwt-bearer for ClientAssertionType when not specified
+	defaultClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
 // DefaultTLSConfig defines standard TLS configurations based on the Config
@@ -281,6 +283,9 @@ type oauth2ClientCredentialsAuthPlugin struct {
 	AdditionalParameters map[string]string      `json:"additional_parameters,omitempty"`
 	AWSKmsKey            *awsKmsKeyConfig       `json:"aws_kms,omitempty"`
 	AWSSigningPlugin     *awsSigningAuthPlugin  `json:"aws_signing,omitempty"`
+	ClientAssertionType  string                 `json:"client_assertion_type"`
+	ClientAssertion      string                 `json:"client_assertion"`
+	ClientAssertionPath  string                 `json:"client_assertion_path"`
 
 	signingKey       *keys.Config
 	signingKeyParsed interface{}
@@ -459,14 +464,30 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 		return nil, errors.New("token_url required to use https scheme")
 	}
 	if ap.GrantType == grantTypeClientCredentials {
-		if ap.AWSKmsKey != nil && (ap.ClientSecret != "" || ap.SigningKeyID != "") ||
-			(ap.ClientSecret != "" && ap.SigningKeyID != "") {
-			return nil, errors.New("can only use one of client_secret, signing_key or signing_kms_key for client_credentials")
+		clientCredentialExists := make(map[string]bool)
+		clientCredentialExists["client_secret"] = ap.ClientSecret != ""
+		clientCredentialExists["signing_key"] = ap.SigningKeyID != ""
+		clientCredentialExists["aws_kms"] = ap.AWSKmsKey != nil
+		clientCredentialExists["client_assertion"] = ap.ClientAssertion != ""
+		clientCredentialExists["client_assertion_path"] = ap.ClientAssertionPath != ""
+
+		var notEmptyVarCount int
+
+		for _, credentialSet := range clientCredentialExists {
+			if credentialSet {
+				notEmptyVarCount++
+			}
 		}
-		if ap.SigningKeyID == "" && ap.AWSKmsKey == nil && (ap.ClientID == "" || ap.ClientSecret == "") {
-			return nil, errors.New("client_id and client_secret required")
+
+		if notEmptyVarCount == 0 {
+			return nil, errors.New("please provide one of client_secret, signing_key, aws_kms, client_assertion, or client_assertion_path required")
 		}
-		if ap.AWSKmsKey != nil {
+
+		if notEmptyVarCount > 1 {
+			return nil, errors.New("can only use one of client_secret, signing_key, aws_kms, client_assertion, or client_assertion_path")
+		}
+
+		if clientCredentialExists["aws_kms"] {
 			if ap.AWSSigningPlugin == nil {
 				return nil, errors.New("aws_kms and aws_signing required")
 			}
@@ -474,6 +495,24 @@ func (ap *oauth2ClientCredentialsAuthPlugin) NewClient(c Config) (*http.Client, 
 			_, err = ap.AWSSigningPlugin.NewClient(c)
 			if err != nil {
 				return nil, err
+			}
+		} else if clientCredentialExists["client_assertion"] {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_assertion required")
+			}
+		} else if clientCredentialExists["client_assertion_path"] {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_assertion_path required")
+			}
+		} else if clientCredentialExists["client_secret"] {
+			if ap.ClientID == "" {
+				return nil, errors.New("client_id and client_secret required")
 			}
 		}
 	}
@@ -502,12 +541,34 @@ func (ap *oauth2ClientCredentialsAuthPlugin) requestToken(ctx context.Context) (
 			if err != nil {
 				return nil, err
 			}
-			body.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+			body.Add("client_assertion_type", defaultClientAssertionType)
 			body.Add("client_assertion", *authJwt)
 
 			if ap.ClientID != "" {
 				body.Add("client_id", ap.ClientID)
 			}
+		} else if ap.ClientAssertion != "" {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+			if ap.ClientID != "" {
+				body.Add("client_id", ap.ClientID)
+			}
+			body.Add("client_assertion_type", ap.ClientAssertionType)
+			body.Add("client_assertion", ap.ClientAssertion)
+		} else if ap.ClientAssertionPath != "" {
+			if ap.ClientAssertionType == "" {
+				ap.ClientAssertionType = defaultClientAssertionType
+			}
+			bytes, err := os.ReadFile(ap.ClientAssertionPath)
+			if err != nil {
+				return nil, err
+			}
+			if ap.ClientID != "" {
+				body.Add("client_id", ap.ClientID)
+			}
+			body.Add("client_assertion_type", ap.ClientAssertionType)
+			body.Add("client_assertion", strings.TrimSpace(string(bytes)))
 		}
 	}
 

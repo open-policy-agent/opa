@@ -178,6 +178,7 @@
       "startswith",
       "strings.any_prefix_match",
       "strings.any_suffix_match",
+      "strings.count",
       "strings.render_template",
       "strings.replace_n",
       "strings.reverse",
@@ -17379,6 +17380,31 @@
       "description": "result of the suffix check",
       "name": "result",
       "type": "boolean"
+    },
+    "wasm": false
+  },
+  "strings.count": {
+    "args": [
+      {
+        "description": "string to search in",
+        "name": "search",
+        "type": "string"
+      },
+      {
+        "description": "substring to look for",
+        "name": "substring",
+        "type": "string"
+      }
+    ],
+    "available": [
+      "edge"
+    ],
+    "description": "Returns the number of non-overlapping instances of a substring in a string.",
+    "introduced": "edge",
+    "result": {
+      "description": "count of occurrences, `0` if not found",
+      "name": "output",
+      "type": "number"
     },
     "wasm": false
   },
