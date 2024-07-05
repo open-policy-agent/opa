@@ -1,3 +1,5 @@
+#include <unordered_map>
+
 #include "glob-compiler.h"
 #include "glob-lexer.h"
 #include "glob-parser.h"
@@ -5,6 +7,30 @@
 #include "test.h"
 #include "re2/re2.h"
 #include "std.h"
+#include "glob.h"
+
+WASM_EXPORT(test_glob_cache)
+extern "C"
+void test_glob_cache()
+{
+	// Reset the cache
+	opa_builtin_cache_set(0, NULL);
+
+	for (int i = 0; i < 100; i++)
+	{
+		char pattern[20];
+		snprintf(pattern, sizeof(pattern), "foo/%d/*", i);
+		opa_glob_match(opa_string_terminated(pattern), opa_null(), opa_string_terminated("foo/bar"));
+	}
+
+	std::unordered_map<void*, void*>* c = static_cast<std::unordered_map<void*, void*>*>(opa_builtin_cache_get(1));
+
+	test("glob cache size", c->size() == 100);
+
+	opa_glob_match(opa_string_terminated("bar/*"), opa_null(), opa_string_terminated("bar/baz"));
+
+	test("glob cache size doesn't surpass max", c->size() == 100);
+}
 
 // The following is a re-implementation of tests in
 // https://github.com/gobwas/glob/blob.

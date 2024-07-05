@@ -15,6 +15,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
+const regexCacheMaxSize = 100
+
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
 
@@ -110,6 +112,13 @@ func getRegexp(pat string) (*regexp.Regexp, error) {
 		re, err = regexp.Compile(pat)
 		if err != nil {
 			return nil, err
+		}
+		if len(regexpCache) >= regexCacheMaxSize {
+			// Delete a (semi-)random key to make room for the new one.
+			for k := range regexpCache {
+				delete(regexpCache, k)
+				break
+			}
 		}
 		regexpCache[pat] = re
 	}
