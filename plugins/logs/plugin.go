@@ -421,6 +421,7 @@ type Plugin struct {
 	buffer       *logBuffer
 	enc          *chunkEncoder
 	mtx          sync.Mutex
+	statusMtx    sync.Mutex
 	stop         chan chan struct{}
 	reconfig     chan reconfigure
 	preparedMask prepareOnce
@@ -830,13 +831,11 @@ func (p *Plugin) loop() {
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	uploaded, err := p.oneShot(ctx)
 
-	// Make a local copy of the plugins's status. This is needed as locking the status for
-	// the status upload duration will block policy evaluation and result in
-	// increased latency for OPA clients
-	p.mtx.Lock()
+	// Make a local copy of the plugins's status.
+	p.statusMtx.Lock()
 	p.status.SetError(err)
 	oldStatus := p.status
-	p.mtx.Unlock()
+	p.statusMtx.Unlock()
 
 	if s := status.Lookup(p.manager); s != nil {
 		s.UpdateDecisionLogsStatus(*oldStatus)
