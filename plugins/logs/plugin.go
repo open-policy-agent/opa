@@ -830,12 +830,16 @@ func (p *Plugin) loop() {
 func (p *Plugin) doOneShot(ctx context.Context) error {
 	uploaded, err := p.oneShot(ctx)
 
-	stat := lstat.Status{}
-	stat.SetError(err)
-	p.status = &stat
+	// Make a local copy of the plugins's status. This is needed as locking the status for
+	// the status upload duration will block policy evaluation and result in
+	// increased latency for OPA clients
+	p.mtx.Lock()
+	p.status.SetError(err)
+	oldStatus := p.status
+	p.mtx.Unlock()
 
 	if s := status.Lookup(p.manager); s != nil {
-		s.UpdateDecisionLogsStatus(stat)
+		s.UpdateDecisionLogsStatus(*oldStatus)
 	}
 
 	if err != nil {

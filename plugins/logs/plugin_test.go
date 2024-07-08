@@ -393,7 +393,7 @@ func TestPluginStartSameInput(t *testing.T) {
 		})
 	}
 
-	err = fixture.plugin.doOneShot(ctx)
+	_, err = fixture.plugin.oneShot(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
