@@ -5,6 +5,12 @@ weight: 80
 restrictedtoc: true
 ---
 
+{{< info >}}
+Integrating with OPA from a programming language? You might find it easier to build your
+OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
+with the REST API directly.
+{{< /info >}}
+
 This document is the authoritative specification of the OPA REST API. The API can be broken down into the following
 groups:
 
@@ -1316,9 +1322,9 @@ Partially evaluate a query.
 The [Compile API](#compile-api) allows you to partially evaluate Rego queries
 and obtain a simplified version of the policy. This is most useful when building
 integrations where policy logic is to be translated and evaluated in another
-environment. For example, 
+environment. For example,
 [this post](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
-on the OPA blog shows how SQL can be generated based on Compile API output. 
+on the OPA blog shows how SQL can be generated based on Compile API output.
 For more details on Partial Evaluation in OPA, please refer to
 [this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
 
@@ -2178,6 +2184,6 @@ OPA currently supports the following query provenance information:
 
 ## Ecosystem Projects
 
-OPA's REST API has already been used by many projects in the OPA Ecosystem to support a variety of use cases. 
+OPA's REST API has already been used by many projects in the OPA Ecosystem to support a variety of use cases.
 
-{{< ecosystem_feature_embed key="rest-api-integration" topic="built on the OPA REST API" >}} 
+{{< ecosystem_feature_embed key="rest-api-integration" topic="built on the OPA REST API" >}}

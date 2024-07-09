@@ -28,6 +28,7 @@ This page focuses predominantly on different ways to integrate with OPA's policy
 OPA supports different ways to evaluate policies.
 
 * The [REST API](../rest-api) returns decisions as JSON over HTTP.
+  * Also see the [Language SDKs](/ecosystem/#languages) for working with the REST API in different languages.
 * The [Go API (GoDoc)](https://pkg.go.dev/github.com/open-policy-agent/opa/rego) returns
   decisions as simple Go types (`bool`, `string`, `map[string]interface{}`,
   etc.)
@@ -37,14 +38,16 @@ OPA supports different ways to evaluate policies.
 * The [SDK](https://pkg.go.dev/github.com/open-policy-agent/opa/sdk) provides high-level APIs for obtaining the output
   of query evaluation as simple Go types (`bool`, `string`, `map[string]interface{}`, etc.)
 
-
 ### Integrating with the REST API
 
 To integrate with OPA outside of Go, we recommend you deploy OPA as a host-level
-daemon or sidecar container. When your application or service needs to make
-policy decisions it can query OPA locally via HTTP. Running OPA locally on the
-same host as your application or service helps ensure policy decisions are fast
-and highly-available.
+daemon or sidecar container. Running OPA locally on the same host as your
+application or service helps ensure policy decisions are fast and highly-available.
+
+When your application or service needs to make policy decisions it can query OPA
+locally via HTTP. While it's possible to call OPA's [REST API](../rest-api) directly,
+you can also find a number of [native language REST SDKs](/ecosystem/#languages)
+eoo which make the integration easier.
 
 #### Named Policy Decisions
 
