@@ -1,0 +1,5 @@
+4 errors occurred:
+testfiles/rego_v1/keywords.rego:3: rego_parse_error: if keyword cannot be used for rule name
+testfiles/rego_v1/keywords.rego:5: rego_parse_error: contains keyword cannot be used for rule name
+testfiles/rego_v1/keywords.rego:7: rego_parse_error: in keyword cannot be used for rule name
+testfiles/rego_v1/keywords.rego:9: rego_parse_error: every keyword cannot be used for rule name

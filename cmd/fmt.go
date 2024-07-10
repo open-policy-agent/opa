@@ -127,8 +127,9 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	opts := format.Opts{}
-	opts.RegoVersion = params.regoVersion()
+	opts := format.Opts{
+		RegoVersion: params.regoVersion(),
+	}
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
