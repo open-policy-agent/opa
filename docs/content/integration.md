@@ -47,7 +47,7 @@ application or service helps ensure policy decisions are fast and highly-availab
 When your application or service needs to make policy decisions it can query OPA
 locally via HTTP. While it's possible to call OPA's [REST API](../rest-api) directly,
 you can also find a number of [native language REST SDKs](/ecosystem/#languages)
-eoo which make the integration easier.
+which make the integration easier.
 
 #### Named Policy Decisions
 

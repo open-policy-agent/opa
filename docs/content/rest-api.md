@@ -5,12 +5,6 @@ weight: 80
 restrictedtoc: true
 ---
 
-{{< info >}}
-Integrating with OPA from a programming language? You might find it easier to build your
-OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
-with the REST API directly.
-{{< /info >}}
-
 This document is the authoritative specification of the OPA REST API. The API can be broken down into the following
 groups:
 
@@ -22,7 +16,7 @@ groups:
 * [Config API](#config-api) - view instance configuration.
 * [Status API](#status-api) - view instance [status](../management-status) state.
 
-The REST API is a very common way to integrate with OPA.
+The REST API is a common way to integrate with OPA.
 {{<
   ecosystem_feature_link
   key="rest-api-integration"
@@ -35,6 +29,12 @@ The REST API is a very common way to integrate with OPA.
 >}}
 You may also want to review the [integration documentation](../integration) for other options
 to build on OPA by embedding functionality directly into your application.
+
+{{< info >}}
+Integrating with OPA from a programming language? You might find it easier to build your
+OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
+with the REST API directly.
+{{< /info >}}
 
 ##  Policy API
 
