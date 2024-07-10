@@ -136,7 +136,8 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	}
 
 	if params.checkResult {
-		_, err := ast.ParseModule("formatted", string(formatted))
+		popts := ast.ParserOptions{RegoVersion: params.regoVersion()}
+		_, err := ast.ParseModuleWithOpts("formatted", string(formatted), popts)
 		if err != nil {
 			return newError("%s was successfully formatted, but the result is invalid: %v\n\nTo inspect the formatted Rego, you can turn off this check with --check-result=false.", filename, err)
 		}
