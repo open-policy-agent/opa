@@ -16,7 +16,7 @@ groups:
 * [Config API](#config-api) - view instance configuration.
 * [Status API](#status-api) - view instance [status](../management-status) state.
 
-The REST API is a very common way to integrate with OPA.
+The REST API is a common way to integrate with OPA.
 {{<
   ecosystem_feature_link
   key="rest-api-integration"
@@ -29,6 +29,12 @@ The REST API is a very common way to integrate with OPA.
 >}}
 You may also want to review the [integration documentation](../integration) for other options
 to build on OPA by embedding functionality directly into your application.
+
+{{< info >}}
+Integrating with OPA from a programming language? You might find it easier to build your
+OPA integration using one of the [language SDKs](/ecosystem/#languages) than working
+with the REST API directly.
+{{< /info >}}
 
 ##  Policy API
 
@@ -1316,9 +1322,9 @@ Partially evaluate a query.
 The [Compile API](#compile-api) allows you to partially evaluate Rego queries
 and obtain a simplified version of the policy. This is most useful when building
 integrations where policy logic is to be translated and evaluated in another
-environment. For example, 
+environment. For example,
 [this post](https://blog.openpolicyagent.org/write-policy-in-opa-enforce-policy-in-sql-d9d24db93bf4)
-on the OPA blog shows how SQL can be generated based on Compile API output. 
+on the OPA blog shows how SQL can be generated based on Compile API output.
 For more details on Partial Evaluation in OPA, please refer to
 [this blog post](https://blog.openpolicyagent.org/partial-evaluation-162750eaf422).
 
@@ -2178,6 +2184,6 @@ OPA currently supports the following query provenance information:
 
 ## Ecosystem Projects
 
-OPA's REST API has already been used by many projects in the OPA Ecosystem to support a variety of use cases. 
+OPA's REST API has already been used by many projects in the OPA Ecosystem to support a variety of use cases.
 
-{{< ecosystem_feature_embed key="rest-api-integration" topic="built on the OPA REST API" >}} 
+{{< ecosystem_feature_embed key="rest-api-integration" topic="built on the OPA REST API" >}}

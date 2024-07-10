@@ -123,6 +123,12 @@ Then run `docker-compose` to pull and run the containers.
 docker-compose -f docker-compose.yml up
 ```
 
+{{< info >}}
+This example shows conceptually a 'manual' REST API integration with OPA.
+You might find it easier to build your OPA integration using one of the
+[language SDKs](/ecosystem/#languages) than working with the REST API directly.
+{{< /info >}}
+
 Every time the demo web server receives an HTTP request, it
 asks OPA to decide whether an HTTP API is authorized or not
 using a single RESTful API call.  An example code is [here](https://github.com/open-policy-agent/contrib/blob/main/api_authz/docker/echo_server.py),
