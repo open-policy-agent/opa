@@ -239,7 +239,7 @@ func init() {
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
 	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
-	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid")
+	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
 
 	RootCommand.AddCommand(formatCommand)
 }
