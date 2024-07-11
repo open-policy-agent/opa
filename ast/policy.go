@@ -100,7 +100,9 @@ var Wildcard = &Term{Value: Var("_")}
 var WildcardPrefix = "$"
 
 // Keywords contains strings that map to language keywords.
-var Keywords = [...]string{
+var Keywords = KeywordsV0
+
+var KeywordsV0 = [...]string{
 	"not",
 	"package",
 	"import",
@@ -114,6 +116,24 @@ var Keywords = [...]string{
 	"some",
 }
 
+var KeywordsV1 = [...]string{
+	"not",
+	"package",
+	"import",
+	"as",
+	"default",
+	"else",
+	"with",
+	"null",
+	"true",
+	"false",
+	"some",
+	"if",
+	"contains",
+	"in",
+	"every",
+}
+
 // IsKeyword returns true if s is a language keyword.
 func IsKeyword(s string) bool {
 	for _, x := range Keywords {
@@ -121,6 +141,26 @@ func IsKeyword(s string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// IsKeywordInRegoVersion returns true if s is a language keyword.
+func IsKeywordInRegoVersion(s string, regoVersion RegoVersion) bool {
+	switch regoVersion {
+	case RegoV0:
+		for _, x := range KeywordsV0 {
+			if x == s {
+				return true
+			}
+		}
+	case RegoV1, RegoV0CompatV1:
+		for _, x := range KeywordsV1 {
+			if x == s {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 
