@@ -669,6 +669,7 @@ opa fmt [path [...]] [flags]
 ### Options
 
 ```
+      --check-result    assert that the formatted code is valid and can be successfully parsed (default true) (default true)
   -d, --diff            only display a diff of the changes
       --fail            non zero exit code on reformat
   -h, --help            help for fmt
