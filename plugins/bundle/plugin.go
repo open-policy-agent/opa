@@ -62,7 +62,7 @@ type Plugin struct {
 	downloaders       map[string]Loader
 	logger            logging.Logger
 	mtx               sync.Mutex
-	cfgMtx            sync.Mutex
+	cfgMtx            sync.RWMutex
 	ready             bool
 	bundlePersistPath string
 	stopped           bool
@@ -157,10 +157,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Look for any bundles that have had their config changed, are new, or have been removed
 	newConfig := config.(*Config)
 	newBundles, updatedBundles, deletedBundles := p.configDelta(newConfig)
-
-	p.mtx.Lock()
 	p.config = *newConfig
-	p.mtx.Unlock()
 
 	if len(updatedBundles) == 0 && len(newBundles) == 0 && len(deletedBundles) == 0 {
 		// no relevant config changes
@@ -646,8 +643,8 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 }
 
 func (p *Plugin) persistBundle(name string) bool {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
 	bundleSrc := p.config.Bundles[name]
 
 	if bundleSrc == nil {
