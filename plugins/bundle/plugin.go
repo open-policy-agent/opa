@@ -310,10 +310,14 @@ func (p *Plugin) UnregisterBulkListener(name interface{}) {
 
 // Config returns the plugins current configuration
 func (p *Plugin) Config() *Config {
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
 	return &p.config
 }
 
 func (p *Plugin) initDownloaders(ctx context.Context) {
+	p.cfgMtx.RLock()
+	p.cfgMtx.RUnlock()
 
 	// Initialize a downloader for each bundle configured.
 	for name, source := range p.config.Bundles {
@@ -348,6 +352,8 @@ func (p *Plugin) readBundleEtagFromStore(ctx context.Context, name string) strin
 }
 
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
+	p.cfgMtx.RLock()
+	p.cfgMtx.RUnlock()
 
 	persistedBundles := map[string]*bundle.Bundle{}
 
@@ -621,11 +627,13 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 			}
 		}
 
+		p.cfgMtx.RLock()
 		if p.config.IsMultiBundle() {
 			activateErr = bundle.Activate(opts)
 		} else {
 			activateErr = bundle.ActivateLegacy(opts)
 		}
+		p.cfgMtx.RUnlock()
 
 		plugins.SetCompilerOnContext(params.Context, compiler)
 
@@ -655,6 +663,8 @@ func (p *Plugin) persistBundle(name string) bool {
 
 // configDelta will return a map of new bundle sources, updated bundle sources, and a set of deleted bundle names
 func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]*Source, map[string]struct{}) {
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
 	deletedBundles := map[string]struct{}{}
 	for name := range p.config.Bundles {
 		deletedBundles[name] = struct{}{}
