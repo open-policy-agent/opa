@@ -643,6 +643,8 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 }
 
 func (p *Plugin) persistBundle(name string) bool {
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
 	bundleSrc := p.config.Bundles[name]
 
 	if bundleSrc == nil {
