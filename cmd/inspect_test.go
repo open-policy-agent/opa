@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
-
 	"github.com/open-policy-agent/opa/util"
 
 	"github.com/open-policy-agent/opa/util/test"
@@ -1518,6 +1517,243 @@ p {
 
 		if output != expected {
 			t.Fatalf("Unexpected output. Expected:\n\n%s\n\nGot:\n\n%s", expected, output)
+		}
+	})
+}
+
+func TestDoInspectSingleFileWithAnnotations(t *testing.T) {
+	files := map[string]string{
+		"/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego": `# METADATA
+# title: pkg-title
+# description: pkg-descr
+# organizations:
+# - pkg-org
+# related_resources:
+# - https://pkg
+# - ref: https://pkg
+#   description: rr-pkg-note
+# authors:
+# - pkg-author
+# schemas:
+# - input: {"type": "boolean"}
+# custom:
+#  pkg: pkg-custom
+package test
+
+# METADATA
+# scope: document
+# title: doc-title
+# description: doc-descr
+# organizations:
+# - doc-org
+# related_resources:
+# - https://doc
+# - ref: https://doc
+#   description: rr-doc-note
+# authors:
+# - doc-author
+# schemas:
+# - input: {"type": "integer"}
+# custom:
+#  doc: doc-custom
+
+# METADATA
+# title: rule-title
+# description: rule-title
+# organizations:
+# - rule-org
+# related_resources:
+# - https://rule
+# - ref: https://rule
+#   description: rr-rule-note
+# authors:
+# - rule-author
+# schemas:
+# - input: {"type": "string"}
+# custom:
+#  rule: rule-custom
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := fmt.Sprintf("%s/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego", rootDir)
+		ps := newInspectCommandParams()
+		ps.listAnnotations = true
+		var out bytes.Buffer
+		err := doInspect(ps, fileName, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		shortFileName := truncateFileName(fileName)
+		output := strings.TrimSpace(out.String())
+		expected := strings.TrimSpace(fmt.Sprintf(`
+NAMESPACES:
++-----------+----------------------------------------------------+
+| NAMESPACE |                        FILE                        |
++-----------+----------------------------------------------------+
+| data.test | %[1]s |
++-----------+----------------------------------------------------+
+ANNOTATIONS:
+pkg-title
+=========
+
+pkg-descr
+
+Package:  test
+Location: %[2]s:16
+Scope: package
+
+Organizations:
+ pkg-org
+
+Authors:
+ pkg-author
+
+Schemas:
+ input: {"type":"boolean"}
+
+Related Resources:
+ https://pkg
+ https://pkg rr-pkg-note
+
+Custom:
+ pkg: "pkg-custom"
+
+doc-title
+=========
+
+doc-descr
+
+Package:  test
+Rule:     p
+Location: %[2]s:50
+Scope: document
+
+Organizations:
+ doc-org
+
+Authors:
+ doc-author
+
+Schemas:
+ input: {"type":"integer"}
+
+Related Resources:
+ https://doc
+ https://doc rr-doc-note
+
+Custom:
+ doc: "doc-custom"
+
+rule-title
+==========
+
+rule-title
+
+Package:  test
+Rule:     p
+Location: %[2]s:50
+Scope: rule
+
+Organizations:
+ rule-org
+
+Authors:
+ rule-author
+
+Schemas:
+ input: {"type":"string"}
+
+Related Resources:
+ https://rule
+ https://rule rr-rule-note
+
+Custom:
+ rule: "rule-custom"`, shortFileName, fileName))
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
+		}
+	})
+}
+
+func TestDoInspectSingleFile(t *testing.T) {
+	files := map[string]string{
+		"/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego": `# METADATA
+# title: pkg-title
+# description: pkg-descr
+# organizations:
+# - pkg-org
+# related_resources:
+# - https://pkg
+# - ref: https://pkg
+#   description: rr-pkg-note
+# authors:
+# - pkg-author
+# schemas:
+# - input: {"type": "boolean"}
+# custom:
+#  pkg: pkg-custom
+package test
+
+# METADATA
+# scope: document
+# title: doc-title
+# description: doc-descr
+# organizations:
+# - doc-org
+# related_resources:
+# - https://doc
+# - ref: https://doc
+#   description: rr-doc-note
+# authors:
+# - doc-author
+# schemas:
+# - input: {"type": "integer"}
+# custom:
+#  doc: doc-custom
+
+# METADATA
+# title: rule-title
+# description: rule-title
+# organizations:
+# - rule-org
+# related_resources:
+# - https://rule
+# - ref: https://rule
+#   description: rr-rule-note
+# authors:
+# - rule-author
+# schemas:
+# - input: {"type": "string"}
+# custom:
+#  rule: rule-custom
+p = 1`,
+	}
+
+	test.WithTempFS(files, func(rootDir string) {
+		fileName := fmt.Sprintf("%s/a/xxxxxxxxxxxxxxxxxxxxxx/yyyyyyyyyyyyyyyyyyyy/foo.rego", rootDir)
+		ps := newInspectCommandParams()
+		var out bytes.Buffer
+		err := doInspect(ps, fileName, &out)
+		if err != nil {
+			t.Fatalf("Unexpected error %v", err)
+		}
+
+		shortFileName := truncateFileName(fileName)
+		output := strings.TrimSpace(out.String())
+		expected := strings.TrimSpace(fmt.Sprintf(`
+NAMESPACES:
++-----------+----------------------------------------------------+
+| NAMESPACE |                        FILE                        |
++-----------+----------------------------------------------------+
+| data.test | %s |
++-----------+----------------------------------------------------+
+`, shortFileName))
+
+		if output != expected {
+			t.Fatalf("Unexpected output. Expected:\n\n%q\n\nGot:\n\n%q", expected, output)
 		}
 	})
 }
