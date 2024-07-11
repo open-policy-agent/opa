@@ -151,8 +151,8 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// nothing swaps underneath us with the current p.config and the updated one.
 	// Use p.cfgMtx instead of p.mtx so as to not block any bundle downloads/activations
 	// that are in progress. We upgrade to p.mtx locking after stopping downloaders.
-	p.cfgMtx.Lock()
-	defer p.cfgMtx.Unlock()
+	p.cfgMtx.RLock()
+	defer p.cfgMtx.RUnlock()
 
 	// Look for any bundles that have had their config changed, are new, or have been removed
 	newConfig := config.(*Config)
