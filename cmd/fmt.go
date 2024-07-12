@@ -27,6 +27,7 @@ type fmtCommandParams struct {
 	fail         bool
 	regoV1       bool
 	v1Compatible bool
+	checkResult  bool
 }
 
 var fmtParams = fmtCommandParams{}
@@ -126,11 +127,20 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 		return newError("failed to open file: %v", err)
 	}
 
-	opts := format.Opts{}
-	opts.RegoVersion = params.regoVersion()
+	opts := format.Opts{
+		RegoVersion: params.regoVersion(),
+	}
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
+	}
+
+	if params.checkResult {
+		popts := ast.ParserOptions{RegoVersion: params.regoVersion()}
+		_, err := ast.ParseModuleWithOpts("formatted", string(formatted), popts)
+		if err != nil {
+			return newError("%s was successfully formatted, but the result is invalid: %v\n\nTo inspect the formatted Rego, you can turn off this check with --check-result=false.", filename, err)
+		}
 	}
 
 	changed := !bytes.Equal(contents, formatted)
@@ -229,6 +239,7 @@ func init() {
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
 	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
+	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
 
 	RootCommand.AddCommand(formatCommand)
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/open-policy-agent/opa/topdown/builtins"
 )
 
+const globCacheMaxSize = 100
+
 var globCacheLock = sync.Mutex{}
 var globCache map[string]glob.Glob
 
@@ -63,6 +65,13 @@ func globCompileAndMatch(id, pattern, match string, delimiters []rune) (bool, er
 		var err error
 		if p, err = glob.Compile(pattern, delimiters...); err != nil {
 			return false, err
+		}
+		if len(globCache) >= globCacheMaxSize {
+			// Delete a (semi-)random key to make room for the new one.
+			for k := range globCache {
+				delete(globCache, k)
+				break
+			}
 		}
 		globCache[id] = p
 	}

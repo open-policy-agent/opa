@@ -213,6 +213,14 @@ func (c *Discovery) RegisterListener(name interface{}, f func(bundle.Status)) {
 	c.listeners[name] = f
 }
 
+// Unregister a listener to stop receiving status updates.
+func (c *Discovery) Unregister(name interface{}) {
+	c.listenersMtx.Lock()
+	defer c.listenersMtx.Unlock()
+
+	delete(c.listeners, name)
+}
+
 func (c *Discovery) getBundlePersistPath() (string, error) {
 	persistDir, err := c.manager.Config.GetPersistenceDirectory()
 	if err != nil {
