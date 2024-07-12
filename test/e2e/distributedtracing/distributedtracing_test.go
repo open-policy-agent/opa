@@ -394,7 +394,6 @@ func TestClientSpan(t *testing.T) {
 
 		expected := []interface{}{
 			attribute.String("http.method", "GET"),
-			//attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
