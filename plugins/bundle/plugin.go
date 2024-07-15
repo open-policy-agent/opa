@@ -663,8 +663,6 @@ func (p *Plugin) persistBundle(name string) bool {
 
 // configDelta will return a map of new bundle sources, updated bundle sources, and a set of deleted bundle names
 func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]*Source, map[string]struct{}) {
-	p.cfgMtx.RLock()
-	defer p.cfgMtx.RUnlock()
 	deletedBundles := map[string]struct{}{}
 	for name := range p.config.Bundles {
 		deletedBundles[name] = struct{}{}
