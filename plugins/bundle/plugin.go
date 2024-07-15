@@ -79,13 +79,16 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 
 	p := &Plugin{
 		manager:     manager,
-		config:      *parsedConfig,
 		status:      initialStatus,
 		downloaders: make(map[string]Loader),
 		etags:       make(map[string]string),
 		ready:       false,
 		logger:      manager.Logger(),
 	}
+
+	p.cfgMtx.Lock()
+	p.config = *parsedConfig
+	p.cfgMtx.Unlock()
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return p
@@ -152,12 +155,12 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	// Use p.cfgMtx instead of p.mtx so as to not block any bundle downloads/activations
 	// that are in progress. We upgrade to p.mtx locking after stopping downloaders.
 	p.cfgMtx.Lock()
-	defer p.cfgMtx.Unlock()
 
 	// Look for any bundles that have had their config changed, are new, or have been removed
 	newConfig := config.(*Config)
 	newBundles, updatedBundles, deletedBundles := p.configDelta(newConfig)
 	p.config = *newConfig
+	p.cfgMtx.Unlock()
 
 	if len(updatedBundles) == 0 && len(newBundles) == 0 && len(deletedBundles) == 0 {
 		// no relevant config changes
@@ -213,7 +216,11 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 
 	readyNow := p.ready
 
-	for name, source := range p.config.Bundles {
+	p.cfgMtx.RLock()
+	bundles := p.config.Bundles
+	p.cfgMtx.RUnlock()
+
+	for name, source := range bundles {
 		_, updated := updatedBundles[name]
 		_, isNew := newBundles[name]
 
@@ -352,12 +359,14 @@ func (p *Plugin) readBundleEtagFromStore(ctx context.Context, name string) strin
 }
 
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
-	p.cfgMtx.RLock()
-	defer p.cfgMtx.RUnlock()
 
 	persistedBundles := map[string]*bundle.Bundle{}
 
-	for name, src := range p.config.Bundles {
+	p.cfgMtx.RLock()
+	bundles := p.config.Bundles
+	p.cfgMtx.RUnlock()
+
+	for name, src := range bundles {
 		if p.persistBundle(name) {
 			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
@@ -664,7 +673,7 @@ func (p *Plugin) persistBundle(name string) bool {
 // configDelta will return a map of new bundle sources, updated bundle sources, and a set of deleted bundle names
 func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]*Source, map[string]struct{}) {
 	deletedBundles := map[string]struct{}{}
-	for name := range p.config.Bundles {
+	for name := range p.config.Bundles { //Rely on the `cfgMtx` mutex already acquired by calling method `Reconfigure`.
 		deletedBundles[name] = struct{}{}
 	}
 	newBundles := map[string]*Source{}
