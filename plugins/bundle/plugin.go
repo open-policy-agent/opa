@@ -317,7 +317,7 @@ func (p *Plugin) Config() *Config {
 
 func (p *Plugin) initDownloaders(ctx context.Context) {
 	p.cfgMtx.RLock()
-	p.cfgMtx.RUnlock()
+	defer p.cfgMtx.RUnlock()
 
 	// Initialize a downloader for each bundle configured.
 	for name, source := range p.config.Bundles {
@@ -353,7 +353,7 @@ func (p *Plugin) readBundleEtagFromStore(ctx context.Context, name string) strin
 
 func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 	p.cfgMtx.RLock()
-	p.cfgMtx.RUnlock()
+	defer p.cfgMtx.RUnlock()
 
 	persistedBundles := map[string]*bundle.Bundle{}
 
