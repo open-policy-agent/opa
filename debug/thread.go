@@ -7,6 +7,7 @@ package debug
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/ast/location"
@@ -45,6 +46,7 @@ type thread struct {
 	state           threadState
 	varManager      *variableManager
 	logger          logging.Logger
+	mtx             sync.Mutex
 }
 
 func (t *thread) ID() ThreadID {
@@ -124,6 +126,9 @@ func (t *thread) current() (int, *topdown.Event, error) {
 }
 
 func (t *thread) stepIn() (eventAction, error) {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
 	if t.stopped {
 		return nopAction, fmt.Errorf("thread stopped")
 	}
@@ -150,6 +155,9 @@ func (t *thread) stepIn() (eventAction, error) {
 }
 
 func (t *thread) stepOver() error {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
 	if t.stopped {
 		return fmt.Errorf("thread stopped")
 	}
@@ -211,6 +219,9 @@ Loop:
 }
 
 func (t *thread) stepOut() error {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
 	if t.stopped {
 		return fmt.Errorf("thread stopped")
 	}
@@ -425,5 +436,8 @@ func (t *thread) close() error {
 }
 
 func (t *thread) done() bool {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
 	return t.stopped || !t.stack.Enabled()
 }
