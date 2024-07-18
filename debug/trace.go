@@ -89,9 +89,8 @@ func (dt *debugTracer) Next() (int, *topdown.Event) {
 	if ok {
 		dt.history = append(dt.history, e)
 		return len(dt.history) - 1, e
-	} else {
-		return len(dt.history) - 1, nil
 	}
+	return len(dt.history) - 1, nil
 }
 
 func (dt *debugTracer) Result() rego.ResultSet {

@@ -11,17 +11,19 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 )
 
+type BreakpointID int
+
 type Breakpoint interface {
-	Id() int
+	ID() BreakpointID
 	Location() location.Location
 }
 
 type breakpoint struct {
-	id       int
+	id       BreakpointID
 	location location.Location
 }
 
-func (b breakpoint) Id() int {
+func (b breakpoint) ID() BreakpointID {
 	return b.id
 }
 
@@ -54,7 +56,7 @@ func (b breakpointList) String() string {
 
 type breakpointCollection struct {
 	breakpoints map[string]breakpointList
-	idCounter   int
+	idCounter   BreakpointID
 }
 
 func newBreakpointCollection() *breakpointCollection {
@@ -63,14 +65,14 @@ func newBreakpointCollection() *breakpointCollection {
 	}
 }
 
-func (bc *breakpointCollection) newId() int {
+func (bc *breakpointCollection) newID() BreakpointID {
 	bc.idCounter++
 	return bc.idCounter
 }
 
 func (bc *breakpointCollection) add(location location.Location) Breakpoint {
 	bp := breakpoint{
-		id:       bc.newId(),
+		id:       bc.newID(),
 		location: location,
 	}
 	bps := bc.breakpoints[bp.location.File]

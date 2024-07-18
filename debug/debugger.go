@@ -36,7 +36,7 @@ type debugger struct {
 
 type Session interface {
 	// Resume resumes execution of the thread with the given ID.
-	Resume(threadId ThreadID) error
+	Resume(threadID ThreadID) error
 
 	// ResumeAll resumes execution of all threads in the session.
 	ResumeAll() error
@@ -59,7 +59,7 @@ type Session interface {
 	//	  }                |
 	//	  input.x == 1   <-+
 	//	}
-	StepOver(threadId ThreadID) error
+	StepOver(threadID ThreadID) error
 
 	// StepIn executes the next expression in the current scope and then stops on the next expression in the same scope or sub-scope;
 	// stepping into any referenced rule, called function, comprehension, or every expression.
@@ -83,7 +83,7 @@ type Session interface {
 	//	  }
 	//	  input.x == 1
 	//	}
-	StepIn(threadId ThreadID) error
+	StepIn(threadID ThreadID) error
 
 	// StepOut steps out of the current scope (rule, function, comprehension, every expression) and stops on the next expression in the parent scope.
 	//
@@ -106,7 +106,7 @@ type Session interface {
 	//	  }                |
 	//	  input.x == 1   <-+
 	//	}
-	StepOut(threadId ThreadID) error
+	StepOut(threadID ThreadID) error
 
 	// Threads returns a list of all threads in the session.
 	Threads() ([]Thread, error)
@@ -123,10 +123,10 @@ type Session interface {
 
 	// StackTrace returns the StackTrace for the thread with the given ID.
 	// The stack trace is ordered from the most recent frame to the least recent frame.
-	StackTrace(threadId ThreadID) (StackTrace, error)
+	StackTrace(threadID ThreadID) (StackTrace, error)
 
 	// Scopes returns the Scope list for the frame with the given ID.
-	Scopes(frameId FrameID) ([]Scope, error)
+	Scopes(frameID FrameID) ([]Scope, error)
 
 	// Variables returns the Variable list for the given reference.
 	Variables(varRef VarRef) ([]Variable, error)
@@ -146,7 +146,7 @@ func (h *printHook) Print(_ prnt.Context, str string) error {
 	if h == nil || h.d == nil {
 		return nil
 	}
-	h.d.eventHandler(DebugEvent{Type: StdoutEventType, Message: str})
+	h.d.eventHandler(Event{Type: StdoutEventType, Message: str})
 	return nil
 }
 
@@ -208,7 +208,7 @@ type LaunchProperties struct {
 func (lp LaunchProperties) String() string {
 	b, err := json.Marshal(lp)
 	if err != nil {
-		return fmt.Sprintf("{}")
+		return "{}"
 	}
 	return string(b)
 }
@@ -353,12 +353,12 @@ func (s *session) start() error {
 		t := t
 		go func() {
 			s.d.logger.Debug("Thread %d started", t.id)
-			s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "started"})
+			s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "started"})
 			if err := t.run(s.ctx); err != nil {
 				s.d.logger.Error("Thread %d failed: %v", t.id, err)
 			}
 			s.d.logger.Debug("Thread %d stopped", t.id)
-			s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "exited"})
+			s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "exited"})
 
 			allStopped := true
 			for _, t := range s.threads {
@@ -370,7 +370,7 @@ func (s *session) start() error {
 
 			if allStopped {
 				s.d.logger.Debug("All threads stopped")
-				s.d.sendEvent(DebugEvent{Type: TerminatedEventType})
+				s.d.sendEvent(Event{Type: TerminatedEventType})
 			}
 		}()
 	}
@@ -390,12 +390,12 @@ func (s *session) thread(id ThreadID) (*thread, error) {
 	return s.threads[index], nil
 }
 
-func (s *session) Resume(threadId ThreadID) error {
+func (s *session) Resume(threadID ThreadID) error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
 
-	t, err := s.thread(threadId)
+	t, err := s.thread(threadID)
 	if err != nil {
 		return err
 	}
@@ -416,12 +416,12 @@ func (s *session) ResumeAll() error {
 	return nil
 }
 
-func (s *session) StepOver(threadId ThreadID) error {
+func (s *session) StepOver(threadID ThreadID) error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
 
-	t, err := s.thread(threadId)
+	t, err := s.thread(threadID)
 	if err != nil {
 		return err
 	}
@@ -430,11 +430,11 @@ func (s *session) StepOver(threadId ThreadID) error {
 	if err == nil {
 		i, e, _ := t.current()
 		if e != nil {
-			s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
+			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}
 	}
 	if t.done() {
-		s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "exited"})
+		s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "exited"})
 		allStopped := true
 		for _, t := range s.threads {
 			if !t.done() {
@@ -443,19 +443,19 @@ func (s *session) StepOver(threadId ThreadID) error {
 			}
 		}
 		if allStopped {
-			s.d.sendEvent(DebugEvent{Type: TerminatedEventType})
+			s.d.sendEvent(Event{Type: TerminatedEventType})
 		}
 	}
 
 	return err
 }
 
-func (s *session) StepIn(threadId ThreadID) error {
+func (s *session) StepIn(threadID ThreadID) error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
 
-	t, err := s.thread(threadId)
+	t, err := s.thread(threadID)
 	if err != nil {
 		return err
 	}
@@ -464,11 +464,11 @@ func (s *session) StepIn(threadId ThreadID) error {
 	if err == nil {
 		i, e, _ := t.current()
 		if e != nil {
-			s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
+			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}
 	}
 	if t.done() {
-		s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "exited"})
+		s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "exited"})
 		allStopped := true
 		for _, t := range s.threads {
 			if !t.done() {
@@ -477,19 +477,19 @@ func (s *session) StepIn(threadId ThreadID) error {
 			}
 		}
 		if allStopped {
-			s.d.sendEvent(DebugEvent{Type: TerminatedEventType})
+			s.d.sendEvent(Event{Type: TerminatedEventType})
 		}
 	}
 
 	return err
 }
 
-func (s *session) StepOut(threadId ThreadID) error {
+func (s *session) StepOut(threadID ThreadID) error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
 
-	t, err := s.thread(threadId)
+	t, err := s.thread(threadID)
 	if err != nil {
 		return err
 	}
@@ -498,11 +498,11 @@ func (s *session) StepOut(threadId ThreadID) error {
 	if err == nil {
 		i, e, _ := t.current()
 		if e != nil {
-			s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
+			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "step", stackIndex: i, stackEvent: e})
 		}
 	}
 	if t.done() {
-		s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "exited"})
+		s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "exited"})
 		allStopped := true
 		for _, t := range s.threads {
 			if !t.done() {
@@ -511,7 +511,7 @@ func (s *session) StepOut(threadId ThreadID) error {
 			}
 		}
 		if allStopped {
-			s.d.sendEvent(DebugEvent{Type: TerminatedEventType})
+			s.d.sendEvent(Event{Type: TerminatedEventType})
 		}
 	}
 
@@ -532,14 +532,13 @@ func (s *session) Threads() ([]Thread, error) {
 }
 
 type sessionThreadState struct {
-	threadState
 	entered     bool
 	ended       bool
-	prevQueryId uint64
+	prevQueryID uint64
 }
 
 func (s *sessionThreadState) String() string {
-	return fmt.Sprintf("{entered: %v, ended: %v, prevQueryId: %d}", s.entered, s.ended, s.prevQueryId)
+	return fmt.Sprintf("{entered: %v, ended: %v, prevQueryID: %d}", s.entered, s.ended, s.prevQueryID)
 }
 
 func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts threadState) (eventAction, threadState, error) {
@@ -553,9 +552,9 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 
 	defer func() {
 		if e != nil {
-			state.prevQueryId = e.QueryID
+			state.prevQueryID = e.QueryID
 		} else {
-			state.prevQueryId = 0
+			state.prevQueryID = 0
 		}
 	}()
 
@@ -575,7 +574,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 		state.ended = true
 		if s.properties.StopOnResult {
 			s.d.logger.Info("Thread %d stopped at end of trace", t.id)
-			s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "result", stackIndex: stackIndex, stackEvent: e})
+			s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "result", stackIndex: stackIndex, stackEvent: e})
 			return breakAction, state, nil
 		}
 
@@ -597,13 +596,13 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 	if s.properties.StopOnEntry && !state.entered && e.Location != nil && e.Location.File != "" {
 		state.entered = true
 		s.d.logger.Info("Thread %d stopped at entry", t.id)
-		s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "entry", stackIndex: stackIndex, stackEvent: e})
+		s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "entry", stackIndex: stackIndex, stackEvent: e})
 		return breakAction, state, nil
 	}
 
 	if s.properties.StopOnFail && e.Op == topdown.FailOp {
 		s.d.logger.Info("Thread %d stopped on failure", t.id)
-		s.d.sendEvent(DebugEvent{Type: ExceptionEventType, Thread: t.id, Message: string(e.Op), stackIndex: stackIndex, stackEvent: e})
+		s.d.sendEvent(Event{Type: ExceptionEventType, Thread: t.id, Message: string(e.Op), stackIndex: stackIndex, stackEvent: e})
 		return breakAction, state, nil
 	}
 
@@ -612,7 +611,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 			if bp.location.Row == e.Location.Row {
 				// if the last event also caused a breakpoint AND we're still on the same line, skip this breakpoint.
 				s.d.logger.Info("Thread %d stopped at breakpoint: %s:%d", t.id, e.Location.File, e.Location.Row)
-				s.d.sendEvent(DebugEvent{Type: StoppedEventType, Thread: t.id, Message: "breakpoint", stackIndex: stackIndex, stackEvent: e})
+				s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "breakpoint", stackIndex: stackIndex, stackEvent: e})
 				return breakAction, state, nil
 			}
 		}
@@ -631,20 +630,20 @@ func (s *session) skipOp(op topdown.Op) bool {
 }
 
 func (s *session) result(t *thread, rs rego.ResultSet) {
-	if rsJson, err := json.MarshalIndent(rs, "", "  "); err == nil {
-		s.d.logger.Debug("Result: %s\n", rsJson)
-		s.d.sendEvent(DebugEvent{Type: StdoutEventType, Thread: t.id, Message: string(rsJson)})
+	if rsJSON, err := json.MarshalIndent(rs, "", "  "); err == nil {
+		s.d.logger.Debug("Result: %s\n", rsJSON)
+		s.d.sendEvent(Event{Type: StdoutEventType, Thread: t.id, Message: string(rsJSON)})
 	} else {
 		s.d.logger.Debug("Result: %v\n", rs)
 	}
 }
 
-func (s *session) StackTrace(threadId ThreadID) (StackTrace, error) {
+func (s *session) StackTrace(threadID ThreadID) (StackTrace, error) {
 	if s == nil {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
-	t, err := s.thread(threadId)
+	t, err := s.thread(threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -713,12 +712,12 @@ func (s *session) frame(id FrameID) (*stackFrame, error) {
 	return s.frames[index], nil
 }
 
-func (s *session) Scopes(frameId FrameID) ([]Scope, error) {
+func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
 	if s == nil {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
-	f, err := s.frame(frameId)
+	f, err := s.frame(frameID)
 	if err != nil {
 		return nil, err
 	}
@@ -791,18 +790,18 @@ func (s *session) Terminate() error {
 			hasErrors = true
 			s.d.logger.Error("Failed to stop thread %d: %v", t.id, err)
 		} else {
-			s.d.sendEvent(DebugEvent{Type: ThreadEventType, Thread: t.id, Message: "exited"})
+			s.d.sendEvent(Event{Type: ThreadEventType, Thread: t.id, Message: "exited"})
 		}
 	}
 
 	if !hasErrors {
-		s.d.sendEvent(DebugEvent{Type: TerminatedEventType})
+		s.d.sendEvent(Event{Type: TerminatedEventType})
 	}
 
 	return nil
 }
 
-func (d *debugger) sendEvent(e DebugEvent) {
+func (d *debugger) sendEvent(e Event) {
 	if d == nil || d.eventHandler == nil {
 		return
 	}

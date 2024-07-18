@@ -1865,36 +1865,36 @@ func setupDebuggerSession(ctx context.Context, stk stack, launchProperties Launc
 }
 
 type testEventHandler struct {
-	ch chan *DebugEvent
+	ch chan *Event
 }
 
 func newTestEventHandler() *testEventHandler {
 	return &testEventHandler{
-		ch: make(chan *DebugEvent),
+		ch: make(chan *Event),
 	}
 }
 
-func (teh *testEventHandler) HandleEvent(event DebugEvent) {
-	teh.ch <- &event
+func (eh *testEventHandler) HandleEvent(event Event) {
+	eh.ch <- &event
 }
 
-func (teh *testEventHandler) Next(duration time.Duration) *DebugEvent {
+func (eh *testEventHandler) Next(duration time.Duration) *Event {
 	select {
-	case e := <-teh.ch:
+	case e := <-eh.ch:
 		return e
 	case <-time.After(duration):
 		return nil
 	}
 }
 
-func (teh *testEventHandler) NextBlocking() *DebugEvent {
-	return <-teh.ch
+func (eh *testEventHandler) NextBlocking() *Event {
+	return <-eh.ch
 }
 
-func (teh *testEventHandler) WaitFor(ctx context.Context, eventType EventType) *DebugEvent {
+func (eh *testEventHandler) WaitFor(ctx context.Context, eventType EventType) *Event {
 	for {
 		select {
-		case e := <-teh.ch:
+		case e := <-eh.ch:
 			if e.Type == eventType {
 				return e
 			}
@@ -1904,11 +1904,11 @@ func (teh *testEventHandler) WaitFor(ctx context.Context, eventType EventType) *
 	}
 }
 
-func (teh *testEventHandler) IgnoreAll(ctx context.Context) {
+func (eh *testEventHandler) IgnoreAll(ctx context.Context) {
 	go func() {
 		for {
 			select {
-			case <-teh.ch:
+			case <-eh.ch:
 			case <-ctx.Done():
 				return
 			}
@@ -1916,11 +1916,11 @@ func (teh *testEventHandler) IgnoreAll(ctx context.Context) {
 	}()
 }
 
-func (teh *testEventHandler) Do(task func() error) error {
+func (eh *testEventHandler) Do(task func() error) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	teh.IgnoreAll(ctx)
+	eh.IgnoreAll(ctx)
 
 	return task()
 }
@@ -1939,13 +1939,13 @@ func newTestStack(events ...*topdown.Event) *testStack {
 	}
 }
 
-func (ts *testStack) done() bool {
-	return ts.index >= len(ts.events)
-}
+//func (ts *testStack) done() bool {
+//	return ts.index >= len(ts.events)
+//}
 
-func (ts *testStack) onLastEvent() bool {
-	return ts.index == len(ts.events)-1
-}
+//func (ts *testStack) onLastEvent() bool {
+//	return ts.index == len(ts.events)-1
+//}
 
 func (ts *testStack) Enabled() bool {
 	return true

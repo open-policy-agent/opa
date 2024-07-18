@@ -21,8 +21,7 @@ const (
 	ThreadEventType     = "thread"
 )
 
-// FIXME: Rename?
-type DebugEvent struct {
+type Event struct {
 	Type       EventType
 	Thread     ThreadID
 	Message    string
@@ -30,7 +29,7 @@ type DebugEvent struct {
 	stackEvent *topdown.Event
 }
 
-func (d DebugEvent) String() string {
+func (d Event) String() string {
 	buf := new(strings.Builder)
 
 	buf.WriteString(fmt.Sprintf("%s{", d.Type))
@@ -49,8 +48,8 @@ func (d DebugEvent) String() string {
 	return buf.String()
 }
 
-type EventHandler func(DebugEvent)
+type EventHandler func(Event)
 
 func newNopEventHandler() EventHandler {
-	return func(_ DebugEvent) {}
+	return func(_ Event) {}
 }

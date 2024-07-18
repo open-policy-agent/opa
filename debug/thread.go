@@ -31,7 +31,7 @@ type eventHandler func(t *thread, stackIndex int, e *topdown.Event, s threadStat
 type ThreadID int
 
 type Thread interface {
-	Id() ThreadID
+	ID() ThreadID
 	Name() string
 }
 
@@ -47,7 +47,7 @@ type thread struct {
 	logger          logging.Logger
 }
 
-func (t *thread) Id() ThreadID {
+func (t *thread) ID() ThreadID {
 	return t.id
 }
 
@@ -179,7 +179,7 @@ Loop:
 			continue
 		}
 
-		var qid uint64 = 0
+		var qid uint64
 		if e != nil {
 			qid = e.QueryID
 		}
@@ -234,7 +234,7 @@ func (t *thread) stepOut() error {
 			continue
 		}
 
-		var qid uint64 = 0
+		var qid uint64
 		if e != nil {
 			qid = e.QueryID
 		}
@@ -243,9 +243,8 @@ func (t *thread) stepOut() error {
 		if a == breakAction || e == nil || c == nil || qid < c.QueryID {
 			t.logger.Debug("Resuming on query: %d", qid)
 			break
-		} else {
-			t.logger.Debug("Continuing past query: %d", qid)
 		}
+		t.logger.Debug("Continuing past query: %d", qid)
 	}
 
 	return nil
