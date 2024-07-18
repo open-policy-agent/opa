@@ -636,9 +636,7 @@ func TestDebuggerAutomaticStop(t *testing.T) {
 
 			stk := newTestStack(testEvents...)
 			eh := newTestEventHandler()
-			l := logging.New()
-			l.SetLevel(logging.Debug)
-			_, s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, l)
+			_, s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, nil)
 
 			if err := s.start(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -868,8 +866,6 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 	}
 }
 
-// TODO: Test resume
-
 func TestDebuggerStepIn(t *testing.T) {
 	tests := []struct {
 		note            string
@@ -978,9 +974,7 @@ func TestDebuggerStepIn(t *testing.T) {
 			defer close(doneCh)
 			go func() {
 				for {
-					fmt.Println("WAITING FOR EVENT")
 					e := eh.NextBlocking()
-					fmt.Printf("EVENT: %v\n", e)
 
 					if e == nil || e.Type == TerminatedEventType {
 						break
@@ -990,7 +984,6 @@ func TestDebuggerStepIn(t *testing.T) {
 						stoppedAt = append(stoppedAt, e.stackIndex)
 					}
 				}
-				fmt.Println("DONE")
 				doneCh <- struct{}{}
 			}()
 
@@ -1319,9 +1312,7 @@ func TestDebuggerStepOut(t *testing.T) {
 			defer close(doneCh)
 			go func() {
 				for {
-					fmt.Println("WAITING FOR EVENT")
 					e := eh.NextBlocking()
-					fmt.Printf("EVENT: %v\n", e)
 
 					if e == nil || e.Type == TerminatedEventType {
 						break
@@ -1331,7 +1322,6 @@ func TestDebuggerStepOut(t *testing.T) {
 						stoppedAt = append(stoppedAt, e.stackIndex)
 					}
 				}
-				fmt.Println("DONE")
 				doneCh <- struct{}{}
 			}()
 
@@ -1467,12 +1457,9 @@ func TestDebuggerStackTrace(t *testing.T) {
 			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 			defer cancel()
 
-			l := logging.New()
-			l.SetLevel(logging.Debug)
-
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, l)
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil)
 
 			if err := s.start(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
