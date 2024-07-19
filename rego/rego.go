@@ -124,6 +124,7 @@ type EvalContext struct {
 	printHook              print.Hook
 	capabilities           *ast.Capabilities
 	strictBuiltinErrors    bool
+	virtualCache           topdown.VirtualCache
 }
 
 func (e *EvalContext) RawInput() *interface{} {
@@ -339,6 +340,12 @@ func EvalCopyMaps(yes bool) EvalOption {
 func EvalPrintHook(ph print.Hook) EvalOption {
 	return func(e *EvalContext) {
 		e.printHook = ph
+	}
+}
+
+func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
+	return func(e *EvalContext) {
+		e.virtualCache = vc
 	}
 }
 
@@ -2101,7 +2108,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		WithBuiltinErrorList(r.builtinErrorList).
 		WithSeed(ectx.seed).
 		WithPrintHook(ectx.printHook).
-		WithDistributedTracingOpts(r.distributedTacingOpts)
+		WithDistributedTracingOpts(r.distributedTacingOpts).
+		WithVirtualCache(ectx.virtualCache)
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)

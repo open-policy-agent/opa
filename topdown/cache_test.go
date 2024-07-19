@@ -11,7 +11,7 @@ import (
 )
 
 func TestVirtualCacheCompositeKey(t *testing.T) {
-	cache := newVirtualCache()
+	cache := NewVirtualCache()
 	ref := ast.MustParseRef("data.x.y[[1]].z")
 	cache.Put(ref, ast.BooleanTerm(true))
 	result, _ := cache.Get(ref)
@@ -21,7 +21,7 @@ func TestVirtualCacheCompositeKey(t *testing.T) {
 }
 
 func TestVirtualCacheInvalidate(t *testing.T) {
-	cache := newVirtualCache()
+	cache := NewVirtualCache()
 	cache.Push()
 	cache.Put(ast.MustParseRef("data.x.p"), ast.BooleanTerm(true))
 	cache.Pop()
@@ -32,7 +32,7 @@ func TestVirtualCacheInvalidate(t *testing.T) {
 }
 
 func TestSetAndRetriveUndefined(t *testing.T) {
-	cache := newVirtualCache()
+	cache := NewVirtualCache()
 	cache.Put(ast.MustParseRef("data.foo.bar"), nil)
 	result, undefined := cache.Get(ast.MustParseRef("data.foo.bar"))
 	if result != nil {

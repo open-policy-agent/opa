@@ -9,6 +9,14 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+type VirtualCache interface {
+	Push()
+	Pop()
+	Get(ref ast.Ref) (*ast.Term, bool)
+	Put(ref ast.Ref, value *ast.Term)
+	Keys() []ast.Ref
+}
+
 type virtualCache struct {
 	stack []*virtualCacheElem
 }
@@ -19,7 +27,7 @@ type virtualCacheElem struct {
 	undefined bool
 }
 
-func newVirtualCache() *virtualCache {
+func NewVirtualCache() VirtualCache {
 	cache := &virtualCache{}
 	cache.Push()
 	return cache
@@ -75,6 +83,26 @@ func (c *virtualCache) Put(ref ast.Ref, value *ast.Term) {
 	} else {
 		node.undefined = true
 	}
+}
+
+func (c *virtualCache) Keys() []ast.Ref {
+	node := c.stack[len(c.stack)-1]
+	return keysRecursive(nil, node)
+}
+
+func keysRecursive(root ast.Ref, node *virtualCacheElem) []ast.Ref {
+	var keys []ast.Ref
+	node.children.Iter(func(k, v util.T) bool {
+		ref := append(root, k.(*ast.Term))
+		if v.(*virtualCacheElem).value != nil {
+			keys = append(keys, ref)
+		}
+		if v.(*virtualCacheElem).children.Len() > 0 {
+			keys = append(keys, keysRecursive(ref, v.(*virtualCacheElem))...)
+		}
+		return false
+	})
+	return keys
 }
 
 func newVirtualCacheElem() *virtualCacheElem {

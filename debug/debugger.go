@@ -258,16 +258,19 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (
 
 	tracer := newDebugTracer()
 
+	vc := topdown.NewVirtualCache()
+
 	evalArgs := []rego.EvalOption{
 		rego.EvalRuleIndexing(true),
 		rego.EvalEarlyExit(true),
 		rego.EvalQueryTracer(tracer),
 		rego.EvalRuleIndexing(props.RuleIndexing),
+		rego.EvalVirtualCache(vc),
 	}
 
 	varManager := newVariableManager()
 	// Threads are 1-indexed.
-	t := newThread(1, "main", tracer, varManager, d.logger)
+	t := newThread(1, "main", tracer, varManager, vc, d.logger)
 	s := newSession(ctx, d, varManager, props.LaunchProperties, []*thread{t})
 
 	go func() {

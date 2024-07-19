@@ -45,6 +45,7 @@ type thread struct {
 	stopped         bool
 	state           threadState
 	varManager      *variableManager
+	virtualCache    topdown.VirtualCache
 	logger          logging.Logger
 	mtx             sync.Mutex
 }
@@ -57,13 +58,14 @@ func (t *thread) Name() string {
 	return t.name
 }
 
-func newThread(id ThreadID, name string, stack stack, varManager *variableManager, logger logging.Logger) *thread {
+func newThread(id ThreadID, name string, stack stack, varManager *variableManager, virtualCache topdown.VirtualCache, logger logging.Logger) *thread {
 	t := &thread{
-		id:         id,
-		name:       name,
-		stack:      stack,
-		logger:     logger,
-		varManager: varManager,
+		id:           id,
+		name:         name,
+		stack:        stack,
+		logger:       logger,
+		varManager:   varManager,
+		virtualCache: virtualCache,
 	}
 
 	// Threads are always created in a paused state.
@@ -322,14 +324,27 @@ func (t *thread) scopes(stackIndex int) []Scope {
 
 	// TODO: Clients are expected to keep track of fetched scopes and variable references (vs-code does),
 	// but it wouldn't hurt to not register the same var-getter callback more than once.
-	if e.Locals.Len() > 0 {
-		localScope := scope{
-			name:               "Locals",
-			namedVariables:     e.Locals.Len(),
-			variablesReference: t.localVars(e),
-			location:           e.Location,
+	localScope := scope{
+		name:               "Locals",
+		namedVariables:     e.Locals.Len(),
+		variablesReference: t.localVars(e),
+		location:           e.Location,
+	}
+	scopes = append(scopes, localScope)
+
+	if t.virtualCache != nil {
+		// We only show "global vars" from the virtual cache when at the top of the stack,
+		// to not need to store a copy for every frame.
+		top, _ := t.stack.Current()
+		if stackIndex == top {
+			keys := t.virtualCache.Keys()
+			globalScope := scope{
+				name:               "Globals",
+				namedVariables:     len(keys),
+				variablesReference: t.globalVars(keys, t.virtualCache),
+			}
+			scopes = append(scopes, globalScope)
 		}
-		scopes = append(scopes, localScope)
 	}
 
 	if e.Input() != nil {
@@ -376,6 +391,33 @@ func (t *thread) localVars(e *topdown.Event) VarRef {
 			vars = append(vars, variable)
 			return false
 		})
+
+		return vars
+	})
+}
+
+func (t *thread) globalVars(keys []ast.Ref, cache topdown.VirtualCache) VarRef {
+	return t.varManager.addVars(func() []namedVar {
+		if cache == nil {
+			return nil
+		}
+
+		vars := make([]namedVar, 0, len(keys))
+		for _, key := range keys {
+			term, undefined := cache.Get(key)
+			var value ast.Value
+			if undefined {
+				value = ast.Null{}
+			} else {
+				value = term.Value
+			}
+
+			variable := namedVar{
+				name:  key.String(),
+				value: value,
+			}
+			vars = append(vars, variable)
+		}
 
 		return vars
 	})
