@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/errdefs"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	oraslib "oras.land/oras-go/v2"
