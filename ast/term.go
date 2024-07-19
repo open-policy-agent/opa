@@ -1293,6 +1293,11 @@ func (arr *Array) Elem(i int) *Term {
 	return arr.elems[i]
 }
 
+// Set sets the element i of arr.
+func (arr *Array) Set(i int, v *Term) {
+	arr.set(i, v)
+}
+
 // rehash updates the cached hash of arr.
 func (arr *Array) rehash() {
 	arr.hash = 0

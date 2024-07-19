@@ -24,6 +24,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/internal/merge"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/util"
@@ -37,10 +38,12 @@ func New() storage.Store {
 // NewWithOpts returns an empty in-memory store, with extra options passed.
 func NewWithOpts(opts ...Opt) storage.Store {
 	s := &store{
-		data:             map[string]interface{}{},
-		triggers:         map[*handle]storage.TriggerConfig{},
-		policies:         map[string][]byte{},
-		roundTripOnWrite: true,
+		data:                  map[string]interface{}{},
+		dataAST:               ast.NewObject(),
+		triggers:              map[*handle]storage.TriggerConfig{},
+		policies:              map[string][]byte{},
+		roundTripOnWrite:      true,
+		returnASTValuesOnRead: false,
 	}
 
 	for _, opt := range opts {
@@ -95,12 +98,15 @@ type store struct {
 	wmu      sync.Mutex                        // writer lock
 	xid      uint64                            // last generated transaction id
 	data     map[string]interface{}            // raw data
+	dataAST  ast.Object                        // raw data stored as AST values
 	policies map[string][]byte                 // raw policies
 	triggers map[*handle]storage.TriggerConfig // registered triggers
 
 	// roundTripOnWrite, if true, means that every call to Write round trips the
 	// data through JSON before adding the data to the store. Defaults to true.
 	roundTripOnWrite bool
+
+	returnASTValuesOnRead bool
 }
 
 type handle struct {
@@ -295,7 +301,19 @@ func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.P
 	if err != nil {
 		return nil, err
 	}
-	return underlying.Read(path)
+
+	v, err := underlying.Read(path)
+	if err != nil {
+		return nil, err
+	}
+
+	//if db.returnASTValuesOnRead {
+	//	return v, nil
+	//}
+	//
+	//return ast.JSON(v.(ast.Value))
+
+	return v, nil
 }
 
 func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {

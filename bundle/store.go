@@ -66,7 +66,12 @@ func ReadBundleNamesFromStore(ctx context.Context, store storage.Store, txn stor
 		return nil, err
 	}
 
-	bundleMap, ok := value.(map[string]interface{})
+	x, err := ast.JSON(value.(ast.Value))
+	if err != nil {
+		return nil, err
+	}
+
+	bundleMap, ok := x.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("corrupt manifest roots")
 	}
@@ -158,7 +163,12 @@ func ReadWasmMetadataFromStore(ctx context.Context, store storage.Store, txn sto
 		return nil, err
 	}
 
-	bs, err := json.Marshal(value)
+	x, err := ast.JSON(value.(ast.Value))
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := json.Marshal(x)
 	if err != nil {
 		return nil, fmt.Errorf("corrupt wasm manifest data")
 	}
@@ -181,7 +191,12 @@ func ReadWasmModulesFromStore(ctx context.Context, store storage.Store, txn stor
 		return nil, err
 	}
 
-	encodedModules, ok := value.(map[string]interface{})
+	x, err := ast.JSON(value.(ast.Value))
+	if err != nil {
+		return nil, err
+	}
+
+	encodedModules, ok := x.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("corrupt wasm modules")
 	}
@@ -210,7 +225,12 @@ func ReadBundleRootsFromStore(ctx context.Context, store storage.Store, txn stor
 		return nil, err
 	}
 
-	sl, ok := value.([]interface{})
+	x, err := ast.JSON(value.(ast.Value))
+	if err != nil {
+		return nil, err
+	}
+
+	sl, ok := x.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("corrupt manifest roots")
 	}
@@ -240,7 +260,12 @@ func readRevisionFromStore(ctx context.Context, store storage.Store, txn storage
 		return "", err
 	}
 
-	str, ok := value.(string)
+	x, err := ast.JSON(value.(ast.Value))
+	if err != nil {
+		return "", err
+	}
+
+	str, ok := x.(string)
 	if !ok {
 		return "", fmt.Errorf("corrupt manifest revision")
 	}
@@ -370,10 +395,10 @@ func activateBundles(opts *ActivateOpts) error {
 
 	// Before changing anything make sure the roots don't collide with any
 	// other bundles that already are activated or other bundles being activated.
-	err := hasRootsOverlap(opts.Ctx, opts.Store, opts.Txn, opts.Bundles)
-	if err != nil {
-		return err
-	}
+	//err := hasRootsOverlap(opts.Ctx, opts.Store, opts.Txn, opts.Bundles)
+	//if err != nil {
+	//	return err
+	//}
 
 	if len(deltaBundles) != 0 {
 		err := activateDeltaBundles(opts, deltaBundles)

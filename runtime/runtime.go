@@ -386,7 +386,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 			return nil, fmt.Errorf("initialize disk store: %w", err)
 		}
 	} else {
-		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
+		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false), inmem.OptReturnASTValuesOnRead(true))
 	}
 
 	traceExporter, tracerProvider, err := internal_tracing.Init(ctx, config, params.ID)
