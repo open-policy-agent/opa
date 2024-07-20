@@ -86,15 +86,18 @@ func TestServerSpan(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
+			attribute.String("net.protocol.version", "1.1"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
+			attribute.Key("net.sock.peer.port"),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.target", "/v0/data"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 3),
+			attribute.Int("http.response_content_length", 3),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
@@ -131,15 +134,18 @@ func TestServerSpan(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
+			attribute.String("net.protocol.version", "1.1"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
+			attribute.Key("net.sock.peer.port"),
 			attribute.String("http.method", "GET"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.target", "/v1/data"),
 			attribute.Int("http.status_code", 200),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 67),
+			attribute.Int("http.response_content_length", 67),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 	})
@@ -293,12 +299,13 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
+			attribute.String("net.peer.name", "127.0.0.1"),
+			attribute.Key("net.peer.port"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -335,17 +342,18 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
+			attribute.String("net.peer.name", "127.0.0.1"),
+			attribute.Key("net.peer.port"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
 		// The (parent) server span carries the decision ID
-		expected = []attribute.KeyValue{
+		expected = []interface{}{
 			attribute.String("opa.decision_id", r.DecisionID),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
@@ -384,17 +392,18 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
+			attribute.String("net.peer.name", "127.0.0.1"),
+			attribute.Key("net.peer.port"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 
 		// The (parent) server span carries the decision ID
-		expected = []attribute.KeyValue{
+		expected = []interface{}{
 			attribute.String("opa.decision_id", r.DecisionID),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[2].Attributes...))
@@ -436,12 +445,13 @@ func TestClientSpan(t *testing.T) {
 			t.Errorf("expected span to be child of %v, got parent %v", expected, got)
 		}
 
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("http.method", "GET"),
-			attribute.String("http.flavor", "1.1"),
 			attribute.String("http.url", testRuntime.URL()+"/health"),
 			attribute.Int("http.status_code", 200),
 			attribute.Int("http.response_content_length", 3),
+			attribute.String("net.peer.name", "127.0.0.1"),
+			attribute.Key("net.peer.port"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[1].Attributes...))
 	})
@@ -639,30 +649,50 @@ allow {
 			t.Fatal(err)
 		}
 
-		expected := []attribute.KeyValue{
+		expected := []interface{}{
 			attribute.String("net.host.name", u.Hostname()),
 			attribute.Int("net.host.port", port),
+			attribute.String("net.protocol.version", "1.1"),
+			attribute.String("net.sock.peer.addr", "127.0.0.1"),
+			attribute.Key("net.sock.peer.port"),
 			attribute.String("http.method", "POST"),
 			attribute.String("http.scheme", "http"),
-			attribute.String("http.flavor", "1.1"),
+			attribute.String("http.target", "/v1/data"),
 			attribute.Int("http.status_code", 401),
-			attribute.String("http.user_agent", "Go-http-client/1.1"),
-			attribute.Int("http.wrote_bytes", 87),
+			attribute.Int("http.response_content_length", 87),
+			attribute.String("user_agent.original", "Go-http-client/1.1"),
 		}
 		compareSpanAttributes(t, expected, attribute.NewSet(spans[0].Attributes...))
 
 	})
 }
 
-func compareSpanAttributes(t *testing.T, expectedAttributes []attribute.KeyValue, spanAttributes attribute.Set) {
+func compareSpanAttributes(t *testing.T, expectedAttributes []interface{}, spanAttributes attribute.Set) {
 	t.Helper()
+	ok := true
 	for _, exp := range expectedAttributes {
-		value, exists := spanAttributes.Value(exp.Key)
+		var expKey attribute.Key
+		var expValue *attribute.Value
+
+		switch exp := exp.(type) {
+		case attribute.KeyValue:
+			expKey = exp.Key
+			expValue = &exp.Value
+		case attribute.Key:
+			expKey = exp
+		}
+
+		value, exists := spanAttributes.Value(expKey)
 		if !exists {
-			t.Fatalf("Expected span attributes to contain %q key", exp.Key)
+			t.Errorf("Expected span attributes to contain %q key", expKey)
+			ok = false
+		} else if expValue != nil && value != *expValue {
+			t.Errorf("Expected %q attribute to be %s but got %s", expKey, expValue.Emit(), value.Emit())
+			ok = false
 		}
-		if value != exp.Value {
-			t.Fatalf("Expected %q attribute to be %s but got %s", exp.Key, exp.Value.Emit(), value.Emit())
-		}
+	}
+
+	if !ok {
+		t.Fatal("Span attributes mismatch")
 	}
 }
