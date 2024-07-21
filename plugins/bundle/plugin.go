@@ -71,6 +71,7 @@ type Plugin struct {
 // New returns a new Plugin with the given config.
 func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 	initialStatus := map[string]*Status{}
+
 	for name := range parsedConfig.Bundles {
 		initialStatus[name] = &Status{
 			Name: name,
@@ -79,16 +80,13 @@ func New(parsedConfig *Config, manager *plugins.Manager) *Plugin {
 
 	p := &Plugin{
 		manager:     manager,
+		config:      *parsedConfig,
 		status:      initialStatus,
 		downloaders: make(map[string]Loader),
 		etags:       make(map[string]string),
 		ready:       false,
 		logger:      manager.Logger(),
 	}
-
-	p.cfgMtx.Lock()
-	p.config = *parsedConfig
-	p.cfgMtx.Unlock()
 
 	manager.UpdatePluginStatus(Name, &plugins.Status{State: plugins.StateNotReady})
 	return p
@@ -217,10 +215,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 	readyNow := p.ready
 
 	p.cfgMtx.RLock()
-	bundles := p.config.Bundles
-	p.cfgMtx.RUnlock()
-
-	for name, source := range bundles {
+	for name, source := range p.config.Bundles {
 		_, updated := updatedBundles[name]
 		_, isNew := newBundles[name]
 
@@ -244,6 +239,7 @@ func (p *Plugin) Reconfigure(ctx context.Context, config interface{}) {
 			readyNow = false
 		}
 	}
+	p.cfgMtx.RUnlock()
 
 	if !readyNow {
 		p.ready = false
@@ -363,10 +359,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 	persistedBundles := map[string]*bundle.Bundle{}
 
 	p.cfgMtx.RLock()
-	bundles := p.config.Bundles
-	p.cfgMtx.RUnlock()
-
-	for name, src := range bundles {
+	for name, src := range p.config.Bundles {
 		if p.persistBundle(name) {
 			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
@@ -382,6 +375,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 			persistedBundles[name] = b
 		}
 	}
+	p.cfgMtx.RUnlock()
 
 	if len(persistedBundles) == 0 {
 		return
