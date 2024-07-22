@@ -313,8 +313,6 @@ func (p *Plugin) UnregisterBulkListener(name interface{}) {
 
 // Config returns the plugins current configuration
 func (p *Plugin) Config() *Config {
-	p.cfgMtx.RLock()
-	defer p.cfgMtx.RUnlock()
 	return &p.config
 }
 
