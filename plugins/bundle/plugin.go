@@ -360,7 +360,7 @@ func (p *Plugin) loadAndActivateBundlesFromDisk(ctx context.Context) {
 
 	p.cfgMtx.RLock()
 	for name, src := range p.config.Bundles {
-		if p.persistBundle(name) {
+		if p.persistBundle(src) {
 			b, err := p.loadBundleFromDisk(p.bundlePersistPath, name, src)
 			if err != nil {
 				p.log(name).Error("Failed to load bundle from disk: %v", err)
@@ -442,14 +442,14 @@ func (p *Plugin) newDownloader(name string, source *Source) Loader {
 			WithCallback(callback).
 			WithBundleVerificationConfig(source.Signing).
 			WithSizeLimitBytes(source.SizeLimitBytes).
-			WithBundlePersistence(p.persistBundle(name)).
+			WithBundlePersistence(p.persistBundle(source)).
 			WithBundleParserOpts(p.manager.ParserOptions())
 	}
 	return download.New(conf, client, path).
 		WithCallback(callback).
 		WithBundleVerificationConfig(source.Signing).
 		WithSizeLimitBytes(source.SizeLimitBytes).
-		WithBundlePersistence(p.persistBundle(name)).
+		WithBundlePersistence(p.persistBundle(source)).
 		WithLazyLoadingMode(true).
 		WithBundleName(name).
 		WithBundleParserOpts(p.manager.ParserOptions())
@@ -518,7 +518,11 @@ func (p *Plugin) process(ctx context.Context, name string, u download.Update) {
 			return
 		}
 
-		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(name) {
+		p.cfgMtx.RLock()
+		src := p.config.Bundles[name]
+		p.cfgMtx.RUnlock()
+
+		if u.Bundle.Type() == bundle.SnapshotBundleType && p.persistBundle(src) {
 			p.log(name).Debug("Persisting bundle to disk in progress.")
 
 			err := p.saveBundleToDisk(name, u.Raw)
@@ -653,11 +657,7 @@ func (p *Plugin) activate(ctx context.Context, name string, b *bundle.Bundle) er
 	return err
 }
 
-func (p *Plugin) persistBundle(name string) bool {
-	p.cfgMtx.RLock()
-	defer p.cfgMtx.RUnlock()
-	bundleSrc := p.config.Bundles[name]
-
+func (p *Plugin) persistBundle(bundleSrc *Source) bool {
 	if bundleSrc == nil {
 		return false
 	}
