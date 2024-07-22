@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -1816,6 +1817,160 @@ allow if {
 					t.Fatalf("Could not deserialize error message: %s", err.Error())
 				}
 				if serverErr.Message != test.expErrorMsg {
+					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
+			}
+		})
+	}
+}
+
+// Tests to ensure the body size limits work, for compressed requests.
+func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
+	defaultMaxLen := int64(1024)
+	defaultGzipMaxLen := int64(1024)
+
+	tests := []struct {
+		note                  string
+		wantGzip              bool
+		payload               []byte
+		forceContentLen       int64  // Size to manually set the Content-Length header to.
+		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
+		expRespHTTPStatus     int
+		expErrorMsg           string
+		maxLen                int64
+		gzipMaxLen            int64
+	}{
+		{
+			note:              "empty message",
+			payload:           []byte{},
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:              "empty message, gzip",
+			wantGzip:          true,
+			payload:           mustGZIPPayload([]byte{}),
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:              "empty message, malicious Content-Length",
+			payload:           []byte{},
+			forceContentLen:   2048, // Server should ignore this header entirely.
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:              "empty message, gzip, malicious Content-Length",
+			wantGzip:          true,
+			payload:           mustGZIPPayload([]byte{}),
+			forceContentLen:   2048, // Server should ignore this header entirely.
+			expRespHTTPStatus: 200,
+		},
+		{
+			note:                  "basic - malicious size field, expect reject on gzip payload length",
+			wantGzip:              true,
+			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip payload too large",
+			gzipMaxLen:            1024,
+		},
+		{
+			note:              "basic, large payload",
+			payload:           util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus: 200,
+			maxLen:            134217728,
+		},
+		{
+			note:              "basic, large payload, expect reject on Content-Length",
+			payload:           util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus: 400,
+			maxLen:            512,
+			expErrorMsg:       "request body too large",
+		},
+		{
+			note:              "basic, gzip, large payload",
+			wantGzip:          true,
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 200,
+			maxLen:            1024,
+			gzipMaxLen:        134217728,
+		},
+		{
+			note:              "basic, gzip, large payload, expect reject on gzip payload length",
+			wantGzip:          true,
+			payload:           mustGZIPPayload(util.MustMarshalJSON(generateJSONBenchmarkData(100, 100))),
+			expRespHTTPStatus: 400,
+			maxLen:            1024,
+			gzipMaxLen:        10,
+			expErrorMsg:       "gzip payload too large",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.note, func(t *testing.T) {
+			ctx := context.Background()
+			store := inmem.New()
+			txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
+			examplePolicy := `package example.authz
+
+import rego.v1
+
+default allow := false # Reject requests by default.
+
+allow if {
+	# Logic to authorize request goes here.
+	input.body.user == "alice"
+}
+`
+
+			if err := store.UpsertPolicy(ctx, txn, "test", []byte(examplePolicy)); err != nil {
+				panic(err)
+			}
+
+			if err := store.Commit(ctx, txn); err != nil {
+				panic(err)
+			}
+
+			opts := [](func(*Server)){
+				func(s *Server) {
+					s.WithStore(store)
+				},
+			}
+
+			// Set defaults for max_length configs, if not specified in the test case.
+			if test.maxLen == 0 {
+				test.maxLen = defaultMaxLen
+			}
+			if test.gzipMaxLen == 0 {
+				test.gzipMaxLen = defaultGzipMaxLen
+			}
+
+			f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"decision_logs": %t, "decoding":{"max_length": %d, "gzip": {"max_length": %d}}}}`, true, test.maxLen, test.gzipMaxLen), opts...)
+
+			// Forcibly replace the size trailer field for the gzip blob.
+			// Byte order is little-endian, field is a uint32.
+			if test.forcePayloadSizeField != 0 {
+				binary.LittleEndian.PutUint32(test.payload[len(test.payload)-4:], test.forcePayloadSizeField)
+			}
+
+			// execute the request
+			req := newReqV1(http.MethodPost, "/data/test", string(test.payload))
+			if test.wantGzip {
+				req.Header.Set("Content-Encoding", "gzip")
+			}
+			if test.forceContentLen > 0 {
+				req.Header.Set("Content-Length", strconv.FormatInt(test.forceContentLen, 10))
+			}
+			f.reset()
+			f.server.Handler.ServeHTTP(f.recorder, req)
+			if f.recorder.Code != test.expRespHTTPStatus {
+				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
+			}
+			if test.expErrorMsg != "" {
+				var serverErr types.ErrorV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &serverErr); err != nil {
+					t.Fatalf("Could not deserialize error message: %s, message was: %s", err.Error(), f.recorder.Body.Bytes())
+				}
+				if !strings.Contains(serverErr.Message, test.expErrorMsg) {
 					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
 				}
 			}

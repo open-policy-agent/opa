@@ -3,24 +3,68 @@ package util
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+
+	"github.com/open-policy-agent/opa/util/decoding"
 )
 
+var gzipReaderPool = sync.Pool{
+	New: func() interface{} {
+		reader := new(gzip.Reader)
+		return reader
+	},
+}
+
 // Note(philipc): Originally taken from server/server.go
-func ReadMaybeCompressedBody(r *http.Request) (io.ReadCloser, error) {
+// The DecodingLimitHandler handles validating that the gzip payload is within the
+// allowed max size limit. Thus, in the event of a forged payload size trailer,
+// the worst that can happen is that we waste memory up to the allowed max gzip
+// payload size, but not an unbounded amount of memory, as was potentially
+// possible before.
+func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
+	if r.ContentLength <= 0 {
+		return []byte{}, nil
+	}
+	// Read content from the request body into a buffer of known size.
+	content := bytes.NewBuffer(make([]byte, 0, r.ContentLength))
+	if _, err := io.CopyN(content, r.Body, r.ContentLength); err != nil {
+		return content.Bytes(), err
+	}
+
+	// Decompress gzip content by reading from the buffer.
 	if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-		gzReader, err := gzip.NewReader(r.Body)
-		if err != nil {
+		// Fetch gzip payload size limit from request context.
+		gzipMaxLength, _ := decoding.GetServerDecodingGzipMaxLen(r.Context())
+
+		// Note(philipc): The last 4 bytes of a well-formed gzip blob will
+		// always be a little-endian uint32, representing the decompressed
+		// content size, modulo 2^32. We validate that the size is safe,
+		// earlier in DecodingLimitHandler.
+		sizeTrailerField := binary.LittleEndian.Uint32(content.Bytes()[content.Len()-4:])
+		if sizeTrailerField > uint32(gzipMaxLength) {
+			return content.Bytes(), fmt.Errorf("gzip payload too large")
+		}
+		// Pull a gzip decompressor from the pool, and assign it to the current
+		// buffer, using Reset(). Later, return it back to the pool for another
+		// request to use.
+		gzReader := gzipReaderPool.Get().(*gzip.Reader)
+		if err := gzReader.Reset(content); err != nil {
 			return nil, err
 		}
 		defer gzReader.Close()
-		bytesBody, err := io.ReadAll(gzReader)
-		if err != nil {
-			return nil, err
+		defer gzipReaderPool.Put(gzReader)
+		decompressedContent := bytes.NewBuffer(make([]byte, 0, sizeTrailerField))
+		if _, err := io.CopyN(decompressedContent, gzReader, int64(sizeTrailerField)); err != nil {
+			return decompressedContent.Bytes(), err
 		}
-		return io.NopCloser(bytes.NewReader(bytesBody)), err
+		return decompressedContent.Bytes(), nil
 	}
-	return r.Body, nil
+
+	// Request was not compressed; return the content bytes.
+	return content.Bytes(), nil
 }
