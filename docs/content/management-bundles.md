@@ -274,6 +274,21 @@ Another example, this time showing a Wasm module configured for
 }
 ```
 
+For example, the manifest below specifies the global Rego version for the bundle using the `rego_version` field and
+uses the `file_rego_versions` field for overrides. This manifest describes a bundle that follows the OPA v1.0 syntax
+expect for policy files `/policy1.rego` and those under the folder `foo`.
+
+```json
+{
+  "revision" : "7864d60dd78d748dbce54b569e939f5b0dc07486",
+  "rego_version": 1,
+  "file_rego_versions": {
+    "/foo/*.rego": 0,
+    "/policy1.rego": 0
+  }
+}
+```
+
 __Some important details for bundle files:__
 
 * OPA will only load data files named `data.json` or `data.yaml` (which contain
