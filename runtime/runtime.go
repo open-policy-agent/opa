@@ -259,15 +259,17 @@ type Runtime struct {
 	Store   storage.Store
 	Manager *plugins.Manager
 
-	logger        logging.Logger
-	server        *server.Server
-	metrics       *prometheus.Provider
-	reporter      *report.Reporter
-	traceExporter *otlptrace.Exporter
+	logger            logging.Logger
+	server            *server.Server
+	metrics           *prometheus.Provider
+	reporter          *report.Reporter
+	traceExporter     *otlptrace.Exporter
+	loadedPathsResult *initload.LoadPathsResult
 
 	serverInitialized bool
 	serverInitMtx     sync.RWMutex
 	done              chan struct{}
+	repl              *repl.REPL
 }
 
 // NewRuntime returns a new Runtime object initialized with params. Clients must
@@ -453,6 +455,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		reporter:          reporter,
 		serverInitialized: false,
 		traceExporter:     traceExporter,
+		loadedPathsResult: loaded,
 	}
 
 	return rt, nil
@@ -708,7 +711,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
 		WithRuntime(rt.Manager.Info).
-		WithV1Compatible(rt.Params.V1Compatible)
+		WithV1Compatible(rt.Params.V1Compatible).
+		WithInitBundles(rt.loadedPathsResult.Bundles)
 
 	if rt.Params.Watch {
 		if err := rt.startWatcher(ctx, rt.Params.Paths, onReloadPrinter(rt.Params.Output)); err != nil {
@@ -722,6 +726,8 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 			repl.SetOPAVersionReport(rt.checkOPAUpdate(ctx).Slice())
 		}()
 	}
+
+	rt.repl = repl
 	repl.Loop(ctx)
 }
 
