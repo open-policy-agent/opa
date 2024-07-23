@@ -2737,6 +2737,8 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 		switch x {
 		case string(types.ExplainNotesV1):
 			return types.ExplainNotesV1
+		case string(types.ExplainFailsV1):
+			return types.ExplainFailsV1
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
 		case string(types.ExplainDebugV1):
