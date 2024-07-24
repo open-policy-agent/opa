@@ -117,7 +117,7 @@ func valueTypeName(v ast.Value) string {
 	case ast.Null:
 		return "null"
 	case ast.Boolean:
-		return "bool"
+		return "boolean"
 	case ast.Number:
 		return "number"
 	case ast.String:

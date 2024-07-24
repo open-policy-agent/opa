@@ -292,6 +292,8 @@ func (q *Query) WithStrictObjects(yes bool) *Query {
 	return q
 }
 
+// WithVirtualCache sets the VirtualCache to use during evaluation. This is
+// optional, and if not set, the default cache is used.
 func (q *Query) WithVirtualCache(vc VirtualCache) *Query {
 	q.virtualCache = vc
 	return q

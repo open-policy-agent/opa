@@ -35,5 +35,4 @@ func (l *latch) wait() {
 }
 
 func (l *latch) Close() {
-	//l.lock.Done()
 }

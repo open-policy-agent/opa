@@ -9,11 +9,26 @@ import (
 	"github.com/open-policy-agent/opa/util"
 )
 
+// VirtualCache defines the interface for a cache that stores the results of
+// evaluated virtual documents (rules).
+// The cache is a stack of frames, where each frame is a mapping from references
+// to values.
 type VirtualCache interface {
+	// Push pushes a new, empty frame of value mappings onto the stack.
 	Push()
+
+	// Pop pops the top frame of value mappings from the stack, removing all associated entries.
 	Pop()
+
+	// Get returns the value associated with the given reference. The second return value
+	// indicates whether the reference has a recorded 'undefined' result.
 	Get(ref ast.Ref) (*ast.Term, bool)
+
+	// Put associates the given reference with the given value. If the value is nil, the reference
+	// is marked as having an 'undefined' result.
 	Put(ref ast.Ref, value *ast.Term)
+
+	// Keys returns the set of keys that have been cached for the active frame.
 	Keys() []ast.Ref
 }
 

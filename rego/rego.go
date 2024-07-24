@@ -343,6 +343,8 @@ func EvalPrintHook(ph print.Hook) EvalOption {
 	}
 }
 
+// EvalVirtualCache sets the topdown.VirtualCache to use for evaluation. This is
+// optional, and if not set, the default cache is used.
 func EvalVirtualCache(vc topdown.VirtualCache) EvalOption {
 	return func(e *EvalContext) {
 		e.virtualCache = vc

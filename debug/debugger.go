@@ -22,6 +22,10 @@ import (
 	prnt "github.com/open-policy-agent/opa/topdown/print"
 )
 
+// Debugger is the interface for launching OPA debugger Session(s).
+// This implementation is similar in structure to the Debug Adapter Protocol (DAP)
+// to make such integrations easier, but is not intended to be a direct implementation.
+// See: https://microsoft.github.io/debug-adapter-protocol/specification
 type Debugger interface {
 	// LaunchEval starts a new eval debug session with the given LaunchEvalProperties.
 	// The returned session is in a stopped state, and must be resumed to start execution.
@@ -698,11 +702,6 @@ func (s *session) newStackFrame(e *topdown.Event, t *thread, stackIndex int) *st
 		e:          e,
 	}
 
-	//info := &frameInfo{
-	//	stackIndex: stackIndex,
-	//	threadId:   t.id,
-	//	frame:      frame,
-	//}
 	s.frames = append(s.frames, frame)
 	return frame
 }
