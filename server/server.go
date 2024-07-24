@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	serverDecodingPlugin "github.com/open-policy-agent/opa/plugins/server/decoding"
 	serverEncodingPlugin "github.com/open-policy-agent/opa/plugins/server/encoding"
 
 	"github.com/gorilla/mux"
@@ -214,6 +215,11 @@ func (s *Server) Init(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	s.DiagnosticHandler = s.initHandlerAuthn(s.DiagnosticHandler)
+
+	s.Handler, err = s.initHandlerDecodingLimits(s.Handler)
+	if err != nil {
+		return nil, err
+	}
 
 	return s, s.store.Commit(ctx, txn)
 }
@@ -750,6 +756,24 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 	}
 
 	return handler
+}
+
+// Enforces request body size limits on incoming requests. For gzipped requests,
+// it passes the size limit down the body-reading method via the request
+// context.
+func (s *Server) initHandlerDecodingLimits(handler http.Handler) (http.Handler, error) {
+	var decodingRawConfig json.RawMessage
+	serverConfig := s.manager.Config.Server
+	if serverConfig != nil {
+		decodingRawConfig = serverConfig.Decoding
+	}
+	decodingConfig, err := serverDecodingPlugin.NewConfigBuilder().WithBytes(decodingRawConfig).Parse()
+	if err != nil {
+		return nil, err
+	}
+	decodingHandler := handlers.DecodingLimitsHandler(handler, *decodingConfig.MaxLength, *decodingConfig.Gzip.MaxLength)
+
+	return decodingHandler, nil
 }
 
 func (s *Server) initHandlerCompression(handler http.Handler) (http.Handler, error) {
@@ -2713,6 +2737,8 @@ func getExplain(p []string, zero types.ExplainModeV1) types.ExplainModeV1 {
 		switch x {
 		case string(types.ExplainNotesV1):
 			return types.ExplainNotesV1
+		case string(types.ExplainFailsV1):
+			return types.ExplainFailsV1
 		case string(types.ExplainFullV1):
 			return types.ExplainFullV1
 		case string(types.ExplainDebugV1):
@@ -2731,7 +2757,7 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	}
 
 	// decompress the input if sent as zip
-	body, err := util.ReadMaybeCompressedBody(r)
+	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -2739,17 +2765,13 @@ func readInputV0(r *http.Request) (ast.Value, *interface{}, error) {
 	var x interface{}
 
 	if strings.Contains(r.Header.Get("Content-Type"), "yaml") {
-		bs, err := io.ReadAll(body)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(bs) > 0 {
-			if err = util.Unmarshal(bs, &x); err != nil {
+		if len(bodyBytes) > 0 {
+			if err = util.Unmarshal(bodyBytes, &x); err != nil {
 				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(body)
+		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&x); err != nil && err != io.EOF {
 			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2784,7 +2806,7 @@ func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 	var request types.DataRequestV1
 
 	// decompress the input if sent as zip
-	body, err := util.ReadMaybeCompressedBody(r)
+	bodyBytes, err := util.ReadMaybeCompressedBody(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decompress the body: %w", err)
 	}
@@ -2793,17 +2815,13 @@ func readInputPostV1(r *http.Request) (ast.Value, *interface{}, error) {
 	// There is no standard for yaml mime-type so we just look for
 	// anything related
 	if strings.Contains(ct, "yaml") {
-		bs, err := io.ReadAll(body)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(bs) > 0 {
-			if err = util.Unmarshal(bs, &request); err != nil {
+		if len(bodyBytes) > 0 {
+			if err = util.Unmarshal(bodyBytes, &request); err != nil {
 				return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 			}
 		}
 	} else {
-		dec := util.NewJSONDecoder(body)
+		dec := util.NewJSONDecoder(bytes.NewBuffer(bodyBytes))
 		if err := dec.Decode(&request); err != nil && err != io.EOF {
 			return nil, nil, fmt.Errorf("body contains malformed input document: %w", err)
 		}
@@ -2828,11 +2846,10 @@ type compileRequestOptions struct {
 	DisableInlining []string
 }
 
-func readInputCompilePostV1(r io.ReadCloser) (*compileRequest, *types.ErrorV1) {
-
+func readInputCompilePostV1(reqBytes []byte) (*compileRequest, *types.ErrorV1) {
 	var request types.CompileRequestV1
 
-	err := util.NewJSONDecoder(r).Decode(&request)
+	err := util.NewJSONDecoder(bytes.NewBuffer(reqBytes)).Decode(&request)
 	if err != nil {
 		return nil, types.NewErrorV1(types.CodeInvalidParameter, "error(s) occurred while decoding request: %v", err.Error())
 	}

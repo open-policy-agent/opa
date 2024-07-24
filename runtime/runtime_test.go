@@ -235,6 +235,65 @@ func testRuntimeProcessWatchEventPolicyError(t *testing.T, asBundle bool) {
 	})
 }
 
+func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
+	ctx := context.Background()
+
+	test.WithTempFS(nil, func(rootDir string) {
+		p := filepath.Join(rootDir, "bundle.tar.gz")
+
+		mod := `package test
+			p := 7 if 3 < 4
+		`
+
+		files := [][2]string{
+			{"/.manifest", `{"revision": "foo", "rego_version": 1}`},
+			{"/x.rego", mod},
+		}
+
+		buf := archive.MustWriteTarGz(files)
+		bf, err := os.Create(p)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		_, err = bf.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		output := test.BlockingWriter{}
+
+		params := NewParams()
+		params.Output = &output
+		params.Paths = []string{p}
+		params.BundleMode = true
+
+		rt, err := NewRuntime(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		go rt.StartREPL(ctx)
+
+		if !test.Eventually(t, 5*time.Second, func() bool {
+			return strings.Contains(output.String(), "Run 'help' to see a list of commands and check for updates.")
+		}) {
+			t.Fatal("Timed out waiting for REPL to start")
+		}
+		output.Reset()
+
+		if err := rt.repl.OneShot(ctx, "data.test.p"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		actual := strings.TrimSpace(output.String())
+		expected := "7"
+
+		if actual != expected {
+			t.Fatalf("expected data.test.p to be %v, got %v", expected, actual)
+		}
+	})
+}
+
 func TestRuntimeReplProcessWatchV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string

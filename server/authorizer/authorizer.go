@@ -7,7 +7,6 @@ package authorizer
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -163,11 +162,7 @@ func makeInput(r *http.Request) (*http.Request, interface{}, error) {
 
 	if expectBody(r.Method, path) {
 		var err error
-		plaintextBody, err := util.ReadMaybeCompressedBody(r)
-		if err != nil {
-			return r, nil, err
-		}
-		rawBody, err = io.ReadAll(plaintextBody)
+		rawBody, err = util.ReadMaybeCompressedBody(r)
 		if err != nil {
 			return r, nil, err
 		}

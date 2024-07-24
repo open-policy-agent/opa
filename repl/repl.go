@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/compile"
 
 	"github.com/open-policy-agent/opa/version"
@@ -52,6 +53,7 @@ type REPL struct {
 	strictBuiltinErrors bool
 	capabilities        *ast.Capabilities
 	v1Compatible        bool
+	initBundles         map[string]*bundle.Bundle
 
 	// TODO(tsandall): replace this state with rule definitions
 	// inside the default module.
@@ -129,6 +131,11 @@ func New(store storage.Store, historyPath string, output io.Writer, outputFormat
 
 func (r *REPL) WithCapabilities(capabilities *ast.Capabilities) *REPL {
 	r.capabilities = capabilities
+	return r
+}
+
+func (r *REPL) WithInitBundles(b map[string]*bundle.Bundle) *REPL {
+	r.initBundles = b
 	return r
 }
 
@@ -1249,15 +1256,27 @@ func (r *REPL) loadHistory(prompt *liner.State) {
 }
 
 func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[string]*ast.Module, error) {
+	modules := make(map[string]*ast.Module)
+
+	if len(r.initBundles) > 0 {
+		for bundleName, b := range r.initBundles {
+			for name, module := range b.ParsedModules(bundleName) {
+				modules[name] = module
+			}
+		}
+	}
 
 	ids, err := r.store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
 	}
 
-	modules := make(map[string]*ast.Module, len(ids))
-
 	for _, id := range ids {
+		// skip re-parsing
+		if _, haveMod := modules[id]; haveMod {
+			continue
+		}
+
 		bs, err := r.store.GetPolicy(ctx, txn, id)
 		if err != nil {
 			return nil, err

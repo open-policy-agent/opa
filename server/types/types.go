@@ -81,6 +81,8 @@ const (
 	MsgMissingError               = "document missing"
 	MsgFoundUndefinedError        = "document undefined"
 	MsgPluginConfigError          = "error(s) occurred while configuring plugin(s)"
+	MsgDecodingLimitError         = "request body too large"
+	MsgDecodingGzipLimitError     = "compressed request body too large"
 )
 
 // PatchV1 models a single patch operation against a document.

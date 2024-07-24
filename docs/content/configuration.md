@@ -78,9 +78,13 @@ distributed_tracing:
   encryption: "off"
 
 server:
+  decoding:
+    max_length: 134217728
+    gzip:
+      max_length: 268435456
   encoding:
     gzip:
-        min_length: 1024,
+        min_length: 1024
         compression_level: 9
 ```
 
@@ -886,14 +890,19 @@ See [the docs on disk storage](../storage/) for details about the settings.
 ## Server
 
 The `server` configuration sets:
-- the gzip compression settings for `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
+- for all incoming requests:
+  - maximum allowed request size
+  - maximum decompressed gzip payload size
+- the gzip compression settings for responses from the `/v0/data`, `/v1/data` and `/v1/compile` HTTP `POST` endpoints
 The gzip compression settings are used when the client sends `Accept-Encoding: gzip`
 - buckets for `http_request_duration_seconds` histogram
 
-| Field                                                       | Type        | Required                                                                  | Description                                                                                                                                                                                                               |
-|-------------------------------------------------------------|-------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `server.encoding.gzip.min_length`                           | `int`       | No, (default: 1024)                                                       | Specifies the minimum length of the response to compress                                                                                                                                                                  |
-| `server.encoding.gzip.compression_level`                    | `int`       | No, (default: 9)                                                          | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants          |
+| Field | Type| Required | Description |
+| --- | --- | --- | --- |
+| `server.decoding.max_length` | `int` | No, (default: 268435456) | Specifies the maximum allowed number of bytes to read from a request body. |
+| `server.decoding.gzip.max_length` | `int` | No, (default: 536870912) | Specifies the maximum allowed number of bytes to read from the gzip decompressor for gzip-encoded requests. |
+| `server.encoding.gzip.min_length` | `int` | No, (default: 1024) | Specifies the minimum length of the response to compress. |
+| `server.encoding.gzip.compression_level` | `int` | No, (default: 9) | Specifies the compression level. Accepted values: a value of either 0 (no compression), 1 (best speed, lowest compression) or 9 (slowest, best compression). See https://pkg.go.dev/compress/flate#pkg-constants |
 | `server.metrics.prom.http_request_duration_seconds.buckets` | `[]float64` | No, (default: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 0.01, 0.1, 1  ]) | Specifies the buckets for the `http_request_duration_seconds` metric. Each value is a float, it is expressed in seconds and subdivisions of it. E.g `1e-6` is 1 microsecond, `1e-3` 1 millisecond, `0.01` 10 milliseconds |
 
 ## Miscellaneous
