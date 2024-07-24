@@ -1535,7 +1535,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 									val: "1",
 								},
 								`"y"`: {
-									typ: "bool",
+									typ: "boolean",
 									val: "true",
 								},
 							},
@@ -1572,7 +1572,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 									val: "1",
 								},
 								"2": {
-									typ: "bool",
+									typ: "boolean",
 									val: "true",
 								},
 							},
@@ -1602,7 +1602,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 							val: "42",
 						},
 						"y": {
-							typ: "bool",
+							typ: "boolean",
 							val: "true",
 						},
 						"z": {
@@ -1696,7 +1696,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 									val: `{"x": true}`,
 									children: map[string]varInfo{
 										`"x"`: {
-											typ: "bool",
+											typ: "boolean",
 											val: "true",
 										},
 									},
@@ -1714,7 +1714,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 													val: `"x = data.test.allow"`,
 												},
 												`"value"`: {
-													typ: "bool",
+													typ: "boolean",
 													val: "true",
 												},
 											},
