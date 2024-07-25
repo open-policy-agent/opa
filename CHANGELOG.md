@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.67.0
 
 This release contains a mix of features, a new builtin function (`strings.count`), performance improvements, and bugfixes.
