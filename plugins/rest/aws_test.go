@@ -351,6 +351,13 @@ func TestMetadataCredentialService(t *testing.T) {
 	_, err = cs.credentials(context.Background())
 	assertErr("metadata endpoint cannot be determined from settings and environment", err, t)
 
+	// wrong path: missing token
+	t.Setenv(ecsFullPathEnvVar, "fullPath")
+	os.Unsetenv(ecsAuthorizationTokenEnvVar)
+	_, err = cs.credentials(context.Background())
+	assertErr("unable to get ECS metadata authorization token", err, t)
+	os.Unsetenv(ecsFullPathEnvVar)
+
 	// wrong path: creds not found
 	cs = awsMetadataCredentialService{
 		RoleName:        "not_my_iam_role", // not present
@@ -490,6 +497,34 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
 	assertEq(creds.RegionName, cs.RegionName, t)
 	assertEq(creds.SessionToken, ts.payload.Token, t)
+
+	// happy path: credentials fetched from full path var
+	cs = awsMetadataCredentialService{
+		RegionName:      "us-east-1",
+		credServicePath: "", // not set as we want to test env var resolution
+		logger:          logging.Get(),
+	}
+	ts.payload = metadataPayload{
+		AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+		SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+		Code:            "Success",
+		Token:           "MYAWSSECURITYTOKENGOESHERE",
+		Expiration:      time.Now().UTC().Add(time.Minute * 2)} // short time
+	t.Setenv(ecsFullPathEnvVar, ts.server.URL+"/fullPath")
+	t.Setenv(ecsAuthorizationTokenEnvVar, "THIS_IS_A_GOOD_TOKEN")
+
+	creds, err = cs.credentials(context.Background())
+	if err != nil {
+		// Cannot proceed with test if unable to fetch credentials.
+		t.Fatal(err)
+	}
+
+	assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
+	assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
+	assertEq(creds.RegionName, cs.RegionName, t)
+	assertEq(creds.SessionToken, ts.payload.Token, t)
+	os.Unsetenv(ecsFullPathEnvVar)
+	os.Unsetenv(ecsAuthorizationTokenEnvVar)
 }
 
 func TestMetadataServiceErrorHandled(t *testing.T) {
@@ -957,6 +992,7 @@ type ec2CredTestServer struct {
 func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 	goodPath := "/latest/meta-data/iam/security-credentials/my_iam_role"
 	badPath := "/latest/meta-data/iam/security-credentials/my_bad_iam_role"
+	goodPathFull := "/fullPath"
 
 	goodTokenPath := "/latest/api/token"
 	badTokenPath := "/latest/api/bad_token"
@@ -987,6 +1023,15 @@ func (t *ec2CredTestServer) handle(w http.ResponseWriter, r *http.Request) {
 		// a metadata response that's not well-formed
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte("This isn't a JSON payload"))
+	case goodPathFull:
+		// validate token...
+		if r.Header.Get("Authorization") == tokenValue {
+			w.WriteHeader(200)
+			_, _ = w.Write(jsonBytes)
+		} else {
+			// AWS returns a 404 if the token is wrong
+			w.WriteHeader(404)
+		}
 	default:
 		// something else that we won't be able to find
 		w.WriteHeader(404)
