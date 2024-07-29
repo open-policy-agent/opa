@@ -30,8 +30,10 @@ const (
 	ec2DefaultTokenPath = "http://169.254.169.254/latest/api/token"
 
 	// ref. https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html
-	ecsDefaultCredServicePath = "http://169.254.170.2"
-	ecsRelativePathEnvVar     = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
+	ecsDefaultCredServicePath   = "http://169.254.170.2"
+	ecsRelativePathEnvVar       = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
+	ecsFullPathEnvVar           = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
+	ecsAuthorizationTokenEnvVar = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
 
 	// ref. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
 	stsDefaultDomain = "amazonaws.com"
@@ -211,7 +213,12 @@ func (cs *awsMetadataCredentialService) urlForMetadataService() (string, error) 
 	// otherwise, check environment to see if it looks like we're in an ECS
 	// container (with implied role association)
 	if isECS() {
-		return ecsDefaultCredServicePath + os.Getenv(ecsRelativePathEnvVar), nil
+		// first check if the relative env var exists; if so we use that otherwise we
+		// use the "full" var
+		if _, relativeExists := os.LookupEnv(ecsRelativePathEnvVar); relativeExists {
+			return ecsDefaultCredServicePath + os.Getenv(ecsRelativePathEnvVar), nil
+		}
+		return os.Getenv(ecsFullPathEnvVar), nil
 	}
 	// if there's no role name and we don't appear to have a path to the
 	// ECS container service, then the configuration is invalid
@@ -265,6 +272,16 @@ func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metaDataURL, nil)
 	if err != nil {
 		return errors.New("unable to construct metadata HTTP request: " + err.Error())
+	}
+
+	// if using the AWS_CONTAINER_CREDENTIALS_FULL_URI variable, we need to associate the token
+	// to the request
+	if _, useFullPath := os.LookupEnv(ecsFullPathEnvVar); useFullPath {
+		token, tokenExists := os.LookupEnv(ecsAuthorizationTokenEnvVar)
+		if !tokenExists {
+			return errors.New("unable to get ECS metadata authorization token")
+		}
+		req.Header.Set("Authorization", token)
 	}
 
 	// if in the EC2 environment, we will use IMDSv2, which requires a session cookie from a
@@ -604,8 +621,9 @@ func (cs *awsWebIdentityCredentialService) credentials(ctx context.Context) (aws
 
 func isECS() bool {
 	// the special relative path URI is set by the container agent in the ECS environment only
-	_, isECS := os.LookupEnv(ecsRelativePathEnvVar)
-	return isECS
+	_, isECSRelative := os.LookupEnv(ecsRelativePathEnvVar)
+	_, isECSFull := os.LookupEnv(ecsFullPathEnvVar)
+	return isECSRelative || isECSFull
 }
 
 // ecrAuthPlugin authorizes requests to AWS ECR.
