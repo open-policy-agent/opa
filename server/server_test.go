@@ -1713,8 +1713,10 @@ func generateJSONBenchmarkData(k, v int) map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"keys":   keys,
-		"values": values,
+		"input": map[string]interface{}{
+			"keys":   keys,
+			"values": values,
+		},
 	}
 }
 
@@ -1832,10 +1834,12 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 	tests := []struct {
 		note                  string
 		wantGzip              bool
+		wantChunkedEncoding   bool
 		payload               []byte
 		forceContentLen       int64  // Size to manually set the Content-Length header to.
 		forcePayloadSizeField uint32 // Size to manually set the payload field for the gzip blob.
 		expRespHTTPStatus     int
+		expWarningMsg         string
 		expErrorMsg           string
 		maxLen                int64
 		gzipMaxLen            int64
@@ -1844,30 +1848,44 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			note:              "empty message",
 			payload:           []byte{},
 			expRespHTTPStatus: 200,
+			expWarningMsg:     "'input' key missing from the request",
 		},
 		{
 			note:              "empty message, gzip",
 			wantGzip:          true,
 			payload:           mustGZIPPayload([]byte{}),
 			expRespHTTPStatus: 200,
+			expWarningMsg:     "'input' key missing from the request",
 		},
 		{
 			note:              "empty message, malicious Content-Length",
 			payload:           []byte{},
 			forceContentLen:   2048, // Server should ignore this header entirely.
-			expRespHTTPStatus: 200,
+			expRespHTTPStatus: 400,
+			expErrorMsg:       "request body too large",
 		},
 		{
 			note:              "empty message, gzip, malicious Content-Length",
 			wantGzip:          true,
 			payload:           mustGZIPPayload([]byte{}),
 			forceContentLen:   2048, // Server should ignore this header entirely.
-			expRespHTTPStatus: 200,
+			expRespHTTPStatus: 400,
+			expErrorMsg:       "request body too large",
 		},
 		{
 			note:                  "basic - malicious size field, expect reject on gzip payload length",
 			wantGzip:              true,
-			payload:               mustGZIPPayload([]byte(`{"user": "alice"}`)),
+			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
+			expRespHTTPStatus:     400,
+			forcePayloadSizeField: 134217728, // 128 MB
+			expErrorMsg:           "gzip payload too large",
+			gzipMaxLen:            1024,
+		},
+		{
+			note:                  "basic - malicious size field, expect reject on gzip payload length, chunked encoding",
+			wantGzip:              true,
+			wantChunkedEncoding:   true,
+			payload:               mustGZIPPayload([]byte(`{"input": {"user": "alice"}}`)),
 			expRespHTTPStatus:     400,
 			forcePayloadSizeField: 134217728, // 128 MB
 			expErrorMsg:           "gzip payload too large",
@@ -1885,6 +1903,13 @@ func TestDataPostV1CompressedDecodingLimits(t *testing.T) {
 			expRespHTTPStatus: 400,
 			maxLen:            512,
 			expErrorMsg:       "request body too large",
+		},
+		{
+			note:                "basic, large payload, expect reject on Content-Length, chunked encoding",
+			wantChunkedEncoding: true,
+			payload:             util.MustMarshalJSON(generateJSONBenchmarkData(100, 100)),
+			expRespHTTPStatus:   200,
+			maxLen:              134217728,
 		},
 		{
 			note:              "basic, gzip, large payload",
@@ -1957,13 +1982,19 @@ allow if {
 			if test.wantGzip {
 				req.Header.Set("Content-Encoding", "gzip")
 			}
+			if test.wantChunkedEncoding {
+				req.ContentLength = -1
+				req.TransferEncoding = []string{"chunked"}
+				req.Header.Set("Transfer-Encoding", "chunked")
+			}
 			if test.forceContentLen > 0 {
+				req.ContentLength = test.forceContentLen
 				req.Header.Set("Content-Length", strconv.FormatInt(test.forceContentLen, 10))
 			}
 			f.reset()
 			f.server.Handler.ServeHTTP(f.recorder, req)
 			if f.recorder.Code != test.expRespHTTPStatus {
-				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d", test.expRespHTTPStatus, f.recorder.Code)
+				t.Fatalf("Unexpected HTTP status code, (exp,got): %d, %d, response body: %s", test.expRespHTTPStatus, f.recorder.Code, f.recorder.Body.Bytes())
 			}
 			if test.expErrorMsg != "" {
 				var serverErr types.ErrorV1
@@ -1972,6 +2003,19 @@ allow if {
 				}
 				if !strings.Contains(serverErr.Message, test.expErrorMsg) {
 					t.Fatalf("Expected error message to have message '%s', got message: '%s'", test.expErrorMsg, serverErr.Message)
+				}
+			} else {
+				var resp types.DataResponseV1
+				if err := json.Unmarshal(f.recorder.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("Could not deserialize response: %s, message was: %s", err.Error(), f.recorder.Body.Bytes())
+				}
+				if test.expWarningMsg != "" {
+					if !strings.Contains(resp.Warning.Message, test.expWarningMsg) {
+						t.Fatalf("Expected warning message to have message '%s', got message: '%s'", test.expWarningMsg, resp.Warning.Message)
+					}
+				} else if resp.Warning != nil {
+					// Error on unexpected warnings. Something is wrong.
+					t.Fatalf("Unexpected warning: code: %s, message: %s", resp.Warning.Code, resp.Warning.Message)
 				}
 			}
 		})

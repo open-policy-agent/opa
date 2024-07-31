@@ -5,6 +5,10 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixes
+
+- util+server: Fix bug around chunked request handling. This PR fixes a request handling bug introduced in ([#6868](https://github.com/open-policy-agent/opa/pull/6868)), which caused OPA to treat all incoming chunked requests as if they had zero-length request bodies. ([#6906](https://github.com/open-policy-agent/opa/pull/6906)) authored by @philipaconrad
+
 ## 0.67.0
 
 This release contains a mix of features, a new builtin function (`strings.count`), performance improvements, and bugfixes.
