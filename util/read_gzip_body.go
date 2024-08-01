@@ -27,13 +27,24 @@ var gzipReaderPool = sync.Pool{
 // payload size, but not an unbounded amount of memory, as was potentially
 // possible before.
 func ReadMaybeCompressedBody(r *http.Request) ([]byte, error) {
-	if r.ContentLength <= 0 {
-		return []byte{}, nil
-	}
-	// Read content from the request body into a buffer of known size.
-	content := bytes.NewBuffer(make([]byte, 0, r.ContentLength))
-	if _, err := io.CopyN(content, r.Body, r.ContentLength); err != nil {
-		return content.Bytes(), err
+	var content *bytes.Buffer
+	// Note(philipc): If the request body is of unknown length (such as what
+	// happens when 'Transfer-Encoding: chunked' is set), we have to do an
+	// incremental read of the body. In this case, we can't be too clever, we
+	// just do the best we can with whatever is streamed over to us.
+	// Fetch gzip payload size limit from request context.
+	if maxLength, ok := decoding.GetServerDecodingMaxLen(r.Context()); ok {
+		bs, err := io.ReadAll(io.LimitReader(r.Body, maxLength))
+		if err != nil {
+			return bs, err
+		}
+		content = bytes.NewBuffer(bs)
+	} else {
+		// Read content from the request body into a buffer of known size.
+		content = bytes.NewBuffer(make([]byte, 0, r.ContentLength))
+		if _, err := io.CopyN(content, r.Body, r.ContentLength); err != nil {
+			return content.Bytes(), err
+		}
 	}
 
 	// Decompress gzip content by reading from the buffer.
