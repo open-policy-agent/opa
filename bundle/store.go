@@ -488,9 +488,9 @@ func activateBundles(opts *ActivateOpts) error {
 		return err
 	}
 
-	if err := ast.CheckPathConflicts(opts.Compiler, storage.NonEmpty(opts.Ctx, opts.Store, opts.Txn)); len(err) > 0 {
-		return err
-	}
+	//if err := ast.CheckPathConflicts(opts.Compiler, storage.NonEmpty(opts.Ctx, opts.Store, opts.Txn)); len(err) > 0 {
+	//	return err
+	//}
 
 	for name, b := range snapshotBundles {
 		if err := writeManifestToStore(opts, name, b.Manifest); err != nil {
