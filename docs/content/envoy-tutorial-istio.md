@@ -143,11 +143,13 @@ data:
     - name: opa-ext-authz-grpc
       envoyExtAuthzGrpc:
         service: opa-ext-authz-grpc.local
-        port: "9191"
+        port: 9191
 ```
 
 See [the Istio Docs for AuthorizationPolicy](https://istio.io/latest/docs/tasks/security/authorization/authz-custom/#define-the-external-authorizer) for 
 more details.
+
+The format of the service value is [<Namespace>/]<Hostname>. The specification of <Namespace> is required only when it is insufficient to unambiguously resolve a service in the service registry. See also the [configuration documentation](https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/#MeshConfig-ExtensionProvider-EnvoyExternalAuthorizationGrpcProvider). Example: “opa-ext-authz-grpc.foo.svc.cluster.local” or “bar/opa-ext-authz-grpc.local”.
 
 ### 3. Enable automatic injection of the Istio Proxy and OPA-Envoy sidecars in the namespace where the app will be deployed, e.g., `default`
 
