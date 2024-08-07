@@ -189,6 +189,69 @@ func TestProcessBundle(t *testing.T) {
 
 }
 
+func TestEnvVarSubstitution(t *testing.T) {
+
+	ctx := context.Background()
+
+	manager, err := plugins.New([]byte(`{
+		"services": {
+			"default": {
+				"url": "http://localhost:8181"
+			}
+		},
+		"discovery": {"name": "config"}
+	}`), "test-id", inmem.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("ENV1", "test1")
+	initialBundle := makeDataBundle(1, `
+		{
+			"config": {
+				"bundle": {"name": "${ENV1}"},
+				"status": {},
+				"decision_logs": {}
+			}
+		}
+	`)
+
+	disco, err := New(manager)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ps, err := disco.processBundle(ctx, initialBundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ps.Start) != 3 || len(ps.Reconfig) != 0 {
+		t.Fatalf("Expected exactly three start events but got %v", ps)
+	}
+
+	actualConfig, err := manager.Config.ActiveConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertConfig(t, actualConfig, fmt.Sprintf(`{
+	"bundle": {
+		"name": "test1"
+	},
+	"decision_logs": {},
+	"default_authorization_decision": "/system/authz/allow",
+	"default_decision": "/system/main",
+	"discovery": {
+		"name": "config"
+	},
+	"labels": {
+		"id": "test-id",
+		"version": %v
+	},
+	"status": {}
+}`, version.Version))
+}
+
 func TestProcessBundleV1Compatible(t *testing.T) {
 	ctx := context.Background()
 	popts := ast.ParserOptions{RegoVersion: ast.RegoV1}

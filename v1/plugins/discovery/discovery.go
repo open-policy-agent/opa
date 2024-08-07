@@ -573,7 +573,8 @@ func evaluateBundle(ctx context.Context, id string, info *ast.Term, b *bundleApi
 		return nil, err
 	}
 
-	return config.ParseConfig(bs, id)
+	processedConf := cfg.SubEnvVars(string(bs))
+	return config.ParseConfig([]byte(processedConf), id)
 }
 
 type pluginSet struct {
