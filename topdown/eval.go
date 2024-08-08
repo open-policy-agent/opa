@@ -90,7 +90,7 @@ type eval struct {
 	builtinCache           builtins.Cache
 	ndBuiltinCache         builtins.NDBCache
 	functionMocks          *functionMocksStack
-	virtualCache           *virtualCache
+	virtualCache           VirtualCache
 	comprehensionCache     *comprehensionCache
 	interQueryBuiltinCache cache.InterQueryCache
 	saveSet                *saveSet
