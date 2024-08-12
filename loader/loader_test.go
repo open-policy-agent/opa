@@ -823,6 +823,10 @@ func TestSplitPrefix(t *testing.T) {
 			wantParts: []string{"x", "y"},
 			wantPath:  "file:///c:/a/b/c",
 		},
+		{
+			input:    "c:/a/b/c",
+			wantPath: "c:/a/b/c",
+		},
 	}
 
 	for _, tc := range tests {

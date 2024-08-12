@@ -572,7 +572,7 @@ func SplitPrefix(path string) ([]string, string) {
 		return nil, path
 	}
 	parts := strings.SplitN(path, ":", 2)
-	if len(parts) == 2 && len(parts[0]) > 0 {
+	if len(parts) == 2 && len(parts[0]) > 1 {
 		return strings.Split(parts[0], "."), parts[1]
 	}
 	return nil, path
