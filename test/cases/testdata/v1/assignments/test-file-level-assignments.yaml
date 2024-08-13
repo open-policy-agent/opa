@@ -8,7 +8,7 @@ cases:
           default a := 1
       want_result:
         - x:
-            a: "1"
+            a: 1
     - note: assignments/file-level/rule
       query: data.test = x
       modules:
@@ -18,7 +18,7 @@ cases:
           b := 2
       want_result:
         - x:
-            b: "2"
+            b: 2
     - note: assignments/file-level/else_keyword
       query: data.test = x
       modules:
@@ -30,7 +30,7 @@ cases:
           } else := 4
       want_result:
         - x:
-            c: "4"
+            c: 4
     - note: assignments/file-level/partial_rule
       query: data.test = x
       modules:
@@ -43,9 +43,9 @@ cases:
       want_result:
         - x:
             d:
-                "1": "5"
-                "2": "5"
-                "3": "5"
+                "1": 5
+                "2": 5
+                "3": 5
     - note: assignments/file-level/function_return_value
       query: data.test = x
       modules:
@@ -57,4 +57,4 @@ cases:
           f(x) := x
       want_result:
         - x:
-            e: "6"
+            e: 6

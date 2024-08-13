@@ -29,5 +29,5 @@ cases:
       data: {}
       want_result:
         - x:
-            bar: "0"
-            baz: "1"
+            bar: 0
+            baz: 1

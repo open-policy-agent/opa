@@ -14,4 +14,4 @@ cases:
           	x := count(y)
           }
       want_result:
-        - x: "3"
+        - x: 3

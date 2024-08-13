@@ -11,14 +11,14 @@ cases:
       data:
         f:
             - xs:
-                - "1"
+                - 1
               ys:
-                - "2"
+                - 2
             - xs:
-                - "2"
+                - 2
               ys:
-                - "3"
+                - 3
       want_result:
         - x:
-            - - "3"
+            - - 3
       sort_bindings: true

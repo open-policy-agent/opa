@@ -9,7 +9,7 @@ cases:
           	count("abcde", x)
           }
       want_result:
-        - x: "5"
+        - x: 5
     - note: aggregates/count string
       query: data.generated.p = x
       modules:
@@ -20,4 +20,4 @@ cases:
           	count("åäö", x)
           }
       want_result:
-        - x: "3"
+        - x: 3

@@ -23,7 +23,7 @@ cases:
           	count(input.foo, x)
           }
       input:
-        foo: "5"
+        foo: 5
       want_error_code: eval_type_error
       want_error: operand 1 must be one of {array, object, set, string} but got number
       strict_error: true

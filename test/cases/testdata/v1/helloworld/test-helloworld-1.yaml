@@ -15,7 +15,7 @@ cases:
       input:
         baz: bar
       want_result:
-        - x: "7"
+        - x: 7
     - note: helloworld/another_test_for_builtin_error
       query: 1 / 0
       want_error_code: eval_builtin_error

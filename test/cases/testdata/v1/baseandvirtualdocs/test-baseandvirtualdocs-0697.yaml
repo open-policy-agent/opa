@@ -263,8 +263,8 @@ cases:
                     c:
                         "true": false
                         x:
-                            - "100"
-                            - "200"
+                            - 100
+                            - 200
                         z:
                             a: b
       input_term: '{}'
@@ -273,24 +273,24 @@ cases:
             - - c
               - empty: {}
                 p:
-                    - "1"
-                    - "2"
+                    - 1
+                    - 2
                 q:
-                    - "3"
-                    - "4"
+                    - 3
+                    - 4
                 r:
-                    a: "1"
-                    b: "2"
+                    a: 1
+                    b: 2
                 s:
                     w:
-                        f: "10"
-                        g: "9.9"
+                        f: 10
+                        g: 9.9
                 "true": false
                 undefined1: {}
                 undefined2: {}
                 x:
-                    - "100"
-                    - "200"
+                    - 100
+                    - 200
                 z:
                     a: b
       sort_bindings: true

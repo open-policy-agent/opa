@@ -9,7 +9,7 @@ cases:
           	indexof("abcdefgh", "cde", x)
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: strings/indexof
       query: data.test.p = x
       modules:
@@ -20,4 +20,4 @@ cases:
           	indexof("abcabcabcdefgh", "cde", x)
           }
       want_result:
-        - x: "8"
+        - x: 8

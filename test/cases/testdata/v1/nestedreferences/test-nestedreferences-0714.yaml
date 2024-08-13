@@ -11,10 +11,10 @@ cases:
           }
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
-        three: "3"
+            - 1
+            - 2
+            - 3
+            - 4
+        three: 3
       want_result:
         - x: true

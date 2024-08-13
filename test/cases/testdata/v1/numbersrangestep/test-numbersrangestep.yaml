@@ -10,12 +10,12 @@ cases:
           }
       want_result:
         - x:
-            - "0"
-            - "2"
-            - "4"
-            - "6"
-            - "8"
-            - "10"
+            - 0
+            - 2
+            - 4
+            - 6
+            - 8
+            - 10
     - note: numbersrangestep/descending
       query: data.test.p = x
       modules:
@@ -27,12 +27,12 @@ cases:
           }
       want_result:
         - x:
-            - "0"
-            - "-2"
-            - "-4"
-            - "-6"
-            - "-8"
-            - "-10"
+            - 0
+            - -2
+            - -4
+            - -6
+            - -8
+            - -10
     - note: numbersrangestep/negative
       query: data.test.p = x
       modules:
@@ -56,10 +56,10 @@ cases:
           }
       want_result:
         - x:
-            - "1024"
-            - "2048"
-            - "3072"
-            - "4096"
+            - 1024
+            - 2048
+            - 3072
+            - 4096
     - note: numbersrangestep/equal
       query: data.test.p = x
       modules:
@@ -71,7 +71,7 @@ cases:
           }
       want_result:
         - x:
-            - "2"
+            - 2
     - note: numbersrangestep/notinrange
       query: data.test.p = x
       modules:
@@ -83,5 +83,5 @@ cases:
           }
       want_result:
         - x:
-            - "2"
-            - "4"
+            - 2
+            - 4

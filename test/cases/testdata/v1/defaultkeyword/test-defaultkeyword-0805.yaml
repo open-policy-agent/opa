@@ -14,4 +14,4 @@ cases:
           }
       data: {}
       want_result:
-        - x: "1"
+        - x: 1

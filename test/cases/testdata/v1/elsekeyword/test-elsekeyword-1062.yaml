@@ -16,4 +16,4 @@ cases:
           }
       data: {}
       want_result:
-        - x: "2"
+        - x: 2

@@ -13,10 +13,10 @@ cases:
       data: {}
       want_result:
         - x:
-            - - "1"
-              - "0"
-              - "3"
-            - - "1"
-              - "1"
-              - "4"
+            - - 1
+              - 0
+              - 3
+            - - 1
+              - 1
+              - 4
       sort_bindings: true

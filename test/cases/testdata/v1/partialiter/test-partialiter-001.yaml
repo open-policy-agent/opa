@@ -13,7 +13,7 @@ cases:
 
           q contains 2
       want_result:
-        - x: "2"
+        - x: 2
     - note: partialiter/objects unique
       query: data.test.p = x
       modules:
@@ -28,7 +28,7 @@ cases:
 
           q[2] := 1
       want_result:
-        - x: "2"
+        - x: 2
     - note: partialiter/objects conflict
       query: data.test.p = x
       modules:

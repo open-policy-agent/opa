@@ -10,7 +10,7 @@ cases:
           }
       want_result:
         - x:
-            a: "1"
+            a: 1
     - note: objectget/path_with_single_element
       query: data.test.p = x
       modules:
@@ -21,7 +21,7 @@ cases:
           	x := object.get({"a": 1}, ["a"], 2)
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: objectget/path_with_two_elements
       query: data.test.p = x
       modules:
@@ -32,7 +32,7 @@ cases:
           	x := object.get({"a": {"b": 1}}, ["a", "b"], 2)
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: objectget/path_with_three_elements
       query: data.test.p = x
       modules:
@@ -43,7 +43,7 @@ cases:
           	x := object.get({"a": {"b": {"c": 1}}}, ["a", "b", "c"], 2)
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: objectget/path_with_single_element_no_result
       query: data.test.p = x
       modules:
@@ -54,7 +54,7 @@ cases:
           	x := object.get({"a": 1}, ["b"], 2)
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: objectget/path_with_two_elements_no_result
       query: data.test.p = x
       modules:
@@ -65,7 +65,7 @@ cases:
           	x := object.get({"a": {"b": 1}}, ["b", "a"], 2)
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: objectget/path_with_three_elements_no_result
       query: data.test.p = x
       modules:
@@ -76,7 +76,7 @@ cases:
           	x := object.get({"a": {"b": {"c": 1}}}, ["a", "b", "a"], 2)
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: objectget/path_with_non_string_keys
       query: data.test.p = x
       modules:
@@ -87,7 +87,7 @@ cases:
           	x := object.get({1: {"b": {[1, 2, 3]: 1}}}, [1, "b", [1, 2, 3]], 2)
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: objectget/get_intermediate_non_object
       query: data.test.p = x
       modules:
@@ -98,7 +98,7 @@ cases:
           	x := object.get({"a": {"b": [1, 2, 3]}}, ["a", "b", "a"], 2)
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: objectget/get_intermediate_array
       query: data.test.p = x
       modules:
@@ -109,7 +109,7 @@ cases:
           	x := object.get({"a": {"b": [{"c": 1}]}}, ["a", "b", 0, "c"], 2)
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: objectget/get_for_non_object
       query: data.test.p = x
       modules:

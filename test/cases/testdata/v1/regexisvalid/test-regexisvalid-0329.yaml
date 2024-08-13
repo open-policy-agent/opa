@@ -10,6 +10,6 @@ cases:
           	regex.is_valid(__local0__, x)
           }
       data:
-        num: "10"
+        num: 10
       want_result:
         - x: false

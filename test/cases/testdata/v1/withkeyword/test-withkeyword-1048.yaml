@@ -15,5 +15,5 @@ cases:
       data: {}
       want_result:
         - x:
-            a: "3"
-            c: "4"
+            a: 3
+            c: 4

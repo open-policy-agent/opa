@@ -19,8 +19,8 @@ cases:
           p := object.keys({1: 1, 2: 2})
       want_result:
         - x:
-            - "1"
-            - "2"
+            - 1
+            - 2
     - note: objectkeys/object_keys_found
       query: data.test.p = x
       modules:
@@ -30,8 +30,8 @@ cases:
           p := object.keys({{"a": 1}: 1, {"b": 2}: 2})
       want_result:
         - x:
-            - a: "1"
-            - b: "2"
+            - a: 1
+            - b: 2
     - note: objectkeys/set_keys_found
       query: data.test.p = x
       modules:

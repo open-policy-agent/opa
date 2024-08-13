@@ -16,7 +16,7 @@ cases:
         c:
             - "true":
                 - null
-                - "3.14159"
+                - 3.14159
               x:
                 - true
                 - false

@@ -9,4 +9,4 @@ cases:
           	rands := {rand.intn("key", 100) | numbers.range(1, 100)[_]}
           }
       want_result:
-        - x: "1"
+        - x: 1

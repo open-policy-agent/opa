@@ -22,7 +22,7 @@ cases:
       data: {}
       want_result:
         - x:
-            - "1"
-            - "2"
-            - "4"
+            - 1
+            - 2
+            - 4
       sort_bindings: true

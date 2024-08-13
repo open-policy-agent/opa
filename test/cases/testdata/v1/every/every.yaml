@@ -182,7 +182,7 @@ cases:
           }
       want_result:
         - x:
-            - "10"
+            - 10
     - note: every/array with calls
       query: data.test.p = x
       modules:

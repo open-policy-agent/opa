@@ -19,5 +19,5 @@ cases:
       want_result:
         - x:
             - bar:
-                foo: "4"
+                foo: 4
       sort_bindings: true

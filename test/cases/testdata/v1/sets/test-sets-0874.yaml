@@ -22,4 +22,4 @@ cases:
       data: {}
       want_result:
         - x:
-            - "2"
+            - 2

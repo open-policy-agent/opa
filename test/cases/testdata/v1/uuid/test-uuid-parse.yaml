@@ -12,7 +12,7 @@ cases:
       want_result:
         - x:
             variant: RFC4122
-            version: "4"
+            version: 4
     - note: uuid-parse/positive-v2
       query: data.test.p = x
       modules:
@@ -25,14 +25,14 @@ cases:
         userid: 000003e8-48b9-21ee-b200-325096b39f47
       want_result:
         - x:
-            clocksequence: "12800"
+            clocksequence: 12800
             domain: Person
-            id: "1000"
+            id: 1000
             macvariables: local:unicast
             nodeid: 32-50-96-b3-9f-47
-            time: "1693566990121469600"
+            time: 1693566990121469600
             variant: RFC4122
-            version: "2"
+            version: 2
     - note: uuid-parse/positive-v3
       query: data.test.p = x
       modules:
@@ -46,7 +46,7 @@ cases:
       want_result:
         - x:
             variant: RFC4122
-            version: "3"
+            version: 3
     - note: uuid-parse/negative
       query: data.test.p = x
       modules:
@@ -56,5 +56,5 @@ cases:
           p := uuid.parse(input.userid)
       data: {}
       input:
-        userid: "123"
+        userid: 123
       want_result: []

@@ -12,5 +12,5 @@ cases:
       data: {}
       want_result:
         - x:
-            a: "1"
-            e: "9"
+            a: 1
+            e: 9

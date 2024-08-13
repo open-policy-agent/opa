@@ -12,10 +12,10 @@ cases:
           }
       data:
         arr_ref:
-            - "1"
+            - 1
             - null
       want_result:
         - x:
-            - "1"
-            - "2"
+            - 1
+            - 2
       sort_bindings: true

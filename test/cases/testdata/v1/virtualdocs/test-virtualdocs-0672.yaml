@@ -15,7 +15,7 @@ cases:
       want_result:
         - x:
             - - a
-              - "1"
+              - 1
             - - b
-              - "2"
+              - 2
       sort_bindings: true

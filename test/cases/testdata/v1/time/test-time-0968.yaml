@@ -10,7 +10,7 @@ cases:
           	__local0__ = __local1__
           }
       want_result:
-        - x: "1705257221593912000"
+        - x: 1705257221593912000
     - note: time/add_date too large result
       query: data.generated.p = x
       modules:

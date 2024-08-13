@@ -14,4 +14,4 @@ cases:
             - alg: HS256
               typ: JWT
             - iss: xxx
-              nbf: "1000.1"
+              nbf: 1000.1

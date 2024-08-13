@@ -11,7 +11,7 @@ cases:
           	y = f(true) with f as 1
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/function: direct call, function replacement, arity 1'
       query: data.test.p = x
       modules:
@@ -26,7 +26,7 @@ cases:
           	y = f(true) with f as g
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/function: direct call, function replacement, arity 1, result captured'
       query: data.test.p = x
       modules:
@@ -54,7 +54,7 @@ cases:
           	y = f([1]) with f as count
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/function: direct call, built-in replacement, arity 1, result captured'
       query: data.test.p = x
       modules:
@@ -117,7 +117,7 @@ cases:
 
           p := y if y := f(1) with f as g
       want_result:
-        - x: "2"
+        - x: 2
     - note: 'withkeyword/function: rule indexing irrelevant'
       query: data.test.p = x
       modules:
@@ -130,7 +130,7 @@ cases:
 
           p := y if y := f(1) with f as 2
       want_result:
-        - x: "2"
+        - x: 2
     - note: 'withkeyword/function: direct call, arity 1, replacement is value that needs eval (array comprehension)'
       query: data.test.p = x
       modules:

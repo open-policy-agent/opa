@@ -29,7 +29,7 @@ cases:
       want_result:
         - x:
             foo: {}
-            x: "3"
+            x: 3
     - note: regression/rule refs and package extent
       query: data.test = x
       modules:
@@ -44,7 +44,7 @@ cases:
       want_result:
         - x:
             buz: {}
-            x: "3"
+            x: 3
     - note: regression/rule refs and package extents, multiple modules
       query: data.test = x
       modules:
@@ -61,7 +61,7 @@ cases:
       want_result:
         - x:
             buz: {}
-            x: "3"
+            x: 3
     - note: regression/type checking with ref rules
       query: data.test.p = x
       modules:
@@ -74,7 +74,7 @@ cases:
 
           p := y if y := all[level - 1][_]
       want_result:
-        - x: "2"
+        - x: 2
     - note: regression/type checking with ref rules, number
       query: data.test.p[0] = x
       modules:
@@ -83,7 +83,7 @@ cases:
 
           p[0] := 1
       want_result:
-        - x: "1"
+        - x: 1
     - note: regression/type checking with ref rules, bool
       query: data.test.p[true] = x
       modules:
@@ -92,7 +92,7 @@ cases:
 
           p[true] := 1
       want_result:
-        - x: "1"
+        - x: 1
     - note: regression/full extent with partial object rule with empty indexer lookup result
       query: data.test = x
       modules:

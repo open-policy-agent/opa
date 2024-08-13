@@ -13,7 +13,7 @@ cases:
       want_result:
         - x:
             - null
-            - "0"
+            - 0
             - ""
             - []
             - []

@@ -13,9 +13,9 @@ cases:
       data:
         obj_ref:
             "true": null
-            x: "1"
+            x: 1
       want_result:
         - x:
-            - "1"
-            - "2"
+            - 1
+            - 2
       sort_bindings: true

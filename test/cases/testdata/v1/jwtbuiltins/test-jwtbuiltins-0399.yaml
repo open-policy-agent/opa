@@ -16,7 +16,7 @@ cases:
             - ext:
                 abc: "123"
                 cba:
-                    - "10"
+                    - 10
                     - "10"
               iss: opa
               sub: "0"

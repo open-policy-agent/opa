@@ -10,5 +10,5 @@ cases:
           }
       want_result:
         - x:
-            - "30"
+            - 30
       sort_bindings: true

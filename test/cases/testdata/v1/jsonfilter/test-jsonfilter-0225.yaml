@@ -13,5 +13,5 @@ cases:
       want_result:
         - x:
             a:
-                - b: "7"
-                - d: "9"
+                - b: 7
+                - d: 9

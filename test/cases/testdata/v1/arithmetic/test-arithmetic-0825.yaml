@@ -10,7 +10,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "1"
+        - x: 1
     - note: floor rounds down (2)
       query: data.generated.p = x
       modules:
@@ -22,7 +22,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "1"
+        - x: 1
     - note: floor rounds down (3)
       query: data.generated.p = x
       modules:
@@ -34,7 +34,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "99"
+        - x: 99
     - note: floor integer
       query: data.generated.p = x
       modules:
@@ -46,7 +46,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "1"
+        - x: 1
     - note: floor negative
       query: data.generated.p = x
       modules:
@@ -58,4 +58,4 @@ cases:
           }
       data: {}
       want_result:
-        - x: "-2"
+        - x: -2

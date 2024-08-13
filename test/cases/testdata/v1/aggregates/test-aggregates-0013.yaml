@@ -11,5 +11,5 @@ cases:
       data: {}
       want_result:
         - x:
-            - "4"
+            - 4
       sort_bindings: true

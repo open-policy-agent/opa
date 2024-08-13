@@ -65,10 +65,10 @@ cases:
       want_result:
         - x:
             a: final A!
-            b: "2"
-            c: "3"
-            d: "4"
-            e: "5"
+            b: 2
+            c: 3
+            d: 4
+            e: 5
             foo: baz
     - note: '# 5073 regression test'
       query: data.test.x = x

@@ -12,4 +12,4 @@ cases:
       data: {}
       want_result:
         - x:
-            c: "1"
+            c: 1

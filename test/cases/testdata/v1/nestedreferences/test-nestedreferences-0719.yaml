@@ -13,9 +13,9 @@ cases:
           q := 1
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
       want_result:
         - x: true

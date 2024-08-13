@@ -8,4 +8,4 @@ cases:
           p := 3
       data: {}
       want_result:
-        - x: "3"
+        - x: 3

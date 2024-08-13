@@ -40,6 +40,6 @@ cases:
             - alg: RS256
               typ: JWT
             - admin: true
-              iat: "1516239022"
+              iat: 1516239022
               name: John Doe
               sub: "1234567890"

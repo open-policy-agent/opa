@@ -11,8 +11,8 @@ cases:
       want_result:
         - x:
             q:
-                r: "1"
-                s: "2"
+                r: 1
+                s: 2
     - note: refheads/single-value, with var
       query: data.test.p = x
       modules:
@@ -25,8 +25,8 @@ cases:
       want_result:
         - x:
             q:
-                r: "1"
-                s: "2"
+                r: 1
+                s: 2
     - note: refheads/single-value, with var, conflict
       query: data.test.p.q = x
       modules:
@@ -55,7 +55,7 @@ cases:
 
           q := 0
       want_result:
-        - x: "0"
+        - x: 0
     - note: 'refheads/complete: full package extent'
       query: data.test = x
       modules:
@@ -112,9 +112,9 @@ cases:
       want_result:
         - x:
             b:
-                - "1"
-                - "2"
-                - "3"
+                - 1
+                - 2
+                - 3
     - note: 'refheads/single-value: previously partial object'
       query: data.test.a.b = x
       modules:
@@ -124,9 +124,9 @@ cases:
           a.b[x] := i if some i, x in [1, 2, 3]
       want_result:
         - x:
-            "1": "0"
-            "2": "1"
-            "3": "2"
+            "1": 0
+            "2": 1
+            "3": 2
     - note: 'refheads/multi-value: same rule'
       query: data.test.a = x
       modules:
@@ -143,8 +143,8 @@ cases:
             b:
                 c:
                     d:
-                        - "1"
-                        - "2"
+                        - 1
+                        - 2
     - note: refheads/single-value default rule
       query: data.test.a = x
       modules:
@@ -197,11 +197,11 @@ cases:
             c: d
             e: f
             g:
-                - "1"
-                - "2"
-                - "3"
+                - 1
+                - 2
+                - 3
             h:
-                one: "1"
+                one: 1
     - note: refheads/website-example/partial-obj
       query: data.example.apps_by_hostname.helium = x
       modules:

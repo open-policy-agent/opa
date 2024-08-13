@@ -15,12 +15,12 @@ cases:
           }
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
       want_result:
         - x:
-            - - "2"
-              - "3"
+            - - 2
+              - 3
       sort_bindings: true

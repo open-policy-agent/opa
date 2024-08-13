@@ -51,7 +51,7 @@ cases:
 
           p := strings.reverse(data.foo)
       data:
-        foo: "123"
+        foo: 123
       want_error_code: eval_type_error
       want_error: 'reverse: operand 1 must be string but got number'
       strict_error: true

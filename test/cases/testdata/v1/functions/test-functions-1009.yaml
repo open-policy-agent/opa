@@ -197,4 +197,4 @@ cases:
       want_result:
         - x:
             - bar
-            - "3"
+            - 3

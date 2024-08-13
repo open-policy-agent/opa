@@ -16,20 +16,20 @@ cases:
           }
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
         d:
             e:
                 - bar
                 - baz
         strings:
-            bar: "2"
-            baz: "3"
-            foo: "1"
+            bar: 2
+            baz: 3
+            foo: 1
       want_result:
         - x:
-            - "3"
-            - "4"
+            - 3
+            - 4
       sort_bindings: true

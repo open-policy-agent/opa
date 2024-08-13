@@ -11,7 +11,7 @@ cases:
           	y = time.now_ns() with time.now_ns as f
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/builtin: direct call, arity 1'
       query: data.test.p = x
       modules:
@@ -24,7 +24,7 @@ cases:
           	y = count([1, 2, 3]) with count as f
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/builtin: indirect call, arity 1'
       query: data.test.p = x
       modules:
@@ -94,7 +94,7 @@ cases:
           }
       want_result:
         - x:
-            f: "1"
+            f: 1
             p: true
     - note: 'withkeyword/builtin: http.send example'
       query: data.test.test_allow = x
@@ -215,7 +215,7 @@ cases:
           valid_time(x) if time.now_ns() == x
       want_result:
         - x:
-            f: "1"
+            f: 1
             p: true
     - note: 'withkeyword/builtin: mock function calls original'
       query: data.test.p = x
@@ -236,9 +236,9 @@ cases:
           }
       want_result:
         - x:
-            - "1"
-            - "3"
-            - "4"
+            - 1
+            - 3
+            - 4
     - note: 'withkeyword/builtin: mock function returns same result for both rule defs'
       query: data.test.p = x
       modules:
@@ -308,7 +308,7 @@ cases:
           	y = q with count as g
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'withkeyword/builtin: mock will not call other mock'
       query: data.test.p = x
       modules:
@@ -373,7 +373,7 @@ cases:
           	y = time.now_ns() with time.now_ns as 12300
           }
       want_result:
-        - x: "12300"
+        - x: 12300
     - note: 'withkeyword/builtin-value: arity-0, false'
       query: data.test.p = x
       modules:
@@ -461,7 +461,7 @@ cases:
           }
       want_result:
         - x:
-            foo: "3"
+            foo: 3
     - note: 'withkeyword/builtin-builtin: arity 1, replacement is simple'
       query: data.test.p = x
       modules:
@@ -472,7 +472,7 @@ cases:
           	x = object.union_n([{}, {"foo": 3}]) with object.union_n as count
           }
       want_result:
-        - x: "2"
+        - x: 2
     - note: 'withkeyword/builtin: direct call, arity 1, replacement is value that needs eval (array comprehension)'
       query: data.test.p = x
       modules:

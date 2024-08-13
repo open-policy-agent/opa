@@ -15,5 +15,5 @@ cases:
             a:
                 b: foo
                 b1: bar
-            d: "7"
-            e: "17"
+            d: 7
+            e: 17

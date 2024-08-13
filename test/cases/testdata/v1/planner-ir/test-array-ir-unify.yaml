@@ -9,7 +9,7 @@ cases:
           	[foo] = [x | x := 1]
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: ir/unification array comprehension and array
       query: data.test.p = x
       modules:
@@ -20,7 +20,7 @@ cases:
           	[x | x := 1] = [foo]
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: ir/fixpoint key/value (negative)
       query: data.test.p = x
       modules:
@@ -47,8 +47,8 @@ cases:
           }
       input:
         foos:
-            - "2"
-            - "1"
-            - "0"
+            - 2
+            - 1
+            - 0
       want_result:
-        - x: "1"
+        - x: 1

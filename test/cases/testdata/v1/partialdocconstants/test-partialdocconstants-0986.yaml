@@ -41,8 +41,8 @@ cases:
       want_result:
         - x:
             '*':
-                - "1"
-                - "2"
-                - "3"
-            bar: "0"
-            baz: "1"
+                - 1
+                - 2
+                - 3
+            bar: 0
+            baz: 1

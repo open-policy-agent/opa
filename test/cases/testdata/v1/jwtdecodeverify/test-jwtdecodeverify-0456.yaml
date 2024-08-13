@@ -13,5 +13,5 @@ cases:
             - true
             - alg: RS256
               typ: JWT
-            - exp: "3000"
+            - exp: 3000
               iss: xxx

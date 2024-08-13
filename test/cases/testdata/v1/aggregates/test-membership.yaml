@@ -1,17 +1,4 @@
 cases:
-    - note: aggregates/member without the future import, 'in' can still be used as variable
-      query: data.test.p = x
-      modules:
-        - |
-          package test
-
-          p if {
-          	in := 1 == 2
-          	in == false
-          }
-      data: {}
-      want_result:
-        - x: true
     - note: aggregates/member simple, set
       query: data.test.p = x
       modules:
@@ -115,7 +102,7 @@ cases:
           package test
 
           p if {
-          	"foo", 2 in {"bar": 2} in {"foo": true}
+          	"foo", (2 in {"bar": 2}) in {"foo": true}
           }
       data: {}
       want_result:
@@ -346,9 +333,9 @@ cases:
       data: {}
       want_result:
         - x:
-            - "1"
-            - "2"
-            - "3"
+            - 1
+            - 2
+            - 3
     - note: aggregates/member+some ground value
       query: data.test.p = x
       modules:
@@ -384,7 +371,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "100"
+        - x: 100
     - note: aggregates/member+some non-ground composite containee, multiple bindings
       query: data.test.p = x
       modules:
@@ -396,7 +383,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "100"
+        - x: 100
     - note: aggregates/member+some ground composite containee
       query: data.test.p = x
       modules:
@@ -431,7 +418,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "100"
+        - x: 100
     - note: aggregates/member+some+key non-ground key
       query: data.test.p = x
       modules:
@@ -456,7 +443,7 @@ cases:
       data: {}
       want_result:
         - x:
-            foo: "100"
+            foo: 100
             what: ever
     - note: aggregates/member+some+key non-ground, composite key
       query: data.test.p = x
@@ -469,7 +456,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "100"
+        - x: 100
     - note: aggregates/member+some+ref
       query: data.test.p = x
       modules:
@@ -481,11 +468,11 @@ cases:
           }
       data:
         array:
-            - a: "1"
-            - b: "2"
-            - c: "3"
+            - a: 1
+            - b: 2
+            - c: 3
       want_result:
-        - x: "1"
+        - x: 1
     - note: aggregates/member+some+key+ref
       query: data.test.p = x
       modules:
@@ -497,13 +484,13 @@ cases:
           }
       data:
         array:
-            - a: "1"
-            - b: "2"
-            - c: "3"
+            - a: 1
+            - b: 2
+            - c: 3
       want_result:
         - x:
-            - "3"
-            - "2"
+            - 3
+            - 2
     - note: aggregates/member+some+key+ref with other variable
       query: data.test.p = x
       modules:
@@ -517,13 +504,13 @@ cases:
       data:
         object:
             array:
-                - a: "1"
-                - b: "2"
-                - c: "3"
+                - a: 1
+                - b: 2
+                - c: 3
       want_result:
         - x:
-            - "3"
-            - "2"
+            - 3
+            - 2
             - array
     - note: aggregates/member+some+with
       query: data.test.p = x

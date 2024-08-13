@@ -11,7 +11,7 @@ cases:
           	every v in 42 { v > 1 }
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: string'
       query: data.test.p = x
       modules:
@@ -24,7 +24,7 @@ cases:
           	every v in "foobar" { v > 1 }
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: bool'
       query: data.test.p = x
       modules:
@@ -37,7 +37,7 @@ cases:
           	every v in true { v > 1 }
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: null'
       query: data.test.p = x
       modules:
@@ -50,7 +50,7 @@ cases:
           	every v in null { v > 1 }
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: built-in call'
       query: data.test.p = x
       modules:
@@ -63,7 +63,7 @@ cases:
           	every v in floor(13.37) { v > 1 }
           }
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: function call'
       query: data.test.p = x
       modules:
@@ -78,7 +78,7 @@ cases:
 
           foo(a, b) := a + b
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: rule ref'
       query: data.test.p = x
       modules:
@@ -93,7 +93,7 @@ cases:
 
           q := 1
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: data int'
       query: data.test.p = x
       modules:
@@ -106,9 +106,9 @@ cases:
           	every v in data.iterate_me { v > 1 }
           }
       data:
-        iterate_me: "1"
+        iterate_me: 1
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: input int'
       query: data.test.p = x
       modules:
@@ -121,9 +121,9 @@ cases:
           	every v in input.iterate_me { v > 1 }
           }
       input:
-        iterate_me: "1"
+        iterate_me: 1
       want_result:
-        - x: "1"
+        - x: 1
     - note: 'every/non-iter domain: input int (1st level)'
       query: data.test.p = x
       modules:
@@ -135,6 +135,6 @@ cases:
           p := 2 if {
           	every v in input { v > 1 }
           }
-      input: "1"
+      input: 1
       want_result:
-        - x: "1"
+        - x: 1

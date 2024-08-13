@@ -20,4 +20,4 @@ cases:
           } else := 2
       data: {}
       want_result:
-        - x: "2"
+        - x: 2

@@ -18,9 +18,9 @@ cases:
             - "4"
       want_result:
         - x:
-            - "0"
-            - "1"
-            - "2"
-            - "3"
-            - "100"
+            - 0
+            - 1
+            - 2
+            - 3
+            - 100
       sort_bindings: true

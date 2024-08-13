@@ -20,10 +20,10 @@ cases:
       data: {}
       want_result:
         - x:
-            - - - "0"
+            - - - 0
                 - bazoo
-              - "3"
-            - - - "0"
+              - 3
+            - - - 0
                 - foo
-              - "1"
+              - 1
       sort_bindings: true

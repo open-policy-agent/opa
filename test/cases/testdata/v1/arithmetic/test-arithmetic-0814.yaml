@@ -12,7 +12,7 @@ cases:
           }
       data:
         a:
-            - "1"
+            - 1
       want_error_code: eval_builtin_error
       want_error: divide by zero
       strict_error: true

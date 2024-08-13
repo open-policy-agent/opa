@@ -10,4 +10,4 @@ cases:
           }
       data: {}
       want_result:
-        - x: "24"
+        - x: 24

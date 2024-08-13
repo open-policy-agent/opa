@@ -10,7 +10,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "2"
+        - x: 2
     - note: ceil rounds up (2)
       query: data.generated.p = x
       modules:
@@ -22,7 +22,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "2"
+        - x: 2
     - note: ceil rounds up (3)
       query: data.generated.p = x
       modules:
@@ -34,7 +34,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "2223"
+        - x: 2223
     - note: ceil integer
       query: data.generated.p = x
       modules:
@@ -46,7 +46,7 @@ cases:
           }
       data: {}
       want_result:
-        - x: "1"
+        - x: 1
     - note: ceil negative
       query: data.generated.p = x
       modules:
@@ -58,4 +58,4 @@ cases:
           }
       data: {}
       want_result:
-        - x: "-1"
+        - x: -1

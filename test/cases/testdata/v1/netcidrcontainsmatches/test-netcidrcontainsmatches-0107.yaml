@@ -12,7 +12,7 @@ cases:
           }
       data:
         a:
-            - "1"
+            - 1
       want_error_code: eval_builtin_error
       want_error: 'net.cidr_contains_matches: operand 2: element must be string or non-empty array'
       strict_error: true

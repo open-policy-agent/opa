@@ -17,16 +17,16 @@ cases:
       data: {}
       want_result:
         - x:
-            - - "0"
+            - - 0
               - bar
-              - "2"
-            - - "0"
+              - 2
+            - - 0
               - foo
-              - "1"
-            - - "1"
+              - 1
+            - - 1
               - baz
-              - "3"
-            - - "1"
+              - 3
+            - - 1
               - qux
-              - "4"
+              - 4
       sort_bindings: true

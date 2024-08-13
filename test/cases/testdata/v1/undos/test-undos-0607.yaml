@@ -12,10 +12,10 @@ cases:
           }
       data:
         obj_ref_missing_key:
-            x: "3"
-            z: "2"
+            x: 3
+            z: 2
       want_result:
         - x:
-            - "1"
-            - "2"
+            - 1
+            - 2
       sort_bindings: true

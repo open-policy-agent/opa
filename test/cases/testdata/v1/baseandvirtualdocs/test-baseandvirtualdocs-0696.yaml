@@ -253,8 +253,8 @@ cases:
                     c:
                         "true": false
                         x:
-                            - "100"
-                            - "200"
+                            - 100
+                            - 200
                         z:
                             a: b
       input_term: '{}'
@@ -262,11 +262,11 @@ cases:
         - x:
             - - c
               - p
-              - "1"
+              - 1
             - - c
               - q
-              - "3"
+              - 3
             - - c
               - x
-              - "100"
+              - 100
       sort_bindings: true

@@ -16,6 +16,6 @@ cases:
                 - baz
       want_result:
         - x:
-            - "0"
-            - "1"
+            - 0
+            - 1
       sort_bindings: true

@@ -61,4 +61,4 @@ cases:
       input_term: '{"foo": 1}'
       want_result:
         - x:
-            foo: "1"
+            foo: 1

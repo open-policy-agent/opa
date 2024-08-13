@@ -10,4 +10,4 @@ cases:
           bar := units.parse_bytes("foo") # undefined
       want_result:
         - x:
-            foo: "1000"
+            foo: 1000

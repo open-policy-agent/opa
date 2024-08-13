@@ -17,15 +17,15 @@ cases:
           }
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
         b:
             v1: hello
             v2: goodbye
       want_result:
         - x:
-            - "2"
-            - "4"
+            - 2
+            - 4
       sort_bindings: true

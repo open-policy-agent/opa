@@ -13,11 +13,11 @@ cases:
           q := [2, 3]
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
       want_result:
         - x:
-            - "4"
+            - 4
       sort_bindings: true

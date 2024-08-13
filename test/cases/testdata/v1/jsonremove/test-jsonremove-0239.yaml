@@ -13,4 +13,4 @@ cases:
       want_result:
         - x:
             a:
-                - c: "8"
+                - c: 8

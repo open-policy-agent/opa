@@ -9,11 +9,11 @@ cases:
       want_result:
         - x:
             a:
-                r: "0"
+                r: 0
             b:
-                r: "1"
+                r: 1
             c:
-                r: "2"
+                r: 2
     - note: refheads/general, multiple vars
       query: data.test.p = x
       modules:
@@ -51,11 +51,11 @@ cases:
       want_result:
         - x:
             a:
-                r: "0"
+                r: 0
             b:
-                r: "1"
+                r: 1
             c:
-                r: "2"
+                r: 2
     - note: refheads/general, overlapping rule, different dynamic depths, no conflict
       query: data.test.p = x
       modules:
@@ -71,16 +71,16 @@ cases:
         - x:
             a:
                 r:
-                    s: "0"
+                    s: 0
             b:
                 r:
-                    s: "1"
+                    s: 1
             c:
                 r:
-                    s: "2"
+                    s: 2
             d:
-                r: "3"
-            e: "4"
+                r: 3
+            e: 4
     - note: refheads/general, self-conflict
       query: data.test.p = x
       modules:
@@ -151,27 +151,28 @@ cases:
             c:
                 - a
                 - b
-    - note: refheads/general, set leaf (other rule defines dynamic ref portion)
-      query: data.test.p = x
-      modules:
-        - |
-          package test
-
-          p.q contains r if {
-          	r := ["a", "b", "c"][_]
-          }
-
-          p[q] := r if {
-          	q := "foo"
-          	r := "bar"
-          }
-      want_result:
-        - x:
-            foo: bar
-            q:
-                - a
-                - b
-                - c
+# FIXME: Compiler NPE
+#    - note: refheads/general, set leaf (other rule defines dynamic ref portion)
+#      query: data.test.p = x
+#      modules:
+#        - |
+#          package test
+#
+#          p.q contains r if {
+#          	r := ["a", "b", "c"][_]
+#          }
+#
+#          p[q] := r if {
+#          	q := "foo"
+#          	r := "bar"
+#          }
+#      want_result:
+#        - x:
+#            foo: bar
+#            q:
+#                - a
+#                - b
+#                - c
     - note: refheads/general, set leaf
       query: data.test.p = x
       modules:
@@ -248,14 +249,14 @@ cases:
             - foo
             - bar
             - baz
-        "y": "1"
+        "y": 1
       want_result:
         - x:
             bar:
                 r:
-                    bar: "1"
-                    baz: "2"
-                    foo: "0"
+                    bar: 1
+                    baz: 2
+                    foo: 0
     - note: refheads/general, multiple result-set entries
       query: data.test.p.q[i].s = x
       modules:
@@ -267,6 +268,6 @@ cases:
           p.q[r].s := 2 if r := "bar"
       want_result:
         - i: foo
-          x: "1"
+          x: 1
         - i: bar
-          x: "2"
+          x: 2

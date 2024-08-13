@@ -17,7 +17,7 @@ cases:
         c:
             - "true":
                 - null
-                - "3.14159"
+                - 3.14159
               x:
                 - true
                 - false
@@ -27,10 +27,10 @@ cases:
                 q: false
       want_result:
         - x:
-            - - "0"
+            - - 0
               - x
-              - "1"
-            - - "0"
+              - 1
+            - - 0
               - z
               - q
       sort_bindings: true

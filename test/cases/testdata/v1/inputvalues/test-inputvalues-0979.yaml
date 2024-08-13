@@ -65,10 +65,10 @@ cases:
           }
       data:
         a:
-            - "1"
-            - "2"
-            - "3"
-            - "4"
+            - 1
+            - 2
+            - 3
+            - 4
       input_term: '{"req1": {"foo": 4}, "req2": {"bar": 4}}'
       want_result:
         - x: true

@@ -15,5 +15,5 @@ cases:
             v2: goodbye
       want_result:
         - x:
-            - "2"
+            - 2
       sort_bindings: true

@@ -28,7 +28,7 @@ cases:
           	json.is_valid(input.foo, x)
           }
       input:
-        foo: "1"
+        foo: 1
       want_result:
         - x: false
       strict_error: true
@@ -65,7 +65,7 @@ cases:
           	yaml.is_valid(input.foo, x)
           }
       input:
-        foo: "1"
+        foo: 1
       want_result:
         - x: false
       strict_error: true

@@ -303,9 +303,9 @@ cases:
             - f/
             - d/
         strings:
-            - "1"
-            - "2"
-            - "3"
+            - 1
+            - 2
+            - 3
       want_result: []
     - note: strings/any_suffix_match/type_error_nostrict
       query: data.test.p = x
@@ -320,7 +320,7 @@ cases:
         prefixes:
             - f/
             - d/
-        strings: "1"
+        strings: 1
       want_result: []
     - note: strings/any_suffix_match/type_error_nostrict
       query: data.test.p = x
@@ -333,8 +333,8 @@ cases:
           }
       input:
         prefixes:
-            - "1"
-            - "2"
+            - 1
+            - 2
         strings:
             - a/b/c
             - a/b/d
@@ -350,7 +350,7 @@ cases:
           	strings.any_suffix_match(input.strings, input.prefixes)
           }
       input:
-        prefixes: "1"
+        prefixes: 1
         strings:
             - a/b/c
             - a/b/d
@@ -370,9 +370,9 @@ cases:
             - f/
             - d/
         strings:
-            - "1"
-            - "2"
-            - "3"
+            - 1
+            - 2
+            - 3
       want_error: 'test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 1 must be array of strings but got array containing number'
       strict_error: true
     - note: strings/any_suffix_match/type_error_strict
@@ -388,7 +388,7 @@ cases:
         prefixes:
             - f/
             - d/
-        strings: "1"
+        strings: 1
       want_error: 'test-0.rego:4: eval_type_error: strings.any_suffix_match: operand 1 must be one of {string, set, array} but got number'
       strict_error: true
     - note: strings/any_suffix_match/type_error_strict
@@ -402,8 +402,8 @@ cases:
           }
       input:
         prefixes:
-            - "1"
-            - "2"
+            - 1
+            - 2
         strings:
             - a/b/c
             - a/b/d
@@ -420,7 +420,7 @@ cases:
           	strings.any_suffix_match(input.strings, input.prefixes)
           }
       input:
-        prefixes: "1"
+        prefixes: 1
         strings:
             - a/b/c
             - a/b/d

@@ -195,4 +195,4 @@ cases:
           f(__local336__) := __local336__
       data: {}
       want_result:
-        - x: "5"
+        - x: 5

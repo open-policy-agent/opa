@@ -26,8 +26,8 @@ cases:
 
           p["c"] := 3
       input:
-        a: "1"
-        b: "2"
+        a: 1
+        b: 2
       want_result: []
     - note: wasm/input
       query: data.x.q = x
@@ -43,8 +43,8 @@ cases:
           	p == {"a": 1, "b": 2}
           }
       input:
-        x: "1"
-        "y": "2"
+        x: 1
+        "y": 2
       want_result:
         - x: true
     - note: wasm/input (negative)
@@ -64,11 +64,11 @@ cases:
           }
       data:
         z:
-            a: "1"
-            b: "2"
+            a: 1
+            b: 2
       input:
-        x: "1"
-        "y": "2"
+        x: 1
+        "y": 2
       want_result:
         - x: true
     - note: wasm/composites
@@ -105,9 +105,9 @@ cases:
           }
       data:
         z:
-            a: "1"
+            a: 1
       want_error_code: eval_conflict_error
-      want_error: 'test-0.rego:3: eval_conflict_error: complete rules must not produce multiple outputs'
+      want_error: 'eval_conflict_error: complete rules must not produce multiple outputs'
     - note: wasm/object dereference
       query: data.x.q = x
       modules:
