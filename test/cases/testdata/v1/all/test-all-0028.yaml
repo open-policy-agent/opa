@@ -1,0 +1,14 @@
+cases:
+    - note: all/empty array
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p = __local0__ {
+            all([], __local1__)
+            __local0__ = __local1__
+          }
+      data: {}
+      want_result:
+        - x: true

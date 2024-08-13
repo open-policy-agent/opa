@@ -1,0 +1,12 @@
+cases:
+    - note: 'regexmatch/re_match: raw: undefined'
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p {
+            re_match(`^[a-z]+\[[0-9]+\]$`, "foo[\"bar\"]")
+          }
+      data: {}
+      want_result: []

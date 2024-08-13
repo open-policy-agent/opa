@@ -1,0 +1,15 @@
+cases:
+    - note: netcidroverlap/cidr match
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p[x] {
+            net.cidr_overlap("192.168.1.0/24", "192.168.1.67", x)
+          }
+      data: {}
+      want_result:
+        - x:
+            - true
+      sort_bindings: true

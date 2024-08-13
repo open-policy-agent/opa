@@ -1,0 +1,13 @@
+cases:
+    - note: casts/null invalid
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p = x {
+            cast_null({}, x)
+          }
+      want_error_code: eval_type_error
+      want_error: ""
+      strict_error: true

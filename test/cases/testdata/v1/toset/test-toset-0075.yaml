@@ -1,0 +1,16 @@
+cases:
+    - note: toset/set input
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p = x {
+            cast_set({1, 2, 3}, x)
+          }
+      data: {}
+      want_result:
+        - x:
+            - "1"
+            - "2"
+            - "3"

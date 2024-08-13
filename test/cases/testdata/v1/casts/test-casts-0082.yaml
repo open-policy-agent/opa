@@ -1,0 +1,13 @@
+cases:
+    - note: casts/obj valid
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p = x {
+            cast_object({}, x)
+          }
+      data: {}
+      want_result:
+        - x: {}

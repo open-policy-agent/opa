@@ -1,0 +1,13 @@
+cases:
+    - note: casts/boolean valid
+      query: data.generated.p = x
+      modules:
+        - |
+          package generated
+
+          p = x {
+            cast_boolean(false, x)
+          }
+      data: {}
+      want_result:
+        - x: false
