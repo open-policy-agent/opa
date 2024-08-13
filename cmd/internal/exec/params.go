@@ -33,7 +33,7 @@ type Params struct {
 func NewParams(w io.Writer) *Params {
 	return &Params{
 		Output:       w,
-		OutputFormat: util.NewEnumFlag("pretty", []string{"pretty", "json"}),
+		OutputFormat: util.NewEnumFlag("json", []string{"json"}),
 		LogLevel:     util.NewEnumFlag("error", []string{"debug", "info", "error"}),
 		LogFormat:    util.NewEnumFlag("json", []string{"text", "json", "json-pretty"}),
 	}
