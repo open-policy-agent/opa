@@ -1,13 +1,14 @@
+---
 cases:
-    - note: regexmatch/regex.match
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: regexmatch/regex.match
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p if {
-          	regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")
-          }
-      data: {}
-      want_result:
-        - x: true
+        p if {
+        	regex.match("^[a-z]+\\[[0-9]+\\]$", "foo[1]")
+        }
+    data: {}
+    want_result:
+      - x: true

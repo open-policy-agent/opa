@@ -1,13 +1,14 @@
+---
 cases:
-    - note: 'disjunction/complete: valid'
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: "disjunction/complete: valid"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p := true
+        p := true
 
-          p := true
-      data: {}
-      want_result:
-        - x: true
+        p := true
+    data: {}
+    want_result:
+      - x: true

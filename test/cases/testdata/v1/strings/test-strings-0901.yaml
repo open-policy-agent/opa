@@ -1,13 +1,14 @@
+---
 cases:
-    - note: strings/lower
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: strings/lower
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p := x if {
-          	lower("AbCdEf", x)
-          }
-      data: {}
-      want_result:
-        - x: abcdef
+        p := x if {
+        	lower("AbCdEf", x)
+        }
+    data: {}
+    want_result:
+      - x: abcdef

@@ -1,13 +1,14 @@
+---
 cases:
-    - note: jsonpatch/set-failure add-to-bad-path
-      query: data.main.result = x
-      modules:
-        - |
-          package main
+  - note: jsonpatch/set-failure add-to-bad-path
+    query: data.main.result = x
+    modules:
+      - |
+        package main
 
-          doc := [1, 2, 3]
+        doc := [1, 2, 3]
 
-          patch := [{"op": "add", "path": "1.2", "value": "foo"}]
+        patch := [{"op": "add", "path": "1.2", "value": "foo"}]
 
-          result := r if r = json.patch(doc, patch)
-      want_result: []
+        result := r if r = json.patch(doc, patch)
+    want_result: []

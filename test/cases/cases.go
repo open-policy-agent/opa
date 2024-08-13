@@ -15,7 +15,8 @@ import (
 )
 
 // Create v1 test cases from v0 test cases.
-//go:generate ../../build/gen-run-go.sh internal/fmtcases/main.go testdata/v0 0 testdata/v1 1
+// //go:generate ../../build/gen-run-go.sh internal/fmtcases/main.go testdata/v0 0 testdata/v1 1
+//go:generate ../../build/gen-run-go.sh internal/fmtcases/main.go testdata/v1 0 testdata/v1_2 1
 
 // Set represents a collection of test cases.
 type Set struct {

@@ -1,13 +1,14 @@
+---
 cases:
-    - note: evaltermexpr/string non-empty
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: evaltermexpr/string non-empty
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p if {
-          	"abc"
-          }
-      data: {}
-      want_result:
-        - x: true
+        p if {
+        	"abc"
+        }
+    data: {}
+    want_result:
+      - x: true

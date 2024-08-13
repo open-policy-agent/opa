@@ -1,12 +1,13 @@
+---
 cases:
-    - note: 'eqexpr/undefined: same type'
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: "eqexpr/undefined: same type"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p if {
-          	true = false
-          }
-      data: {}
-      want_result: []
+        p if {
+        	true = false
+        }
+    data: {}
+    want_result: []

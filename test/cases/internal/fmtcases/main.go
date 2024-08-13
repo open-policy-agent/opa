@@ -109,10 +109,14 @@ func copyEntry(sourceRoot string, sourceRegoVersion ast.RegoVersion, e os.DirEnt
 		// Write formatted test cases to target directory
 		targetPath := filepath.Join(targetRoot, i.Name())
 		var buf bytes.Buffer
-		if err := yaml.NewEncoder(&buf).Encode(testCases); err != nil {
+		enc := yaml.NewEncoder(&buf)
+		enc.SetIndent(2)
+		if err := enc.Encode(testCases); err != nil {
 			return err
 		}
-		if err := os.WriteFile(targetPath, buf.Bytes(), i.Mode()); err != nil {
+
+		text := fmt.Sprintf("---\n%s", buf.String())
+		if err := os.WriteFile(targetPath, []byte(text), i.Mode()); err != nil {
 			return err
 		}
 	}

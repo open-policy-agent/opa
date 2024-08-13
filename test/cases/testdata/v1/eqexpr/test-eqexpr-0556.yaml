@@ -1,13 +1,14 @@
+---
 cases:
-    - note: 'eqexpr/ground: bool'
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: "eqexpr/ground: bool"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p if {
-          	true = true
-          }
-      data: {}
-      want_result:
-        - x: true
+        p if {
+        	true = true
+        }
+    data: {}
+    want_result:
+      - x: true

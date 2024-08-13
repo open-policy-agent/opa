@@ -1,12 +1,13 @@
+---
 cases:
-    - note: completedoc/undefined
-      query: data.generated.p = x
-      modules:
-        - |
-          package generated
+  - note: completedoc/undefined
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
 
-          p := null if {
-          	false
-          }
-      data: {}
-      want_result: []
+        p := null if {
+        	false
+        }
+    data: {}
+    want_result: []
