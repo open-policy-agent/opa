@@ -622,7 +622,7 @@ opa exec <path> [<path> [...]] [flags]
       --fail                                 exits with non-zero exit code on undefined result and errors
       --fail-defined                         exits with non-zero exit code on defined result and errors
       --fail-non-empty                       exits with non-zero exit code on non-empty result and errors
-  -f, --format {pretty,json}                 set output format (default pretty)
+  -f, --format {json}                        set output format (default json)
   -h, --help                                 help for exec
       --log-format {text,json,json-pretty}   set log format (default json)
   -l, --log-level {debug,info,error}         set log level (default error)
