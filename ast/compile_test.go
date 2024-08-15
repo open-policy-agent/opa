@@ -768,6 +768,85 @@ func TestRuleTreeWithDotsInHeads(t *testing.T) {
 	}
 }
 
+func TestRuleIndices(t *testing.T) {
+	tests := []struct {
+		note    string
+		modules []*Module
+		exp     map[string][]Ref
+	}{
+		{
+			note: "regression test for #6930 (no if)",
+			modules: modules(
+				`package test
+			
+				p.q contains "foo"
+
+				p[q] := r {
+					q := "bar"
+					r := "baz"
+				}`,
+			),
+			exp: map[string][]Ref{
+				"data.test.p": {
+					MustParseRef("p.q"),
+					MustParseRef("p[__local0__]"),
+				},
+			},
+		},
+		{
+			note: "regression test for #6930 (if)",
+			modules: modules(
+				`package test
+
+				p.q contains "foo"
+
+				p[q] := r if {
+					q := "bar"
+					r := "baz"
+				}`,
+			),
+			exp: map[string][]Ref{
+				"data.test.p": {
+					MustParseRef("p.q"),
+					MustParseRef("p[__local0__]"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+			for i, m := range tc.modules {
+				c.Modules[fmt.Sprint(i)] = m
+				c.sorted = append(c.sorted, fmt.Sprint(i))
+			}
+			compileStages(c, c.buildRuleIndices)
+
+			for k, expIndex := range tc.exp {
+				kref := MustParseRef(k)
+				i, ok := c.ruleIndices.Get(kref)
+				if i == nil || !ok {
+					t.Fatalf("expected rule indices for %v", k)
+				}
+				index := i.(*baseDocEqIndex)
+				for _, expRef := range expIndex {
+					found := false
+					for _, r := range index.root.rules {
+						if r.rule.Head.Ref().Equal(expRef) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("expected rule %v in index for %v", expRef, k)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestRuleTreeWithVars(t *testing.T) {
 	opts := ParserOptions{AllFutureKeywords: true, unreleasedKeywords: true}
 
