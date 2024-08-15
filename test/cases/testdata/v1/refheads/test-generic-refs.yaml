@@ -170,9 +170,9 @@ cases:
       - x:
           foo: bar
           q:
-              - a
-              - b
-              - c
+            - a
+            - b
+            - c
   - note: refheads/general, set leaf
     query: data.test.p = x
     modules:
