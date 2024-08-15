@@ -247,6 +247,10 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 		return nil, err
 	}
 
+	if err := checkForUNCPath(path); err != nil {
+		return nil, err
+	}
+
 	var bundleLoader bundle.DirectoryLoader
 	var isDir bool
 	if fl.reader != nil {
@@ -254,6 +258,7 @@ func (fl fileLoader) AsBundle(path string) (*bundle.Bundle, error) {
 	} else {
 		bundleLoader, isDir, err = GetBundleDirectoryLoaderFS(fl.fsys, path, fl.filter)
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -300,6 +305,10 @@ func GetBundleDirectoryLoaderWithFilter(path string, filter Filter) (bundle.Dire
 func GetBundleDirectoryLoaderFS(fsys fs.FS, path string, filter Filter) (bundle.DirectoryLoader, bool, error) {
 	path, err := fileurl.Clean(path)
 	if err != nil {
+		return nil, false, err
+	}
+
+	if err := checkForUNCPath(path); err != nil {
 		return nil, false, err
 	}
 
@@ -663,12 +672,18 @@ func allRec(fsys fs.FS, path string, filter Filter, errors *Errors, loaded *Resu
 		return
 	}
 
+	if err := checkForUNCPath(path); err != nil {
+		errors.add(err)
+		return
+	}
+
 	var info fs.FileInfo
 	if fsys != nil {
 		info, err = fs.Stat(fsys, path)
 	} else {
 		info, err = os.Stat(path)
 	}
+
 	if err != nil {
 		errors.add(err)
 		return
@@ -803,4 +818,20 @@ func makeDir(path []string, x interface{}) (map[string]interface{}, bool) {
 		return obj, true
 	}
 	return makeDir(path[:len(path)-1], map[string]interface{}{path[len(path)-1]: x})
+}
+
+// isUNC reports whether path is a UNC path.
+func isUNC(path string) bool {
+	return len(path) > 1 && isSlash(path[0]) && isSlash(path[1])
+}
+
+func isSlash(c uint8) bool {
+	return c == '\\' || c == '/'
+}
+
+func checkForUNCPath(path string) error {
+	if isUNC(path) {
+		return fmt.Errorf("UNC path read is not allowed: %s", path)
+	}
+	return nil
 }
