@@ -154,8 +154,8 @@ func TestRequestLogging(t *testing.T) {
 		{
 			path:             "/metrics",
 			acceptEncoding:   "*/*",
-			expected:         "HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.",
-			expectedEncoding: "",
+			expected:         "HELP go_gc_duration_seconds A summary of the wall-time pause (stop-the-world) duration in garbage collection cycles.",
+			expectedEncoding: "identity",
 			contentEncoding:  "",
 			requestBody:      nil,
 		},
