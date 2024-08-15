@@ -199,7 +199,6 @@ func TestParseTokenHeader(t *testing.T) {
 }
 
 func TestTopDownJWTEncodeSignES256(t *testing.T) {
-
 	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
 	const es256Hdr = `{"alg":"ES256"}`
 	const ecKey = `{
@@ -217,7 +216,6 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 		input3 string
 		err    string
 	}{
-
 		"https://tools.ietf.org/html/rfc7515#appendix-A.3",
 		"`" + es256Hdr + "`",
 		"`" + examplePayload + "`",
@@ -236,7 +234,6 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 	}
 
 	compiler, err := compileRules(nil, tc.rules, nil)
-
 	if err != nil {
 		t.Errorf("%v: Compiler error: %v", tc.note, err)
 		return
@@ -323,7 +320,6 @@ func TestTopDownJWTEncodeSignES256(t *testing.T) {
 // TestTopDownJWTEncodeSignEC needs to perform all tests inline because we do not know the
 // expected values before hand
 func TestTopDownJWTEncodeSignES512(t *testing.T) {
-
 	const examplePayload = `{"iss":"joe",` + "\r\n" + ` "exp":1300819380,` + "\r\n" + ` "http://example.com/is_root":true}`
 	const es512Hdr = `{"alg":"ES512"}`
 	const ecKey = `{
@@ -341,7 +337,6 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 		input3 string
 		err    string
 	}{
-
 		"https://tools.ietf.org/html/rfc7515#appendix-A.4",
 		"`" + es512Hdr + "`",
 		"`" + examplePayload + "`",
@@ -363,7 +358,6 @@ func TestTopDownJWTEncodeSignES512(t *testing.T) {
 	tc := tests[0]
 
 	compiler, err := compileRules(nil, tc.rules, nil)
-
 	if err != nil {
 		t.Errorf("%v: Compiler error: %v", tc.note, err)
 		return
@@ -471,7 +465,7 @@ func TestTopdownJWTEncodeSignECWithSeedReturnsSameSignature(t *testing.T) {
 	   "d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI"
 	  }, x)`
 
-	encodedSigned := "eyJhbGciOiAiRVMyNTYifQ.eyJwYXkiOiAibG9hZCJ9.GRp6wIqDZuYnvQH50hnIy559LdrjUux76v1ynxX6lH0XtlgwreyR16x2JMnuElo79X3zUbqlWrZITICv86arew"
+	encodedSigned := "eyJhbGciOiJFUzI1NiJ9.eyJwYXkiOiJsb2FkIn0.wDU6G2XTYFP3QdVYhy-PBzkacEFNJwVT4HPQHOLtUmJu-OcVUaX9n-Ukv50AJwoF59L2wS5aOzoUwuru48Q4tw"
 	for i := 0; i < 10; i++ {
 		q := NewQuery(ast.MustParseBody(query)).
 			WithSeed(&cng{}).

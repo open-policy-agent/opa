@@ -11,4 +11,4 @@ cases:
     note: jwtencodesign/Empty JSON payload
     query: data.generated.p = x
     want_result:
-      - x: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.e30.Odp4A0Fj6NoKsV4Gyoy1NAmSs6KVZiC15S9VRGZyR20
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.6cvao8lnOu6FAdK68jQFcDMXOmaWNwWiYhCgijd-AD8
