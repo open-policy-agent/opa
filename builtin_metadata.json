@@ -7034,7 +7034,7 @@
     "description": "Deserializes the hex-encoded input string.",
     "introduced": "v0.25.0-rc2",
     "result": {
-      "description": "deseralized from `x`",
+      "description": "deserialized from `x`",
       "name": "y",
       "type": "string"
     },
@@ -11493,7 +11493,7 @@
     "description": "Deserializes the input string.",
     "introduced": "v0.17.0",
     "result": {
-      "description": "the term deseralized from `x`",
+      "description": "the term deserialized from `x`",
       "name": "y",
       "type": "any"
     },
@@ -14993,7 +14993,7 @@
       "v0.67.1",
       "edge"
     ],
-    "description": "Returns a random integer between `0` and `n` (`n` exlusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
+    "description": "Returns a random integer between `0` and `n` (`n` exclusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
     "introduced": "v0.31.0",
     "result": {
       "description": "random integer in the range `[0, abs(n))`",
@@ -17307,7 +17307,7 @@
     "description": "Split returns an array containing elements of the input string split on a delimiter.",
     "introduced": "v0.17.0",
     "result": {
-      "description": "splitted parts",
+      "description": "split parts",
       "name": "ys",
       "type": "array[string]"
     },
@@ -19875,7 +19875,7 @@
       "v0.67.1",
       "edge"
     ],
-    "description": "Returns `value` with all leading instances of the `cutset` chartacters removed.",
+    "description": "Returns `value` with all leading instances of the `cutset` characters removed.",
     "introduced": "v0.17.0",
     "result": {
       "description": "string left-trimmed of `cutset` characters",
@@ -20135,7 +20135,7 @@
       "v0.67.1",
       "edge"
     ],
-    "description": "Returns `value` with all trailing instances of the `cutset` chartacters removed.",
+    "description": "Returns `value` with all trailing instances of the `cutset` characters removed.",
     "introduced": "v0.17.0",
     "result": {
       "description": "string right-trimmed of `cutset` characters",
@@ -22061,7 +22061,7 @@
     "description": "Deserializes the input string.",
     "introduced": "v0.17.0",
     "result": {
-      "description": "the term deseralized from `x`",
+      "description": "the term deserialized from `x`",
       "name": "y",
       "type": "any"
     },
