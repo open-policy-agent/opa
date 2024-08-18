@@ -15,6 +15,9 @@ on:
   push:
     branches: [ main, release-* ]
 
+permissions: 
+  contents: read
+
 jobs:
   analyze:
     name: Analyze
