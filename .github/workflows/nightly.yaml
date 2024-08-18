@@ -4,7 +4,9 @@ on:
   schedule:
     - cron:  '0 8 * * 0-4' # Sun-Thu, at 8:00 UTC
 
-
+permissions: 
+  contents: read
+  
 jobs:
   race-detector:
     name: Go Race Detector
