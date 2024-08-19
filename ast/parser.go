@@ -31,15 +31,12 @@ var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 type RegoVersion int
 
 const (
-	// RegoV0 is the default, original Rego syntax.
+	// RegoV0 is the original Rego syntax enforced pre-OPA 1.0
 	RegoV0 RegoVersion = iota
 	// RegoV0CompatV1 requires modules to comply with both the RegoV0 and RegoV1 syntax (as when 'rego.v1' is imported in a module).
 	// Shortly, RegoV1 compatibility is required, but 'rego.v1' or 'future.keywords' must also be imported.
 	RegoV0CompatV1
-	// RegoV1 is the Rego syntax enforced by OPA 1.0; e.g.:
-	// future.keywords part of default keyword set, and don't require imports;
-	// 'if' and 'contains' required in rule heads;
-	// (some) strict checks on by default.
+	// RegoV1 is the default; it's the Rego syntax enforced by OPA 1.0
 	RegoV1
 )
 
