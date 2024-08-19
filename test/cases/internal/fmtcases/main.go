@@ -20,7 +20,7 @@ import (
 
 func main() {
 	if len(os.Args) < 5 {
-		fmt.Println("Usage: main <source> <source-version> <target> <target-version>")
+		fmt.Println("Usage: main <source-dir> <source-version> <target-dir> <target-version>")
 		os.Exit(1)
 	}
 
