@@ -494,7 +494,7 @@ func (node *trieNode) String() string {
 func (node *trieNode) append(prio [2]int, rule *Rule) {
 	node.rules = append(node.rules, &ruleNode{prio, rule})
 
-	if node.values != nil {
+	if node.values != nil && rule.Head.Value != nil {
 		node.values.Add(rule.Head.Value)
 		return
 	}

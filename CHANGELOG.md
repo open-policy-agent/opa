@@ -5,9 +5,36 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Request Body Size Limits
+### CLI
 
-OPA now rejects requests with request bodies larger than a preset maximum size. To control this behavior, two new configuration keys are available: `server.decoding.max_length` and `server.decoding.gzip.max_length`. These control the max size in bytes to allow for an incoming request payload, and the maximum size in bytes to allow for a decompressed gzip request payload, respectively.
+- `opa exec`: This command never supported "pretty" formatting (`--format=pretty` or `-f pretty`), only `json`. Passing `pretty` is now invalid.
+  Note that the flag is now unnecessary, but it's kept so existing calls like `opa exec -fjson ...` remain valid.
+
+## 0.67.1
+
+This is a bug fix release addressing the following issue:
+
+- util+server: Fix bug around chunked request handling ([#6906](https://github.com/open-policy-agent/opa/pull/6906)) authored by @philipaconrad, reported by @David-Wobrock. A request handling bug was introduced in ([#6868](https://github.com/open-policy-agent/opa/pull/6868)), which caused OPA to treat all incoming chunked requests as if they had zero-length request bodies.
+
+## 0.67.0
+
+This release contains a mix of features, a new builtin function (`strings.count`), performance improvements, and bugfixes.
+
+### Breaking Change
+
+#### Request Body Size Limits
+
+OPA now automatically rejects very large requests ([#6868](https://github.com/open-policy-agent/opa/pull/6868)) authored by @philipaconrad.
+Requests with a `Content-Length` larger than 128 MB uncompressed, and gzipped requests with payloads that decompress to
+larger than 256 MB will be rejected, as part of hardening OPA against denial-of-service attacks. Previously, a large
+enough request could cause an OPA instance to run out of memory in low-memory sidecar deployment scenarios, just from
+attempting to read the request body into memory.
+
+These changes allow improvements in memory usage for the OPA HTTP server, and help OPA deployments avoid some accidental out-of-memory situations.
+
+For most users, no changes will be needed to continue using OPA. However, to control this behavior, two new configuration
+keys are available: `server.decoding.max_length` and `server.decoding.gzip.max_length`. These control the max size in
+bytes to allow for an incoming request payload, and the maximum size in bytes to allow for a decompressed gzip request payload, respectively.
 
 Here's an example OPA configuration using the new keys:
 
@@ -20,13 +47,34 @@ server:
       max_length: 134217728
 ```
 
-These changes allow improvements in memory usage for the OPA HTTP server, and help OPA deployments avoid some accidental out-of-memory situations.
+### Topdown and Rego
 
-### Breaking Changes
+- topdown: New `strings.count` builtin which returns the number of non-overlapping instances of a substring in a string ([#6827](https://github.com/open-policy-agent/opa/issues/6827)) authored by @Manish-Giri
+- format: Produce error when `--rego-v1`  formatted module has rule name conflicting with keyword ([#6833](https://github.com/open-policy-agent/opa/issues/6833)) authored by @johanfylling
+- topdown: Add cap to caches for regex and glob built-in functions ([#6828](https://github.com/open-policy-agent/opa/issues/6828)) authored by @johanfylling. This fixes possible memory leaks where caches grow uncontrollably when large amounts of regexes or globs are generated or originate from the input document.
 
-OPA now automatically rejects very large requests. Requests with a `Content-Length` larger than 128 MB uncompressed, and gzipped requests with payloads that decompress to larger than 256 MB will be rejected, as part of hardening OPA against denial-of-service attacks. Previously, a large enough request could cause an OPA instance to run out of memory in low-memory sidecar deployment scenarios, just from attempting to read the request body into memory.
+### Runtime, Tooling, SDK
+- repl: Add support for correctly loading bundle modules ([#6872](https://github.com/open-policy-agent/opa/issues/6872)) authored by @ashutosh-narkar
+- plugins/discovery: Allow un-registration of discovery listener ([#6851](https://github.com/open-policy-agent/opa/pull/6851)) authored by @mjungsbluth. The discovery plugin allows OPA to register a bundle download status listener but previously did not offer a method to unregister that listener
+- plugins/logs: Reduce amount of work performed inside global lock in decision log plugin ([#6859](https://github.com/open-policy-agent/opa/pull/6859)) authored by @johanfylling
+- plugins/rest: Add a new client credential attribute to support Azure Workload Identity. This would allow workloads deployed on an Azure Kubernetes Services (AKS) cluster to authenticate and access Azure cloud resources ([#6802](https://github.com/open-policy-agent/opa/pull/6802)) authored by @ledbutter
+- cmd/inspect: Add ability for opa inspect to inspect a single file outside of any bundle ([#6873](https://github.com/open-policy-agent/opa/pull/6873)) authored by @tjons
+- cmd+bundle: Add `--follow-symlinks` flag to the `opa build` command to allow users to build directories with symlinked files, and have the contents of those symlinked files included in the built bundle ([#6800](https://github.com/open-policy-agent/opa/pull/6800)) authored by @tjons
+- server: Add missing handling in the server for the `explain=fails` query value ([#6886](https://github.com/open-policy-agent/opa/pull/6886)) authored by @acamatcisco
 
-For most users, no changes will be needed to continue using OPA. However, for those who need to override the default limits, the new `server.decoding.max_length` and `server.decoding.gzip.max_length` configuration fields allow setting higher request size limits.
+### Docs, Website, Ecosystem
+- docs: Update bundle section with an example of a manifest with `rego_version` and `file_rego_versions` attributes ([#6885](https://github.com/open-policy-agent/opa/pull/6885)) authored by @ashutosh-narkar
+- docs: Better link language SDKs to make them more discoverable ([#6866](https://github.com/open-policy-agent/opa/pull/6866)) authored by @charlieegan3
+
+### Miscellaneous
+
+- ci: Add the OpenSSF Scorecard Github Action to help evaluate the OPA project's security posture ([#6848](https://github.com/open-policy-agent/opa/pull/6848)) authored by @harshitasao
+- Dependency updates; notably:
+  - build(go): bump golang from 1.22.4 to 1.22.5
+  - build(deps): bump github.com/containerd/containerd from 1.7.18 to 1.7.20
+  - build(deps): bump golang.org/x/net from 0.26.0 to 0.27.0
+  - build(deps): bump google.golang.org/grpc from 1.64.0 to 1.65.0
+  - build(deps): bump go.opentelemetry.io modules ([#6847](https://github.com/open-policy-agent/opa/pull/6847))
 
 ## 0.66.0
 

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -572,6 +573,61 @@ func TestAsBundleWithFile(t *testing.T) {
 			t.Fatalf("Loaded bundle doesn't match expected.\n\nExpected: %+v\n\nActual: %+v\n\n", b, actual)
 		}
 	})
+}
+
+func TestCheckForUNCPath(t *testing.T) {
+	cases := []struct {
+		input   string
+		wantErr bool
+		err     error
+	}{
+		{
+			input:   "c:/foo",
+			wantErr: false,
+		},
+		{
+			input:   "file:///c:/a/b",
+			wantErr: false,
+		},
+		{
+			input:   `\\localhost\c$`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: \\\\localhost\\c$"),
+		},
+		{
+			input:   `\\\\localhost\c$`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: \\\\\\\\localhost\\c$"),
+		},
+		{
+			input:   `//localhost/foo`,
+			wantErr: true,
+			err:     fmt.Errorf("UNC path read is not allowed: //localhost/foo"),
+		},
+		{
+			input:   `file:///a/b/c`,
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			err := checkForUNCPath(tc.input)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("Expected error but got nil")
+				}
+
+				if tc.err != nil && tc.err.Error() != err.Error() {
+					t.Fatalf("Expected error message %v but got %v", tc.err.Error(), err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Unexpected error %v", err)
+				}
+			}
+		})
+	}
 }
 
 func TestLoadRooted(t *testing.T) {

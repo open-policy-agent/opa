@@ -393,7 +393,9 @@ To use the EC2 metadata service, the IAM role to use and the AWS region for the 
 be specified as `iam_role` and `aws_region` respectively.
 
 To use the ECS metadata service, specify only the AWS region for the resource as `aws_region`. ECS
-containers have at most one associated IAM role.
+containers have at most one associated IAM role. As per the [AWS documentation](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html), credentials are
+sourced from the `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` metadata environment variable or the
+`AWS_CONTAINER_CREDENTIALS_FULL_URI` metadata environment variable in order.
 
 > Providing a value for `iam_role` will cause OPA to use the EC2 metadata service even
 > if running inside an ECS container. This may result in unexpected problems if, for example,

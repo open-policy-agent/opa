@@ -11,8 +11,18 @@ const (
 	reqCtxKeyGzipMaxLen = requestContextKey("server-decoding-plugin-context-gzip-max-length")
 )
 
+func AddServerDecodingMaxLen(ctx context.Context, maxLen int64) context.Context {
+	return context.WithValue(ctx, reqCtxKeyMaxLen, maxLen)
+}
+
 func AddServerDecodingGzipMaxLen(ctx context.Context, maxLen int64) context.Context {
 	return context.WithValue(ctx, reqCtxKeyGzipMaxLen, maxLen)
+}
+
+// Used for enforcing max body content limits when dealing with chunked requests.
+func GetServerDecodingMaxLen(ctx context.Context) (int64, bool) {
+	maxLength, ok := ctx.Value(reqCtxKeyMaxLen).(int64)
+	return maxLength, ok
 }
 
 func GetServerDecodingGzipMaxLen(ctx context.Context) (int64, bool) {
