@@ -14,4 +14,4 @@ cases:
         }
     data: {}
     want_result:
-      - x: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJleHAiOiAxNjc4MDAwMzAwLCAiaWF0IjogMTY3ODAwMDAwMH0.y3F_yHYTv7sT7x9Io1aR_fsMmz9-zhG3P2vw-wVCUCo
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NzgwMDAzMDAsImlhdCI6MTY3ODAwMDAwMH0.ZNCOrxE5MNdrqzHmiQ7c3so0IvGqHddBZFWe3kBaQHg

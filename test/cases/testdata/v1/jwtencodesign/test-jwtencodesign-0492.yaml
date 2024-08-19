@@ -11,4 +11,4 @@ cases:
         }
     data: {}
     want_result:
-      - x: eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJhdWQiOiBbImJvYiIsICJzYXVsIl0sICJleHAiOiAxMzAwODE5MzgwLCAiaHR0cDovL2V4YW1wbGUuY29tL2lzX3Jvb3QiOiB0cnVlLCAiaXNzIjogImpvZSIsICJwcml2YXRlUGFyYW1zIjogeyJwcml2YXRlX29uZSI6ICJvbmUiLCAicHJpdmF0ZV90d28iOiAidHdvIn19.M10TcaFADr_JYAx7qJ71wktdyuN4IAnhWvVbgrZ5j_4
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsiYm9iIiwic2F1bCJdLCJleHAiOjEzMDA4MTkzODAsImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlLCJpc3MiOiJqb2UiLCJwcml2YXRlUGFyYW1zIjp7InByaXZhdGVfb25lIjoib25lIiwicHJpdmF0ZV90d28iOiJ0d28ifX0.-Or2eol8bzly-Ztb0v7_7UkcKBkN_aNNpK33HK0MeOY
