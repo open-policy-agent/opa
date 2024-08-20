@@ -4,6 +4,7 @@
 package download
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -380,6 +381,43 @@ func TestOCICustomAuthPlugin(t *testing.T) {
 	if err := d.oneShot(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestOCIRawDataHasNonZeroSize(t *testing.T) {
+	var buf bytes.Buffer
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", t.TempDir()).WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
+	}).WithBundlePersistence(true)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	buf.ReadFrom(u1.Raw)
+
+	if u1.Raw == nil {
+		t.Fatal("expected bundle reader to be non-nil")
+	}
+
+	if buf.Len() == 0 {
+		t.Fatal("expected non-0 size")
+	}
+
+	d.Stop(ctx)
 }
 
 func mockAuthPluginLookup(string) rest.HTTPAuthPlugin {
