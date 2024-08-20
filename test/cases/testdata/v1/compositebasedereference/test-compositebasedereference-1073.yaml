@@ -1,0 +1,19 @@
+---
+cases:
+  - note: compositebasedereference/array
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	not data.a[[0]]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

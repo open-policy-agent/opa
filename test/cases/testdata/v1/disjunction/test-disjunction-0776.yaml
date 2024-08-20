@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "disjunction/complete: reference valid"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q := true
+
+        q := true
+    data: {}
+    want_result:
+      - x: true

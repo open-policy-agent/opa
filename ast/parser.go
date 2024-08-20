@@ -50,6 +50,19 @@ func (v RegoVersion) Int() int {
 	return 0
 }
 
+func (v RegoVersion) String() string {
+	switch v {
+	case RegoV0:
+		return "v0"
+	case RegoV1:
+		return "v1"
+	case RegoV0CompatV1:
+		return "v0v1"
+	default:
+		return "unknown"
+	}
+}
+
 func RegoVersionFromInt(i int) RegoVersion {
 	if i == 1 {
 		return RegoV1

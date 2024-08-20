@@ -1,0 +1,15 @@
+---
+cases:
+  - note: jwtverifyhs384/failure-invalid token
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	io.jwt.verify_hs384("eyJhbGciOiJIUzM4NCJ9.eyJTY29wZXMiOlsiZm9vIiwiYmFyIl0sIm5iZiI6MTQ1MTYwNjQwMH0", "secret", x)
+        }
+    data: {}
+    want_error_code: eval_builtin_error
+    want_error: encoded JWT must have 3 sections, found 2
+    strict_error: true

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: typebuiltin/is_null
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	is_null(true, x)
+        }
+    data: {}
+    want_result:
+      - x: false

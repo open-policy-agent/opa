@@ -1,0 +1,20 @@
+---
+cases:
+  - note: casts/to_number ref dest
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	__local0__ = data.a[2]
+        	to_number("3", __local0__)
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

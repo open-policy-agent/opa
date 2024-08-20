@@ -1,0 +1,502 @@
+---
+cases:
+  - note: "withkeyword/builtin: direct call, arity 0"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p := y if {
+        	y = time.now_ns() with time.now_ns as f
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/builtin: direct call, arity 1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1
+
+        p := y if {
+        	y = count([1, 2, 3]) with count as f
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/builtin: indirect call, arity 1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1
+
+        p if {
+        	q with count as f
+        }
+
+        q if {
+        	count([1, 2, 3]) == 1
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 0"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        }
+
+        q if {
+        	time.now_ns() == 1
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 0, rule queried with and without mock"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        	not q
+        }
+
+        q if {
+        	time.now_ns() == 1
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 0, query package"
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        }
+
+        q if {
+        	time.now_ns() == 1
+        }
+    want_result:
+      - x:
+          f: 1
+          p: true
+  - note: "withkeyword/builtin: http.send example"
+    query: data.test.test_allow = x
+    modules:
+      - |
+        package test
+
+        pass_resp := {"body": {"roles": ["admin"]}}
+
+        deny_resp := {"body": {"roles": []}}
+
+        mock_http_send(req) := pass_resp if {
+        	req.body.name == "alice"
+        } else := deny_resp
+
+        test_allow if {
+        	allow with http.send as mock_http_send with input.name as "alice"
+        }
+
+        allow if {
+        	"admin" in http.send({"method": "GET", "body": input}).body.roles
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: nested, multiple mocks"
+    query: data.test.test_allow = x
+    modules:
+      - |
+        package test
+
+        pass_resp := {"body": {"jwt": "myjot"}}
+
+        deny_resp := {"body"}
+
+        mock_http_send(req) := pass_resp if {
+        	req.body.name == "alice"
+        } else := deny_resp
+
+        mock_decode_verify("myjot", _) := [true, {}, {"owner": "alice"}]
+
+        test_allow if {
+        	allow with data.verification.cert as "cert"
+        		with input.name as "alice"
+        		with http.send as mock_http_send
+        		with io.jwt.decode_verify as mock_decode_verify
+        }
+
+        allow if {
+        	payload.owner == input.name
+        }
+
+        claims[k] := v if {
+        	resp := http.send({"method": "GET", "body": input}).body
+        	some k, v in resp
+        }
+
+        payload := p if {
+        	some p
+        	[true, _, p] = io.jwt.decode_verify(claims.jwt, {"cert": data.verification.cert, "iss": "issuer"})
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call through function"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        }
+
+        q if {
+        	valid_time(1)
+        }
+
+        valid_time(x) if time.now_ns() == x
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call through function, rule with and without mock"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        	not q
+        }
+
+        q if {
+        	valid_time(1)
+        }
+
+        valid_time(x) if time.now_ns() == x
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call through function, query package"
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        f := 1
+
+        p if {
+        	q with time.now_ns as f
+        }
+
+        q if {
+        	valid_time(1)
+        }
+
+        valid_time(x) if time.now_ns() == x
+    want_result:
+      - x:
+          f: 1
+          p: true
+  - note: "withkeyword/builtin: mock function calls original"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        mock_count("one") := 1
+
+        mock_count(x) := count(x) if {
+        	x != "one"
+        }
+
+        numbers := {"one", "two", "tree"}
+
+        p := s if {
+        	s := {count(n) | some n in numbers} with count as mock_count
+        }
+    want_result:
+      - x:
+          - 1
+          - 3
+          - 4
+  - note: "withkeyword/builtin: mock function returns same result for both rule defs"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        mock_concat("one", _) := ["one"]
+
+        mock_concat("one", x) := x
+
+        numbers := ["one", "one"]
+
+        p := s if {
+        	s := {concat(n, [n]) | some n in numbers} with concat as mock_concat
+        }
+    want_result:
+      - x:
+          - - one
+  - note: "withkeyword/builtin: nested, mock function calls original"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        mock_concat("one", _) := ["one"]
+
+        mock_concat("one", x) := x
+
+        count_four(4) := 4
+
+        count_four(x) := count(x)
+
+        numbers := {"one", "two", "tree"}
+
+        q := s if {
+        	s := {concat(n, [n]) | some n in numbers} with concat as mock_concat
+        	r
+        }
+
+        r if {
+        	count(input.four) == 4
+        }
+
+        p := y if {
+        	y := q with concat as mock_concat
+        		with count as count_four
+        		with input.four as 4
+        }
+    want_result:
+      - x:
+          - - one
+  - note: "withkeyword/builtin: multiple with"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1
+
+        g(x) := count(x) # replaced with f by inner "with"
+
+        q := y if {
+        	y = count([1, 2, 3]) with count as f
+        }
+
+        p := y if {
+        	y = q with count as g
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/builtin: mock will not call other mock"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(x) := object.union_n(x) if {x: i | x := ["a", "a"][i]} # never called, runtime error
+
+        g(x) := count(x)
+
+        p if {
+        	q with count as f
+        }
+
+        q if {
+        	r with object.union_n as g
+        }
+
+        r if {
+        	object.union_n([{}])
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: nested scope handling"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(x) := object.union_n(x) # b1
+
+        g(x) := 123 if {
+        	count(x) # b2
+        	s with array.reverse as h
+        }
+
+        h(_) := ["replaced"]
+
+        p if q with object.union_n as f
+
+        q if r with count as g
+
+        r if {
+        	x := [{"foo": 4}, {"baz": 5}]
+        	count(x) == 123
+        	object.union_n(x) == {"foo": 4, "baz": 5}
+        }
+
+        s if {
+        	x := [{}]
+        	array.reverse(x) == ["replaced"]
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin-value: arity-0, captured output"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := y if {
+        	y = time.now_ns() with time.now_ns as 12300
+        }
+    want_result:
+      - x: 12300
+  - note: "withkeyword/builtin-value: arity-0, false"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	time.now_ns() with time.now_ns as false
+        }
+    want_result: []
+  - note: "withkeyword/builtin-value: arity-0"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	time.now_ns() with time.now_ns as true
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin-value: arity-0, var"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := true
+        	time.now_ns() with time.now_ns as x
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin-value: arity-1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	count([]) == 1 with count as 1
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin-value: arity-1, captured"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	count([], 1) with count as 1
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin-value: arity-1, input must still be defined"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	count(input) == 1 with count as 1
+        }
+    want_result: []
+  - note: "withkeyword/builtin-builtin: arity 0"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x = time.now_ns() with time.now_ns as opa.runtime
+        }
+    want_result:
+      - x: {}
+  - note: "withkeyword/builtin-builtin: arity 1, replacement is compound"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x = count([{}, {"foo": 3}]) with count as object.union_n
+        }
+    want_result:
+      - x:
+          foo: 3
+  - note: "withkeyword/builtin-builtin: arity 1, replacement is simple"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x = object.union_n([{}, {"foo": 3}]) with object.union_n as count
+        }
+    want_result:
+      - x: 2
+  - note: "withkeyword/builtin: direct call, arity 1, replacement is value that needs eval (array comprehension)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	count([1, 2, 3]) == 1 with count as [1 | true][0]
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: indirect call, arity 1, replacement is value that needs eval (array comprehension)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	q with count as [1 | true][0]
+        }
+
+        q if {
+        	count([1, 2, 3]) == 1
+        }
+    want_result:
+      - x: true

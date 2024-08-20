@@ -1,0 +1,23 @@
+---
+cases:
+  - note: "virtualdocs/input: set 1"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[1]
+        }
+
+        q contains x if {
+        	data.a[i] = x
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

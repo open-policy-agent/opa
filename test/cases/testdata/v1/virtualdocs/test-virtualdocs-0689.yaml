@@ -1,0 +1,20 @@
+---
+cases:
+  - note: virtualdocs/empty partial set
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains 1 if {
+        	data.a[0] = 100
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    want_result:
+      - x: []
+    sort_bindings: true

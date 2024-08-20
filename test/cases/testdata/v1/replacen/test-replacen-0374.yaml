@@ -1,0 +1,41 @@
+---
+cases:
+  - note: replacen/replace multiple patterns
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	strings.replace_n({"<": "&lt;", ">": "&gt;"}, "This is <b>HTML</b>!", __local0__)
+        	x = __local0__
+        }
+    data: {}
+    want_result:
+      - x:
+          - This is &lt;b&gt;HTML&lt;/b&gt;!
+    sort_bindings: true
+  - note: replacen/replace multiple patterns/overlapping
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.replace_n({"f": "x", "foo": "xxx"}, "foobar")
+    data: {}
+    want_result:
+      - x: xoobar
+  - note: replacen/replace multiple patterns/overlapping/insertion order does not matter
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := strings.replace_n({k: v | k := ["f", "foo"][i]; v := ["x", "xxx"][i]}, "foo")
+        	y := strings.replace_n({k: v | k := ["foo", "f"][i]; v := ["xxx", "x"][i]}, "foo")
+        	x == y
+        }
+    data: {}
+    want_result:
+      - x: xoo

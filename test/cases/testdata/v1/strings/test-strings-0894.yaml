@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "strings/substring: offset too long 2"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("aaa", 4, -1, x)
+        }
+    data: {}
+    want_result:
+      - x: ""
+  - note: "strings/substring: offset too long 2 unicode"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("åäö", 4, -1, x)
+        }
+    want_result:
+      - x: ""

@@ -1,0 +1,164 @@
+---
+cases:
+  - note: "withkeyword/function: direct call, value replacement, arity 1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        p := y if {
+        	y = f(true) with f as 1
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/function: direct call, function replacement, arity 1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        g(_) := 1
+
+        p := y if {
+        	y = f(true) with f as g
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/function: direct call, function replacement, arity 1, result captured"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        g(_) := 1
+
+        p if {
+        	f(true, 1) with f as g
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/function: direct call, built-in replacement, arity 1"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        p := y if {
+        	y = f([1]) with f as count
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/function: direct call, built-in replacement, arity 1, result captured"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        p if {
+        	f([1], 1) with f as count
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/function: nested scope handling"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f1(x) := object.union_n(x)
+
+        f2(x) := count(x)
+
+        f3(x) := array.reverse(x)
+
+        f(x) := f1(x)
+
+        g(x) := 123 if {
+        	f2(x)
+        	s with f3 as h
+        }
+
+        h(_) := ["replaced"]
+
+        p if q with f1 as f
+
+        q if r with f2 as g
+
+        r if {
+        	x := [{"foo": 4}, {"baz": 5}]
+        	f2(x) == 123
+        	f1(x) == {"foo": 4, "baz": 5}
+        }
+
+        s if {
+        	x := [{}]
+        	f3(x) == ["replaced"]
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/function: simple scope handling (no recursion here)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(x) := 2
+
+        g(x) := f(x)
+
+        p := y if y := f(1) with f as g
+    want_result:
+      - x: 2
+  - note: "withkeyword/function: rule indexing irrelevant"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1 if {
+        	input.x = "x"
+        }
+
+        p := y if y := f(1) with f as 2
+    want_result:
+      - x: 2
+  - note: "withkeyword/function: direct call, arity 1, replacement is value that needs eval (array comprehension)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1
+
+        p if {
+        	f([1, 2, 3]) == 1 with f as [1 | true][0]
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/function: indirect call, arity 1, replacement is value that needs eval (array comprehension)"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 1
+
+        p if {
+        	q with f as [1 | true][0]
+        }
+
+        q if {
+        	f([1, 2, 3]) == 1
+        }
+    want_result:
+      - x: true

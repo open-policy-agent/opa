@@ -1,0 +1,47 @@
+---
+cases:
+  - note: partialdocconstants/set-all
+    query: data.ex.bar = x
+    modules:
+      - |
+        package ex
+
+        foo["bar"] := 0
+
+        foo["baz"] := 1
+
+        foo["*"] := [1, 2, 3] if {
+        	input.foo = 7
+        }
+
+        bar contains "x"
+
+        bar contains "y"
+
+        bar contains "*" if {
+        	input.foo = 7
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ := _result if {
+        	data.partial.ex.bar = _result
+        }
+      - |
+        package partial.ex
+
+        bar contains "x"
+
+        bar contains "y"
+
+        bar contains "*" if {
+        	input.foo = 7
+        }
+    data: {}
+    input_term: '{"foo": 7}'
+    want_result:
+      - x:
+          - "*"
+          - x
+          - "y"
+    sort_bindings: true

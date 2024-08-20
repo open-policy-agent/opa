@@ -1,0 +1,15 @@
+---
+cases:
+  - note: indirectreferences/call
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	split("foo.bar", ".", __local0__)
+        	__local0__[0] = "foo"
+        }
+    data: {}
+    want_result:
+      - x: true

@@ -1,0 +1,86 @@
+---
+cases:
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: no amount provided"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("G")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: no amount provided"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("foo")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: no amount provided"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("0.0.0")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: could not parse amount to a number"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse(".5.2")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: could not parse amount to a number"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse("100 k")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: spaces not allowed in resource strings"
+    strict_error: true
+  - note: units_parse/failure
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse(" 327Mi ")
+        }
+    want_error_code: eval_builtin_error
+    want_error: "units.parse: spaces not allowed in resource strings"
+    strict_error: true

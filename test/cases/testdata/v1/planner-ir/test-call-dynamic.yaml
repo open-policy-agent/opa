@@ -1,0 +1,119 @@
+---
+cases:
+  - note: ir/call_dynamic in comprehension
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	b := input
+        	x := {y | y := data.a[b][_]}
+        }
+      - |
+        package a
+
+        b := {"foo", "bar"}
+      - |
+        package a
+
+        c := {"x", "y"}
+    input: b
+    want_result:
+      - x:
+          - bar
+          - foo
+    sort_bindings: true
+  - note: ir/no call-dynamic with mixed partial rules
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := data.a.b[c] if c := "c"
+      - |
+        package a
+
+        b[c] := "C" if c := "c"
+
+        b["d"] := "D"
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with mixed partial rules
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := a[b].c if b := "b"
+
+        a.b.c := "C"
+
+        a.x.d := "D"
+    want_result:
+      - x: C
+  - note: ir/no call-dynamic with mixed partial rules, ref heads
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := a.b[c] if c := "c"
+
+        a.b[c] := "C" if c := "c"
+
+        a.b.d := "D"
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with mixed partial rules, ref heads
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := a[b][c] if {
+        	b := "b"
+        	c := "c"
+        }
+
+        a.b.c := "C"
+
+        a.x.d := "D"
+    want_result:
+      - x: C
+  - note: ir/call-dynamic with ref heads, issue 5839
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := a[b][c].allow if {
+        	b := "b"
+        	c := "c"
+        }
+
+        a.b.c.allow := true
+
+        a.x.d.allow := true
+
+        a.y[x] := "E" if x := "x"
+    want_result:
+      - x: true
+  - note: ir/call-dynamic with ref heads, issue 5839, penultimate
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := a[b][c] if {
+        	b := "b"
+        	c := "c"
+        }
+
+        a.b.c := true
+
+        a.x.d := true
+
+        a.y := "E"
+    want_result:
+      - x: true

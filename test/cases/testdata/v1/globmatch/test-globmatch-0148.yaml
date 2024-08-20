@@ -1,0 +1,16 @@
+---
+cases:
+  - note: globmatch/glob match with single wild-card and delimiter
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	glob.match("?at", ["f"], "bat", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+    sort_bindings: true

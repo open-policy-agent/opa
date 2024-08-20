@@ -1,0 +1,22 @@
+---
+cases:
+  - note: defaultkeyword/object comprehension
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := 1 if {
+        	false
+        }
+
+        default p := {x: k | data.d[k][_] = x}
+    data:
+      d:
+        e:
+          - bar
+          - baz
+    want_result:
+      - x:
+          bar: e
+          baz: e

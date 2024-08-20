@@ -1,0 +1,14 @@
+---
+cases:
+  - note: base64builtins/encode-slash
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64.encode("subjects?_d", x)
+        }
+    data: {}
+    want_result:
+      - x: c3ViamVjdHM/X2Q=

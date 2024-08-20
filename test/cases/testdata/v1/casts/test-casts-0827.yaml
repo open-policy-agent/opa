@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "casts/to_number: bad input"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	to_number("broken", x)
+        }
+    want_error_code: eval_builtin_error
+    want_error: invalid syntax
+    strict_error: true

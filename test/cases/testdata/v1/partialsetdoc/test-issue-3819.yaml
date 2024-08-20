@@ -1,0 +1,27 @@
+---
+cases:
+  - note: "partialsetdoc: object sort while iter"
+    query: data.foo.p = x
+    modules:
+      - |
+        package foo
+
+        p contains x if {
+        	data.a[x] # iterates data.a
+        	q[_]
+        }
+
+        q contains x if {
+        	x = data.a # inserts data.a into a set, sorts the object keys
+        }
+    data:
+      a:
+        apples: "2"
+        bananas: "1"
+        clementines: "3"
+    want_result:
+      - x:
+          - apples
+          - bananas
+          - clementines
+    sort_bindings: true

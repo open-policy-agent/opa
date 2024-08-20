@@ -1,0 +1,19 @@
+---
+cases:
+  - note: jsonremove/mixed root types
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	json.remove({"a": {"b": {"c": 7, "d": 8, "x": 0}}, "e": 9}, {"a/b/d", ["a", "b", "c"]}, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x:
+          a:
+            b:
+              x: 0
+          e: 9

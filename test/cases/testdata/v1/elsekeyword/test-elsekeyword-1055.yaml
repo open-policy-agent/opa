@@ -1,0 +1,14 @@
+---
+cases:
+  - note: elsekeyword/trivial
+    query: data.ex.bool = x
+    modules:
+      - |
+        package ex
+
+        bool if {
+        	false
+        } else := true
+    data: {}
+    want_result:
+      - x: true

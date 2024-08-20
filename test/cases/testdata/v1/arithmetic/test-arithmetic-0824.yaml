@@ -1,0 +1,62 @@
+---
+cases:
+  - note: ceil rounds up
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	ceil(1.01, x)
+        }
+    data: {}
+    want_result:
+      - x: 2
+  - note: ceil rounds up (2)
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	ceil(1.5, x)
+        }
+    data: {}
+    want_result:
+      - x: 2
+  - note: ceil rounds up (3)
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	ceil(2222.2222222222, x)
+        }
+    data: {}
+    want_result:
+      - x: 2223
+  - note: ceil integer
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	ceil(1, x)
+        }
+    data: {}
+    want_result:
+      - x: 1
+  - note: ceil negative
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	ceil(-1.99999, x)
+        }
+    data: {}
+    want_result:
+      - x: -1

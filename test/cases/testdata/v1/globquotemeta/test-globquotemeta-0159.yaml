@@ -1,0 +1,16 @@
+---
+cases:
+  - note: globquotemeta/glob quote meta
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	glob.quote_meta("*.github.com", x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - \*.github.com
+    sort_bindings: true

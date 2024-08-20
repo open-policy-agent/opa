@@ -1,0 +1,29 @@
+---
+cases:
+  - note: withkeyword/invalidate comprehension cache
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y] if {
+        	x = data.ex.s with input as {"a": "b", "c": "b"}
+        	y = data.ex.s with input as {"a": "b"}
+        }
+      - |
+        package ex
+
+        s contains x if {
+        	x = {v: ks |
+        		v = input[i]
+        		ks = {k | v = input[k]}
+        	}
+        }
+    want_result:
+      - x:
+          - - b:
+                - a
+          - - b:
+                - a
+                - c
+    sort_bindings: true

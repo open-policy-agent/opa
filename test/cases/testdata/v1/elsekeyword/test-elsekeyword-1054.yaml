@@ -1,0 +1,14 @@
+---
+cases:
+  - note: elsekeyword/no-op
+    query: data.ex.no_op = x
+    modules:
+      - |
+        package ex
+
+        no_op if {
+        	true
+        } else := false
+    data: {}
+    want_result:
+      - x: true

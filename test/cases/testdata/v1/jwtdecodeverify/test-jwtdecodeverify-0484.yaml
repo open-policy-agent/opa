@@ -1,0 +1,18 @@
+---
+cases:
+  - note: jwtdecodeverify/hs256-float-one-millisecond-after-nbf
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y, z] if {
+        	io.jwt.decode_verify("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ4eHgiLCJuYmYiOjEuNTg5Mzg1NzcwMTIzNGUrMDl9.lvrsV1nam-BZr0SomWwsr4dBfu6BDrR2FzQ1iS_Xnrw", {"secret": "secret", "time": 1589385770124400000}, [x, y, z])
+        }
+    want_result:
+      - x:
+          - true
+          - alg: HS256
+            typ: JWT
+          - iss: xxx
+            nbf: 1589385770.1234

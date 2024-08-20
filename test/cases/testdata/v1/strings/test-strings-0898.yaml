@@ -1,0 +1,13 @@
+---
+cases:
+  - note: "strings/startswith: undefined"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	startswith("abcdefgh", "bcd")
+        }
+    data: {}
+    want_result: []

@@ -1,0 +1,25 @@
+---
+cases:
+  - note: defaultkeyword/set comprehension
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := 1 if {
+        	false
+        }
+
+        default p := {x | data.a[_] = x}
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    want_result:
+      - x:
+          - "1"
+          - "2"
+          - "3"
+          - "4"

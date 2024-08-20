@@ -1,0 +1,14 @@
+---
+cases:
+  - note: globsmatch/regex.globs_match
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	regex.globs_match("a.a.[0-9]+z", ".b.b2359825792*594823z")
+        }
+    data: {}
+    want_result:
+      - x: true

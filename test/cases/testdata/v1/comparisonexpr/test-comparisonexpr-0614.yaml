@@ -1,0 +1,13 @@
+---
+cases:
+  - note: "comparisonexpr/undefined: equals"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	0 = 1
+        }
+    data: {}
+    want_result: []

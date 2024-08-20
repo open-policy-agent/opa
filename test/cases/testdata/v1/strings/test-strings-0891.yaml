@@ -1,0 +1,25 @@
+---
+cases:
+  - note: "strings/substring: too long"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("abcdefgh", 2, 10000, x)
+        }
+    data: {}
+    want_result:
+      - x: cdefgh
+  - note: "strings/substring: too long unicode"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("abcdefghåäö", 2, 10000, x)
+        }
+    want_result:
+      - x: cdefghåäö

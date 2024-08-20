@@ -1,0 +1,15 @@
+---
+cases:
+  - note: objectget/complex value . not found
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	object.get({"a": {"b": "c"}}, "b", true, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    want_result:
+      - x: true

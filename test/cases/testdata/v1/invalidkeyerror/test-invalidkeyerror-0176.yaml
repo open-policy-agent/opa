@@ -1,0 +1,14 @@
+---
+cases:
+  - note: invalidkeyerror/invalid keys
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	http.send({"bad_key": "bad_value", "method": "get", "url": "http://127.0.0.1:51113"}, x)
+        }
+    want_error_code: eval_type_error
+    want_error: 'invalid request parameters(s): {"bad_key"}'
+    strict_error: true

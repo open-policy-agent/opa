@@ -1,0 +1,21 @@
+---
+cases:
+  - note: comparisonexpr/lteq
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	-1 <= 0
+        	data.a[i] = x
+        	x <= 1
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: union/union_0_sets
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	union(set(), x)
+        }
+    data: {}
+    want_result:
+      - x: []

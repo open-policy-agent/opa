@@ -1,0 +1,20 @@
+---
+cases:
+  - note: withkeyword/with virtual doc specific index
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := y if {
+        	y = data.ex.virtual.c with data.a.b as {"c": 1, "d": 2, "e": 1}
+        }
+      - |
+        package ex
+
+        virtual contains x if {
+        	data.a.b[x] = 1
+        }
+    data: {}
+    want_result:
+      - x: c

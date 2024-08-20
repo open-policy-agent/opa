@@ -1,0 +1,22 @@
+---
+cases:
+  - note: undos/array-ref-element
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.arr_ref
+        	arr = [[1, 2], __local0__, [2, 2]]
+        	arr[_] = [x, 2]
+        }
+    data:
+      arr_ref:
+        - 1
+        - null
+    want_result:
+      - x:
+          - 1
+          - 2
+    sort_bindings: true
