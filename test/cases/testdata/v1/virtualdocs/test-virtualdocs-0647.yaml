@@ -1,0 +1,21 @@
+---
+cases:
+  - note: "virtualdocs/output: set dereference deep"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains y if {
+        	data.generated.q[i][j][k][x] = y
+        }
+
+        q contains {{[1], [2]}, {[3], [4]}}
+    data: {}
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

@@ -1,0 +1,26 @@
+---
+cases:
+  - note: "strings/substring: offset negative"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("aaa", -1, -1, x)
+        }
+    want_error_code: eval_builtin_error
+    want_error: negative offset
+    strict_error: true
+  - note: "strings/substring: offset negative unicode"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	substring("åäö", -1, -1, x)
+        }
+    want_error_code: eval_builtin_error
+    want_error: negative offset
+    strict_error: true

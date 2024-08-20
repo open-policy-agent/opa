@@ -1,0 +1,19 @@
+---
+cases:
+  - note: virtualdocs/empty partial object
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p["x"] := 1 if {
+        	data.a[0] = 100
+        }
+    data:
+      a:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+    want_result:
+      - x: {}

@@ -1,0 +1,26 @@
+---
+cases:
+  - note: base64builtins/is_valid-true
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64.is_valid("aGVsbG8=", x)
+        }
+    data: {}
+    want_result:
+      - x: true
+  - note: base64builtins/is_valid-false
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	base64.is_valid("{'not':'base64'}", x)
+        }
+    data: {}
+    want_result:
+      - x: false

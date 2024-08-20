@@ -1,0 +1,16 @@
+---
+cases:
+  - note: elsekeyword/first-match
+    query: data.ex.multiple_defined = x
+    modules:
+      - |
+        package ex
+
+        multiple_defined := false if {
+        	false
+        } else if {
+        	true
+        } else := false
+    data: {}
+    want_result:
+      - x: true

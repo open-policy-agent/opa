@@ -1,0 +1,18 @@
+---
+cases:
+  - note: completedoc/vars
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := {"a": [x, y]} if {
+        	x = 1
+        	y = 2
+        }
+    data: {}
+    want_result:
+      - x:
+          a:
+            - 1
+            - 2

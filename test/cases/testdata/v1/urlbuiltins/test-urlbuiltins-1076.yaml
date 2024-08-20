@@ -1,0 +1,44 @@
+---
+cases:
+  - note: urlbuiltins/decode_object multiple
+    query: data.decode_object.p = x
+    modules:
+      - |
+        package decode_object
+
+        p := x if {
+        	x = urlquery.decode_object("a=value_a1&b=value_b&a=value_a2")
+        }
+    want_result:
+      - x:
+          a:
+            - value_a1
+            - value_a2
+          b:
+            - value_b
+  - note: urlbuiltins/decode_object empty parameter
+    query: data.decode_object.p = x
+    modules:
+      - |
+        package decode_object
+
+        p := x if {
+        	x = urlquery.decode_object("a=value_a1&b")
+        }
+    want_result:
+      - x:
+          a:
+            - value_a1
+          b:
+            - ""
+  - note: urlbuiltins/decode_object empty string
+    query: data.decode_object.p = x
+    modules:
+      - |
+        package decode_object
+
+        p := x if {
+        	x = urlquery.decode_object("")
+        }
+    want_result:
+      - x: {}

@@ -1,0 +1,55 @@
+---
+cases:
+  - note: ir/unification array and array comprehension
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := foo if {
+        	[foo] = [x | x := 1]
+        }
+    want_result:
+      - x: 1
+  - note: ir/unification array comprehension and array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := foo if {
+        	[x | x := 1] = [foo]
+        }
+    want_result:
+      - x: 1
+  - note: ir/fixpoint key/value (negative)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	some foo
+        	foo == input.foos[foo]
+        }
+    input:
+      foos:
+        - foo
+    want_result: []
+  - note: ir/fixpoint key/value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := foo if {
+        	some foo
+        	foo == input.foos[foo]
+        }
+    input:
+      foos:
+        - 2
+        - 1
+        - 0
+    want_result:
+      - x: 1

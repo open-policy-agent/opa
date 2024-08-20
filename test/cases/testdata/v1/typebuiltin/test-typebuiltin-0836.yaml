@@ -1,0 +1,17 @@
+---
+cases:
+  - note: typebuiltin/is_boolean
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y] if {
+        	is_boolean(true, x)
+        	is_boolean(false, y)
+        }
+    data: {}
+    want_result:
+      - x:
+          - true
+          - true

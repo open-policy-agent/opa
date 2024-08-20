@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "negation/neg: set contains"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	not data.generated.q.v0
+        }
+
+        q contains x if {
+        	data.b[x] = v
+        }
+    data: {}
+    want_result:
+      - x: true

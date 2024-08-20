@@ -1,0 +1,355 @@
+---
+cases:
+  - note: refheads/single-value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p.q.r := 1
+
+        p.q.s := 2
+    want_result:
+      - x:
+          q:
+            r: 1
+            s: 2
+  - note: refheads/single-value, with var
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p.q.r := 1
+
+        p.q[s] := 2 if s := "s"
+    want_result:
+      - x:
+          q:
+            r: 1
+            s: 2
+  - note: refheads/single-value, with var, conflict
+    query: data.test.p.q = x
+    modules:
+      - |
+        package test
+
+        p.q.r := 1
+
+        p.q[s] := 2 if s := "r"
+    want_error_code: eval_conflict_error
+    want_error: object keys must be unique
+  - note: "refheads/complete: direct query"
+    query: data.test.a.b.c.p = x
+    modules:
+      - |
+        package test
+
+        a.b.c.p := true
+    want_result:
+      - x: true
+  - note: "refheads/complete: direct query q"
+    query: data.test.q = x
+    modules:
+      - |
+        package test
+
+        q := 0
+    want_result:
+      - x: 0
+  - note: "refheads/complete: full package extent"
+    query: data.test = x
+    modules:
+      - |
+        package test
+
+        a.b.c.p := true
+    want_result:
+      - x:
+          a:
+            b:
+              c:
+                p: true
+  - note: refheads/complete+mixed
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        a.b.c.p := 1
+
+        q := 0
+
+        a.b.d := 3
+
+        p if {
+        	q == 0
+        	a.b.c.p == 1
+        	a.b.d == 3
+        }
+    want_result:
+      - x: true
+  - note: refheads/single-value rule
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        a.b[x] := y if {
+        	x := "c"
+        	y := "d"
+        }
+    want_result:
+      - x:
+          b:
+            c: d
+  - note: refheads/multi-value
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        a.b contains x if some x in [1, 2, 3]
+    want_result:
+      - x:
+          b:
+            - 1
+            - 2
+            - 3
+  - note: "refheads/single-value: previously partial object"
+    query: data.test.a.b = x
+    modules:
+      - |
+        package test
+
+        a.b[x] := i if some i, x in [1, 2, 3]
+    want_result:
+      - x:
+          "1": 0
+          "2": 1
+          "3": 2
+  - note: "refheads/multi-value: same rule"
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        a.b.c.d contains 1
+      - |
+        package test.a
+
+        b.c.d contains 2
+    want_result:
+      - x:
+          b:
+            c:
+              d:
+                - 1
+                - 2
+  - note: refheads/single-value default rule
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        default a.b.c := "d"
+    want_result:
+      - x:
+          b:
+            c: d
+  - note: refheads/single-value example
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        q[7] := 8
+
+        a[x] if q[x]
+    want_result:
+      - x:
+          "7": true
+  - note: refheads/single-value example, false
+    query: data.test.a = x
+    modules:
+      - |
+        package test
+
+        q[7] := 8 if false
+
+        a[x] if q[x]
+    want_result:
+      - x: {}
+  - note: refheads/mixed example, multiple rules
+    query: data.test.a.b = x
+    modules:
+      - |
+        package test
+
+        a.b.c := "d"
+
+        a.b.e := "f"
+
+        a.b.g contains x if some x in numbers.range(1, 3)
+
+        a.b.h[x] := 1 if x := "one"
+    want_result:
+      - x:
+          c: d
+          e: f
+          g:
+            - 1
+            - 2
+            - 3
+          h:
+            one: 1
+  - note: refheads/website-example/partial-obj
+    query: data.example.apps_by_hostname.helium = x
+    modules:
+      - |
+        package example
+
+        apps_by_hostname[hostname] := app if {
+        	some i
+        	server := sites[_].servers[_]
+        	hostname := server.hostname
+        	apps[i].servers[_] == server.name
+        	app := apps[i].name
+        }
+
+        sites := [
+        	{
+        		"region": "east",
+        		"name": "prod",
+        		"servers": [
+        			{
+        				"name": "web-0",
+        				"hostname": "hydrogen",
+        			},
+        			{
+        				"name": "web-1",
+        				"hostname": "helium",
+        			},
+        			{
+        				"name": "db-0",
+        				"hostname": "lithium",
+        			},
+        		],
+        	},
+        	{
+        		"region": "west",
+        		"name": "smoke",
+        		"servers": [
+        			{
+        				"name": "web-1000",
+        				"hostname": "beryllium",
+        			},
+        			{
+        				"name": "web-1001",
+        				"hostname": "boron",
+        			},
+        			{
+        				"name": "db-1000",
+        				"hostname": "carbon",
+        			},
+        		],
+        	},
+        	{
+        		"region": "west",
+        		"name": "dev",
+        		"servers": [
+        			{
+        				"name": "web-dev",
+        				"hostname": "nitrogen",
+        			},
+        			{
+        				"name": "db-dev",
+        				"hostname": "oxygen",
+        			},
+        		],
+        	},
+        ]
+
+        apps := [
+        	{
+        		"name": "web",
+        		"servers": ["web-0", "web-1", "web-1000", "web-1001", "web-dev"],
+        	},
+        	{
+        		"name": "mysql",
+        		"servers": ["db-0", "db-1000"],
+        	},
+        	{
+        		"name": "mongodb",
+        		"servers": ["db-dev"],
+        	},
+        ]
+
+        containers := [
+        	{
+        		"image": "redis",
+        		"ipaddress": "10.0.0.1",
+        		"name": "big_stallman",
+        	},
+        	{
+        		"image": "nginx",
+        		"ipaddress": "10.0.0.2",
+        		"name": "cranky_euclid",
+        	},
+        ]
+    want_result:
+      - x: web
+  - note: refheads/website-example/partial-set
+    query: data.example.public_network = x
+    modules:
+      - |
+        package example
+
+        public_network contains net.id if {
+        	some net in input.networks
+        	net.public
+        }
+    input:
+      networks:
+        - id: n1
+          public: true
+        - id: n2
+          public: false
+    want_result:
+      - x:
+          - n1
+  - note: refheads/many-vars
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p[a][b][c][d][e] if {
+        	some a in numbers.range(1, 5)
+        	some b in numbers.range(1, 5)
+        	some c in numbers.range(1, 5)
+        	some d in numbers.range(1, 5)
+        	some e in numbers.range(1, 5)
+        	(((a + b) + c) + d) + e == 24
+        }
+    want_result:
+      - x:
+          "4":
+            "5":
+              "5":
+                "5":
+                  "5": true
+          "5":
+            "4":
+              "5":
+                "5":
+                  "5": true
+            "5":
+              "4":
+                "5":
+                  "5": true
+              "5":
+                "4":
+                  "5": true
+                "5":
+                  "4": true

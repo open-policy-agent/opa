@@ -1,0 +1,24 @@
+---
+cases:
+  - note: elsekeyword/multiple-roots
+    query: data.ex.multiple_roots = x
+    modules:
+      - |
+        package ex
+
+        multiple_roots if {
+        	false
+        } else := 1 if {
+        	false
+        } else := 2 if {
+        	true
+        } else := 3
+
+        multiple_roots := 2
+
+        multiple_roots := 3 if {
+        	false
+        } else := 2
+    data: {}
+    want_result:
+      - x: 2

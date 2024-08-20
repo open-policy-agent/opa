@@ -1,0 +1,24 @@
+---
+cases:
+  - note: "virtualdocs/output: non-ground object keys"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	data.generated.q[i][j] = x
+        }
+
+        q := {x: {x1: 1}, y: {y1: 2}} if {
+        	x = "a"
+        	y = "b"
+        	x1 = "a1"
+        	y1 = "b1"
+        }
+    data: {}
+    want_result:
+      - x:
+          - 1
+          - 2
+    sort_bindings: true

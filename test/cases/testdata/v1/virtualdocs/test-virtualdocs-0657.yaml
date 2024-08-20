@@ -1,0 +1,39 @@
+---
+cases:
+  - note: "virtualdocs/output: object dereference object with key refs"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q.bar[1].alice[0] = 1
+        }
+
+        q[k] := v if {
+        	data.d.e[_] = k
+        	v = [x | __local0__ = data.l[_].a; x = {__local0__: [1]}]
+        }
+    data:
+      d:
+        e:
+          - bar
+          - baz
+      l:
+        - a: bob
+          b: -1
+          c:
+            - 1
+            - 2
+            - 3
+            - 4
+        - a: alice
+          b: 1
+          c:
+            - 2
+            - 3
+            - 4
+            - 5
+          d: null
+    want_result:
+      - x: true

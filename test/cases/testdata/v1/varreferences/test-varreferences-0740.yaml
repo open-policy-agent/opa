@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "varreferences/set: lookup: embedded"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	x = [{}, {[1, 2], [3, 4]}]
+        	y = [3, 4]
+        	x[i][y]
+        }
+    data: {}
+    want_result:
+      - x: true

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: evaltermexpr/array comprehension empty
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	[x | x = 1; x = 2]
+        }
+    data: {}
+    want_result:
+      - x: true

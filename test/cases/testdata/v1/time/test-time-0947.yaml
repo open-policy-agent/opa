@@ -1,0 +1,17 @@
+---
+cases:
+  - note: time/time caching
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	time.now_ns(t0)
+        	test.sleep("10ms")
+        	time.now_ns(t1)
+        	t1 = t2
+        }
+    data: {}
+    want_result:
+      - x: true

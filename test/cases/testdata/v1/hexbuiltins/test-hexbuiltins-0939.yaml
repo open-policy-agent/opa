@@ -1,0 +1,13 @@
+---
+cases:
+  - note: hexbuiltins/hex_encode with string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	hex.encode("lorem ipsum", x)
+        }
+    want_result:
+      - x: 6c6f72656d20697073756d

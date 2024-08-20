@@ -1,0 +1,199 @@
+---
+cases:
+  - note: functions/multi2
+    query: data.ex.multi2 = x
+    modules:
+      - |
+        package test.omit_result
+
+        f(__local350__) := __local350__
+
+        p if {
+        	data.test.omit_result.f(1)
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ := _result if {
+        	_result = 2
+        }
+      - |
+        package ex
+
+        foo(__local244__) := y if {
+        	split(__local244__, "i", y)
+        }
+
+        bar[x] := y if {
+        	data.l[_].a = x
+        	data.ex.foo(x, y)
+        }
+
+        chain0(__local245__) := y if {
+        	data.ex.foo(__local245__, y)
+        }
+
+        chain1(__local246__) := b if {
+        	data.ex.chain0(__local246__, b)
+        }
+
+        chain2 := d if {
+        	data.ex.chain1("fooibar", d)
+        }
+
+        cross(__local247__) := [a, b] if {
+        	split(__local247__, "i", y)
+        	__local27__ = y[1]
+        	data.ex.foo(__local27__, b)
+        	__local28__ = y[2]
+        	data.test.foo(__local28__, a)
+        }
+
+        falsy_func(__local248__) := false
+
+        falsy_func_else(__local249__) if {
+        	__local249__ = 1
+        }
+
+        else := false
+
+        falsy_undefined if {
+        	data.ex.falsy_func(1)
+        }
+
+        falsy_negation if {
+        	not data.ex.falsy_func(1)
+        }
+
+        falsy_else_value := __local23__ if {
+        	true
+        	data.ex.falsy_func_else(2, __local23__)
+        }
+
+        falsy_else_undefined if {
+        	data.ex.falsy_func_else(2)
+        }
+
+        falsy_else_negation if {
+        	not data.ex.falsy_func_else(2)
+        }
+
+        arrays([__local251__, __local252__]) := [a, b] if {
+        	data.ex.foo(__local251__, a)
+        	data.ex.foo(__local252__, b)
+        }
+
+        arraysrule := y if {
+        	data.ex.arrays(["hih", "foo"], y)
+        }
+
+        objects({"foo": __local253__, "bar": __local254__}) := z if {
+        	data.ex.foo(__local253__, a)
+        	data.test.foo(__local254__, b)
+        	z = [a, b]
+        }
+
+        objectsrule := y if {
+        	data.ex.objects({"bar": "hi ho", "foo": "hih"}, y)
+        }
+
+        refoutput := y if {
+        	data.ex.foo("hih", z)
+        	y = z[1]
+        }
+
+        void(__local255__) if {
+        	__local255__ = "foo"
+        }
+
+        voidGood if {
+        	not data.ex.void("bar", true)
+        }
+
+        voidBad if {
+        	data.ex.void("bar", true)
+        }
+
+        multi(1, __local256__) := y if {
+        	y = __local256__
+        }
+
+        multi(2, __local257__) := y if {
+        	__local24__ = 2 * __local257__
+        	a = __local24__
+        	__local25__ = a + 1
+        	y = __local25__
+        }
+
+        multi(3, __local258__) := y if {
+        	__local26__ = __local258__ * 10
+        	y = __local26__
+        }
+
+        multi("foo", __local259__) := y if {
+        	y = "bar"
+        }
+
+        multi1 := y if {
+        	data.ex.multi(1, 2, y)
+        }
+
+        multi2 := y if {
+        	data.ex.multi(2, 2, y)
+        }
+
+        multi3 := y if {
+        	data.ex.multi(3, 2, y)
+        }
+
+        multi4 := y if {
+        	data.ex.multi("foo", 2, y)
+        }
+
+        always_true_fn(__local260__) := true
+
+        always_true if {
+        	data.ex.always_true_fn(1)
+        }
+      - |
+        package test
+
+        foo(__local304__) := y if {
+        	trim(__local304__, "h o", y)
+        }
+
+        cross := y if {
+        	data.ex.cross("hi, my name is foo", y)
+        }
+
+        multi("foo", __local305__) := y if {
+        	y = __local305__
+        }
+
+        multi("bar", __local306__) := y if {
+        	y = "baz"
+        }
+
+        multi_cross_pkg := [y, z] if {
+        	data.test.multi("foo", "bar", y)
+        	data.ex.multi(2, 1, z)
+        }
+      - |
+        package test
+
+        samepkg := y if {
+        	data.test.foo("how do you do?", y)
+        }
+      - |
+        package test.l1.l3
+
+        g(__local321__) := __local321__
+      - |
+        package test.l1.l2
+
+        p := true
+
+        f(__local336__) := __local336__
+    data: {}
+    want_result:
+      - x: 5

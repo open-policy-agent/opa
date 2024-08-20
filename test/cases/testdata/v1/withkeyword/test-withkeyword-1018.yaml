@@ -1,0 +1,26 @@
+---
+cases:
+  - note: withkeyword/with vars
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	foo = "hello"
+        	bar = "world"
+        	x = data.ex.vars with input.foo as foo with input.bar as bar
+        }
+      - |
+        package ex
+
+        vars := x if {
+        	y = input.bar
+        	z = input.foo
+        	x = {"bar": y, "foo": z}
+        }
+    data: {}
+    want_result:
+      - x:
+          bar: world
+          foo: hello

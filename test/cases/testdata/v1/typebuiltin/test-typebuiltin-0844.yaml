@@ -1,0 +1,15 @@
+---
+cases:
+  - note: typebuiltin/is_object
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	__local0__ = {"foo": yy | yy = 1}
+        	is_object(__local0__, x)
+        }
+    data: {}
+    want_result:
+      - x: true

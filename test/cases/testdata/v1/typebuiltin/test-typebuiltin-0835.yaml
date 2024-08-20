@@ -1,0 +1,18 @@
+---
+cases:
+  - note: typebuiltin/is_string
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	arr = [true, 1, "Hey"]
+        	arr[_] = x
+        	is_string(x)
+        }
+    data: {}
+    want_result:
+      - x:
+          - Hey
+    sort_bindings: true

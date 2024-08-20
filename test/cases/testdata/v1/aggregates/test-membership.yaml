@@ -1,0 +1,529 @@
+---
+cases:
+  - note: aggregates/member simple, set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	1 in {1}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member simple, array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	1 in [1]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member simple, object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	1 in {"foo": 1}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member object with key
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	"foo", 1 in {"foo": 1}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member array with index
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	1, "two" in ["one", "two", "three"]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member array with index, nested
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	1, 2 in [2] in [false, true]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member array with index, nested, associativity without parens
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	(0, 2 in [2]) in [true]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member object with key, nested, associativity without parens
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	("foo", 2 in {"foo": 2}) in [true]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member object with key, nested
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	"foo", (2 in {"bar": 2}) in {"foo": true}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member simple false, set
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := 1 in {2}
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member simple false, array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := 1 in [2]
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member simple false, object
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := 1 in {"foo": 2}
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member chained
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	{1, 2} in [{1, 2}] in [true]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member with vars
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := "foo"
+        	xs := ["foo", "bar"]
+        	x in xs
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member with not
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	not "foo" in ["fox"]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence with other infix operator (+)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	(1 + 1) in [2]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list (set)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := {1, 1 in [2]}
+        	x == {1, false}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list with parens (set)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := {(1, 1 in [2])}
+        	x == {false}
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list (array)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := [1, 1 in [2]]
+        	x == [1, false]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list with parens (array)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	x := [(1, 1 in [2])]
+        	x == [false]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list (fun args)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	f(1, 1 in [2])
+        }
+
+        f(_, _) := true
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member operator precedence in list with parens (fun args)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	f((1, 1 in [2]))
+        }
+
+        f(_) := true
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member composite containee
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	{"foo": {"baz": 2000}} in [{"foo": {"baz": 2000}}]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member non-collection string
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := 1 in "foo"
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member non-collection number
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := "foo" in 1
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member with key in non-collection (number)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	x := (1, "foo" in 1)
+        }
+    data: { }
+    want_result:
+      - x: false
+  - note: aggregates/member+some simple, array
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains x if {
+        	some x in [1, 2, 3]
+        }
+    data: { }
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+  - note: aggregates/member+some ground value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	some "foo" in ["foo"]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member+some containee is call
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	some numbers.range(1, 1) in [[1]]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member+some non-ground composite containee
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some {"foo": x} in [{"foo": 100}, {"what": "ever"}]
+        }
+    data: { }
+    want_result:
+      - x: 100
+  - note: aggregates/member+some non-ground composite containee, multiple bindings
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some {"foo": x, "what": y} in [{"foo": 100, "what": "ever"}]
+        }
+    data: { }
+    want_result:
+      - x: 100
+  - note: aggregates/member+some ground composite containee
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	some {"foo": 100} in [{"foo": 100}]
+        }
+    data: { }
+    want_result:
+      - x: true
+  - note: aggregates/member+some ground composite containee (false)
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	some {"foo": 0} in [{"foo": 100}]
+        }
+    data: { }
+    want_result: []
+  - note: aggregates/member+some+key non-ground value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some "foo", x in {"foo": 100, "what": "ever"}
+        }
+    data: { }
+    want_result:
+      - x: 100
+  - note: aggregates/member+some+key non-ground key
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some x, "ever" in {"foo": 100, "what": "ever"}
+        }
+    data: { }
+    want_result:
+      - x: what
+  - note: aggregates/member+some+key non-ground key+value
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p[k] := v if {
+        	some k, v in {"foo": 100, "what": "ever"}
+        }
+    data: { }
+    want_result:
+      - x:
+          foo: 100
+          what: ever
+  - note: aggregates/member+some+key non-ground, composite key
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some {"foo": x}, "ever" in {{"foo": 100}: "ever"}
+        }
+    data: { }
+    want_result:
+      - x: 100
+  - note: aggregates/member+some+ref
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := x if {
+        	some {"a": x} in data.array
+        }
+    data:
+      array:
+        - a: 1
+        - b: 2
+        - c: 3
+    want_result:
+      - x: 1
+  - note: aggregates/member+some+key+ref
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [x, y] if {
+        	some y, {"c": x} in data.array
+        }
+    data:
+      array:
+        - a: 1
+        - b: 2
+        - c: 3
+    want_result:
+      - x:
+          - 3
+          - 2
+  - note: aggregates/member+some+key+ref with other variable
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := [x, y, i] if {
+        	some i
+        	some y, {"c": x} in data.object[i]
+        }
+    data:
+      object:
+        array:
+          - a: 1
+          - b: 2
+          - c: 3
+    want_result:
+      - x:
+          - 3
+          - 2
+          - array
+  - note: aggregates/member+some+with
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains [k, v] if {
+        	some k, v in input with input.foo as "bar"
+        }
+    data: { }
+    want_result:
+      - x:
+          - - foo
+            - bar
