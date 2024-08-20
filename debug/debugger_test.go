@@ -1741,8 +1741,8 @@ func TestDebuggerScopeVariables(t *testing.T) {
 					name:           "Locals",
 					namedVariables: 0,
 				},
-				"Globals": {
-					name:           "Globals",
+				"Virtual Cache": {
+					name:           "Virtual Cache",
 					namedVariables: 2,
 					variables: map[string]varInfo{
 						"data.foo": {

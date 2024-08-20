@@ -342,12 +342,12 @@ func (t *thread) scopes(stackIndex int) []Scope {
 		top, _ := t.stack.Current()
 		if stackIndex == top {
 			keys := t.virtualCache.Keys()
-			globalScope := scope{
-				name:               "Globals",
+			virtualCacheScope := scope{
+				name:               "Virtual Cache",
 				namedVariables:     len(keys),
-				variablesReference: t.globalVars(keys, t.virtualCache),
+				variablesReference: t.virtualCacheVars(keys, t.virtualCache),
 			}
-			scopes = append(scopes, globalScope)
+			scopes = append(scopes, virtualCacheScope)
 		}
 	}
 
@@ -409,7 +409,7 @@ func (t *thread) localVars(e *topdown.Event) VarRef {
 	})
 }
 
-func (t *thread) globalVars(keys []ast.Ref, cache topdown.VirtualCache) VarRef {
+func (t *thread) virtualCacheVars(keys []ast.Ref, cache topdown.VirtualCache) VarRef {
 	return t.varManager.addVars(func() []namedVar {
 		if cache == nil {
 			return nil
