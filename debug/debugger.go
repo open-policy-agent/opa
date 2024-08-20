@@ -18,6 +18,8 @@ import (
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	prnt "github.com/open-policy-agent/opa/topdown/print"
 )
@@ -224,8 +226,16 @@ func (lp LaunchProperties) String() string {
 }
 
 func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (Session, error) {
+	store := inmem.New()
+	txn, err := store.NewTransaction(ctx, storage.TransactionParams{Write: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create store transaction: %v", err)
+	}
+
 	regoArgs := []func(*rego.Rego){
 		rego.Query(props.Query),
+		rego.Store(store),
+		rego.Transaction(txn),
 	}
 
 	if props.SkipOps == nil {
@@ -266,6 +276,10 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (
 		return nil, fmt.Errorf("failed to prepare query for evaluation: %v", err)
 	}
 
+	if err := store.Commit(ctx, txn); err != nil {
+		return nil, fmt.Errorf("failed to commit store transaction: %v", err)
+	}
+
 	tracer := newDebugTracer()
 
 	vc := topdown.NewVirtualCache()
@@ -280,7 +294,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (
 
 	varManager := newVariableManager()
 	// Threads are 1-indexed.
-	t := newThread(1, "main", tracer, varManager, vc, d.logger)
+	t := newThread(1, "main", tracer, varManager, vc, store, d.logger)
 	s := newSession(ctx, d, varManager, props.LaunchProperties, []*thread{t})
 
 	go func() {

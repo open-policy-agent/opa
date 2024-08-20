@@ -17,6 +17,8 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
+	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
 	"github.com/open-policy-agent/opa/util/test"
 )
@@ -636,7 +638,7 @@ func TestDebuggerAutomaticStop(t *testing.T) {
 
 			stk := newTestStack(testEvents...)
 			eh := newTestEventHandler()
-			_, s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, nil, nil)
+			_, s, _ := setupDebuggerSession(ctx, stk, tc.props, eh.HandleEvent, nil, nil, nil)
 
 			if err := s.start(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -816,7 +818,7 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, _ := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil)
+			_, s, _ := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			bps, err := s.SetBreakpoints([]location.Location{tc.breakpoint})
 			if err != nil {
@@ -967,7 +969,7 @@ func TestDebuggerStepIn(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil)
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1144,7 +1146,7 @@ func TestDebuggerStepOver(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil)
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1305,7 +1307,7 @@ func TestDebuggerStepOut(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil)
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			var stoppedAt []int
 			doneCh := make(chan struct{})
@@ -1459,7 +1461,7 @@ func TestDebuggerStackTrace(t *testing.T) {
 
 			stk := newTestStack(tc.events...)
 			eh := newTestEventHandler()
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil)
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
 			if err := s.start(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -1500,6 +1502,7 @@ func TestDebuggerScopeVariables(t *testing.T) {
 		input        *ast.Term
 		locals       map[ast.Var]ast.Value
 		virtualCache map[string]ast.Value
+		data         map[string]interface{}
 		result       *rego.ResultSet
 		expScopes    map[string]scopeInfo
 	}{
@@ -1754,6 +1757,39 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				},
 			},
 		},
+		{
+			note: "data",
+			data: map[string]interface{}{
+				"foo": "bar",
+				"baz": 42,
+			},
+			expScopes: map[string]scopeInfo{
+				"Locals": {
+					name:           "Locals",
+					namedVariables: 0,
+				},
+				"Data": {
+					name:           "Data",
+					namedVariables: 1,
+					variables: map[string]varInfo{
+						"data": {
+							typ: "object",
+							val: `{"baz": 42, "foo": "bar"}`,
+							children: map[string]varInfo{
+								`"foo"`: {
+									typ: "string",
+									val: `"bar"`,
+								},
+								`"baz"`: {
+									typ: "number",
+									val: "42",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1791,7 +1827,12 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				}
 			}
 
-			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, vc, nil)
+			var store storage.Store
+			if tc.data != nil {
+				store = inmem.NewFromObject(tc.data)
+			}
+
+			_, s, thr := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, vc, store, nil)
 
 			trace, err := s.StackTrace(thr.id)
 			if err != nil {
@@ -1888,7 +1929,8 @@ func assertVariables(t *testing.T, s Session, variables []Variable, exp map[stri
 	}
 }
 
-func setupDebuggerSession(ctx context.Context, stk stack, launchProperties LaunchProperties, eh EventHandler, vc topdown.VirtualCache, l logging.Logger) (*debugger, *session, *thread) {
+func setupDebuggerSession(ctx context.Context, stk stack, launchProperties LaunchProperties, eh EventHandler,
+	vc topdown.VirtualCache, store storage.Store, l logging.Logger) (*debugger, *session, *thread) {
 	if l == nil {
 		l = logging.NewNoOpLogger()
 	}
@@ -1900,7 +1942,7 @@ func setupDebuggerSession(ctx context.Context, stk stack, launchProperties Launc
 
 	varManager := newVariableManager()
 	d := newDebugger(opts...)
-	t := newThread(1, "test", stk, varManager, vc, l)
+	t := newThread(1, "test", stk, varManager, vc, store, l)
 	s := newSession(ctx, d, varManager, launchProperties, []*thread{t})
 
 	return d, s, t

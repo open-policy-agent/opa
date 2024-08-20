@@ -13,6 +13,7 @@ import (
 	"github.com/open-policy-agent/opa/ast/location"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown"
 )
 
@@ -46,6 +47,7 @@ type thread struct {
 	state           threadState
 	varManager      *variableManager
 	virtualCache    topdown.VirtualCache
+	store           storage.Store
 	logger          logging.Logger
 	mtx             sync.Mutex
 }
@@ -58,7 +60,8 @@ func (t *thread) Name() string {
 	return t.name
 }
 
-func newThread(id ThreadID, name string, stack stack, varManager *variableManager, virtualCache topdown.VirtualCache, logger logging.Logger) *thread {
+func newThread(id ThreadID, name string, stack stack, varManager *variableManager, virtualCache topdown.VirtualCache,
+	store storage.Store, logger logging.Logger) *thread {
 	t := &thread{
 		id:           id,
 		name:         name,
@@ -66,6 +69,7 @@ func newThread(id ThreadID, name string, stack stack, varManager *variableManage
 		logger:       logger,
 		varManager:   varManager,
 		virtualCache: virtualCache,
+		store:        store,
 	}
 
 	// Threads are always created in a paused state.
@@ -356,6 +360,15 @@ func (t *thread) scopes(stackIndex int) []Scope {
 		scopes = append(scopes, inputScope)
 	}
 
+	if t.store != nil {
+		dataScope := scope{
+			name:               "Data",
+			namedVariables:     1,
+			variablesReference: t.dataVars(),
+		}
+		scopes = append(scopes, dataScope)
+	}
+
 	if rs := t.stack.Result(); rs != nil {
 		resultScope := scope{
 			name:               "Result Set",
@@ -431,6 +444,21 @@ func (t *thread) inputVars(e *topdown.Event) VarRef {
 		}
 
 		return []namedVar{{name: "input", value: input.Value}}
+	})
+}
+
+func (t *thread) dataVars() VarRef {
+	return t.varManager.addVars(func() []namedVar {
+		ctx := context.Background()
+		d, err := storage.ReadOne(ctx, t.store, storage.Path{})
+		if err != nil {
+			return nil
+		}
+		v, err := ast.InterfaceToValue(d)
+		if err != nil {
+			return nil
+		}
+		return []namedVar{{name: "data", value: v}}
 	})
 }
 
