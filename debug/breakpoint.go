@@ -7,6 +7,7 @@ package debug
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast/location"
 )
@@ -35,7 +36,7 @@ func (b breakpoint) String() string {
 	return fmt.Sprintf("<%d> %s:%d", b.id, b.location.File, b.location.Row)
 }
 
-type breakpointList []breakpoint
+type breakpointList []Breakpoint
 
 func (b breakpointList) String() string {
 	if b == nil {
@@ -48,7 +49,8 @@ func (b breakpointList) String() string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		_, _ = fmt.Fprintf(buf, "%s:%d", bp.location.File, bp.location.Row)
+		loc := bp.Location()
+		_, _ = fmt.Fprintf(buf, "%s:%d", loc.File, loc.Row)
 	}
 	buf.WriteString("]")
 	return buf.String()
@@ -57,6 +59,7 @@ func (b breakpointList) String() string {
 type breakpointCollection struct {
 	breakpoints map[string]breakpointList
 	idCounter   BreakpointID
+	mtx         sync.Mutex
 }
 
 func newBreakpointCollection() *breakpointCollection {
@@ -71,6 +74,9 @@ func (bc *breakpointCollection) newID() BreakpointID {
 }
 
 func (bc *breakpointCollection) add(location location.Location) Breakpoint {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+
 	bp := breakpoint{
 		id:       bc.newID(),
 		location: location,
@@ -81,11 +87,48 @@ func (bc *breakpointCollection) add(location location.Location) Breakpoint {
 	return bp
 }
 
+func (bc *breakpointCollection) all() breakpointList {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+
+	var bps breakpointList
+	for _, list := range bc.breakpoints {
+		bps = append(bps, list...)
+	}
+	return bps
+}
+
 func (bc *breakpointCollection) allForFilePath(path string) breakpointList {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+
 	return bc.breakpoints[path]
 }
 
+func (bc *breakpointCollection) remove(id BreakpointID) Breakpoint {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+
+	var removed Breakpoint
+	for path, bps := range bc.breakpoints {
+		var newBps breakpointList
+		for _, bp := range bps {
+			if bp.ID() != id {
+				newBps = append(newBps, bp)
+			} else {
+				removed = bp
+			}
+		}
+		bc.breakpoints[path] = newBps
+	}
+
+	return removed
+}
+
 func (bc *breakpointCollection) clear() {
+	bc.mtx.Lock()
+	defer bc.mtx.Unlock()
+
 	bc.breakpoints = map[string]breakpointList{}
 }
 
@@ -101,7 +144,7 @@ func (bc *breakpointCollection) String() string {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			_, _ = fmt.Fprintf(buf, "%s:%d\n", path, bp.location.Row)
+			_, _ = fmt.Fprintf(buf, "%s:%d\n", path, bp.Location().Row)
 		}
 	}
 	buf.WriteString("]")

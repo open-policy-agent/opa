@@ -115,12 +115,18 @@ type Session interface {
 	// Threads returns a list of all threads in the session.
 	Threads() ([]Thread, error)
 
+	// Breakpoints returns a list of all set breakpoints.
+	Breakpoints() ([]Breakpoint, error)
+
 	// SetBreakpoints sets breakpoints at the given locations.
-	// Already set breakpoints are dropped.
 	SetBreakpoints(locations []location.Location) ([]Breakpoint, error)
 
 	// AddBreakpoint sets a breakpoint at the given location.
 	AddBreakpoint(loc location.Location) (Breakpoint, error)
+
+	// RemoveBreakpoint removes a given breakpoint.
+	// The removed breakpoint is returned. If the breakpoint does not exist, nil is returned.
+	RemoveBreakpoint(ID BreakpointID) (Breakpoint, error)
 
 	// ClearBreakpoints removes all breakpoints.
 	ClearBreakpoints() error
@@ -138,7 +144,7 @@ type Session interface {
 	// Terminate stops all threads in the session.
 	Terminate() error
 
-	// TODO: Add Stop(ThreadID) func for stopping (pausing) a threads execution.
+	// TODO: Add Stop(ThreadID) func for stopping (pausing) a thread's execution.
 }
 
 type printHook struct {
@@ -615,7 +621,7 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 
 	if e.Location != nil && e.Location.File != "" {
 		for _, bp := range s.breakpoints.allForFilePath(e.Location.File) {
-			if bp.location.Row == e.Location.Row {
+			if bp.Location().Row == e.Location.Row {
 				// if the last event also caused a breakpoint AND we're still on the same line, skip this breakpoint.
 				s.d.logger.Info("Thread %d stopped at breakpoint: %s:%d", t.id, e.Location.File, e.Location.Row)
 				s.d.sendEvent(Event{Type: StoppedEventType, Thread: t.id, Message: "breakpoint", stackIndex: stackIndex, stackEvent: e})
@@ -747,6 +753,14 @@ func (s *session) Variables(varRef VarRef) ([]Variable, error) {
 	return vars, nil
 }
 
+func (s *session) Breakpoints() ([]Breakpoint, error) {
+	if s == nil {
+		return nil, fmt.Errorf("no active debug session")
+	}
+
+	return s.breakpoints.all(), nil
+}
+
 func (s *session) SetBreakpoints(locations []location.Location) ([]Breakpoint, error) {
 	if s == nil {
 		return nil, fmt.Errorf("no active debug session")
@@ -766,7 +780,24 @@ func (s *session) SetBreakpoints(locations []location.Location) ([]Breakpoint, e
 }
 
 func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {
+	if s == nil {
+		return nil, fmt.Errorf("no active debug session")
+	}
+
 	return s.breakpoints.add(loc), nil
+}
+
+func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
+	if s == nil {
+		return nil, fmt.Errorf("no active debug session")
+	}
+
+	bp := s.breakpoints.remove(ID)
+	if bp == nil {
+		return nil, fmt.Errorf("breakpoint %d not found", ID)
+	}
+
+	return bp, nil
 }
 
 func (s *session) ClearBreakpoints() error {
