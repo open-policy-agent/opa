@@ -543,6 +543,42 @@ func TestHead_MarshalJSON(t *testing.T) {
 	}
 }
 
+func TestRuleHeadRefWithTermLocations_MarshalJSON(t *testing.T) {
+	policy := `package test
+
+import rego.v1
+
+ref.head[rule].test contains "value" if {
+	rule := "rule"
+}`
+
+	jsonOptions := &astJSON.Options{
+		MarshalOptions: astJSON.MarshalOptions{
+			IncludeLocation: astJSON.NodeToggle{
+				Head: true,
+				Term: true,
+			},
+		},
+	}
+
+	module, err := ParseModuleWithOpts("test.rego", policy, ParserOptions{JSONOptions: jsonOptions})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := json.Marshal(module.Rules[0].Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure marshalled JSON includes location for any term
+	expectedJSON := `{"key":{"location":{"file":"test.rego","row":5,"col":30},"type":"string","value":"value"},"ref":[{"location":{"file":"test.rego","row":5,"col":1},"type":"var","value":"ref"},{"location":{"file":"test.rego","row":5,"col":5},"type":"string","value":"head"},{"location":{"file":"test.rego","row":5,"col":10},"type":"var","value":"rule"},{"location":{"file":"test.rego","row":5,"col":16},"type":"string","value":"test"}],"location":{"file":"test.rego","row":5,"col":1}}`
+
+	if string(bs) != expectedJSON {
+		t.Errorf("expected %s but got %s", expectedJSON, string(bs))
+	}
+}
+
 func TestExpr_MarshalJSON(t *testing.T) {
 	rawModule := `
 	package foo
