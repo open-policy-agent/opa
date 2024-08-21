@@ -4,11 +4,11 @@
 package download
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -383,8 +383,7 @@ func TestOCICustomAuthPlugin(t *testing.T) {
 	}
 }
 
-func TestOCIRawDataHasNonZeroSize(t *testing.T) {
-	var buf bytes.Buffer
+func TestOCIValidateAndInjectDefaults(t *testing.T) {
 	ctx := context.Background()
 	fixture := newTestFixture(t)
 	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
@@ -407,14 +406,27 @@ func TestOCIRawDataHasNonZeroSize(t *testing.T) {
 
 	u1 := <-updates
 
-	buf.ReadFrom(u1.Raw)
+	if u1.Size == 0 {
+		t.Fatal("expected non-0 size")
+	}
 
 	if u1.Raw == nil {
 		t.Fatal("expected bundle reader to be non-nil")
 	}
 
-	if buf.Len() == 0 {
-		t.Fatal("expected non-0 size")
+	r := bundle.NewReader(u1.Raw)
+
+	b, err := r.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(b.Data, u1.Bundle.Data) {
+		t.Fatal("expected the bundle object and reader to have the same data")
+	}
+
+	if len(b.Modules) != len(u1.Bundle.Modules) {
+		t.Fatal("expected the bundle object and reader to have the same number of bundle modules")
 	}
 
 	d.Stop(ctx)

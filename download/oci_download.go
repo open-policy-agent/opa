@@ -211,7 +211,7 @@ func (d *OCIDownloader) oneShot(ctx context.Context) error {
 	d.SetCache(resp.etag) // set the current etag sha to the cache
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
+		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw, Size: resp.size})
 	}
 	return nil
 }
@@ -258,7 +258,10 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		}, nil
 	}
 	fileReader, err := os.Open(bundleFilePath)
-	tee := io.TeeReader(fileReader, &buf)
+
+	cnt := &count{}
+	r := io.TeeReader(fileReader, cnt)
+	tee := io.TeeReader(r, &buf)
 
 	if err != nil {
 		return nil, err
@@ -281,6 +284,7 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		raw:      &buf,
 		etag:     etag,
 		longPoll: false,
+		size:     cnt.Bytes(),
 	}, nil
 }
 
