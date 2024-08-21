@@ -13,6 +13,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/ast/location"
 	fileurl "github.com/open-policy-agent/opa/internal/file/url"
@@ -343,6 +344,7 @@ type session struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	varManager     *variableManager
+	mtx            sync.Mutex
 }
 
 func newSession(ctx context.Context, debugger *debugger, varManager *variableManager, props LaunchProperties, threads []*thread) *session {
@@ -370,6 +372,9 @@ func (s *session) start() error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 
 	for _, t := range s.threads {
 		t := t
@@ -417,6 +422,9 @@ func (s *session) Resume(threadID ThreadID) error {
 		return fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	t, err := s.thread(threadID)
 	if err != nil {
 		return err
@@ -430,6 +438,9 @@ func (s *session) ResumeAll() error {
 		return fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	for _, t := range s.threads {
 		if err := t.resume(); err != nil {
 			return err
@@ -442,6 +453,9 @@ func (s *session) StepOver(threadID ThreadID) error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 
 	t, err := s.thread(threadID)
 	if err != nil {
@@ -477,6 +491,9 @@ func (s *session) StepIn(threadID ThreadID) error {
 		return fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	t, err := s.thread(threadID)
 	if err != nil {
 		return err
@@ -511,6 +528,9 @@ func (s *session) StepOut(threadID ThreadID) error {
 		return fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	t, err := s.thread(threadID)
 	if err != nil {
 		return err
@@ -544,6 +564,9 @@ func (s *session) Threads() ([]Thread, error) {
 	if s == nil {
 		return nil, fmt.Errorf("no active debug session")
 	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 
 	threads := make([]Thread, 0, len(s.threads))
 	for _, t := range s.threads {
@@ -664,6 +687,9 @@ func (s *session) StackTrace(threadID ThreadID) (StackTrace, error) {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	t, err := s.thread(threadID)
 	if err != nil {
 		return nil, err
@@ -733,6 +759,9 @@ func (s *session) Scopes(frameID FrameID) ([]Scope, error) {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	f, err := s.frame(frameID)
 	if err != nil {
 		return nil, err
@@ -751,6 +780,9 @@ func (s *session) Variables(varRef VarRef) ([]Variable, error) {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	s.d.logger.Debug("Variables requested: %d", varRef)
 
 	vars, err := s.varManager.vars(varRef)
@@ -766,6 +798,9 @@ func (s *session) Breakpoints() ([]Breakpoint, error) {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	return s.breakpoints.all(), nil
 }
 
@@ -774,6 +809,9 @@ func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {
 		return nil, fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	return s.breakpoints.add(loc), nil
 }
 
@@ -781,6 +819,9 @@ func (s *session) RemoveBreakpoint(ID BreakpointID) (Breakpoint, error) {
 	if s == nil {
 		return nil, fmt.Errorf("no active debug session")
 	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 
 	bp := s.breakpoints.remove(ID)
 	if bp == nil {
@@ -795,6 +836,9 @@ func (s *session) ClearBreakpoints() error {
 		return fmt.Errorf("no active debug session")
 	}
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	s.d.logger.Debug("Clearing existing breakpoints")
 	s.breakpoints.clear()
 	return nil
@@ -804,6 +848,9 @@ func (s *session) Terminate() error {
 	if s == nil {
 		return fmt.Errorf("no active debug session")
 	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 
 	s.cancel()
 
