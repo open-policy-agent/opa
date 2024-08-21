@@ -48,7 +48,7 @@ type Session interface {
 	ResumeAll() error
 
 	// StepOver executes the next expression in the current scope and then stops on the next expression in the same scope,
-	// not stopping on expressions un sub-scopes; e.g. execution of referenced rule, called function, comprehension, or every expression.
+	// not stopping on expressions in sub-scopes; e.g. execution of referenced rule, called function, comprehension, or every expression.
 	//
 	// Example 1:
 	//
@@ -120,9 +120,6 @@ type Session interface {
 	// Breakpoints returns a list of all set breakpoints.
 	Breakpoints() ([]Breakpoint, error)
 
-	// SetBreakpoints sets breakpoints at the given locations.
-	SetBreakpoints(locations []location.Location) ([]Breakpoint, error)
-
 	// AddBreakpoint sets a breakpoint at the given location.
 	AddBreakpoint(loc location.Location) (Breakpoint, error)
 
@@ -145,8 +142,6 @@ type Session interface {
 
 	// Terminate stops all threads in the session.
 	Terminate() error
-
-	// TODO: Add Stop(ThreadID) func for stopping (pausing) a thread's execution.
 }
 
 type printHook struct {
@@ -615,7 +610,6 @@ func (s *session) handleEvent(t *thread, stackIndex int, e *topdown.Event, ts th
 	}
 
 	if s.skipOp(e.Op) {
-		// FIXME: Should we only skip an event as long as we're within the same query scope?
 		s.d.logger.Debug("Skipping event (op: %v)", e.Op)
 		return skipAction, state, nil
 	}
@@ -773,24 +767,6 @@ func (s *session) Breakpoints() ([]Breakpoint, error) {
 	}
 
 	return s.breakpoints.all(), nil
-}
-
-func (s *session) SetBreakpoints(locations []location.Location) ([]Breakpoint, error) {
-	if s == nil {
-		return nil, fmt.Errorf("no active debug session")
-	}
-
-	s.d.logger.Debug("Clearing existing breakpoints")
-	s.breakpoints.clear()
-
-	bps := make([]Breakpoint, 0, len(locations))
-	for _, loc := range locations {
-		bps = append(bps, s.breakpoints.add(loc))
-	}
-
-	s.d.logger.Info("Breakpoints set: %s", bps)
-
-	return bps, nil
 }
 
 func (s *session) AddBreakpoint(loc location.Location) (Breakpoint, error) {

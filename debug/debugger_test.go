@@ -135,7 +135,7 @@ f(x) := y if {
 					t.Fatalf("Unexpected error launching debgug session: %v", err)
 				}
 
-				if _, err := s.SetBreakpoints([]location.Location{{File: path.Join(rootDir, modName), Row: tc.brRow}}); err != nil {
+				if _, err := s.AddBreakpoint(location.Location{File: path.Join(rootDir, modName), Row: tc.brRow}); err != nil {
 					t.Fatalf("Unexpected error: %v", err)
 				}
 
@@ -279,7 +279,7 @@ p if {
 					t.Fatalf("Unexpected error launching debgug session: %v", err)
 				}
 
-				if _, err := s.SetBreakpoints([]location.Location{{File: path.Join(rootDir, modName), Row: tc.brRow}}); err != nil {
+				if _, err := s.AddBreakpoint(location.Location{File: path.Join(rootDir, modName), Row: tc.brRow}); err != nil {
 					t.Fatalf("Unexpected error: %v", err)
 				}
 
@@ -428,7 +428,7 @@ p if {
 					t.Fatalf("Unexpected error launching debgug session: %v", err)
 				}
 
-				if _, err := s.SetBreakpoints([]location.Location{{File: path.Join(rootDir, modName), Row: tc.brRow}}); err != nil {
+				if _, err := s.AddBreakpoint(location.Location{File: path.Join(rootDir, modName), Row: tc.brRow}); err != nil {
 					t.Fatalf("Unexpected error: %v", err)
 				}
 
@@ -820,22 +820,17 @@ func TestDebuggerStopOnBreakpoint(t *testing.T) {
 			eh := newTestEventHandler()
 			_, s, _ := setupDebuggerSession(ctx, stk, LaunchProperties{}, eh.HandleEvent, nil, nil, nil)
 
-			bps, err := s.SetBreakpoints([]location.Location{tc.breakpoint})
+			bp, err := s.AddBreakpoint(tc.breakpoint)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 
-			if len(bps) != 1 {
-				t.Fatalf("Expected 1 breakpoint, got %d", len(bps))
-			}
-
-			bp := bps[0]
 			if bp.Location().File != tc.breakpoint.File {
-				t.Errorf("Expected breakpoint file %s, got %s", tc.breakpoint.File, bps[0].Location().File)
+				t.Errorf("Expected breakpoint file %s, got %s", tc.breakpoint.File, bp.Location().File)
 			}
 
 			if bp.Location().Row != tc.breakpoint.Row {
-				t.Errorf("Expected breakpoint row %d, got %d", tc.breakpoint.Row, bps[0].Location().Row)
+				t.Errorf("Expected breakpoint row %d, got %d", tc.breakpoint.Row, bp.Location().Row)
 			}
 
 			if err := s.start(); err != nil {

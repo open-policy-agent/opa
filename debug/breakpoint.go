@@ -49,8 +49,7 @@ func (b breakpointList) String() string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		loc := bp.Location()
-		_, _ = fmt.Fprintf(buf, "%s:%d", loc.File, loc.Row)
+		_, _ = fmt.Fprint(buf, bp)
 	}
 	buf.WriteString("]")
 	return buf.String()
@@ -139,12 +138,12 @@ func (bc *breakpointCollection) String() string {
 
 	buf := new(bytes.Buffer)
 	buf.WriteString("[")
-	for path, bps := range bc.breakpoints {
+	for _, bps := range bc.breakpoints {
 		for i, bp := range bps {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			_, _ = fmt.Fprintf(buf, "%s:%d\n", path, bp.Location().Row)
+			_, _ = fmt.Fprint(buf, bp)
 		}
 	}
 	buf.WriteString("]")
