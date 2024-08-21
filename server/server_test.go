@@ -5295,6 +5295,23 @@ func TestDistributedTracingEnabled(t *testing.T) {
 	}
 }
 
+func TestDistributedTracingResourceAttributes(t *testing.T) {
+	c := []byte(`{"distributed_tracing": {
+		"service_name": "my-service",
+		"resource": {
+			"service_namespace": "my-namespace",
+			"service_version": "1.0",
+			"service_instance_id": "1"
+		}
+		}}`)
+
+	ctx := context.Background()
+	_, _, err := distributedtracing.Init(ctx, c, "foo")
+	if err != nil {
+		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+}
+
 func TestCertPoolReloading(t *testing.T) {
 
 	ctx := context.Background()
