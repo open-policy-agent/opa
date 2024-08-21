@@ -140,6 +140,8 @@ func (c *processCollector) Describe(ch chan<- *Desc) {
 	ch <- c.maxVsize
 	ch <- c.rss
 	ch <- c.startTime
+	ch <- c.inBytes
+	ch <- c.outBytes
 }
 
 // Collect returns the current state of all metrics of the collector.
