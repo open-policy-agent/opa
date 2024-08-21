@@ -60,7 +60,10 @@ func (tc *typeChecker) copy() *typeChecker {
 		WithVarRewriter(tc.varRewriter).
 		WithSchemaSet(tc.ss).
 		WithAllowNet(tc.allowNet).
-		WithInputType(tc.input)
+		WithInputType(tc.input).
+		WithAllowUndefinedFunctionCalls(tc.allowUndefinedFuncs).
+		WithBuiltins(tc.builtins).
+		WithRequiredCapabilities(tc.required)
 }
 
 func (tc *typeChecker) WithRequiredCapabilities(c *Capabilities) *typeChecker {
