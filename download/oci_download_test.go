@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -380,6 +381,55 @@ func TestOCICustomAuthPlugin(t *testing.T) {
 	if err := d.oneShot(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestOCIValidateAndInjectDefaults(t *testing.T) {
+	ctx := context.Background()
+	fixture := newTestFixture(t)
+	fixture.server.expEtag = "sha256:c5834dbce332cabe6ae68a364de171a50bf5b08024c27d7c08cc72878b4df7ff"
+
+	updates := make(chan *Update)
+
+	config := Config{}
+	if err := config.ValidateAndInjectDefaults(); err != nil {
+		t.Fatal(err)
+	}
+
+	d := NewOCI(config, fixture.client, "ghcr.io/org/repo:latest", t.TempDir()).WithCallback(func(_ context.Context, u Update) {
+		updates <- &u
+	}).WithBundlePersistence(true)
+
+	d.Start(ctx)
+
+	// Give time for some download events to occur
+	time.Sleep(1 * time.Second)
+
+	u1 := <-updates
+
+	if u1.Size == 0 {
+		t.Fatal("expected non-0 size")
+	}
+
+	if u1.Raw == nil {
+		t.Fatal("expected bundle reader to be non-nil")
+	}
+
+	r := bundle.NewReader(u1.Raw)
+
+	b, err := r.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(b.Data, u1.Bundle.Data) {
+		t.Fatal("expected the bundle object and reader to have the same data")
+	}
+
+	if len(b.Modules) != len(u1.Bundle.Modules) {
+		t.Fatal("expected the bundle object and reader to have the same number of bundle modules")
+	}
+
+	d.Stop(ctx)
 }
 
 func mockAuthPluginLookup(string) rest.HTTPAuthPlugin {
