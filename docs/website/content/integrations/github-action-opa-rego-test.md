@@ -1,6 +1,6 @@
 ---
 title: GitHub Action for OPA Rego Test
-subtitle: GitHub Action to automate testing for your OPA Rego policies
+subtitle: GitHub Action to automate testing OPA Rego policies
 labels:
   category: library
   type: GitHub Action
