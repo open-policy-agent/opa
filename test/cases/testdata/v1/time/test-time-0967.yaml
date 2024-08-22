@@ -1,0 +1,19 @@
+---
+cases:
+  - note: time/weekday too big
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	__local1__ = 1582977600 * 1000
+        	__local2__ = __local1__ * 1000
+        	__local3__ = __local2__ * 1000
+        	__local4__ = __local3__ * 1000
+        	time.weekday(__local4__, __local5__)
+        	__local0__ = __local5__
+        }
+    want_error_code: eval_builtin_error
+    want_error: timestamp too big
+    strict_error: true

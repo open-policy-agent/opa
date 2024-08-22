@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "virtualdocs/input: complete vars"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q[1][1] = 2
+        }
+
+        q := [{"x": x, "y": y}, z] if {
+        	x = 1
+        	y = 2
+        	z = [1, 2, 3]
+        }
+    data: {}
+    want_result:
+      - x: true

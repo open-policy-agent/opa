@@ -1,0 +1,24 @@
+---
+cases:
+  - note: arithmetic/divide+round
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p contains z if {
+        	data.a[i] = x
+        	y = i / x
+        	round(y, z)
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 0
+          - 1
+    sort_bindings: true

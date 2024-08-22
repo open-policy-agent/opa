@@ -1,0 +1,29 @@
+---
+cases:
+  - note: strings/count_single_word_match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.count("cheese", "e")
+    want_result:
+      - x: 3
+  - note: strings/count_multiple_separate_matches
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.count("hello hello hello world", "hello")
+    want_result:
+      - x: 3
+  - note: strings/count_n_no_match
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := strings.count("dummy", "x")
+    want_result:
+      - x: 0

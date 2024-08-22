@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "virtualdocs/output: complete object defererence non-ground"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains r if {
+        	data.generated.q[x][y] = 2
+        	r = [x, y]
+        }
+
+        q := {"a": {"x": 1}, "b": {"y": 2}, "c": {"z": 2}}
+    data: {}
+    want_result:
+      - x:
+          - - b
+            - "y"
+          - - c
+            - z
+    sort_bindings: true

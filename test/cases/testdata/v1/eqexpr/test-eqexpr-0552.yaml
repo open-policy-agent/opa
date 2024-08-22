@@ -1,0 +1,20 @@
+---
+cases:
+  - note: "eqexpr/undefined: object var 1"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	__local0__ = data.a
+        	__local1__ = data.a
+        	{"a": 1, "b": 2} = {"a": __local0__, "b": __local1__}
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result: []

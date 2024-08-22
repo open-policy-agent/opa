@@ -1,0 +1,14 @@
+---
+cases:
+  - note: invalidkeyerror/missing keys
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	http.send({"method": "get"}, x)
+        }
+    want_error_code: eval_type_error
+    want_error: 'missing required request parameters(s): {"url"}'
+    strict_error: true

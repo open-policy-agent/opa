@@ -1,0 +1,13 @@
+---
+cases:
+  - note: withkeyword/undefined_1
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.a.b.c with data.a.b as 1
+        }
+    data: {}
+    want_result: []

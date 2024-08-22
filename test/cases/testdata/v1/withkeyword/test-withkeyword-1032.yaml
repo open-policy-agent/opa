@@ -1,0 +1,25 @@
+---
+cases:
+  - note: withkeyword/with basic data
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.ex.allow_basic = true with data.a as "testdata"
+        }
+      - |
+        package ex
+
+        allow_basic if {
+        	data.a = "testdata"
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: true

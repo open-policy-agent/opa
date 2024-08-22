@@ -25,6 +25,8 @@ For more information on contributing to OPA see:
 
 * [Contributing Guide](https://www.openpolicyagent.org/docs/latest/contributing/)
   for high-level contributing guidelines and development setup.
+  (See the [Developer Certificate of Origin](https://www.openpolicyagent.org/docs/latest/contrib-code/#developer-certificate-of-origin)
+  section for specifics on signing off a commit.)
 
 -->
 

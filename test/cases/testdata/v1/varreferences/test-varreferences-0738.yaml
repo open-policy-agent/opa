@@ -1,0 +1,26 @@
+---
+cases:
+  - note: "varreferences/set: ref"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	i = {1, 2, 3, 4}
+        	x = data.a[_]
+        	i[x]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - 1
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

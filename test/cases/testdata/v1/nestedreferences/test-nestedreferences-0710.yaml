@@ -1,0 +1,31 @@
+---
+cases:
+  - note: nestedreferences/non-ground ref
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.h[i][j]
+        	x = data.a[__local0__]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      h:
+        - - 1
+          - 2
+          - 3
+        - - 2
+          - 3
+          - 4
+    want_result:
+      - x:
+          - 2
+          - 3
+          - 4
+    sort_bindings: true

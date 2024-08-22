@@ -1,0 +1,30 @@
+---
+cases:
+  - note: aggregates/count error null
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	count(input.foo, x)
+        }
+    input:
+      foo: null
+    want_error_code: eval_type_error
+    want_error: operand 1 must be one of {array, object, set, string} but got null
+    strict_error: true
+  - note: aggregates/count error number
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	count(input.foo, x)
+        }
+    input:
+      foo: 5
+    want_error_code: eval_type_error
+    want_error: operand 1 must be one of {array, object, set, string} but got number
+    strict_error: true

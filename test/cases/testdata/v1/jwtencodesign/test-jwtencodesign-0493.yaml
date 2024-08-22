@@ -1,0 +1,14 @@
+---
+cases:
+  - note: jwtencodesign/Empty JSON payload
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	io.jwt.encode_sign({"alg": "HS256", "typ": "JWT"}, {}, {"k": "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow", "kty": "oct"}, x)
+        }
+    data: {}
+    want_result:
+      - x: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.6cvao8lnOu6FAdK68jQFcDMXOmaWNwWiYhCgijd-AD8

@@ -720,8 +720,10 @@ func (constraints *tokenConstraints) validAudience(aud ast.Value) bool {
 
 // JWT algorithms
 
-type tokenVerifyFunction func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error
-type tokenVerifyAsymmetricFunction func(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error
+type (
+	tokenVerifyFunction           func(key interface{}, hash crypto.Hash, payload []byte, signature []byte) error
+	tokenVerifyAsymmetricFunction func(key interface{}, hash crypto.Hash, digest []byte, signature []byte) error
+)
 
 // jwtAlgorithm describes a JWS 'alg' value
 type tokenAlgorithm struct {
@@ -912,7 +914,6 @@ func (header *tokenHeader) valid() bool {
 }
 
 func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, jwkSrc string, iter func(*ast.Term) error) error {
-
 	keys, err := jwk.ParseString(jwkSrc)
 	if err != nil {
 		return err
@@ -946,21 +947,51 @@ func commonBuiltinJWTEncodeSign(bctx BuiltinContext, inputHeaders, jwsPayload, j
 	if err != nil {
 		return err
 	}
-	return iter(ast.StringTerm(string(jwsCompact)))
 
+	return iter(ast.StringTerm(string(jwsCompact)))
 }
 
 func builtinJWTEncodeSign(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+	inputHeadersAsJSON, err := ast.JSON(operands[0].Value)
+	if err != nil {
+		return fmt.Errorf("failed to prepare JWT headers for marshalling: %v", err)
+	}
 
-	inputHeaders := operands[0].String()
-	jwsPayload := operands[1].String()
-	jwkSrc := operands[2].String()
-	return commonBuiltinJWTEncodeSign(bctx, inputHeaders, jwsPayload, jwkSrc, iter)
+	inputHeadersBs, err := json.Marshal(inputHeadersAsJSON)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JWT headers: %v", err)
+	}
 
+	payloadAsJSON, err := ast.JSON(operands[1].Value)
+	if err != nil {
+		return fmt.Errorf("failed to prepare JWT payload for marshalling: %v", err)
+	}
+
+	payloadBs, err := json.Marshal(payloadAsJSON)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JWT payload: %v", err)
+	}
+
+	signatureAsJSON, err := ast.JSON(operands[2].Value)
+	if err != nil {
+		return fmt.Errorf("failed to prepare JWT signature for marshalling: %v", err)
+	}
+
+	signatureBs, err := json.Marshal(signatureAsJSON)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JWT signature: %v", err)
+	}
+
+	return commonBuiltinJWTEncodeSign(
+		bctx,
+		string(inputHeadersBs),
+		string(payloadBs),
+		string(signatureBs),
+		iter,
+	)
 }
 
 func builtinJWTEncodeSignRaw(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
-
 	jwkSrc, err := builtins.StringOperand(operands[2].Value, 3)
 	if err != nil {
 		return err

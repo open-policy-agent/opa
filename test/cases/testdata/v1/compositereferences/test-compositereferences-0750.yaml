@@ -1,0 +1,47 @@
+---
+cases:
+  - note: compositereferences/partial doc unify
+    query: data.test.p = x
+    modules:
+      - |
+        package fixture
+
+        empty := {set()}
+
+        s := {[1, 2], [1, 3], {"foo": "bar"}, {1, 2}, [2, 7], [[1, 1], 4]}
+
+        r contains x if {
+        	data.fixture.s[x]
+        }
+
+        a := [1, 2]
+
+        o := {"foo": "bar"}
+
+        foo := {"bar": 1}
+
+        p1 contains [1, 2]
+
+        p1 contains [1, 3]
+
+        p1 contains [2, 2]
+      - |
+        package test
+
+        p := __local0__ if {
+        	true
+        	__local0__ = [[x, y] | data.fixture.r[[x, y]]]
+        }
+    data: {}
+    want_result:
+      - x:
+          - - 1
+            - 2
+          - - 1
+            - 3
+          - - 2
+            - 7
+          - - - 1
+              - 1
+            - 4
+    sort_bindings: true

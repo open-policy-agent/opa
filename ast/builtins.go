@@ -1181,7 +1181,7 @@ var Split = &Builtin{
 			types.Named("x", types.S).Description("string that is split"),
 			types.Named("delimiter", types.S).Description("delimiter used for splitting"),
 		),
-		types.Named("ys", types.NewArray(nil, types.S)).Description("splitted parts"),
+		types.Named("ys", types.NewArray(nil, types.S)).Description("split parts"),
 	),
 	Categories: stringsCat,
 }
@@ -1247,7 +1247,7 @@ var Trim = &Builtin{
 
 var TrimLeft = &Builtin{
 	Name:        "trim_left",
-	Description: "Returns `value` with all leading instances of the `cutset` chartacters removed.",
+	Description: "Returns `value` with all leading instances of the `cutset` characters removed.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("value", types.S).Description("string to trim"),
@@ -1273,7 +1273,7 @@ var TrimPrefix = &Builtin{
 
 var TrimRight = &Builtin{
 	Name:        "trim_right",
-	Description: "Returns `value` with all trailing instances of the `cutset` chartacters removed.",
+	Description: "Returns `value` with all trailing instances of the `cutset` characters removed.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("value", types.S).Description("string to trim"),
@@ -1356,7 +1356,7 @@ var RenderTemplate = &Builtin{
 // Marked non-deterministic because it relies on RNG internally.
 var RandIntn = &Builtin{
 	Name:        "rand.intn",
-	Description: "Returns a random integer between `0` and `n` (`n` exlusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
+	Description: "Returns a random integer between `0` and `n` (`n` exclusive). If `n` is `0`, then `y` is always `0`. For any given argument pair (`str`, `n`), the output will be consistent throughout a query evaluation.",
 	Decl: types.NewFunction(
 		types.Args(
 			types.Named("str", types.S),
@@ -1750,7 +1750,7 @@ var JSONUnmarshal = &Builtin{
 		types.Args(
 			types.Named("x", types.S).Description("a JSON string"),
 		),
-		types.Named("y", types.A).Description("the term deseralized from `x`"),
+		types.Named("y", types.A).Description("the term deserialized from `x`"),
 	),
 	Categories: encoding,
 }
@@ -1914,7 +1914,7 @@ var YAMLUnmarshal = &Builtin{
 		types.Args(
 			types.Named("x", types.S).Description("a YAML string"),
 		),
-		types.Named("y", types.A).Description("the term deseralized from `x`"),
+		types.Named("y", types.A).Description("the term deserialized from `x`"),
 	),
 	Categories: encoding,
 }
@@ -1951,7 +1951,7 @@ var HexDecode = &Builtin{
 		types.Args(
 			types.Named("x", types.S).Description("a hex-encoded string"),
 		),
-		types.Named("y", types.S).Description("deseralized from `x`"),
+		types.Named("y", types.S).Description("deserialized from `x`"),
 	),
 	Categories: encoding,
 }

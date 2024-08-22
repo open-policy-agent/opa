@@ -1,0 +1,14 @@
+---
+cases:
+  - note: strings/endswith
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	endswith("abcdefgh", "fgh")
+        }
+    data: {}
+    want_result:
+      - x: true

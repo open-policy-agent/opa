@@ -1,0 +1,297 @@
+---
+cases:
+  - note: "baseandvirtualdocs/base/virtual: prefix"
+    query: data.topdown.r = x
+    modules:
+      - |
+        package enum_errors.a.b.c
+
+        p := x if {
+        	__local0__ = 1 / 0
+        	x = __local0__
+        }
+      - |
+        package topdown.virtual.constants
+
+        p := 1
+
+        q := 2
+
+        r := 1
+      - |
+        package partial.topdown
+
+        p contains ["c", "x", 0, x41] if {
+        	data.topdown.a.b.c.x[0] = x41
+        }
+
+        p contains ["c", "x", 1, x41] if {
+        	data.topdown.a.b.c.x[1] = x41
+        }
+
+        p contains ["c", "z", "a", x41] if {
+        	data.topdown.a.b.c.z.a = x41
+        }
+
+        p contains [
+        	"c", "p", 0,
+        	1,
+        ]
+
+        p contains [
+        	"c", "p", 1,
+        	2,
+        ]
+
+        p contains [
+        	"c", "q", 0,
+        	3,
+        ]
+
+        p contains [
+        	"c", "q", 1,
+        	4,
+        ]
+
+        p contains [
+        	"c", "r",
+        	"a", 1,
+        ]
+
+        p contains [
+        	"c", "r",
+        	"b", 2,
+        ]
+
+        p contains [
+        	"c", "s", "w",
+        	{"f": 10, "g": 9.9},
+        ]
+
+        p contains [
+        	"c", "undefined2", "p",
+        	true,
+        ] if {
+        	input.foo
+        }
+
+        p contains ["c", "x", 0, x41] if {
+        	data.topdown.a.b.c.x[0] = x41
+        }
+
+        p contains ["c", "x", 1, x41] if {
+        	data.topdown.a.b.c.x[1] = x41
+        }
+
+        p contains ["c", "z", "a", x41] if {
+        	data.topdown.a.b.c.z.a = x41
+        }
+
+        p contains [
+        	"c", "p", 0,
+        	1,
+        ]
+
+        p contains [
+        	"c", "p", 1,
+        	2,
+        ]
+
+        p contains [
+        	"c", "q", 0,
+        	3,
+        ]
+
+        p contains [
+        	"c", "q", 1,
+        	4,
+        ]
+
+        p contains [
+        	"c", "r",
+        	"a", 1,
+        ]
+
+        p contains [
+        	"c", "r",
+        	"b", 2,
+        ]
+
+        p contains [
+        	"c", "s", "w",
+        	{"f": 10, "g": 9.9},
+        ]
+
+        p contains [
+        	"c", "undefined2", "p",
+        	true,
+        ] if {
+        	input.foo
+        }
+      - |
+        package topdown.missing.input.value
+
+        p := __local7__ if {
+        	true
+        	__local7__ = input.deadbeef
+        }
+      - |
+        package topdown.conflicts
+
+        k := "bar"
+      - |
+        package topdown.g.h
+
+        p if {
+        	false
+        }
+      - |
+        package topdown.a.b.c
+
+        p := [1, 2]
+
+        q := [3, 4]
+
+        r["a"] := 1
+
+        r["b"] := 2
+      - |
+        package topdown.a.b.c.undefined2
+
+        p if {
+        	input.foo
+        }
+      - |
+        package topdown.a.b.c.s
+
+        w := {"f": 10, "g": 9.9}
+      - |
+        package topdown
+
+        p contains [x1, x2, x3, x4] if {
+        	data.topdown.a.b[x1][x2][x3] = x4
+        }
+
+        q contains [x1, x2, x3] if {
+        	data.topdown.a.b[x1][x2][0] = x3
+        }
+
+        r contains [x1, x2] if {
+        	data.topdown.a.b[x1] = x2
+        }
+
+        s := __local1__ if {
+        	true
+        	__local1__ = data.topdown.no
+        }
+
+        t := __local2__ if {
+        	true
+        	__local2__ = data.topdown.a.b.c.undefined1
+        }
+
+        u := __local3__ if {
+        	true
+        	__local3__ = data.topdown.missing.input.value
+        }
+
+        v := __local4__ if {
+        	true
+        	__local4__ = data.topdown.g
+        }
+
+        w := __local5__ if {
+        	true
+        	__local5__ = data.topdown.set
+        }
+
+        iterate_ground contains x if {
+        	data.topdown.virtual.constants[x] = 1
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ := _result if {
+        	_result = {
+        		[
+        			"c", "p",
+        			1,
+        		],
+        		[
+        			"c", "q",
+        			3,
+        		],
+        		["c", "x", 100],
+        	}
+        }
+      - |
+        package topdown.a.b.c.undefined1
+
+        p if {
+        	false
+        }
+
+        p if {
+        	false
+        }
+
+        q if {
+        	false
+        }
+      - |
+        package topdown.no.base.doc
+
+        p := true
+      - |
+        package topdown.set
+
+        v contains __local6__ if {
+        	true
+        	__local6__ = data.topdown.set.u[_]
+        }
+      - |
+        package enum_errors.caller
+
+        p[x] := y if {
+        	data.enum_errors.a[x] = y
+        }
+      - |
+        package topdown.a.b.c.empty
+    data:
+      topdown:
+        a:
+          b:
+            c:
+              "true": false
+              x:
+                - 100
+                - 200
+              z:
+                a: b
+    input_term: "{}"
+    want_result:
+      - x:
+          - - c
+            - empty: {}
+              p:
+                - 1
+                - 2
+              q:
+                - 3
+                - 4
+              r:
+                a: 1
+                b: 2
+              s:
+                w:
+                  f: 10
+                  g: 9.9
+              "true": false
+              undefined1: {}
+              undefined2: {}
+              x:
+                - 100
+                - 200
+              z:
+                a: b
+    sort_bindings: true

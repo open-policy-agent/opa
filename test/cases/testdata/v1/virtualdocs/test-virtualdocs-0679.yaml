@@ -1,0 +1,18 @@
+---
+cases:
+  - note: "virtualdocs/no suffix: complete incr (error)"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	data.generated.q
+        }
+
+        q := false
+
+        q := true
+    data: {}
+    want_error_code: eval_conflict_error
+    want_error: complete rules must not produce multiple outputs

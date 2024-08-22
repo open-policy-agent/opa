@@ -1,0 +1,201 @@
+---
+cases:
+  - note: functions/cross package
+    query: data.test.cross = x
+    modules:
+      - |
+        package test
+
+        samepkg := y if {
+        	data.test.foo("how do you do?", y)
+        }
+      - |
+        package test.l1.l3
+
+        g(__local154__) := __local154__
+      - |
+        package test.l1.l2
+
+        p := true
+
+        f(__local160__) := __local160__
+      - |
+        package test.omit_result
+
+        f(__local166__) := __local166__
+
+        p if {
+        	data.test.omit_result.f(1)
+        }
+      - |
+        package topdown_test_partial
+
+        __result__ := _result if {
+        	_result = ["foo", "bar"]
+        }
+      - |
+        package ex
+
+        foo(__local106__) := y if {
+        	split(__local106__, "i", y)
+        }
+
+        bar[x] := y if {
+        	data.l[_].a = x
+        	data.ex.foo(x, y)
+        }
+
+        chain0(__local107__) := y if {
+        	data.ex.foo(__local107__, y)
+        }
+
+        chain1(__local108__) := b if {
+        	data.ex.chain0(__local108__, b)
+        }
+
+        chain2 := d if {
+        	data.ex.chain1("fooibar", d)
+        }
+
+        cross(__local111__) := [a, b] if {
+        	split(__local111__, "i", y)
+        	__local27__ = y[1]
+        	data.ex.foo(__local27__, b)
+        	__local28__ = y[2]
+        	data.test.foo(__local28__, a)
+        }
+
+        falsy_func(__local112__) := false
+
+        falsy_func_else(__local113__) if {
+        	__local113__ = 1
+        }
+
+        else := false
+
+        falsy_undefined if {
+        	data.ex.falsy_func(1)
+        }
+
+        falsy_negation if {
+        	not data.ex.falsy_func(1)
+        }
+
+        falsy_else_value := __local23__ if {
+        	true
+        	data.ex.falsy_func_else(2, __local23__)
+        }
+
+        falsy_else_undefined if {
+        	data.ex.falsy_func_else(2)
+        }
+
+        falsy_else_negation if {
+        	not data.ex.falsy_func_else(2)
+        }
+
+        arrays([__local115__, __local116__]) := [a, b] if {
+        	data.ex.foo(__local115__, a)
+        	data.ex.foo(__local116__, b)
+        }
+
+        arraysrule := y if {
+        	data.ex.arrays(["hih", "foo"], y)
+        }
+
+        objects({"foo": __local117__, "bar": __local118__}) := z if {
+        	data.ex.foo(__local117__, a)
+        	data.test.foo(__local118__, b)
+        	z = [a, b]
+        }
+
+        objectsrule := y if {
+        	data.ex.objects({"bar": "hi ho", "foo": "hih"}, y)
+        }
+
+        refoutput := y if {
+        	data.ex.foo("hih", z)
+        	y = z[1]
+        }
+
+        void(__local119__) if {
+        	__local119__ = "foo"
+        }
+
+        voidGood if {
+        	not data.ex.void("bar", true)
+        }
+
+        voidBad if {
+        	data.ex.void("bar", true)
+        }
+
+        multi(1, __local120__) := y if {
+        	y = __local120__
+        }
+
+        multi(2, __local121__) := y if {
+        	__local24__ = 2 * __local121__
+        	a = __local24__
+        	__local25__ = a + 1
+        	y = __local25__
+        }
+
+        multi(3, __local122__) := y if {
+        	__local26__ = __local122__ * 10
+        	y = __local26__
+        }
+
+        multi("foo", __local123__) := y if {
+        	y = "bar"
+        }
+
+        multi1 := y if {
+        	data.ex.multi(1, 2, y)
+        }
+
+        multi2 := y if {
+        	data.ex.multi(2, 2, y)
+        }
+
+        multi3 := y if {
+        	data.ex.multi(3, 2, y)
+        }
+
+        multi4 := y if {
+        	data.ex.multi("foo", 2, y)
+        }
+
+        always_true_fn(__local124__) := true
+
+        always_true if {
+        	data.ex.always_true_fn(1)
+        }
+      - |
+        package test
+
+        foo(__local146__) := y if {
+        	trim(__local146__, "h o", y)
+        }
+
+        cross := y if {
+        	data.ex.cross("hi, my name is foo", y)
+        }
+
+        multi("foo", __local147__) := y if {
+        	y = __local147__
+        }
+
+        multi("bar", __local148__) := y if {
+        	y = "baz"
+        }
+
+        multi_cross_pkg := [y, z] if {
+        	data.test.multi("foo", "bar", y)
+        	data.ex.multi(2, 1, z)
+        }
+    data: {}
+    want_result:
+      - x:
+          - s f
+          - - ", my name "

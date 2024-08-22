@@ -1,0 +1,112 @@
+---
+cases:
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("8kb") > units.parse_bytes("7kb")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("8gb") > units.parse_bytes("8mb")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1234kb") < units.parse_bytes("1gb")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("1024") == units.parse_bytes("1KiB")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("2MiB") == units.parse_bytes("2097152")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("3MiB") > units.parse_bytes("3MB")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("2MiB") == units.parse_bytes("2Mi")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("4Mi") > units.parse_bytes("4M")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("4.1Mi") > units.parse_bytes("4Mi")
+        }
+    want_result:
+      - x: true
+  - note: units_parse_bytes/comparison
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p if {
+        	units.parse_bytes("128Gi") == units.parse_bytes("137438953472")
+        }
+    want_result:
+      - x: true

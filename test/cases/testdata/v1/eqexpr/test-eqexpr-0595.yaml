@@ -1,0 +1,17 @@
+---
+cases:
+  - note: "eqexpr/unordered: sets"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	x = 2
+        	{1, 3, x} = {1, 2, 3}
+        }
+    data: {}
+    want_result:
+      - x:
+          - 2
+    sort_bindings: true

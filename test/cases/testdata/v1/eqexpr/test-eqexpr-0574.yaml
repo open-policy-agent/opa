@@ -1,0 +1,16 @@
+---
+cases:
+  - note: "eqexpr/pattern: array"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	[1, x, 3] = [1, 2, 3]
+        }
+    data: {}
+    want_result:
+      - x:
+          - 2
+    sort_bindings: true

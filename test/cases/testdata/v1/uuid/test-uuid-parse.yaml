@@ -1,0 +1,61 @@
+---
+cases:
+  - note: uuid-parse/positive-v4
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uuid.parse(input.userid)
+    data: {}
+    input:
+      userid: 00000000-0000-4000-8000-000000000000
+    want_result:
+      - x:
+          variant: RFC4122
+          version: 4
+  - note: uuid-parse/positive-v2
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uuid.parse(input.userid)
+    data: {}
+    input:
+      userid: 000003e8-48b9-21ee-b200-325096b39f47
+    want_result:
+      - x:
+          clocksequence: 12800
+          domain: Person
+          id: 1000
+          macvariables: local:unicast
+          nodeid: 32-50-96-b3-9f-47
+          time: 1693566990121469600
+          variant: RFC4122
+          version: 2
+  - note: uuid-parse/positive-v3
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uuid.parse(input.userid)
+    data: {}
+    input:
+      userid: 38074da4-0b00-388d-9c3c-362de965547a
+    want_result:
+      - x:
+          variant: RFC4122
+          version: 3
+  - note: uuid-parse/negative
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        p := uuid.parse(input.userid)
+    data: {}
+    input:
+      userid: 123
+    want_result: []

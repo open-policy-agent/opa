@@ -1,0 +1,73 @@
+---
+cases:
+  - note: "withkeyword/function: direct call, rule replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        f0 := 1 # a rule
+
+        p := y if {
+        	y = f(true) with f as f0
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/function: captured result, rule replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f(_) := 2
+
+        f0 := 1 # a rule
+
+        p if {
+        	f(true, 1) with f as f0
+        }
+    want_result:
+      - x: true
+  - note: "withkeyword/builtin: direct call, arity 0, rule replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1 # a rule
+
+        p := y if {
+        	y = time.now_ns() with time.now_ns as f
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/builtin: direct call, arity 1, rule replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1 # a rule
+
+        p := y if {
+        	y = count([1, 2, 3]) with count as f
+        }
+    want_result:
+      - x: 1
+  - note: "withkeyword/builtin: indirect call, arity 1, rule replacement"
+    query: data.test.p = x
+    modules:
+      - |
+        package test
+
+        f := 1 # a rule
+
+        g(x) := count(x)
+
+        p := y if {
+        	y = g([1, 2, 3]) with count as f
+        }
+    want_result:
+      - x: 1

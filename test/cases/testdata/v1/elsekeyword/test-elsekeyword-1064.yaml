@@ -1,0 +1,34 @@
+---
+cases:
+  - note: elsekeyword/indexed
+    query: data.ex.indexed = x
+    modules:
+      - |
+        package ex
+
+        indexed if {
+        	data.a[0] = 0
+        } else := 2 if {
+        	data.a[0] = 1
+        } else := 3 if {
+        	data.a[0] = 1
+        }
+
+        indexed if {
+        	data.a[0] = 1
+        	data.a[2] = 2
+        } else if {
+        	false
+        } else := 2 if {
+        	data.a[0] = x
+        	x = 1
+        	data.a[2] = 3
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x: 2

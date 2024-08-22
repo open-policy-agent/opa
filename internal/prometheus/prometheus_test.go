@@ -103,7 +103,6 @@ func TestJSONSerialization(t *testing.T) {
 			"go_gc_heap_frees_objects_total",
 			"go_cgo_go_to_c_calls_calls_total",
 			"go_memstats_alloc_bytes_total",
-			"go_memstats_lookups_total",
 			"go_memstats_mallocs_total",
 			"go_memstats_frees_total",
 			"go_cpu_classes_idle_cpu_seconds_total",

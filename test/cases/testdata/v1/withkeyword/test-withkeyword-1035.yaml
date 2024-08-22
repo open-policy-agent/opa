@@ -1,0 +1,22 @@
+---
+cases:
+  - note: withkeyword/with data conflict
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        default p := false
+
+        p if {
+        	data.ex.allow_basic = true with data.a.b as 5
+        }
+      - |
+        package ex
+
+        allow_basic if {
+        	data.a = "testdata"
+        }
+    data: {}
+    want_result:
+      - x: false

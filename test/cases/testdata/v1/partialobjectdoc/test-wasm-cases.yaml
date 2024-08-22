@@ -1,0 +1,132 @@
+---
+cases:
+  - note: wasm/additive
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p["a"] := 1
+
+        p["b"] := 2
+
+        q if {
+        	p == {"a": 1, "b": 2}
+        }
+    want_result:
+      - x: true
+  - note: wasm/additive (negative)
+    query: data.x.p = input
+    modules:
+      - |
+        package x
+
+        p["a"] := 1
+
+        p["b"] := 2
+
+        p["c"] := 3
+    input:
+      a: 1
+      b: 2
+    want_result: []
+  - note: wasm/input
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p["a"] := 1 if input.x = 1
+
+        p["b"] := 2 if input.y = 2
+
+        q if {
+        	p == {"a": 1, "b": 2}
+        }
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: true
+  - note: wasm/input (negative)
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p["a"] := 1 if input.x = 1
+
+        p["b"] := 2 if input.y = 2
+
+        p["c"] := 3 if input.z = 3
+
+        q if {
+        	p == data.z
+        }
+    data:
+      z:
+        a: 1
+        b: 2
+    input:
+      x: 1
+      "y": 2
+    want_result:
+      - x: true
+  - note: wasm/composites
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p[x] := [y] if {
+        	x = "a"
+        	y = 1
+        }
+
+        p[x] := [y] if {
+        	x = "b"
+        	y = 2
+        }
+
+        q if p == {"a": [1], "b": [2]}
+    want_result:
+      - x: true
+  - note: wasm/conflict error
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p["x"] := 1
+
+        p["x"] := 2
+
+        q if {
+        	p == data.z
+        }
+    data:
+      z:
+        a: 1
+    want_error_code: eval_conflict_error
+    want_error: "eval_conflict_error: complete rules must not produce multiple outputs"
+  - note: wasm/object dereference
+    query: data.x.q = x
+    modules:
+      - |
+        package x
+
+        p["a"] := {"b": 1}
+
+        q if {
+        	p.a.b = 1
+        }
+    want_result:
+      - x: true
+  - note: wasm/object dereference (negative)
+    query: data.x.p.a.b = 1
+    modules:
+      - |
+        package x
+
+        p["a"] := {"b": 2}
+    want_result: []

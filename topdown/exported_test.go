@@ -20,9 +20,14 @@ import (
 )
 
 func TestRego(t *testing.T) {
-	for _, tc := range cases.MustLoad("../test/cases/testdata").Sorted().Cases {
-		t.Run(tc.Note, func(t *testing.T) {
-			testRun(t, tc)
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
+		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
+			testRun(t, tc, ast.RegoV0)
+		})
+	}
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
+		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
+			testRun(t, tc, ast.RegoV1)
 		})
 	}
 }
@@ -30,15 +35,22 @@ func TestRego(t *testing.T) {
 func TestOPARego(t *testing.T) {
 	for _, tc := range cases.MustLoad("testdata/cases").Sorted().Cases {
 		t.Run(tc.Note, func(t *testing.T) {
-			testRun(t, tc)
+			testRun(t, tc, ast.RegoV0)
 		})
 	}
 }
 
 func TestRegoWithNDBCache(t *testing.T) {
-	for _, tc := range cases.MustLoad("../test/cases/testdata").Sorted().Cases {
-		t.Run(tc.Note, func(t *testing.T) {
-			testRun(t, tc, func(q *Query) *Query {
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v0").Sorted().Cases {
+		t.Run(fmt.Sprintf("v0/%s", tc.Note), func(t *testing.T) {
+			testRun(t, tc, ast.RegoV0, func(q *Query) *Query {
+				return q.WithNDBuiltinCache(builtins.NDBCache{})
+			})
+		})
+	}
+	for _, tc := range cases.MustLoad("../test/cases/testdata/v1").Sorted().Cases {
+		t.Run(fmt.Sprintf("v1/%s", tc.Note), func(t *testing.T) {
+			testRun(t, tc, ast.RegoV1, func(q *Query) *Query {
 				return q.WithNDBuiltinCache(builtins.NDBCache{})
 			})
 		})
@@ -47,7 +59,7 @@ func TestRegoWithNDBCache(t *testing.T) {
 
 type opt func(*Query) *Query
 
-func testRun(t *testing.T, tc cases.TestCase, opts ...opt) {
+func testRun(t *testing.T, tc cases.TestCase, regoVersion ast.RegoVersion, opts ...opt) {
 
 	for k, v := range tc.Env {
 		t.Setenv(k, v)
@@ -60,7 +72,11 @@ func testRun(t *testing.T, tc cases.TestCase, opts ...opt) {
 		modules[fmt.Sprintf("test-%d.rego", i)] = module
 	}
 
-	compiler := ast.MustCompileModules(modules)
+	compiler := ast.MustCompileModulesWithOpts(modules, ast.CompileOpts{
+		ParserOptions: ast.ParserOptions{
+			RegoVersion: regoVersion,
+		},
+	})
 	query, err := compiler.QueryCompiler().Compile(ast.MustParseBody(tc.Query))
 
 	if err != nil {

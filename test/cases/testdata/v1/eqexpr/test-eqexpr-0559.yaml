@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "eqexpr/ground: null"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p if {
+        	null = null
+        }
+    data: {}
+    want_result:
+      - x: true

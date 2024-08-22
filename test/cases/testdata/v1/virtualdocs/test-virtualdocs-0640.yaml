@@ -1,0 +1,22 @@
+---
+cases:
+  - note: "virtualdocs/input: object ground var key"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains y if {
+        	x = "b"
+        	data.generated.q[x] = y
+        }
+
+        q[k] := v if {
+        	x = {"a": 1, "b": 2}
+        	x[k] = v
+        }
+    data: {}
+    want_result:
+      - x:
+          - 2
+    sort_bindings: true

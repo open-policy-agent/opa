@@ -1,0 +1,15 @@
+---
+cases:
+  - note: jwtbuiltins/no-periods
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y, z] if {
+        	io.jwt.decode("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9eyJzdWIiOiIwIiwiaXNzIjoib3BhIn0XmVoLoHI3pxMtMO_WRONMSJzGUDP9pDjy8Jp0_tdRXY", [x, y, z])
+        }
+    data: {}
+    want_error_code: eval_builtin_error
+    want_error: encoded JWT had no period separators
+    strict_error: true

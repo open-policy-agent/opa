@@ -1,0 +1,18 @@
+---
+cases:
+  - note: withkeyword/with invalidate input stack
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := [x, y] if {
+        	x = input with input as "a"
+        	y = input
+        }
+    data: {}
+    input_term: '"b"'
+    want_result:
+      - x:
+          - a
+          - b

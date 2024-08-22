@@ -1,0 +1,29 @@
+---
+cases:
+  - note: partialsetdoc/composite var value
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.a[i]
+        	x = [i, __local0__]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+    want_result:
+      - x:
+          - - 0
+            - 1
+          - - 1
+            - 2
+          - - 2
+            - 3
+          - - 3
+            - 4
+    sort_bindings: true

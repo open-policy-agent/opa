@@ -1,0 +1,14 @@
+---
+cases:
+  - note: jwtverifyhs256/failure-bad token
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	io.jwt.verify_hs256("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiYWxpY2UiLCJhenAiOiJhbGljZSIsInN1Ym9yZGluYXRlcyI6W10sImhyIjpmYWxzZX0.R0NDxM1gHTucWQKwayMDre2PbMNR9K9efmOfygDZWcE", "secret", x)
+        }
+    data: {}
+    want_result:
+      - x: false

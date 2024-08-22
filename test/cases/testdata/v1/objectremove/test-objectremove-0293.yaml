@@ -1,0 +1,18 @@
+---
+cases:
+  - note: objectremove/error invalid object param type nil input
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := __local0__ if {
+        	__local2__ = input.x
+        	object.remove(__local2__, {"a"}, __local1__)
+        	__local0__ = __local1__
+        }
+    data: {}
+    input_term: '{"x": null}'
+    want_error_code: eval_type_error
+    want_error: "object.remove: operand 1 must be object but got null"
+    strict_error: true

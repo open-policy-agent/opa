@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/trim: multi-cutset"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	trim("...foo.bar...", ".fr", x)
+        }
+    data: {}
+    want_result:
+      - x: oo.ba

@@ -1,0 +1,14 @@
+---
+cases:
+  - note: "strings/replace: many"
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p := x if {
+        	replace("foo.bar.baz", ".", ",", x)
+        }
+    data: {}
+    want_result:
+      - x: foo,bar,baz

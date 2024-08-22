@@ -1,0 +1,30 @@
+---
+cases:
+  - note: nestedreferences/two deep repeated var
+    query: data.generated.p = x
+    modules:
+      - |
+        package generated
+
+        p contains x if {
+        	__local0__ = data.a[i]
+        	__local1__ = data.h[i][__local0__]
+        	x = data.a[__local1__]
+        }
+    data:
+      a:
+        - 1
+        - 2
+        - 3
+        - 4
+      h:
+        - - 1
+          - 2
+          - 3
+        - - 2
+          - 3
+          - 4
+    want_result:
+      - x:
+          - 3
+    sort_bindings: true

@@ -1,0 +1,46 @@
+---
+cases:
+  - note: "comparisonexpr/numbers: int and float comparison"
+    query: data.comparison.p = x
+    modules:
+      - |
+        package comparison
+
+        p if {
+        	1 == 1.0
+        }
+    want_result:
+      - x: true
+  - note: "comparisonexpr/numbers: int and float array comparison"
+    query: data.comparison.p = x
+    modules:
+      - |
+        package comparison
+
+        p if {
+        	[1] == [1.0]
+        }
+    want_result:
+      - x: true
+  - note: "comparisonexpr/numbers: int and float object comparison"
+    query: data.comparison.p = x
+    modules:
+      - |
+        package comparison
+
+        p if {
+        	{1: 1} == {1: 1.0}
+        }
+    want_result:
+      - x: true
+  - note: "comparisonexpr/numbers: int and float nested object comparison"
+    query: data.comparison.p = x
+    modules:
+      - |
+        package comparison
+
+        p if {
+        	{"x": [1, 2, {"b": 3.0}]} == {"x": [1, 2, {"b": 3}]}
+        }
+    want_result:
+      - x: true
