@@ -1,6 +1,6 @@
 ---
 title: GitHub Action for OPA Rego Test
-subtitle: GitHub Action to automate testing for your OPA (Open Policy Agent) Rego policies, generates a report with coverage information, and posts the test results as a comment on your pull requests.
+subtitle: GitHub Action to automate testing for your OPA Rego policies
 labels:
   category: library
   type: GitHub Action
