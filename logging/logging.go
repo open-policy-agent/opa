@@ -243,6 +243,17 @@ func FromContext(ctx context.Context) (*RequestContext, bool) {
 	return requestContext, ok
 }
 
+const httpReqCtxKey = requestContextKey("http-request-context-key")
+
+func WithHTTPRequestContext(parent context.Context, val *HTTPRequestContext) context.Context {
+	return context.WithValue(parent, httpReqCtxKey, val)
+}
+
+func HTTPRequestContextFromContext(ctx context.Context) (*HTTPRequestContext, bool) {
+	requestContext, ok := ctx.Value(httpReqCtxKey).(*HTTPRequestContext)
+	return requestContext, ok
+}
+
 const decisionCtxKey = requestContextKey("decision_id")
 
 func WithDecisionID(parent context.Context, id string) context.Context {
