@@ -840,7 +840,9 @@ The following signing algorithms are supported:
 
 ## Caching
 
-Caching represents the configuration of the inter-query cache that built-in functions can utilize.
+Caching represents the configuration of the inter-query cache that built-in functions can utilize. Of the built-in
+functions provided by OPA, `http.send` is currently the only one to utilize the inter-query cache. See the documentation
+on the [http.send built-in function](../policy-reference/#http) for information about the available caching options.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
