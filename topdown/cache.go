@@ -108,7 +108,7 @@ func (c *virtualCache) Keys() []ast.Ref {
 func keysRecursive(root ast.Ref, node *virtualCacheElem) []ast.Ref {
 	var keys []ast.Ref
 	node.children.Iter(func(k, v util.T) bool {
-		ref := append(root, k.(*ast.Term))
+		ref := root.Append(k.(*ast.Term))
 		if v.(*virtualCacheElem).value != nil {
 			keys = append(keys, ref)
 		}
