@@ -15,8 +15,10 @@ on:
   push:
     branches: [ main, release-* ]
 
-permissions: 
-  contents: write
+permissions:
+  actions: read
+  contents: read
+  security-events: write
 
 jobs:
   analyze:
