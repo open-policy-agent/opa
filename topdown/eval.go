@@ -2933,7 +2933,7 @@ func (q vcKeyScope) Hash() int {
 	for _, v := range q.Ref {
 		if _, ok := v.Value.(ast.Var); ok {
 			// all vars are equal
-			hash += 1
+			hash++
 		} else {
 			hash += v.Value.Hash()
 		}
