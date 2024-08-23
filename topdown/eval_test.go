@@ -561,6 +561,87 @@ func TestTopdownVirtualCache(t *testing.T) {
 			miss:  3, // 'data.test.p = true' + 'data.test.q[[y, 1]] = z' + 'data.test.q = x'
 			exp:   1,
 		},
+		{
+			note: "partial object, ref-head, ref with unification scope",
+			module: `package test
+			import rego.v1
+			
+			a[x][y][z] := x + y + z if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some z in [5, 6]
+			}
+			
+			p if {
+				x := a[1][_][5]   # miss, cache key: data.test.a[1][<_,5>]
+				some foo
+				y := a[1][foo][5] # hit, cache key: data.test.a[1][<_,5>]
+				x == y
+			}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  2, // data.test.p + data.test.a[1][_][5]
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope, diverging key scope",
+			module: `package test
+			import rego.v1
+			
+			a[x][y][z] := x + y + z if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some z in [5, 6]
+			}
+			
+			p if {
+				x := a[1][_][5] # miss, cache key: data.test.a[1][<_,5>]
+				y := a[1][_][6] # miss, cache key: data.test.a[1][<_,6>]
+				z := a[1][_][5] # hit, cache key: data.test.a[1][<_,5>]
+				x != y
+				x == z
+			}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  3, // data.test.p + data.test.a[1][_][5] + data.test.a[1][_][6]
+		},
+		{
+			note: "partial object, ref-head, ref with unification scope, trailing vars don't contribute to key scope",
+			module: `package test
+				import rego.v1
+				
+				a[x][y][z][x] := x + y + z if {
+					some x in [1, 2]
+					some y in [3, 4]
+					some z in [5, 6]
+				}
+				
+				p if {
+					x := a[1][_][5][_] # miss, cache key: data.test.a[1][<_,5>]
+					y := a[1][_][5]    # hit, cache key: data.test.a[1][<_,5>]
+					x == y[_]
+				}`,
+			query: `data.test.p = x`,
+			hit:   1, // data.test.a[1][_][5]
+			miss:  2, // data.test.p + data.test.a[1][_][5]
+		},
+		{
+			// Regression test for https://github.com/open-policy-agent/opa/issues/6926
+			note: "partial object, ref-head, leaf set, ref with unification scope",
+			module: `package p
+				import rego.v1
+				
+				obj.sub[x][x] contains x if some x in ["one", "two"]
+				
+				obj[x][x] contains x if x := "whatever"
+				
+				main contains x if {
+					[1 | obj.sub[_].one[_]] # miss, cache key: data.p.obj.sub[<_,one>]
+					x := obj.sub[_][_][_]   # miss, cache key: data.p.obj.sub
+				}`,
+			query: `data.p.main = x`,
+			hit:   0,
+			miss:  3, // data.p.main + data.p.obj.sub[<_,one>] + data.p.obj.sub
+		},
 	}
 
 	for _, tc := range tests {
