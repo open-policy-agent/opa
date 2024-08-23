@@ -816,12 +816,12 @@ func TestLoadFileURL(t *testing.T) {
 
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
-		fileUrlPrefix := "file://"
+		fileURLPrefix := "file://"
 		if IsWindows() {
-			fileUrlPrefix = "file:///"
+			fileURLPrefix = "file:///"
 		}
 		for i := range paths[:3] {
-			paths[i] = fileUrlPrefix + paths[i]
+			paths[i] = fileURLPrefix + paths[i]
 		}
 
 		paths[2] = "c:" + paths[2]
