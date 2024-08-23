@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -808,15 +809,19 @@ func TestLoadFileURL(t *testing.T) {
 	files := map[string]string{
 		"/a/a/1.json": `1`,        // this will load as a directory (e.g., file://a/a)
 		"b.json":      `{"b": 2}`, // this will load as a normal file
-		"c.json":      `3`,        // this will loas as rooted file
+		"c.json":      `3`,        // this will load as rooted file
+		"d.json":      `{"d": 4}`, // this will load as a normal file without the prefix file:///
 	}
 	test.WithTempFS(files, func(rootDir string) {
 
 		paths := mustListPaths(rootDir, false)[1:]
 		sort.Strings(paths)
-
-		for i := range paths {
-			paths[i] = "file://" + paths[i]
+		fileUrlPrefix := "file://"
+		if IsWindows() {
+			fileUrlPrefix = "file:///"
+		}
+		for i := range paths[:3] {
+			paths[i] = fileUrlPrefix + paths[i]
 		}
 
 		paths[2] = "c:" + paths[2]
@@ -826,11 +831,16 @@ func TestLoadFileURL(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		exp := parseJSON(`{"a": 1, "b": 2, "c": 3}`)
+		exp := parseJSON(`{"a": 1, "b": 2, "c": 3, "d":4}`)
 		if !reflect.DeepEqual(exp, result.Documents) {
 			t.Fatalf("Expected %v but got %v", exp, result.Documents)
 		}
 	})
+}
+
+// IsWindows: checks if the user's OS is Windows
+func IsWindows() bool {
+	return runtime.GOOS == "windows"
 }
 
 func TestUnsupportedURLScheme(t *testing.T) {
