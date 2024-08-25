@@ -5297,6 +5297,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 
 func TestDistributedTracingResourceAttributes(t *testing.T) {
 	c := []byte(`{"distributed_tracing": {
+		"type": "grpc",
 		"service_name": "my-service",
 		"resource": {
 			"service_namespace": "my-namespace",
