@@ -72,34 +72,34 @@ type distributedTracingConfig struct {
 	Resource              resourceConfig `json:"resource,omitempty"`
 }
 
-func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, error) {
+func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *trace.TracerProvider, *resource.Resource, error) {
 	parsedConfig, err := config.ParseConfig(raw, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	distributedTracingConfig, err := parseDistributedTracingConfig(parsedConfig.DistributedTracing)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if strings.ToLower(distributedTracingConfig.Type) != "grpc" {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	certificate, err := loadCertificate(distributedTracingConfig.TLSCertFile, distributedTracingConfig.TLSCertPrivateKeyFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	certPool, err := loadCertPool(distributedTracingConfig.TLSCACertFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	tlsOption, err := tlsOption(distributedTracingConfig.EncryptionScheme, *distributedTracingConfig.EncryptionSkipVerify, certificate, certPool)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	traceExporter := otlptracegrpc.NewUnstarted(
@@ -123,7 +123,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		resource.WithAttributes(resourceAttributes...),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	traceProvider := trace.NewTracerProvider(
@@ -132,7 +132,7 @@ func Init(ctx context.Context, raw []byte, id string) (*otlptrace.Exporter, *tra
 		trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)),
 	)
 
-	return traceExporter, traceProvider, nil
+	return traceExporter, traceProvider, res, nil
 }
 
 func SetupLogging(logger logging.Logger) {

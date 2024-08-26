@@ -5289,7 +5289,7 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		}}`)
 
 	ctx := context.Background()
-	_, _, err := distributedtracing.Init(ctx, c, "foo")
+	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
 	}
@@ -5307,9 +5307,18 @@ func TestDistributedTracingResourceAttributes(t *testing.T) {
 		}}`)
 
 	ctx := context.Background()
-	_, _, err := distributedtracing.Init(ctx, c, "foo")
+	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+	if traceProvider == nil {
+		t.Fatalf("Tracer provider was not initialized")
+	}
+	if resource == nil {
+		t.Fatalf("Resource was not initialized")
+	}
+	if len(resource.Attributes()) != 4 {
+		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 4, len(resource.Attributes()))
 	}
 }
 
