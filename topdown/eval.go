@@ -2924,16 +2924,16 @@ func (q vcKeyScope) Compare(other ast.Value) int {
 	return 1
 }
 
-func (q vcKeyScope) Find(_ ast.Ref) (ast.Value, error) {
+func (vcKeyScope) Find(ast.Ref) (ast.Value, error) {
 	return nil, nil
 }
 
 func (q vcKeyScope) Hash() int {
 	var hash int
-	for _, v := range q.Ref {
+	for i, v := range q.Ref {
 		if _, ok := v.Value.(ast.Var); ok {
 			// all vars are equal
-			hash++
+			hash += i + 1
 		} else {
 			hash += v.Value.Hash()
 		}
