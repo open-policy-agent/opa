@@ -653,7 +653,7 @@ p2 := 2
 		"entrypoint":"test/p2",
 		"module":"/policy.wasm",
 		"annotations":[{
-			"scope":"rule",
+			"scope":"document",
 			"title":"P2",
 			"entrypoint":true
 		}]
@@ -742,7 +742,7 @@ bar := "baz"
 		"entrypoint":"test/foo/bar",
 		"module":"/policy.wasm",
 		"annotations":[{
-			"scope":"rule",
+			"scope":"document",
 			"title":"BAR",
 			"entrypoint":true
 		}]
@@ -750,7 +750,7 @@ bar := "baz"
 		"entrypoint":"test/p2",
 		"module":"/policy.wasm",
 		"annotations":[{
-			"scope":"rule",
+			"scope":"document",
 			"title":"P2",
 			"entrypoint":true
 		}]
@@ -767,10 +767,10 @@ package test
 # METADATA
 # title: P doc
 # scope: document
+# entrypoint: true
 
 # METADATA
 # title: P
-# entrypoint: true
 p := 1
 `,
 			},
@@ -784,11 +784,11 @@ p := 1
 		"module":"/policy.wasm",
 		"annotations":[{
 			"scope":"document",
-			"title":"P doc"
+			"title":"P doc",
+			"entrypoint":true
 		},{
 			"scope":"rule",
-			"title":"P",
-			"entrypoint":true
+			"title":"P"
 		}]
 	}]
 }
