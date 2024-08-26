@@ -2973,6 +2973,13 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 	}
 	decisionID, _ := logging.DecisionIDFromContext(ctx)
 
+	var httpRctx logging.HTTPRequestContext
+
+	httpRctxVal, _ := logging.HTTPRequestContextFromContext(ctx)
+	if httpRctxVal != nil {
+		httpRctx = *httpRctxVal
+	}
+
 	info := &Info{
 		Txn:                txn,
 		Revision:           l.revision,
@@ -2980,7 +2987,7 @@ func (l decisionLogger) Log(ctx context.Context, txn storage.Transaction, path s
 		Timestamp:          time.Now().UTC(),
 		DecisionID:         decisionID,
 		RemoteAddr:         rctx.ClientAddr,
-		HTTPRequestContext: rctx.HTTPRequestContext,
+		HTTPRequestContext: httpRctx,
 		Path:               path,
 		Query:              query,
 		Input:              goInput,

@@ -2660,7 +2660,7 @@ comment block containing the YAML document is finished
 
 Name | Type | Description
 --- | --- | ---
-scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope on which the `schemas` annotation is applied. Read more [here](./#scope).
+scope | string; one of `package`, `rule`, `document`, `subpackages` | The scope for which the metadata applies. Read more [here](./#scope).
 title | string | A human-readable name for the annotation target. Read more [here](#title).
 description | string | A description of the annotation target. Read more [here](#description).
 related_resources | list of URLs | A list of URLs pointing to related resources/documentation. Read more [here](#related-resources).

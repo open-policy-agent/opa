@@ -3851,10 +3851,9 @@ func TestDecisionLoggingWithHTTPRequestContext(t *testing.T) {
 	req.Header.Set("foo2", "bar2")
 	req.Header.Add("foo2", "bar3")
 
-	var rctx logging.RequestContext
-	rctx.HTTPRequestContext = logging.HTTPRequestContext{Header: req.Header.Clone()}
+	httpRctx := logging.HTTPRequestContext{Header: req.Header.Clone()}
 
-	req = req.WithContext(logging.NewContext(req.Context(), &rctx))
+	req = req.WithContext(logging.WithHTTPRequestContext(req.Context(), &httpRctx))
 
 	if err := f.executeRequest(req, http.StatusOK, `{"decision_id": "1"}`); err != nil {
 		t.Fatal(err)

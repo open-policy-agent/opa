@@ -3,6 +3,7 @@
 package download
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -210,13 +211,14 @@ func (d *OCIDownloader) oneShot(ctx context.Context) error {
 	d.SetCache(resp.etag) // set the current etag sha to the cache
 
 	if d.f != nil {
-		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
+		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw, Size: resp.size})
 	}
 	return nil
 }
 
 func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downloaderResponse, error) {
 	d.logger.Debug("OCI - Download starting.")
+	var buf bytes.Buffer
 
 	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
 
@@ -256,10 +258,15 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 		}, nil
 	}
 	fileReader, err := os.Open(bundleFilePath)
+
+	cnt := &count{}
+	r := io.TeeReader(fileReader, cnt)
+	tee := io.TeeReader(r, &buf)
+
 	if err != nil {
 		return nil, err
 	}
-	loader := bundle.NewTarballLoaderWithBaseURL(fileReader, d.localStorePath)
+	loader := bundle.NewTarballLoaderWithBaseURL(tee, d.localStorePath)
 	reader := bundle.NewCustomReader(loader).
 		WithMetrics(m).
 		WithBundleVerificationConfig(d.bvc).
@@ -274,9 +281,10 @@ func (d *OCIDownloader) download(ctx context.Context, m metrics.Metrics) (*downl
 
 	return &downloaderResponse{
 		b:        &bundleInfo,
-		raw:      fileReader,
+		raw:      &buf,
 		etag:     etag,
 		longPoll: false,
+		size:     cnt.Bytes(),
 	}, nil
 }
 
