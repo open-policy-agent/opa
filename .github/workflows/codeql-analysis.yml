@@ -16,7 +16,7 @@ on:
     branches: [ main, release-* ]
 
 permissions: 
-  contents: read
+  contents: write
 
 jobs:
   analyze:
