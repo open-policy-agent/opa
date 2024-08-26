@@ -536,7 +536,7 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 }
 
 func TestPluginManagerTracerProvider(t *testing.T) {
-	_, tracerProvider, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	_, tracerProvider, _, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
