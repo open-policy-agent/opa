@@ -583,6 +583,27 @@ func TestTopdownVirtualCache(t *testing.T) {
 			miss:  2, // data.test.p + data.test.a[1][_][5]
 		},
 		{
+			note: "partial object, ref-head, ref with unification scope, component order",
+			module: `package test
+			import rego.v1
+			
+			a[x][y][a][b] := i if {
+				some x in [1, 2]
+				some y in [3, 4]
+				some a in ["foo", "bar"]
+				some i, b in ["foo", "bar"]
+			}
+			
+			p if {
+				x := a[1][_]["foo"]["bar"] # miss, cache key: data.test.a[1][<_,foo,bar>]
+				y := a[1][_]["bar"]["foo"] # miss, cache key: data.test.a[1][<_,bar,foo>]
+				x != y
+			}`,
+			query: `data.test.p = x`,
+			hit:   0,
+			miss:  3, // data.test.p + data.test.a[1][<_,foo,bar>] + data.test.a[1][<_,bar,foo>]
+		},
+		{
 			note: "partial object, ref-head, ref with unification scope, diverging key scope",
 			module: `package test
 			import rego.v1

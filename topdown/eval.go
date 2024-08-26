@@ -2914,7 +2914,10 @@ func (q vcKeyScope) Compare(other ast.Value) int {
 		for i := range r1 {
 			_, v1IsVar := r1[i].Value.(ast.Var)
 			_, v2IsVar := r2[i].Value.(ast.Var)
-			if !v1IsVar && !v2IsVar && r1[i].Value.Compare(r2[i].Value) != 0 {
+			if v1IsVar && v2IsVar {
+				continue
+			}
+			if r1[i].Value.Compare(r2[i].Value) != 0 {
 				return -1
 			}
 		}
@@ -2930,10 +2933,10 @@ func (vcKeyScope) Find(ast.Ref) (ast.Value, error) {
 
 func (q vcKeyScope) Hash() int {
 	var hash int
-	for i, v := range q.Ref {
+	for _, v := range q.Ref {
 		if _, ok := v.Value.(ast.Var); ok {
 			// all vars are equal
-			hash += i + 1
+			hash++
 		} else {
 			hash += v.Value.Hash()
 		}
