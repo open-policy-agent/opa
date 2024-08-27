@@ -5,6 +5,8 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+- allow OpenTelemetry resource attributes to be configured under distributed_tracing config
+
 ### CLI
 
 - `opa exec`: This command never supported "pretty" formatting (`--format=pretty` or `-f pretty`), only `json`. Passing `pretty` is now invalid.

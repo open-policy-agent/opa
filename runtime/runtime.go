@@ -391,7 +391,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		store = inmem.NewWithOpts(inmem.OptRoundTripOnWrite(false))
 	}
 
-	traceExporter, tracerProvider, err := internal_tracing.Init(ctx, config, params.ID)
+	traceExporter, tracerProvider, _, err := internal_tracing.Init(ctx, config, params.ID)
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
