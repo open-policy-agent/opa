@@ -1911,6 +1911,85 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 }
 
+func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir := t.TempDir()
+
+	goos = "windows"
+
+	bundleName := "test?bundle=opa" // bundle name contains reserved characters
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	// persist a bundle to disk and then load it
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/foo/bar.rego",
+				Path:   "/foo/bar.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err := plugin.saveBundleToDisk(bundleName, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
 	type update struct {
 		modules map[string]string
@@ -6086,6 +6165,58 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 
 	if !strings.Contains(u[bundleName].Message, "context deadline exceeded") {
 		t.Fatalf("unexpected error message %v", u[bundleName].Message)
+	}
+}
+
+func TestGetNormalizedBundleName(t *testing.T) {
+	cases := []struct {
+		input string
+		goos  string
+		exp   string
+	}{
+		{
+			input: "foo",
+			exp:   "foo",
+		},
+		{
+			input: "foo=bar",
+			exp:   "foo=bar",
+			goos:  "windows",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c:/foo",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c\\:\\/foo",
+			goos:  "windows",
+		},
+		{
+			input: "file:\"<>c:/a",
+			exp:   "file\\:\\\"\\<\\>c\\:\\/a",
+			goos:  "windows",
+		},
+		{
+			input: "|a?b*c",
+			exp:   "\\|a\\?b\\*c",
+			goos:  "windows",
+		},
+		{
+			input: "a?b=c",
+			exp:   "a\\?b=c",
+			goos:  "windows",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			goos = tc.goos
+			actual := getNormalizedBundleName(tc.input)
+			if actual != tc.exp {
+				t.Fatalf("Want %v but got: %v", tc.exp, actual)
+			}
+		})
 	}
 }
 
