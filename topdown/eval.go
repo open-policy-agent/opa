@@ -2851,6 +2851,37 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 
 	m := maxRefLength(e.ir.Rules, len(e.ref))
 
+	// Creating the hint key by walking the ref and plugging vars until we hit a non-ground term.
+	// Any ground term right of this point will affect the scope of evaluation by ref unification,
+	// so we create a virtual-cache scope key to qualify the result stored in the cache.
+	//
+	// E.g. given the following rule:
+	//
+	//   package example
+	//
+	//   a[x][y][z] := x + y + z if {
+	//     some x in [1, 2]
+	//     some y in [3, 4]
+	//     some z in [5, 6]
+	//   }
+	//
+	// and the following ref (1):
+	//
+	//   data.example.a[1][_][5]
+	//
+	// then the hint key will be:
+	//
+	//   data.example.a[1][<_,5>]
+	//
+	// where <_,5> is the scope of the pre-eval unification.
+	// This part does not contribute to the "location" of the cached data.
+	//
+	// The following ref (2):
+	//
+	//   data.example.a[1][_][6]
+	//
+	// will produce the same hint key "location" 'data.example.a[1]', but a different scope component
+	// '<_,6>', which will create a different entry in the cache.
 	scoping := false
 	hintKeyEnd := 0
 	for i := e.pos + 1; i < m; i++ {
