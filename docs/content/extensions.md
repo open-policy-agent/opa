@@ -332,7 +332,7 @@ go build -o opa++
 
 Define an OPA configuration file that will use your plugin:
 
-**config.yaml**:
+**opa-config.yaml**:
 
 ```yaml
 decision_logs:
@@ -345,7 +345,7 @@ plugins:
 Start OPA with the configuration file:
 
 ```bash
-./opa++ run --server --config-file config.yaml
+./opa++ run --server --config-file opa-config.yaml
 ```
 
 Exercise the plugin via the OPA API:
