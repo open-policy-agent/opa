@@ -7558,7 +7558,7 @@ func TestCompilerMockFunction(t *testing.T) {
 				original(_)
 				p { original([1]) with original as concat }
 			`,
-			err: "rego_type_error: data.test.original: arity mismatch\n\thave: (string, any<array[string], set[string]>)\n\twant: (any)",
+			err: "rego_type_error: data.test.original: arity mismatch\n\thave: (string, any<array[any<number, string>], set[any<number, string>]>)\n\twant: (any)",
 		},
 	}
 

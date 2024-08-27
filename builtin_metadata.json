@@ -3467,7 +3467,7 @@
       {
         "description": "strings to join",
         "name": "collection",
-        "type": "any\u003carray[string], set[string]\u003e"
+        "type": "any\u003carray[any\u003cnumber, string\u003e], set[any\u003cnumber, string\u003e]\u003e"
       }
     ],
     "available": [
