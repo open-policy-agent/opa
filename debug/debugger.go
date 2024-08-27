@@ -272,6 +272,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (
 		return nil, fmt.Errorf("failed to prepare query for evaluation: %v", err)
 	}
 
+	// Committing the store transaction here to make any data added in previous steps are available during eval.
 	if err := store.Commit(ctx, txn); err != nil {
 		return nil, fmt.Errorf("failed to commit store transaction: %v", err)
 	}

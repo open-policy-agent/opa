@@ -256,7 +256,6 @@ func (t *thread) stepOut() error {
 			qid = e.QueryID
 		}
 
-		// FIXME: Compare against c.ParentID instead?
 		if a == breakAction || e == nil || c == nil || qid < c.QueryID {
 			t.logger.Debug("Resuming on query: %d", qid)
 			break
