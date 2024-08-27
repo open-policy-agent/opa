@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +41,8 @@ import (
 // ensures that too much time is not spent to activate bundles that will never
 // successfully activate.
 const maxActivationRetry = 10
+
+var goos = runtime.GOOS
 
 // Loader defines the interface that the bundle plugin uses to control bundle
 // loading via HTTP, disk, etc.
@@ -697,7 +700,9 @@ func (p *Plugin) configDelta(newConfig *Config) (map[string]*Source, map[string]
 
 func (p *Plugin) saveBundleToDisk(name string, raw io.Reader) error {
 
-	bundleDir := filepath.Join(p.bundlePersistPath, name)
+	bundleName := getNormalizedBundleName(name)
+
+	bundleDir := filepath.Join(p.bundlePersistPath, bundleName)
 	bundleFile := filepath.Join(bundleDir, "bundle.tar.gz")
 
 	tmpFile, saveErr := saveCurrentBundleToDisk(bundleDir, raw)
@@ -723,10 +728,12 @@ func saveCurrentBundleToDisk(path string, raw io.Reader) (string, error) {
 }
 
 func (p *Plugin) loadBundleFromDisk(path, name string, src *Source) (*bundle.Bundle, error) {
+	bundleName := getNormalizedBundleName(name)
+
 	if src != nil {
-		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, src.Signing)
+		return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, src.Signing)
 	}
-	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, name, nil)
+	return bundleUtils.LoadBundleFromDiskForRegoVersion(p.manager.ParserOptions().RegoVersion, path, bundleName, nil)
 }
 
 func (p *Plugin) log(name string) logging.Logger {
@@ -754,6 +761,33 @@ func (p *Plugin) getBundlesCpy() map[string]*Source {
 		bundlesCpy[k] = &v
 	}
 	return bundlesCpy
+}
+
+// getNormalizedBundleName returns a version of the input with
+// invalid file and directory name characters on Windows escaped.
+// It returns the input as-is for non-Windows systems.
+func getNormalizedBundleName(name string) string {
+	if goos != "windows" {
+		return name
+	}
+
+	sb := new(strings.Builder)
+	for i := 0; i < len(name); i++ {
+		if isReservedCharacter(rune(name[i])) {
+			sb.WriteString(fmt.Sprintf("\\%c", name[i]))
+		} else {
+			sb.WriteByte(name[i])
+		}
+	}
+
+	return sb.String()
+}
+
+// isReservedCharacter checks if the input is a reserved character on Windows that should not be
+// used in file and directory names
+// For details, see https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions.
+func isReservedCharacter(r rune) bool {
+	return r == '<' || r == '>' || r == ':' || r == '"' || r == '/' || r == '\\' || r == '|' || r == '?' || r == '*'
 }
 
 type fileLoader struct {
