@@ -10,6 +10,88 @@ import (
 	"testing"
 )
 
+func TestEntrypointAnnotationScopeRequirements(t *testing.T) {
+	tests := []struct {
+		note        string
+		module      string
+		expectError bool
+		expectScope string
+	}{
+		{
+			note: "package scope explicit",
+			module: `# METADATA
+# entrypoint: true
+# scope: package
+package foo`,
+			expectError: false,
+			expectScope: "package",
+		},
+		{
+			note: "package scope implied",
+			module: `# METADATA
+# entrypoint: true
+package foo`,
+			expectError: false,
+			expectScope: "package",
+		},
+		{
+			note: "subpackages scope explicit",
+			module: `# METADATA
+# entrypoint: true
+# scope: subpackages
+package foo`,
+			expectError: true,
+		},
+		{
+			note: "document scope explicit",
+			module: `package foo
+# METADATA
+# entrypoint: true
+# scope: document
+foo := true`,
+			expectError: false,
+			expectScope: "document",
+		},
+		{
+			note: "document scope implied",
+			module: `package foo
+# METADATA
+# entrypoint: true
+foo := true`,
+			expectError: false,
+			expectScope: "document",
+		},
+		{
+			note: "rule scope explicit",
+			module: `package foo
+# METADATA
+# entrypoint: true
+# scope: rule
+foo := true`,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{ProcessAnnotation: true})
+			if err != nil {
+				if !tc.expectError {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if tc.expectError {
+				t.Fatalf("expected error")
+			}
+			if tc.expectScope != module.Annotations[0].Scope {
+				t.Fatalf("expected scope %q, got %q", tc.expectScope, module.Annotations[0].Scope)
+			}
+		})
+	}
+
+}
+
 // Test of example code in docs/content/annotations.md
 func ExampleAnnotationSet_Flatten() {
 	modules := [][]string{
