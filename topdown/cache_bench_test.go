@@ -33,7 +33,7 @@ func BenchmarkVirtualCache(b *testing.B) {
 		}
 	}
 
-	cache := newVirtualCache()
+	cache := NewVirtualCache()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {

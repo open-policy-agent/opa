@@ -58,6 +58,7 @@ type Query struct {
 	strictObjects          bool
 	printHook              print.Hook
 	tracingOpts            tracing.Options
+	virtualCache           VirtualCache
 }
 
 // Builtin represents a built-in function that queries can call.
@@ -291,6 +292,13 @@ func (q *Query) WithStrictObjects(yes bool) *Query {
 	return q
 }
 
+// WithVirtualCache sets the VirtualCache to use during evaluation. This is
+// optional, and if not set, the default cache is used.
+func (q *Query) WithVirtualCache(vc VirtualCache) *Query {
+	q.virtualCache = vc
+	return q
+}
+
 // PartialRun executes partial evaluation on the query with respect to unknown
 // values. Partial evaluation attempts to evaluate as much of the query as
 // possible without requiring values for the unknowns set on the query. The
@@ -311,8 +319,17 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	if q.metrics == nil {
 		q.metrics = metrics.New()
 	}
+
 	f := &queryIDFactory{}
 	b := newBindings(0, q.instr)
+
+	var vc VirtualCache
+	if q.virtualCache != nil {
+		vc = q.virtualCache
+	} else {
+		vc = NewVirtualCache()
+	}
+
 	e := &eval{
 		ctx:                    ctx,
 		metrics:                q.metrics,
@@ -340,7 +357,7 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		functionMocks:          newFunctionMocksStack(),
 		interQueryBuiltinCache: q.interQueryBuiltinCache,
 		ndBuiltinCache:         q.ndBuiltinCache,
-		virtualCache:           newVirtualCache(),
+		virtualCache:           vc,
 		comprehensionCache:     newComprehensionCache(),
 		saveSet:                newSaveSet(q.unknowns, b, q.instr),
 		saveStack:              newSaveStack(),
@@ -488,7 +505,16 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 	if q.metrics == nil {
 		q.metrics = metrics.New()
 	}
+
 	f := &queryIDFactory{}
+
+	var vc VirtualCache
+	if q.virtualCache != nil {
+		vc = q.virtualCache
+	} else {
+		vc = NewVirtualCache()
+	}
+
 	e := &eval{
 		ctx:                    ctx,
 		metrics:                q.metrics,
@@ -516,7 +542,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		functionMocks:          newFunctionMocksStack(),
 		interQueryBuiltinCache: q.interQueryBuiltinCache,
 		ndBuiltinCache:         q.ndBuiltinCache,
-		virtualCache:           newVirtualCache(),
+		virtualCache:           vc,
 		comprehensionCache:     newComprehensionCache(),
 		genvarprefix:           q.genvarprefix,
 		runtime:                q.runtime,
