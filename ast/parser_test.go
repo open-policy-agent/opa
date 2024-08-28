@@ -1336,6 +1336,11 @@ func TestFutureAndRegoV1ImportsExtraction(t *testing.T) {
 	}
 }
 
+func TestHintsOnUnknownImport(t *testing.T) {
+	assertParseErrorContains(t, "unknown", "import unknown",
+		"unexpected import path, must begin with one of: {data, future, input, rego}, got: unknown (hint: if this is unexpected, try updating OPA)")
+}
+
 func TestRegoV1Import(t *testing.T) {
 	assertParseErrorContains(t, "rego", "import rego", "invalid import `rego`, must be `rego.v1`")
 	assertParseErrorContains(t, "rego.foo", "import rego.foo", "invalid import `rego.foo`, must be `rego.v1`")

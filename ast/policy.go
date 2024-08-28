@@ -570,7 +570,7 @@ func (pkg *Package) MarshalJSON() ([]byte, error) {
 }
 
 // IsValidImportPath returns an error indicating if the import path is invalid.
-// If the import path is invalid, err is nil.
+// If the import path is valid, err is nil.
 func IsValidImportPath(v Value) (err error) {
 	switch v := v.(type) {
 	case Var:

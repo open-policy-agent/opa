@@ -255,20 +255,20 @@ func (c *Compiler) WithRegoVersion(v ast.RegoVersion) *Compiler {
 	return c
 }
 
-func addEntrypointsFromAnnotations(c *Compiler, ar []*ast.AnnotationsRef) error {
-	for _, ref := range ar {
+func addEntrypointsFromAnnotations(c *Compiler, arefs []*ast.AnnotationsRef) error {
+	for _, aref := range arefs {
 		var entrypoint ast.Ref
-		scope := ref.Annotations.Scope
+		scope := aref.Annotations.Scope
 
-		if ref.Annotations.Entrypoint {
+		if aref.Annotations.Entrypoint {
 			// Build up the entrypoint path from either package path or rule.
 			switch scope {
 			case "package":
-				if p := ref.GetPackage(); p != nil {
+				if p := aref.GetPackage(); p != nil {
 					entrypoint = p.Path
 				}
-			case "rule":
-				if r := ref.GetRule(); r != nil {
+			case "document":
+				if r := aref.GetRule(); r != nil {
 					entrypoint = r.Ref().GroundPrefix()
 				}
 			default:

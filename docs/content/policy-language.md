@@ -2687,8 +2687,12 @@ Since the `document` scope annotation applies to all rules with the same name in
 and the `package` and `subpackages` scope annotations apply to all packages with a matching path, metadata blocks with
 these scopes are applied over all files with applicable package- and rule paths.
 As there is no ordering across files in the same package, the `document`, `package`, and `subpackages` scope annotations
-can only be specified **once** per path.
-The `document` scope annotation can be applied to any rule in the set (i.e., ordering does not matter.)
+can only be specified **once** per path. The `document` scope annotation can be applied to any rule in the set (i.e.,
+ordering does not matter.)
+
+An `entrypoint` annotation implies a `scope` of either `package` or `document`. When `entrypoint` is set to `true` on a
+rule, the `scope` is automatically set to `document` if not explicitly provided. Setting the `scope` to `rule` will
+result in an error, as an entrypoint always applies to the whole document.
 
 #### Example
 
@@ -2708,6 +2712,13 @@ allow if {
 allow if {
     x == 2
 }
+
+# METADATA
+# entrypoint: true
+# description: |
+#   `scope` annotation automatically set to `document`
+#   as that is required for entrypoints
+message := "welcome!" if allow
 ```
 
 ### Title
@@ -2890,7 +2901,8 @@ allow if {
 ### Entrypoint
 
 The `entrypoint` annotation is a boolean used to mark rules and packages that should be used as entrypoints for a policy.
-This value is false by default, and can only be used at `rule` or `package` scope.
+This value is false by default, and can only be used at `document` or `package` scope. When used on a rule with no
+explicit `scope` set, the presence of an `entrypoint` annotation will automatically set the scope to `document`.
 
 The `build` and `eval` CLI commands will automatically pick up annotated entrypoints; you do not have to specify them with
 [`--entrypoint`](../cli/#options-1).

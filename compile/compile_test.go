@@ -2106,7 +2106,7 @@ q = true`,
 					Annotations: []*ast.Annotations{
 						{
 							Title:      "My P rule",
-							Scope:      "rule",
+							Scope:      "document",
 							Entrypoint: true,
 						},
 					},
@@ -2366,7 +2366,7 @@ func TestCompilerRegoEntrypointAnnotations(t *testing.T) {
 		wantEntrypoints map[string]struct{}
 	}{
 		{
-			note:        "rule annotation",
+			note:        "implied document scope annotation",
 			entrypoints: []string{},
 			modules: map[string]string{
 				"test.rego": `

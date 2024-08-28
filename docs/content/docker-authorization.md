@@ -97,13 +97,13 @@ decision_logs:
   console: true
 ```
 
-Save the above file as `config.yaml`. We'll need to place this somewhere where the plugin can find it.
+Save the above file as `opa-config.yaml`. We'll need to place this somewhere where the plugin can find it.
 The `/etc/docker` directory will be mounted as `/opa` in the container running the plugin, so let's create a
 sub-directory for our configuration file there.
 
 ```shell
 sudo mkdir -p /etc/docker/config
-sudo mv config.yaml /etc/docker/config/
+sudo mv opa-config.yaml /etc/docker/config/
 ```
 
 ### 3. Install the opa-docker-authz plugin.
@@ -111,7 +111,7 @@ sudo mv config.yaml /etc/docker/config/
 Install the `opa-docker-authz` plugin and point it to the config file just created.
 
 ```shell
-docker plugin install openpolicyagent/opa-docker-authz-v2:0.9 opa-args="-config-file /opa/config/config.yaml"
+docker plugin install openpolicyagent/opa-docker-authz-v2:0.9 opa-args="-config-file /opa/config/opa-config.yaml"
 ```
 
 You need to configure the Docker daemon to use the plugin for authorization.
