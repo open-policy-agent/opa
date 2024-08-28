@@ -9,11 +9,19 @@ required must be specified if the parent is defined. For example, when the
 configuration contains a `status` key, the `status.service` field must be
 defined.
 
+{{< info >}}
+OPA accepts any name for the configuration file. Some tooling may however benefit from knowing what name to associate
+with OPA's configuration file (for auto-completion of attributes, linting, etc.). The following names could be
+considered idiomatic for that purpose:
+- `opa-config.yaml` (or `.json`)
+- `opa-conf.yaml` (or `.json`)
+{{< /info >}}
+
 The configuration file path is specified with the `-c` or `--config-file`
 command line argument:
 
 ```bash
-opa run -s -c config.yaml
+opa run -s -c opa-config.yaml
 ```
 
 The file can be either JSON or YAML format. The following is an example
@@ -1019,7 +1027,7 @@ It will read the contents of the file and set the config value with the token.
 If using arrays/lists in the configuration the `--set` and `--set-file` overrides will not be able to
 patch sub-objects of the list. They will overwrite the entire index with the new object.
 
-For example, a `config.yaml` file with contents:
+For example, a `opa-config.yaml` file with contents:
 
 ```yaml
 services:
@@ -1034,7 +1042,7 @@ Used with overrides:
 
 ```shell
 opa run \
-  --config-file config.yaml
+  --config-file opa-config.yaml
   --set-file "services[0].credentials.bearer.token=/var/run/secrets/bearer_token.txt"
 ```
 

@@ -609,7 +609,12 @@ func (p *Parser) parseImport() *Import {
 
 	path := imp.Path.Value.(Ref)
 
-	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) && !RegoRootDocument.Equal(path[0]) {
+	switch {
+	case RootDocumentNames.Contains(path[0]):
+	case FutureRootDocument.Equal(path[0]):
+	case RegoRootDocument.Equal(path[0]):
+	default:
+		p.hint("if this is unexpected, try updating OPA")
 		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v",
 			RootDocumentNames.Union(NewSet(FutureRootDocument, RegoRootDocument)),
 			path[0])
