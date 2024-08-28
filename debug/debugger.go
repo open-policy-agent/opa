@@ -199,7 +199,7 @@ type LaunchEvalProperties struct {
 
 type LaunchTestProperties struct {
 	LaunchProperties
-	Run string `json:"run"`
+	Run string
 }
 
 type LaunchProperties struct {
