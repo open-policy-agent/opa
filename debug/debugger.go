@@ -2,6 +2,8 @@
 // Use of this source code is governed by an Apache2
 // license that can be found in the LICENSE file.
 
+// Package debug
+// EXPERIMENTAL: This package is under active development and is subject to change.
 package debug
 
 import (
@@ -29,6 +31,8 @@ import (
 // This implementation is similar in structure to the Debug Adapter Protocol (DAP)
 // to make such integrations easier, but is not intended to be a direct implementation.
 // See: https://microsoft.github.io/debug-adapter-protocol/specification
+//
+// EXPERIMENTAL: These interfaces are under active development and is subject to change.
 type Debugger interface {
 	// LaunchEval starts a new eval debug session with the given LaunchEvalProperties.
 	// The returned session is in a stopped state, and must be resumed to start execution.
