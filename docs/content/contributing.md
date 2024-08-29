@@ -6,28 +6,59 @@ weight: 1
 
 Thanks for your interest in contributing to the Open Policy Agent project!
 
-## Where to start?
+{{< info >}}
+Most of the discussions about OPA take place on Slack, if you haven't already,
+you can [sign up here](https://slack.openpolicyagent.org/).
+{{< /info >}}
 
-* Ask for help on the [OPA Discussions Board](https://github.com/open-policy-agent/feedback/discussions)
-* Use [#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in Slack to talk to the OPA maintainers and other contributors.
-* File a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) to request features or report bugs.
-* Join the OPA bi-weekly meetings every other Tuesday at 10:00 (Pacific Timezone):
-    * [Meeting Notes](https://docs.google.com/document/d/1v6l2gmkRKAn5UIg3V2QdeeCcXMElxsNzEzDkVlWDVg8/edit?usp=sharing)
-    * [Zoom](https://zoom.us/j/97827947600)
-    * [Calendar Invite](https://calendar.google.com/event?action=TEMPLATE&tmeid=MnRvb2M4amtldXBuZ2E1azY0MTJndjh0ODRfMjAxODA5MThUMTcwMDAwWiBzdHlyYS5jb21fY28zOXVzc3VobnE2amUzN2l2dHQyYmNiZGdAZw&tmsrc=styra.com_co39ussuhnq6je37ivtt2bcbdg%40group.calendar.google.com&scp=ALL)
+## I'd like to help OPA users
 
+Most users ask in the [#help](https://openpolicyagent.slack.com/archives/CBR63TK2A)
+channel in Slack, hang out in there and see if there are any questions you
+can help with.
 
-If you want to contribute code and you are new to the Go programming language, check out
-the [development reference](../contrib-development/) for help getting started.
+You might also want to keep an eye on the
+[OPA Discussion Board](https://github.com/orgs/open-policy-agent/discussions).
 
-## Other types of contributions
+## I'd like to contribute code
 
-We welcome contributions of all kinds. For example:
+If you have found a bug and would like to work on a fix, we still encourage you
+file a [GitHub Issue](https://github.com/open-policy-agent/opa/issues) first
+to talk about the problem and the solution you have in mind.
 
-- [Documentation](../contrib-docs) including reference material and examples.
-- Help out other members in the OPA Slack Org and on the [GitHub Discussions Board](https://github.com/open-policy-agent/feedback/discussions)
-- Spreading the word about OPA by speaking at conferences
-- Adding integrations to the OPA [ecosystem](https://www.openpolicyagent.org/ecosystem/)
-- Creating Blog and Videos to show how your organization has implemented OPA
+Similarly, if you have an idea for a new feature, we encourage you to file an
+issue to discuss the feature before you start working on it too.
 
-If you're interested in any non-code contributions, please reach out on the #help channel on [Slack](https://slack.openpolicyagent.org/)
+If you want to chat to the maintainers before opening an issue or about anything
+else, head over to
+[#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59) in
+Slack.
+
+If you want to contribute code check out the
+[development reference](../contrib-development/) for pointers on how to get
+started.
+
+## I'd like to help improve the documentation
+
+Great! Please see our [documentation page](../contrib-docs) for more details.
+
+## I have an OPA project or talk I'd like to share
+
+Awesome! For OPA-based projects, we have our [Ecosystem page](/ecosystem/).
+This is a great place to showcase your project. See
+[the instructions](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)
+here to get it listed.
+
+If you have a talk or blog you'd like to share please feel free to post in:
+
+- [#ecosystem](https://openpolicyagent.slack.com/archives/C02J6LBL6GH) in Slack.
+- [Ecosystem Discussions](https://github.com/orgs/open-policy-agent/discussions/categories/ecosystem) on GitHub.
+
+## I'm interested in something else...
+
+Sounds interesting, we'd love to hear all about it,
+[sign up for our Slack](https://slack.openpolicyagent.org/) and
+drop a message in the
+[#contributors](https://openpolicyagent.slack.com/archives/C02L1TLPN59)
+channel.
+
