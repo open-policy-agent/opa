@@ -10,7 +10,7 @@ This release contains a mix of features and bugfixes.
 ### Security Fix: CVE-2024-8260 ([#6933](https://github.com/open-policy-agent/opa/pull/6933))
 
 This release includes a fix where OPA would accept UNC locations on Windows. Reading those could leak NTLM hashes. 
-The attack vector would include an adversary tricking the user in passing an UNC path to `opa eval -d $FILE`.
+The attack vector would include an adversary tricking the user in passing an UNC path to OPA, e.g. `opa eval -d $FILE`.
 UNC paths are now forbidden. If this is an issue for you, please reach out on Slack or GitHub issues.
 
 Reported by Shelly Raban
