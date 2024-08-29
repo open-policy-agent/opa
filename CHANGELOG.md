@@ -7,15 +7,6 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of features and bugfixes.
 
-### Security Fix: CVE-2024-8260 ([#6933](https://github.com/open-policy-agent/opa/pull/6933))
-
-This release includes a fix where OPA would accept UNC locations on Windows. Reading those could leak NTLM hashes. 
-The attack vector would include an adversary tricking the user in passing an UNC path to OPA, e.g. `opa eval -d $FILE`.
-UNC paths are now forbidden. If this is an issue for you, please reach out on Slack or GitHub issues.
-
-Reported by Shelly Raban
-Authored by @ashutosh-narkar
-
 ### Breaking Changes
 
 #### `entrypoint` annotation implies `document` scope ([#6798](https://github.com/open-policy-agent/opa/issues/6798))
@@ -28,11 +19,6 @@ annotation with a `true` value will assign the block a `document` scope, where t
 In practice, a rule entrypoint always point to the entire document and not a particular rule definition. The previous behavior was a bug, and one we've now addressed.
 
 Authored by @anderseknert
-
-### CLI
-
-- `opa exec`: This command never supported "pretty" formatting (`--format=pretty` or `-f pretty`), only `json`. Passing `pretty` is now invalid. ([#6923](https://github.com/open-policy-agent/opa/pull/6923)) authored by @srenatus
-  Note that the flag is now unnecessary, but it's kept so existing calls like `opa exec -fjson ...` remain valid.
 
 ### Topdown and Rego
 
@@ -54,6 +40,17 @@ Authored by @anderseknert
 - plugins/bundle: Escape reserved chars used in persisted bundle directory name ([#6915](https://github.com/open-policy-agent/opa/issues/6915)) authored by @ashutosh-narkar reported by @alvarogomez93
 - plugins/rest: Support AWS_CONTAINER_CREDENTIALS_FULL_URI metadata endpoint ([#6893](https://github.com/open-policy-agent/opa/issues/6893)) authored and reported by @mbamber
 - util+server: Fix bug around chunked request handling. ([#6904](https://github.com/open-policy-agent/opa/issues/6904)) authored by @philipaconrad reported by @David-Wobrock
+- `opa exec`: This command never supported "pretty" formatting (`--format=pretty` or `-f pretty`), only `json`. Passing `pretty` is now invalid. ([#6923](https://github.com/open-policy-agent/opa/pull/6923)) authored by @srenatus
+  Note that the flag is now unnecessary, but it's kept so existing calls like `opa exec -fjson ...` remain valid.
+
+#### Security Fix: CVE-2024-8260 ([#6933](https://github.com/open-policy-agent/opa/pull/6933))
+
+This release includes a fix where OPA would accept UNC locations on Windows. Reading those could leak NTLM hashes.
+The attack vector would include an adversary tricking the user in passing an UNC path to OPA, e.g. `opa eval -d $FILE`.
+UNC paths are now forbidden. If this is an issue for you, please reach out on Slack or GitHub issues.
+
+Reported by Shelly Raban
+Authored by @ashutosh-narkar
 
 ### Docs, Website, Ecosystem
 
