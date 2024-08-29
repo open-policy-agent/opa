@@ -3,7 +3,65 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
-## Unreleased
+## 0.68.0
+
+### Fixes
+
+- Always include HTTP request context in incoming req context ([#6951](https://github.com/open-policy-agent/opa/issues/6951)) authored by @ashutosh-narkar reported by @alvarogomez93
+- Change required scope of `entrypoint` from `rule` to `document` (#6963) ([#6798](https://github.com/open-policy-agent/opa/issues/6798)) authored by @anderseknert
+- Docs: suggest using `opa-config.yaml` as name for config file (#6966) ([#6959](https://github.com/open-policy-agent/opa/issues/6959)) authored by @anderseknert
+- Include term locations in rule heads when requested (#6943) ([#6860](https://github.com/open-policy-agent/opa/issues/6860)) authored by @anderseknert
+- ast: Fixing nil pointer dereference in compiler for partial rule edge case (#6931) ([#6930](https://github.com/open-policy-agent/opa/issues/6930)) authored by @johanfylling
+- debug: Adding debugger SDK (#6877) ([#6876](https://github.com/open-policy-agent/opa/issues/6876)) authored by @johanfylling
+- distributedtracing: adding distributed tracing resource attributes ([#6492](https://github.com/open-policy-agent/opa/issues/6492)) authored by @brettmc reported by @lcarva
+- download: Fix saving OCI bundles on disk ([#6939](https://github.com/open-policy-agent/opa/issues/6939)) authored by @Sergey-Kizimov reported by @Sergey-Kizimov
+- fix: Support AWS_CONTAINER_CREDENTIALS_FULL_URI metadata endpoint ([#6893](https://github.com/open-policy-agent/opa/issues/6893)) authored by @mbamber reported by @mbamber
+- plugins/bundle: Avoid race during bundle reconfiguration and activation ([#6849](https://github.com/open-policy-agent/opa/issues/6849)) authored by @ashutosh-narkar reported by @Pushpalanka
+- plugins/bundle: Escape reserved chars used in persisted bundle directory name ([#6915](https://github.com/open-policy-agent/opa/issues/6915)) authored by @ashutosh-narkar reported by @alvarogomez93
+- test: Creating v1 yaml tests from existing v0 tests (#6924) ([#6864](https://github.com/open-policy-agent/opa/issues/6864)) authored by @johanfylling
+- topdown: Adding unification scope to virtual-cache key ([#6926](https://github.com/open-policy-agent/opa/issues/6926)) authored by @johanfylling
+- util+server: Fix bug around chunked request handling. (#6906) ([#6904](https://github.com/open-policy-agent/opa/issues/6904)) authored by @philipaconrad reported by @David-Wobrock
+
+### Miscellaneous
+
+- .github/workflows: Udpate CodeQL workflow contents perm (authored by @ashutosh-narkar)
+- .github/workflows: Update GHA token perms for CodeQL workflow (authored by @ashutosh-narkar)
+- Add documentation for OPA Spring Boot integration (authored by @charlieegan3)
+- CHANGELOG.md: add 'opa exec' format (#6928) (authored by @srenatus)
+- Integrate patch release v0.67.1 (#6914) (authored by @ashutosh-narkar)
+- Make it possible to only build wasm testcases (authored by @andreaTP)
+- Make type checker `copy` method copy all values (#6949) (authored by @anderseknert)
+- Prepare v0.68.0 development (authored by @ashutosh-narkar)
+- Update envoy-tutorial-istio.md (authored by @Pindar)
+- ast/parser: add hint to future-proof imports (#6968) (authored by @srenatus)
+- build(deps): bump actions/upload-artifact from 4.3.4 to 4.3.5 (#6913) (authored by @dependabot[bot])
+- build(deps): bump actions/upload-artifact from 4.3.5 to 4.3.6 (#6918) (authored by @dependabot[bot])
+- build(deps): bump docker/setup-buildx-action from 3.5.0 to 3.6.1 (authored by @dependabot[bot])
+- build(deps): bump github.com/containerd/containerd from 1.7.20 to 1.7.21 (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang (authored by @dependabot[bot])
+- build(deps): bump github.com/prometheus/client_golang from 1.19.1 to 1.20.0 (authored by @ashutosh-narkar)
+- build(deps): bump github.com/prometheus/client_golang from 1.20.1 to 1.20.2 (authored by @ashutosh-narkar)
+- build(deps): bump github/codeql-action from 3.25.14 to 3.25.15 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.25.15 to 3.26.0 (#6917) (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.26.0 to 3.26.1 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.26.1 to 3.26.2 (#6936) (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.26.2 to 3.26.3 (#6944) (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.26.3 to 3.26.4 (authored by @dependabot[bot])
+- build(deps): bump github/codeql-action from 3.26.4 to 3.26.5 (#6960) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/net from 0.27.0 to 0.28.0 (#6919) (authored by @dependabot[bot])
+- build(deps): bump golang.org/x/time from 0.5.0 to 0.6.0 (#6912) (authored by @dependabot[bot])
+- build(deps): bump google.golang.org/grpc from 1.65.0 to 1.66.0 (#6971) (authored by @dependabot[bot])
+- build(deps): bump ossf/scorecard-action from 2.3.3 to 2.4.0 (authored by @dependabot[bot])
+- builtins: Marshal JWT encode sign inputs as JSON (authored by @charlieegan3)
+- cmd/exec: remove "pretty" format (#6923) (authored by @srenatus)
+- docs: Update contrib docs (#6974) (authored by @charlieegan3)
+- docs: Update generated CLI docs (authored by @)
+- docs: add Lula to the OPA ecosystem (#6902) (authored by @brandtkeller)
+- docs: add github action policy testing automation (authored by @oycyc)
+- docs: mention `http.send` in inter-query cache config docs (#6953) (authored by @anderseknert)
+- fixed the token-pemission issue (authored by @harshitasao)
+- loader: Block reading of UNC paths (authored by @ashutosh-narkar)
+- typos and clarification on signing commits (#6940) (authored by @msorens)
 
 - allow OpenTelemetry resource attributes to be configured under distributed_tracing config
 
