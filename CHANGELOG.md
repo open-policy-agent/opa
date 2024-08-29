@@ -7,14 +7,27 @@ project adheres to [Semantic Versioning](http://semver.org/).
 
 This release contains a mix of features and bugfixes.
 
+### Security Fix: CVE-2024-8260 ([#6933](https://github.com/open-policy-agent/opa/pull/6933))
+
+This release includes a fix where OPA would accept UNC locations on Windows. Reading those could leak NTLM hashes. 
+The attack vector would include an adversary tricking the user in passing an UNC path to `opa eval -d $FILE`.
+UNC paths are now forbidden. If this is an issue for you, please reach out on Slack or GitHub issues.
+
+Reported by Shelly Raban
+Authored by @ashutosh-narkar
+
 ### Breaking Changes
 
-#### `entrypoint` annotation implies `document` scope
+#### `entrypoint` annotation implies `document` scope ([#6798](https://github.com/open-policy-agent/opa/issues/6798))
 
 The [entrypoint annotation's](https://www.openpolicyagent.org/docs/latest/policy-language/#entrypoint) scope requirement 
 has changed from `rule` to `document` ([https://github.com/open-policy-agent/opa/issues/6798](#6798)). 
 Furthermore, if no `scope` annotation is declared for a METADATA block preceding a rule, the presence of an `entrypoint` 
 annotation with a `true` value will assign the block a `document` scope, where the `rule` scope is otherwise the default.
+
+In practice, a rule entrypoint always point to the entire document and not a particular rule definition. The previous behavior was a bug, and one we've now addressed.
+
+Authored by @anderseknert
 
 ### CLI
 
@@ -23,7 +36,6 @@ annotation with a `true` value will assign the block a `document` scope, where t
 
 ### Topdown and Rego
 
-- ast: Change required scope of `entrypoint` from `rule` to `document` ([#6798](https://github.com/open-policy-agent/opa/issues/6798)) authored by @anderseknert
 - ast: Fixing nil-pointer dereference in compiler for partial rule edge case ([#6930](https://github.com/open-policy-agent/opa/issues/6930)) authored by @johanfylling
 - ast+parser: Add hint to future-proof imports ([6968](https://github.com/open-policy-agent/opa/pull/6968)) authored by @srenatus
 - topdown: Adding unification scope to virtual-cache key. Fixing issue where false positive cache hits can occur when unification "restricts" the scope of ref-head rule evaluation ([#6926](https://github.com/open-policy-agent/opa/issues/6926)) authored by @johanfylling reported by @anderseknert
@@ -36,7 +48,7 @@ annotation with a `true` value will assign the block a `document` scope, where t
 - debug: Adding experimental debugger SDK ([#6876](https://github.com/open-policy-agent/opa/issues/6876)) authored by @johanfylling
 - distributedtracing: allow OpenTelemetry resource attributes to be configured under distributed_tracing config ([#6942](https://github.com/open-policy-agent/opa/issues/6942)) authored and reported by @brettmc
 - download: Fixing issue when saving OCI bundles on disk ([#6939](https://github.com/open-policy-agent/opa/issues/6939)) authored and reported by @Sergey-Kizimov
-- loader: Block reading of UNC paths ([#6933](https://github.com/open-policy-agent/opa/pull/6933)) authored by @ashutosh-narkar
+- loader: Block reading of UNC paths  authored by 
 - logging: Always include HTTP request context in incoming req context ([#6951](https://github.com/open-policy-agent/opa/issues/6951)) authored by @ashutosh-narkar reported by @alvarogomez93
 - plugins/bundle: Avoid race-condition during bundle reconfiguration and activation ([#6849](https://github.com/open-policy-agent/opa/issues/6849)) authored by @ashutosh-narkar reported by @Pushpalanka
 - plugins/bundle: Escape reserved chars used in persisted bundle directory name ([#6915](https://github.com/open-policy-agent/opa/issues/6915)) authored by @ashutosh-narkar reported by @alvarogomez93
