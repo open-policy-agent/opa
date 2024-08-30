@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -2366,6 +2367,8 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		unknowns = []*ast.Term{ast.NewTerm(ast.InputRootRef)}
 	}
 
+	tracer := topdown.NewBufferTracer()
+
 	q := topdown.NewQuery(ectx.compiledQuery.query).
 		WithQueryCompiler(ectx.compiledQuery.compiler).
 		WithCompiler(r.compiler).
@@ -2385,7 +2388,9 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		WithInterQueryBuiltinCache(ectx.interQueryBuiltinCache).
 		WithStrictBuiltinErrors(ectx.strictBuiltinErrors).
 		WithSeed(ectx.seed).
-		WithPrintHook(ectx.printHook)
+		WithPrintHook(ectx.printHook).
+		WithQueryTracer(tracer)
+
 
 	if !ectx.time.IsZero() {
 		q = q.WithTime(ectx.time)
@@ -2467,7 +2472,7 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 			support[i].SetRegoVersion(r.regoVersion)
 		}
 	}
-
+	topdown.PrettyTraceWithLocation(os.Stdout, *tracer)
 	pq := &PartialQueries{
 		Queries: queries,
 		Support: support,

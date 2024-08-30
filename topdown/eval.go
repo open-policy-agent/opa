@@ -107,6 +107,17 @@ type eval struct {
 	tracingOpts            tracing.Options
 	findOne                bool
 	strictObjects          bool
+	inliningCacheList      inliningCacheList
+}
+
+type inliningCache struct {
+	rule          *ast.Rule
+	term         *ast.Term
+	termbindings *bindings
+}
+
+type inliningCacheList struct {
+	list []inliningCache
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -160,7 +171,7 @@ func (e *eval) closure(query ast.Body) *eval {
 	return &cpy
 }
 
-func (e *eval) child(query ast.Body) *eval {
+func (e *eval) child(query ast.Body, a ...bool) *eval {
 	cpy := *e
 	cpy.index = 0
 	cpy.query = query
@@ -168,6 +179,9 @@ func (e *eval) child(query ast.Body) *eval {
 	cpy.bindings = newBindings(cpy.queryID, e.instr)
 	cpy.parent = e
 	cpy.findOne = false
+	if len(a) == 0 {
+		cpy.inliningCacheList = inliningCacheList{}
+	}
 	return &cpy
 }
 
@@ -3003,7 +3017,11 @@ func (e evalVirtualComplete) eval(iter unifyIterator) error {
 		return e.partialEvalSupport(iter)
 	}
 
-	return e.partialEval(iter)
+	cpy := e
+	if e.e.parent != nil {
+		cpy.e = e.e.parent
+	}
+	return cpy.partialEval(iter)
 }
 
 func (e evalVirtualComplete) evalValue(iter unifyIterator, findOne bool) error {
@@ -3115,13 +3133,34 @@ func (e evalVirtualComplete) evalValueRule(iter unifyIterator, rule *ast.Rule, p
 func (e evalVirtualComplete) partialEval(iter unifyIterator) error {
 
 	for _, rule := range e.ir.Rules {
+		found := false
+
+		for _ , cache := range e.e.inliningCacheList.list {
+			if cache.rule.Equal(rule) {
+				found = true
+				err := e.evalTerm(iter, cache.term, cache.termbindings)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if found {
+			fmt.Printf("skipped %s\n", rule.Ref().String())
+			continue
+		}
+
 		child := e.e.child(rule.Body)
 		child.traceEnter(rule)
-
 		err := child.eval(func(child *eval) error {
 			child.traceExit(rule)
 			term, termbindings := child.bindings.apply(rule.Head.Value)
 
+			e.e.inliningCacheList.list = append(e.e.inliningCacheList.list, inliningCache{
+				rule:         rule,
+				term:         term,
+				termbindings: termbindings,
+			})
 			err := e.evalTerm(iter, term, termbindings)
 			if err != nil {
 				return err
