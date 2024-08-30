@@ -5114,11 +5114,16 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		{
 			module: `
 				package test
-				skip_with_target { a := 1; input := 2; data.p with input as a }
+				skip_with_target {
+					a := 1
+					input := 2
+					data.p with input as a
+					data.p with input.foo as a
+				}
 			`,
 			exp: `
 				package test
-				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__ }
+				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__; data.p with input.foo as __local0__ }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("a"),
@@ -5249,12 +5254,12 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				skip_with_target_in_assignment {
 					input := 1
-					a := [true | true with input as 2; true with input as 3]
+					a := [true | true with input as 2; true with input.foo as 3]
 				}
 			`,
 			exp: `
 				package test
-				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input as 3] }
+				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input.foo as 3] }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("input"),
