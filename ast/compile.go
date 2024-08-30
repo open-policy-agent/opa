@@ -5332,6 +5332,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)
 		case *With:
+			errs = rewriteDeclaredVarsInTermRecursive(g, stack, x.Target, errs, strict)
 			errs = rewriteDeclaredVarsInTermRecursive(g, stack, x.Value, errs, strict)
 			stop = true
 		}

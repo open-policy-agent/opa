@@ -5674,6 +5674,23 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "with: rewrite target",
+			module: `
+				package test
+				p {
+					x := "foo"
+					true with input[x] as 1
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local0__ = "foo";
+					true with input[__local0__] as 1
+				}
+			`,
+		},
+		{
 			note: "single-value rule with ref head",
 			module: `
 				package test
@@ -6035,6 +6052,26 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					every __local0__, __local1__ in __local2__ {
 						__local1__ = input
 					} with input as 2
+				}
+			`,
+		},
+		{
+			note: "rewrite every: with modifier on body, using every's key+value",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every x, y in input { true with data.test.q[x][y] as 100 }
+				}
+			`,
+			exp: `
+				package test
+				p {
+				    __local2__ = input
+					every __local0__, __local1__ in __local2__ {
+						true with data.test.q[__local0__][__local1__] as 100
+					}
 				}
 			`,
 		},
