@@ -86,12 +86,12 @@ func (s *Status) SetError(err error) {
 		s.Code = errCode
 		s.HTTPCode = json.Number(strconv.Itoa(httpError.StatusCode))
 		s.Message = err.Error()
-		s.Errors = nil
+		s.Errors = []error{}
 
 	default:
 		s.Code = errCode
 		s.HTTPCode = ""
 		s.Message = err.Error()
-		s.Errors = nil
+		s.Errors = []error{}
 	}
 }
