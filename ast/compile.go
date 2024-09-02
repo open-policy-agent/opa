@@ -5465,15 +5465,9 @@ func rewriteDeclaredVarsInTerm(g *localVarGenerator, stack *localDeclaredVars, t
 }
 
 func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclaredVars, term *Term, errs Errors, strict bool) Errors {
-	WalkNodes(term, func(n Node) bool {
+	WalkTerms(term, func(t *Term) bool {
 		var stop bool
-		switch n := n.(type) {
-		case *With:
-			// TODO(sr): add test exercising this, just added it because it felt right
-			stop, errs = true, rewriteDeclaredVarsInWithRecursive(g, stack, n, errs, strict)
-		case *Term:
-			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs, strict)
-		}
+		stop, errs = rewriteDeclaredVarsInTerm(g, stack, t, errs, strict)
 		return stop
 	})
 	return errs

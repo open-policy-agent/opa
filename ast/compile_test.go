@@ -5696,6 +5696,23 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "with: rewrite target in comprehension term",
+			module: `
+				package test
+				p {
+					input := "bar"
+					{ { 2 | true with input[input] as 1} | true }
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local0__ = "bar"
+					{__local1__ | true; __local1__ = { 2 | true with input[__local0__] as 1 }}
+				}
+			`,
+		},
+		{
 			note: "single-value rule with ref head",
 			module: `
 				package test
