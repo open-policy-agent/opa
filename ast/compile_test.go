@@ -5114,11 +5114,16 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 		{
 			module: `
 				package test
-				skip_with_target { a := 1; input := 2; data.p with input as a }
+				skip_with_target {
+					a := 1
+					input := 2
+					data.p with input as a
+					data.p with input.foo as a
+				}
 			`,
 			exp: `
 				package test
-				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__ }
+				skip_with_target = true { __local0__ = 1; __local1__ = 2; data.p with input as __local0__; data.p with input.foo as __local0__ }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("a"),
@@ -5249,12 +5254,12 @@ func TestCompilerRewriteLocalAssignments(t *testing.T) {
 				package test
 				skip_with_target_in_assignment {
 					input := 1
-					a := [true | true with input as 2; true with input as 3]
+					a := [true | true with input as 2; true with input.foo as 3]
 				}
 			`,
 			exp: `
 				package test
-				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input as 3] }
+				skip_with_target_in_assignment = true { __local0__ = 1; __local1__ = [true | true with input as 2; true with input.foo as 3] }
 			`,
 			expRewrittenMap: map[Var]Var{
 				Var("__local0__"): Var("input"),
@@ -5674,6 +5679,40 @@ func TestRewriteDeclaredVars(t *testing.T) {
 			`,
 		},
 		{
+			note: "with: rewrite target",
+			module: `
+				package test
+				p {
+					x := "foo"
+					true with input[x] as 1
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local0__ = "foo";
+					true with input[__local0__] as 1
+				}
+			`,
+		},
+		{
+			note: "with: rewrite target in comprehension term",
+			module: `
+				package test
+				p {
+					input := "bar"
+					{ { 2 | true with input[input] as 1} | true }
+				}
+			`,
+			exp: `
+				package test
+				p {
+					__local0__ = "bar"
+					{__local1__ | true; __local1__ = { 2 | true with input[__local0__] as 1 }}
+				}
+			`,
+		},
+		{
 			note: "single-value rule with ref head",
 			module: `
 				package test
@@ -6035,6 +6074,26 @@ func TestRewriteDeclaredVars(t *testing.T) {
 					every __local0__, __local1__ in __local2__ {
 						__local1__ = input
 					} with input as 2
+				}
+			`,
+		},
+		{
+			note: "rewrite every: with modifier on body, using every's key+value",
+			module: `
+				package test
+				# import future.keywords.in
+				# import future.keywords.every
+				p {
+					every x, y in input { true with data.test.q[x][y] as 100 }
+				}
+			`,
+			exp: `
+				package test
+				p {
+				    __local2__ = input
+					every __local0__, __local1__ in __local2__ {
+						true with data.test.q[__local0__][__local1__] as 100
+					}
 				}
 			`,
 		},
