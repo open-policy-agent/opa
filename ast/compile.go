@@ -5332,27 +5332,7 @@ func rewriteDeclaredVarsInExpr(g *localVarGenerator, stack *localDeclaredVars, e
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, x, errs, strict)
 		case *With:
-			// NOTE(sr): `with input as` and `with input.a.b.c as` are deliberately skipped here: `input` could
-			// have been shadowed by a local variable/argument but should NOT be replaced in the `with` target.
-			//
-			// We cannot drop `input` from the stack since it's conceivable to do `with input[input] as` where
-			// the second input is meant to be the local var. It's a terrible idea, but when you're shadowing
-			// `input` those might be your thing.
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, x.Target, errs, strict)
-			if sdwInput, ok := stack.Declared(InputRootDocument.Value.(Var)); ok {
-				switch value := x.Target.Value.(type) {
-				case Var:
-					if sdwInput.Equal(value) {
-						x.Target.Value = InputRootRef
-					}
-				case Ref:
-					if sdwInput.Equal(value[0].Value.(Var)) {
-						x.Target.Value.(Ref)[0].Value = InputRootDocument.Value
-					}
-				}
-			}
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, x.Value, errs, strict)
-			stop = true
+			stop, errs = true, rewriteDeclaredVarsInWithRecursive(g, stack, x, errs, strict)
 		}
 		return stop
 	})
@@ -5490,15 +5470,37 @@ func rewriteDeclaredVarsInTermRecursive(g *localVarGenerator, stack *localDeclar
 		switch n := n.(type) {
 		case *With:
 			// TODO(sr): add test exercising this, just added it because it felt right
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, n.Target, errs, strict)
-			errs = rewriteDeclaredVarsInTermRecursive(g, stack, n.Value, errs, strict)
-			stop = true
+			stop, errs = true, rewriteDeclaredVarsInWithRecursive(g, stack, n, errs, strict)
 		case *Term:
 			stop, errs = rewriteDeclaredVarsInTerm(g, stack, n, errs, strict)
 		}
 		return stop
 	})
 	return errs
+}
+
+func rewriteDeclaredVarsInWithRecursive(g *localVarGenerator, stack *localDeclaredVars, w *With, errs Errors, strict bool) Errors {
+	// NOTE(sr): `with input as` and `with input.a.b.c as` are deliberately skipped here: `input` could
+	// have been shadowed by a local variable/argument but should NOT be replaced in the `with` target.
+	//
+	// We cannot drop `input` from the stack since it's conceivable to do `with input[input] as` where
+	// the second input is meant to be the local var. It's a terrible idea, but when you're shadowing
+	// `input` those might be your thing.
+	errs = rewriteDeclaredVarsInTermRecursive(g, stack, w.Target, errs, strict)
+	if sdwInput, ok := stack.Declared(InputRootDocument.Value.(Var)); ok { // Was "input" shadowed...
+		switch value := w.Target.Value.(type) {
+		case Var:
+			if sdwInput.Equal(value) { // ...and replaced? If so, fix it
+				w.Target.Value = InputRootRef
+			}
+		case Ref:
+			if sdwInput.Equal(value[0].Value.(Var)) {
+				w.Target.Value.(Ref)[0].Value = InputRootDocument.Value
+			}
+		}
+	}
+	// No special handling of the `with` value
+	return rewriteDeclaredVarsInTermRecursive(g, stack, w.Value, errs, strict)
 }
 
 func rewriteDeclaredVarsInArrayComprehension(g *localVarGenerator, stack *localDeclaredVars, v *ArrayComprehension, errs Errors, strict bool) Errors {
