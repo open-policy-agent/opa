@@ -1999,13 +1999,13 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
-		import rego.v1
 
 		p := true`,
 		"policy.rego": `package policy
 
 		authz := true`,
 		"mask.rego": `package system.log
+		import rego.v1
 
 		mask contains "/input/password"`,
 	}
@@ -2030,7 +2030,7 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 
 			expManifest := bundle.Manifest{}
 			expManifest.Init()
-			expManifest.SetRegoVersion(ast.RegoV1)
+			expManifest.SetRegoVersion(ast.DefaultRegoVersion)
 			expManifest.WasmResolvers = []bundle.WasmResolver{
 				{
 					Entrypoint: "test/p",
