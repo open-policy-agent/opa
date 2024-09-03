@@ -473,7 +473,6 @@ func TestCompilerBundleMergeWithBundleRegoVersion(t *testing.T) {
 					Modules: []bundle.ModuleFile{},
 				},
 			},
-			//expGlobalRegoVersion: pointTo(0),
 			expGlobalRegoVersion: pointTo(ast.DefaultRegoVersion.Int()),
 			expFileRegoVersions:  map[string]int{},
 		},
@@ -1096,7 +1095,7 @@ func TestCompilerOptimizationL1(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			import rego.v1
+			
 			default p := false
 			p if { q }
 			q if { input.x = data.foo }`,
@@ -1108,6 +1107,7 @@ func TestCompilerOptimizationL1(t *testing.T) {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
 			compiler := New().
+				WithRegoVersion(ast.RegoV1).
 				WithFS(fsys).
 				WithPaths(root).
 				WithOptimizationLevel(1).
@@ -1999,6 +1999,7 @@ func TestCompilerWasmTargetWithCapabilitiesMismatch(t *testing.T) {
 func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `package test
+		import rego.v1
 
 		p := true`,
 		"policy.rego": `package policy
@@ -2013,7 +2014,6 @@ func TestCompilerWasmTargetMultipleEntrypoints(t *testing.T) {
 		test.WithTestFS(files, useMemoryFS, func(root string, fsys fs.FS) {
 
 			compiler := New().
-				WithRegoVersion(ast.RegoV1).
 				WithFS(fsys).
 				WithPaths(root).
 				WithTarget("wasm").
