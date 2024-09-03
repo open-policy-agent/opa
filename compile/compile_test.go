@@ -2752,10 +2752,10 @@ func TestCompilerSetRoots(t *testing.T) {
 
 func TestCompilerOutput(t *testing.T) {
 	// NOTE(tsandall): must use format package here because the compiler formats.
+	mod := ast.MustParseModuleWithOpts(`package test
+		p { input.x = data.foo }`, ast.ParserOptions{RegoVersion: ast.RegoV0})
 	files := map[string]string{
-		"test.rego": string(format.MustAst(ast.MustParseModule(`package test
-
-		p { input.x = data.foo }`))),
+		"test.rego": string(format.MustAstWithOpts(mod, format.Opts{RegoVersion: ast.RegoV0})),
 		"data.json": `{"foo": 1}`,
 		".manifest": `{"rego_version": 0}`,
 	}
@@ -2765,6 +2765,7 @@ func TestCompilerOutput(t *testing.T) {
 
 			buf := bytes.NewBuffer(nil)
 			compiler := New().
+				WithAsBundle(true). // To respect the manifest file.
 				WithFS(fsys).
 				WithPaths(root).
 				WithOutput(buf)

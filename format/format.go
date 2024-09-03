@@ -52,7 +52,7 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	} else {
 		if opts.RegoVersion == ast.RegoV1 {
 			// If the rego version is V1, we need to parse it as such, to allow for future keywords not being imported.
-			// Otherwise, we'll default to RegoV0
+			// Otherwise, we'll default to the default rego-version.
 			parserOpts.RegoVersion = ast.RegoV1
 		}
 	}
@@ -86,6 +86,16 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 // occurs this function will panic. This is mostly used for test
 func MustAst(x interface{}) []byte {
 	bs, err := Ast(x)
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}
+
+// MustAstWithOpts is a helper function to format a Rego AST element. If any errors
+// occurs this function will panic. This is mostly used for test
+func MustAstWithOpts(x interface{}, opts Opts) []byte {
+	bs, err := AstWithOpts(x, opts)
 	if err != nil {
 		panic(err)
 	}
