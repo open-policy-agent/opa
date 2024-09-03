@@ -1615,6 +1615,7 @@ update {
 					}
 
 					compiler := New().
+						WithRegoVersion(ast.RegoV0).
 						WithFS(fsys).
 						WithPaths(root).
 						WithOptimizationLevel(1).

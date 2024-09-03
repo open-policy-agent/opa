@@ -1107,6 +1107,7 @@ func (o *optimizer) getSupportForEntrypoint(queries []ast.Body, e *ast.Term, res
 	path := e.Value.(ast.Ref)
 	name := ast.Var(path[len(path)-1].Value.(ast.String))
 	module := &ast.Module{Package: &ast.Package{Path: path[:len(path)-1]}}
+	module.SetRegoVersion(o.regoVersion)
 
 	for _, query := range queries {
 		// NOTE(tsandall): when the query refers to the original entrypoint, throw it
