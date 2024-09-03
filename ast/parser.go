@@ -30,6 +30,8 @@ var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
 
+const DefaultRegoVersion = RegoVersion(0)
+
 const (
 	// RegoV0 is the default, original Rego syntax.
 	RegoV0 RegoVersion = iota

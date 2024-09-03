@@ -168,9 +168,12 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 			note: "builtins",
 			module: `
 				package x
-				p { array.reverse([1,2,3]) }
+
+                import rego.v1
+
+				p  if { array.reverse([1,2,3]) }
 			`,
-			version: "0.36.0",
+			version: "0.59.0",
 		},
 		{
 			note: "keywords",
@@ -219,7 +222,12 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			c := MustCompileModules(map[string]string{"test.rego": tc.module})
+			c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, CompileOpts{
+				ParserOptions: ParserOptions{
+					RegoVersion: DefaultRegoVersion,
+				},
+			})
+
 			minVersion, found := c.Required.MinimumCompatibleVersion()
 			if !found || minVersion != tc.version {
 				t.Fatal("expected", tc.version, "but got", minVersion)
