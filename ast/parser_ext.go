@@ -123,6 +123,16 @@ func MustParseRule(input string) *Rule {
 	return parsed
 }
 
+// MustParseRuleWithOpts returns a parsed rule.
+// If an error occurs during parsing, panic.
+func MustParseRuleWithOpts(input string, opts ParserOptions) *Rule {
+	parsed, err := ParseRuleWithOpts(input, opts)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseTerm returns a parsed term.
 // If an error occurs during parsing, panic.
 func MustParseTerm(input string) *Term {
