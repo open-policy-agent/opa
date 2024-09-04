@@ -122,3 +122,17 @@ func TestInvalidYAMLValidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUnmarshalJSONUTF8BOM(t *testing.T) {
+	bomFail := []byte{0xef, 0xbb, 0xbf, 0x22, 0x5c, 0x2f, 0x22, 0x0a} // "\/" preceded by UTF-8 BOM
+
+	if json.Valid(bomFail) {
+		t.Fatal("expected invalid JSON")
+	}
+
+	var x any
+	err := util.Unmarshal(bomFail, &x)
+	if err != nil {
+		t.Fatal("expected BOM to be stripped", err)
+	}
+}
