@@ -50,8 +50,10 @@ func TestParserCapabilitiesWithSpecificOptInAndOlderOPA(t *testing.T) {
 		}
 	`
 
-	var opts ParserOptions
-	opts.Capabilities = &Capabilities{}
+	opts := ParserOptions{
+		Capabilities: &Capabilities{},
+		RegoVersion:  RegoV0,
+	}
 
 	_, err := ParseModuleWithOpts("test.rego", src, opts)
 	if err == nil {
@@ -74,8 +76,10 @@ func TestParserCapabilitiesWithWildcardOptInAndOlderOPA(t *testing.T) {
 			1 in [3,2,1]
 		}
 	`
-	var opts ParserOptions
-	opts.Capabilities = &Capabilities{}
+	opts := ParserOptions{
+		Capabilities: &Capabilities{},
+		RegoVersion:  RegoV0,
+	}
 
 	_, err := ParseModuleWithOpts("test.rego", src, opts)
 	if err == nil {
@@ -219,7 +223,11 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			c := MustCompileModules(map[string]string{"test.rego": tc.module})
+			c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, CompileOpts{
+				ParserOptions: ParserOptions{
+					RegoVersion: RegoV0,
+				},
+			})
 			minVersion, found := c.Required.MinimumCompatibleVersion()
 			if !found || minVersion != tc.version {
 				t.Fatal("expected", tc.version, "but got", minVersion)
