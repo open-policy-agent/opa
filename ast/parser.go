@@ -688,6 +688,10 @@ func (p *Parser) parseRules() []*Rule {
 
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
+		if !rule.Head.Ref()[1].IsGround() && len(rule.Head.Args) == 0 {
+			rule.Head.Key = rule.Head.Ref()[1]
+		}
+
 		if rule.Head.Value == nil {
 			rule.Head.generatedValue = true
 			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
