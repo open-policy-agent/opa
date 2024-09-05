@@ -2431,14 +2431,10 @@ func (r *Rego) partial(ctx context.Context, ectx *EvalContext) (*PartialQueries,
 		return nil, err
 	}
 
+	// If the target rego-version is v0, and the rego.v1 import is available, then we attempt to apply it to support modules.
 	if r.regoVersion == ast.RegoV0 && (r.capabilities == nil || r.capabilities.ContainsFeature(ast.FeatureRegoV1Import)) {
-		// If the target rego-version in v0, and the rego.v1 import is available, then we attempt to apply it to support modules.
 
 		for i, mod := range support {
-			if mod.RegoVersion() != ast.RegoV0 {
-				continue
-			}
-
 			// We can't apply the RegoV0CompatV1 version to the support module if it contains rules or vars that
 			// conflict with future keywords.
 			applyRegoVersion := true

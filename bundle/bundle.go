@@ -200,7 +200,10 @@ func (m Manifest) Equal(other Manifest) bool {
 	if m.RegoVersion != nil && other.RegoVersion != nil && *m.RegoVersion != *other.RegoVersion {
 		return false
 	}
-	if !reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
+
+	// If both are nil, or both are empty, we consider them equal.
+	if !(len(m.FileRegoVersions) == 0 && len(other.FileRegoVersions) == 0) &&
+		!reflect.DeepEqual(m.FileRegoVersions, other.FileRegoVersions) {
 		return false
 	}
 
@@ -1092,6 +1095,9 @@ func (b *Bundle) FormatModulesForRegoVersion(version ast.RegoVersion, preserveMo
 		opts := format.Opts{}
 		if preserveModuleRegoVersion {
 			opts.RegoVersion = module.Parsed.RegoVersion()
+			opts.ParserOptions = &ast.ParserOptions{
+				RegoVersion: opts.RegoVersion,
+			}
 		} else {
 			opts.RegoVersion = version
 		}
