@@ -1,0 +1,3 @@
+package crlf
+
+allow := true

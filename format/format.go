@@ -57,6 +57,10 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 		}
 	}
 
+	// if any of the lines in the source code end with "\r\n", we will use that
+	// as the line ending in the formatted code.
+	useCRLF := strings.Contains(string(src), "\r\n")
+
 	module, err := ast.ParseModuleWithOpts(filename, string(src), parserOpts)
 	if err != nil {
 		return nil, err
@@ -77,6 +81,10 @@ func SourceWithOpts(filename string, src []byte, opts Opts) ([]byte, error) {
 	formatted, err := AstWithOpts(module, opts)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", filename, err)
+	}
+
+	if useCRLF {
+		return bytes.ReplaceAll(formatted, []byte("\n"), []byte("\r\n")), nil
 	}
 
 	return formatted, nil

@@ -1,0 +1,2 @@
+format/testfiles/crlf.rego text eol=crlf
+format/testfiles/crlf.rego.formatted text eol=crlf
