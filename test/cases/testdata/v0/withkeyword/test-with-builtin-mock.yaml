@@ -450,3 +450,38 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
+  - modules:
+      - |
+        package test
+        p {
+          my_var := 1
+          q with count as my_var
+        }
+        q {
+          r
+        }
+        r {
+          count([1,2,3]) == 1
+        }
+    note: "withkeyword/builtin: indirect call, arity 1, replacement is local variable"
+    query: data.test.p = x
+    want_result:
+      - x: true
+  - modules:
+      - |
+        package test
+        f(1) = 2
+        p {
+          my_var := 1
+          q with f as my_var
+        }
+        q {
+          r
+        }
+        r {
+          f(1) == 1
+        }
+    note: "withkeyword/function: indirect call, arity 1, replacement is local variable"
+    query: data.test.p = x
+    want_result:
+      - x: true
