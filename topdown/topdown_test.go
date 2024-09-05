@@ -2119,6 +2119,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	// add an inter-query cache
 	config, _ := iCache.ParseCachingConfig(nil)
 	interQueryCache := iCache.NewInterQueryCache(config)
+	interQueryValueCache := iCache.NewInterQueryValueCache(ctx, config)
 
 	var strictBuiltinErrors bool
 
@@ -2133,6 +2134,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 		WithTransaction(txn).
 		WithInput(inputTerm).
 		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache).
 		WithStrictBuiltinErrors(strictBuiltinErrors)
 
 	var tracer BufferTracer
@@ -2212,13 +2214,15 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	// add an inter-query cache
 	config, _ := iCache.ParseCachingConfig(nil)
 	interQueryCache := iCache.NewInterQueryCache(config)
+	interQueryValueCache := iCache.NewInterQueryValueCache(ctx, config)
 
 	partialQuery := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
 		WithTransaction(txn).
-		WithInterQueryBuiltinCache(interQueryCache)
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache)
 
 	partials, support, err := partialQuery.PartialRun(ctx)
 
@@ -2251,7 +2255,8 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(input).
-		WithInterQueryBuiltinCache(interQueryCache)
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache)
 
 	qrs, err := query.Run(ctx)
 	if err != nil {
