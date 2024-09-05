@@ -1225,16 +1225,16 @@ func TestCheckRefErrInvalid(t *testing.T) {
 
 func TestFunctionsTypeInference(t *testing.T) {
 	functions := []string{
-		`foo([a, b]) = y { split(a, b, y) }`,
-		`bar(x) = y { count(x, y) }`,
-		`baz([x, y]) = z { sprintf("%s%s", [x, y], z) }`,
-		`qux({"bar": x, "foo": y}) = {a: b} { upper(y, a); json.unmarshal(x, b) }`,
-		`corge(x) = y { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
+		`foo([a, b]) = y if { split(a, b, y) }`,
+		`bar(x) = y if { count(x, y) }`,
+		`baz([x, y]) = z if { sprintf("%s%s", [x, y], z) }`,
+		`qux({"bar": x, "foo": y}) = {a: b} if { upper(y, a); json.unmarshal(x, b) }`,
+		`corge(x) = y if { qux({"bar": x, "foo": x}, a); baz([a["{5: true}"], "BUZ"], y) }`,
 	}
 	body := strings.Join(functions, "\n")
 	base := fmt.Sprintf("package base\n%s", body)
 
-	popts := ParserOptions{RegoVersion: RegoV0}
+	popts := ParserOptions{AllFutureKeywords: true}
 
 	c := NewCompiler()
 	if c.Compile(map[string]*Module{"base": MustParseModuleWithOpts(base, popts)}); c.Failed() {
@@ -1246,59 +1246,59 @@ func TestFunctionsTypeInference(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			`fn(_) = y { data.base.foo(["hello", 5], y) }`,
+			`fn(_) = y if { data.base.foo(["hello", 5], y) }`,
 			true,
 		},
 		{
-			`fn(_) = y { data.base.foo(["hello", "ll"], y) }`,
+			`fn(_) = y if { data.base.foo(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz(["hello", "ll"], y) }`,
+			`fn(_) = y if { data.base.baz(["hello", "ll"], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz([5, ["foo", "bar", true]], y) }`,
+			`fn(_) = y if { data.base.baz([5, ["foo", "bar", true]], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.baz(["hello", {"a": "b", "c": 3}], y) }`,
+			`fn(_) = y if { data.base.baz(["hello", {"a": "b", "c": 3}], y) }`,
 			false,
 		},
 		{
-			`fn(_) = y { data.base.corge("this is not json", y) }`,
+			`fn(_) = y if { data.base.corge("this is not json", y) }`,
 			false,
 		},
 		{
-			`fn(x) = y { data.non_existent(x, a); y = a[0] }`,
+			`fn(x) = y if { data.non_existent(x, a); y = a[0] }`,
 			true,
 		},
 		{
-			`fn(x) = y { y = [x] }`,
+			`fn(x) = y if { y = [x] }`,
 			false,
 		},
 		{
-			`f(x) = y { [x] = y }`,
+			`f(x) = y if { [x] = y }`,
 			false,
 		},
 		{
-			`fn(x) = y { y = {"k": x} }`,
+			`fn(x) = y if { y = {"k": x} }`,
 			false,
 		},
 		{
-			`f(x) = y { {"k": x} = y }`,
+			`f(x) = y if { {"k": x} = y }`,
 			false,
 		},
 		{
-			`p { [data.base.foo] }`,
+			`p if { [data.base.foo] }`,
 			true,
 		},
 		{
-			`p { x = data.base.foo }`,
+			`p if { x = data.base.foo }`,
 			true,
 		},
 		{
-			`p { data.base.foo(data.base.bar) }`,
+			`p if { data.base.foo(data.base.bar) }`,
 			true,
 		},
 	}
