@@ -278,18 +278,22 @@ func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) 
 	// if using the AWS_CONTAINER_CREDENTIALS_FULL_URI variable, we need to associate the token
 	// to the request
 	if _, useFullPath := os.LookupEnv(ecsFullPathEnvVar); useFullPath {
-		token, tokenExists := os.LookupEnv(ecsAuthorizationTokenEnvVar)
-		// If token doesn't exist as an env var check if it exists on the file system (e.g. for pod identities)
-		if !tokenExists {
-			tokenFilePath, tokenFilePathExists := os.LookupEnv(ecsAuthorizationTokenFileEnvVar)
-			if !tokenFilePathExists {
-				return errors.New("unable to get ECS metadata authorization token")
-			}
+		var token string
+		tokenFilePath, tokenFilePathExists := os.LookupEnv(ecsAuthorizationTokenFileEnvVar)
+
+		if tokenFilePathExists {
 			tokenBytes, err := os.ReadFile(tokenFilePath)
 			if err != nil {
 				return errors.New("failed to read ECS metadata authorization token from file: " + err.Error())
 			}
 			token = string(tokenBytes)
+			// If token doesn't exist as a file check if it exists as an environment variable
+		} else {
+			var tokenExists bool
+			token, tokenExists = os.LookupEnv(ecsAuthorizationTokenEnvVar)
+			if !tokenExists {
+				return errors.New("unable to get ECS metadata authorization token")
+			}
 		}
 		req.Header.Set("Authorization", token)
 	}
