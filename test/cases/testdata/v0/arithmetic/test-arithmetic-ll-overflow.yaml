@@ -8,7 +8,7 @@ cases:
         p {
           9223372036854775808 > 1
         }
-    note: ll overflow 
+    note: ll overflow
     query: data.test.p = x
     want_result:
       - x: true
@@ -18,7 +18,7 @@ cases:
         package test
 
         p {
-          18446744073709551617 > 1 
+          18446744073709551617 > 1
         }
     note: ll overflow (2)
     query: data.test.p = x
@@ -30,7 +30,7 @@ cases:
         package test
 
         p {
-          99999999999999999999999999999999 > 1 
+          99999999999999999999999999999999 > 1
         }
     note: ll overflow (2)
     query: data.test.p = x
