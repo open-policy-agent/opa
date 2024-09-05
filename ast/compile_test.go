@@ -3493,7 +3493,7 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
-// FIXME: prepare for 1.0
+// FIXME(v1-test-refactor): prepare for 1.0
 func TestCompileRegoV1Import(t *testing.T) {
 	cases := []struct {
 		note           string
@@ -9420,7 +9420,7 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 	}
 }
 
-// FIXME: split into one for v0 and one for v1?
+// FIXME(v1-test-refactor): split into one for v0 and one for v1?
 func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -10859,7 +10859,7 @@ func modules(ms ...string) []*Module {
 	return mods
 }
 
-// In OPA 1.0, a call to here can be replaced with a call to MustParseModule.
+// FIXME(v1-test-refactor): In OPA 1.0, a call to here can be replaced with a call to MustParseModule.
 func module(raw string, opts ...func(ParserOptions) ParserOptions) *Module {
 	popts := ParserOptions{
 		AllFutureKeywords:  true,
