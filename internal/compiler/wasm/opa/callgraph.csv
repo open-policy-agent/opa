@@ -749,12 +749,12 @@ opa_set_get,opa_value_hash
 opa_set_get,opa_value_compare
 opa_number_try_int,opa_atoi64
 opa_number_try_int,opa_abort
-opa_value_get,opa_abort
 opa_value_get,opa_atoi64
 opa_value_get,opa_value_hash
 opa_value_get,opa_value_compare
-opa_value_compare_number,opa_atoi64
+opa_value_get,opa_abort
 opa_value_compare_number,opa_abort
+opa_value_compare_number,opa_atoi64
 opa_value_compare_number,opa_number_to_bf
 opa_value_compare_number,mpd_qcmp
 opa_value_compare_number,mpd_del
@@ -779,10 +779,10 @@ opa_value_compare_set,opa_value_compare_set
 opa_value_compare_set,opa_abort
 opa_number_hash,opa_atof64
 opa_number_hash,opa_abort
-opa_value_iter,opa_abort
 opa_value_iter,opa_atoi64
 opa_value_iter,opa_value_hash
 opa_value_iter,opa_value_compare
+opa_value_iter,opa_abort
 opa_object_keys,opa_malloc
 opa_object_keys,opa_free
 opa_object_keys,opa_value_compare
@@ -817,7 +817,6 @@ opa_value_merge,opa_malloc
 opa_value_merge,opa_value_get
 opa_value_merge,__opa_object_insert
 opa_value_merge,opa_value_merge
-opa_value_merge,opa_abort
 opa_value_merge,opa_atoi64
 opa_value_merge,opa_value_hash
 opa_value_merge,opa_value_compare_number
@@ -825,6 +824,7 @@ opa_value_merge,opa_strncmp
 opa_value_merge,opa_value_compare
 opa_value_merge,opa_value_compare_object
 opa_value_merge,opa_value_compare_set
+opa_value_merge,opa_abort
 __opa_object_insert,opa_value_hash
 __opa_object_insert,opa_value_compare
 __opa_object_insert,__opa_value_free
@@ -904,8 +904,8 @@ opa_value_remove_path,opa_value_get
 opa_value_remove_path,opa_object_remove
 opa_lookup,opa_value_get
 opa_lookup,opa_value_iter
-opa_lookup,opa_atoi64
 opa_lookup,opa_abort
+opa_lookup,opa_atoi64
 opa_mapping_init,opa_json_parse
 opa_mapping_lookup,opa_lookup
 node::re2\28std::__1::basic_string<char\2c\20std::__1::char_traits<char>\2c\20std::__1::allocator<char>\20>\20const&\29,std::__1::basic_string<char\2c\20std::__1::char_traits<char>\2c\20std::__1::allocator<char>\20>::assign\28char\20const*\29

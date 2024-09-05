@@ -1,4 +1,5 @@
 #include "string.h"
+#include "limits.h"
 
 size_t opa_strlen(const char *s)
 {
@@ -167,6 +168,11 @@ int opa_atoi64(const char *str, int len, long long *result)
         if (!opa_isdigit(str[i]))
         {
             return -2;
+        }
+
+        if (n > (LLONG_MAX - (str[i] - '0')) / 10)
+        {
+            return -1;
         }
 
         n = (n * 10) + (long long)(str[i] - '0');
