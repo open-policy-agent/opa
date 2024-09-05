@@ -367,13 +367,14 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		inliningControl: &inliningControl{
 			shallow: q.shallowInlining,
 		},
-		genvarprefix:  q.genvarprefix,
-		runtime:       q.runtime,
-		indexing:      q.indexing,
-		earlyExit:     q.earlyExit,
-		builtinErrors: &builtinErrors{},
-		printHook:     q.printHook,
-		strictObjects: q.strictObjects,
+		genvarprefix:      q.genvarprefix,
+		runtime:           q.runtime,
+		indexing:          q.indexing,
+		earlyExit:         q.earlyExit,
+		builtinErrors:     &builtinErrors{},
+		printHook:         q.printHook,
+		strictObjects:     q.strictObjects,
+		inliningCacheList: inliningCacheList{},
 	}
 
 	if len(q.disableInlining) > 0 {
@@ -404,7 +405,6 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 	p := copypropagation.New(livevars).WithCompiler(q.compiler)
 
 	err = e.Run(func(e *eval) error {
-
 		// Build output from saved expressions.
 		body := ast.NewBody()
 
@@ -552,6 +552,7 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		printHook:              q.printHook,
 		tracingOpts:            q.tracingOpts,
 		strictObjects:          q.strictObjects,
+		inliningCacheList:      inliningCacheList{},
 	}
 	e.caller = e
 	q.metrics.Timer(metrics.RegoQueryEval).Start()
