@@ -12,7 +12,7 @@ cases:
     query: data.test.p = x
     want_result:
       - x: true
-- data: {}
+  - data: {}
     modules:
       - |
         package test
