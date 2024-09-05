@@ -6,6 +6,7 @@ package authorizer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -514,6 +515,43 @@ func TestInterQueryCache(t *testing.T) {
 	if count != 1 {
 		t.Error("Expected http.send response to be cached")
 	}
+}
+
+func TestInterQueryValueCache(t *testing.T) {
+
+	compiler := func() *ast.Compiler {
+		module := `
+        package system.authz
+        import rego.v1
+
+		allow if {
+			regex.match("foo.*", "foobar")
+		}`
+		c := ast.NewCompiler()
+		c.Compile(map[string]*ast.Module{
+			"test.rego": ast.MustParseModule(module),
+		})
+		if c.Failed() {
+			t.Fatalf("Unexpected error compiling test module: %v", c.Errors)
+		}
+		return c
+	}
+
+	recorder := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8181/v1/data", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryValueCache := cache.NewInterQueryValueCache(context.Background(), config)
+
+	basic := NewBasic(&mockHandler{}, compiler, inmem.New(), InterQueryValueCache(interQueryValueCache), Decision(func() ast.Ref {
+		return ast.MustParseRef("data.system.authz.allow")
+	}))
+
+	// Execute the policy
+	basic.ServeHTTP(recorder, req)
 }
 
 func Equal(a, b []string) bool {

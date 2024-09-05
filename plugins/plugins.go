@@ -576,7 +576,7 @@ func (m *Manager) Labels() map[string]string {
 	return m.Config.Labels
 }
 
-// InterQueryBuiltinCacheConfig returns the configuration for the inter-query cache.
+// InterQueryBuiltinCacheConfig returns the configuration for the inter-query caches.
 func (m *Manager) InterQueryBuiltinCacheConfig() *cache.Config {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()

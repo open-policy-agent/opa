@@ -111,42 +111,43 @@ type Server struct {
 	Handler           http.Handler
 	DiagnosticHandler http.Handler
 
-	router                 *mux.Router
-	addrs                  []string
-	diagAddrs              []string
-	h2cEnabled             bool
-	authentication         AuthenticationScheme
-	authorization          AuthorizationScheme
-	cert                   *tls.Certificate
-	tlsConfigMtx           sync.RWMutex
-	certFile               string
-	certFileHash           []byte
-	certKeyFile            string
-	certKeyFileHash        []byte
-	certRefresh            time.Duration
-	certPool               *x509.CertPool
-	certPoolFile           string
-	certPoolFileHash       []byte
-	minTLSVersion          uint16
-	mtx                    sync.RWMutex
-	partials               map[string]rego.PartialResult
-	preparedEvalQueries    *cache
-	store                  storage.Store
-	manager                *plugins.Manager
-	decisionIDFactory      func() string
-	logger                 func(context.Context, *Info) error
-	errLimit               int
-	pprofEnabled           bool
-	runtime                *ast.Term
-	httpListeners          []httpListener
-	metrics                Metrics
-	defaultDecisionPath    string
-	interQueryBuiltinCache iCache.InterQueryCache
-	allPluginsOkOnce       bool
-	distributedTracingOpts tracing.Options
-	ndbCacheEnabled        bool
-	unixSocketPerm         *string
-	cipherSuites           *[]uint16
+	router                      *mux.Router
+	addrs                       []string
+	diagAddrs                   []string
+	h2cEnabled                  bool
+	authentication              AuthenticationScheme
+	authorization               AuthorizationScheme
+	cert                        *tls.Certificate
+	tlsConfigMtx                sync.RWMutex
+	certFile                    string
+	certFileHash                []byte
+	certKeyFile                 string
+	certKeyFileHash             []byte
+	certRefresh                 time.Duration
+	certPool                    *x509.CertPool
+	certPoolFile                string
+	certPoolFileHash            []byte
+	minTLSVersion               uint16
+	mtx                         sync.RWMutex
+	partials                    map[string]rego.PartialResult
+	preparedEvalQueries         *cache
+	store                       storage.Store
+	manager                     *plugins.Manager
+	decisionIDFactory           func() string
+	logger                      func(context.Context, *Info) error
+	errLimit                    int
+	pprofEnabled                bool
+	runtime                     *ast.Term
+	httpListeners               []httpListener
+	metrics                     Metrics
+	defaultDecisionPath         string
+	interQueryBuiltinCache      iCache.InterQueryCache
+	interQueryBuiltinValueCache iCache.InterQueryValueCache
+	allPluginsOkOnce            bool
+	distributedTracingOpts      tracing.Options
+	ndbCacheEnabled             bool
+	unixSocketPerm              *string
+	cipherSuites                *[]uint16
 }
 
 // Metrics defines the interface that the server requires for recording HTTP
@@ -748,7 +749,8 @@ func (s *Server) initHandlerAuthz(handler http.Handler) http.Handler {
 			authorizer.Decision(s.manager.Config.DefaultAuthorizationDecisionRef),
 			authorizer.PrintHook(s.manager.PrintHook()),
 			authorizer.EnablePrintStatements(s.manager.EnablePrintStatements()),
-			authorizer.InterQueryCache(s.interQueryBuiltinCache))
+			authorizer.InterQueryCache(s.interQueryBuiltinCache),
+			authorizer.InterQueryValueCache(s.interQueryBuiltinValueCache))
 
 		if s.metrics != nil {
 			handler = s.instrumentHandler(handler.ServeHTTP, PromHandlerAPIAuthz)
@@ -800,7 +802,12 @@ func (s *Server) initRouters(ctx context.Context) {
 	diagRouter := mux.NewRouter()
 
 	// authorizer, if configured, needs the iCache to be set up already
-	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, s.manager.InterQueryBuiltinCacheConfig())
+
+	cacheConfig := s.manager.InterQueryBuiltinCacheConfig()
+
+	s.interQueryBuiltinCache = iCache.NewInterQueryCacheWithContext(ctx, cacheConfig)
+	s.interQueryBuiltinValueCache = iCache.NewInterQueryValueCache(ctx, cacheConfig)
+
 	s.manager.RegisterCacheTrigger(s.updateCacheConfig)
 
 	// Add authorization handler. This must come BEFORE authentication handler
@@ -933,6 +940,7 @@ func (s *Server) execQuery(ctx context.Context, br bundleRevisions, txn storage.
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.PrintHook(s.manager.PrintHook()),
 		rego.EnablePrintStatements(s.manager.EnablePrintStatements()),
 		rego.DistributedTracingOpts(s.distributedTracingOpts),
@@ -1121,6 +1129,7 @@ func (s *Server) v0QueryPath(w http.ResponseWriter, r *http.Request, urlPath str
 		rego.EvalParsedInput(input),
 		rego.EvalMetrics(m),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
 
@@ -1402,6 +1411,7 @@ func (s *Server) v1CompilePost(w http.ResponseWriter, r *http.Request) {
 		rego.Runtime(s.runtime),
 		rego.UnsafeBuiltins(unsafeBuiltinsMap),
 		rego.InterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.InterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.PrintHook(s.manager.PrintHook()),
 	)
 
@@ -1541,6 +1551,7 @@ func (s *Server) v1DataGet(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
@@ -1760,6 +1771,7 @@ func (s *Server) v1DataPost(w http.ResponseWriter, r *http.Request) {
 		rego.EvalMetrics(m),
 		rego.EvalQueryTracer(buf),
 		rego.EvalInterQueryBuiltinCache(s.interQueryBuiltinCache),
+		rego.EvalInterQueryBuiltinValueCache(s.interQueryBuiltinValueCache),
 		rego.EvalInstrument(includeInstrumentation),
 		rego.EvalNDBuiltinCache(ndbCache),
 	}
@@ -2655,6 +2667,7 @@ func isPathOwned(path, root []string) bool {
 
 func (s *Server) updateCacheConfig(cacheConfig *iCache.Config) {
 	s.interQueryBuiltinCache.UpdateConfig(cacheConfig)
+	s.interQueryBuiltinValueCache.UpdateConfig(cacheConfig)
 }
 
 func (s *Server) updateNDCache(enabled bool) {

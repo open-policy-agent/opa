@@ -396,7 +396,7 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 }
 
 func TestManagerWithCachingConfig(t *testing.T) {
-	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}}}`), "test", inmem.New())
+	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}, "inter_query_builtin_value_cache": {"max_num_entries": 100}}}`), "test", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,6 +404,8 @@ func TestManagerWithCachingConfig(t *testing.T) {
 	expected, _ := cache.ParseCachingConfig(nil)
 	limit := int64(100)
 	expected.InterQueryBuiltinCache.MaxSizeBytes = &limit
+	maxNumEntriesInterQueryValueCache := int(100)
+	expected.InterQueryBuiltinValueCache.MaxNumEntries = &maxNumEntriesInterQueryValueCache
 
 	if !reflect.DeepEqual(m.InterQueryBuiltinCacheConfig(), expected) {
 		t.Fatalf("want %+v got %+v", expected, m.interQueryBuiltinCacheConfig)
@@ -411,6 +413,12 @@ func TestManagerWithCachingConfig(t *testing.T) {
 
 	// config error
 	_, err = New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": "100"}}}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	// config error
+	_, err = New([]byte(`{"caching": {"inter_query_builtin_value_cache": {"max_num_entries": "100"}}}`), "test", inmem.New())
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}

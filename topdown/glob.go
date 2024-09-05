@@ -15,7 +15,9 @@ const globCacheMaxSize = 100
 var globCacheLock = sync.Mutex{}
 var globCache map[string]glob.Glob
 
-func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
+var globInterQueryValueCacheHits = "rego_builtin_glob_interquery_value_cache_hits"
+
+func builtinGlobMatch(bctx BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 	pattern, err := builtins.StringOperand(operands[0].Value, 1)
 	if err != nil {
 		return err
@@ -50,14 +52,46 @@ func builtinGlobMatch(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Ter
 	}
 	id := builder.String()
 
-	m, err := globCompileAndMatch(id, string(pattern), string(match), delimiters)
+	m, err := globCompileAndMatch(bctx, id, string(pattern), string(match), delimiters)
 	if err != nil {
 		return err
 	}
 	return iter(ast.BooleanTerm(m))
 }
 
-func globCompileAndMatch(id, pattern, match string, delimiters []rune) (bool, error) {
+func globCompileAndMatch(bctx BuiltinContext, id, pattern, match string, delimiters []rune) (bool, error) {
+
+	if bctx.InterQueryBuiltinValueCache != nil {
+		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(id).Value)
+		if ok {
+			pat, valid := val.(glob.Glob)
+			if !valid {
+				// The cache key may exist for a different value type (eg. regex).
+				// In this case, we calculate the glob and return the result w/o updating the cache.
+				var res glob.Glob
+				var err error
+				if res, err = glob.Compile(pattern, delimiters...); err != nil {
+					return false, err
+				}
+				out := res.Match(match)
+				return out, nil
+			}
+			bctx.Metrics.Counter(globInterQueryValueCacheHits).Incr()
+			out := pat.Match(match)
+			return out, nil
+		}
+
+		var res glob.Glob
+		var err error
+		if res, err = glob.Compile(pattern, delimiters...); err != nil {
+			return false, err
+		}
+		bctx.InterQueryBuiltinValueCache.Insert(ast.StringTerm(id).Value, res)
+
+		out := res.Match(match)
+		return out, nil
+	}
+
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
 	p, ok := globCache[id]

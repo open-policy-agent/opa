@@ -2432,6 +2432,55 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 	}
 }
 
+func TestEvalWithInterQueryValueCache(t *testing.T) {
+	ctx := context.Background()
+
+	// add an inter-query value cache
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryValueCache := cache.NewInterQueryValueCache(ctx, config)
+
+	m := metrics.New()
+
+	query := `regex.match("foo.*", "foobar")`
+	_, err := New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := uint64(1), m.Counter("rego_builtin_regex_interquery_value_cache_hits").Value(); exp != act {
+		t.Fatalf("expected %d cache hits, got %d", exp, act)
+	}
+
+	query = `glob.match("*.example.com", ["."], "api.example.com")`
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := uint64(2), m.Counter("rego_builtin_glob_interquery_value_cache_hits").Value(); exp != act {
+		t.Fatalf("expected %d cache hits, got %d", exp, act)
+	}
+}
+
 // We use http.send to ensure the NDBuiltinCache is involved.
 func TestEvalWithNDCache(t *testing.T) {
 	var requests []*http.Request

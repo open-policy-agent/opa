@@ -58,55 +58,56 @@ func (ee deferredEarlyExitError) Error() string {
 }
 
 type eval struct {
-	ctx                    context.Context
-	metrics                metrics.Metrics
-	seed                   io.Reader
-	time                   *ast.Term
-	queryID                uint64
-	queryIDFact            *queryIDFactory
-	parent                 *eval
-	caller                 *eval
-	cancel                 Cancel
-	query                  ast.Body
-	queryCompiler          ast.QueryCompiler
-	index                  int
-	indexing               bool
-	earlyExit              bool
-	bindings               *bindings
-	store                  storage.Store
-	baseCache              *baseCache
-	txn                    storage.Transaction
-	compiler               *ast.Compiler
-	input                  *ast.Term
-	data                   *ast.Term
-	external               *resolverTrie
-	targetStack            *refStack
-	tracers                []QueryTracer
-	traceEnabled           bool
-	traceLastLocation      *ast.Location // Last location of a trace event.
-	plugTraceVars          bool
-	instr                  *Instrumentation
-	builtins               map[string]*Builtin
-	builtinCache           builtins.Cache
-	ndBuiltinCache         builtins.NDBCache
-	functionMocks          *functionMocksStack
-	virtualCache           VirtualCache
-	comprehensionCache     *comprehensionCache
-	interQueryBuiltinCache cache.InterQueryCache
-	saveSet                *saveSet
-	saveStack              *saveStack
-	saveSupport            *saveSupport
-	saveNamespace          *ast.Term
-	skipSaveNamespace      bool
-	inliningControl        *inliningControl
-	genvarprefix           string
-	genvarid               int
-	runtime                *ast.Term
-	builtinErrors          *builtinErrors
-	printHook              print.Hook
-	tracingOpts            tracing.Options
-	findOne                bool
-	strictObjects          bool
+	ctx                         context.Context
+	metrics                     metrics.Metrics
+	seed                        io.Reader
+	time                        *ast.Term
+	queryID                     uint64
+	queryIDFact                 *queryIDFactory
+	parent                      *eval
+	caller                      *eval
+	cancel                      Cancel
+	query                       ast.Body
+	queryCompiler               ast.QueryCompiler
+	index                       int
+	indexing                    bool
+	earlyExit                   bool
+	bindings                    *bindings
+	store                       storage.Store
+	baseCache                   *baseCache
+	txn                         storage.Transaction
+	compiler                    *ast.Compiler
+	input                       *ast.Term
+	data                        *ast.Term
+	external                    *resolverTrie
+	targetStack                 *refStack
+	tracers                     []QueryTracer
+	traceEnabled                bool
+	traceLastLocation           *ast.Location // Last location of a trace event.
+	plugTraceVars               bool
+	instr                       *Instrumentation
+	builtins                    map[string]*Builtin
+	builtinCache                builtins.Cache
+	ndBuiltinCache              builtins.NDBCache
+	functionMocks               *functionMocksStack
+	virtualCache                VirtualCache
+	comprehensionCache          *comprehensionCache
+	interQueryBuiltinCache      cache.InterQueryCache
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	saveSet                     *saveSet
+	saveStack                   *saveStack
+	saveSupport                 *saveSupport
+	saveNamespace               *ast.Term
+	skipSaveNamespace           bool
+	inliningControl             *inliningControl
+	genvarprefix                string
+	genvarid                    int
+	runtime                     *ast.Term
+	builtinErrors               *builtinErrors
+	printHook                   print.Hook
+	tracingOpts                 tracing.Options
+	findOne                     bool
+	strictObjects               bool
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -817,23 +818,24 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
-		Context:                e.ctx,
-		Metrics:                e.metrics,
-		Seed:                   e.seed,
-		Time:                   e.time,
-		Cancel:                 e.cancel,
-		Runtime:                e.runtime,
-		Cache:                  e.builtinCache,
-		InterQueryBuiltinCache: e.interQueryBuiltinCache,
-		NDBuiltinCache:         e.ndBuiltinCache,
-		Location:               e.query[e.index].Location,
-		QueryTracers:           e.tracers,
-		TraceEnabled:           e.traceEnabled,
-		QueryID:                e.queryID,
-		ParentID:               parentID,
-		PrintHook:              e.printHook,
-		DistributedTracingOpts: e.tracingOpts,
-		Capabilities:           capabilities,
+		Context:                     e.ctx,
+		Metrics:                     e.metrics,
+		Seed:                        e.seed,
+		Time:                        e.time,
+		Cancel:                      e.cancel,
+		Runtime:                     e.runtime,
+		Cache:                       e.builtinCache,
+		InterQueryBuiltinCache:      e.interQueryBuiltinCache,
+		InterQueryBuiltinValueCache: e.interQueryBuiltinValueCache,
+		NDBuiltinCache:              e.ndBuiltinCache,
+		Location:                    e.query[e.index].Location,
+		QueryTracers:                e.tracers,
+		TraceEnabled:                e.traceEnabled,
+		QueryID:                     e.queryID,
+		ParentID:                    parentID,
+		PrintHook:                   e.printHook,
+		DistributedTracingOpts:      e.tracingOpts,
+		Capabilities:                capabilities,
 	}
 
 	eval := evalBuiltin{
