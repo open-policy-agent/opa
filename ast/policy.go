@@ -1023,6 +1023,7 @@ func (head *Head) String() string {
 func (head *Head) stringWithOpts(opts toStringOpts) string {
 	buf := strings.Builder{}
 	buf.WriteString(head.Ref().String())
+	containsAdded := false
 
 	switch {
 	case len(head.Args) != 0:
@@ -1034,6 +1035,7 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 			buf.WriteString(head.Key.String())
 			buf.WriteRune(']')
 		default:
+			containsAdded = true
 			buf.WriteString(" contains ")
 			buf.WriteString(head.Key.String())
 		}
@@ -1045,7 +1047,7 @@ func (head *Head) stringWithOpts(opts toStringOpts) string {
 			buf.WriteString(" = ")
 		}
 		buf.WriteString(head.Value.String())
-	} else if head.Name == "" && head.Key != nil {
+	} else if !containsAdded && head.Name == "" && head.Key != nil {
 		buf.WriteString(" contains ")
 		buf.WriteString(head.Key.String())
 	}
