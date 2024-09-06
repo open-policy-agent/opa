@@ -1226,7 +1226,7 @@ func TestCompilerEmpty(t *testing.T) {
 
 func TestCompilerExample(t *testing.T) {
 	c := NewCompiler()
-	m := MustParseModuleWithOpts(testModule, ParserOptions{RegoVersion: RegoV0})
+	m := MustParseModuleWithOpts(testModule, ParserOptions{AllFutureKeywords: true})
 	c.Compile(map[string]*Module{"testMod": m})
 	assertNotFailed(t, c)
 }
@@ -1238,7 +1238,7 @@ func TestCompilerWithStageAfter(t *testing.T) {
 			CompilerStageDefinition{"MockStage", "mock_stage",
 				func(*Compiler) *Error { return NewError(CompileErr, &Location{}, "mock stage error") }},
 		)
-		m := MustParseModuleWithOpts(testModule, ParserOptions{RegoVersion: RegoV0})
+		m := MustParseModuleWithOpts(testModule, ParserOptions{AllFutureKeywords: true})
 		c.Compile(map[string]*Module{"testMod": m})
 
 		if !c.Failed() {
@@ -3493,7 +3493,6 @@ func assertErrors(t *testing.T, actual Errors, expected Errors, assertLocation b
 	}
 }
 
-// FIXME(v1-test-refactor): prepare for 1.0
 func TestCompileRegoV1Import(t *testing.T) {
 	cases := []struct {
 		note           string
@@ -4027,7 +4026,7 @@ func TestCompileRegoV1Import(t *testing.T) {
 			compiler := NewCompiler()
 			compiler.Modules = map[string]*Module{}
 			for name, mod := range tc.modules {
-				if parsed, err := ParseModuleWithOpts(name, mod, ParserOptions{}); err != nil {
+				if parsed, err := ParseModuleWithOpts(name, mod, ParserOptions{RegoVersion: RegoV0}); err != nil {
 					t.Fatal(err)
 				} else {
 					compiler.Modules[name] = parsed
@@ -9139,7 +9138,7 @@ grault = deadbeef if { true }`)
 func TestCompilerWithMetrics(t *testing.T) {
 	m := metrics.New()
 	c := NewCompiler().WithMetrics(m)
-	mod := MustParseModuleWithOpts(testModule, ParserOptions{RegoVersion: RegoV0})
+	mod := MustParseModuleWithOpts(testModule, ParserOptions{AllFutureKeywords: true})
 
 	c.Compile(map[string]*Module{"testMod": mod})
 	assertNotFailed(t, c)
@@ -9158,7 +9157,7 @@ func TestCompilerWithStageAfterWithMetrics(t *testing.T) {
 
 	c.WithMetrics(m)
 
-	mod := MustParseModuleWithOpts(testModule, ParserOptions{RegoVersion: RegoV0})
+	mod := MustParseModuleWithOpts(testModule, ParserOptions{AllFutureKeywords: true})
 
 	c.Compile(map[string]*Module{"testMod": mod})
 	assertNotFailed(t, c)
@@ -9437,7 +9436,6 @@ func TestCompilerBuildComprehensionIndexKeySet(t *testing.T) {
 	}
 }
 
-// FIXME(v1-test-refactor): split into one for v0 and one for v1?
 func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 	tests := []struct {
 		note     string
@@ -9448,13 +9446,35 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 		keywords []string
 	}{
 		{
-			note: "trivial",
+			note: "trivial v0",
 			module: `
 				package x
 
 				p { input > 7 }
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV0}},
 			builtins: []string{"eq", "gt"},
+		},
+		{
+			note: "trivial v1",
+			module: `
+				package x
+
+				p if { input > 7 }
+			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
+			builtins: []string{"eq", "gt"},
+		},
+		{
+			note: "rego.v1 import",
+			module: `
+				package x
+
+				import rego.v1
+
+				p if { true }
+			`,
+			features: []string{"rego_v1_import"},
 		},
 		{
 			note: "future.keywords wildcard",
@@ -9482,8 +9502,9 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			module: `
 				package x
 
-				p { a := 7 }
+				p if { a := 7 }
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"assign", "eq"},
 		},
 		{
@@ -9491,8 +9512,9 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			module: `
 				package x
 
-				p { input == 7 }
+				p if { input == 7 }
 			`,
+			opts:     CompileOpts{ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"eq", "equal"},
 		},
 		{
@@ -9500,9 +9522,9 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			module: `
 				package x
 
-				p { print(7) }
+				p if { print(7) }
 			`,
-			opts:     CompileOpts{EnablePrintStatements: true},
+			opts:     CompileOpts{EnablePrintStatements: true, ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"eq", "internal.print", "print"},
 		},
 
@@ -9511,9 +9533,9 @@ func TestCompilerBuildRequiredCapabilities(t *testing.T) {
 			module: `
 				package x
 
-				p { print(7) }
+				p if { print(7) }
 			`,
-			opts:     CompileOpts{EnablePrintStatements: false},
+			opts:     CompileOpts{EnablePrintStatements: false, ParserOptions: ParserOptions{RegoVersion: RegoV1}},
 			builtins: []string{"print"}, // only print required because compiler will replace with true
 		},
 		{

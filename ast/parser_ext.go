@@ -103,6 +103,14 @@ func MustParseStatement(input string) Statement {
 	return parsed
 }
 
+func MustParseStatementWithOpts(input string, popts ParserOptions) Statement {
+	parsed, err := ParseStatementWithOpts(input, popts)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseRef returns a parsed reference.
 // If an error occurs during parsing, panic.
 func MustParseRef(input string) Ref {
@@ -609,6 +617,17 @@ func ParseRule(input string) (*Rule, error) {
 // statements are parsed, an error is returned.
 func ParseStatement(input string) (Statement, error) {
 	stmts, _, err := ParseStatements("", input)
+	if err != nil {
+		return nil, err
+	}
+	if len(stmts) != 1 {
+		return nil, fmt.Errorf("expected exactly one statement")
+	}
+	return stmts[0], nil
+}
+
+func ParseStatementWithOpts(input string, popts ParserOptions) (Statement, error) {
+	stmts, _, err := ParseStatementsWithOpts("", input, popts)
 	if err != nil {
 		return nil, err
 	}
