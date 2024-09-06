@@ -1246,9 +1246,11 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 				t.Fatalf("expected two modules but got: %v", len(compiler.bundle.Modules))
 			}
 
+			// The compiler will strip the rego.v1 import from the module, so we need to compare it
+			// to a pure v1 module that doesn't require the import.
 			optimizedExp := ast.MustParseModuleWithOpts(`package custom
 				__not1_0_2__ = true if { data.test.q = _; _ }`,
-				ast.ParserOptions{AllFutureKeywords: true})
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			if optimizedExp.String() != compiler.bundle.Modules[0].Parsed.String() {
 				t.Fatalf("expected optimized module to be:\n\n%v\n\ngot:\n\n%v", optimizedExp, compiler.bundle.Modules[0])
@@ -1258,7 +1260,7 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 				k = {1, 2, 3} if { true }
 				p = true if { not data.custom.__not1_0_2__ }
 				q = true if { __local0__3 = input.a; data.test.k[__local0__3] = _; _; __local1__3 = input.b; data.test.k[__local1__3] = _; _ }`,
-				ast.ParserOptions{AllFutureKeywords: true})
+				ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 			if expected.String() != compiler.bundle.Modules[1].Parsed.String() {
 				t.Fatalf("expected module to be:\n\n%v\n\ngot:\n\n%v", expected, compiler.bundle.Modules[1])

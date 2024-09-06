@@ -1184,7 +1184,7 @@ func TestPartialWithRegoV1(t *testing.T) {
 			expQuery: `data.partial.test.p = x`,
 			expSupport: `package partial.test.p
 
-foo[__local1__1] { __local1__1 = input.v }`,
+foo contains __local1__1 if { __local1__1 = input.v }`,
 		},
 		{
 			note: "rego.v1 imported",
@@ -1197,7 +1197,7 @@ foo[__local1__1] { __local1__1 = input.v }`,
 			expQuery: `data.partial.test.p = x`,
 			expSupport: `package partial.test.p
 
-foo[__local1__1] { __local1__1 = input.v }`,
+foo contains __local1__1 if { __local1__1 = input.v }`,
 		},
 		{
 			note: "future.keywords imported",
@@ -1210,7 +1210,7 @@ foo[__local1__1] { __local1__1 = input.v }`,
 			expQuery: `data.partial.test.p = x`,
 			expSupport: `package partial.test.p
 
-foo[__local1__1] { __local1__1 = input.v }`,
+foo contains __local1__1 if { __local1__1 = input.v }`,
 		},
 	}
 

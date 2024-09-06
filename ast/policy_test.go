@@ -842,6 +842,112 @@ p := 7 { true }`
 	}
 }
 
+func TestModuleStringWithRegoVersion(t *testing.T) {
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+		module      string
+		exp         string
+	}{
+		{
+			note:        "v0, basic",
+			regoVersion: RegoV0,
+			module: `package test
+a := 1
+b[1]
+c[1] := 2
+d.e.f := 3
+e.f.g[1]
+f.g.h[1] := 4
+
+g := 5 { 
+	false 
+} else := 6 {
+	false
+} else := 7`,
+			exp: `package test
+
+a := 1 { true }
+b[1] { true }
+c[1] := 2 { true }
+d.e.f := 3 { true }
+e.f.g[1] = true { true }
+f.g.h[1] := 4 { true }
+g := 5 { false } else = 6 { false } else = 7 { true }`,
+		},
+		{
+			note:        "v0, rego.v1 import",
+			regoVersion: RegoV0,
+			module: `package test
+
+import rego.v1
+
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
+
+g := 5 if { 
+	false 
+} else := 6 if {
+	false
+} else := 7`,
+			exp: `package test
+
+import rego.v1
+
+a := 1 if { true }
+b contains 1 if { true }
+c[1] := 2 if { true }
+d.e.f := 3 if { true }
+e.f.g contains 1 if { true }
+f.g.h[1] := 4 if { true }
+g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
+		},
+		{
+			note:        "v1, basic",
+			regoVersion: RegoV1,
+			module: `package test
+
+a := 1
+b contains 1
+c[1] := 2
+d.e.f := 3
+e.f.g contains 1
+f.g.h[1] := 4
+
+g := 5 if { 
+	false 
+} else := 6 if {
+	false
+} else := 7`,
+			exp: `package test
+
+a := 1 if { true }
+b contains 1 if { true }
+c[1] := 2 if { true }
+d.e.f := 3 if { true }
+e.f.g contains 1 if { true }
+f.g.h[1] := 4 if { true }
+g := 5 if { false } else = 6 if { false } else = 7 if { true }`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			module, err := ParseModuleWithOpts("test.rego", tc.module, ParserOptions{RegoVersion: tc.regoVersion})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if act := module.String(); act != tc.exp {
+				t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", tc.exp, act)
+			}
+		})
+	}
+}
+
 func TestCommentCopy(t *testing.T) {
 	comment := &Comment{
 		Text:     []byte("foo bar baz"),
