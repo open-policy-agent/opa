@@ -168,6 +168,7 @@ func generateRaiseErrorResult(err error) *ast.Term {
 func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 
 	bctx.Metrics.Timer(httpSendLatencyMetricKey).Start()
+	defer bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
 	key, err := getKeyFromRequest(req)
 	if err != nil {
@@ -199,7 +200,6 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 		}
 	}
 
-	bctx.Metrics.Timer(httpSendLatencyMetricKey).Stop()
 
 	return ast.NewTerm(resp), nil
 }
