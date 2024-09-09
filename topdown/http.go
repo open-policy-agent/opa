@@ -200,7 +200,6 @@ func getHTTPResponse(bctx BuiltinContext, req ast.Object) (*ast.Term, error) {
 		}
 	}
 
-
 	return ast.NewTerm(resp), nil
 }
 
