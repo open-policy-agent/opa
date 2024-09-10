@@ -30,10 +30,11 @@ const (
 	ec2DefaultTokenPath = "http://169.254.169.254/latest/api/token"
 
 	// ref. https://docs.aws.amazon.com/AmazonECS/latest/userguide/task-iam-roles.html
-	ecsDefaultCredServicePath   = "http://169.254.170.2"
-	ecsRelativePathEnvVar       = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
-	ecsFullPathEnvVar           = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
-	ecsAuthorizationTokenEnvVar = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
+	ecsDefaultCredServicePath       = "http://169.254.170.2"
+	ecsRelativePathEnvVar           = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
+	ecsFullPathEnvVar               = "AWS_CONTAINER_CREDENTIALS_FULL_URI"
+	ecsAuthorizationTokenEnvVar     = "AWS_CONTAINER_AUTHORIZATION_TOKEN"
+	ecsAuthorizationTokenFileEnvVar = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE"
 
 	// ref. https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
 	stsDefaultDomain = "amazonaws.com"
@@ -277,9 +278,22 @@ func (cs *awsMetadataCredentialService) refreshFromService(ctx context.Context) 
 	// if using the AWS_CONTAINER_CREDENTIALS_FULL_URI variable, we need to associate the token
 	// to the request
 	if _, useFullPath := os.LookupEnv(ecsFullPathEnvVar); useFullPath {
-		token, tokenExists := os.LookupEnv(ecsAuthorizationTokenEnvVar)
-		if !tokenExists {
-			return errors.New("unable to get ECS metadata authorization token")
+		var token string
+		tokenFilePath, tokenFilePathExists := os.LookupEnv(ecsAuthorizationTokenFileEnvVar)
+
+		if tokenFilePathExists {
+			tokenBytes, err := os.ReadFile(tokenFilePath)
+			if err != nil {
+				return errors.New("failed to read ECS metadata authorization token from file: " + err.Error())
+			}
+			token = string(tokenBytes)
+			// If token doesn't exist as a file check if it exists as an environment variable
+		} else {
+			var tokenExists bool
+			token, tokenExists = os.LookupEnv(ecsAuthorizationTokenEnvVar)
+			if !tokenExists {
+				return errors.New("unable to get ECS metadata authorization token")
+			}
 		}
 		req.Header.Set("Authorization", token)
 	}

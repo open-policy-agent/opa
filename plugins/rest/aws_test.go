@@ -358,6 +358,16 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertErr("unable to get ECS metadata authorization token", err, t)
 	os.Unsetenv(ecsFullPathEnvVar)
 
+	test.WithTempFS(nil, func(path string) {
+		// wrong path: bad file token
+		t.Setenv(ecsFullPathEnvVar, "fullPath")
+		os.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "bad-file"))
+		_, err = cs.credentials(context.Background())
+		assertErr("failed to read ECS metadata authorization token from file", err, t)
+		os.Unsetenv(ecsFullPathEnvVar)
+		os.Unsetenv(ecsAuthorizationTokenFileEnvVar)
+	})
+
 	// wrong path: creds not found
 	cs = awsMetadataCredentialService{
 		RoleName:        "not_my_iam_role", // not present
@@ -525,6 +535,39 @@ func TestMetadataCredentialService(t *testing.T) {
 	assertEq(creds.SessionToken, ts.payload.Token, t)
 	os.Unsetenv(ecsFullPathEnvVar)
 	os.Unsetenv(ecsAuthorizationTokenEnvVar)
+
+	// happy path: credentials fetched from full path var using token from filesystem
+	files := map[string]string{
+		"good_token_file": "THIS_IS_A_GOOD_TOKEN",
+	}
+	test.WithTempFS(files, func(path string) {
+		// happy path: credentials fetched from full path var
+		cs = awsMetadataCredentialService{
+			RegionName:      "us-east-1",
+			credServicePath: "", // not set as we want to test env var resolution
+			logger:          logging.Get(),
+		}
+		ts.payload = metadataPayload{
+			AccessKeyID:     "MYAWSACCESSKEYGOESHERE",
+			SecretAccessKey: "MYAWSSECRETACCESSKEYGOESHERE",
+			Code:            "Success",
+			Token:           "MYAWSSECURITYTOKENGOESHERE",
+			Expiration:      time.Now().UTC().Add(time.Minute * 2)} // short time
+		t.Setenv(ecsFullPathEnvVar, ts.server.URL+"/fullPath")
+		t.Setenv(ecsAuthorizationTokenFileEnvVar, filepath.Join(path, "good_token_file"))
+		creds, err = cs.credentials(context.Background())
+		if err != nil {
+			// Cannot proceed with test if unable to fetch credentials.
+			t.Fatal(err)
+		}
+
+		assertEq(creds.AccessKey, ts.payload.AccessKeyID, t)
+		assertEq(creds.SecretKey, ts.payload.SecretAccessKey, t)
+		assertEq(creds.RegionName, cs.RegionName, t)
+		assertEq(creds.SessionToken, ts.payload.Token, t)
+		os.Unsetenv(ecsFullPathEnvVar)
+		os.Unsetenv(ecsAuthorizationTokenFileEnvVar)
+	})
 }
 
 func TestMetadataServiceErrorHandled(t *testing.T) {
