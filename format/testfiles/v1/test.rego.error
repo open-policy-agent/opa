@@ -1,0 +1,26 @@
+# The blank lines below me should be gone! (except one)
+
+
+# Comment!
+package a.b
+
+# I also, am a comment.
+import data.x.y.z
+import data.a.b.c              # Another comment!
+# I belong with data.a, there should be a newline before me.
+import data.a
+import data.f.g
+
+default foo = false
+foo[x] {
+not x = g
+}
+
+globals = {"foo": "bar",
+"fizz": "buzz"}
+
+# Latent comment.
+
+r = y {
+    y = x
+    split("foo.bar", ".", input.x) with input as {"x": x}
