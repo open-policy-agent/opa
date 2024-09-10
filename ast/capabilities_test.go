@@ -8,33 +8,73 @@ import (
 )
 
 func TestParserCatchesIllegalCapabilities(t *testing.T) {
-	var opts ParserOptions
-	opts.Capabilities = &Capabilities{
-		FutureKeywords: []string{"deadbeef"},
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+		},
 	}
 
-	_, _, err := ParseStatementsWithOpts("test.rego", "true", opts)
-	if err == nil {
-		t.Fatal("expected error")
-	} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
-		t.Fatal("expected exactly one error but got:", err)
-	} else if errs[0].Code != ParseErr || errs[0].Message != "illegal capabilities: unknown keyword: deadbeef" {
-		t.Fatal("unexpected error:", err)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var opts ParserOptions
+			opts.Capabilities = &Capabilities{
+				FutureKeywords: []string{"deadbeef"},
+			}
+
+			opts.RegoVersion = tc.regoVersion
+
+			_, _, err := ParseStatementsWithOpts("test.rego", "true", opts)
+			if err == nil {
+				t.Fatal("expected error")
+			} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
+				t.Fatal("expected exactly one error but got:", err)
+			} else if errs[0].Code != ParseErr || errs[0].Message != "illegal capabilities: unknown keyword: deadbeef" {
+				t.Fatal("unexpected error:", err)
+			}
+		})
 	}
 }
 
 func TestParserCatchesIllegalFutureKeywordsBasedOnCapabilities(t *testing.T) {
-	var opts ParserOptions
-	opts.Capabilities = CapabilitiesForThisVersion()
-	opts.FutureKeywords = []string{"deadbeef"}
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+		},
+	}
 
-	_, _, err := ParseStatementsWithOpts("test.rego", "true", opts)
-	if err == nil {
-		t.Fatal("expected error")
-	} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
-		t.Fatal("expected exactly one error but got:", err)
-	} else if errs[0].Code != ParseErr || errs[0].Message != "unknown future keyword: deadbeef" {
-		t.Fatal("unexpected error:", err)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			var opts ParserOptions
+			opts.Capabilities = CapabilitiesForThisVersion()
+			opts.FutureKeywords = []string{"deadbeef"}
+
+			opts.RegoVersion = tc.regoVersion
+
+			_, _, err := ParseStatementsWithOpts("test.rego", "true", opts)
+			if err == nil {
+				t.Fatal("expected error")
+			} else if errs, ok := err.(Errors); !ok || len(errs) != 1 {
+				t.Fatal("expected exactly one error but got:", err)
+			} else if errs[0].Code != ParseErr || errs[0].Message != "unknown future keyword: deadbeef" {
+				t.Fatal("unexpected error:", err)
+			}
+		})
 	}
 }
 
