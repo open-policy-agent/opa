@@ -6717,33 +6717,49 @@ func TestCompileUnusedDeclaredVarsErrorLocations(t *testing.T) {
 }
 
 func TestCompileInvalidEqAssignExpr(t *testing.T) {
-
-	c := NewCompiler()
-
-	c.Modules["error"] = MustParseModule(`package errors
-
-
-	p {
-		# Arity mismatches are caught in the checkUndefinedFuncs check,
-		# and invalid eq/assign calls are passed along until then.
-		assign()
-		assign(1)
-		eq()
-		eq(1)
-	}`)
-
-	var prev func()
-	checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
-
-	for _, stage := range c.stages {
-		if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
-			break
-		}
-		prev = stage.f
+	tests := []struct {
+		note        string
+		regoVersion RegoVersion
+	}{
+		{
+			note:        "v0",
+			regoVersion: RegoV0,
+		},
+		{
+			note:        "v1",
+			regoVersion: RegoV1,
+		},
 	}
 
-	compileStages(c, prev)
-	assertNotFailed(t, c)
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			c := NewCompiler()
+
+			c.Modules["error"] = MustParseModuleWithOpts(`package errors
+
+			p if {
+				# Arity mismatches are caught in the checkUndefinedFuncs check,
+				# and invalid eq/assign calls are passed along until then.
+				assign()
+				assign(1)
+				eq()
+				eq(1)
+			}`, ParserOptions{RegoVersion: tc.regoVersion, AllFutureKeywords: true})
+
+			var prev func()
+			checkUndefinedFuncs := reflect.ValueOf(c.checkUndefinedFuncs)
+
+			for _, stage := range c.stages {
+				if reflect.ValueOf(stage.f).Pointer() == checkUndefinedFuncs.Pointer() {
+					break
+				}
+				prev = stage.f
+			}
+
+			compileStages(c, prev)
+			assertNotFailed(t, c)
+		})
+	}
 }
 
 func TestCompilerRewriteComprehensionTerm(t *testing.T) {

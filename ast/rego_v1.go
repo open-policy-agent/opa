@@ -50,9 +50,12 @@ func checkRootDocumentOverrides(node interface{}) Errors {
 
 	WalkExprs(node, func(expr *Expr) bool {
 		if expr.IsAssignment() {
-			name := expr.Operand(0).String()
-			if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
-				errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+			// assign() can be called directly, so we need to assert its given first operand exists before checking its name.
+			if nameOp := expr.Operand(0); nameOp != nil {
+				name := nameOp.String()
+				if RootDocumentRefs.Contains(RefTerm(VarTerm(name))) {
+					errors = append(errors, NewError(CompileErr, expr.Location, "variables must not shadow %v (use a different variable name)", name))
+				}
 			}
 		}
 		return false
