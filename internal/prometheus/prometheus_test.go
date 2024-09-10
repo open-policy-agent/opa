@@ -124,7 +124,7 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_http2client_events_total",
 			"go_godebug_non_default_behavior_http2server_events_total",
 			"go_godebug_non_default_behavior_installgoroot_events_total",
-			"go_godebug_non_default_behavior_jstmpllitinterp_events_total",
+			// "go_godebug_non_default_behavior_jstmpllitinterp_events_total", // this one was removed in 1.23
 			"go_godebug_non_default_behavior_panicnil_events_total",
 			"go_godebug_non_default_behavior_randautoseed_events_total",
 			"go_godebug_non_default_behavior_tarinsecurepath_events_total",
@@ -142,7 +142,14 @@ func TestJSONSerialization(t *testing.T) {
 			"go_godebug_non_default_behavior_tls10server_events_total",
 			"go_godebug_non_default_behavior_httpmuxgo121_events_total",
 			"go_godebug_non_default_behavior_tlsrsakex_events_total",
-			"go_godebug_non_default_behavior_netedns0_events_total", // added in 1.22.5
+			"go_godebug_non_default_behavior_netedns0_events_total",           // added in 1.22.5
+			"go_godebug_non_default_behavior_x509negativeserial_events_total", // added in 1.23.1 (or 1.23)
+			"go_godebug_non_default_behavior_winsymlink_events_total",
+			"go_godebug_non_default_behavior_x509keypairleaf_events_total",
+			"go_godebug_non_default_behavior_winreadlinkvolume_events_total",
+			"go_godebug_non_default_behavior_asynctimerchan_events_total",
+			"go_godebug_non_default_behavior_httpservecontentkeepheaders_events_total",
+			"go_godebug_non_default_behavior_tls3des_events_total",
 		},
 		"SUMMARY": {
 			"go_gc_duration_seconds",
