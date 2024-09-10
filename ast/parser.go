@@ -319,6 +319,31 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		for k, v := range futureKeywords {
 			allowedFutureKeywords[k] = v
 		}
+
+		// For sake of error reporting, we still need to check that keywords in capabilities are known,
+		for _, kw := range p.po.Capabilities.FutureKeywords {
+			if _, ok := futureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
+		}
+		// and that explicitly requested future keywords are known.
+		for _, kw := range p.po.FutureKeywords {
+			if _, ok := allowedFutureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
+		}
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
 			var ok bool
