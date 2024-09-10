@@ -1506,7 +1506,9 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 		}
 	}
 	imp := &ast.Import{
-		Path: ast.MustParseTerm("future.keywords." + kw),
+		// NOTE: This is a hack to not error on the ref containing a keyword already present in v1.
+		// A cleaner solution would be to instead allow refs to contain keyword terms.
+		Path: ast.MustParseTerm("future.keywords[\"" + kw + "\"]"),
 	}
 	imp.Location = defaultLocation(imp)
 	return append(imps, imp)

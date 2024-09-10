@@ -17,21 +17,43 @@ import (
 )
 
 func TestFormatNilLocation(t *testing.T) {
-	rule := ast.MustParseRule(`r = y { y = "foo" }`)
-	rule.Head.Location = nil
-
-	bs, err := Ast(rule)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		note        string
+		regoVersion ast.RegoVersion
+		rule        string
+		exp         string
+	}{
+		{
+			note:        "v0",
+			regoVersion: ast.RegoV0,
+			rule:        `r = y { y = "foo" }`,
+			exp: `r = y {
+	y = "foo"
+}`,
+		},
+		{
+			note:        "v1",
+			regoVersion: ast.RegoV1,
+			rule:        `r = y if { y = "foo" }`,
+			exp: `r := y if y = "foo"
+`,
+		},
 	}
 
-	exp := strings.Trim(`
-r = y {
-	y = "foo"
-}`, " \n")
+	for _, tc := range tests {
+		t.Run(tc.note, func(t *testing.T) {
+			rule := ast.MustParseRuleWithOpts(tc.rule, ast.ParserOptions{RegoVersion: tc.regoVersion})
+			rule.Head.Location = nil
 
-	if string(bs) != exp {
-		t.Fatalf("Expected %q but got %q", exp, string(bs))
+			bs, err := AstWithOpts(rule, Opts{RegoVersion: tc.regoVersion})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(bs) != tc.exp {
+				t.Fatalf("Expected:\n\n%q\n\nbut got:\n\n%q", tc.exp, string(bs))
+			}
+		})
 	}
 }
 
@@ -59,7 +81,7 @@ func TestFormatNilLocationFunctionArgs(t *testing.T) {
 }
 
 func TestFormatSourceError(t *testing.T) {
-	rego := "testfiles/test.rego.error"
+	rego := "testfiles/v0/test.rego.error"
 	contents, err := os.ReadFile(rego)
 	if err != nil {
 		t.Fatalf("Failed to read rego source: %v", err)
@@ -70,15 +92,15 @@ func TestFormatSourceError(t *testing.T) {
 		t.Fatal("Expected parsing error, not nil")
 	}
 
-	exp := "1 error occurred: testfiles/test.rego.error:27: rego_parse_error: unexpected eof token"
+	exp := "1 error occurred: testfiles/v0/test.rego.error:27: rego_parse_error: unexpected eof token"
 
 	if !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error message '%s', got '%s'", exp, err.Error())
 	}
 }
 
-func TestFormatSource(t *testing.T) {
-	regoFiles, err := filepath.Glob("testfiles/*.rego")
+func TestFormatV0Source(t *testing.T) {
+	regoFiles, err := filepath.Glob("testfiles/v0/*.rego")
 	if err != nil {
 		panic(err)
 	}
@@ -95,7 +117,15 @@ func TestFormatSource(t *testing.T) {
 				t.Fatalf("Failed to read expected rego source: %v", err)
 			}
 
-			formatted, err := Source(rego, contents)
+			popts := ast.ParserOptions{
+				RegoVersion: ast.RegoV0,
+			}
+			opts := Opts{
+				RegoVersion:   ast.RegoV0,
+				ParserOptions: &popts,
+			}
+
+			formatted, err := SourceWithOpts(rego, contents, opts)
 			if err != nil {
 				t.Fatalf("Failed to format file: %v", err)
 			}
@@ -104,11 +134,11 @@ func TestFormatSource(t *testing.T) {
 				t.Fatalf("Expected formatted bytes to equal expected bytes but differed near line %d / byte %d (got: %q, expected: %q):\n%s", ln, at, formatted[at], expected[at], prefixWithLineNumbers(formatted))
 			}
 
-			if _, err := ast.ParseModule(rego+".tmp", string(formatted)); err != nil {
+			if _, err := ast.ParseModuleWithOpts(rego+".tmp", string(formatted), popts); err != nil {
 				t.Fatalf("Failed to parse formatted bytes: %v", err)
 			}
 
-			formatted, err = Source(rego, formatted)
+			formatted, err = SourceWithOpts(rego, formatted, opts)
 			if err != nil {
 				t.Fatalf("Failed to double format file")
 			}
@@ -121,8 +151,8 @@ func TestFormatSource(t *testing.T) {
 	}
 }
 
-func TestFormatSourceToRegoV1(t *testing.T) {
-	regoFiles, err := filepath.Glob("testfiles/rego_v1/*.rego")
+func TestFormatV0SourceToRegoV1(t *testing.T) {
+	regoFiles, err := filepath.Glob("testfiles/v0_to_v1/*.rego")
 	if err != nil {
 		panic(err)
 	}
@@ -149,8 +179,19 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 				}
 			}
 
+			sourceOpts := Opts{
+				RegoVersion: ast.RegoV0CompatV1, // Target syntax is v0 compat v1
+				ParserOptions: &ast.ParserOptions{
+					RegoVersion: ast.RegoV0, // Original syntax is v0
+				},
+			}
+			targetOpts := Opts{
+				RegoVersion: ast.RegoV0CompatV1, // Target syntax is v0 compat v1
+			}
+
 			if errorExpected {
-				formatted, err := SourceWithOpts(rego, contents, Opts{RegoVersion: ast.RegoV0CompatV1})
+				formatted, err := SourceWithOpts(rego, contents, sourceOpts)
+
 				if err == nil {
 					t.Fatalf("Expected error, got: %s", formatted)
 				}
@@ -158,7 +199,8 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 					t.Fatalf("Expected error:\n\n'%s'\n\ngot:\n\n'%s'", expected, err.Error())
 				}
 			} else {
-				formatted, err := SourceWithOpts(rego, contents, Opts{RegoVersion: ast.RegoV0CompatV1})
+				formatted, err := SourceWithOpts(rego, contents, sourceOpts)
+
 				if err != nil {
 					t.Fatalf("Failed to format file: %v", err)
 				}
@@ -171,7 +213,7 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 					t.Fatalf("Failed to parse formatted bytes: %v", err)
 				}
 
-				formatted, err = SourceWithOpts(rego, formatted, Opts{RegoVersion: ast.RegoV0CompatV1})
+				formatted, err = SourceWithOpts(rego, formatted, targetOpts)
 				if err != nil {
 					t.Fatalf("Failed to double format file")
 				}
@@ -181,7 +223,7 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 				}
 
 				// rego-v1 formatted code is still compliant with v0, and should not be changed if formatted as such
-				formatted, err = Source(rego, formatted)
+				formatted, err = SourceWithOpts(rego, formatted, targetOpts)
 				if err != nil {
 					t.Fatalf("Failed to double format file as v0")
 				}
@@ -196,9 +238,10 @@ func TestFormatSourceToRegoV1(t *testing.T) {
 
 func TestFormatAST(t *testing.T) {
 	cases := []struct {
-		note     string
-		toFmt    interface{}
-		expected string
+		note        string
+		regoVersion ast.RegoVersion
+		toFmt       interface{}
+		expected    string
 	}{
 		{
 			note:     "var",
@@ -321,12 +364,16 @@ func TestFormatAST(t *testing.T) {
 			expected: `some x, y in xs`,
 		},
 		{
-			note: "every adds import if missing",
+			note:        "v0, every adds import if missing",
+			regoVersion: ast.RegoV0,
 			toFmt: ast.MustParseModuleWithOpts(`package test
 			p {
 				every k, v in [1, 2] { k != v }
 			}`,
-				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+				ast.ParserOptions{
+					RegoVersion:    ast.RegoV0,
+					FutureKeywords: []string{"every"},
+				}),
 			expected: `package test
 
 import future.keywords.every
@@ -336,13 +383,31 @@ p {
 }`,
 		},
 		{
-			note: "every does not add import if all future KWs are there",
+			note:        "v1, every doesn't add import if missing",
+			regoVersion: ast.RegoV1,
+			toFmt: ast.MustParseModuleWithOpts(`package test
+			p if {
+				every k, v in [1, 2] { k != v }
+			}`,
+				ast.ParserOptions{RegoVersion: ast.RegoV1}),
+			expected: `package test
+
+p if {
+	every k, v in [1, 2] { k != v }
+}`,
+		},
+		{
+			note:        "v0: every does not add import if all future KWs are there",
+			regoVersion: ast.RegoV0,
 			toFmt: ast.MustParseModuleWithOpts(`package test
 			import future.keywords
 			p {
 				every k, v in [1, 2] { k != v }
 			}`,
-				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+				ast.ParserOptions{
+					FutureKeywords: []string{"every"},
+					RegoVersion:    ast.RegoV0,
+				}),
 			expected: `package test
 
 import future.keywords
@@ -352,13 +417,17 @@ p if {
 }`,
 		},
 		{
-			note: "every does not add import if already present",
+			note:        "v0: every does not add import if already present",
+			regoVersion: ast.RegoV0,
 			toFmt: ast.MustParseModuleWithOpts(`package test
 			import future.keywords
 			p {
 				every k, v in [1, 2] { k != v }
 			}`,
-				ast.ParserOptions{FutureKeywords: []string{"every"}}),
+				ast.ParserOptions{
+					FutureKeywords: []string{"every"},
+					RegoVersion:    ast.RegoV0,
+				}),
 			expected: `package test
 
 import future.keywords
@@ -520,7 +589,12 @@ a[_x[y][[z, w]]]`,
 
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
-			bs, err := Ast(tc.toFmt)
+			bs, err := AstWithOpts(tc.toFmt, Opts{
+				RegoVersion: tc.regoVersion,
+				ParserOptions: &ast.ParserOptions{
+					RegoVersion: tc.regoVersion,
+				},
+			})
 			if err != nil {
 				t.Fatalf("Unexpected error: %s", err)
 			}
