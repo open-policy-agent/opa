@@ -23,7 +23,7 @@ func TestTopDownPrint(t *testing.T) {
 			module: `
 				package test
 
-				p { print() }
+				p if { print() }
 			`,
 			exp: "\n",
 		},
@@ -32,7 +32,7 @@ func TestTopDownPrint(t *testing.T) {
 			module: `
 				package test
 
-				p {
+				p if {
 					x := "world"
 					print("hello", x)
 				}
@@ -46,7 +46,7 @@ func TestTopDownPrint(t *testing.T) {
 
 				xs := [1,2]
 
-				p {
+				p if {
 					print("the value of xs is:", xs)
 				}
 			`,
@@ -57,7 +57,7 @@ func TestTopDownPrint(t *testing.T) {
 			module: `
 				package test
 
-				p {
+				p if {
 					print("the value of foo is:", input.foo)
 				}
 			`,
@@ -68,7 +68,7 @@ func TestTopDownPrint(t *testing.T) {
 			module: `
 				package test
 
-				p {
+				p if {
 					print("the value of foo is:", [input.foo])
 				}
 			`,
@@ -79,7 +79,7 @@ func TestTopDownPrint(t *testing.T) {
 			module: `
 				package test
 
-				p {
+				p if {
 					print("div by zero:", 1/0) # divide by zero will be undefined unless strict-builtin-errors are enabled
 				}
 			`,
@@ -93,7 +93,7 @@ func TestTopDownPrint(t *testing.T) {
 				xs := {1}
 				ys := {"a"}
 
-				p {
+				p if {
 					print(walk(xs), walk(ys))
 				}
 			`,
@@ -108,7 +108,13 @@ func TestTopDownPrint(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.note, func(t *testing.T) {
 
-			c := ast.MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, ast.CompileOpts{EnablePrintStatements: true})
+			c := ast.MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module},
+				ast.CompileOpts{
+					EnablePrintStatements: true,
+					ParserOptions: ast.ParserOptions{
+						AllFutureKeywords: true,
+					},
+				})
 			buf := bytes.NewBuffer(nil)
 			q := NewQuery(ast.MustParseBody("data.test.p = x")).
 				WithPrintHook(NewPrintHook(buf)).
