@@ -4093,113 +4093,124 @@ func TestCompilerResolveAllRefs(t *testing.T) {
 	c.Modules = getCompilerTestModules()
 	c.Modules["head"] = MustParseModule(`package head
 
+import rego.v1
 import data.doc1 as bar
 import input.x.y.foo
 import input.qux as baz
 
-p[foo[bar[i]]] = {"baz": baz} { true }`)
+p[foo[bar[i]]] := {"baz": baz} if { true }`)
 
 	c.Modules["elsekw"] = MustParseModule(`package elsekw
 
+	import rego.v1
 	import input.x.y.foo
 	import data.doc1 as bar
 	import input.baz
 
-	p {
+	p if {
 		false
-	} else = foo {
+	} else = foo if {
 		bar
-	} else = baz {
+	} else = baz if {
 		true
 	}
 	`)
 
 	c.Modules["nestedexprs"] = MustParseModule(`package nestedexprs
+		import rego.v1
 
 		x = 1
 
-		p {
+		p if {
 			f(g(x))
 		}`)
 
 	c.Modules["assign"] = MustParseModule(`package assign
+		import rego.v1
 
 		x = 1
 		y = 1
 
-		p {
+		p if {
 			x := y
 			[true | x := y]
 		}`)
 
 	c.Modules["someinassign"] = MustParseModule(`package someinassign
-		import future.keywords.in
+		import rego.v1
+
 		x = 1
 		y = 1
 
-		p[x] {
+		p[x] if {
 			some x in [1, 2, y]
 		}`)
 
 	c.Modules["someinassignwithkey"] = MustParseModule(`package someinassignwithkey
-		import future.keywords.in
+		import rego.v1
+
 		x = 1
 		y = 1
 
-		p[x] {
+		p[x] if {
 			some k, v in [1, 2, y]
 		}`)
 
 	c.Modules["donotresolve"] = MustParseModule(`package donotresolve
+		import rego.v1
 
 		x = 1
 
-		f(x) {
+		f(x) if {
 			x = 2
 		}
 		`)
 
 	c.Modules["indirectrefs"] = MustParseModule(`package indirectrefs
+		import rego.v1
 
-		f(x) = [x] {true}
+		f(x) = [x] if {true}
 
-		p {
+		p if {
 			f(1)[0]
 		}
 		`)
 
 	c.Modules["comprehensions"] = MustParseModule(`package comprehensions
+		import rego.v1
 
 		nums = [1, 2, 3]
 
-		f(x) = [x] {true}
+		f(x) = [x] if {true}
 
-		p[[1]] {true}
+		p[[1]] if {true}
 
-		q {
+		q if {
 			p[[x | x = nums[_]]]
 		}
 
 		r = [y | y = f(1)[0]]
 		`)
 
-	c.Modules["everykw"] = MustParseModuleWithOpts(`package everykw
+	c.Modules["everykw"] = MustParseModule(`package everykw
+		import rego.v1
 
-	nums = {1, 2, 3}
-	f(_) = true
-	x = 100
-	xs = [1, 2, 3]
-	p {
-		every x in xs {
-			nums[x]
-			x > 10
-		}
-	}`, ParserOptions{unreleasedKeywords: true, FutureKeywords: []string{"every", "in"}})
+		nums = {1, 2, 3}
+		f(_) = true
+		x = 100
+		xs = [1, 2, 3]
+		p if {
+			every x in xs {
+				nums[x]
+				x > 10
+			}
+		}`)
 
 	c.Modules["heads_with_dots"] = MustParseModule(`package heads_with_dots
+		import rego.v1
 
 		this_is_not = true
-		this.is.dotted { this_is_not }
+		this.is.dotted if { this_is_not }
 	`)
 
 	compileStages(c, c.resolveAllRefs)

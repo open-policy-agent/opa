@@ -2652,6 +2652,7 @@ func TestRuleIf(t *testing.T) {
 				Head: &Head{
 					Name:      Var("p"),
 					Reference: MustParseRef("p[x]"),
+					Key:       VarTerm("x"),
 					Value:     VarTerm("y"),
 				},
 				Body: MustParseBody(`x := "foo"; y := "bar"`),
@@ -2687,6 +2688,7 @@ func TestRuleIf(t *testing.T) {
 			exp: &Rule{
 				Head: &Head{
 					Reference: MustParseRef("p[x]"),
+					Key:       VarTerm("x"),
 					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x := 1`),
@@ -2698,6 +2700,7 @@ func TestRuleIf(t *testing.T) {
 			exp: &Rule{
 				Head: &Head{
 					Reference: MustParseRef("p[x]"),
+					Key:       VarTerm("x"),
 					Value:     BooleanTerm(true),
 				},
 				Body: MustParseBody(`x := 1`),
@@ -2783,6 +2786,7 @@ func TestRuleRefHeads(t *testing.T) {
 				Head: &Head{
 					Name:      Var("p"),
 					Reference: MustParseRef("p[x]"),
+					Key:       VarTerm("x"),
 					Value:     IntNumberTerm(1),
 				},
 				Body: MustParseBody("x := 2"),
