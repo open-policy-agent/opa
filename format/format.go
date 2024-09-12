@@ -568,8 +568,7 @@ func (w *writer) writeHead(head *ast.Head, isDefault, isExpandedConst bool, o fm
 		// * a.b.c.d -> a.b.c.d := true
 		isRegoV1RefConst := o.regoV1 && isExpandedConst && head.Key == nil && len(head.Args) == 0
 
-		if len(head.Args) > 0 &&
-			head.Location == head.Value.Location &&
+		if head.Location == head.Value.Location &&
 			head.Name != "else" &&
 			ast.Compare(head.Value, ast.BooleanTerm(true)) == 0 &&
 			!isRegoV1RefConst {
