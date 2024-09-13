@@ -55,6 +55,8 @@ type Options struct {
 	// Hooks allows hooking into the internals of SDK operations (TODO(sr): find better words)
 	Hooks hooks.Hooks
 
+	// V1Compatible enables v1 compatibility mode when set to true.
+	// This is an opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
 	V1Compatible bool
 
 	// ManagerOpts allows customization of the plugin manager.
