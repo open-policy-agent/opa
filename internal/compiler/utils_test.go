@@ -17,39 +17,37 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 	module1 := `
 	package policy
 
-    import future.keywords
-
 	default allow := false
 
-	allow {
+	allow if {
 	   input.identity = "foo"
 	}
 
-	allow {
+	allow if {
 	   input.client_certificates[0] = {"foo": "bar"}
 	}
 
-	allow {
+	allow if {
 	   input.method = "GET"
 	}
 
-	allow {
+	allow if {
 	   input.path = ["foo", "bar"]
 	}
 
-    allow {
+    allow if {
 	   "foo" in input.path
 	}
 
-	allow {
+	allow if {
 	   input.params = {"foo": "bar"}
 	}
 
-	allow {
+	allow if {
 	   input.headers = {"foo": "bar"}
 	}
 
-	allow {
+	allow if {
 	   input.body.input.stock = "ACME"
 	}`
 
@@ -58,11 +56,11 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 
 	default allow := false
 
-	allow {
+	allow if {
 	   input.identty = "foo"
 	}
 
-	allow {
+	allow if {
 	   input.path = "foo"
 	}`
 
@@ -71,7 +69,7 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 
 	default allow := false
 
-	allow {
+	allow if {
 	   input.path = [1, 2, 3]
 	}`
 
@@ -80,7 +78,7 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 
     default allow := false
 
-    allow {
+    allow if {
        input.client_certificates[0] = "foo"
     }`
 
@@ -102,7 +100,8 @@ func TestVerifyAuthorizationPolicySchema(t *testing.T) {
 			modules := map[string]*ast.Module{}
 
 			for i, module := range tc.modules {
-				mod, err := ast.ParseModule(fmt.Sprintf("test%d.rego", i+1), module)
+				mod, err := ast.ParseModuleWithOpts(fmt.Sprintf("test%d.rego", i+1), module,
+					ast.ParserOptions{AllFutureKeywords: true})
 				if err != nil {
 					t.Fatal(err)
 				}
