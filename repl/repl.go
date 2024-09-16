@@ -52,7 +52,7 @@ type REPL struct {
 	profiler            bool
 	strictBuiltinErrors bool
 	capabilities        *ast.Capabilities
-	v1Compatible        bool
+	regoVersion         ast.RegoVersion
 	initBundles         map[string]*bundle.Bundle
 
 	// TODO(tsandall): replace this state with rule definitions
@@ -352,8 +352,20 @@ func (r *REPL) WithRuntime(term *ast.Term) *REPL {
 	return r
 }
 
+// WithRegoVersion sets the Rego version to v.
+func (r *REPL) WithRegoVersion(v ast.RegoVersion) *REPL {
+	r.regoVersion = v
+	return r
+}
+
+// WithV1Compatible sets the Rego version to v1.
+// Deprecated: Use WithRegoVersion instead.
 func (r *REPL) WithV1Compatible(v1Compatible bool) *REPL {
-	r.v1Compatible = v1Compatible
+	if v1Compatible {
+		r.regoVersion = ast.RegoV1
+	} else {
+		r.regoVersion = ast.DefaultRegoVersion
+	}
 	return r
 }
 
@@ -495,7 +507,7 @@ func (r *REPL) cmdShow(args []string) error {
 			return nil
 		}
 		module := r.modules[r.currentModuleID]
-		bs, err := format.Ast(module)
+		bs, err := format.AstWithOpts(module, format.Opts{RegoVersion: module.RegoVersion()})
 		if err != nil {
 			return err
 		}
@@ -774,7 +786,7 @@ func (r *REPL) compileRule(ctx context.Context, rule *ast.Rule) error {
 
 	var unset bool
 
-	if r.v1Compatible {
+	if r.regoVersion == ast.RegoV1 {
 		if errs := ast.CheckRegoV1(rule); errs != nil {
 			return errs
 		}
@@ -910,7 +922,7 @@ func (r *REPL) evalBufferMulti(ctx context.Context) error {
 }
 
 func (r *REPL) parserOptions() (ast.ParserOptions, error) {
-	if r.v1Compatible {
+	if r.regoVersion == ast.RegoV1 {
 		return ast.ParserOptions{RegoVersion: ast.RegoV1}, nil
 	}
 	if r.currentModuleID != "" {
@@ -918,13 +930,18 @@ func (r *REPL) parserOptions() (ast.ParserOptions, error) {
 		if err == nil {
 			for _, i := range r.modules[r.currentModuleID].Imports {
 				if ast.Compare(i.Path.Value, ast.RegoV1CompatibleRef) == 0 {
-					opts.RegoVersion = ast.RegoV1
+					opts.RegoVersion = ast.RegoV0CompatV1
+
+					// ast.RegoV0CompatV1 sets parsing requirements, but doesn't imply allowed future keywords
+					if r.capabilities != nil {
+						opts.FutureKeywords = r.capabilities.FutureKeywords
+					}
 				}
 			}
 		}
 		return opts, err
 	}
-	return ast.ParserOptions{}, nil
+	return ast.ParserOptions{RegoVersion: r.regoVersion}, nil
 }
 
 func (r *REPL) loadCompiler(ctx context.Context) (*ast.Compiler, error) {
@@ -1166,9 +1183,11 @@ func (r *REPL) evalPackage(p *ast.Package) error {
 		return nil
 	}
 
-	r.modules[moduleID] = &ast.Module{
+	m := ast.Module{
 		Package: p,
 	}
+	m.SetRegoVersion(r.regoVersion)
+	r.modules[moduleID] = &m
 
 	r.currentModuleID = moduleID
 
@@ -1282,9 +1301,8 @@ func (r *REPL) loadModules(ctx context.Context, txn storage.Transaction) (map[st
 			return nil, err
 		}
 
-		popts := ast.ParserOptions{}
-		if r.v1Compatible {
-			popts.RegoVersion = ast.RegoV1
+		popts := ast.ParserOptions{
+			RegoVersion: r.regoVersion,
 		}
 
 		parsed, err := ast.ParseModuleWithOpts(id, string(bs), popts)

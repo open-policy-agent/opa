@@ -31,19 +31,21 @@ func TestFunction(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	mod1 := []byte(`package a.b.c
+import rego.v1
 
-foo(x) = y {
+foo(x) = y if {
 	split(x, ".", y)
 }
 
-bar([x, y]) = z {
+bar([x, y]) = z if {
 	trim(x, y, z)
 }
 `)
 
 	mod2 := []byte(`package a.b.d
+import rego.v1
 
-baz(_) = y {
+baz(_) = y if {
 	data.a.b.c.foo("barfoobar.bar", x)
 	data.a.b.c.bar(x, y)
 }`)
@@ -63,6 +65,11 @@ baz(_) = y {
 	var buf bytes.Buffer
 	repl := newRepl(store, &buf)
 
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	if err := repl.OneShot(ctx, "json"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -75,7 +82,7 @@ baz(_) = y {
 		t.Fatalf("expected data.a.b.d.baz(x) to be %v, got %v", exp, result)
 	}
 
-	if err := repl.OneShot(ctx, "p(x) = y { y = x+4 }"); err != nil {
+	if err := repl.OneShot(ctx, "p(x) = y if { y = x+4 }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -107,10 +114,10 @@ baz(_) = y {
 		t.Fatalf("expected datrepl.p(x) to be %v, got %v", exp, result)
 	}
 
-	if err := repl.OneShot(ctx, "f(1, x) = y { y = x }"); err != nil {
+	if err := repl.OneShot(ctx, "f(1, x) = y if { y = x }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, "f(2, x) = y { y = x*2 }"); err != nil {
+	if err := repl.OneShot(ctx, "f(2, x) = y if { y = x*2 }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -176,14 +183,16 @@ func TestComplete(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	mod1 := []byte(`package a.b.c
+import rego.v1
 
-p = 1 { true }
-q = 2 { true }
-q = 3 { false }`)
+p = 1 if { true }
+q = 2 if { true }
+q = 3 if { false }`)
 
 	mod2 := []byte(`package a.b.d
+import rego.v1
 
-r = 3 { true }`)
+r = 3 if { true }`)
 
 	if err := store.UpsertPolicy(ctx, txn, "mod1", mod1); err != nil {
 		panic(err)
@@ -481,11 +490,13 @@ func TestShowDebug(t *testing.T) {
 	}
 }
 
-func TestShow(t *testing.T) {
+// The rego.v1 import will be stripped from the output if the default rego-version is v1,
+// so we need two flavours of this test: v0, and v1.
+func TestShowV0(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
 	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
+	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV0)
 
 	if err := repl.OneShot(ctx, `package repl_test`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -567,6 +578,92 @@ p[2]` + "\n"
 	buffer.Reset()
 }
 
+func TestShowV1(t *testing.T) {
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV1)
+
+	if err := repl.OneShot(ctx, `package repl_test`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	assertREPLText(t, buffer, "package repl_test\n")
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "import input.xyz"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := `package repl_test
+
+import input.xyz` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "import data.foo as bar"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected = `package repl_test
+
+import data.foo as bar
+import input.xyz` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, `p contains 1 if { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, `p contains 2 if { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	buffer.Reset()
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected = `package repl_test
+
+import data.foo as bar
+import input.xyz
+
+p contains 1
+
+p contains 2` + "\n"
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "package abc"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	assertREPLText(t, buffer, "package abc\n")
+	buffer.Reset()
+
+	if err := repl.OneShot(ctx, "package repl_test"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, "show"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	assertREPLText(t, buffer, expected)
+	buffer.Reset()
+}
+
 func TestTypes(t *testing.T) {
 	ctx := context.Background()
 	store := inmem.New()
@@ -576,7 +673,13 @@ func TestTypes(t *testing.T) {
 	if err := repl.OneShot(ctx, "types"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `p[x] = y { x := "a"; y := 1 }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p[x] = y if { x := "a"; y := 1 }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, `p[x]`); err != nil {
@@ -753,6 +856,11 @@ func TestUnset(t *testing.T) {
 
 	var err error
 
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	if err := repl.OneShot(ctx, "magic = 23"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -773,7 +881,7 @@ func TestUnset(t *testing.T) {
 	if err := repl.OneShot(ctx, "p = 3.14"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `p = 3 { false }`); err != nil {
+	if err := repl.OneShot(ctx, `p = 3 if { false }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, "unset p"); err != nil {
@@ -798,7 +906,7 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	if err := repl.OneShot(ctx, "p(x) = y { y = x }"); err != nil {
+	if err := repl.OneShot(ctx, "p(x) = y if { y = x }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, "unset p"); err != nil {
@@ -811,10 +919,10 @@ func TestUnset(t *testing.T) {
 	}
 
 	buffer.Reset()
-	if err := repl.OneShot(ctx, "p(1, x) = y { y = x }"); err != nil {
+	if err := repl.OneShot(ctx, "p(1, x) = y if { y = x }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, "p(2, x) = y { y = x+1 }"); err != nil {
+	if err := repl.OneShot(ctx, "p(2, x) = y if { y = x+1 }"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, "unset p"); err != nil {
@@ -860,6 +968,15 @@ func TestUnset(t *testing.T) {
 	if buffer.String() != "warning: no matching rules in current module\n" {
 		t.Fatalf("Expected unset error for bad syntax but got: %v", buffer.String())
 	}
+}
+
+func TestUnsetInputDocument(t *testing.T) {
+	// input is only allowed to be overridden in rego v0, so we only assert the following when that's the active version.
+
+	ctx := context.Background()
+	store := inmem.New()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer).WithRegoVersion(ast.RegoV0)
 
 	if err := repl.OneShot(ctx, `input = {}`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -877,7 +994,6 @@ func TestUnset(t *testing.T) {
 	if buffer.String() != "true\n" {
 		t.Fatalf("Expected unset input to remove input document: %v", buffer.String())
 	}
-
 }
 
 func TestOneShotEmptyBufferOneExpr(t *testing.T) {
@@ -901,7 +1017,13 @@ func TestOneShotEmptyBufferOneRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	if err := repl.OneShot(ctx, `p[x] { data.a[i] = x }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p contains x if { data.a[i] = x }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	expectOutput(t, buffer.String(), "Rule 'p' defined in package repl. Type 'show' to see rules.\n")
@@ -931,7 +1053,13 @@ func TestOneShotBufferedRule(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	if err := repl.OneShot(ctx, "p[x] { "); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, "p contains x if { "); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	expectOutput(t, buffer.String(), "")
@@ -1046,12 +1174,13 @@ func TestOneShotV1Compatible(t *testing.T) {
 		expErrs   []string
 	}
 	tests := []struct {
-		note         string
-		actions      []action
-		v1Compatible bool
+		note        string
+		actions     []action
+		regoVersion ast.RegoVersion
 	}{
 		{
-			note: "v0.x, keywords used",
+			note:        "v0.x, keywords used",
+			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
 					line:    "a contains 2 if { true }",
@@ -1060,7 +1189,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note: "v0.x, keywords not used",
+			note:        "v0.x, keywords not used",
+			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
 					line:      "a[2] { true }",
@@ -1069,7 +1199,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:        "v0.x, keywords imported",
+			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
 					line: "import future.keywords",
@@ -1081,7 +1212,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:        "v0.x, rego.v1 imported",
+			regoVersion: ast.RegoV0,
 			actions: []action{
 				{
 					line: "import rego.v1",
@@ -1093,8 +1225,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:         "v1.0, keywords not used",
-			v1Compatible: true,
+			note:        "v1.0, keywords not used",
+			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
 					line: "a[2] { true }",
@@ -1106,8 +1238,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:         "v1.0, keywords used, not imported",
-			v1Compatible: true,
+			note:        "v1.0, keywords used, not imported",
+			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
 					line:      "a contains 2 if { true }",
@@ -1116,8 +1248,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:         "v1.0, keywords used, keywords imported",
-			v1Compatible: true,
+			note:        "v1.0, keywords used, keywords imported",
+			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
 					line: "import future.keywords",
@@ -1129,8 +1261,8 @@ func TestOneShotV1Compatible(t *testing.T) {
 			},
 		},
 		{
-			note:         "v1.0, keywords used, rego.v1 imported",
-			v1Compatible: true,
+			note:        "v1.0, keywords used, rego.v1 imported",
+			regoVersion: ast.RegoV1,
 			actions: []action{
 				{
 					line: "import rego.v1",
@@ -1149,7 +1281,7 @@ func TestOneShotV1Compatible(t *testing.T) {
 			store := newTestStore()
 			var buffer bytes.Buffer
 			repl := newRepl(store, &buffer).
-				WithV1Compatible(tc.v1Compatible)
+				WithRegoVersion(tc.regoVersion)
 
 			for _, action := range tc.actions {
 				err := repl.OneShot(ctx, action.line)
@@ -1177,22 +1309,24 @@ func TestOneShotV1Compatible(t *testing.T) {
 
 func TestStoredModuleV1Compatible(t *testing.T) {
 	tests := []struct {
-		note         string
-		v1Compatible bool
-		module       string
-		line         string
-		expOutput    string
-		expErrs      []string
+		note        string
+		regoVersion ast.RegoVersion
+		module      string
+		line        string
+		expOutput   string
+		expErrs     []string
 	}{
 		{
-			note: "v0.x keywords not used",
+			note:        "v0.x keywords not used",
+			regoVersion: ast.RegoV0,
 			module: `package example
 p[2] { 1 == 1 }`,
 			line:      "data.example.p",
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note: "v0.x, keywords not imported but used",
+			note:        "v0.x, keywords not imported but used",
+			regoVersion: ast.RegoV0,
 			module: `package example
 p contains 2 if { 1 == 1 }`,
 			line: "data.example.p",
@@ -1202,7 +1336,8 @@ p contains 2 if { 1 == 1 }`,
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:        "v0.x, keywords imported",
+			regoVersion: ast.RegoV0,
 			module: `package example
 import future.keywords
 p contains 2 if { 1 == 1 }`,
@@ -1210,7 +1345,8 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:        "v0.x, rego.v1 imported",
+			regoVersion: ast.RegoV0,
 			module: `package example
 import rego.v1
 p contains 2 if { 1 == 1 }`,
@@ -1218,8 +1354,8 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:         "v1.0, keywords not used",
-			v1Compatible: true,
+			note:        "v1.0, keywords not used",
+			regoVersion: ast.RegoV1,
 			module: `package example
 p[2] { 1 == 1 }`,
 			line: "data.example.p",
@@ -1229,16 +1365,16 @@ p[2] { 1 == 1 }`,
 			},
 		},
 		{
-			note:         "v1.0, keywords not imported",
-			v1Compatible: true,
+			note:        "v1.0, keywords not imported",
+			regoVersion: ast.RegoV1,
 			module: `package example
 p contains 2 if { 1 == 1 }`,
 			line:      "data.example.p",
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:         "v1.0, keywords imported",
-			v1Compatible: true,
+			note:        "v1.0, keywords imported",
+			regoVersion: ast.RegoV1,
 			module: `package example
 import future.keywords
 p contains 2 if { 1 == 1 }`,
@@ -1246,8 +1382,8 @@ p contains 2 if { 1 == 1 }`,
 			expOutput: "[\n  2\n]\n",
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
-			v1Compatible: true,
+			note:        "v1.0, rego.v1 imported",
+			regoVersion: ast.RegoV1,
 			module: `package example
 import rego.v1
 p contains 2 if { 1 == 1 }`,
@@ -1272,7 +1408,7 @@ p contains 2 if { 1 == 1 }`,
 
 			var buffer bytes.Buffer
 			repl := newRepl(store, &buffer).
-				WithV1Compatible(tc.v1Compatible)
+				WithRegoVersion(tc.regoVersion)
 
 			err := repl.OneShot(ctx, tc.line)
 
@@ -1303,8 +1439,9 @@ func TestEvalData(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	testMod := []byte(`package ex
+import rego.v1
 
-p = [1, 2, 3] { true }`)
+p = [1, 2, 3] if { true }`)
 
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
@@ -1466,10 +1603,13 @@ Rule 'flags2' defined in package repl. Type 'show' to see rules.
 }
 
 func TestEvalConstantRuleDefaultRootDoc(t *testing.T) {
+	// The 'input' document may only be shadowed in rego v0.
+
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
+	repl := newRepl(store, &buffer).
+		WithRegoVersion(ast.RegoV0)
 	if err := repl.OneShot(ctx, "input = 1"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1492,8 +1632,6 @@ func TestEvalConstantRuleAssignment(t *testing.T) {
 
 	defined := "Rule 'x' defined in package repl. Type 'show' to see rules.\n"
 	redefined := "Rule 'x' re-defined in package repl. Type 'show' to see rules.\n"
-	definedInput := "Rule 'input' defined in package repl. Type 'show' to see rules.\n"
-	redefinedInput := "Rule 'input' re-defined in package repl. Type 'show' to see rules.\n"
 
 	repl := newRepl(store, &buffer)
 	if err := repl.OneShot(ctx, "x = 1"); err != nil {
@@ -1539,6 +1677,24 @@ x := 2
 	}
 
 	buffer.Reset()
+	err := repl.OneShot(ctx, "assign()")
+	if err == nil || !strings.Contains(err.Error(), "rego_type_error: assign: arity mismatch\n\thave: ()\n\twant: (any, any)") {
+		t.Fatal("Expected type check error but got:", err)
+	}
+}
+func TestEvalConstantRuleAssignmentInputDocument(t *testing.T) {
+	// input is only allowed to be overridden in rego v0, so we only assert the following when that's the active version.
+
+	ctx := context.Background()
+	store := newTestStore()
+	var buffer bytes.Buffer
+	repl := newRepl(store, &buffer).
+		WithRegoVersion(ast.RegoV0)
+
+	definedInput := "Rule 'input' defined in package repl. Type 'show' to see rules.\n"
+	redefinedInput := "Rule 'input' re-defined in package repl. Type 'show' to see rules.\n"
+
+	buffer.Reset()
 	if err := repl.OneShot(ctx, "input = 0"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1552,15 +1708,9 @@ x := 2
 	if err := repl.OneShot(ctx, "input"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	result = buffer.String()
+	result := buffer.String()
 	if result != "1\n" {
 		t.Fatalf("Expected 1 but got: %v", result)
-	}
-
-	buffer.Reset()
-	err := repl.OneShot(ctx, "assign()")
-	if err == nil || !strings.Contains(err.Error(), "rego_type_error: assign: arity mismatch\n\thave: ()\n\twant: (any, any)") {
-		t.Fatal("Expected type check error but got:", err)
 	}
 }
 
@@ -1657,6 +1807,11 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 
 	buffer.Reset()
 
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	if err := repl.OneShot(ctx, "data.deadbeef[x]"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1668,7 +1823,7 @@ func TestEvalSingleTermMultiValue(t *testing.T) {
 
 	buffer.Reset()
 
-	if err := repl.OneShot(ctx, `p[x] { a = [1, 2, 3, 4]; a[_] = x }`); err != nil {
+	if err := repl.OneShot(ctx, `p contains x if { a = [1, 2, 3, 4]; a[_] = x }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	buffer.Reset()
@@ -1763,16 +1918,22 @@ func TestEvalSingleTermMultiValueSetRef(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 	repl.outputFormat = "json"
-	if err := repl.OneShot(ctx, `p[1] { true }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `p[2] { true }`); err != nil {
+
+	if err := repl.OneShot(ctx, `p contains 1 if { true }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `q = {3, 4} { true }`); err != nil {
+	if err := repl.OneShot(ctx, `p contains 2 if { true }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `r = [x, y] { x = {5, 6}; y = [7, 8] }`); err != nil {
+	if err := repl.OneShot(ctx, `q = {3, 4} if { true }`); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if err := repl.OneShot(ctx, `r = [x, y] if { x = {5, 6}; y = [7, 8] }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -1945,7 +2106,13 @@ func TestEvalRuleCompileError(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	err := repl.OneShot(ctx, `p[x] { true }`)
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	err := repl.OneShot(ctx, `p contains x if { true }`)
 	expected := "x is unsafe"
 	if err == nil {
 		t.Fatalf("Expected OneShot to return error %v but got: %v", expected, err)
@@ -1955,7 +2122,7 @@ func TestEvalRuleCompileError(t *testing.T) {
 		return
 	}
 	buffer.Reset()
-	err = repl.OneShot(ctx, `p = true { true }`)
+	err = repl.OneShot(ctx, `p = true if { true }`)
 	result := buffer.String()
 	if err != nil || result != "Rule 'p' defined in package repl. Type 'show' to see rules.\n" {
 		t.Errorf("Expected valid rule to compile (because state should be unaffected) but got: %v (err: %v)", result, err)
@@ -2049,7 +2216,8 @@ func TestEvalBodyInput(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
+	repl := newRepl(store, &buffer).
+		WithRegoVersion(ast.RegoV0)
 
 	if err := repl.OneShot(ctx, `package repl`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -2084,7 +2252,8 @@ func TestEvalBodyInputComplete(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
+	repl := newRepl(store, &buffer).
+		WithRegoVersion(ast.RegoV0)
 
 	// Test that input can be defined completely:
 	// https://github.com/open-policy-agent/opa/issues/231
@@ -2186,7 +2355,12 @@ func TestEvalBodyWith(t *testing.T) {
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
 
-	if err := repl.OneShot(ctx, `p = true { input.foo = "bar" }`); err != nil {
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p = true if { input.foo = "bar" }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	buffer.Reset()
@@ -2220,7 +2394,13 @@ func TestEvalBodyRewrittenBuiltin(t *testing.T) {
 	if err := repl.OneShot(ctx, "json"); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `p[x] { a[x]; a = [1,2,3,4] }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p contains x if { a[x]; a = [1,2,3,4] }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, "p[x] > 1"); err != nil {
@@ -2466,7 +2646,8 @@ func TestEvalImportFutureKeywords(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore()
 	var buffer bytes.Buffer
-	repl := newRepl(store, &buffer)
+	repl := newRepl(store, &buffer).
+		WithRegoVersion(ast.RegoV0)
 
 	err := repl.OneShot(ctx, "1 in [1]")
 	if err == nil {
@@ -2562,7 +2743,13 @@ func TestEvalPackage(t *testing.T) {
 	if err := repl.OneShot(ctx, `package foo.bar`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := repl.OneShot(ctx, `p = true { true }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p = true if { true }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, `package baz.qux`); err != nil {
@@ -2649,8 +2836,9 @@ func TestProfile(t *testing.T) {
 	const numLines = 21
 
 	mod2 := []byte(`package rbac
+	import rego.v1
 
-		input = {
+	inp := {
 		"subject": "bob",
 			"resource": "foo123",
 			"action": "write",
@@ -2666,7 +2854,7 @@ func TestProfile(t *testing.T) {
 	},
 ]
 
-	roles = [
+	roles := [
 	{
 		"name": "dev",
 		"permissions": [
@@ -2682,23 +2870,23 @@ func TestProfile(t *testing.T) {
 
 default allow = false
 
-	allow {
-	user_has_role[role_name]
-	role_has_permission[role_name]
+	allow if {
+		user_has_role[role_name]
+		role_has_permission[role_name]
 	}
 
-	user_has_role[role_name] {
-	binding := bindings[_]
-	binding.user = input.subject
-	role_name := binding.roles[_]
+	user_has_role contains role_name if {
+		binding := bindings[_]
+		binding.user = inp.subject
+		role_name := binding.roles[_]
 	}
 
-	role_has_permission[role_name] {
-	role := roles[_]
-	role_name := role.name
-	perm := role.permissions[_]
-	perm.resource = input.resource
-	perm.action = input.action
+	role_has_permission contains role_name if {
+		role := roles[_]
+		role_name := role.name
+		perm := role.permissions[_]
+		perm.resource = inp.resource
+		perm.action = inp.action
 	}`)
 
 	if err := store.UpsertPolicy(ctx, txn, "mod2", mod2); err != nil {
@@ -2886,7 +3074,13 @@ func TestEvalNotes(t *testing.T) {
 	store := newTestStore()
 	var buffer bytes.Buffer
 	repl := newRepl(store, &buffer)
-	if err := repl.OneShot(ctx, `p { a = [1,2,3]; a[i] = x; x > 1; trace(sprintf("x = %d", [x])) }`); err != nil {
+
+	// We import rego.v1 to ensure we're compatible with both v0 and v1 as default rego-version.
+	if err := repl.OneShot(ctx, "import rego.v1"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := repl.OneShot(ctx, `p if { a = [1,2,3]; a[i] = x; x > 1; trace(sprintf("x = %d", [x])) }`); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if err := repl.OneShot(ctx, "notes"); err != nil {
