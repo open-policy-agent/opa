@@ -56,7 +56,8 @@ type Options struct {
 	Hooks hooks.Hooks
 
 	// V1Compatible enables v1 compatibility mode when set to true.
-	// This is an opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+	// This is an opt-in to OPA features and behaviors that will be enabled by default in OPA v1.0 and later.
+	// See https://www.openpolicyagent.org/docs/latest/opa-1/ for more information.
 	V1Compatible bool
 
 	// ManagerOpts allows customization of the plugin manager.
