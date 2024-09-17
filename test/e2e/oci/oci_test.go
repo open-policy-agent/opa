@@ -35,20 +35,22 @@ func (b *SafeBuffer) String() string {
 
 func TestEnablePrintStatementsForBundles(t *testing.T) {
 	ref := "registry.io/someorg/somerepo:tag"
-	server := test_sdk.MustNewServer(test_sdk.MockOCIBundle(ref, map[string]string{
-		"post.rego": `
+	server := test_sdk.MustNewServer(
+		test_sdk.MockOCIBundle(ref, map[string]string{
+			"post.rego": `
 		package peoplefinder.POST.api.users
-
+		
+		import future.keywords.if
 		import input.user.properties as user_props
 		
 		default allowed = false
 		
-		allowed {
+		allowed if {
 			user_props.department == "Operations"
 			user_props.title == "IT Manager"
 		}	
 		`,
-	}))
+		}))
 	params := e2e.NewAPIServerTestParams()
 
 	buf := SafeBuffer{}
