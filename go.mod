@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/peterh/liner v1.2.2
-	github.com/prometheus/client_golang v1.20.3
+	github.com/prometheus/client_golang v1.20.4
 	github.com/prometheus/client_model v0.6.1
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/sergi/go-diff v1.3.1
@@ -44,7 +44,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3
 	golang.org/x/net v0.29.0
 	golang.org/x/time v0.6.0
-	google.golang.org/grpc v1.66.1
+	google.golang.org/grpc v1.66.2
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
