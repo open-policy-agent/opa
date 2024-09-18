@@ -263,7 +263,11 @@ func TestCapabilitiesMinimumCompatibleVersion(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			c := MustCompileModules(map[string]string{"test.rego": tc.module})
+			c := MustCompileModulesWithOpts(map[string]string{"test.rego": tc.module}, CompileOpts{
+				ParserOptions: ParserOptions{
+					RegoVersion: RegoV0,
+				},
+			})
 			minVersion, found := c.Required.MinimumCompatibleVersion()
 			if !found || minVersion != tc.version {
 				t.Fatal("expected", tc.version, "but got", minVersion)
