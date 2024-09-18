@@ -17,14 +17,15 @@ import (
 // Policy is a test rego policy for a token based authz system
 const Policy = `package policy.restauthz
 
+import rego.v1
 import data.restauthz.tokens
 
 default allow = false
 
-allow {
+allow if {
 	tokens[input.token_id] = token
 	token.authz_profiles[_] = authz
-	re_match(authz.path, input.path)
+	regex.match(authz.path, input.path)
 	authz.methods[_] = input.method
 }`
 

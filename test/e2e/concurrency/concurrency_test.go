@@ -83,11 +83,13 @@ func TestConcurrencyCompile(t *testing.T) {
 
 	policy := `
 	package test
+	import rego.v1
+
 	f(_)
-	p {
+	p if {
 		not q
 	}
-	q {
+	q if {
 		not f(input.foo)
 	}
 	`
