@@ -9,10 +9,11 @@ import (
 
 func TestMoveRenamePackage(t *testing.T) {
 	module := ast.MustParseModule(`package lib.foo
+import rego.v1
 
 default allow = false
 
-allow {
+allow if {
         input.message == "hello"
 }`)
 
@@ -35,10 +36,11 @@ allow {
 	actual := result.Result["policy.rego"]
 
 	expected := ast.MustParseModule(`package baz.bar
+import rego.v1
 
 default allow = false
 
-allow {
+allow if {
         input.message == "hello"
 }`)
 
@@ -49,16 +51,18 @@ allow {
 
 func TestMoveRenamePackagePrefix(t *testing.T) {
 	module1 := ast.MustParseModule(`package lib.foo
+import rego.v1
 
 default allow = false
 
-allow {
+allow if {
         input.message == "hello"
 }`)
 
 	module2 := ast.MustParseModule(`package lib.bar
+import rego.v1
 
-allow {
+allow if {
         input.message == "world"
 }`)
 
@@ -83,16 +87,18 @@ allow {
 	actual2 := result.Result["policy2.rego"]
 
 	expected1 := ast.MustParseModule(`package hidden.foo
+import rego.v1
 
 default allow = false
 
-allow {
+allow if {
         input.message == "hello"
 }`)
 
 	expected2 := ast.MustParseModule(`package hidden.bar
+import rego.v1
 
-allow {
+allow if {
         input.message == "world"
 }`)
 
@@ -107,8 +113,9 @@ allow {
 
 func TestMovePrefixInjection(t *testing.T) {
 	module1 := ast.MustParseModule(`package a.b
+import rego.v1
 
-p { data.x.q }`)
+p if { data.x.q }`)
 
 	module2 := ast.MustParseModule(`package x
 
@@ -135,8 +142,9 @@ q = true`)
 	actual2 := result.Result["policy2.rego"]
 
 	expected1 := ast.MustParseModule(`package deadbeef.a.b
+import rego.v1
 
-p {
+p if {
 	data.deadbeef.x.q
 }`)
 
@@ -155,14 +163,15 @@ q = true`)
 
 func TestMoveWithKeyword(t *testing.T) {
 	module1 := ast.MustParseModule(`package a.b
-
+import rego.v1
 import data.x.q as r
 
-p { r with data.foo as 7 }`)
+p if{ r with data.foo as 7 }`)
 
 	module2 := ast.MustParseModule(`package x
+import rego.v1
 
-q { data.foo == 7 }`)
+q if { data.foo == 7 }`)
 
 	modules := map[string]*ast.Module{
 		"policy1.rego": module1,
@@ -185,16 +194,17 @@ q { data.foo == 7 }`)
 	actual2 := result.Result["policy2.rego"]
 
 	expected1 := ast.MustParseModule(`package deadbeef.a.b
-
+import rego.v1
 import data.deadbeef.x.q as r
 
-p {
+p if {
 	r with data.deadbeef.foo as 7
 }`)
 
 	expected2 := ast.MustParseModule(`package deadbeef.x
+import rego.v1
 
-q {
+q if {
 	data.deadbeef.foo == 7
 }`)
 
@@ -241,12 +251,13 @@ p = data.foo`)
 
 func TestMovePrefixEmpty(t *testing.T) {
 	module1 := ast.MustParseModule(`package foo.bar.v1
+import rego.v1
 
-helper_1 {
+helper_1 if {
 	to_number(split(input.baz, ".")[1]) >= 1
 }
 
-helper_2 {
+helper_2 if {
 	to_number(split(data.bar, ".")[1]) >= 1
 }`)
 
@@ -270,12 +281,13 @@ helper_2 {
 	actual := result.Result["policy1.rego"]
 
 	expected := ast.MustParseModule(`package hidden.name["hello:0.1"].bar.v1
+import rego.v1
 
-helper_1 {
+helper_1 if{
 	to_number(split(input.baz, ".")[1]) >= 1
 }
 
-helper_2 {
+helper_2 if {
 	to_number(split(data.hello, ".")[1]) >= 1
 }`)
 
@@ -286,8 +298,9 @@ helper_2 {
 
 func TestMoveConflictingRulesNoValidation(t *testing.T) {
 	module1 := ast.MustParseModule(`package a.b
+import rego.v1
 
-p[1]`)
+p contains 1`)
 
 	module2 := ast.MustParseModule(`package b
 
@@ -313,8 +326,9 @@ p = 7`)
 
 func TestMoveConflictingRulesWithValidation(t *testing.T) {
 	module1 := ast.MustParseModule(`package a.b
+import rego.v1
 
-p[1]`)
+p contains 1`)
 
 	module2 := ast.MustParseModule(`package b
 
@@ -345,10 +359,11 @@ p = 7`)
 
 func TestMoveBadSourceMapping(t *testing.T) {
 	module := ast.MustParseModule(`package lib.foo
+import rego.v1
 
 default allow = false
 
-allow {
+allow if {
         input.message == "hello"
 }`)
 

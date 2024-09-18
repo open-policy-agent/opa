@@ -15,8 +15,9 @@ func TestRoundTrip(t *testing.T) {
 	c, err := ast.CompileModules(map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 
-			p {
+			p if {
 				input.foo == 7
 			}
 		`,
