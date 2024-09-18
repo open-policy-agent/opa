@@ -99,7 +99,9 @@ func ExampleRego_Eval_multipleBindings() {
 		rego.Package(`example`),
 		rego.Module("example.rego", `package example
 
-		p["am"] { true }
+		import rego.v1
+
+		p contains "am" if { true }
 		`),
 	)
 
@@ -131,7 +133,9 @@ func ExampleRego_Eval_singleDocument() {
 		rego.Module("example.rego",
 			`package example
 
-p = ["hello", "world"] { true }`,
+import rego.v1
+
+p = ["hello", "world"] if { true }`,
 		))
 
 	// Run evaluation.
@@ -157,8 +161,10 @@ func ExampleRego_Eval_allowed() {
 		rego.Module("example.rego",
 			`package authz
 
+import rego.v1
+
 default allow = false
-allow {
+allow if {
 	input.open == "sesame"
 }`,
 		),
@@ -189,7 +195,9 @@ func ExampleRego_Eval_multipleDocuments() {
 		rego.Module("example.rego",
 			`package example
 
-p = {"hello": "alice", "goodbye": "bob"} { true }`,
+import rego.v1
+
+p = {"hello": "alice", "goodbye": "bob"} if { true }`,
 		))
 
 	// Run evaluation.
@@ -221,13 +229,15 @@ func ExampleRego_Eval_compiler() {
 	module := `
 		package example
 
+		import rego.v1
+
 		default allow = false
 
-		allow {
+		allow if {
 			input.identity = "admin"
 		}
 
-		allow {
+		allow if {
 			input.method = "GET"
 		}
 	`
@@ -487,9 +497,10 @@ func ExampleRego_Eval_errors() {
 		rego.Query("data.example.p"),
 		rego.Module("example_error.rego",
 			`package example
+import rego.v1
 
-p = true { not q[x] }
-q = {1, 2, 3} { true }`,
+p = true if { not q[x] }
+q = {1, 2, 3} if { true }`,
 		))
 
 	_, err := r.Eval(ctx)
@@ -508,7 +519,7 @@ q = {1, 2, 3} { true }`,
 	// Output:
 	//
 	// code: rego_unsafe_var_error
-	// row: 3
+	// row: 4
 	// filename: example_error.rego
 }
 
@@ -522,34 +533,35 @@ func ExampleRego_PartialResult() {
 	module := `
 		package example
 
+		import rego.v1
 		import data.bindings
 		import data.roles
 
 		default allow = false
 
-		allow {
+		allow if {
 			user_has_role[role_name]
 			role_has_permission[role_name]
 		}
 
-		user_has_role[role_name] {
+		user_has_role contains role_name if {
 			b = bindings[_]
 			b.role = role_name
 			b.user = input.subject.user
 		}
 
-		role_has_permission[role_name] {
+		role_has_permission contains role_name if {
 			r = roles[_]
 			r.name = role_name
 			match_with_wildcard(r.operations, input.operation)
 			match_with_wildcard(r.resources, input.resource)
 		}
 
-		match_with_wildcard(allowed, value) {
+		match_with_wildcard(allowed, value) if {
 			allowed[_] = "*"
 		}
 
-		match_with_wildcard(allowed, value) {
+		match_with_wildcard(allowed, value) if {
 			allowed[_] = value
 		}
 	`
@@ -653,13 +665,15 @@ func ExampleRego_Partial() {
 	// Define a simple policy for example purposes.
 	module := `package test
 
-	allow {
+	import rego.v1
+
+	allow if {
 		input.method = read_methods[_]
 		input.path = ["reviews", user]
 		input.user = user
 	}
 
-	allow {
+	allow if {
 		input.method = read_methods[_]
 		input.path = ["reviews", _]
 		input.is_admin
@@ -793,13 +807,15 @@ func ExampleRego_PrepareForPartial() {
 	// Define a simple policy for example purposes.
 	module := `package test
 
-	allow {
+	import rego.v1
+
+	allow if {
 		input.method = read_methods[_]
 		input.path = ["reviews", user]
 		input.user = user
 	}
 
-	allow {
+	allow if {
 		input.method = read_methods[_]
 		input.path = ["reviews", _]
 		input.is_admin
@@ -1049,7 +1065,9 @@ func ExampleRego_print_statements() {
 		rego.Module("example.rego", `
 			package example
 
-			rule_containing_print_call {
+			import rego.v1
+
+			rule_containing_print_call if {
 				print("input.foo is:", input.foo, "and input.bar is:", input.bar)
 			}
 		`),

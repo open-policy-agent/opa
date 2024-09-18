@@ -147,7 +147,8 @@ func TestRequestWithInstrumentationV1CompileAPI(t *testing.T) {
 
 	policy := `
 	package test
-	p {input.x >= data.y}
+	import rego.v1
+	p if {input.x >= data.y}
 	`
 
 	err := testRuntime.UploadPolicy(t.Name(), strings.NewReader(policy))
