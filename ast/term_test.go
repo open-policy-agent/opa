@@ -1187,18 +1187,21 @@ func TestJSONWithOptLazyObjOptOut(t *testing.T) {
 }
 
 func assertTermEqual(t *testing.T, x *Term, y *Term) {
+	t.Helper()
 	if !x.Equal(y) {
 		t.Errorf("Failure on equality: \n%s and \n%s\n", x, y)
 	}
 }
 
 func assertTermNotEqual(t *testing.T, x *Term, y *Term) {
+	t.Helper()
 	if x.Equal(y) {
 		t.Errorf("Failure on non-equality: \n%s and \n%s\n", x, y)
 	}
 }
 
 func assertToString(t *testing.T, val Value, expected string) {
+	t.Helper()
 	result := val.String()
 	if result != expected {
 		t.Errorf("Expected %v but got %v", expected, result)

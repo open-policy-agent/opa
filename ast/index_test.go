@@ -53,7 +53,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	}
 
 	everyMod := MustParseModuleWithOpts(`package test
-	p { every _ in [] { input.a = 1 } }`, opts)
+	p if { every _ in [] { input.a = 1 } }`, opts)
 
 	// NOTE(sr): This looks a bit silly; but it's what
 	//
@@ -61,9 +61,9 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	//
 	// will get rewritten to -- so to assert that the domain of 'every' expressions
 	// get respected in the rule indexing, we'll need to provide this "pseudo-compiled"
-	// module source here.
+	// mod source here.
 	everyModWithDomain := MustParseModuleWithOpts(`package test
-	p {
+	p if {
 		__local0__ = input.a
 		every x in __local0__ { input.x = x }
 	} {
@@ -84,10 +84,10 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	# ref.multi.value.key[k] contains v if { k := input.k; v := input.v } # not supported yet
 	`, opts)
 
-	module := MustParseModule(`
+	mod := module(`
 	package test
 
-	exact {
+	exact if {
 		input.x = 1
 		input.y = 2
 	} {
@@ -96,7 +96,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	}
 		
 
-	scalars {
+	scalars if {
 		input.x = 0
 		input.y = 1
 	} {
@@ -109,7 +109,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.x = 2
 	}
 
-	vars {
+	vars if {
 		input.x = 1
 		input.y = 2
 	} {
@@ -120,7 +120,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.z = 5
 	}
 
-	composite_arr {
+	composite_arr if {
 		input.x = 1
 		input.y = [1,2,3]
 		input.z = 1
@@ -137,11 +137,11 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		input.y = [1,[2,3],4]
 	}
 
-	composite_obj {
+	composite_obj if {
 		input.y = {"foo": "bar", "bar": x}
 	}
 
-	equal {
+	equal if {
 		input.x == 1
 	} {
 		input.x == 2
@@ -150,7 +150,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 	}
 
 	# filtering ruleset contains rules that cannot be indexed (for different reasons).
-	filtering {
+	filtering if {
 		count([], x)
 	} {
 		not input.x = 0
@@ -171,13 +171,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	# exercise default keyword
 	default allow = false
-	allow {
+	allow if {
 		input.x = 1
 	} {
 		input.x = 0
 	}
 
-	glob_match {
+	glob_match if {
 		x = input.x
 		glob.match("foo:*:bar", [":"], x)
 	} {
@@ -191,40 +191,40 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		glob.match("dead:*:beef", [":"], x)
 	}
 
-	glob_match_mappers {
+	glob_match_mappers if {
 		input.x = x
 		glob.match("foo:*", [":"], x)
 	}
 
-	glob_match_mappers {
+	glob_match_mappers if {
 		input.x = x
 	}
 
-	glob_match_mappers_non_mapped_match {
+	glob_match_mappers_non_mapped_match if {
 		input.x = "/bar"
 	}
 
-	glob_match_mappers_non_mapped_match {
+	glob_match_mappers_non_mapped_match if {
 		input.x = x
 		glob.match("bar", ["/"], x)
 	}
 
-	glob_match_overlapped_mappers {
+	glob_match_overlapped_mappers if {
 		input.x = x
 		glob.match("foo:*", [":"], x)
 	}
 
-	glob_match_overlapped_mappers {
+	glob_match_overlapped_mappers if {
 		input.x = x
 		glob.match("foo/*", ["/"], x)
 	}
 
-	glob_match_disjoint_mappers {
+	glob_match_disjoint_mappers if {
 		input.x = x
 		glob.match("foo:*", [":"], x)
 	}
 
-	glob_match_disjoint_mappers {
+	glob_match_disjoint_mappers if {
 		input.x = x
 		glob.match("bar/*", ["/"], x)
 	}
@@ -247,7 +247,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "exact",
 			input:   `{"x": 3, "y": 4}`,
 			expectedRS: []string{
-				`exact { input.x = 3; input.y = 4 }`,
+				`exact if { input.x = 3; input.y = 4 }`,
 			},
 			checkResult: expectOnlyGroundRefs(true), // covering base case
 		},
@@ -256,30 +256,30 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "scalars",
 			input:   `{"x": 2, "y": 2}`,
 			expectedRS: []string{
-				`scalars { input.x = 2 }`},
+				`scalars if { input.x = 2 }`},
 		},
 		{
 			note:    "disjoint match",
 			ruleset: "scalars",
 			input:   `{"x": 2, "y": 2, "z": 2}`,
 			expectedRS: []string{
-				`scalars { input.x = 2 }`,
-				`scalars { input.y = 2; input.z = 2}`},
+				`scalars if { input.x = 2 }`,
+				`scalars if { input.y = 2; input.z = 2}`},
 		},
 		{
 			note:    "ordering match",
 			ruleset: "scalars",
 			input:   `{"x": 0, "y": 1}`,
 			expectedRS: []string{
-				`scalars { input.x = 0; input.y = 1 }`,
-				`scalars { 1 = input.y; input.x = 0 }`},
+				`scalars if { input.x = 0; input.y = 1 }`,
+				`scalars if { 1 = input.y; input.x = 0 }`},
 		},
 		{
 			note:    "type no match",
 			ruleset: "vars",
 			input:   `{"y": 3, "x": {1,2,3}}`,
 			expectedRS: []string{
-				`vars { input.x = x; input.y = 3 }`,
+				`vars if { input.x = x; input.y = 3 }`,
 			},
 		},
 		{
@@ -287,7 +287,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "vars",
 			input:   `{"x": 1, "y": 3}`,
 			expectedRS: []string{
-				`vars { input.x = x; input.y = 3 }`,
+				`vars if { input.x = x; input.y = 3 }`,
 			},
 		},
 		{
@@ -295,8 +295,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "vars",
 			input:   `{"x": 4, "z": 5, "y": 3}`,
 			expectedRS: []string{
-				`vars { input.x = x; input.y = 3 }`,
-				`vars { input.x = 4; input.z = 5 }`,
+				`vars if { input.x = x; input.y = 3 }`,
+				`vars if { input.x = 4; input.z = 5 }`,
 			},
 		},
 		{
@@ -308,8 +308,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				"z": 1,
 			}`,
 			expectedRS: []string{
-				`composite_arr { input.x = 1; input.y = [1,2,3]; input.z = 1 }`,
-				`composite_arr { input.y = [1,[2,3],4] }`,
+				`composite_arr if { input.x = 1; input.y = [1,2,3]; input.z = 1 }`,
+				`composite_arr if { input.y = [1,[2,3],4] }`,
 			},
 		},
 		{
@@ -320,8 +320,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				"y": [1,2,4,5],
 			}`,
 			expectedRS: []string{
-				`composite_arr { input.x = 1; input.y = [1,2,4,x] }`,
-				`composite_arr { input.y = [1,[2,3],4] }`,
+				`composite_arr if { input.x = 1; input.y = [1,2,4,x] }`,
+				`composite_arr if { input.y = [1,[2,3],4] }`,
 			},
 		},
 		{
@@ -333,9 +333,9 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				"z": 3,
 			}`,
 			expectedRS: []string{
-				`composite_arr { input.x = 1; input.y = [1,2,4,x] }`,
-				`composite_arr { input.y = [1,2,y,5]; input.z = 3 }`,
-				`composite_arr { input.y = [1,[2,3],4] }`,
+				`composite_arr if { input.x = 1; input.y = [1,2,4,x] }`,
+				`composite_arr if { input.y = [1,2,y,5]; input.z = 3 }`,
+				`composite_arr if { input.y = [1,[2,3],4] }`,
 			},
 		},
 		{
@@ -346,7 +346,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 				"y": [1,[2,3],4],
 			}`,
 			expectedRS: []string{
-				`composite_arr { input.y = [1,[2,3],4] }`,
+				`composite_arr if { input.y = [1,[2,3],4] }`,
 			},
 		},
 		{
@@ -354,8 +354,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "composite_arr",
 			input:   `{"y": []}`,
 			expectedRS: []string{
-				`composite_arr { input.y = [] }`,
-				`composite_arr { input.y = [1,[2,3],4] }`,
+				`composite_arr if { input.y = [] }`,
+				`composite_arr if { input.y = [1,[2,3],4] }`,
 			},
 		},
 		{
@@ -363,7 +363,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "composite_obj",
 			input:   `{"y": {"foo": "bar", "bar": "baz"}}`,
 			expectedRS: []string{
-				`composite_obj { input.y = {"foo": "bar", "bar": x} }`,
+				`composite_obj if { input.y = {"foo": "bar", "bar": x} }`,
 			},
 		},
 		{
@@ -371,8 +371,8 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "equal",
 			input:   `{"x": 2, "y": 3}`,
 			expectedRS: []string{
-				"equal { input.y == 3 }",
-				"equal { input.x == 2 }",
+				"equal if { input.y == 3 }",
+				"equal if { input.x == 2 }",
 			},
 		},
 		{
@@ -399,41 +399,41 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			note:       "match and non-indexable rules",
 			ruleset:    "filtering",
 			input:      `{"x": 1}`,
-			expectedRS: module.RuleSet(Var("filtering")),
+			expectedRS: mod.RuleSet(Var("filtering")),
 		},
 		{
 			note:       "non-indexable rules",
 			ruleset:    "filtering",
 			input:      `{}`,
-			expectedRS: module.RuleSet(Var("filtering")).Diff(NewRuleSet(MustParseRule(`filtering { input.x = 1 }`))),
+			expectedRS: mod.RuleSet(Var("filtering")).Diff(NewRuleSet(MustParseRuleWithOpts(`filtering if { input.x = 1 }`, opts))),
 		},
 		{
 			note:       "unknown: all",
 			ruleset:    "composite_arr",
 			unknowns:   []string{`input.x`, `input.y`, `input.z`},
-			expectedRS: module.RuleSet(Var("composite_arr")),
+			expectedRS: mod.RuleSet(Var("composite_arr")),
 		},
 		{
 			note:     "unknown: partial",
 			ruleset:  "composite_arr",
 			unknowns: []string{`input.x`, `input.y`},
 			input:    `{"z": 3}`,
-			expectedRS: module.RuleSet(Var("composite_arr")).Diff(NewRuleSet(MustParseRule(`composite_arr {
+			expectedRS: mod.RuleSet(Var("composite_arr")).Diff(NewRuleSet(MustParseRuleWithOpts(`composite_arr if {
 				input.x = 1
 				input.y = [1,2,3]
 				input.z = 1
-			}`))),
+			}`, opts))),
 		},
 		{
 			note:    "glob.match",
 			ruleset: "glob_match",
 			input:   `{"x": "foo:1234:bar"}`,
 			expectedRS: []string{`
-			glob_match {
+			glob_match if {
 				x = input.x
 				glob.match("foo:*:bar", [":"], x)
 			}`, `
-			glob_match {
+			glob_match if {
 				x = input.x
 				glob.match("foo:*:*", [":"], x)
 			}`},
@@ -444,13 +444,13 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:   `{"x": "foo:bar"}`,
 			expectedRS: []string{
 				`
-				glob_match_mappers {
+				glob_match_mappers if {
 					input.x = x
 					glob.match("foo:*", [":"], x)
 				}
 			`,
 				`
-				glob_match_mappers {
+				glob_match_mappers if {
 					input.x = x
 				}
 			`},
@@ -460,7 +460,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "glob_match_mappers_non_mapped_match",
 			input:   `{"x": "/bar"}`,
 			expectedRS: []string{
-				`glob_match_mappers_non_mapped_match {
+				`glob_match_mappers_non_mapped_match if {
 					input.x = "/bar"
 				}`},
 		},
@@ -481,12 +481,12 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:   `{"x": "foo:bar"}`,
 			expectedRS: []string{
 				`
-				glob_match_overlapped_mappers {
+				glob_match_overlapped_mappers if {
 					input.x = x
 					glob.match("foo:*", [":"], x)
 				}
 				`, `
-				glob_match_overlapped_mappers {
+				glob_match_overlapped_mappers if {
 					input.x = x
 					glob.match("foo/*", ["/"], x)
 				}
@@ -498,7 +498,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "glob_match_disjoint_mappers",
 			input:   `{"x": "foo:bar"}`,
 			expectedRS: []string{
-				`glob_match_disjoint_mappers { input.x = x; glob.match("foo:*", [":"], x) }`,
+				`glob_match_disjoint_mappers if { input.x = x; glob.match("foo:*", [":"], x) }`,
 			},
 		},
 		{
@@ -509,25 +509,25 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		},
 		{
 			note: "glob.match: do not index captured output",
-			module: MustParseModule(`package test
-				p { x = input.x; glob.match("/a/*/c", ["/"], x, false) }
+			module: module(`package test
+				p if { x = input.x; glob.match("/a/*/c", ["/"], x, false) }
 			`),
 			ruleset: "p",
 			input:   `{"x": "wrong"}`,
 			expectedRS: []string{
-				`p { x = input.x; glob.match("/a/*/c", ["/"], x, false) }`,
+				`p if { x = input.x; glob.match("/a/*/c", ["/"], x, false) }`,
 			},
 		},
 		{
 			note: "functions: args match",
-			module: MustParseModule(`package test
-			f(x) = y {
+			module: module(`package test
+			f(x) = y if {
 				input.a = "foo"
 				x = 10
 				y := 10
 			}
-			f(x) = 12 { x = 11 }
-			f(x) = x+1 {
+			f(x) = 12 if { x = 11 }
+			f(x) = x+1 if {
 				input.a = x
 				x != 10
 				x != 11
@@ -536,20 +536,20 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:   `{"a": "foo"}`,
 			args:    []Value{Number("11")},
 			expectedRS: []string{
-				`f(x) = 12 { x = 11 } `,
-				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+				`f(x) = 12 if { x = 11 } `,
+				`f(x) = plus(x, 1) if { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
 			},
 		},
 		{
 			note: "functions: input + args match",
-			module: MustParseModule(`package test
-			f(x) = y {
+			module: module(`package test
+			f(x) = y if {
 				input.a = "foo"
 				x = 10
 				y := 10
 			}
-			f(x) = 12 { x = 11 }
-			f(x) = x+1 {
+			f(x) = 12 if { x = 11 }
+			f(x) = x+1 if {
 				input.a = x
 				x != 10
 				x != 11
@@ -558,19 +558,19 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			input:   `{"a": "foo"}`,
 			args:    []Value{Number("10")},
 			expectedRS: []string{
-				`f(x) = y { input.a = "foo"; x = 10; assign(y, 10) }`,
-				`f(x) = plus(x, 1) { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
+				`f(x) = y if { input.a = "foo"; x = 10; assign(y, 10) }`,
+				`f(x) = plus(x, 1) if { input.a = x; neq(x, 10); neq(x, 11) }`, // neq not respected in index
 			},
 		},
 		{
 			note: "functions: multiple args, each matches",
-			module: MustParseModule(`package test
-			g(x, y) = z {
+			module: module(`package test
+			g(x, y) = z if {
 				x = 12
 				y = "monkeys"
 				z = 1
 			}
-			g(a, b) = c {
+			g(a, b) = c if {
 				a = "a"
 				b = "b"
 				c = "c"
@@ -578,83 +578,83 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			ruleset: "g",
 			args:    []Value{Number("12"), StringTerm("monkeys").Value},
 			expectedRS: []string{
-				`g(x, y) = z { x = 12; y = "monkeys"; z = 1 }`,
+				`g(x, y) = z if { x = 12; y = "monkeys"; z = 1 }`,
 			},
 		},
 		{
 			note: "functions: glob.match in function, arg matching first glob",
-			module: MustParseModule(`package test
-			glob_f(a) = true {
+			module: module(`package test
+			glob_f(a) = true if {
 				glob.match("foo:*", [":"], a)
 			}
-			glob_f(a) = true {
+			glob_f(a) = true if {
 				glob.match("baz:*", [":"], a)
 			}
-			glob_f(a) = true {
+			glob_f(a) = true if {
 				a = 12
 			}`),
 			ruleset: "glob_f",
 			args:    []Value{StringTerm("foo:bar").Value},
 			expectedRS: []string{
-				`glob_f(a) = true { glob.match("foo:*", [":"], a) }`,
+				`glob_f(a) = true if { glob.match("foo:*", [":"], a) }`,
 			},
 		},
 		{
 			note: "functions: glob.match in function, arg matching second glob",
-			module: MustParseModule(`package test
-			glob_f(a) = true {
+			module: module(`package test
+			glob_f(a) = true if {
 				glob.match("foo:*", [":"], a)
 			}
-			glob_f(a) = true {
+			glob_f(a) = true if {
 				glob.match("baz:*", [":"], a)
 			}
-			glob_f(a) = true {
+			glob_f(a) = true if {
 				a = 12
 			}`),
 			ruleset: "glob_f",
 			args:    []Value{StringTerm("baz:bar").Value},
 			expectedRS: []string{
-				`glob_f(a) = true { glob.match("baz:*", [":"], a) }`,
+				`glob_f(a) = true if { glob.match("baz:*", [":"], a) }`,
 			},
 		},
 		{
 			note: "functions: glob.match in function, arg matching non-glob rule",
-			module: MustParseModule(`package test
-			glob_f(a) = true {
+			module: module(`package test
+			glob_f(a) = true if {
 				glob.match("baz:*", [":"], a)
 			}
-			glob_f(a) = true {
+			glob_f(a) = true if {
 				a = 12
 			}`),
 			ruleset: "glob_f",
 			args:    []Value{Number("12")},
 			expectedRS: []string{
-				`glob_f(a) = true { a = 12 }`,
+				`glob_f(a) = true if { a = 12 }`,
 			},
 		},
 		{
 			note: "functions: multiple outputs for same inputs",
-			module: MustParseModule(`package test
-			f(x) = y { a = x; equal(a, 1, r); y = r }
-			f(x) = y { a = x; equal(a, 2, r); y = r }`),
+			module: module(`package test
+			f(x) = y if { a = x; equal(a, 1, r); y = r }
+			f(x) = y if { a = x; equal(a, 2, r); y = r }`),
 			ruleset: "f",
 			input:   `{}`,
 			args:    []Value{Number("1")},
 			expectedRS: []string{
-				`f(x) = y { a = x; equal(a, 1, r); y = r }`,
-				`f(x) = y { a = x; equal(a, 2, r); y = r }`,
+				`f(x) = y if { a = x; equal(a, 1, r); y = r }`,
+				`f(x) = y if { a = x; equal(a, 2, r); y = r }`,
 			},
 		},
 		{
 			note: "functions: do not index equal(x,y,z)",
-			module: MustParseModule(`package test
-				f(x) = y { equal(x, 1, z); y = z }
+			module: module(`package test
+				f(x) = y if { equal(x, 1, z); y = z }
 			`),
 			ruleset: "f",
 			input:   `{}`,
 			args:    []Value{Number("2")},
 			expectedRS: []string{
-				`f(x) = y { equal(x, 1, z); y = z }`,
+				`f(x) = y if { equal(x, 1, z); y = z }`,
 			},
 		},
 		{
@@ -705,7 +705,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 		},
 		// {
 		// 	note:       "ref: multi value, var in ref",
-		// 	module:     refMod,
+		// 	mod:        refMod,
 		// 	ruleRef:    MustParseRef("ref.multi.value.key[k]"),
 		// 	input:      `{"k": 1, "v": 2}`,
 		// 	expectedRS: RuleSet([]*Rule{refMod.Rules[3]}),
@@ -714,12 +714,12 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.note, func(t *testing.T) {
-			module := module
+			mod := mod
 			if tc.module != nil {
-				module = tc.module
+				mod = tc.module
 			}
 			rules := []*Rule{}
-			for _, rule := range module.Rules {
+			for _, rule := range mod.Rules {
 				if tc.ruleRef == nil {
 					if rule.Head.Name == Var(tc.ruleset) {
 						rules = append(rules, rule)
@@ -744,7 +744,7 @@ func TestBaseDocEqIndexing(t *testing.T) {
 			switch e := tc.expectedRS.(type) {
 			case []string:
 				for _, r := range e {
-					expectedRS.Add(MustParseRule(r))
+					expectedRS.Add(MustParseRuleWithOpts(r, opts))
 				}
 			case RuleSet:
 				expectedRS = e
@@ -796,25 +796,25 @@ func TestBaseDocEqIndexing(t *testing.T) {
 
 func TestBaseDocEqIndexingPriorities(t *testing.T) {
 
-	module := MustParseModule(`
+	module := module(`
 	package test
 
-	p {						# r1
+	p if {						# r1
 		false
-	} else {				# r2
+	} else if {					# r2
 		input.x = "x1"
 		input.y = "y1"
-	} else {				# r3
+	} else if {					# r3
 		input.z = "z1"
 	}
 
-	p {						# r4
+	p if {						# r4
 		input.x = "x1"
 	}
 
-	p {						# r5
+	p if {						# r5
 		input.z = "z2"
-	} else {				# r6
+	} else if {					# r6
 		input.z = "z1"
 	}
 	`)
@@ -865,10 +865,10 @@ func TestBaseDocEqIndexingErrors(t *testing.T) {
 		return false
 	})
 
-	module := MustParseModule(`
+	module := module(`
 	package ex
 
-	p { input.raise_error = 1 }`)
+	p if { input.raise_error = 1 }`)
 
 	if !index.Build(module.Rules) {
 		t.Fatalf("Expected index to build")
@@ -937,21 +937,21 @@ func TestSplitStringEscaped(t *testing.T) {
 }
 
 func TestGetAllRules(t *testing.T) {
-	module := MustParseModule(`
+	module := module(`
 	package test
 
 	default p = 42
 
-	p {
+	p if {
 		input.x = "x1"
 		input.y = "y1"
-	} else {
+	} else if {
 		true
-	} else {
+	} else if {
 		input.z = "z1"
 	}
 
-	p {
+	p if {
 		input.z = "z1"
 	}
 	`)
@@ -992,19 +992,19 @@ func TestGetAllRules(t *testing.T) {
 
 func TestSkipIndexing(t *testing.T) {
 
-	module := MustParseModule(`package test
+	module := module(`package test
 
-	p {
+	p if {
 		internal.print("here")
 		input.foo = 7
-	} else = false {
+	} else = false if {
 		input.bar = 8
-	} else = true {
+	} else = true if {
 		internal.print("here 2")
 		input.bar = 9
 	}
 
-	p {
+	p if {
 		input.foo = 9
 	}`)
 
@@ -1050,11 +1050,11 @@ func TestBaseDocIndexResultEarlyExit(t *testing.T) {
 		{
 			note:       "single rule",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r = 3 {
+r = 3 if {
 	input.y = 2
 }`),
 			input: `{"x": 1}`,
@@ -1066,11 +1066,11 @@ r = 3 {
 			note:            "no early exit: two rules, indexing disabled",
 			disableIndexing: true,
 			expectedEE:      false,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r = 3 {
+r = 3 if {
 	input.y = 2
 }`),
 			input: `{"x": 1}`,
@@ -1083,11 +1083,11 @@ r = 3 {
 			note:            "two rules, indexing disabled",
 			disableIndexing: true,
 			expectedEE:      true,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r {
+r if {
 	input.y = 2
 }`),
 			input: `{"x": 1}`,
@@ -1099,11 +1099,11 @@ r {
 		{
 			note:       "no early exit: different constant value",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r = 2 {
+r = 2 if {
 	input.x = 1
 	input.y = 2
 }`),
@@ -1116,11 +1116,11 @@ r = 2 {
 		{
 			note:       "same constant value",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r {
+r if {
 	input.y = 1
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1128,11 +1128,11 @@ r {
 		{
 			note:       "no early exit: one rule with with non-constant value",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-r = x {
+r = x if {
 	input.y = 1
 	x = "foo"
 }`),
@@ -1145,11 +1145,11 @@ r = x {
 		{
 			note:       "same ref value (input)",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r = input.a {
+			module: module(`package test
+r = input.a if {
 	input.x = 1
 }
-r = input.a {
+r = input.a if {
 	input.y = 1
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1157,11 +1157,11 @@ r = input.a {
 		{
 			note:       "same ref value (data)",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r = data.a {
+			module: module(`package test
+r = data.a if {
 	input.x = 1
 }
-r = data.a {
+r = data.a if {
 	input.y = 1
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1169,14 +1169,14 @@ r = data.a {
 		{
 			note:       "else: same constant value",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-else {
+else if {
 	true
 }
-r {
+r if {
 	input.y = 1
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1184,14 +1184,14 @@ r {
 		{
 			note:       "else: no early exit: different constant value",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r {
+			module: module(`package test
+r if {
 	input.x = 1
 }
-else = false {
+else = false if {
 	true
 }
-r {
+r if {
 	input.y = 1
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1203,11 +1203,11 @@ r {
 		{
 			note:       "function: single rule",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r(x) {
+			module: module(`package test
+r(x) if {
 	input.x = x
 }
-r = 3 {
+r = 3 if {
 	input.y = 2
 }`),
 			input: `{"x": 1}`,
@@ -1218,11 +1218,11 @@ r = 3 {
 		{
 			note:       "function: no early exit: different constant value",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r(x) {
+			module: module(`package test
+r(x) if {
 	input.x = x
 }
-r(y) = 2 {
+r(y) = 2 if {
 	input.x = 1
 	input.y = y
 }`),
@@ -1235,11 +1235,11 @@ r(y) = 2 {
 		{
 			note:       "function: same constant value",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r(x) {
+			module: module(`package test
+r(x) if {
 	input.x = x
 }
-r(y) {
+r(y) if {
 	input.y = y
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1247,11 +1247,11 @@ r(y) {
 		{
 			note:       "function: no early exit: one with with non-constant value",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r(x) {
+			module: module(`package test
+r(x) if {
 	input.x = x
 }
-r(y) = x {
+r(y) = x if {
 	input.y = y
 	x = "foo"
 }`),
@@ -1260,11 +1260,11 @@ r(y) = x {
 		{ // NOTE(sr): impossible, the compiler rewrites this
 			note:       "function: same ref value (input)",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r(x) = input.a {
+			module: module(`package test
+r(x) = input.a if {
 	input.x = x
 }
-r(y) = input.a {
+r(y) = input.a if {
 	input.y = y
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1272,11 +1272,11 @@ r(y) = input.a {
 		{ // NOTE(sr): impossible, the compiler rewrites this
 			note:       "function: same ref value (data)",
 			expectedEE: true,
-			module: MustParseModule(`package test
-r(x) = data.a {
+			module: module(`package test
+r(x) = data.a if {
 	input.x = x
 }
-r(y) = data.a {
+r(y) = data.a if {
 	input.y = y
 }`),
 			input: `{"x": 1, "y": 1}`,
@@ -1289,12 +1289,12 @@ r(y) = data.a {
 
 			note:       "no early exit: same ref but bound to vars",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r = v {
+			module: module(`package test
+r = v if {
 	input.x = 1
 	v = input.a
 }
-r = v {
+r = v if {
 	input.y = 1
 	v = input.a
 }`),
@@ -1307,12 +1307,12 @@ r = v {
 		{
 			note:       "no early exit: same value but with non-ground",
 			expectedEE: false,
-			module: MustParseModule(`package test
-r = [1, {"a": v}] {
+			module: module(`package test
+r = [1, {"a": v}] if {
 	input.x = 1
 	v = "a"
 }
-r = [1, {"a": v}] {
+r = [1, {"a": v}] if {
 	input.y = 1
 	v = "a"
 }`),
@@ -1327,8 +1327,8 @@ r = [1, {"a": v}] {
 			expectedEE: false,
 			// NOTE(sr): this is what the indexer gets after rewriting
 			//     r = { i | i := data.arr[i] } { true }
-			module: MustParseModule(`package test
-r = local0 {
+			module: module(`package test
+r = local0 if {
 	local0 = {i | i := data.arr[i]}
 }`),
 			input: `{}`,
