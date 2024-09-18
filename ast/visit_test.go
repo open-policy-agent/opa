@@ -19,11 +19,11 @@ func (vis *testVis) Visit(x interface{}) bool {
 
 func TestVisitor(t *testing.T) {
 
-	rule := MustParseModule(`package a.b
+	rule := module(`package a.b
 
 import input.x.y as z
 
-t[x] = y {
+t[x] = y if {
 	p[x] = {"foo": [y, 2, {"bar": 3}]}
 	not q[x]
 	y = [[x, z] | x = "x"; z = "z"]
@@ -33,9 +33,9 @@ t[x] = y {
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
-p { false } else { false } else { true }
+p if { false } else if { false } else if { true }
 
-fn([x, y]) = z { json.unmarshal(x, z); z > y }
+fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 `)
 	vis := &testVis{}
 	NewGenericVisitor(vis.Visit).Walk(rule)
@@ -81,11 +81,11 @@ func TestWalkVars(t *testing.T) {
 }
 
 func TestGenericVisitor(t *testing.T) {
-	rule := MustParseModule(`package a.b
+	rule := module(`package a.b
 
 import input.x.y as z
 
-t[x] = y {
+t[x] = y if {
 	p[x] = {"foo": [y, 2, {"bar": 3}]}
 	not q[x]
 	y = [[x, z] | x = "x"; z = "z"]
@@ -95,9 +95,9 @@ t[x] = y {
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
-p { false } else { false } else { true }
+p if { false } else if { false } else if { true }
 
-fn([x, y]) = z { json.unmarshal(x, z); z > y }
+fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 `)
 
 	var elems []interface{}
@@ -113,11 +113,11 @@ fn([x, y]) = z { json.unmarshal(x, z); z > y }
 }
 
 func TestBeforeAfterVisitor(t *testing.T) {
-	rule := MustParseModule(`package a.b
+	rule := module(`package a.b
 
 import input.x.y as z
 
-t[x] = y {
+t[x] = y if {
 	p[x] = {"foo": [y, 2, {"bar": 3}]}
 	not q[x]
 	y = [[x, z] | x = "x"; z = "z"]
@@ -127,9 +127,9 @@ t[x] = y {
 	count({1, 2, 3}, n) with input.foo.bar as x
 }
 
-p { false } else { false } else { true }
+p if { false } else if { false } else if { true }
 
-fn([x, y]) = z { json.unmarshal(x, z); z > y }
+fn([x, y]) = z if { json.unmarshal(x, z); z > y }
 `)
 
 	var before, after []interface{}

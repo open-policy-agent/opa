@@ -12,12 +12,12 @@ import (
 
 func TestPretty(t *testing.T) {
 
-	module := MustParseModule(`
+	module := module(`
 	package foo.bar
 
 	import data.baz as qux
 
-	p[x] = y {
+	p[x] = y if {
 		x = a + b
 		y = {"foo": [{1, null}, true]}
 	}

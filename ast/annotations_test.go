@@ -415,19 +415,20 @@ package root2`,
 			note: "overlapping rule paths (same module)",
 			modules: map[string]string{
 				"mod": `package test
+import rego.v1
 
 # METADATA
 # title: P1
-p[v] {v = 1}
+p contains v if {v = 1}
 
 # METADATA
 # title: P2
-p[v] {v = 2}`,
+p contains v if {v = 2}`,
 			},
 			expected: []AnnotationsRef{
 				{
 					Path:     MustParseRef("data.test.p"),
-					Location: &Location{File: "mod", Row: 5},
+					Location: &Location{File: "mod", Row: 6},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P1",
@@ -435,7 +436,7 @@ p[v] {v = 2}`,
 				},
 				{
 					Path:     MustParseRef("data.test.p"),
-					Location: &Location{File: "mod", Row: 9},
+					Location: &Location{File: "mod", Row: 10},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P2",
@@ -447,18 +448,22 @@ p[v] {v = 2}`,
 			note: "overlapping rule paths (different modules)",
 			modules: map[string]string{
 				"mod1": `package test
+import rego.v1
+
 # METADATA
 # title: P1
-p[v] {v = 1}`,
+p contains v if {v = 1}`,
 				"mod2": `package test
+import rego.v1
+
 # METADATA
 # title: P2
-p[v] {v = 2}`,
+p contains v if {v = 2}`,
 			},
 			expected: []AnnotationsRef{
 				{
 					Path:     MustParseRef("data.test.p"),
-					Location: &Location{File: "mod1", Row: 4},
+					Location: &Location{File: "mod1", Row: 6},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P1",
@@ -466,7 +471,7 @@ p[v] {v = 2}`,
 				},
 				{
 					Path:     MustParseRef("data.test.p"),
-					Location: &Location{File: "mod2", Row: 4},
+					Location: &Location{File: "mod2", Row: 6},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P2",
@@ -478,18 +483,22 @@ p[v] {v = 2}`,
 			note: "overlapping rule paths (different modules, rule head refs)",
 			modules: map[string]string{
 				"mod1": `package test.a
+import rego.v1
+
 # METADATA
 # title: P1
-b.c.p[v] {v = 1}`,
+b.c.p[v] if {v = 1}`,
 				"mod2": `package test
+import rego.v1
+
 # METADATA
 # title: P2
-a.b.c.p[v] {v = 2}`,
+a.b.c.p[v] if {v = 2}`,
 			},
 			expected: []AnnotationsRef{
 				{
 					Path:     MustParseRef("data.test.a.b.c.p"),
-					Location: &Location{File: "mod1", Row: 4},
+					Location: &Location{File: "mod1", Row: 6},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P1",
@@ -497,7 +506,7 @@ a.b.c.p[v] {v = 2}`,
 				},
 				{
 					Path:     MustParseRef("data.test.a.b.c.p"),
-					Location: &Location{File: "mod2", Row: 4},
+					Location: &Location{File: "mod2", Row: 6},
 					Annotations: &Annotations{
 						Scope: "rule",
 						Title: "P2",

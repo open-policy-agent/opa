@@ -33,35 +33,39 @@ f(input)`,
 		{
 			note: "no matching node",
 			buffer: `package test
+import rego.v1
 
-p { q }
+p if { q }
 
 q = true`,
-			pos: 100,
+			pos: 118,
 			exp: ErrNoMatchFound,
 		},
 		{
 			note: "no good match - literal",
 			buffer: `package test
+import rego.v1
 
-p { q > 1 }`,
-			pos: 22, // this points at the number '1'
+p if { q > 1 }`,
+			pos: 40, // this points at the number '1'
 			exp: ErrNoDefinitionFound,
 		},
 		{
 			note: "no good match - rule name",
 			buffer: `package test
+import rego.v1
 
-p { q > 1 }`,
-			pos: 14, // this points at the rule 'p'
+p if { q > 1 }`,
+			pos: 32, // this points at the rule 'p'
 			exp: ErrNoDefinitionFound,
 		},
 		{
 			note: "no good match - rule whitespace",
 			buffer: `package test
+import rego.v1
 
-p { q > 1 }`,
-			pos: 21, // this points at the whitespace after '>'
+p if { q > 1 }`,
+			pos: 39, // this points at the whitespace after '>'
 			exp: ErrNoDefinitionFound,
 		},
 		{
@@ -105,10 +109,11 @@ func TestOracleFindDefinition(t *testing.T) {
 
 	const aBufferModule = `package test
 
+import rego.v1
 import data.foo.s
 import data.foo.bar as t
 
-p {
+p if {
     q
     [r]
     s[t]
@@ -118,39 +123,41 @@ r = true
 q = true`
 
 	const aSecondBufferModule = `package test
+import rego.v1
 
-p {
+p if {
 	q
 }`
 
 	const aThirdBufferModule = `package test
+import rego.v1
 
-f(x) {
+f(x) if {
 	input.foo[x]
 }
 
-u {
+u if {
 	some x
 	x = 1
 }
 
-v {
+v if {
 	x := 1
 	x < 10
 }
 
-w {
+w if {
 	y[i]
 	i > 1
 }
 
-m {
+m if {
 	[i, j] = [1, 2]
 	j > i
 }
 
 x = "deadbeef"
-y[1]
+y contains 1
 `
 
 	const fooModule = `package foo
@@ -160,7 +167,9 @@ bar = 7`
 
 	// NOTE(sr): Early ref rewriting adds an expression to the rule body for `x.y`
 	const varInRuleRefModule = `package foo
-q[x.y] = 10 {
+import rego.v1
+
+q[x.y] = 10 if {
 	x := input
 	some z
 	z = 1
@@ -176,10 +185,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
 			},
-			pos: 66,
+			pos: 84,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    13,
+				Row:    14,
 				Col:    1,
 				Offset: 97,
 				Text:   []byte("q = true"),
@@ -190,10 +199,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
 			},
-			pos: 73,
+			pos: 91,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    12,
+				Row:    13,
 				Col:    1,
 				Offset: 88,
 				Text:   []byte("r = true"),
@@ -205,7 +214,7 @@ q[x.y] = 10 {
 				"buffer.rego": aBufferModule,
 				"foo.rego":    fooModule,
 			},
-			pos: 80,
+			pos: 98,
 			exp: &ast.Location{
 				File:   "foo.rego",
 				Row:    3,
@@ -220,7 +229,7 @@ q[x.y] = 10 {
 				"buffer.rego": aBufferModule,
 				"foo.rego":    fooModule,
 			},
-			pos: 81, // this refers to the '[' character following 's'--this exercises the case where position does not refer to a symbol
+			pos: 99, // this refers to the '[' character following 's'--this exercises the case where position does not refer to a symbol
 			exp: &ast.Location{
 				File:   "foo.rego",
 				Row:    3,
@@ -234,10 +243,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
 			},
-			pos: 80,
+			pos: 98,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    3,
+				Row:    4,
 				Col:    8,
 				Offset: 21,
 				Text:   []byte("data.foo.s"),
@@ -249,7 +258,7 @@ q[x.y] = 10 {
 				"buffer.rego": aBufferModule,
 				"foo.rego":    fooModule,
 			},
-			pos: 82,
+			pos: 100,
 			exp: &ast.Location{
 				File:   "foo.rego",
 				Row:    4,
@@ -263,10 +272,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aBufferModule,
 			},
-			pos: 82,
+			pos: 100,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    4,
+				Row:    5,
 				Col:    8,
 				Offset: 39,
 				Text:   []byte("data.foo.bar"),
@@ -278,10 +287,10 @@ q[x.y] = 10 {
 				"buffer.rego": aSecondBufferModule, // use a different module that references q in main buffer module used above
 				"test.rego":   aBufferModule,
 			},
-			pos: 19,
+			pos: 37,
 			exp: &ast.Location{
 				File:   "test.rego",
-				Row:    13,
+				Row:    14,
 				Col:    1,
 				Offset: 97,
 				Text:   []byte("q = true"),
@@ -292,10 +301,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aThirdBufferModule,
 			},
-			pos: 32,
+			pos: 50,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    3,
+				Row:    4,
 				Col:    3,
 				Offset: 16,
 				Text:   []byte("x"),
@@ -306,10 +315,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aThirdBufferModule,
 			},
-			pos: 51,
+			pos: 72,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    8,
+				Row:    9,
 				Col:    7,
 				Offset: 48,
 				Text:   []byte("x"),
@@ -320,10 +329,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aThirdBufferModule,
 			},
-			pos: 73,
+			pos: 97,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    13,
+				Row:    14,
 				Col:    2,
 				Offset: 65,
 				Text:   []byte("x"),
@@ -334,10 +343,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aThirdBufferModule,
 			},
-			pos: 94,
+			pos: 121,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    18,
+				Row:    19,
 				Col:    4,
 				Offset: 90,
 				Text:   []byte("i"),
@@ -348,10 +357,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": aThirdBufferModule,
 			},
-			pos: 129,
+			pos: 159,
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    23,
+				Row:    24,
 				Col:    3,
 				Offset: 109,
 				Text:   []byte("i"),
@@ -362,10 +371,10 @@ q[x.y] = 10 {
 			modules: map[string]string{
 				"buffer.rego": varInRuleRefModule,
 			},
-			pos: 47, // "z" in "z = 1"
+			pos: 66, // "z" in "z = 1"
 			exp: &ast.Location{
 				File:   "buffer.rego",
-				Row:    4,
+				Row:    6,
 				Col:    7,
 				Offset: 44,
 				Text:   []byte("z"),
@@ -420,8 +429,9 @@ q[x.y] = 10 {
 
 func TestFindContainingNodeStack(t *testing.T) {
 	const trivial = `package test
+import rego.v1
 
-p {
+p if {
     q
     r
 }
@@ -432,8 +442,8 @@ q = true`
 	module := ast.MustParseModule(trivial)
 	module.Package.Location = nil // unset the package location to test nil tolerance
 
-	// offset 28 is the first 'r' variable
-	result := findContainingNodeStack(module, 28)
+	// offset 46 is the first 'r' variable
+	result := findContainingNodeStack(module, 46)
 
 	exp := []*ast.Location{
 		module.Rules[0].Loc(),
@@ -454,7 +464,7 @@ q = true`
 
 	// Exercise special case for bodies.
 	module.Rules[0].Body[1].Location = nil
-	result = findContainingNodeStack(module, 28)
+	result = findContainingNodeStack(module, 46)
 
 	exp = []*ast.Location{
 		module.Rules[0].Loc(),
