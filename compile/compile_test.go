@@ -1246,8 +1246,8 @@ func TestCompilerOptimizationWithConfiguredNamespace(t *testing.T) {
 				t.Fatalf("expected two modules but got: %v", len(compiler.bundle.Modules))
 			}
 
-			// The compiler will strip the rego.v1 import from the module, so we need to compare it
-			// to a pure v1 module that doesn't require the import.
+			// The compiler will drop the rego.v1 import, so we need to affix the rego-version of the expected module to
+			// v1, to have its string serialization include 'if'/'else' keywords but not the rego.v1 import.
 			optimizedExp := ast.MustParseModuleWithOpts(`package custom
 				__not1_0_2__ = true if { data.test.q = _; _ }`,
 				ast.ParserOptions{RegoVersion: ast.RegoV1})

@@ -25,7 +25,7 @@ func TestDependencies(t *testing.T) {
 			 import data.a.x
 			 import data.a.y
 
-			 d {
+			 d if {
 				a = x
 				b = data.a.y
 				a = b
@@ -36,7 +36,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d {
+			 d if {
 				a = x
 				b = a.y
 				a = "4"
@@ -48,7 +48,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d {
+			 d if {
 				true = a.y
 				a = x
 			 }`,
@@ -59,7 +59,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d = f {
+			 d = f if {
 				 a = x.y
 				 e = "foo"
 				 f = [b | a[i].b = e
@@ -72,7 +72,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] = f {
+			 d[i] = f if {
 				 x[i]
 				 count([1 | x[i].foo = "foo"], f)
 			 }`,
@@ -83,7 +83,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] = f {
+			 d[i] = f if {
 				 count([1 | x[i].foo = "foo"], f)
 				 x[i]
 			 }`,
@@ -94,7 +94,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] = f {
+			 d[i] = f if {
 				 b = x.y
 				 b[i]
 				 count([1 | x.y[_].foo = "foo"], f)
@@ -106,7 +106,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] = f {
+			 d[i] = f if {
 				 b = x.y
 				 b[i]
 				 count([1 | x.y[0].foo = "foo"], f)
@@ -118,7 +118,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] {
+			 d contains i if {
 				x[i]
 			 }`,
 
@@ -128,7 +128,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[i] {
+			 d contains i if {
 				b = x.y
 				b[i]
 			 }`,
@@ -139,7 +139,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 d[a] = b {
+			 d[a] = b if {
 				a = x.y
 				b = x.z
 				x.y.z = "foo"
@@ -154,7 +154,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 f {
+			 f if {
 				 a = x
 				 b = a.y
 				 c = b.z
@@ -171,7 +171,7 @@ func TestDependencies(t *testing.T) {
 			 import data.a.y
 			 import data.j
 
-			 f {
+			 f if {
 				 a = x
 				 b = a.y
 				 c = b.z
@@ -208,7 +208,7 @@ func TestDependencies(t *testing.T) {
 			 import data.a.y
 			 import data.j
 
-			 f {
+			 f if {
 				 a = x
 				 b = a.y
 				 c = b.z
@@ -216,7 +216,7 @@ func TestDependencies(t *testing.T) {
 				 d.b = "foo"
 			 }
 
-			 g {
+			 g if {
 				 a = x.z.b
 				 e = x
 				 h = e.y
@@ -240,7 +240,7 @@ func TestDependencies(t *testing.T) {
 			 import data.a.f
 			 import data.a.g
 
-			 a[i] = [j, k] {
+			 a[i] = [j, k] if {
 				b = x.y
 				y[b.z[0]] = "foo"
 				z[b.a.c][i]
@@ -262,7 +262,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 f {
+			 f if {
 				 a = x
 				 b = a.y
 				 b = a.z
@@ -301,7 +301,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 f = [z, g] {
+			 f = [z, g] if {
 				 a = x
 				 b = a.y.z
 				 indexof(a.b, b, z)
@@ -316,7 +316,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 f = [g] {
+			 f = [g] if {
 				 a = x
 				 b = a.y.z
 				 c = b.e
@@ -332,7 +332,7 @@ func TestDependencies(t *testing.T) {
 			ast: `package a.b.c
 			 import data.a.x
 
-			 f {
+			 f if {
 				 x
 			 }`,
 
@@ -342,7 +342,7 @@ func TestDependencies(t *testing.T) {
 
 	for n, test := range tests {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
-			module := ast.MustParseModule(test.ast)
+			module := ast.MustParseModuleWithOpts(test.ast, ast.ParserOptions{AllFutureKeywords: true})
 			compiler := ast.NewCompiler()
 			if compiler.Compile(map[string]*ast.Module{"test": module}); compiler.Failed() {
 				t.Fatalf("Failed to compile policy: %v", compiler.Errors)
@@ -389,19 +389,21 @@ func TestDependencies(t *testing.T) {
 func TestBaseAndVirtual(t *testing.T) {
 	mods := map[string]*ast.Module{
 		"one": ast.MustParseModule(`package x
+		import rego.v1
 
 		y = "foo"
 
-		z[x] = w {
+		z[x] = w if {
 			w = x
 			x = "bar"
 			y = x
 		}`),
 		"two": ast.MustParseModule(`package a
+		import rego.v1
 
 		b = {"buz": "bar"}
 
-		c[a] = e {
+		c[a] = e if {
 			e = data.d[_]
 			data.x.z[a] = e[2]
 		}`),
@@ -444,14 +446,15 @@ func TestBase(t *testing.T) {
 	modules := map[string]*ast.Module{
 		"test": ast.MustParseModule(`
 			package test
+			import rego.v1
 
-			p {
+			p if {
 				input = x
 				x = y
 				y.z = "foo"
 			}
 
-			q {
+			q if {
 				input.a = "bar"
 			}
 		`),

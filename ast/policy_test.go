@@ -20,28 +20,28 @@ func TestModuleJSONRoundTrip(t *testing.T) {
 
 	mod, err := ParseModuleWithOpts("test.rego", `package a.b.c
 
-import future.keywords
+import rego.v1
 import data.x.y as z
 import data.u.i
 
-p = [1, 2, {"foo": 3.14}] { r[x] = 1; not q[x] }
-r[y] = v { i[1] = y; v = i[2] }
-q[x] { a = [true, false, null, {"x": [1, 2, 3]}]; a[i] = x }
-t = true { xs = [{"x": a[i].a} | a[i].n = "bob"; b[x]] }
-big = 1e+1000 { true }
-odd = -0.1 { true }
-s = {1, 2, 3} { true }
-s = set() { false }
-empty_obj = true { {} }
-empty_arr = true { [] }
-empty_set = true { set() }
-using_with = true { x = data.foo + 1 with input.foo as bar }
-x = 2 { input = null }
+p = [1, 2, {"foo": 3.14}] if { r[x] = 1; not q[x] }
+r[y] = v if { i[1] = y; v = i[2] }
+q contains x if { a = [true, false, null, {"x": [1, 2, 3]}]; a[i] = x }
+t = true if { xs = [{"x": a[i].a} | a[i].n = "bob"; b[x]] }
+big = 1e+1000 if { true }
+odd = -0.1 if { true }
+s = {1, 2, 3} if { true }
+s = set() if { false }
+empty_obj = true if { {} }
+empty_arr = true if { [] }
+empty_set = true if { set() }
+using_with = true if { x = data.foo + 1 with input.foo as bar }
+x = 2 if { input = null }
 default allow = true
-f(x) = y { y = x }
-a = true { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
-b = true { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
-call_values { f(x) != g(x) }
+f(x) = y if { y = x }
+a = true if { xs = {a: b | input.y[a] = "foo"; b = input.z["bar"]} }
+b = true if { xs = {{"x": a[i].a} | a[i].n = "bob"; b[x]} }
+call_values if { f(x) != g(x) }
 assigned := 1
 rule.having.ref.head[1] = x if x := 2
 
@@ -487,8 +487,9 @@ func TestRuleString(t *testing.T) {
 	trueBody := NewBody(NewExpr(BooleanTerm(true)))
 
 	tests := []struct {
-		rule *Rule
-		exp  string
+		rule  *Rule
+		expV0 string
+		expV1 string
 	}{
 		{
 			rule: &Rule{
@@ -497,28 +498,32 @@ func TestRuleString(t *testing.T) {
 					Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 				),
 			},
-			exp: `p = true { "foo" = "bar" }`,
+			expV0: `p = true { "foo" = "bar" }`,
+			expV1: `p = true if { "foo" = "bar" }`,
 		},
 		{
 			rule: &Rule{
 				Head: NewHead(Var("p"), VarTerm("x")),
 				Body: trueBody,
 			},
-			exp: `p[x] { true }`,
+			expV0: `p[x] { true }`,
+			expV1: `p contains x if { true }`,
 		},
 		{
 			rule: &Rule{
 				Head: RefHead(MustParseRef("p[x]"), BooleanTerm(true)),
 				Body: MustParseBody("x = 1"),
 			},
-			exp: `p[x] = true { x = 1 }`,
+			expV0: `p[x] = true { x = 1 }`,
+			expV1: `p[x] = true if { x = 1 }`,
 		},
 		{
 			rule: &Rule{
 				Head: RefHead(MustParseRef("p.q.r[x]"), BooleanTerm(true)),
 				Body: MustParseBody("x = 1"),
 			},
-			exp: `p.q.r[x] = true { x = 1 }`,
+			expV0: `p.q.r[x] = true { x = 1 }`,
+			expV1: `p.q.r[x] = true if { x = 1 }`,
 		},
 		{
 			rule: &Rule{
@@ -528,7 +533,8 @@ func TestRuleString(t *testing.T) {
 				},
 				Body: MustParseBody("x = 1"),
 			},
-			exp: `p.q.r contains 1 { x = 1 }`,
+			expV0: `p.q.r contains 1 { x = 1 }`,
+			expV1: `p.q.r contains 1 if { x = 1 }`,
 		},
 		{
 			rule: &Rule{
@@ -542,14 +548,16 @@ func TestRuleString(t *testing.T) {
 					Equality.Expr(StringTerm("b"), VarTerm("y")),
 				),
 			},
-			exp: `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`,
+			expV0: `p[x] = y { "foo" = x; not a.b[x]; "b" = y }`,
+			expV1: `p[x] = y if { "foo" = x; not a.b[x]; "b" = y }`,
 		},
 		{
 			rule: &Rule{
 				Default: true,
 				Head:    NewHead("p", nil, BooleanTerm(true)),
 			},
-			exp: `default p = true`,
+			expV0: `default p = true`,
+			expV1: `default p = true`,
 		},
 		{
 			rule: &Rule{
@@ -560,7 +568,8 @@ func TestRuleString(t *testing.T) {
 				},
 				Body: NewBody(Plus.Expr(VarTerm("x"), VarTerm("y"), VarTerm("z"))),
 			},
-			exp: "f(x, y) = z { plus(x, y, z) }",
+			expV0: "f(x, y) = z { plus(x, y, z) }",
+			expV1: "f(x, y) = z if { plus(x, y, z) }",
 		},
 		{
 			rule: &Rule{
@@ -573,48 +582,60 @@ func TestRuleString(t *testing.T) {
 					Equality.Expr(StringTerm("foo"), StringTerm("bar")),
 				),
 			},
-			exp: `p := true { "foo" = "bar" }`,
+			expV0: `p := true { "foo" = "bar" }`,
+			expV1: `p := true if { "foo" = "bar" }`,
 		},
 		{
 			rule: &Rule{
 				Head: RefHead(MustParseRef("p.q.r")),
 				Body: trueBody,
 			},
-			exp: `p.q.r { true }`,
+			expV0: `p.q.r { true }`,
+			expV1: `p.q.r if { true }`,
 		},
 		{
 			rule: &Rule{
 				Head: RefHead(MustParseRef("p.q.r"), StringTerm("foo")),
 				Body: trueBody,
 			},
-			exp: `p.q.r = "foo" { true }`,
+			expV0: `p.q.r = "foo" { true }`,
+			expV1: `p.q.r = "foo" if { true }`,
 		},
 		{
 			rule: &Rule{
 				Head: RefHead(MustParseRef("p.q.r[x]"), StringTerm("foo")),
 				Body: MustParseBody(`x := 1`),
 			},
-			exp: `p.q.r[x] = "foo" { assign(x, 1) }`,
+			expV0: `p.q.r[x] = "foo" { assign(x, 1) }`,
+			expV1: `p.q.r[x] = "foo" if { assign(x, 1) }`,
 		},
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.exp, func(t *testing.T) {
-			assertRuleString(t, tc.rule, tc.exp)
+		t.Run(tc.expV0, func(t *testing.T) {
+			assertRuleString(t, tc.rule, tc.expV0, toStringOpts{regoVersion: RegoV0})
+			assertRuleString(t, tc.rule, tc.expV1, toStringOpts{regoVersion: RegoV1})
+
+			switch DefaultRegoVersion {
+			case RegoV0:
+				assertRuleString(t, tc.rule, tc.expV0, toStringOpts{})
+			case RegoV1:
+				assertRuleString(t, tc.rule, tc.expV1, toStringOpts{})
+			}
 		})
 	}
 }
 
 func TestRulePath(t *testing.T) {
 	ruleWithMod := func(r string) Ref {
-		mod := MustParseModule("package pkg\n" + r)
+		mod := module("package pkg\n" + r)
 		return mod.Rules[0].Ref().GroundPrefix()
 	}
-	if exp, act := MustParseRef("data.pkg.p.q.r"), ruleWithMod("p.q.r { true }"); !exp.Equal(act) {
+	if exp, act := MustParseRef("data.pkg.p.q.r"), ruleWithMod("p.q.r if { true }"); !exp.Equal(act) {
 		t.Errorf("expected %v, got %v", exp, act)
 	}
 
-	if exp, act := MustParseRef("data.pkg.p"), ruleWithMod("p { true }"); !exp.Equal(act) {
+	if exp, act := MustParseRef("data.pkg.p"), ruleWithMod("p if { true }"); !exp.Equal(act) {
 		t.Errorf("expected %v, got %v", exp, act)
 	}
 }
@@ -623,12 +644,13 @@ func TestModuleString(t *testing.T) {
 
 	input := `package a.b.c
 
+import rego.v1
 import data.foo.bar
 import input.xyz
 
-p = true { not bar }
-q = true { xyz.abc = 2 }
-wildcard = true { bar[_] = 1 }`
+p = true if { not bar }
+q = true if { xyz.abc = 2 }
+wildcard = true if { bar[_] = 1 }`
 
 	mod := MustParseModule(input)
 
@@ -822,6 +844,7 @@ func mustParseURL(str string) url.URL {
 
 func TestModuleStringAnnotations(t *testing.T) {
 	module, err := ParseModuleWithOpts("test.rego", `package test
+import rego.v1 
 
 # METADATA
 # scope: rule
@@ -833,9 +856,11 @@ p := 7`, ParserOptions{ProcessAnnotation: true})
 
 	exp := `package test
 
+import rego.v1
+
 # METADATA
 # {"scope":"rule"}
-p := 7 { true }`
+p := 7 if { true }`
 
 	if module.String() != exp {
 		t.Fatalf("expected %q but got %q", exp, module.String())
@@ -1052,10 +1077,10 @@ func assertHeadsNotEqual(t *testing.T, a, b *Head) {
 	}
 }
 
-func assertRuleString(t *testing.T, rule *Rule, expected string) {
+func assertRuleString(t *testing.T, rule *Rule, expected string, opts toStringOpts) {
 	t.Helper()
-	result := rule.String()
+	result := rule.stringWithOpts(opts)
 	if result != expected {
-		t.Errorf("Expected %v but got %v", expected, result)
+		t.Errorf("Expected %v but got %v for rego-version %v", expected, result, opts.regoVersion)
 	}
 }
