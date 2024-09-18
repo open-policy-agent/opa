@@ -98,7 +98,7 @@ func TestSubEnvVarsVarsSubMissingEnvVar(t *testing.T) {
 
 	// Remove the env var and expect the system to sub in ""
 	os.Unsetenv(envKey)
-	expected := "field1: ''"
+	expected := configYaml // untouched
 
 	actual := subEnvVars(configYaml)
 

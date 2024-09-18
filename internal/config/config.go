@@ -135,10 +135,13 @@ func subEnvVars(s string) string {
 		}
 		varName := s[2 : len(s)-1]
 
-		// Lookup the variable in the environment. We play by
-		// bash rules.. if its undefined we'll treat it as an
-		// empty string instead of raising an error.
-		return os.Getenv(varName)
+		// Lookup the variable in the environment. We do not
+		// play by bash rules: if its undefined we'll keep it
+		// as-is, it could be replaced somewhere down the line.
+		if lu := os.Getenv(varName); lu != "" {
+			return lu
+		}
+		return s
 	})
 
 	return updatedConfig
