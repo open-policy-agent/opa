@@ -30,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/open-policy-agent/opa/internal/file/archive"
+	"github.com/open-policy-agent/opa/v1/config"
 	"github.com/open-policy-agent/opa/v1/hooks"
 	"github.com/open-policy-agent/opa/v1/loader"
 	"github.com/open-policy-agent/opa/v1/plugins"
@@ -1868,6 +1869,60 @@ func TestCustomHandlerFlusher(t *testing.T) {
 				t.Log(e.Message)
 			}
 		})
+	}
+}
+
+type configHook struct {
+	some string
+}
+
+func (ch *configHook) OnConfig(_ context.Context, c *config.Config) (*config.Config, error) {
+	ch.some = string(c.Extra["some"])
+	return c, nil
+}
+
+func TestConfigHookAndNonReplacedEnvVars(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
+	defer cancel() // NOTE(sr): The timeout will have been reached by the time `done` is closed.
+	testLogger := testLog.New()
+
+	hk := configHook{}
+
+	cf := filepath.Join(t.TempDir(), "opa.yaml")
+	if err := os.WriteFile(cf, []byte("some: ${thing}\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	params := NewParams()
+	params.Logger = testLogger
+	params.Addrs = &[]string{"localhost:0"}
+	params.Hooks = hooks.New(&hk)
+	params.ConfigFile = cf
+
+	rt, err := NewRuntime(ctx, params)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	initChannel := rt.Manager.ServerInitializedChannel()
+	done := make(chan struct{})
+	go func() {
+		rt.StartServer(ctx)
+		close(done)
+	}()
+	<-done
+	select {
+	case <-initChannel:
+		return
+	default:
+		t.Fatal("expected ServerInitializedChannel to be closed")
+	}
+
+	if act, exp := hk.some, "${thing}"; exp != act {
+		t.Errorf("Expected %q, got %q", exp, act)
+	}
+
+	for _, e := range testLogger.Entries() {
+		t.Log(e.Message)
 	}
 }
 
