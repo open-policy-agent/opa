@@ -2768,9 +2768,8 @@ p if { print("XXX") }
 	logger.SetLevel(logging.Info)
 
 	opa, err := sdk.New(ctx, sdk.Options{
-		Logger:      logger,
-		Config:      strings.NewReader(config),
-		RegoVersion: ast.RegoV1, // bundles will be
+		Logger: logger,
+		Config: strings.NewReader(config),
 	})
 	if err != nil {
 		t.Fatal(err)
