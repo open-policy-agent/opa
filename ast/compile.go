@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -1600,6 +1601,10 @@ func (c *Compiler) compile() {
 
 		c.runStage(s.metricName, s.f)
 		if c.Failed() {
+			log.Println("read these files:")
+			for f, m := range c.Modules {
+				log.Printf("%s: %s", m.Package.String(), f)
+			}
 			return
 		}
 		for _, a := range c.after[s.name] {
