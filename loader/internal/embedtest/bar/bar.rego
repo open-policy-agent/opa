@@ -1,3 +1,4 @@
 package bar
+import rego.v1
 
-p = true { true }
+p = true if { true }

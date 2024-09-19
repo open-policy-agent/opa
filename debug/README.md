@@ -1,12 +1,23 @@
 # OPA Debug API
 
-This directory contains the OPA Debug API.
-The Debug API facilitates programmatic debugging of Rego policies, on top of which 3rd parties can build tools for debugging.
+This directory contains the OPA Debug API. The Debug API facilitates
+programmatic debugging of Rego policies, on top of which 3rd parties can build
+tools for debugging.
 
-This API takes inspiration from the [Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/),
-and follows the conventions established therein for managing threads, breakpoints, and variable scopes.
+This API takes inspiration from the
+[Debug Adapter Protocol (DAP)](https://microsoft.github.io/debug-adapter-protocol/),
+and follows the conventions established therein for managing threads,
+breakpoints, and variable scopes.
 
-> **Note**: The Debug API is experimental and subject to change.
+> [!TIP]
+> The Debug API current actively supported in two clients
+> [VS Code](https://github.com/open-policy-agent/vscode-opa) and
+> [Neovim](https://github.com/rinx/nvim-dap-rego/tree/main). Both
+> [Regal's Debug Adapter](https://docs.styra.com/regal/debug-adapter) as the
+> backend, which is based on this API.
+
+> [!WARNING]
+> The Debug API is experimental and subject to change.
 
 ## Creating a Debug Session
 
@@ -178,11 +189,11 @@ allow if {
 
 The current values of local and global variables are organized into scopes:
 
-* `Local`: contains variables defined in the current rule, function, comprehension, or every expression.
-* `Virtual Cache`: contains the state of the global Virtual Cache, where calculated return values for rules and functions are stored.
-* `Input`: contains the input document.
-* `Data`: contains the data document.
-* `Result Set`: contains the result set of the current query. This scope is only available on the final expression of the query evaluation.
+- `Local`: contains variables defined in the current rule, function, comprehension, or every expression.
+- `Virtual Cache`: contains the state of the global Virtual Cache, where calculated return values for rules and functions are stored.
+- `Input`: contains the input document.
+- `Data`: contains the data document.
+- `Result Set`: contains the result set of the current query. This scope is only available on the final expression of the query evaluation.
 
 ```go
 scopes, err := session.Scopes(thread.ID)
