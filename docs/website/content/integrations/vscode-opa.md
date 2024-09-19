@@ -22,7 +22,18 @@ docs_features:
       such as syntax highlighting, running of OPA tests as well as
       completions, linting and more from the
       [Regal Language Server](/integrations/regal/).
+  debugging-rego:
+    note: |
+      The extension provides support for debugging Rego policies using the
+      native VS Code debugging interface. This is based on Regal's Debug
+      Adapter, see the
+      [VS Code documentation](https://docs.styra.com/regal/editor-support#visual-studio-code)
+      to get started.
 ---
 
-The [vscode-opa extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa) is a Visual Studio Code extension that provides support for the Rego language and OPA functionality. The extension includes syntax highlighting,
-and support for the [Regal Language Server](/integrations/regal/).
+The [vscode-opa extension](https://marketplace.visualstudio.com/items?itemName=tsandall.opa)
+is a Visual Studio Code extension that provides support for the Rego language
+and OPA functionality. The extension includes syntax highlighting, and first
+class support for the Regal
+[Language Server](https://docs.styra.com/regal/language-server) and
+[Debug Adapter](https://docs.styra.com/regal/debug-adapter).

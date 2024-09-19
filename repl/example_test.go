@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/repl"
 	"github.com/open-policy-agent/opa/storage/inmem"
 )
@@ -26,10 +27,11 @@ func ExampleREPL_OneShot() {
 	var buf bytes.Buffer
 
 	// Create a new REPL.
-	r := repl.New(store, "", &buf, "json", 0, "")
+	r := repl.New(store, "", &buf, "json", 0, "").
+		WithRegoVersion(ast.RegoV1)
 
 	// Define a rule inside the REPL.
-	r.OneShot(ctx, "p { a = [1, 2, 3, 4]; a[_] > 3 }")
+	r.OneShot(ctx, "p if { a = [1, 2, 3, 4]; a[_] > 3 }")
 
 	// Query the rule defined above.
 	r.OneShot(ctx, "p")
