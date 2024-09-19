@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/sirupsen/logrus"
 
 	"github.com/open-policy-agent/opa/hooks"
@@ -59,6 +60,10 @@ type Options struct {
 	// This is an opt-in to OPA features and behaviors that will be enabled by default in OPA v1.0 and later.
 	// See https://www.openpolicyagent.org/docs/latest/opa-1/ for more information.
 	V1Compatible bool
+
+	// RegoVersion sets the version of the Rego language to use.
+	// If V1Compatible is set to true, this field is ignored and the Rego version is set to RegoV1.
+	RegoVersion ast.RegoVersion
 
 	// ManagerOpts allows customization of the plugin manager.
 	// The given options get appended to the list of options already provided by the SDK and eventually
