@@ -56,11 +56,12 @@ func TestEvaluateBundle(t *testing.T) {
 
 	sampleModule := `
 		package foo.bar
+		import rego.v1
 
 		bundle = {
 			"name": rt.name,
 			"service": "example"
-		} {
+		} if {
 			rt := opa.runtime()
 		}
 	`
