@@ -136,9 +136,18 @@ func (s *Server) buildBundles(ref string, policies map[string]string) error {
 
 	// Compile the bundle out into a buffer
 	buf := bytes.NewBuffer(nil)
+
+	// We need to explicitly set the global bundle rego-version, as an unassigned version will be
+	// interpreted as v0 on the receiving end, which will cause problems if modules are parsed/compiled
+	// as v1 on this end, which will drop 'rego.v1' and 'future.keywords' imports.
+	bundleManifest := bundle.Manifest{}
+	bundleManifest.SetRegoVersion(ast.DefaultRegoVersion)
+	bundleManifest.Init()
+
 	err := compile.New().WithOutput(buf).WithBundle(&bundle.Bundle{
-		Data:    map[string]interface{}{},
-		Modules: modules,
+		Data:     map[string]interface{}{},
+		Modules:  modules,
+		Manifest: bundleManifest,
 	}).Build(context.Background())
 	if err != nil {
 		return err

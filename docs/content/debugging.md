@@ -4,13 +4,28 @@ kind: documentation
 weight: 75
 ---
 
-This section outlines the various tools and techniques that can be used to debug OPA, both as a component in a 
-distributed system and as a policy engine evaluating Rego.
+This section outlines the various tools and techniques that can be used to debug OPA, both as a component in a
+distributed system and as a policy engine evaluating the Rego language.
 
 # Debugging Rego Policies
 
-At its core, OPA is a policy engine evaluating policies written in Rego. There are a number of options available for
-users to debug Rego policies.
+Debugging Rego is crucial to ensuring OPA functions properly, as its policy
+engine evaluates policies written in Rego. Effective Rego debugging helps
+identify and resolve issues that impact OPA’s performance and behavior. A strong
+grasp of Rego debugging is key to ensuring the correct functioning of OPA as a
+whole.
+
+## Live Debugging
+
+Using the [Debug Adapter](https://docs.styra.com/regal/debug-adapter)
+based on [OPA's Debug API](https://github.com/open-policy-agent/opa/blob/main/debug/README.md),
+supported clients are now able to live debug Rego line by line. Breakpoints,
+variable inspection and print statements are all supported.
+
+Read more about the supported editors of this debugging method in the
+[Regal Editor Support Page](https://docs.styra.com/regal/editor-support).
+
+{{< figure src="debugging-dap.gif" width="65" caption="Debugging Rego in <a href='/integrations/vscode-opa/'>VS Code</a>" >}}
 
 ## OPA REPL and Playground
 
@@ -28,12 +43,6 @@ used to test policies with different inputs and data. If you are interested in a
 [OPA Slack](http://slack.openpolicyagent.org), the playground is a great way to share your policy and data with
 others.
 
-## Performance Profiling
-
-Sometimes the issue isn't the correctness of the policy but rather the performance. The
-[Policy Performance](../policy-performance) section of the documentation outlines various techniques for
-profiling and optimizing Rego policies.
-
 ## Using the `print` Built-in Function
 
 The `print` built-in function can be used to print values to stdout, this can be useful for checking values
@@ -41,6 +50,12 @@ during policy evaluation as well as seeing how many times a particular line of c
 
 See the [print function documentation](../policy-reference/#debugging) for more details on how to use
 the `print` built-in function in different contexts.
+
+## Performance Profiling
+
+Sometimes the issue isn't the correctness of the policy but rather the performance. The
+[Policy Performance](../policy-performance) section of the documentation outlines various techniques for
+profiling and optimizing Rego policies.
 
 ## Ecosystem Projects
 
@@ -79,12 +94,12 @@ take a look at the [Decision Logging documentation](../management-decision-logs)
 Like other cloud-native tools, OPA exposes `/metrics` and `/health` endpoints that can be used to understand the
 state of an OPA instance at any given time.
 
-* `/metrics` - exposes Prometheus metrics about the OPA instance's memory use, bundle loading and HTTP requests.
+- `/metrics` - exposes Prometheus metrics about the OPA instance's memory use, bundle loading and HTTP requests.
   Read more in the [Metrics documentation](../monitoring).
-* `/health` - shows information about the instance's readiness to serve requests, there are options available to also
+- `/health` - shows information about the instance's readiness to serve requests, there are options available to also
   show information about the loading of bundles and other plugins. Read more about the endpoint in the
   [Health API documentation](../rest-api/#health-api).
-* `/status` - is a JSON formatted endpoint that shows both health and metrics information. Read more in
+- `/status` - is a JSON formatted endpoint that shows both health and metrics information. Read more in
   [Status API documentation](../rest-api/#status-api).
 
 ## Manually Querying OPA

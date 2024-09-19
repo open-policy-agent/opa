@@ -48,30 +48,30 @@ func TestBasic(t *testing.T) {
 
         import data.system.tokens
 
-        allow = resp {
+        allow = resp if {
             not undefined_case
         }
 
-        resp["allowed"] = allowed {
+        resp["allowed"] = allowed if {
             not undefined_case
             not wrong_object
         }
 
-        resp["reason"] = "custom reason" {
+        resp["reason"] = "custom reason" if {
             input.path = ["reason"]
         }
 
-        resp["reason"] = 0 {
+        resp["reason"] = 0 if {
             input.path = ["reason", "wrong_type"]
         }
 
-        resp["foo"] = "bar" {
+        resp["foo"] = "bar" if {
             wrong_object
         }
 
         default allowed = false
 
-        allowed = allow_inner {
+        allowed = allow_inner if {
             not undefined_case            # undefined
             not wrong_object              # object response, wrong key
             not input.path[0] = "reason"  # custom reason
@@ -79,39 +79,39 @@ func TestBasic(t *testing.T) {
 			print("ok")
         }
 
-        undefined_case {
+        undefined_case if {
             input.path[0] = "undefined"
         }
 
-        wrong_object {
+        wrong_object if {
             input.path = ["reason", "wrong_object"]
         }
 
-        conflict_error {
+        conflict_error if {
             input.path[0] = "conflict_error"
             {k: v | k = ["a", "a"][_]; [1, 2][v]}
         }
 
         default allow_inner = false
 
-        allow_inner {
+        allow_inner if {
             valid_method
             valid_path
         }
 
-        valid_method {
+        valid_method if {
             rights[_].access[_] = access_map[input.method]
         }
 
-        valid_path {
+        valid_path if {
             rights[_].path = "*"
         }
 
-        valid_path {
+        valid_path if {
             rights[_].path = input.path
         }
 
-        rights[right] {
+        rights contains right if {
             role = tokens[input.identity].roles[_]
             right = all_rights[role][_]
         }
@@ -146,7 +146,7 @@ func TestBasic(t *testing.T) {
         `
 		c := ast.NewCompiler().WithEnablePrintStatements(true)
 		c.Compile(map[string]*ast.Module{
-			"test.rego": ast.MustParseModule(module),
+			"test.rego": ast.MustParseModuleWithOpts(module, ast.ParserOptions{AllFutureKeywords: true}),
 		})
 		if c.Failed() {
 			t.Fatalf("Unexpected error compiling test module: %v", c.Errors)
@@ -472,8 +472,9 @@ func TestInterQueryCache(t *testing.T) {
 	compiler := func() *ast.Compiler {
 		module := fmt.Sprintf(`
         package system.authz
+        import rego.v1
 
-        allow {
+        allow if {
             http.send({
                 "method": "GET",
                 "url": "%v",

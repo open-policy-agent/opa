@@ -20,7 +20,8 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
-// when changed the layer hash & size should be updated in signed.manifest
+// when changed the layer hash & size should be updated in .manifest files
+//go:generate go run github.com/open-policy-agent/opa build -b --signing-alg HS256 testdata/latest_bundle_data --output testdata/latest.tar.gz
 //go:generate go run github.com/open-policy-agent/opa build -b --signing-alg HS256 --signing-key secret testdata/signed_bundle_data --output testdata/signed.tar.gz
 //go:generate go run github.com/open-policy-agent/opa build --v1-compatible -b --signing-alg HS256 --signing-key secret testdata/rego_v1_bundle_data --output testdata/rego_v1.tar.gz
 

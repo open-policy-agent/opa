@@ -17,7 +17,8 @@ func TestResultSetAllowed(t *testing.T) {
 		{
 			note: "simplest true",
 			module: `package authz
-allow { true }
+import rego.v1
+allow if { true }
 `,
 			query:    "data.authz.allow",
 			expected: true,
@@ -33,7 +34,8 @@ default allow = false
 		{
 			note: "true value + bindings",
 			module: `package authz
-allow { true }
+import rego.v1
+allow if { true }
 `,
 			query:    "data.authz.allow = x",
 			expected: false,
@@ -41,7 +43,8 @@ allow { true }
 		{
 			note: "object response, bound to var in query",
 			module: `package authz
-resp = { "allow": true } { true }
+import rego.v1
+resp = { "allow": true } if { true }
 `,
 			query:    "data.authz.resp = x",
 			expected: false,
@@ -49,7 +52,8 @@ resp = { "allow": true } { true }
 		{
 			note: "object response, treated as false",
 			module: `package authz
-resp = { "allow": true } { true }
+import rego.v1
+resp = { "allow": true } if { true }
 `,
 			query:    "data.authz.resp",
 			expected: false,

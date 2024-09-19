@@ -37,19 +37,19 @@ cases:
             - c
   - data: {}
     input_term: '{
-      "graph": {
-        "a": {"b", "c"},
-        "b": {"d"},
-        "c": {"d"},
-        "d": set(),
-        "e": {"f"},
-        "f": {"e"},
-        "x": {"x"},
-      },
-      "initial": {
-        "b", "e"
-      }
-    }'
+        "graph": {
+          "a": {"b", "c"},
+          "b": {"d"},
+          "c": {"d"},
+          "d": set(),
+          "e": {"f"},
+          "f": {"e"},
+          "x": {"x"},
+        },
+        "initial": {
+          "b", "e"
+        }
+      }'
     modules:
       - |
         package reachable
@@ -67,13 +67,13 @@ cases:
             - f
   - data: {}
     input_term: '{
-      "graph": {
-        "a": ["b"],
-        "b": ["c"],
-        "c": ["a"],
-      },
-      "initial": ["a"]
-    }'
+        "graph": {
+          "a": ["b"],
+          "b": ["c"],
+          "c": ["a"],
+        },
+        "initial": ["a"]
+      }'
     modules:
       - |
         package reachable
@@ -90,9 +90,9 @@ cases:
             - c
   - data: {}
     input_term: '{
-      "graph": 1,
-      "initial": [1]
-    }'
+        "graph": 1,
+        "initial": [1]
+      }'
     modules:
       - |
         package reachable
@@ -106,11 +106,11 @@ cases:
     strict_error: true
   - data: {}
     input_term: '{
-      "graph": {
-        "a": null
-      },
-      "initial": ["a"]
-    }'
+        "graph": {
+          "a": null
+        },
+        "initial": ["a"]
+      }'
     modules:
       - |
         package reachable
@@ -125,11 +125,11 @@ cases:
           - - a
   - data: {}
     input_term: '{
-      "graph": {
-        "a": []
-      },
-      "initial": "a"
-    }'
+        "graph": {
+          "a": []
+        },
+        "initial": "a"
+      }'
     modules:
       - |
         package reachable
@@ -143,13 +143,13 @@ cases:
     strict_error: true
   - data: {}
     input_term: '{
-      "graph": {
-        "a": ["b", "c"],
-        "b": ["c"],
-        "c": [],
-      },
-      "initial": {"a"}
-    }'
+        "graph": {
+          "a": ["b", "c"],
+          "b": ["c"],
+          "c": [],
+        },
+        "initial": {"a"}
+      }'
     modules:
       - |
         package reachable
@@ -169,12 +169,12 @@ cases:
 
   - data: {}
     input_term: '{
-      "graph": {
-        "a": ["b"],
-        "b": ["nonexistent"],
-      },
-      "initial": {"a", "b"}
-    }'
+        "graph": {
+          "a": ["b"],
+          "b": ["nonexistent"],
+        },
+        "initial": {"a", "b"}
+      }'
     modules:
       - |
         package reachable

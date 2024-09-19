@@ -125,7 +125,7 @@
                                     <code class="language-live"
                                           data-lang="live:kubernetes_registry_check_desktop:input:hidden">
 {
-    "apiVersion": "admission.k8s.io/v1beta1",
+    "apiVersion": "admission.k8s.io/v1",
     "kind": "AdmissionReview",
     "request": {
         "kind": {
@@ -156,19 +156,17 @@
                                         </pre>
                                 </div>
                                 <div class="highlight">
-                                  <a onclick='window.open("https://play.openpolicyagent.org/p/9OTwNMYSog")'>
+                                  <a onclick='window.open("https://play.openpolicyagent.org/p/2TdExAXjo7")'>
                                         <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                           <code class="language-live"
                                                 data-lang="live:kubernetes_registry_check_desktop:module:read_only">package kubernetes.admission
 
-import future.keywords
+import rego.v1
 
-deny contains msg if {
+deny contains sprintf("image '%s' comes from untrusted registry", [container.image]) if {
 	input.request.kind.kind == "Pod"
 	some container in input.request.object.spec.containers
-	image := container.image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%s' comes from untrusted registry", [image])
+	not startswith(container.image, "hooli.com/")
 }
                                           </code>
                                         </pre>
@@ -185,7 +183,7 @@ deny contains msg if {
                                   <button
                                     class="mt-4 btn btn-primary btn-playground"><a
                                     target="_blank"
-                                    href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
+                                    href="https://play.openpolicyagent.org/p/2TdExAXjo7">Open In Playground
                                     <img src="/live-blocks/icons/playground-open.svg"
                                          class="launch-playground-icon"></a>
                                   </button>
@@ -237,12 +235,12 @@ deny contains msg if {
                                   </pre>
                                 </div>
                                 <div class="highlight">
-                                  <a onclick='window.open("https://play.openpolicyagent.org/p/lttuKeuUpW")'>
+                                  <a onclick='window.open("https://play.openpolicyagent.org/p/Rca3eAwibZ")'>
                                     <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                       <code class="language-live"
                                             data-lang="live:kubernetes_ingress_check_desktop:module:read_only">package kubernetes.admission
 
-import future.keywords
+import rego.v1
 
 # Reject any ingress with the same host as an existing ingress
 deny contains msg if {
@@ -278,7 +276,7 @@ deny contains msg if {
                                   <button
                                     class="mt-4 btn btn-primary btn-playground"><a
                                     target="_blank"
-                                    href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
+                                    href="https://play.openpolicyagent.org/p/Rca3eAwibZ">Open In Playground
                                     <img src="/live-blocks/icons/playground-open.svg"
                                          class="launch-playground-icon"></a>
                                   </button>
@@ -375,12 +373,12 @@ deny contains msg if {
                                 </pre>
                               </div>
                               <div class="highlight">
-                                <a onclick='window.open("https://play.openpolicyagent.org/p/WXAYEQWHKI")'>
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/iW9PCMpsMk")'>
                                   <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                     <code class="language-live"
                                           data-lang="live:envoy_get_pets_desktop:module:read_only">package envoy.authz
 
-import future.keywords
+import rego.v1
 
 # allow all GET requests to /pets
 default allow := false
@@ -406,7 +404,7 @@ allow if {
                                 <button
                                   class="mt-4 btn btn-primary btn-playground"><a
                                   target="_blank"
-                                  href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
+                                  href="https://play.openpolicyagent.org/p/iW9PCMpsMk">Open In Playground
                                   <img src="/live-blocks/icons/playground-open.svg"
                                        class="launch-playground-icon"></a>
                                 </button>
@@ -473,13 +471,12 @@ allow if {
                                 </pre>
                               </div>
                               <div class="highlight">
-                                <a onclick='window.open("https://play.openpolicyagent.org/p/6t8n43lY8W")'>
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/z0g4W3er2Z")'>
                                       <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                         <code class="language-live"
                                               data-lang="live:envoy_get_pets_owners_desktop:module:read_only">package envoy.authz
 
-import future.keywords
-import input.attributes.request.http as http_request
+import rego.v1
 
 # allow only the frontend service to GET /pets/owners
 default allow := false
@@ -494,6 +491,8 @@ source_spiffe_id := client_id if {
 	[_, _, uri_type_san] := split(http_request.headers["x-forwarded-client-cert"], ";")
 	[_, client_id] := split(uri_type_san, "=")
 }
+
+http_request := input.attributes.request.http
 
                                     </code>
                                   </pre>
@@ -511,7 +510,7 @@ source_spiffe_id := client_id if {
                                 <button
                                   class="mt-4 btn btn-primary btn-playground"><a
                                   target="_blank"
-                                  href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
+                                  href="https://play.openpolicyagent.org/p/z0g4W3er2Z">Open In Playground
                                   <img src="/live-blocks/icons/playground-open.svg"
                                        class="launch-playground-icon"></a>
                                 </button>
@@ -567,12 +566,12 @@ source_spiffe_id := client_id if {
                                   </pre>
                               </div>
                               <div class="highlight">
-                                <a onclick='window.open("https://play.openpolicyagent.org/p/0FjgydMuVo")'>
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/PFqSN1WAiH")'>
                                   <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                     <code class="language-live"
                                           data-lang="live:app_check_owner_desktop:module:read_only">package application.authz
 
-import future.keywords
+import rego.v1
 
 # Only owner can update the pet's information
 # Ownership information is provided as part of OPA's input
@@ -600,7 +599,7 @@ allow if {
                                 <button
                                   class="mt-4 btn btn-primary btn-playground"><a
                                   target="_blank"
-                                  href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
+                                  href="https://play.openpolicyagent.org/p/PFqSN1WAiH">Open In Playground
                                   <img src="/live-blocks/icons/playground-open.svg"
                                        class="launch-playground-icon"></a>
                                 </button>
@@ -632,12 +631,12 @@ allow if {
                                 </pre>
                               </div>
                               <div class="highlight">
-                                <a onclick='window.open("https://play.openpolicyagent.org/p/P8RBsigBsU")'>
+                                <a onclick='window.open("https://play.openpolicyagent.org/p/E8VVxu66Bu")'>
                                   <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                                     <code class="language-live"
                                           data-lang="live:app_jwt_auth_desktop:module:read_only">package application.authz
 
-import future.keywords
+import rego.v1
 
 # Everyone can see pets up for adoption
 allowed_pets contains pet if {
@@ -667,7 +666,7 @@ allowed_pets contains pet if {
                                 <button
                                   class="mt-4 btn btn-primary btn-playground"><a
                                   target="_blank"
-                                  href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
+                                  href="https://play.openpolicyagent.org/p/E8VVxu66Bu">Open In Playground
                                   <img src="/live-blocks/icons/playground-open.svg"
                                        class="launch-playground-icon"></a>
                                 </button>
@@ -812,19 +811,17 @@ allowed_pets contains pet if {
                             </pre>
                         </div>
                         <div class="highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/9OTwNMYSog")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/2TdExAXjo7")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:kubernetes_registry_check_mobile:module:read_only">package kubernetes.admission
 
-import future.keywords
+import rego.v1
 
-deny contains msg if {
+deny contains sprintf("image '%s' comes from untrusted registry", [container.image]) if {
 	input.request.kind.kind == "Pod"
-  some container in input.request.object.spec.containers
-  image := container.image
-	not startswith(image, "hooli.com/")
-	msg := sprintf("image '%v' comes from untrusted registry", [image])
+	some container in input.request.object.spec.containers
+	not startswith(container.image, "hooli.com/")
 }
                               </code>
                             </pre>
@@ -841,7 +838,7 @@ deny contains msg if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/9OTwNMYSog">Open In Playground
+                            href="https://play.openpolicyagent.org/p/2TdExAXjo7">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>
@@ -893,12 +890,12 @@ deny contains msg if {
                             </pre>
                         </div>
                         <div class="highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/lttuKeuUpW")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/Rca3eAwibZ")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:kubernetes_ingress_check_mobile:module:read_only">package kubernetes.admission
 
-import future.keywords
+import rego.v1
 
 # Reject any ingress with the same host as an existing ingress
 deny contains msg if {
@@ -933,7 +930,7 @@ deny contains msg if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/lttuKeuUpW">Open In Playground
+                            href="https://play.openpolicyagent.org/p/Rca3eAwibZ">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>
@@ -1036,7 +1033,7 @@ deny contains msg if {
                             </pre>
                         </div>
                         <div class="highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/WXAYEQWHKI")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/iW9PCMpsMk")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:envoy_get_pets_mobile:module:read_only">package envoy.authz
@@ -1066,7 +1063,7 @@ allow if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/WXAYEQWHKI">Open In Playground
+                            href="https://play.openpolicyagent.org/p/iW9PCMpsMk">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>
@@ -1133,7 +1130,7 @@ allow if {
                             </pre>
                         </div>
                         <div class="highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/6t8n43lY8W")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/z0g4W3er2Z")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:envoy_get_pets_owners_mobile:module:read_only">package envoy.authz
@@ -1170,7 +1167,7 @@ source_spiffe_id = client_id if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/6t8n43lY8W">Open In Playground
+                            href="https://play.openpolicyagent.org/p/z0g4W3er2Z">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>
@@ -1231,12 +1228,12 @@ source_spiffe_id = client_id if {
                             </pre>
                         </div>
                         <div class="highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/0FjgydMuVo")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/PFqSN1WAiH")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:app_check_owner_mobile:module:read_only">package application.authz
 
-import future.keywords
+import rego.v1
 
 # Only owner can update the pet's information
 # Ownership information is provided as part of OPA's input
@@ -1265,7 +1262,7 @@ allow if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/0FjgydMuVo">Open In Playground
+                            href="https://play.openpolicyagent.org/p/PFqSN1WAiH">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>
@@ -1275,7 +1272,7 @@ allow if {
                            role="tabpanel"
                            aria-labelledby="v-pills-app-2-mobile-tab">
                         <div class="col-12 highlight">
-                          <a onclick='window.open("https://play.openpolicyagent.org/p/P8RBsigBsU")'>
+                          <a onclick='window.open("https://play.openpolicyagent.org/p/E8VVxu66Bu")'>
                             <pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">
                               <code class="language-live"
                                     data-lang="live:app_jwt_auth_mobile:input:hidden">
@@ -1303,11 +1300,11 @@ allow if {
                               <code class="language-live"
                                     data-lang="live:app_jwt_auth_mobile:module:read_only">package application.authz
 
-import future.keywords
+import rego.v1
 
 # Everyone can see pets up for adoption
 allowed_pets contains pet if {
-  some pet in input.pet_list
+	some pet in input.pet_list
 	pet.up_for_adoption
 }
 
@@ -1315,7 +1312,7 @@ allowed_pets contains pet if {
 allowed_pets contains pet if {
 	[_, payload, _] := io.jwt.decode(input.token)
 	payload.employee
-  some pet in input.pet_list
+	some pet in input.pet_list
 }
                               </code>
                             </pre>
@@ -1332,7 +1329,7 @@ allowed_pets contains pet if {
                           <button
                             class="mt-4 btn btn-primary btn-playground"><a
                             target="_blank"
-                            href="https://play.openpolicyagent.org/p/P8RBsigBsU">Open In Playground
+                            href="https://play.openpolicyagent.org/p/E8VVxu66Bu">Open In Playground
                             <img src="/live-blocks/icons/playground-open.svg"
                                  class="launch-playground-icon"></a>
                           </button>

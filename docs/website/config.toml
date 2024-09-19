@@ -1,7 +1,7 @@
 title = "Open Policy Agent"
 baseURL = "https://www.openpolicyagent.org"
 languageCode = "en"
-disableKinds = ["taxonomy", "taxonomyTerm"]
+disableKinds = ["taxonomy"]
 
 pygmentsCodeFences = true
 pygmentsUseClasses = false
@@ -10,7 +10,7 @@ pygmentsGuessSyntax = true
 
 # Don't try and render the code snippets as html pages
 # the are loaded via shortcode helpers.
-ignorefiles = [ "/docs/v.*/code/.*" ]
+ignorefiles = ["/docs/v.*/code/.*"]
 
 [markup]
 [markup.goldmark]
