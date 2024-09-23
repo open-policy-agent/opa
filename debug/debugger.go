@@ -36,7 +36,7 @@ import (
 type Debugger interface {
 	// LaunchEval starts a new eval debug session with the given LaunchEvalProperties.
 	// The returned session is in a stopped state, and must be resumed to start execution.
-	LaunchEval(ctx context.Context, props LaunchEvalProperties) (Session, error)
+	LaunchEval(ctx context.Context, props LaunchEvalProperties, opts ...LaunchOption) (Session, error)
 }
 
 type debugger struct {
@@ -207,14 +207,38 @@ type LaunchTestProperties struct {
 }
 
 type LaunchProperties struct {
-	BundlePaths  []string
-	DataPaths    []string
-	StopOnResult bool
-	StopOnEntry  bool
-	StopOnFail   bool
-	EnablePrint  bool
-	SkipOps      []topdown.Op
-	RuleIndexing bool
+	BundlePaths         []string
+	DataPaths           []string
+	StopOnResult        bool
+	StopOnEntry         bool
+	StopOnFail          bool
+	EnablePrint         bool
+	SkipOps             []topdown.Op
+	StrictBuiltinErrors bool
+	RuleIndexing        bool
+}
+
+type LaunchOption func(options *launchOptions)
+
+type launchOptions struct {
+	regoOptions []func(*rego.Rego)
+}
+
+func newLaunchOptions(opts []LaunchOption) *launchOptions {
+	options := &launchOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	return options
+}
+
+// RegoOption adds a rego option to the internal Rego instance.
+// Options may be overridden by the debugger, and it is recommended to
+// use LaunchEvalProperties for commonly used options.
+func RegoOption(opt func(*rego.Rego)) LaunchOption {
+	return func(options *launchOptions) {
+		options.regoOptions = append(options.regoOptions, opt)
+	}
 }
 
 func (lp LaunchProperties) String() string {
@@ -225,18 +249,24 @@ func (lp LaunchProperties) String() string {
 	return string(b)
 }
 
-func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties) (Session, error) {
+func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, opts ...LaunchOption) (Session, error) {
+	options := newLaunchOptions(opts)
+
 	store := inmem.New()
 	txn, err := store.NewTransaction(ctx, storage.TransactionParams{Write: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create store transaction: %v", err)
 	}
 
-	regoArgs := []func(*rego.Rego){
-		rego.Query(props.Query),
-		rego.Store(store),
-		rego.Transaction(txn),
-	}
+	regoArgs := make([]func(*rego.Rego), 0, 4)
+
+	// We apply all user options first, so the debugger can make overrides if necessary.
+	regoArgs = append(regoArgs, options.regoOptions...)
+
+	regoArgs = append(regoArgs, rego.Query(props.Query))
+	regoArgs = append(regoArgs, rego.Store(store))
+	regoArgs = append(regoArgs, rego.Transaction(txn))
+	regoArgs = append(regoArgs, rego.StrictBuiltinErrors(props.StrictBuiltinErrors))
 
 	if props.SkipOps == nil {
 		props.SkipOps = []topdown.Op{topdown.IndexOp, topdown.RedoOp, topdown.SaveOp, topdown.UnifyOp}

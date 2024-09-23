@@ -385,15 +385,18 @@ cases:
     modules:
     - |
       package test
-      p { foo = {"a": {"b": [1]}}; walk(foo) }
+      import rego.v1
+      
+      p if { foo = {"a": {"b": [1]}}; walk(foo) }
     want_result: [{x: true}]
   - note: walk results
     query: 'data.test.p[x]'
     modules:
     - |
       package test
+      import rego.v1
 
-      p[x] { foo = {"a": {"b": [1]}}; walk(foo, x) }
+      p contains x if { foo = {"a": {"b": [1]}}; walk(foo, x) }
     want_result: [
       {
         x: [[], {"a": {"b": [1]}}],

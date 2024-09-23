@@ -24,10 +24,11 @@ func TestFilter(t *testing.T) {
 		{
 			note: "lineage",
 			module: `package test
+			import rego.v1
 
-			p { q }
-			q { r }
-			r { trace("R") }`,
+			p if { q }
+			q if { r }
+			r if { trace("R") }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -38,8 +39,9 @@ Enter data.test.p = x
 		{
 			note: "conjunction",
 			module: `package test
+			import rego.v1
 
-			p { trace("P1"); trace("P2") }`,
+			p if { trace("P1"); trace("P2") }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -49,10 +51,11 @@ Enter data.test.p = x
 		{
 			note: "conjunction (multiple enters)",
 			module: `package test
+			import rego.v1
 
-			p { q; r }
-			q { trace("Q") }
-			r { trace("Q") }
+			p if { q; r }
+			q if { trace("Q") }
+			r if { trace("Q") }
 			`,
 			exp: `
 Enter data.test.p = x
@@ -65,10 +68,11 @@ Enter data.test.p = x
 		{
 			note: "disjunction",
 			module: `package test
+			import rego.v1
 
-			p = x { x := true; trace("P1") }
-			p = x { x := true; false }
-			p = x { x := true; trace("P2") }
+			p = x if { x := true; trace("P1") }
+			p = x if { x := true; false }
+			p = x if { x := true; trace("P2") }
 			`,
 			exp: `
 Enter data.test.p = x
@@ -81,10 +85,11 @@ Redo data.test.p = x
 		{
 			note: "disjunction (failure)",
 			module: `package test
+			import rego.v1
 
-			p = x { x := true; trace("P1") }
-			p = x { x := true; trace("P2"); false }
-			p = x { x := true; trace("P3") }
+			p = x if { x := true; trace("P1") }
+			p = x if { x := true; trace("P2"); false }
+			p = x if { x := true; trace("P3") }
 			`,
 			exp: `
 Enter data.test.p = x
@@ -99,9 +104,11 @@ Redo data.test.p = x
 		{
 			note: "disjunction (iteration)",
 			module: `package test
-			q[1]
-			q[2]
-			p { q[x]; trace(sprintf("x=%d", [x])) }`,
+			import rego.v1
+			
+			q contains 1
+			q contains 2
+			p if { q[x]; trace(sprintf("x=%d", [x])) }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -111,9 +118,10 @@ Enter data.test.p = x
 		{
 			note: "parent child",
 			module: `package test
+			import rego.v1
 
-			p { trace("P"); q }
-			q { trace("Q") }`,
+			p if { trace("P"); q }
+			q if { trace("Q") }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -124,9 +132,10 @@ Enter data.test.p = x
 		{
 			note: "negation",
 			module: `package test
+			import rego.v1
 
-			p { not q }
-			q = false { trace("Q") }`,
+			p if { not q }
+			q = false if { trace("Q") }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -137,9 +146,10 @@ Enter data.test.p = x
 		{
 			note: "fail",
 			module: `package test
+			import rego.v1
 
-			p { not q }
-			q { trace("P"); 1 = 2 }`,
+			p if { not q }
+			q if { trace("P"); 1 = 2 }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
@@ -150,8 +160,9 @@ Enter data.test.p = x
 		{
 			note: "comprehensions",
 			module: `package test
+			import rego.v1
 
-			p { [true | true; trace("X")] }`,
+			p if { [true | true; trace("X")] }`,
 			exp: `
 Enter data.test.p = x
 | Enter data.test.p
