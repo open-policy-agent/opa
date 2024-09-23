@@ -121,6 +121,8 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
@@ -149,6 +151,8 @@ jobs:
           ignore-unfixed: true
           skip-dirs: vendor/,internal/gqlparser/validator/imported/
           severity: CRITICAL,HIGH
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
