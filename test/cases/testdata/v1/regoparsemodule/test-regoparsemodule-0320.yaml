@@ -15,8 +15,9 @@ cases:
       ok: |-
         package foo.bar
 
-        		import data.a
+        import rego.v1
+        import data.a
 
-        		p { a = true }
+        p if { a = true }
     want_result:
       - x: foo
