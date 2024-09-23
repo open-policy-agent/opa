@@ -39,17 +39,17 @@ import (
 // OPA represents an instance of the policy engine. OPA can be started with
 // several options that control configuration, logging, and lifecycle.
 type OPA struct {
-	id           string
-	state        *state
-	mtx          sync.Mutex
-	logger       logging.Logger
-	console      logging.Logger
-	plugins      map[string]plugins.Factory
-	store        storage.Store
-	hooks        hooks.Hooks
-	config       []byte
-	v1Compatible bool
-	managerOpts  []func(*plugins.Manager)
+	id          string
+	state       *state
+	mtx         sync.Mutex
+	logger      logging.Logger
+	console     logging.Logger
+	plugins     map[string]plugins.Factory
+	store       storage.Store
+	hooks       hooks.Hooks
+	config      []byte
+	regoVersion ast.RegoVersion
+	managerOpts []func(*plugins.Manager)
 }
 
 type state struct {
@@ -89,8 +89,12 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.logger = opts.Logger
 	opa.console = opts.ConsoleLogger
 	opa.plugins = opts.Plugins
-	opa.v1Compatible = opts.V1Compatible
 	opa.managerOpts = opts.ManagerOpts
+
+	opa.regoVersion = opts.RegoVersion
+	if opts.V1Compatible {
+		opa.regoVersion = ast.RegoV1
+	}
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }
@@ -137,13 +141,12 @@ func (opa *OPA) configure(ctx context.Context, bs []byte, ready chan struct{}, b
 		plugins.Info(info),
 		plugins.Logger(opa.logger),
 		plugins.ConsoleLogger(opa.console),
+		plugins.WithParserOptions(ast.ParserOptions{RegoVersion: opa.regoVersion}),
 		plugins.EnablePrintStatements(opa.logger.GetLevel() >= logging.Info),
 		plugins.PrintHook(loggingPrintHook{logger: opa.logger}),
 		plugins.WithHooks(opa.hooks),
 	}
-	if opa.v1Compatible {
-		opts = append(opts, plugins.WithParserOptions(ast.ParserOptions{RegoVersion: ast.RegoV1}))
-	}
+
 	opts = append(opts, opa.managerOpts...)
 	manager, err := plugins.New(
 		bs,

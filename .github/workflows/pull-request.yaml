@@ -375,6 +375,9 @@ jobs:
         uses: peaceiris/actions-hugo@75d2e84710de30f6ff7268e08f310b60ef14033f # v3.0.0
         with:
           # keep this version in sync with the version in netlify.toml
+          # Note, that upgrading Hugo is tricky as all versions of the OPA docs need to work
+          # with the Hugo version used.
+          # see: https://github.com/open-policy-agent/opa/pull/7034
           hugo-version: "0.113.0"
           extended: true
 

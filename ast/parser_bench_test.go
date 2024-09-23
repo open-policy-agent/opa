@@ -91,52 +91,52 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 
 	default allow = false
 	
-	allow {
+	allow if {
 		user_is_owner
 	}
 	
-	allow {
+	allow if {
 		user_is_employee
 		action_is_read
 	}
 	
-	allow {
+	allow if {
 		user_is_employee
 		user_is_senior
 		action_is_update
 	}
 	
-	allow {
+	allow if {
 		user_is_customer
 		action_is_read
 		not pet_is_adopted
 	}
 	
-	user_is_owner {
+	user_is_owner if {
 		data.user_attributes[input.user].title == "owner"
 	}
 	
-	user_is_employee {
+	user_is_employee if {
 		data.user_attributes[input.user].title == "employee"
 	}
 	
-	user_is_customer {
+	user_is_customer if {
 		data.user_attributes[input.user].title == "customer"
 	}
 	
-	user_is_senior {
+	user_is_senior if {
 		data.user_attributes[input.user].tenure > 8
 	}
 	
-	action_is_read {
+	action_is_read if {
 		input.action == "read"
 	}
 	
-	action_is_update {
+	action_is_update if {
 		input.action == "update"
 	}
 	
-	pet_is_adopted {
+	pet_is_adopted if {
 		data.pet_attributes[input.resource].adopted == true
 	}
 	`
@@ -146,7 +146,7 @@ func BenchmarkParseBasicABACModule(b *testing.B) {
 func runParseModuleBenchmark(b *testing.B, mod string) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := ParseModule("", mod)
+		_, err := ParseModuleWithOpts("", mod, ParserOptions{AllFutureKeywords: true})
 		if err != nil {
 			b.Fatalf("Unexpected error: %s", err)
 		}
@@ -176,7 +176,7 @@ func runParseStatementBenchmarkWithError(b *testing.B, stmt string) {
 func generateModule(numRules int) string {
 	mod := "package bench\n"
 	for i := 0; i < numRules; i++ {
-		mod += fmt.Sprintf("p%d { input.x%d = %d }\n", i, i, i)
+		mod += fmt.Sprintf("p%d if { input.x%d = %d }\n", i, i, i)
 	}
 	return mod
 }

@@ -6,6 +6,7 @@ package debug
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"reflect"
@@ -20,6 +21,8 @@ import (
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/topdown"
+	"github.com/open-policy-agent/opa/topdown/builtins"
+	"github.com/open-policy-agent/opa/types"
 	"github.com/open-policy-agent/opa/util/test"
 )
 
@@ -2018,14 +2021,6 @@ func newTestStack(events ...*topdown.Event) *testStack {
 	}
 }
 
-//func (ts *testStack) done() bool {
-//	return ts.index >= len(ts.events)
-//}
-
-//func (ts *testStack) onLastEvent() bool {
-//	return ts.index == len(ts.events)-1
-//}
-
 func (ts *testStack) Enabled() bool {
 	return true
 }
@@ -2067,4 +2062,70 @@ func (ts *testStack) Result() rego.ResultSet {
 func (ts *testStack) Close() error {
 	ts.closed = true
 	return nil
+}
+
+func TestDebuggerCustomBuiltIn(t *testing.T) {
+	ctx := context.Background()
+
+	decl := &rego.Function{
+		Name:        "my.builtin",
+		Description: "My built-in",
+		Decl: types.NewFunction(
+			types.Args(types.S, types.S),
+			types.S,
+		),
+	}
+
+	fn := func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+		aStr, err := builtins.StringOperand(a.Value, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		bStr, err := builtins.StringOperand(b.Value, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		return ast.StringTerm(fmt.Sprintf("%s+%s", aStr, bStr)), nil
+	}
+
+	props := LaunchEvalProperties{
+		Query: `x := my.builtin("hello", "world")`,
+	}
+
+	exp := `[{"expressions":[{"value":true,"text":"x := my.builtin(\"hello\", \"world\")","location":{"row":1,"col":1}}],"bindings":{"x":"\"hello\"+\"world\""}}]`
+
+	eh := newTestEventHandler()
+
+	d := NewDebugger(SetEventHandler(eh.HandleEvent))
+
+	s, err := d.LaunchEval(ctx, props, RegoOption(rego.Function2(decl, fn)))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if err := s.ResumeAll(); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// wait for result
+	if e := eh.WaitFor(ctx, TerminatedEventType); e == nil {
+		t.Fatal("Expected terminated event")
+	}
+
+	ts, err := s.Threads()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	res := ts[0].(*thread).stack.Result()
+	bs, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	actual := string(bs)
+	if actual != exp {
+		t.Fatalf("Expected:\n\n%v\n\nbut got:\n\n%v", exp, actual)
+	}
 }

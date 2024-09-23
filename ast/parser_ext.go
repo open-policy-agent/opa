@@ -103,6 +103,14 @@ func MustParseStatement(input string) Statement {
 	return parsed
 }
 
+func MustParseStatementWithOpts(input string, popts ParserOptions) Statement {
+	parsed, err := ParseStatementWithOpts(input, popts)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
+}
+
 // MustParseRef returns a parsed reference.
 // If an error occurs during parsing, panic.
 func MustParseRef(input string) Ref {
@@ -279,11 +287,12 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	setJSONOptions(body, &rhs.jsonOptions)
 
 	return &Rule{
-		Location:    lhs.Location,
-		Head:        head,
-		Body:        body,
-		Module:      module,
-		jsonOptions: lhs.jsonOptions,
+		Location:      lhs.Location,
+		Head:          head,
+		Body:          body,
+		Module:        module,
+		jsonOptions:   lhs.jsonOptions,
+		generatedBody: true,
 	}, nil
 }
 
@@ -609,6 +618,17 @@ func ParseRule(input string) (*Rule, error) {
 // statements are parsed, an error is returned.
 func ParseStatement(input string) (Statement, error) {
 	stmts, _, err := ParseStatements("", input)
+	if err != nil {
+		return nil, err
+	}
+	if len(stmts) != 1 {
+		return nil, fmt.Errorf("expected exactly one statement")
+	}
+	return stmts[0], nil
+}
+
+func ParseStatementWithOpts(input string, popts ParserOptions) (Statement, error) {
+	stmts, _, err := ParseStatementsWithOpts("", input, popts)
 	if err != nil {
 		return nil, err
 	}

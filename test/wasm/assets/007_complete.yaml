@@ -18,71 +18,80 @@ cases:
     modules:
       - |
         package x
-        p = y { x = 1; y = x }
+        import rego.v1
+        p = y if { x = 1; y = x }
     want_defined: true
   - note: variable (negative)
     query: data.x.p = 1
     modules:
       - |
         package x
-        p = y { x = 2; y = x }
+        import rego.v1
+        p = y if { x = 2; y = x }
     want_defined: false
   - note: composites
     query: data.x.p = [1]
     modules:
       - |
         package x
-        p = [x] { x = 1 }
+        import rego.v1
+        p = [x] if { x = 1 }
     want_defined: true
   - note: composites (negative)
     query: data.x.p = [1]
     modules:
       - |
         package x
-        p = [x] { x = 2 }
+        import rego.v1
+        p = [x] if { x = 2 }
     want_defined: false
   - note: conjunction
     query: data.x.p = 1
     modules:
       - |
         package x
-        p = 1 { q; r }
-        q { true }
-        r { true }
+        import rego.v1
+        p = 1 if { q; r }
+        q if { true }
+        r if { true }
     want_defined: true
   - note: conjunction (negative)
     query: data.x.p = 1
     modules:
       - |
         package x
-        p = 1 { q; r }
-        q { true }
-        r { false }
+        import rego.v1
+        p = 1 if { q; r }
+        q if { true }
+        r if { false }
     want_defined: false
   - note: disjunction
     query: data.x.p = 2
     modules:
       - |
         package x
-        p = 1 { false }
-        p = 2 { true }
-        p = 3 { false }
+        import rego.v1
+        p = 1 if { false }
+        p = 2 if { true }
+        p = 3 if { false }
     want_defined: true
   - note: disjunction (negative)
     query: data.x.p = 1
     modules:
       - |
         package x
-        p = 1 { false }
-        p = 2 { false }
-        p = 3 { true }
+        import rego.v1
+        p = 1 if { false }
+        p = 2 if { false }
+        p = 3 if { true }
     want_defined: false
   - note: negation
     query: not data.x.p = 1
     modules:
       - |
         package x
-        p = 1 { false }  # undefined
+        import rego.v1
+        p = 1 if { false }  # undefined
     want_defined: true
   - note: negation (negative)
     query: not data.x.p = 1
@@ -114,9 +123,10 @@ cases:
     modules:
       - |
         package x
+        import rego.v1
         p = q
         q = r
-        r { input.x = 1 }
+        r if { input.x = 1 }
     input: {"x": 1}
     want_defined: true
   - note: chain input (negative)
@@ -124,9 +134,10 @@ cases:
     modules:
       - |
         package x
+        import rego.v1
         p = q
         q = r
-        r { input.x = 2 }
+        r if { input.x = 2 }
     input: {"x": 1}
     want_defined: false
   - note: iteration
@@ -134,7 +145,8 @@ cases:
     modules:
       - |
         package x
-        p = 1 { input[x] = 1 }
+        import rego.v1
+        p = 1 if { input[x] = 1 }
     input: [3,2,1]
     want_defined: true
   - note: iteration (negative)
@@ -142,7 +154,8 @@ cases:
     modules:
       - |
         package x
-        p = 1 { input[x] = 4 }
+        import rego.v1
+        p = 1 if { input[x] = 4 }
     input: [3,2,1]
     want_defined: false
   - note: conflict error

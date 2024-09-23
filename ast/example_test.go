@@ -15,11 +15,12 @@ func ExampleCompiler_Compile() {
 	// Define an input module that will be compiled.
 	exampleModule := `package opa.example
 
+import rego.v1
 import data.foo
 import input.bar
 
-p[x] { foo[x]; not bar[x]; x >= min_x }
-min_x = 100 { true }`
+p[x] if { foo[x]; not bar[x]; x >= min_x }
+min_x = 100 if { true }`
 
 	// Parse the input module to obtain the AST representation.
 	mod, err := ast.ParseModule("my_module", exampleModule)
@@ -56,11 +57,12 @@ func ExampleQueryCompiler_Compile() {
 	// Define an input module that will be compiled.
 	exampleModule := `package opa.example
 
+import rego.v1
 import data.foo
 import input.bar
 
-p[x] { foo[x]; not bar[x]; x >= min_x }
-min_x = 100 { true }`
+p[x] if { foo[x]; not bar[x]; x >= min_x }
+min_x = 100 if { true }`
 
 	// Parse the input module to obtain the AST representation.
 	mod, err := ast.ParseModule("my_module", exampleModule)

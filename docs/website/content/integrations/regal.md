@@ -39,10 +39,22 @@ docs_features:
       Regal can be used to debug Rego policies by identifying common mistakes.
       See [Bugs](https://docs.styra.com/regal/category/bugs) for some example
       issues it can identify automatically.
+
+      Regal also implements a
+      [language server](https://docs.styra.com/regal/language-server) and
+      [debug adapter](https://docs.styra.com/regal/debug-adapter) for Rego to
+      allow clients to debug Rego code as users type.
 ---
+
 Regal is a linter for Rego, with the goal of making your Rego magnificent!
 
 Regal can:
-* Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
-* Provide advice on best practices, coding style, and tooling
-* Allow users, teams and organizations to enforce custom rules on their policy code
+
+- Identify common mistakes, bugs and inefficiencies in Rego policies, and suggest better approaches
+- Provide advice on best practices, coding style, and tooling
+- Allow users, teams and organizations to enforce custom rules on their policy code
+
+Regal also implements a
+[language server](https://docs.styra.com/regal/language-server) and
+[debug adapter](https://docs.styra.com/regal/debug-adapter) for Rego to
+allow clients to debug Rego code as users type.

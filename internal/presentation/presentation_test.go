@@ -144,8 +144,9 @@ func TestOutputJSONErrorStructuredStorageErr(t *testing.T) {
 func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
 	mod := `
 		package test
+		import rego.v1
 
-		p(x) = y {
+		p(x) = y if {
 			y = x[_]
 		}
 
@@ -164,7 +165,7 @@ func TestOutputJSONErrorStructuredTopdownErr(t *testing.T) {
       "code": "eval_conflict_error",
       "location": {
         "file": "test.rego",
-        "row": 4,
+        "row": 5,
         "col": 3
       }
     }
@@ -277,8 +278,9 @@ func TestOutputJSONErrorStructuredASTErrList(t *testing.T) {
 	c.Compile(map[string]*ast.Module{
 		"error.rego": ast.MustParseModule(`
 package test
+import rego.v1
 
-q {
+q if {
 	bad[reference]
 }
 `)})
@@ -292,7 +294,7 @@ q {
       "code": "rego_unsafe_var_error",
       "location": {
         "file": "",
-        "row": 5,
+        "row": 6,
         "col": 2
       }
     },
@@ -301,7 +303,7 @@ q {
       "code": "rego_unsafe_var_error",
       "location": {
         "file": "",
-        "row": 5,
+        "row": 6,
         "col": 2
       }
     }
@@ -344,12 +346,13 @@ func TestOutputJSONErrorStructuredLoaderErrList(t *testing.T) {
 func TestOutputJSONErrorStructuredRegoErrList(t *testing.T) {
 	mod := `
 package test
+import rego.v1
 
-p {
+p if {
 	bad_func1()
 }
 
-q {
+q if {
 	bad_func2()
 }
 `
@@ -365,7 +368,7 @@ q {
       "code": "rego_type_error",
       "location": {
         "file": "error.rego",
-        "row": 5,
+        "row": 6,
         "col": 2
       }
     },
@@ -374,7 +377,7 @@ q {
       "code": "rego_type_error",
       "location": {
         "file": "error.rego",
-        "row": 9,
+        "row": 10,
         "col": 2
       }
     }
@@ -397,7 +400,7 @@ func TestSource(t *testing.T) {
 			Support: []*ast.Module{
 				ast.MustParseModule(`
             package test
-            p = 1
+            p := 1
         `),
 			},
 		},
@@ -413,7 +416,7 @@ b = 2
 # Module 1
 package test
 
-p = 1
+p := 1
 `
 
 	if buf.String() != exp {
