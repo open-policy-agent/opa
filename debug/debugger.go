@@ -258,7 +258,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 		return nil, fmt.Errorf("failed to create store transaction: %v", err)
 	}
 
-	var regoArgs []func(*rego.Rego)
+	regoArgs := make([]func(*rego.Rego), 0, 4)
 
 	// We apply all user options first, so the debugger can make overrides if necessary.
 	regoArgs = append(regoArgs, options.regoOptions...)
