@@ -2076,7 +2076,7 @@ func TestDebuggerCustomBuiltIn(t *testing.T) {
 		),
 	}
 
-	fn := func(bctx rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
+	fn := func(_ rego.BuiltinContext, a, b *ast.Term) (*ast.Term, error) {
 		aStr, err := builtins.StringOperand(a.Value, 1)
 		if err != nil {
 			return nil, err

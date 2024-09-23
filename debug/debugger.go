@@ -261,9 +261,7 @@ func (d *debugger) LaunchEval(ctx context.Context, props LaunchEvalProperties, o
 	var regoArgs []func(*rego.Rego)
 
 	// We apply all user options first, so the debugger can make overrides if necessary.
-	for _, opt := range options.regoOptions {
-		regoArgs = append(regoArgs, opt)
-	}
+	regoArgs = append(regoArgs, options.regoOptions...)
 
 	regoArgs = append(regoArgs, rego.Query(props.Query))
 	regoArgs = append(regoArgs, rego.Store(store))
