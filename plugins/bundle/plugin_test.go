@@ -519,10 +519,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with no error
 	authzModule := `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identity == "foo"
 		}`
 
@@ -554,26 +555,27 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with errors
 	authzModule = `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper1
         }
 
-        helper1 {
+        helper1 if {
           helper2
         }
 
-        helper2 {
+        helper2 if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -665,22 +667,23 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	module := "package foo\n\ncorge=1"
 
 	authzModule := `package foo.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper
         }
 
-        helper {
+        helper if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -1911,6 +1914,85 @@ func TestLoadAndActivateBundlesFromDisk(t *testing.T) {
 	}
 }
 
+func TestLoadAndActivateBundlesFromDiskReservedChars(t *testing.T) {
+
+	ctx := context.Background()
+	manager := getTestManager()
+
+	dir := t.TempDir()
+
+	goos = "windows"
+
+	bundleName := "test?bundle=opa" // bundle name contains reserved characters
+	bundleSource := Source{
+		Persist: true,
+	}
+
+	bundles := map[string]*Source{}
+	bundles[bundleName] = &bundleSource
+
+	plugin := New(&Config{Bundles: bundles}, manager)
+	plugin.bundlePersistPath = filepath.Join(dir, ".opa")
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	// persist a bundle to disk and then load it
+	module := "package foo\n\ncorge=1"
+
+	b := bundle.Bundle{
+		Manifest: bundle.Manifest{Revision: "quickbrownfaux"},
+		Data:     util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}}`)).(map[string]interface{}),
+		Modules: []bundle.ModuleFile{
+			{
+				URL:    "/foo/bar.rego",
+				Path:   "/foo/bar.rego",
+				Parsed: ast.MustParseModule(module),
+				Raw:    []byte(module),
+			},
+		},
+	}
+
+	b.Manifest.Init()
+
+	var buf bytes.Buffer
+	if err := bundle.NewWriter(&buf).UseModulePath(true).Write(b); err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	err := plugin.saveBundleToDisk(bundleName, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
+	plugin.loadAndActivateBundlesFromDisk(ctx)
+
+	txn := storage.NewTransactionOrDie(ctx, manager.Store)
+	defer manager.Store.Abort(ctx, txn)
+
+	ids, err := manager.Store.ListPolicies(ctx, txn)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(ids) != 1 {
+		t.Fatal("Expected 1 policy")
+	}
+
+	bs, err := manager.Store.GetPolicy(ctx, txn, ids[0])
+	exp := []byte("package foo\n\ncorge=1")
+	if err != nil {
+		t.Fatal(err)
+	} else if !bytes.Equal(bs, exp) {
+		t.Fatalf("Bad policy content. Exp:\n%v\n\nGot:\n\n%v", string(exp), string(bs))
+	}
+
+	data, err := manager.Store.Read(ctx, txn, storage.Path{})
+	expData := util.MustUnmarshalJSON([]byte(`{"foo": {"bar": 1, "baz": "qux"}, "system": {"bundles": {"test?bundle=opa": {"etag": "", "manifest": {"revision": "quickbrownfaux", "roots": [""]}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	} else if !reflect.DeepEqual(data, expData) {
+		t.Fatalf("Bad data content. Exp:\n%v\n\nGot:\n\n%v", expData, data)
+	}
+}
+
 func TestLoadAndActivateBundlesFromDiskV1Compatible(t *testing.T) {
 	type update struct {
 		modules map[string]string
@@ -2412,18 +2494,20 @@ func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
 	module1 := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
 	module2 := `
 package foo
+import rego.v1
 
-is_one(x) {
+is_one(x) if {
 	x == 1
 }`
 
@@ -2510,11 +2594,12 @@ func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
 	module := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
@@ -2567,7 +2652,10 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
-	raw1 := "package foo\n\np[x] { x = 1 }"
+	raw1 := `package foo
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := &bundle.Bundle{
 		Data: map[string]interface{}{"a": "b"},
@@ -2589,8 +2677,11 @@ func TestPluginOneShotCompileError(t *testing.T) {
 		Data: map[string]interface{}{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
-				Path:   "/example2.rego",
-				Parsed: ast.MustParseModule("package foo\n\np[x]"),
+				Path: "/example2.rego",
+				Parsed: ast.MustParseModule(`package foo
+import rego.v1
+
+p contains x`),
 			},
 		},
 	}
@@ -2901,7 +2992,10 @@ func TestPluginListener(t *testing.T) {
 		t.Fatal("Listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -2926,7 +3020,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s1, "quickbrownfaux", false)
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -2941,7 +3038,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s2, "quickbrownfaux", true)
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3067,7 +3167,10 @@ func TestPluginBulkListener(t *testing.T) {
 		t.Fatal("Bulk listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3108,7 +3211,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -3138,7 +3244,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3177,7 +3286,10 @@ func TestPluginBulkListener(t *testing.T) {
 	}
 
 	// Test updates the other bundles
-	module = "package p1\np[x] { x = 1 }"
+	module = `package p1
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3251,7 +3363,10 @@ func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 		bulkChan <- status
 	})
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -6089,6 +6204,58 @@ func TestPluginManualTriggerWithTimeout(t *testing.T) {
 	}
 }
 
+func TestGetNormalizedBundleName(t *testing.T) {
+	cases := []struct {
+		input string
+		goos  string
+		exp   string
+	}{
+		{
+			input: "foo",
+			exp:   "foo",
+		},
+		{
+			input: "foo=bar",
+			exp:   "foo=bar",
+			goos:  "windows",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c:/foo",
+		},
+		{
+			input: "c:/foo",
+			exp:   "c\\:\\/foo",
+			goos:  "windows",
+		},
+		{
+			input: "file:\"<>c:/a",
+			exp:   "file\\:\\\"\\<\\>c\\:\\/a",
+			goos:  "windows",
+		},
+		{
+			input: "|a?b*c",
+			exp:   "\\|a\\?b\\*c",
+			goos:  "windows",
+		},
+		{
+			input: "a?b=c",
+			exp:   "a\\?b=c",
+			goos:  "windows",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			goos = tc.goos
+			actual := getNormalizedBundleName(tc.input)
+			if actual != tc.exp {
+				t.Fatalf("Want %v but got: %v", tc.exp, actual)
+			}
+		})
+	}
+}
+
 func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bundle {
 	t.Helper()
 
@@ -6115,7 +6282,11 @@ func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bund
 func getTestBundle(t *testing.T) bundle.Bundle {
 	t.Helper()
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{

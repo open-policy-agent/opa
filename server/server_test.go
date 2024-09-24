@@ -638,16 +638,17 @@ func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	healthPolicy := `package system.health
+  import rego.v1
 
   default live = false
 
-  live {
+  live if {
     input.plugin_state.bundle == "OK"
   }
 
   default ready = false
 
-  ready {
+  ready if {
     input.plugins_ready
   }
   `
@@ -696,12 +697,13 @@ func TestUnversionedGetHealthWithPolicyUsingPlugins(t *testing.T) {
 
 func TestDataV0(t *testing.T) {
 	testMod1 := `package test
+	import rego.v1
 
 	p = "hello"
 
 	q = {
 		"foo": [1,2,3,4]
-	} {
+	} if {
 		input.flag = true
 	}
 	`
@@ -853,22 +855,23 @@ func Test405StatusCodev0(t *testing.T) {
 func TestCompileV1(t *testing.T) {
 
 	mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 
 	expQuery := func(s string) string {
@@ -933,8 +936,9 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.r = true`,
 					`package partial.test
+					import rego.v1
 
-					r { input.x = 1 }
+					r if { input.x = 1 }
 					default r = true
 					`)},
 			},
@@ -962,8 +966,9 @@ func TestCompileV1(t *testing.T) {
 				}`, 200, expQueryAndSupport(
 					`data.partial.test.s = true`,
 					`package partial.test
-					s { data.partial.test.custom_func(1) }
-					custom_func(__local0__2) { data.a[i2] = __local0__2 }
+					import rego.v1
+					s if { data.partial.test.custom_func(1) }
+					custom_func(__local0__2) if { data.a[i2] = __local0__2 }
 					`)},
 			},
 		},
@@ -1022,8 +1027,9 @@ func TestCompileV1Observability(t *testing.T) {
 		f := newFixtureWithStore(t, disk)
 
 		err = f.v1(http.MethodPut, "/policies/test", `package test
-
-	p { input.x = 1 }`, 200, "")
+	import rego.v1
+	
+	p if { input.x = 1 }`, 200, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1117,33 +1123,37 @@ func TestDataV1Redirection(t *testing.T) {
 func TestDataV1(t *testing.T) {
 	testMod1 := `package testmod
 
+import rego.v1
 import input.req1
 import input.req2 as reqx
 import input.req3.attr1
 
-p[x] { q[x]; not r[x] }
-q[x] { data.x.y[i] = x }
-r[x] { data.x.z[i] = x }
-g = true { req1.a[0] = 1; reqx.b[i] = 1 }
-h = true { attr1[i] > 1 }
-gt1 = true { req1 > 1 }
-arr = [1, 2, 3, 4] { true }
-undef = true { false }`
+p contains x if { q[x]; not r[x] }
+q contains x if { data.x.y[i] = x }
+r contains x if { data.x.z[i] = x }
+g = true if { req1.a[0] = 1; reqx.b[i] = 1 }
+h = true if { attr1[i] > 1 }
+gt1 = true if { req1 > 1 }
+arr = [1, 2, 3, 4] if { true }
+undef = true if { false }`
 
 	testMod2 := `package testmod
+import rego.v1
 
-p = [1, 2, 3, 4] { true }
-q = {"a": 1, "b": 2} { true }`
+p = [1, 2, 3, 4] if { true }
+q = {"a": 1, "b": 2} if { true }`
 
 	testMod4 := `package testmod
+import rego.v1
 
-p = true { true }
-p = false { true }`
+p = true if { true }
+p = false if { true }`
 
 	testMod5 := `package testmod.empty.mod`
 	testMod6 := `package testmod.all.undefined
+import rego.v1
 
-p = true { false }`
+p = true if { false }`
 
 	tests := []struct {
 		note string
@@ -1376,7 +1386,7 @@ p = true { false }`
     		      "location": {
     		        "col": 1,
     		        "file": "test",
-    		        "row": 4
+    		        "row": 5
     		      },
     		      "message": "complete rules must not produce multiple outputs"
     		    }
@@ -1440,10 +1450,11 @@ p = true { false }`
 		{"strict-builtin-errors", []tr{
 			{http.MethodPut, "/policies/test", `
 				package test
+				import rego.v1
 
 				default p = false
 
-				p { 1/0 }
+				p if { 1/0 }
 			`, 200, ""},
 			{http.MethodGet, "/data/test/p", "", 200, `{"result": false}`},
 			{http.MethodGet, "/data/test/p?strict-builtin-errors", "", 500, `{
@@ -1455,8 +1466,8 @@ p = true { false }`
 					"message": "div: divide by zero",
 					"location": {
 					  "file": "test",
-					  "row": 6,
-					  "col": 9
+					  "row": 7,
+					  "col": 12
 					}
 				  }
 				]
@@ -1477,8 +1488,8 @@ p = true { false }`
 					"message": "div: divide by zero",
 					"location": {
 					  "file": "test",
-					  "row": 6,
-					  "col": 9
+					  "row": 7,
+					  "col": 12
 					}
 				  }
 				]
@@ -1624,8 +1635,9 @@ func TestConfigV1(t *testing.T) {
 func TestDataYAML(t *testing.T) {
 
 	testMod1 := `package testmod
+import rego.v1
 import input.req1
-gt1 = true { req1 > 1 }`
+gt1 = true if { req1 > 1 }`
 
 	inputYaml1 := `
 ---
@@ -2041,8 +2053,9 @@ func TestDataPostV0CompressedResponse(t *testing.T) {
 		f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"encoding":{"gzip":{"min_length": %d}}}}`, test.gzipMinLength))
 		// create the policy
 		err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import rego.v1
 import input.example.flag
-allow_request { flag == true }
+allow_request if { flag == true }
 `, 200, "")
 		if err != nil {
 			t.Fatal(err)
@@ -2106,8 +2119,9 @@ func TestDataPostV1CompressedResponse(t *testing.T) {
 		f := newFixtureWithConfig(t, fmt.Sprintf(`{"server":{"encoding":{"gzip":{"min_length": %d}}}}`, test.gzipMinLength))
 		// create the policy
 		err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 default hello := false
-hello {
+hello if {
 	input.message == "world"
 }
 `, 200, "")
@@ -2179,22 +2193,23 @@ func TestCompileV1CompressedResponse(t *testing.T) {
 
 		// create the policy
 		mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 		err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
 		if err != nil {
@@ -2251,8 +2266,9 @@ func TestDataPostV0CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package opa.examples
+import rego.v1
 import input.example.flag
-allow_request { flag == true }
+allow_request if { flag == true }
 `, 200, "")
 	if err != nil {
 		t.Fatal(err)
@@ -2276,8 +2292,9 @@ func TestDataPostV1CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 default hello := false
-hello {
+hello if {
 	input.message == "world"
 }
 `, 200, "")
@@ -2312,22 +2329,23 @@ func TestCompileV1CompressedRequest(t *testing.T) {
 	f := newFixture(t)
 	// create the policy
 	mod := `package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	q {
+	q if {
 		data.a[i] = input.x
 	}
 
 	default r = true
 
-	r { input.x = 1 }
+	r if { input.x = 1 }
 
-	custom_func(x) { data.a[i] == x }
+	custom_func(x) if { data.a[i] == x }
 
-	s { custom_func(input.x) }
+	s if { custom_func(input.x) }
 	`
 	err := f.v1(http.MethodPut, "/policies/test", mod, 200, "")
 	if err != nil {
@@ -2712,8 +2730,9 @@ func TestDataPostWithActiveStoreWriteTxn(t *testing.T) {
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 
-p = [1, 2, 3, 4] { true }`, 200, "")
+p = [1, 2, 3, 4] if { true }`, 200, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2748,8 +2767,9 @@ func TestDataPostExplain(t *testing.T) {
 	f := newFixture(t)
 
 	err := f.v1(http.MethodPut, "/policies/test", `package test
+import rego.v1
 
-p = [1, 2, 3, 4] { true }`, 200, "")
+p = [1, 2, 3, 4] if { true }`, 200, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2788,7 +2808,9 @@ func TestDataPostExplainNotes(t *testing.T) {
 
 	err := f.v1(http.MethodPut, "/policies/test", `
 		package test
-		p {
+		import rego.v1
+		
+		p if {
 			data.a[i] = x; x > 1
 			trace(sprintf("found x = %d", [x]))
 		}`, 200, "")
@@ -3597,8 +3619,10 @@ func TestStatusV1MetricsWithSystemAuthzPolicy(t *testing.T) {
 	store := inmem.New()
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 	authzPolicy := `package system.authz
+	import rego.v1
+	
 	default allow = false
-	allow {
+	allow if {
 		input.path = ["v1", "status"]
 	}`
 
@@ -3956,13 +3980,16 @@ func TestDecisionLogging(t *testing.T) {
 			method: "PUT",
 			path:   "/policies/test2",
 			body: `package foo
-			p { {k: v | k = ["a", "a"][_]; v = [1, 2][_]} }`,
+			import rego.v1
+			p if { {k: v | k = ["a", "a"][_]; v = [1, 2][_]} }`,
 			response: `{}`,
 		},
 		{
-			method:   "PUT",
-			path:     "/policies/test",
-			body:     "package system\nmain { data.foo.p }",
+			method: "PUT",
+			path:   "/policies/test",
+			body: `package system
+			import rego.v1
+			main if { data.foo.p }`,
 			response: `{}`,
 		},
 		{
@@ -4210,8 +4237,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module := `
 	package system.main
+	import rego.v1
 
-	agg = x {
+	agg = x if {
 		sum(input.foo.bar, x)
 	}
 	`
@@ -4230,8 +4258,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module = `
 	package system
+	import rego.v1
 
-	main {
+	main if {
 		input.foo == "bar"
 	}
 	`
@@ -4280,8 +4309,9 @@ func TestUnversionedPost(t *testing.T) {
 
 	module = `
 	package http.authz
+	import rego.v1
 
-	agg = x {
+	agg = x if {
 		sum(input.foo.bar, x)
 	}
 	`
@@ -4337,12 +4367,13 @@ func TestAuthorization(t *testing.T) {
 	txn := storage.NewTransactionOrDie(ctx, store, storage.WriteParams)
 
 	authzPolicy := `package system.authz
-
+		
+		import rego.v1
 		import input.identity
 
 		default allow = false
 
-		allow {
+		allow if {
 			identity = "bob"
 		}
 		`
@@ -4389,12 +4420,13 @@ func TestAuthorization(t *testing.T) {
 	// Reverse the policy.
 	update := identifier.SetIdentity(newReqV1(http.MethodPut, "/policies/test", `
 		package system.authz
-
+		
+		import rego.v1
 		import input.identity
 
 		default allow = false
 
-		allow {
+		allow if {
 			identity = "alice"
 		}
 	`), "bob")
@@ -4462,10 +4494,11 @@ func TestAuthorizationUsesInterQueryCache(t *testing.T) {
 	}))
 
 	authzPolicy := fmt.Sprintf(`package system.authz
+import rego.v1
 
 default allow := false
 
-allow {
+allow if {
 	resp := http.send({
 		"method": "GET", "url": "%[1]s/foo",
 		"force_cache": true,
@@ -4717,11 +4750,12 @@ func TestQueryBindingIterationError(t *testing.T) {
 const (
 	testMod = `package a.b.c
 
+import rego.v1
 import data.x.y as z
 import data.p
 
-q[x] { p[x]; not r[x] }
-r[x] { z[x] = 4 }`
+q contains x if { p[x]; not r[x] }
+r contains x if { z[x] = 4 }`
 )
 
 type fixture struct {
@@ -5289,9 +5323,36 @@ func TestDistributedTracingEnabled(t *testing.T) {
 		}}`)
 
 	ctx := context.Background()
-	_, _, err := distributedtracing.Init(ctx, c, "foo")
+	_, _, _, err := distributedtracing.Init(ctx, c, "foo")
 	if err != nil {
 		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+}
+
+func TestDistributedTracingResourceAttributes(t *testing.T) {
+	c := []byte(`{"distributed_tracing": {
+		"type": "grpc",
+		"service_name": "my-service",
+		"resource": {
+			"service_namespace": "my-namespace",
+			"service_version": "1.0",
+			"service_instance_id": "1"
+		}
+		}}`)
+
+	ctx := context.Background()
+	_, traceProvider, resource, err := distributedtracing.Init(ctx, c, "foo")
+	if err != nil {
+		t.Fatalf("Unexpected error initializing trace exporter %v", err)
+	}
+	if traceProvider == nil {
+		t.Fatalf("Tracer provider was not initialized")
+	}
+	if resource == nil {
+		t.Fatalf("Resource was not initialized")
+	}
+	if len(resource.Attributes()) != 4 {
+		t.Fatalf("Unexpected resource attributes count. Expected: %v, Got: %v", 4, len(resource.Attributes()))
 	}
 }
 

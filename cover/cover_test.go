@@ -24,38 +24,38 @@ func TestCover(t *testing.T) {
 
 import data.deadbeef # expect not reported
 
-foo {
+foo if {
 	bar
 	p
 	not baz
 }
 
-bar {
+bar if {
 	a := 1
 	b := 2
 	a != b
 }
 
-baz {     # expect no exit
+baz if {     # expect no exit
 	true
 	false # expect eval but fail
 	true  # expect not covered
 }
 
-p {
+p if {
 	some bar # should not be included in coverage report
 	bar = 1
 	bar + 1 == 2
 }
 `
 
-	parsedModule, err := ast.ParseModule("test.rego", module)
+	parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	eval := rego.New(
-		rego.Module("test.rego", module),
+		rego.ParsedModule(parsedModule),
 		rego.Query("data.test.foo"),
 		rego.QueryTracer(cover),
 	)
@@ -148,16 +148,16 @@ func TestCoverNoDuplicates(t *testing.T) {
 # Both a rule and an expression, but should not be counted twice
 foo := 1
 
-allow { true }
+allow if { true }
 `
 
-	parsedModule, err := ast.ParseModule("test.rego", module)
+	parsedModule, err := ast.ParseModuleWithOpts("test.rego", module, ast.ParserOptions{AllFutureKeywords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	eval := rego.New(
-		rego.Module("test.rego", module),
+		rego.ParsedModule(parsedModule),
 		rego.Query("data.test.allow"),
 		rego.QueryTracer(cover),
 	)

@@ -21,7 +21,11 @@ func TestParseCachingConfig(t *testing.T) {
 	*period = defaultStaleEntryEvictionPeriodSeconds
 	threshold := new(int64)
 	*threshold = defaultForcedEvictionThresholdPercentage
-	expected := &Config{InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold}}
+	maxNumEntriesInterQueryValueCache := new(int)
+	*maxNumEntriesInterQueryValueCache = defaultInterQueryBuiltinValueCacheSize
+
+	expected := &Config{InterQueryBuiltinCache: InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
+		InterQueryBuiltinValueCache: InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
 
 	tests := map[string]struct {
 		input   []byte
@@ -35,8 +39,16 @@ func TestParseCachingConfig(t *testing.T) {
 			input:   []byte(`{"inter_query_builtin_cache": {},}`),
 			wantErr: false,
 		},
+		"default_num_entries": {
+			input:   []byte(`{"inter_query_builtin_value_cache": {},}`),
+			wantErr: false,
+		},
 		"bad_limit": {
 			input:   []byte(`{"inter_query_builtin_cache": {"max_size_bytes": "100"},}`),
+			wantErr: true,
+		},
+		"bad_num_entries": {
+			input:   []byte(`{"inter_query_builtin_value_cache": {"max_num_entries": "100"},}`),
 			wantErr: true,
 		},
 	}
@@ -162,6 +174,97 @@ func TestInsert(t *testing.T) {
 
 	if dropped != 0 {
 		t.Fatal("Expected dropped to be zero")
+	}
+}
+
+func TestInterQueryValueCache(t *testing.T) {
+
+	in := `{"inter_query_builtin_value_cache": {"max_num_entries": 4},}`
+
+	config, err := ParseCachingConfig([]byte(in))
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	cache := NewInterQueryValueCache(context.Background(), config)
+
+	cache.Insert(ast.StringTerm("foo").Value, "bar")
+	cache.Insert(ast.StringTerm("foo2").Value, "bar2")
+	cache.Insert(ast.StringTerm("hello").Value, "world")
+	dropped := cache.Insert(ast.StringTerm("hello2").Value, "world2")
+
+	if dropped != 0 {
+		t.Fatal("Expected dropped to be zero")
+	}
+
+	value, found := cache.Get(ast.StringTerm("foo").Value)
+	if !found {
+		t.Fatal("Expected key \"foo\" in cache")
+	}
+
+	actual, ok := value.(string)
+	if !ok {
+		t.Fatal("Expected string value")
+	}
+
+	if actual != "bar" {
+		t.Fatalf("Expected value \"bar\" but got %v", actual)
+	}
+
+	dropped = cache.Insert(ast.StringTerm("foo3").Value, "bar3")
+	if dropped != 1 {
+		t.Fatal("Expected dropped to be one")
+	}
+
+	_, found = cache.Get(ast.StringTerm("foo3").Value)
+	if !found {
+		t.Fatal("Expected key \"foo3\" in cache")
+	}
+
+	// update the cache config
+	in = `{"inter_query_builtin_value_cache": {"max_num_entries": 0},}` // unlimited
+	config, err = ParseCachingConfig([]byte(in))
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	cache.UpdateConfig(config)
+
+	cache.Insert(ast.StringTerm("a").Value, "b")
+	cache.Insert(ast.StringTerm("c").Value, "d")
+	cache.Insert(ast.StringTerm("e").Value, "f")
+	dropped = cache.Insert(ast.StringTerm("g").Value, "h")
+
+	if dropped != 0 {
+		t.Fatal("Expected dropped to be zero")
+	}
+
+	// at this point the cache should have 8 entries
+	// update the cache size and verify multiple items dropped
+	in = `{"inter_query_builtin_value_cache": {"max_num_entries": 6},}`
+	config, err = ParseCachingConfig([]byte(in))
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+
+	cache.UpdateConfig(config)
+
+	dropped = cache.Insert(ast.StringTerm("i").Value, "j")
+
+	if dropped != 3 {
+		t.Fatal("Expected dropped to be three")
+	}
+
+	_, found = cache.Get(ast.StringTerm("i").Value)
+	if !found {
+		t.Fatal("Expected key \"i\" in cache")
+	}
+
+	cache.Delete(ast.StringTerm("i").Value)
+
+	_, found = cache.Get(ast.StringTerm("i").Value)
+	if found {
+		t.Fatal("Unexpected key \"i\" in cache")
 	}
 }
 

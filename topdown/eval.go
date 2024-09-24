@@ -58,55 +58,56 @@ func (ee deferredEarlyExitError) Error() string {
 }
 
 type eval struct {
-	ctx                    context.Context
-	metrics                metrics.Metrics
-	seed                   io.Reader
-	time                   *ast.Term
-	queryID                uint64
-	queryIDFact            *queryIDFactory
-	parent                 *eval
-	caller                 *eval
-	cancel                 Cancel
-	query                  ast.Body
-	queryCompiler          ast.QueryCompiler
-	index                  int
-	indexing               bool
-	earlyExit              bool
-	bindings               *bindings
-	store                  storage.Store
-	baseCache              *baseCache
-	txn                    storage.Transaction
-	compiler               *ast.Compiler
-	input                  *ast.Term
-	data                   *ast.Term
-	external               *resolverTrie
-	targetStack            *refStack
-	tracers                []QueryTracer
-	traceEnabled           bool
-	traceLastLocation      *ast.Location // Last location of a trace event.
-	plugTraceVars          bool
-	instr                  *Instrumentation
-	builtins               map[string]*Builtin
-	builtinCache           builtins.Cache
-	ndBuiltinCache         builtins.NDBCache
-	functionMocks          *functionMocksStack
-	virtualCache           *virtualCache
-	comprehensionCache     *comprehensionCache
-	interQueryBuiltinCache cache.InterQueryCache
-	saveSet                *saveSet
-	saveStack              *saveStack
-	saveSupport            *saveSupport
-	saveNamespace          *ast.Term
-	skipSaveNamespace      bool
-	inliningControl        *inliningControl
-	genvarprefix           string
-	genvarid               int
-	runtime                *ast.Term
-	builtinErrors          *builtinErrors
-	printHook              print.Hook
-	tracingOpts            tracing.Options
-	findOne                bool
-	strictObjects          bool
+	ctx                         context.Context
+	metrics                     metrics.Metrics
+	seed                        io.Reader
+	time                        *ast.Term
+	queryID                     uint64
+	queryIDFact                 *queryIDFactory
+	parent                      *eval
+	caller                      *eval
+	cancel                      Cancel
+	query                       ast.Body
+	queryCompiler               ast.QueryCompiler
+	index                       int
+	indexing                    bool
+	earlyExit                   bool
+	bindings                    *bindings
+	store                       storage.Store
+	baseCache                   *baseCache
+	txn                         storage.Transaction
+	compiler                    *ast.Compiler
+	input                       *ast.Term
+	data                        *ast.Term
+	external                    *resolverTrie
+	targetStack                 *refStack
+	tracers                     []QueryTracer
+	traceEnabled                bool
+	traceLastLocation           *ast.Location // Last location of a trace event.
+	plugTraceVars               bool
+	instr                       *Instrumentation
+	builtins                    map[string]*Builtin
+	builtinCache                builtins.Cache
+	ndBuiltinCache              builtins.NDBCache
+	functionMocks               *functionMocksStack
+	virtualCache                VirtualCache
+	comprehensionCache          *comprehensionCache
+	interQueryBuiltinCache      cache.InterQueryCache
+	interQueryBuiltinValueCache cache.InterQueryValueCache
+	saveSet                     *saveSet
+	saveStack                   *saveStack
+	saveSupport                 *saveSupport
+	saveNamespace               *ast.Term
+	skipSaveNamespace           bool
+	inliningControl             *inliningControl
+	genvarprefix                string
+	genvarid                    int
+	runtime                     *ast.Term
+	builtinErrors               *builtinErrors
+	printHook                   print.Hook
+	tracingOpts                 tracing.Options
+	findOne                     bool
+	strictObjects               bool
 }
 
 func (e *eval) Run(iter evalIterator) error {
@@ -817,23 +818,24 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	bctx := BuiltinContext{
-		Context:                e.ctx,
-		Metrics:                e.metrics,
-		Seed:                   e.seed,
-		Time:                   e.time,
-		Cancel:                 e.cancel,
-		Runtime:                e.runtime,
-		Cache:                  e.builtinCache,
-		InterQueryBuiltinCache: e.interQueryBuiltinCache,
-		NDBuiltinCache:         e.ndBuiltinCache,
-		Location:               e.query[e.index].Location,
-		QueryTracers:           e.tracers,
-		TraceEnabled:           e.traceEnabled,
-		QueryID:                e.queryID,
-		ParentID:               parentID,
-		PrintHook:              e.printHook,
-		DistributedTracingOpts: e.tracingOpts,
-		Capabilities:           capabilities,
+		Context:                     e.ctx,
+		Metrics:                     e.metrics,
+		Seed:                        e.seed,
+		Time:                        e.time,
+		Cancel:                      e.cancel,
+		Runtime:                     e.runtime,
+		Cache:                       e.builtinCache,
+		InterQueryBuiltinCache:      e.interQueryBuiltinCache,
+		InterQueryBuiltinValueCache: e.interQueryBuiltinValueCache,
+		NDBuiltinCache:              e.ndBuiltinCache,
+		Location:                    e.query[e.index].Location,
+		QueryTracers:                e.tracers,
+		TraceEnabled:                e.traceEnabled,
+		QueryID:                     e.queryID,
+		ParentID:                    parentID,
+		PrintHook:                   e.printHook,
+		DistributedTracingOpts:      e.tracingOpts,
+		Capabilities:                capabilities,
 	}
 
 	eval := evalBuiltin{
@@ -2407,6 +2409,15 @@ type evalVirtualPartialCacheHint struct {
 	full bool
 }
 
+func (h *evalVirtualPartialCacheHint) keyWithoutScope() ast.Ref {
+	if h.key != nil {
+		if _, ok := h.key[len(h.key)-1].Value.(vcKeyScope); ok {
+			return h.key[:len(h.key)-1]
+		}
+	}
+	return h.key
+}
+
 func (e evalVirtualPartial) eval(iter unifyIterator) error {
 
 	unknown := e.e.unknown(e.ref[:e.pos+1], e.bindings)
@@ -2485,7 +2496,7 @@ func (e evalVirtualPartial) evalEachRule(iter unifyIterator, unknown bool) error
 	}
 
 	if hint.key != nil {
-		if v, err := result.Value.Find(hint.key[e.pos+1:]); err == nil && v != nil {
+		if v, err := result.Value.Find(hint.keyWithoutScope()[e.pos+1:]); err == nil && v != nil {
 			e.e.virtualCache.Put(hint.key, ast.NewTerm(v))
 		}
 	}
@@ -2832,6 +2843,8 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 	plugged := e.bindings.Plug(e.ref[e.pos+1])
 
 	if _, ok := plugged.Value.(ast.Var); ok {
+		// Note: we might have additional opportunity to optimize here, if we consider that ground values
+		// right of e.pos could create a smaller eval "scope" through ref bi-unification before evaluating rules.
 		hint.full = true
 		hint.key = e.plugged[:e.pos+1]
 		e.e.instr.counterIncr(evalOpVirtualCacheMiss)
@@ -2840,25 +2853,161 @@ func (e evalVirtualPartial) evalCache(iter unifyIterator) (evalVirtualPartialCac
 
 	m := maxRefLength(e.ir.Rules, len(e.ref))
 
+	// Creating the hint key by walking the ref and plugging vars until we hit a non-ground term.
+	// Any ground term right of this point will affect the scope of evaluation by ref unification,
+	// so we create a virtual-cache scope key to qualify the result stored in the cache.
+	//
+	// E.g. given the following rule:
+	//
+	//   package example
+	//
+	//   a[x][y][z] := x + y + z if {
+	//     some x in [1, 2]
+	//     some y in [3, 4]
+	//     some z in [5, 6]
+	//   }
+	//
+	// and the following ref (1):
+	//
+	//   data.example.a[1][_][5]
+	//
+	// then the hint key will be:
+	//
+	//   data.example.a[1][<_,5>]
+	//
+	// where <_,5> is the scope of the pre-eval unification.
+	// This part does not contribute to the "location" of the cached data.
+	//
+	// The following ref (2):
+	//
+	//   data.example.a[1][_][6]
+	//
+	// will produce the same hint key "location" 'data.example.a[1]', but a different scope component
+	// '<_,6>', which will create a different entry in the cache.
+	scoping := false
+	hintKeyEnd := 0
 	for i := e.pos + 1; i < m; i++ {
 		plugged = e.bindings.Plug(e.ref[i])
 
-		if !plugged.IsGround() {
-			break
+		if plugged.IsGround() && !scoping {
+			hintKeyEnd = i
+			hint.key = append(e.plugged[:i], plugged)
+		} else {
+			scoping = true
+			hl := len(hint.key)
+			if hl == 0 {
+				break
+			}
+			if scope, ok := hint.key[hl-1].Value.(vcKeyScope); ok {
+				scope.Ref = append(scope.Ref, plugged)
+				hint.key[len(hint.key)-1] = ast.NewTerm(scope)
+			} else {
+				scope = vcKeyScope{}
+				scope.Ref = append(scope.Ref, plugged)
+				hint.key = append(hint.key, ast.NewTerm(scope))
+			}
 		}
-
-		hint.key = append(e.plugged[:i], plugged)
 
 		if cached, _ := e.e.virtualCache.Get(hint.key); cached != nil {
 			e.e.instr.counterIncr(evalOpVirtualCacheHit)
 			hint.hit = true
-			return hint, e.evalTerm(iter, i+1, cached, e.bindings)
+			return hint, e.evalTerm(iter, hintKeyEnd+1, cached, e.bindings)
+		}
+	}
+
+	if hl := len(hint.key); hl > 0 {
+		if scope, ok := hint.key[hl-1].Value.(vcKeyScope); ok {
+			scope = scope.reduce()
+			if scope.empty() {
+				hint.key = hint.key[:hl-1]
+			} else {
+				hint.key[hl-1].Value = scope
+			}
 		}
 	}
 
 	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 
 	return hint, nil
+}
+
+// vcKeyScope represents the scoping that pre-rule-eval ref unification imposes on a virtual cache entry.
+type vcKeyScope struct {
+	ast.Ref
+}
+
+func (q vcKeyScope) Compare(other ast.Value) int {
+	if q2, ok := other.(vcKeyScope); ok {
+		r1 := q.Ref
+		r2 := q2.Ref
+		if len(r1) != len(r2) {
+			return -1
+		}
+
+		for i := range r1 {
+			_, v1IsVar := r1[i].Value.(ast.Var)
+			_, v2IsVar := r2[i].Value.(ast.Var)
+			if v1IsVar && v2IsVar {
+				continue
+			}
+			if r1[i].Value.Compare(r2[i].Value) != 0 {
+				return -1
+			}
+		}
+
+		return 0
+	}
+	return 1
+}
+
+func (vcKeyScope) Find(ast.Ref) (ast.Value, error) {
+	return nil, nil
+}
+
+func (q vcKeyScope) Hash() int {
+	var hash int
+	for _, v := range q.Ref {
+		if _, ok := v.Value.(ast.Var); ok {
+			// all vars are equal
+			hash++
+		} else {
+			hash += v.Value.Hash()
+		}
+	}
+	return hash
+}
+
+func (q vcKeyScope) IsGround() bool {
+	return false
+}
+
+func (q vcKeyScope) String() string {
+	buf := make([]string, 0, len(q.Ref))
+	for _, t := range q.Ref {
+		if _, ok := t.Value.(ast.Var); ok {
+			buf = append(buf, "_")
+		} else {
+			buf = append(buf, t.String())
+		}
+	}
+	return fmt.Sprintf("<%s>", strings.Join(buf, ","))
+}
+
+// reduce removes vars from the tail of the ref.
+func (q vcKeyScope) reduce() vcKeyScope {
+	ref := q.Ref.Copy()
+	var i int
+	for i = len(q.Ref) - 1; i >= 0; i-- {
+		if _, ok := q.Ref[i].Value.(ast.Var); !ok {
+			break
+		}
+	}
+	ref = ref[:i+1]
+	return vcKeyScope{ref}
+}
+
+func (q vcKeyScope) empty() bool {
+	return len(q.Ref) == 0
 }
 
 func getNestedObject(ref ast.Ref, rootObj *ast.Object, b *bindings, l *ast.Location) (*ast.Object, error) {

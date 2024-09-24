@@ -214,7 +214,7 @@ curl --user bob:password -i http://$SERVICE_HOST/api/v1/products
 
 Congratulations for finishing the tutorial !
 
-This tutorial showed how Istio's [EnvoyFilter](https://istio.io/latest/docs/reference/config/networking/envoy-filter/)
+This tutorial showed how Istio's [AuthorizationPolicy API](https://istio.io/latest/docs/tasks/security/authorization/authz-custom/)
 can be configured to use OPA as an External authorization service.
 
 This tutorial also showed a sample OPA policy that returns a `boolean` decision

@@ -405,7 +405,7 @@ func (mod *Module) String() string {
 		buf = append(buf, "")
 		for _, rule := range mod.Rules {
 			buf = appendAnnotationStrings(buf, rule)
-			buf = append(buf, rule.String())
+			buf = append(buf, rule.stringWithOpts(toStringOpts{regoVersion: mod.regoVersion}))
 		}
 	}
 	return strings.Join(buf, "\n")
@@ -570,7 +570,7 @@ func (pkg *Package) MarshalJSON() ([]byte, error) {
 }
 
 // IsValidImportPath returns an error indicating if the import path is invalid.
-// If the import path is invalid, err is nil.
+// If the import path is valid, err is nil.
 func IsValidImportPath(v Value) (err error) {
 	switch v := v.(type) {
 	case Var:
@@ -770,18 +770,30 @@ func (rule *Rule) Ref() Ref {
 }
 
 func (rule *Rule) String() string {
+	return rule.stringWithOpts(toStringOpts{})
+}
+
+type toStringOpts struct {
+	regoVersion RegoVersion
+}
+
+func (rule *Rule) stringWithOpts(opts toStringOpts) string {
 	buf := []string{}
 	if rule.Default {
 		buf = append(buf, "default")
 	}
-	buf = append(buf, rule.Head.String())
+	buf = append(buf, rule.Head.stringWithOpts(opts))
 	if !rule.Default {
+		switch opts.regoVersion {
+		case RegoV1, RegoV0CompatV1:
+			buf = append(buf, "if")
+		}
 		buf = append(buf, "{")
 		buf = append(buf, rule.Body.String())
 		buf = append(buf, "}")
 	}
 	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString())
+		buf = append(buf, rule.Else.elseString(opts))
 	}
 	return strings.Join(buf, " ")
 }
@@ -824,7 +836,7 @@ func (rule *Rule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (rule *Rule) elseString() string {
+func (rule *Rule) elseString(opts toStringOpts) string {
 	var buf []string
 
 	buf = append(buf, "else")
@@ -835,12 +847,17 @@ func (rule *Rule) elseString() string {
 		buf = append(buf, value.String())
 	}
 
+	switch opts.regoVersion {
+	case RegoV1, RegoV0CompatV1:
+		buf = append(buf, "if")
+	}
+
 	buf = append(buf, "{")
 	buf = append(buf, rule.Body.String())
 	buf = append(buf, "}")
 
 	if rule.Else != nil {
-		buf = append(buf, rule.Else.elseString())
+		buf = append(buf, rule.Else.elseString(opts))
 	}
 
 	return strings.Join(buf, " ")
@@ -1000,16 +1017,28 @@ func (head *Head) Equal(other *Head) bool {
 }
 
 func (head *Head) String() string {
+	return head.stringWithOpts(toStringOpts{})
+}
+
+func (head *Head) stringWithOpts(opts toStringOpts) string {
 	buf := strings.Builder{}
 	buf.WriteString(head.Ref().String())
+	containsAdded := false
 
 	switch {
 	case len(head.Args) != 0:
 		buf.WriteString(head.Args.String())
 	case len(head.Reference) == 1 && head.Key != nil:
-		buf.WriteRune('[')
-		buf.WriteString(head.Key.String())
-		buf.WriteRune(']')
+		switch opts.regoVersion {
+		case RegoV0:
+			buf.WriteRune('[')
+			buf.WriteString(head.Key.String())
+			buf.WriteRune(']')
+		default:
+			containsAdded = true
+			buf.WriteString(" contains ")
+			buf.WriteString(head.Key.String())
+		}
 	}
 	if head.Value != nil {
 		if head.Assign {
@@ -1018,7 +1047,7 @@ func (head *Head) String() string {
 			buf.WriteString(" = ")
 		}
 		buf.WriteString(head.Value.String())
-	} else if head.Name == "" && head.Key != nil {
+	} else if !containsAdded && head.Name == "" && head.Key != nil {
 		buf.WriteString(" contains ")
 		buf.WriteString(head.Key.String())
 	}

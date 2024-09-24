@@ -46,10 +46,11 @@ func TestConsoleDecisionLogWithInput(t *testing.T) {
 
 	policy := `
 	package test
+	import rego.v1
 
 	default allow = false
 
-	allow {
+	allow if {
 		input.x == 1
 	}
 	`

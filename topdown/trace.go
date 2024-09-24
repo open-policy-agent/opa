@@ -94,6 +94,11 @@ type Event struct {
 	localVirtualCacheSnapshot *ast.ValueMap
 }
 
+func (evt *Event) WithInput(input *ast.Term) *Event {
+	evt.input = input
+	return evt
+}
+
 // HasRule returns true if the Event contains an ast.Rule.
 func (evt *Event) HasRule() bool {
 	_, ok := evt.Node.(*ast.Rule)

@@ -160,3 +160,21 @@ cases:
         q if p[true] == false
     want_result:
       - x: true
+  - note: regression/virtual-cache key scope
+    query: data.test.main = x
+    modules:
+      - |
+        package test
+
+        obj.sub[x][x] contains x if some x in ["one", "two"]
+
+        obj[x][x] contains x if x := "whatever"
+
+        main contains x if {
+          [1 | obj.sub[_].one[_]]
+          x := obj.sub[_][_][_]
+        }
+    want_result:
+      - x:
+          - "one"
+          - "two"

@@ -41,8 +41,8 @@ func TestTopDownQueryIDsUnique(t *testing.T) {
 
 	compiler := compileModules([]string{
 		`package x
-  p { 1 }
-  p { 2 }`})
+  p if { 1 }
+  p if { 2 }`})
 
 	tr := []*Event{}
 
@@ -79,12 +79,12 @@ func TestTopDownIndexExpr(t *testing.T) {
 	compiler := compileModules([]string{
 		`package test
 
-		p = true {
+		p = true if {
 		     1 > 0
 		     q
 		}
 
-		q = true { true }`})
+		q = true if { true }`})
 
 	tr := []*Event{}
 
@@ -139,14 +139,14 @@ func TestTopDownWithKeyword(t *testing.T) {
 			note: "invalidate comprehension cache",
 			exp:  `[[{"b": ["a", "c"]}], [{"b": ["a"]}]]`,
 			modules: []string{`package ex
-				s[x] {
+				s contains x if {
 					x = {v: ks |
 						v = input[i]
 						ks = {k | v = input[k]}
 					}
 				}
 			`},
-			rules: []string{`p = [x, y] {
+			rules: []string{`p = [x, y] if {
 				x = data.ex.s with input as {"a": "b", "c": "b"}
 				y = data.ex.s with input as {"a": "b"}
 			}`},
@@ -189,7 +189,7 @@ func TestTopDownQueryCancellation(t *testing.T) {
 		`
 		package test
 
-		p { data.arr[_] = x; test.sleep("10ms"); x == 999 }
+		p if { data.arr[_] = x; test.sleep("10ms"); x == 999 }
 		`,
 	})
 
@@ -234,8 +234,9 @@ func TestTopDownQueryCancellationEvery(t *testing.T) {
 
 	module := func(ev ast.Every, _ ...interface{}) *ast.Module {
 		t.Helper()
-		m := ast.MustParseModule(`package test
-	p { true }`)
+		m := ast.MustParseModuleWithOpts(`package test
+			p if { true }`,
+			ast.ParserOptions{AllFutureKeywords: true})
 		m.Rules[0].Body = ast.NewBody(ast.NewExpr(&ev))
 		return m
 	}
@@ -352,19 +353,19 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc",
 			module: `
 				package test
-				p { trace("a") }
-				p { trace("b") }`,
+				p if { trace("a") }
+				p if { trace("b") }`,
 			notes: n("a"),
 		},
 		{
 			note: "complete doc, nested, both exit early",
 			module: `
 				package test
-				p { q; trace("a") }
-				p { q; trace("b") }
+				p if { q; trace("a") }
+				p if { q; trace("b") }
 
-				q { trace("c") }
-				q { trace("d") }`,
+				q if { trace("c") }
+				q if { trace("d") }`,
 			extraExit: 1, // p + q
 			notes:     n("a", "c"),
 		},
@@ -372,12 +373,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, nested, both exit early (else)",
 			module: `
 				package test
-				p { q; trace("a") }
-				p { q; trace("b") }
+				p if { q; trace("a") }
+				p if { q; trace("b") }
 
-				q { trace("c"); false }
-				else = true { trace("d")}
-				q { trace("e") }`,
+				q if { trace("c"); false }
+				else = true if { trace("d")}
+				q if { trace("e") }`,
 			extraExit: 1, // p + q
 			notes:     n("a", "c", "d"),
 		},
@@ -385,39 +386,39 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc: other complete doc that cannot exit early",
 			module: `
 				package test
-				p { q }
+				p if { q }
 
-				q = x { x := true; trace("a") }
-				q = x { x := true; trace("b") }`,
+				q = x if { x := true; trace("a") }
+				q = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
 			note: "complete doc: other complete doc that cannot exit early, one undefined",
 			module: `
 				package test
-				p { q }
+				p if { q }
 
-				q = x { x := true; trace("a"); false }
-				q = x { x := true; trace("b") }`,
+				q = x if { x := true; trace("a"); false }
+				q = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
 			note: "complete doc: other complete doc that cannot exit early (else)",
 			module: `
 				package test
-				p { q }
+				p if { q }
 
-				q = x { x := true; trace("a"); false }
-				else = x { x := true; trace("b") }`,
+				q = x if { x := true; trace("a"); false }
+				else = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
 			note: "complete doc: other complete doc that cannot exit early, partial doc",
 			module: `
 				package test
-				p { q }
+				p if { q }
 
-				q[x] { 
+				q contains x if { 
 					x := [1, 2, 3][_]; trace("a")
 				}`,
 			notes: n("a", "a", "a"),
@@ -426,12 +427,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, iteration: other partial doc that cannot exit early",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x") 
 					q 
 				}
 
-				q[x] { 
+				q contains x if { 
 					x := [1, 2, 3][_]; trace("a")
 				}`,
 			notes: n("x", "a", "a", "a"),
@@ -440,16 +441,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, iteration: multiple other partial docs that cannot exit early",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					q
 				}
 		
-				q[x] {
+				q contains x if {
 					x := [1, 2, 3][_]; trace("a")
 				}
 		
-				q[x] {
+				q contains x if {
 					x := [4, 5, 6][_]; trace("b")
 				}`,
 			notes: n("x", "a", "a", "a", "b", "b", "b"),
@@ -458,22 +459,22 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc: other function that cannot exit early",
 			module: `
 				package test
-				p { q(1) }
+				p if { q(1) }
 
-				q(_) = x { x := true; trace("a") }
-				q(_) = x { x := true; trace("b") }`,
+				q(_) = x if { x := true; trace("a") }
+				q(_) = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
 			note: "complete doc: other function that cannot exit early (else)",
 			module: `
 				package test
-				p { q(1) }
+				p if { q(1) }
 
-				q(_) = x { x := true; trace("a"); false }
-				else = true { trace("b") }
+				q(_) = x if { x := true; trace("a"); false }
+				else = true if { trace("b") }
 
-				q(_) = x { x := true; trace("c") }`,
+				q(_) = x if { x := true; trace("c") }`,
 			notes: n("a", "b", "c"),
 		},
 		{
@@ -481,8 +482,8 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p = f(1)
-				f(_) { trace("a") }
-				f(_) { trace("b") }`,
+				f(_) if { trace("a") }
+				f(_) if { trace("b") }`,
 			notes: n("a"),
 		},
 		{
@@ -490,10 +491,10 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p = f(1)
-				f(_) { g(1); trace("a") }
-				f(_) { g(1); trace("b") }
-				g(_) { trace("c") }
-				g(_) { trace("d") }`,
+				f(_) if { g(1); trace("a") }
+				f(_) if { g(1); trace("b") }
+				g(_) if { trace("c") }
+				g(_) if { trace("d") }`,
 			notes:     n("a", "c"),
 			extraExit: 1, // f() + g()
 		},
@@ -503,12 +504,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			package test
 			p = f(1)
 
-			f(_) { g(1); trace("a") }
-			f(_) { g(1); trace("b") }
+			f(_) if { g(1); trace("a") }
+			f(_) if { g(1); trace("b") }
 
-			g(_) { trace("c"); false }
-			else = true { trace("d") }
-			g(_) { trace("e") }`,
+			g(_) if { trace("c"); false }
+			else = true if { trace("d") }
+			g(_) if { trace("e") }`,
 			notes:     n("a", "c", "d"),
 			extraExit: 1, // f() + g()
 		},
@@ -517,9 +518,9 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p = f(1)
-				f(_) { q }
-				q = x { x := true; trace("a") }
-				q = x { x := true; trace("b") }`,
+				f(_) if { q }
+				q = x if { x := true; trace("a") }
+				q = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
@@ -527,16 +528,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				p = f(1)
-				f(_) { q }
-				q = x { x := true; trace("a"); false }
-				else = x { x := true; trace("b") }`,
+				f(_) if { q }
+				q = x if { x := true; trace("a"); false }
+				else = x if { x := true; trace("b") }`,
 			notes: n("a", "b"),
 		},
 		{
 			note: "complete doc, array iteration",
 			module: `
 				package test
-				p { data.arr[_] = _; trace("x") }
+				p if { data.arr[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
@@ -544,7 +545,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iteration",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					data.arr[_] = z; trace("z")
@@ -556,13 +557,13 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iteration, ref to other complete doc with iteration",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 				}
 
-				q { 
+				q if { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
@@ -574,19 +575,19 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iteration, ref to multiple other complete docs with iteration",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 				}
 
-				q { 
+				q if { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
 				# Not called because of EE
-				q { 
+				q if { 
 					data.arr[_] = a; trace("c")
 					data.arr[_] = b; trace("d")
 				}
@@ -598,14 +599,14 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, ref to other complete doc with iteration and cached result",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					q; trace("q1")
 					q; trace("q2") # result of q in cache
 				}
 
-				q { 
+				q if { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
@@ -617,20 +618,20 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, ref to multiple other complete docs with iteration and cached result",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					q; trace("q1")
 					q; trace("q2") # result of q in cache
 				}
 
-				q { 
+				q if { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
 				# Not called because of EE
-				q { 
+				q if { 
 					data.arr[_] = a; trace("c")
 					data.arr[_] = b; trace("d")
 				}
@@ -642,19 +643,19 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, ref to other multiple complete docs with iteration",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("x") 
 					data.arr[_] = y; trace("y")
 					q; trace("q")
 					r; trace("r")
 				}
 
-				q { 
+				q if { 
 					data.arr[_] = a; trace("a")
 					data.arr[_] = b; trace("b")
 				}
 
-				r { 
+				r if { 
 					data.arr[_] = c; trace("c")
 					data.arr[_] = d; trace("d")
 				}
@@ -667,7 +668,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				arr := ["a", "b", "c"]
-				p { 
+				p if { 
 					arr[_] = x; trace("x")
 				}
 			`,
@@ -679,7 +680,7 @@ func TestTopDownEarlyExit(t *testing.T) {
 			module: `
 				package test
 				arr := ["a", "b", "c"]
-				p { 
+				p if { 
 					arr[_] = x; trace("x") 
 					arr[_] = y; trace("y") # arr in cache
 				}
@@ -690,12 +691,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, array iteration, ref to other complete doc without early exit",
 			module: `package test
-			p {
+			p if {
 				data.arr[_]; trace("x")
 				q; trace("y")
 			}
 
-			q := x {
+			q := x if {
 				x := 1
 			}`,
 			notes: n("x", "y"),
@@ -703,16 +704,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, array iteration, ref to other complete doc without early exit (multiple rules)",
 			module: `package test
-			p {
+			p if {
 				data.arr[_]; trace("x")
 				q; trace("y")
 			}
 
-			q := x {
+			q := x if {
 				x := 1; trace("a")
 			}
 
-			q := x {
+			q := x if {
 				x := 1; trace("b")
 			}`,
 			notes: n("x", "a", "b", "y"),
@@ -720,17 +721,17 @@ func TestTopDownEarlyExit(t *testing.T) {
 		{ // Regression test for: https://github.com/open-policy-agent/opa/issues/6566
 			note: "complete doc, array iteration, multiple refs to other complete docs without early exit",
 			module: `package test
-			p {
+			p if {
 				data.arr[_]; trace("x")
 				q; trace("y")
 				r; trace("z")
 			}
 
-			q := x {
+			q := x if {
 				x := 1
 			}
 
-			r := x {
+			r := x if {
 				x := 2
 			}`,
 			notes: n("x", "y", "z"),
@@ -739,12 +740,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration, func call with early exit",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					trace("a")
 				}
 			`,
@@ -755,16 +756,16 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call multiple early exit",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					trace("a")
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					trace("b")
 				}
 			`,
@@ -775,20 +776,20 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call without early exit",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					trace("a")
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					trace("b")
 				}
 
-				f(x) := 2 {
+				f(x) := 2 if {
 					trace("c")
 					false # to avoid eval_conflict_error error
 				}
@@ -799,12 +800,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, multiple array iterations, func call with early exit and iteration",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := 1 {
+				f(x) := 1 if {
 					data.arr[_] = a; trace("a")
 				}
 			`,
@@ -815,12 +816,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration, func call without early exit, static arg",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := x {
+				f(x) := x if {
 					trace("a")
 				}
 			`,
@@ -830,12 +831,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, dynamic arg",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(x) == x
 				}
 				
-				f(x) := x {
+				f(x) := x if {
 					trace("a")
 				}
 			`,
@@ -847,12 +848,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 				package test
 				s := { 1, 2, 3 }
 
-				p { 
+				p if { 
 					s[_] = x; trace("x")
 					f(x) == x
 				}
 				
-				f(x) := x {
+				f(x) := x if {
 					trace("a")
 				}
 			`,
@@ -869,12 +870,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 					"c": 3,
 				}
 
-				p { 
+				p if { 
 					o[_] = x; trace("x")
 					f(x) == x
 				}
 				
-				f(x) := x {
+				f(x) := x if {
 					trace("a")
 				}
 			`,
@@ -885,14 +886,14 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, array iteration, dynamic arg",
 			module: `
 				package test
-				p { 
+				p if { 
 					arr[_] = x; trace("x")
 					f(x) == x
 				}
 
 				arr := [1, 2, 3, 4, 2]
 				
-				f(x) := x {
+				f(x) := x if {
 					arr[_] = y; trace("a")
 					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
 				}
@@ -907,12 +908,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 
 				s := { 1, 2, 3, 4, 5 }
 
-				p { 
+				p if { 
 					s[_] = x; trace("x")
 					f(x) == x
 				}
 
-				f(x) := x {
+				f(x) := x if {
 					s[_] = y; trace("a")
 					y == 1; trace("b") # y will have exactly one match, so we expect one "b" note, and an exhaustive number of "a" notes
 				}
@@ -932,12 +933,12 @@ func TestTopDownEarlyExit(t *testing.T) {
 					"d": 2,
 				}
 
-				p { 
+				p if { 
 					o[_] = x; trace("x")
 					f(x) == x
 				}
 
-				f(x) := x {
+				f(x) := x if {
 					o[_] = y; trace("a")
 					y == 2; trace("b") # y will have exactly two matches, so we expect two "b" notes, and an exhaustive number of "a" notes
 				}
@@ -949,14 +950,14 @@ func TestTopDownEarlyExit(t *testing.T) {
 			note: "complete doc, array iteration -> func call without early exit, virtual doc array iteration, dynamic arg",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(x) == x
 				}
 
 arr := [1, 2, 3, 4, 5]
 				
-				f(x) := x {
+				f(x) := x if {
 					arr[_] = y; trace("a")
 					y == 3; trace("b")
 				}
@@ -968,21 +969,21 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration -> func (multi) call without early exit, static arg",
 			module: `
 				package test
-				p { 
+				p if { 
 					data.arr[_] = x; trace("x")
 					f(1) == 1
 				}
 				
-				f(x) := x {
+				f(x) := x if {
 					trace("a")
 				}
 
-				f(x) := x {
+				f(x) := x if {
 					trace("b")
 					false
 				}
 
-				f(x) := x {
+				f(x) := x if {
 					trace("c")
 				}
 			`,
@@ -992,7 +993,7 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, obj iteration",
 			module: `
 				package test
-				p { data.obj[_] = _; trace("x") }
+				p if { data.obj[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
@@ -1001,7 +1002,7 @@ arr := [1, 2, 3, 4, 5]
 			module: `
 				package test
 				xs := { i | data.arr[i] }
-				p { xs[_] = _; trace("x") }
+				p if { xs[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
@@ -1010,7 +1011,7 @@ arr := [1, 2, 3, 4, 5]
 			module: `
 				package test
 				p = f(1)
-				f(_) { data.arr[_] = _; trace("x") }
+				f(_) if { data.arr[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
@@ -1019,7 +1020,7 @@ arr := [1, 2, 3, 4, 5]
 			module: `
 				package test
 				p = f(1)
-				f(_) { data.obj[_] = _; trace("x") }
+				f(_) if { data.obj[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
@@ -1029,24 +1030,24 @@ arr := [1, 2, 3, 4, 5]
 				package test
 				xs := { i | data.arr[i] }
 				p = f(1)
-				f(_) { xs[_] = _; trace("x") }
+				f(_) if { xs[_] = _; trace("x") }
 			`,
 			notes: n("x"),
 		},
 		{
 			note: "ee -> ee -> ee",
 			module: `package test
-				p {
+				p if {
 					data.arr[_] = x; trace("a")
 					q; trace("b")
 				}
 
-				q {
+				q if {
 					data.arr[_] = x; trace("c")
 					r; trace("d")
 				}
 
-				r {
+				r if {
 					data.arr[i] = x; trace("e")
 				}
 			`,
@@ -1056,17 +1057,17 @@ arr := [1, 2, 3, 4, 5]
 		{
 			note: "ee -> no ee -> ee",
 			module: `package test
-				p {
+				p if {
 					data.arr[i] = x; trace("a")
 					q; trace("b")
 				}
 
-				q[x] {
+				q contains x if {
 					[1, 2, 3][_] = x; trace("c")
 					r; trace("d")
 				}
 
-				r {
+				r if {
 					data.arr[i] = x; trace("e")
 				}
 			`,
@@ -1076,22 +1077,22 @@ arr := [1, 2, 3, 4, 5]
 		{
 			note: "ee -> no ee (multiple) -> ee",
 			module: `package test
-				p {
+				p if {
 					data.arr[i] = x; trace("a")
 					q; trace("b")
 				}
 
-				q[x] {
+				q contains x if {
 					[1, 2, 3][_] = x; trace("c")
 					r; trace("d")
 				}
 
-				q[x] {
+				q contains x if {
 					[4, 5, 6][_] = x; trace("e")
 					r; trace("f")
 				}
 
-				r {
+				r if {
 					data.arr[i] = x; trace("g")
 				}
 			`,
@@ -1101,17 +1102,17 @@ arr := [1, 2, 3, 4, 5]
 		{
 			note: "ee -> (no ee, ee)",
 			module: `package test
-				p {
+				p if {
 					data.arr[i] = x; trace("a")
 					q; trace("b")
 					r; trace("c")
 				}
 
-				q[x] {
+				q contains x if {
 					[1, 2, 3][_] = x; trace("d")
 				}
 
-				r {
+				r if {
 					data.arr[i] = x; trace("e")
 				}
 			`,
@@ -1123,7 +1124,7 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc with every",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					every x in [1, 2, 3] { x; trace("a") }
 				}
@@ -1135,7 +1136,7 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc -> every, array iteration",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					every x in [1, 2, 3] { 
 						data.arr[_] = y; trace("a")
@@ -1150,7 +1151,7 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc -> every, array iteration -> complete doc with ee -> complete doc no ee",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr_small[_] = x; trace("x")
 					every x in [1, 2, 3] { 
 						data.arr_small[_] = y; trace("e1")
@@ -1159,12 +1160,12 @@ arr := [1, 2, 3, 4, 5]
 					}
 				}
 
-				q {
+				q if {
 					data.arr_small[_] = x; trace("q1")
 					r; trace("q2")
 				}
 
-				r := x {
+				r := x if {
 					x := 1
 					data.arr_small[_] = y; trace("r1")
 				}
@@ -1176,7 +1177,7 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc -> every, array iteration -> complete doc no ee -> complete doc with ee",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					every x in [1, 2, 3] { 
 						data.arr_small[_] = y; trace("e1")
@@ -1185,13 +1186,13 @@ arr := [1, 2, 3, 4, 5]
 					}
 				}
 
-				q := x {
+				q := x if {
 					x := 1
 					data.arr_small[_] = y; trace("q1")
 					r; trace("q2")
 				}
 
-				r {
+				r if {
 					data.arr[_] = y; trace("r1")
 				}
 			`,
@@ -1202,14 +1203,14 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc -> complete doc, no ee, with every",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					q
 				}
 
 				arr := [1, 2]
 		
-				q := x {
+				q := x if {
 					x := 1
 					arr[_] = y; trace("a")
 					every v in [1, 2, 3] { 
@@ -1224,14 +1225,14 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc -> complete doc, no ee, with every -> complete doc ee",
 			module: `package test
 				import future.keywords
-				p {
+				p if {
 					data.arr[_] = x; trace("x")
 					q
 				}
 
 				arr := [1, 2]
 		
-				q := x {
+				q := x if {
 					x := 1
 					arr[_] = y; trace("a")
 					every v in [1, 2, 3] { 
@@ -1239,7 +1240,7 @@ arr := [1, 2, 3, 4, 5]
 					}
 				}
 	
-				r {
+				r if {
 					data.arr[_] = x; trace("c")
 				}
 			`,
@@ -1251,12 +1252,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := [v | v = data.arr[_]; q]; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 				}
 			`,
@@ -1267,17 +1268,17 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> array comprehension -> complete doc, ee -> complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := [v | v = data.arr[_]; q]; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 					r
 				}
 
-				r := v {
+				r := v if {
 					v := 1
 					data.arr_small[_] = x; trace("r")
 				}
@@ -1290,12 +1291,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := {v | v = data.arr[_]; q}; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 				}
 			`,
@@ -1306,17 +1307,17 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> set comprehension -> complete doc, ee -> complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := {v | v = data.arr[_]; q}; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 					r
 				}
 
-				r := v {
+				r := v if {
 					v := 1
 					data.arr_small[_] = x; trace("r")
 				}
@@ -1329,12 +1330,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := {k: v | v = data.arr[k]; q}; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 				}
 			`,
@@ -1345,17 +1346,17 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> object comprehension -> complete doc, ee -> complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					y := {k: v | v = data.arr[k]; q}; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr[_] = x; trace("q")
 					r
 				}
 
-				r := v {
+				r := v if {
 					v := 1
 					data.arr_small[_] = x; trace("r")
 				}
@@ -1368,12 +1369,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> with -> complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					q with input.x as data.arr; trace("p2")
 				}
 
-				q {
+				q if {
 					input.x[_] = x; trace("q")
 				}
 			`,
@@ -1384,12 +1385,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> with -> complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					q with input.x as data.arr_small; trace("p2")
 				}
 
-				q := v {
+				q := v if {
 					v := 1
 					input.x[_] = x; trace("q")
 				}
@@ -1400,17 +1401,17 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> with -> complete doc, ee -> complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					q with input.x as data.arr_small; trace("p2")
 				}
 
-				q {
+				q if {
 					input.x[_] = x; trace("q1")
 					r; trace("q2")
 				}
 
-				r := v {
+				r := v if {
 					v := 1
 					input.x[_] = x; trace("r")
 				}
@@ -1422,18 +1423,18 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> with -> complete doc, no ee -> complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					q with input.x as data.arr_small; trace("p2")
 				}
 
-				q := v {
+				q := v if {
 					v := 1
 					input.x[_] = x; trace("q1")
 					r; trace("q2")
 				}
 
-				r {
+				r if {
 					input.x[_] = x; trace("r")
 				}
 			`,
@@ -1447,12 +1448,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> negated complete doc, ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
 		
-				q := false {
+				q := false if {
 					data.arr[_] = x; trace("q")
 				}
 			`,
@@ -1463,12 +1464,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> negated complete doc, no ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
 		
-				q := x {
+				q := x if {
 					x := false
 					data.arr_small[_] = y; trace("q")
 				}
@@ -1479,12 +1480,12 @@ arr := [1, 2, 3, 4, 5]
 			note: "complete doc, array iteration, ee -> negated complete doc, aborted ee",
 			module: `
 				package test
-				p {
+				p if {
 					data.arr[_] = x; trace("p1")
 					not q; trace("p2")
 				}
 		
-				q {
+				q if {
 					data.arr_small[_] = x; trace("q")
 					false
 				}
@@ -1563,21 +1564,21 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "domain empty",
 			module: `package test
-				p { every x in [] { print(x) } }
+				p if { every x in [] { print(x) } }
 			`,
 			notes: n(),
 		},
 		{
 			note: "domain undefined",
 			module: `package test
-				p { every x in input { print(x) } }
+				p if { every x in input { print(x) } }
 			`,
 			fail: true,
 		},
 		{
 			note: "domain is call",
 			module: `package test
-				p {
+				p if {
 					d := numbers.range(1, 5)
 					every x in d { x >= 1; print(x) }
 				}`,
@@ -1586,7 +1587,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "simple value",
 			module: `package test
-				p {
+				p if {
 					every x in [1, 2] { print(x) }
 				}`,
 			notes: n("1", "2"),
@@ -1594,7 +1595,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "simple key+value",
 			module: `package test
-				p {
+				p if {
 					every k, v in [1, 2] { k < v; print(v) }
 				}`,
 			notes: n("1", "2"),
@@ -1602,7 +1603,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "outer bindings",
 			module: `package test
-				p {
+				p if {
 					i = "outer"
 					every x in [1, 2] { print(x); print(i) }
 				}`,
@@ -1611,7 +1612,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "simple failure, last",
 			module: `package test
-				p {
+				p if {
 					every x in [1, 2] { x < 2; print(x) }
 				}`,
 			notes: n("1"),
@@ -1620,7 +1621,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "simple failure, first",
 			module: `package test
-				p {
+				p if {
 					every x in [1, 2] { x > 1; print(x) }
 				}`,
 			notes: n(),
@@ -1629,7 +1630,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "early exit in body eval on success",
 			module: `package test
-				p {
+				p if {
 					every x in [1, 2] { y := [false, true, true][_]; print(x); y }
 				}`,
 			notes: n("1", "1", "2", "2"), // Would be triples if EE in the body didn't work
@@ -1637,8 +1638,8 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "early exit suppressed in body eval",
 			module: `package test
-				q { print("q") }
-				p {
+				q if { print("q") }
+				p if {
 					every x in [1, 2] { q; print(x) }
 				}`,
 			notes: n("q", "1", "2"), // Would be only "1" if the EE of q wasn't surppressed
@@ -1646,7 +1647,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "with: domain",
 			module: `package test
-				p {
+				p if {
 					every x in input { print(x) } with input as [1]
 				}`,
 			notes: n("1"),
@@ -1654,7 +1655,7 @@ func TestTopDownEvery(t *testing.T) {
 		{
 			note: "with: body",
 			module: `package test
-				p {
+				p if {
 					every x in [1, 2] { print(x); print(input) } with input as "input"
 				}`,
 			notes: n("1", "input", "2", "input"),
@@ -1664,7 +1665,7 @@ func TestTopDownEvery(t *testing.T) {
 		t.Run(tc.note, func(t *testing.T) {
 			ctx := context.Background()
 			c := ast.NewCompiler().WithEnablePrintStatements(true)
-			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{FutureKeywords: []string{"every"}})
+			mod := ast.MustParseModuleWithOpts(tc.module, ast.ParserOptions{AllFutureKeywords: true})
 			if c.Compile(map[string]*ast.Module{"test": mod}); c.Failed() {
 				t.Fatal(c.Errors)
 			}
@@ -1748,8 +1749,8 @@ func TestTopDownContextPropagation(t *testing.T) {
 	compiler := ast.NewCompiler()
 	compiler.Compile(map[string]*ast.Module{
 		"mod1": ast.MustParseModule(`package ex
-
-p[x] { data.a[i] = x }`,
+import rego.v1
+p contains x if { data.a[i] = x }`,
 		),
 	})
 
@@ -1898,7 +1899,7 @@ func compileModules(input []string) *ast.Compiler {
 
 	for idx, i := range input {
 		id := fmt.Sprintf("testMod%d", idx)
-		mods[id] = ast.MustParseModule(i)
+		mods[id] = ast.MustParseModuleWithOpts(i, ast.ParserOptions{AllFutureKeywords: true})
 	}
 
 	c := ast.NewCompiler()
@@ -1918,6 +1919,8 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 		})
 	}
 
+	popts := ast.ParserOptions{AllFutureKeywords: true}
+
 	m := &ast.Module{
 		Package: ast.MustParsePackage("package generated"),
 		Imports: is,
@@ -1925,7 +1928,7 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 
 	rules := []*ast.Rule{}
 	for i := range input {
-		rules = append(rules, ast.MustParseRule(input[i]))
+		rules = append(rules, ast.MustParseRuleWithOpts(input[i], popts))
 		rules[i].Module = m
 	}
 
@@ -1938,7 +1941,7 @@ func compileRules(imports []string, input []string, modules []string) (*ast.Comp
 	mods := map[string]*ast.Module{"testMod": m}
 
 	for i, s := range modules {
-		mods[fmt.Sprintf("testMod%d", i)] = ast.MustParseModule(s)
+		mods[fmt.Sprintf("testMod%d", i)] = ast.MustParseModuleWithOpts(s, popts)
 	}
 
 	c := ast.NewCompiler()
@@ -2116,6 +2119,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 	// add an inter-query cache
 	config, _ := iCache.ParseCachingConfig(nil)
 	interQueryCache := iCache.NewInterQueryCache(config)
+	interQueryValueCache := iCache.NewInterQueryValueCache(ctx, config)
 
 	var strictBuiltinErrors bool
 
@@ -2130,6 +2134,7 @@ func assertTopDownWithPathAndContext(ctx context.Context, t *testing.T, compiler
 		WithTransaction(txn).
 		WithInput(inputTerm).
 		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache).
 		WithStrictBuiltinErrors(strictBuiltinErrors)
 
 	var tracer BufferTracer
@@ -2209,13 +2214,15 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 	// add an inter-query cache
 	config, _ := iCache.ParseCachingConfig(nil)
 	interQueryCache := iCache.NewInterQueryCache(config)
+	interQueryValueCache := iCache.NewInterQueryValueCache(ctx, config)
 
 	partialQuery := NewQuery(body).
 		WithCompiler(compiler).
 		WithStore(store).
 		WithUnknowns([]*ast.Term{ast.MustParseTerm("input")}).
 		WithTransaction(txn).
-		WithInterQueryBuiltinCache(interQueryCache)
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache)
 
 	partials, support, err := partialQuery.PartialRun(ctx)
 
@@ -2248,7 +2255,8 @@ func runTopDownPartialTestCase(ctx context.Context, t *testing.T, compiler *ast.
 		WithStore(store).
 		WithTransaction(txn).
 		WithInput(input).
-		WithInterQueryBuiltinCache(interQueryCache)
+		WithInterQueryBuiltinCache(interQueryCache).
+		WithInterQueryBuiltinValueCache(interQueryValueCache)
 
 	qrs, err := query.Run(ctx)
 	if err != nil {

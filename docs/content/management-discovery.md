@@ -201,7 +201,7 @@ with `region: "US"`, then the `bundle_name` will be `example/test1/p`.
 
 Start an OPA with a boot configuration as shown below:
 
-**config.yaml**
+**opa-config.yaml**
 
 ```yaml
 services:
@@ -220,7 +220,7 @@ labels:
 Run OPA:
 
 ```bash
-opa run -s -c config.yaml
+opa run -s -c opa-config.yaml
 ```
 
 You should see a log like below, which shows the bundle being downloaded. In
@@ -233,7 +233,7 @@ INFO Bundle downloaded and activated successfully. name=example/test1/p plugin=b
 Now start another OPA with a boot configuration as shown below. Notice the
 `region` is `UK`:
 
-**config.yaml**
+**opa-config.yaml**
 
 ```yaml
 services:
@@ -252,7 +252,7 @@ labels:
 Run OPA:
 
 ```bash
-opa run -s -c config.yaml
+opa run -s -c opa-config.yaml
 ```
 
 In this case, the bundle being downloaded is `example/test2/p` as `region` is

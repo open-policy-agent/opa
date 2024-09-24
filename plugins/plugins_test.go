@@ -235,9 +235,9 @@ func TestManagerWithOPATelemetryUpdateLoop(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	// add a policy to the store to trigger a telemetry update
+	// add a policy to the store to trigger a telemetry update (v0.36.0)
 	module := `package x
-				p { array.reverse([1,2,3]) }`
+				p := array.reverse([1,2,3])`
 
 	err = storage.Txn(ctx, m.Store, storage.WriteParams, func(txn storage.Transaction) error {
 		return m.Store.UpsertPolicy(ctx, txn, "policy.rego", []byte(module))
@@ -256,7 +256,7 @@ func TestManagerWithOPATelemetryUpdateLoop(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// add a bundle with some policy to trigger a telemetry update
+	// add a bundle with some policy to trigger a telemetry update (v0.46.0)
 	txn := storage.NewTransactionOrDie(ctx, m.Store, storage.WriteParams)
 
 	var archiveFiles = map[string]string{
@@ -396,7 +396,7 @@ func TestPluginManagerInitIdempotence(t *testing.T) {
 }
 
 func TestManagerWithCachingConfig(t *testing.T) {
-	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}}}`), "test", inmem.New())
+	m, err := New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": 100}, "inter_query_builtin_value_cache": {"max_num_entries": 100}}}`), "test", inmem.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,6 +404,8 @@ func TestManagerWithCachingConfig(t *testing.T) {
 	expected, _ := cache.ParseCachingConfig(nil)
 	limit := int64(100)
 	expected.InterQueryBuiltinCache.MaxSizeBytes = &limit
+	maxNumEntriesInterQueryValueCache := int(100)
+	expected.InterQueryBuiltinValueCache.MaxNumEntries = &maxNumEntriesInterQueryValueCache
 
 	if !reflect.DeepEqual(m.InterQueryBuiltinCacheConfig(), expected) {
 		t.Fatalf("want %+v got %+v", expected, m.interQueryBuiltinCacheConfig)
@@ -411,6 +413,12 @@ func TestManagerWithCachingConfig(t *testing.T) {
 
 	// config error
 	_, err = New([]byte(`{"caching": {"inter_query_builtin_cache": {"max_size_bytes": "100"}}}`), "test", inmem.New())
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+
+	// config error
+	_, err = New([]byte(`{"caching": {"inter_query_builtin_value_cache": {"max_num_entries": "100"}}}`), "test", inmem.New())
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -536,7 +544,7 @@ func TestPluginManagerPrometheusRegister(t *testing.T) {
 }
 
 func TestPluginManagerTracerProvider(t *testing.T) {
-	_, tracerProvider, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
+	_, tracerProvider, _, err := internal_tracing.Init(context.TODO(), []byte(`{ "distributed_tracing": { "type": "grpc" } }`), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

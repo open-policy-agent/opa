@@ -30,6 +30,8 @@ var RegoV1CompatibleRef = Ref{VarTerm("rego"), StringTerm("v1")}
 // RegoVersion defines the Rego syntax requirements for a module.
 type RegoVersion int
 
+const DefaultRegoVersion = RegoVersion(0)
+
 const (
 	// RegoV0 is the default, original Rego syntax.
 	RegoV0 RegoVersion = iota
@@ -316,6 +318,31 @@ func (p *Parser) Parse() ([]Statement, []*Comment, Errors) {
 		// RegoV1 includes all future keywords in the default language definition
 		for k, v := range futureKeywords {
 			allowedFutureKeywords[k] = v
+		}
+
+		// For sake of error reporting, we still need to check that keywords in capabilities are known,
+		for _, kw := range p.po.Capabilities.FutureKeywords {
+			if _, ok := futureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("illegal capabilities: unknown keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
+		}
+		// and that explicitly requested future keywords are known.
+		for _, kw := range p.po.FutureKeywords {
+			if _, ok := allowedFutureKeywords[kw]; !ok {
+				return nil, nil, Errors{
+					&Error{
+						Code:     ParseErr,
+						Message:  fmt.Sprintf("unknown future keyword: %v", kw),
+						Location: nil,
+					},
+				}
+			}
 		}
 	} else {
 		for _, kw := range p.po.Capabilities.FutureKeywords {
@@ -609,7 +636,12 @@ func (p *Parser) parseImport() *Import {
 
 	path := imp.Path.Value.(Ref)
 
-	if !RootDocumentNames.Contains(path[0]) && !FutureRootDocument.Equal(path[0]) && !RegoRootDocument.Equal(path[0]) {
+	switch {
+	case RootDocumentNames.Contains(path[0]):
+	case FutureRootDocument.Equal(path[0]):
+	case RegoRootDocument.Equal(path[0]):
+	default:
+		p.hint("if this is unexpected, try updating OPA")
 		p.errorf(imp.Path.Location, "unexpected import path, must begin with one of: %v, got: %v",
 			RootDocumentNames.Union(NewSet(FutureRootDocument, RegoRootDocument)),
 			path[0])
@@ -681,6 +713,10 @@ func (p *Parser) parseRules() []*Rule {
 
 	// p[x] if ...  becomes a single-value rule p[x]
 	if hasIf && !usesContains && len(rule.Head.Ref()) == 2 {
+		if !rule.Head.Ref()[1].IsGround() && len(rule.Head.Args) == 0 {
+			rule.Head.Key = rule.Head.Ref()[1]
+		}
+
 		if rule.Head.Value == nil {
 			rule.Head.generatedValue = true
 			rule.Head.Value = BooleanTerm(true).SetLocation(rule.Head.Location)
