@@ -519,10 +519,11 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with no error
 	authzModule := `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identity == "foo"
 		}`
 
@@ -554,26 +555,27 @@ func TestPluginOneShotWithAuthzSchemaVerification(t *testing.T) {
 
 	// authz rules with errors
 	authzModule = `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper1
         }
 
-        helper1 {
+        helper1 if {
           helper2
         }
 
-        helper2 {
+        helper2 if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -665,22 +667,23 @@ func TestPluginOneShotWithAuthzSchemaVerificationNonDefaultAuthzPath(t *testing.
 	module := "package foo\n\ncorge=1"
 
 	authzModule := `package foo.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty == "foo"            # type error 1
 		}
 
-        allow {
+        allow if {
           helper
         }
 
-        helper {
+        helper if {
           input.method == 123               # type error 2
 		}
 
-        dont_type_check_me {
+        dont_type_check_me if {
           input.methd == "GET"               # type error 3
 		}`
 
@@ -2491,18 +2494,20 @@ func TestLoadAndActivateDepBundlesFromDisk(t *testing.T) {
 	module1 := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
 	module2 := `
 package foo
+import rego.v1
 
-is_one(x) {
+is_one(x) if {
 	x == 1
 }`
 
@@ -2589,11 +2594,12 @@ func TestLoadAndActivateDepBundlesFromDiskMaxAttempts(t *testing.T) {
 	module := `
 package bar
 
+import rego.v1
 import data.foo
 
 default allow = false
 
-allow {
+allow if {
 	foo.is_one(1)
 }`
 
@@ -2646,7 +2652,10 @@ func TestPluginOneShotCompileError(t *testing.T) {
 
 	ensurePluginState(t, plugin, plugins.StateNotReady)
 
-	raw1 := "package foo\n\np[x] { x = 1 }"
+	raw1 := `package foo
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := &bundle.Bundle{
 		Data: map[string]interface{}{"a": "b"},
@@ -2668,8 +2677,11 @@ func TestPluginOneShotCompileError(t *testing.T) {
 		Data: map[string]interface{}{"a": "b"},
 		Modules: []bundle.ModuleFile{
 			{
-				Path:   "/example2.rego",
-				Parsed: ast.MustParseModule("package foo\n\np[x]"),
+				Path: "/example2.rego",
+				Parsed: ast.MustParseModule(`package foo
+import rego.v1
+
+p contains x`),
 			},
 		},
 	}
@@ -2980,7 +2992,10 @@ func TestPluginListener(t *testing.T) {
 		t.Fatal("Listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3005,7 +3020,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s1, "quickbrownfaux", false)
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -3020,7 +3038,10 @@ func TestPluginListener(t *testing.T) {
 
 	validateStatus(t, s2, "quickbrownfaux", true)
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3146,7 +3167,10 @@ func TestPluginBulkListener(t *testing.T) {
 		t.Fatal("Bulk listener not properly registered")
 	}
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3187,7 +3211,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[x]"
+	module = `package gork
+import rego.v1
+
+p contains x`
 
 	b.Manifest.Revision = "slowgreenburd"
 	b.Modules[0] = bundle.ModuleFile{
@@ -3217,7 +3244,10 @@ func TestPluginBulkListener(t *testing.T) {
 		}
 	}
 
-	module = "package gork\np[1]"
+	module = `package gork
+import rego.v1
+
+p contains 1`
 	b.Manifest.Revision = "fancybluederg"
 	b.Modules[0] = bundle.ModuleFile{
 		Path:   "/foo.rego",
@@ -3256,7 +3286,10 @@ func TestPluginBulkListener(t *testing.T) {
 	}
 
 	// Test updates the other bundles
-	module = "package p1\np[x] { x = 1 }"
+	module = `package p1
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b1 := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -3330,7 +3363,10 @@ func TestPluginBulkListenerStatusCopyOnly(t *testing.T) {
 		bulkChan <- status
 	})
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{
@@ -6246,7 +6282,11 @@ func writeTestBundleToDisk(t *testing.T, srcDir string, signed bool) bundle.Bund
 func getTestBundle(t *testing.T) bundle.Bundle {
 	t.Helper()
 
-	module := "package gork\np[x] { x = 1 }"
+	module := `package gork
+import rego.v1
+
+
+p contains x if { x = 1 }`
 
 	b := bundle.Bundle{
 		Manifest: bundle.Manifest{

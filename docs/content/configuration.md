@@ -856,11 +856,15 @@ Caching represents the configuration of the inter-query cache that built-in func
 functions provided by OPA, `http.send` is currently the only one to utilize the inter-query cache. See the documentation
 on the [http.send built-in function](../policy-reference/#http) for information about the available caching options.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `caching.inter_query_builtin_cache.max_size_bytes` | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set. |
-| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`. |
-| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds` | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
+It also represents the configuration of the inter-query value cache that built-in functions can utilize. Currently, this
+cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns respectively.
+
+| Field                                                                    | Type | Required | Description                                                                                                                                                                                         |
+|--------------------------------------------------------------------------| --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `caching.inter_query_builtin_cache.max_size_bytes`                       | `int64` | No | Inter-query cache size limit in bytes. OPA will drop old items from the cache if this limit is exceeded. By default, no limit is set.                                                               |
+| `caching.inter_query_builtin_cache.forced_eviction_threshold_percentage` | `int64` | No | Threshold limit configured as percentage of `caching.inter_query_builtin_cache.max_size_bytes`, when exceeded OPA will start dropping old items permaturely. By default, set to `100`.              |
+| `caching.inter_query_builtin_cache.stale_entry_eviction_period_seconds`  | `int64` | No | Stale entry eviction period in seconds. OPA will drop expired items from the cache every `stale_entry_eviction_period_seconds`. By default, set to `0` indicating stale entry eviction is disabled. |
+| `caching.inter_query_builtin_value_cache.max_num_entries`                | `int` | No | Maximum number of entries in the Inter-query value cache. OPA will drop random items from the cache if this limit is exceeded. By default, set to `0` indicating unlimited size.                    |
 
 ## Distributed tracing
 

@@ -18,7 +18,7 @@ func TestNetCIDRExpandCancellation(t *testing.T) {
 		`
 		package test
 
-		p { net.cidr_expand("1.0.0.0/1") }  # generating 2**31 hosts will take a while...
+		p if { net.cidr_expand("1.0.0.0/1") }  # generating 2**31 hosts will take a while...
 		`,
 	})
 

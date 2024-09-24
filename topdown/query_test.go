@@ -254,12 +254,12 @@ func initTracerTestQuery() *Query {
 	compiler := compileModules([]string{
 		`package x
 	
-	p {
+	p if {
 		a := [1, 2, 3]
 		f(a[_])
 	}
 	
-	f(x) {
+	f(x) if {
 		x == 3
 	}
 	

@@ -10,6 +10,9 @@ function = "badge"
 
 [build.environment]
 # keep this version in sync with the version in .github/workflows/pull-request.yml
+# Note, that upgrading Hugo is tricky as all versions of the OPA docs need to work
+# with the Hugo version used.
+# see: https://github.com/open-policy-agent/opa/pull/7034
 HUGO_VERSION = "0.113.0"
 
 [context.deploy-preview]
@@ -26,5 +29,5 @@ framework = "#static"
 
 # To run the netlify dev service with hugo dev server "live" behind
 # it uncomment these lines:
-#command = "make docs-hugo-serve"
-#port = 1313
+# command = "make docs-hugo-serve"
+# port = 1313

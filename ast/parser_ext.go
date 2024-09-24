@@ -287,11 +287,12 @@ func ParseCompleteDocRuleFromEqExpr(module *Module, lhs, rhs *Term) (*Rule, erro
 	setJSONOptions(body, &rhs.jsonOptions)
 
 	return &Rule{
-		Location:    lhs.Location,
-		Head:        head,
-		Body:        body,
-		Module:      module,
-		jsonOptions: lhs.jsonOptions,
+		Location:      lhs.Location,
+		Head:          head,
+		Body:          body,
+		Module:        module,
+		jsonOptions:   lhs.jsonOptions,
+		generatedBody: true,
 	}, nil
 }
 

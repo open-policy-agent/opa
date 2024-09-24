@@ -33,12 +33,14 @@ cases:
     modules:
       - |
         package test
+        
+        import rego.v1
 
-        p = x {
+        p = x if {
           q = x with input as ["q", input]
         }
 
-        q = x {
+        q = x if {
           r = x  # intentionally unmodified, with keyword applies transitively
         }
 
@@ -50,20 +52,22 @@ cases:
     modules:
       - |
         package test
+        
+        import rego.v1
 
-        p[x] {
+        p contains x if{
           x = input.a with input as {"a": 1}
         }
 
-        p[y] {
+        p contains y if {
           y = input.b with input as {"b": 2}
         }
 
-        p[t] {
+        p contains t if {
           t = input.b # expected to be undefined
         }
 
-        p[u] {
+        p contains u if {
           u = input.a # expected to be undefined
         }
     want_result: [{'x': 1}, {'x': 2}]
@@ -292,8 +296,10 @@ cases:
     modules:
       - |
         package test
+        
+        import rego.v1
 
-        p = [x, y, z] {
+        p = [x, y, z] if {
           x = q
           y = q with input as 7
           z = r with input as 8
@@ -307,7 +313,7 @@ cases:
 
         s = q
 
-        t = x { x = q with input as 9 }
+        t = x if { x = q with input as 9 }
     want_result: [
       {"x": [6, 7, [9,8]]}
     ]
@@ -316,12 +322,14 @@ cases:
     modules:
       - |
         package test
+        
+        import rego.v1
 
-        a {
+        a if {
           true with data.one as 1
         }
 
-        b {
+        b if {
           true
         }
     want_result:

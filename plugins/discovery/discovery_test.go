@@ -56,11 +56,12 @@ func TestEvaluateBundle(t *testing.T) {
 
 	sampleModule := `
 		package foo.bar
+		import rego.v1
 
 		bundle = {
 			"name": rt.name,
 			"service": "example"
-		} {
+		} if {
 			rt := opa.runtime()
 		}
 	`
@@ -1904,7 +1905,11 @@ func TestReconfigureWithLocalOverride(t *testing.T) {
 	*period = 10
 	threshold := new(int64)
 	*threshold = 90
-	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold}}
+	maxNumEntriesInterQueryValueCache := new(int)
+	*maxNumEntriesInterQueryValueCache = 0
+
+	expectedCacheConf := &cache.Config{InterQueryBuiltinCache: cache.InterQueryBuiltinCacheConfig{MaxSizeBytes: maxSize, StaleEntryEvictionPeriodSeconds: period, ForcedEvictionThresholdPercentage: threshold},
+		InterQueryBuiltinValueCache: cache.InterQueryBuiltinValueCacheConfig{MaxNumEntries: maxNumEntriesInterQueryValueCache}}
 
 	if !reflect.DeepEqual(cacheConf, expectedCacheConf) {
 		t.Fatalf("want %v got %v", expectedCacheConf, cacheConf)

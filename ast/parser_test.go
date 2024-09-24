@@ -5785,6 +5785,23 @@ p contains 2
 				},
 			},
 		},
+		{
+			note: "rule with variable in ref head",
+			module: `package test
+
+# METADATA
+# title: foo
+rule[x] := true if x := 1
+			`,
+			expAnnotations: map[int][]*Annotations{
+				5: {
+					{
+						Scope: "rule",
+						Title: "foo",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

@@ -606,7 +606,7 @@ func (r *Runner) runBenchmark(ctx context.Context, txn storage.Transaction, mod 
 
 // Load returns modules and an in-memory store for running tests.
 func Load(args []string, filter loader.Filter) (map[string]*ast.Module, storage.Store, error) {
-	return LoadWithRegoVersion(args, filter, ast.RegoV0)
+	return LoadWithRegoVersion(args, filter, ast.DefaultRegoVersion)
 }
 
 // LoadWithRegoVersion returns modules and an in-memory store for running tests.

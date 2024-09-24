@@ -1,7 +1,13 @@
 ---
 cases:
   - data:
-      ok: "package foo.bar\n\n\t\timport data.a\n\n\t\tp { a = true }"
+      ok: |-
+        package foo.bar
+
+        import rego.v1
+        import data.a
+
+        p if { a = true }
     modules:
       - |
         package generated

@@ -32,8 +32,11 @@ type eventHandler func(t *thread, stackIndex int, e *topdown.Event, s threadStat
 
 type ThreadID int
 
+// Thread represents a single thread of execution.
 type Thread interface {
+	// ID returns the unique identifier for the thread.
 	ID() ThreadID
+	// Name returns the human-readable name of the thread.
 	Name() string
 }
 

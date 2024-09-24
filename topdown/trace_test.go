@@ -56,8 +56,8 @@ func TestEventEqual(t *testing.T) {
 func TestPrettyTrace(t *testing.T) {
 	module := `package test
 
-	p { q[x]; plus(x, 1, n) }
-	q[x] { x = data.a[_] }`
+	p if { q[x]; plus(x, 1, n) }
+	q contains x if { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -116,8 +116,8 @@ Redo data.test.p = _
 func TestPrettyTraceWithLocation(t *testing.T) {
 	module := `package test
 
-	p { q[x]; plus(x, 1, n) }
-	q[x] { x = data.a[_] }`
+	p if { q[x]; plus(x, 1, n) }
+	q contains x if { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -176,17 +176,21 @@ query:3     | | Redo data.test.q[x]
 func TestPrettyTraceWithLocationTruncatedPaths(t *testing.T) {
 	ctx := context.Background()
 
-	compiler := ast.MustCompileModules(map[string]string{
+	compiler := ast.MustCompileModulesWithOpts(map[string]string{
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/abac/v1/beta/policy.rego": `package test
 
 		import data.utils.q
 
-		p = true { q[x]; plus(x, 1, n) }
+		p = true if { q[x]; plus(x, 1, n) }
 		`,
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/utils.rego": `package utils
 
-		q[x] { x = data.a[_] }
+		q contains x if { x = data.a[_] }
 		`,
+	}, ast.CompileOpts{
+		ParserOptions: ast.ParserOptions{
+			AllFutureKeywords: true,
+		},
 	})
 	data := loadSmallTestData()
 	store := inmem.NewFromObject(data)
@@ -243,13 +247,13 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 	ctx := context.Background()
 
-	compiler := ast.MustCompileModules(map[string]string{
+	compiler := ast.MustCompileModulesWithOpts(map[string]string{
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/rbac/v1/beta/policy.rego": `
 		package example_rbac
 
 		default allow = false
 
-		allow {
+		allow if {
 		    data.utils.user_has_role[role_name]
 
 		    data.utils.role_has_permission[role_name]
@@ -259,19 +263,23 @@ func TestPrettyTracePartialWithLocationTruncatedPaths(t *testing.T) {
 		"authz_bundle/com/foo/bar/baz/qux/acme/corp/internal/authz/policies/utils/user.rego": `
 		package utils
 
-		user_has_role[role_name] {
+		user_has_role contains role_name if {
 		    role_binding = data.bindings[_]
 		    role_binding.role = role_name
 		    role_binding.user = input.subject.user
 		}
 
-		role_has_permission[role_name] {
+		role_has_permission contains role_name if {
 		    role = data.roles[_]
 		    role.name = role_name
 		    role.operation = input.action.operation
 		    role.resource = input.action.resource
 		}
 		`,
+	}, ast.CompileOpts{
+		ParserOptions: ast.ParserOptions{
+			AllFutureKeywords: true,
+		},
 	})
 
 	var data map[string]interface{}
@@ -414,9 +422,9 @@ func TestTraceDuplicate(t *testing.T) {
 	// Having `p[1]` queried first will side-step the caching optimization.
 	module := `package test
 
-	p[1]
-	p[2]
-	p[1]
+	p contains 1
+	p contains 2
+	p contains 1
 	`
 
 	ctx := context.Background()
@@ -453,8 +461,8 @@ func TestTraceDuplicate(t *testing.T) {
 func TestTraceNote(t *testing.T) {
 	module := `package test
 
-	p { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
-	q[x] { x = data.a[_] }`
+	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
+	q contains x if { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -518,8 +526,8 @@ Redo data.test.p = _
 func TestTraceNoteWithLocation(t *testing.T) {
 	module := `package test
 
-	p { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
-	q[x] { x = data.a[_] }`
+	p if { q[x]; plus(x, 1, n); trace(sprintf("n=%v", [n])) }
+	q contains x if { x = data.a[_] }`
 
 	ctx := context.Background()
 	compiler := compileModules([]string{module})
@@ -761,7 +769,7 @@ func TestTraceEveryEvaluation(t *testing.T) {
 			note:  "empty domain",
 			query: "data.test.p = x",
 			module: `package test
-			p { every k, v in [] { k != v } }`,
+			p if { every k, v in [] { k != v } }`,
 			exp: events(
 				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
 				`Exit every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
@@ -771,7 +779,7 @@ func TestTraceEveryEvaluation(t *testing.T) {
 			note:  "successful eval",
 			query: "data.test.p = x",
 			module: `package test
-			p { every k, v in [1] { k != v } }`,
+			p if { every k, v in [1] { k != v } }`,
 			exp: events(
 				`Enter every __local0__, __local1__ in __local2__ { neq(__local0__, __local1__) } {} (qid=2, pqid=1)`,
 				`Enter neq(__local0__, __local1__) {} (qid=3, pqid=2)`,
@@ -784,7 +792,7 @@ func TestTraceEveryEvaluation(t *testing.T) {
 			note:  "failure in first body query",
 			query: "data.test.p = x",
 			module: `package test
-			p { every v in [1, 2] { 1 != v } }`,
+			p if { every v in [1, 2] { 1 != v } }`,
 			exp: events(
 				`Enter every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
 				`Enter neq(1, __local1__) {} (qid=3, pqid=2)`,
@@ -797,7 +805,7 @@ func TestTraceEveryEvaluation(t *testing.T) {
 			note:  "failure in last body query",
 			query: "data.test.p = x",
 			module: `package test
-			p { every v in [0, 1] { 1 != v } }`,
+			p if { every v in [0, 1] { 1 != v } }`,
 			exp: events(
 				`Enter every __local0__, __local1__ in __local2__ { neq(1, __local1__) } {} (qid=2, pqid=1)`,
 				`Enter neq(1, __local1__) {} (qid=3, pqid=2)`,
@@ -812,7 +820,7 @@ func TestTraceEveryEvaluation(t *testing.T) {
 
 	for _, tc := range tests {
 
-		opts := ast.CompileOpts{ParserOptions: ast.ParserOptions{FutureKeywords: []string{"every"}}}
+		opts := ast.CompileOpts{ParserOptions: ast.ParserOptions{AllFutureKeywords: true}}
 		compiler, err := ast.CompileModulesWithOpt(map[string]string{"test.rego": tc.module}, opts)
 		if err != nil {
 			t.Fatal(err)
@@ -1026,7 +1034,7 @@ func TestTraceInput(t *testing.T) {
 	module := `
 		package test
 
-		rule = x {
+		rule = x if {
 			x = input.v
 		}
 	`
@@ -1068,7 +1076,7 @@ func TestTracePlug(t *testing.T) {
 	module := `
 		package test
 
-		rule[[a, b]] {
+		rule contains [a, b] if {
 			a = [1, 2][_]
 			b = [2, 1][_]
 		}
@@ -1158,14 +1166,14 @@ func TestPrettyTraceWithLocationForMetadataCall(t *testing.T) {
 	module := `package test
 rule_no_output_var := rego.metadata.rule()
 
-rule_with_output_var {
+rule_with_output_var if {
 	foo := rego.metadata.rule()
 	foo == {}
 }
 
 chain_no_output_var := rego.metadata.chain()
 
-chain_with_output_var {
+chain_with_output_var if {
 	foo := rego.metadata.chain()
 	foo == []
 }`
@@ -1246,7 +1254,7 @@ query:1      | Redo data.test = _
 func TestPrettyTraceWithUnifyOps(t *testing.T) {
 	module := `package test
 
-	p[x] {
+	p contains x if {
 		x = 1
 	}`
 
@@ -1303,7 +1311,6 @@ func removeUnifyOps(trace []*Event) (result []*Event) {
 func TestPrettyTraceWithLocalVars(t *testing.T) {
 	{
 		module := `package test
-import rego.v1
 
 p if {
 	x := 1
@@ -1388,7 +1395,6 @@ Redo data.test = _                                   {_: {"p": true}}
 func TestPrettyTraceExprVars(t *testing.T) {
 	{
 		module := `package test
-import rego.v1
 
 p if {
 	x := 1

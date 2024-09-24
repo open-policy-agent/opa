@@ -32,6 +32,7 @@ type Basic struct {
 	printHook             print.Hook
 	enablePrintStatements bool
 	interQueryCache       cache.InterQueryCache
+	interQueryValueCache  cache.InterQueryValueCache
 }
 
 // Runtime returns an argument that sets the runtime on the authorizer.
@@ -73,6 +74,13 @@ func InterQueryCache(interQueryCache cache.InterQueryCache) func(*Basic) {
 	}
 }
 
+// InterQueryValueCache enables the inter-query value cache on the authorizer
+func InterQueryValueCache(interQueryValueCache cache.InterQueryValueCache) func(*Basic) {
+	return func(b *Basic) {
+		b.interQueryValueCache = interQueryValueCache
+	}
+}
+
 // NewBasic returns a new Basic object.
 func NewBasic(inner http.Handler, compiler func() *ast.Compiler, store storage.Store, opts ...func(*Basic)) http.Handler {
 	b := &Basic{
@@ -107,6 +115,7 @@ func (h *Basic) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rego.EnablePrintStatements(h.enablePrintStatements),
 		rego.PrintHook(h.printHook),
 		rego.InterQueryBuiltinCache(h.interQueryCache),
+		rego.InterQueryBuiltinValueCache(h.interQueryValueCache),
 	)
 
 	rs, err := rego.Eval(r.Context())

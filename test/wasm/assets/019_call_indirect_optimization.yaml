@@ -78,7 +78,9 @@ cases:
     modules:
       - |
         package foo
-        q = 1 {
+        import rego.v1
+        
+        q = 1 if {
           custom_builtin_test_memoization() == 100
         }
     want_result:
@@ -90,7 +92,9 @@ cases:
     modules:
       - |
         package foo
-        p = y {
+        import rego.v1
+        
+        p = y if {
           k := "q"
           y := data.bar[k].baz
         }
@@ -108,7 +112,9 @@ cases:
     modules:
       - |
         package foo
-        p = y {
+        import rego.v1
+        
+        p = y if {
           k := "p"
           y := data.bar[k].baz
         }
@@ -126,8 +132,9 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
 
-        p {
+        p if {
           x := "foo"
           data.other[x].p
         }
@@ -142,8 +149,9 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
 
-        p {
+        p if {
           x := "foo"
           data.other[x].p
         }
@@ -159,8 +167,10 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
+        
         xs := {"foo", "baz", "123"}
-        p {
+        p if {
           xs[x]
           data.other[x].p
         }
@@ -176,8 +186,10 @@ cases:
     modules:
       - |
         package test
+        import rego.v1
+        
         xs := {"fox", "baz", "123", "xyz"}
-        p = y {
+        p = y if {
           xs[x]
           y := data.other[x].p
         }

@@ -555,12 +555,13 @@ func TestRegoDisableIndexing(t *testing.T) {
 	tracer := topdown.NewBufferTracer()
 	mod := `
 	package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	p {
+	p if {
 		input.y = 1
 	}
 	`
@@ -612,12 +613,13 @@ func TestRegoDisableIndexingWithMatch(t *testing.T) {
 	tracer := topdown.NewBufferTracer()
 	mod := `
 	package test
+	import rego.v1
 
-	p {
+	p if {
 		input.x = 1
 	}
 
-	p {
+	p if {
 		input.y = 1
 	}
 	`
@@ -687,8 +689,10 @@ func TestRegoCatchPathConflicts(t *testing.T) {
 func TestPartialRewriteEquals(t *testing.T) {
 	mod := `
 	package test
+	import rego.v1
+
 	default p = false
-	p {
+	p if {
 		input.x = 1
 	}
 	`
@@ -729,19 +733,22 @@ func TestPrepareAndEvalRaceConditions(t *testing.T) {
 		{
 			note: "object",
 			module: `package test
-			p[{"x":"y"}]`,
+			import rego.v1
+			p contains {"x":"y"}`,
 			exp: `[[[{"x":"y"}]]]`,
 		},
 		{
 			note: "set",
 			module: `package test
-			p[{"x"}]`,
+			import rego.v1
+			p contains {"x"}`,
 			exp: `[[[["x"]]]]`,
 		},
 		{
 			note: "array",
 			module: `package test
-			p[["x"]]`,
+			import rego.v1
+			p contains ["x"]`,
 			exp: `[[[["x"]]]]`,
 		},
 	}
@@ -1022,7 +1029,8 @@ func TestPrepareAndEvalOnlyOneErrorOccurredPrintOnce(t *testing.T) {
 func TestPrepareAndEvalNewPrintHook(t *testing.T) {
 	module := `
 	package test
-	x { print(input) }
+	import rego.v1
+	x if { print(input) }
 	`
 
 	r := New(
@@ -1128,8 +1136,10 @@ func TestPrepareWithPartialEval(t *testing.T) {
 func TestPrepareAndPartial(t *testing.T) {
 	mod := `
 	package test
+	import rego.v1
+	
 	default p = false
-	p {
+	p if {
 		input.x = 1
 	}
 	`
@@ -1247,12 +1257,13 @@ func TestPartialNamespace(t *testing.T) {
 	r := New(
 		PartialNamespace("foo"),
 		Query("data.test.p = x"),
+		SetRegoVersion(ast.RegoV1),
 		Module("test.rego", `
 			package test
 
 			default p = false
 
-			p { input.x = 1 }
+			p if { input.x = 1 }
 		`),
 	)
 
@@ -1267,13 +1278,13 @@ func TestPartialNamespace(t *testing.T) {
 		t.Fatalf("Expected exactly one query %v but got: %v", expQuery, pq.Queries)
 	}
 
-	expSupport := ast.MustParseModule(`
+	expSupport := ast.MustParseModuleWithOpts(`
 		package foo.test
 
 		default p = false
 
-		p { input.x = 1 }
-	`)
+		p if { input.x = 1 }
+	`, ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 	if len(pq.Support) != 1 || !pq.Support[0].Equal(expSupport) {
 		t.Fatalf("Expected exactly one support:\n\n%v\n\nGot:\n\n%v", expSupport, pq.Support[0])
@@ -1314,8 +1325,10 @@ func TestPrepareAndCompile(t *testing.T) {
 func TestPartialResultWithInput(t *testing.T) {
 	mod := `
 	package test
+	import rego.v1
+	
 	default p = false
-	p {
+	p if {
 		input.x == 1
 	}
 	`
@@ -1341,7 +1354,9 @@ func TestPartialResultWithInput(t *testing.T) {
 func TestPartialResultWithNamespace(t *testing.T) {
 	mod := `
 	package test
-	p {
+	import rego.v1
+	
+	p if {
 		true
 	}
 	`
@@ -1382,8 +1397,10 @@ func TestPartialResultWithNamespace(t *testing.T) {
 func TestPreparedPartialResultWithTracer(t *testing.T) {
 	mod := `
 	package test
+	import rego.v1
+	
 	default p = false
-	p {
+	p if {
 		input.x = 1
 	}
 	`
@@ -1422,8 +1439,10 @@ func TestPreparedPartialResultWithTracer(t *testing.T) {
 func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 	mod := `
 	package test
+	import rego.v1
+	
 	default p = false
-	p {
+	p if {
 		input.x = 1
 	}
 	`
@@ -1462,7 +1481,9 @@ func TestPreparedPartialResultWithQueryTracer(t *testing.T) {
 func TestPartialResultSetsValidConflictChecker(t *testing.T) {
 	mod := `
 	package test
-	p {
+	import rego.v1
+
+	p if {
 		true
 	}
 	`
@@ -1620,7 +1641,8 @@ func TestUnsafeBuiltins(t *testing.T) {
 		r := New(
 			Query(`data.pkg.deny`),
 			Module("pkg.rego", `package pkg
-			deny {
+			import rego.v1
+			deny if{
 				count(input.requests) > 10
 			}
 			`),
@@ -1635,7 +1657,8 @@ func TestUnsafeBuiltins(t *testing.T) {
 		r := New(
 			Query(`data.pkg.deny with is_array as count`),
 			Module("pkg.rego", `package pkg
-			deny {
+			import rego.v1
+			deny if {
 				is_array(input.requests) > 10
 			}
 			`),
@@ -1650,7 +1673,8 @@ func TestUnsafeBuiltins(t *testing.T) {
 		r := New(
 			Query(`data.pkg.deny`),
 			Module("pkg.rego", `package pkg
-			deny {
+			import rego.v1
+			deny if {
 				is_array(input.requests) > 10 with is_array as count
 			}
 			`),
@@ -1925,7 +1949,8 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 		expectedErr    string
 	}{
 		{
-			note: "Rego v0",
+			note:        "Rego v0",
+			regoVersion: ast.RegoV0,
 			policies: map[string]string{
 				"policy.rego": `package test
 				x[y] { y := 1 }`,
@@ -2061,9 +2086,7 @@ func TestRegoEvalWithRegoV1(t *testing.T) {
 					options := append(s.options(path, tc.policies, t, ctx),
 						Query("data.test"),
 						func(r *Rego) {
-							if tc.regoVersion != ast.RegoV0 {
-								SetRegoVersion(tc.regoVersion)(r)
-							}
+							SetRegoVersion(tc.regoVersion)(r)
 						},
 					)
 
@@ -2150,7 +2173,9 @@ func TestRegoLoadBundleWithProvidedStore(t *testing.T) {
 
 func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 	mod := `package test
-	p {
+	import rego.v1
+	
+	p if {
 		x = trim_and_split(input.foo, "/")
 		x == ["foo", "bar", "baz"]
 	}
@@ -2208,10 +2233,11 @@ func TestRegoCustomBuiltinPartialPropagate(t *testing.T) {
 
 func TestRegoPartialResultRecursiveRefs(t *testing.T) {
 	r := New(Query("data"), Module("test.rego", `package foo.bar
+	import rego.v1
 
 	default p = false
 
-	p { input.x = 1 }`))
+	p if { input.x = 1 }`))
 
 	_, err := r.PartialResult(context.Background())
 	if err == nil {
@@ -2227,10 +2253,11 @@ func TestRegoPartialResultRecursiveRefs(t *testing.T) {
 func TestSkipPartialNamespaceOption(t *testing.T) {
 	r := New(Query("data.test.p"), Module("example.rego", `
 		package test
+		import rego.v1
 
 		default p = false
 
-		p = true { input }
+		p = true if { input }
 	`), SkipPartialNamespace(true))
 
 	pq, err := r.Partial(context.Background())
@@ -2248,19 +2275,22 @@ func TestSkipPartialNamespaceOption(t *testing.T) {
 }
 
 func TestShallowInliningOption(t *testing.T) {
-	r := New(Query("data.test.p = true"), Module("example.rego", `
-		package test
-
-		p {
-			q = true
-		}
-
-		q {
-			input.x = r
-		}
-
-		r = 7
-	`), ShallowInlining(true))
+	r := New(Query("data.test.p = true"),
+		SetRegoVersion(ast.RegoV1),
+		Module("example.rego", `
+			package test
+			
+			p if {
+				q = true
+			}
+			
+			q if {
+				input.x = r
+			}
+			
+			r = 7
+		`),
+		ShallowInlining(true))
 
 	pq, err := r.Partial(context.Background())
 	if err != nil {
@@ -2271,12 +2301,12 @@ func TestShallowInliningOption(t *testing.T) {
 		t.Fatal("expected exactly one query and ref to be rewritten but got:", pq.Queries)
 	}
 
-	exp := ast.MustParseModule(`
+	exp := ast.MustParseModuleWithOpts(`
 		package partial.test
 
-		p { data.partial.test.q = true }
-		q { 7 = input.x }
-	`)
+		p if { data.partial.test.q = true }
+		q if { 7 = input.x }
+	`, ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 	if len(pq.Support) != 1 || !pq.Support[0].Equal(exp) {
 		t.Fatal("expected module:", exp, "\n\ngot module:", pq.Support[0])
@@ -2284,23 +2314,24 @@ func TestShallowInliningOption(t *testing.T) {
 }
 
 func TestRegoPartialResultSortedRules(t *testing.T) {
-	r := New(Query("data.test.p"), Module("example.rego", `
-		package test
-
-		default p = false
-
-		p {
-			r = (input.d * input.a) + input.c
-			r < s
-		}
-
-		p {
-			r = (input.d * input.b) + input.c
-			r < s
-		}
-
-		s = 100
-
+	r := New(Query("data.test.p"),
+		SetRegoVersion(ast.RegoV1),
+		Module("example.rego", `
+			package test
+	
+			default p = false
+	
+			p if {
+				r = (input.d * input.a) + input.c
+				r < s
+			}
+	
+			p if {
+				r = (input.d * input.b) + input.c
+				r < s
+			}
+	
+			s = 100
 	`))
 
 	pq, err := r.Partial(context.Background())
@@ -2310,15 +2341,15 @@ func TestRegoPartialResultSortedRules(t *testing.T) {
 
 	// Without sorting of support rules, the output of the above partial evaluation
 	// resulted in a random order of the support rules (in this case two different possible outputs)
-	exp := ast.MustParseModule(
+	exp := ast.MustParseModuleWithOpts(
 		`package partial.test
 
 		default p = false
 
-		p = true { lt(plus(mul(input.d, input.a), input.c), 100) }
-		p = true { lt(plus(mul(input.d, input.b), input.c), 100) }
+		p = true if { lt(plus(mul(input.d, input.a), input.c), 100) }
+		p = true if { lt(plus(mul(input.d, input.b), input.c), 100) }
 		`,
-	)
+		ast.ParserOptions{RegoVersion: ast.RegoV1})
 
 	if len(pq.Support) != 1 || !pq.Support[0].Equal(exp) {
 		t.Fatal("expected module:", exp, "\n\ngot module:", pq.Support[0])
@@ -2398,6 +2429,55 @@ func TestEvalWithInterQueryCache(t *testing.T) {
 
 	if len(requests) != 1 {
 		t.Fatal("Expected server to be called only once")
+	}
+}
+
+func TestEvalWithInterQueryValueCache(t *testing.T) {
+	ctx := context.Background()
+
+	// add an inter-query value cache
+	config, _ := cache.ParseCachingConfig(nil)
+	interQueryValueCache := cache.NewInterQueryValueCache(ctx, config)
+
+	m := metrics.New()
+
+	query := `regex.match("foo.*", "foobar")`
+	_, err := New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := uint64(1), m.Counter("rego_builtin_regex_interquery_value_cache_hits").Value(); exp != act {
+		t.Fatalf("expected %d cache hits, got %d", exp, act)
+	}
+
+	query = `glob.match("*.example.com", ["."], "api.example.com")`
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// eval again with same query
+	// this request should be served by the cache
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = New(Query(query), InterQueryBuiltinValueCache(interQueryValueCache), Metrics(m)).Eval(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, act := uint64(2), m.Counter("rego_builtin_glob_interquery_value_cache_hits").Value(); exp != act {
+		t.Fatalf("expected %d cache hits, got %d", exp, act)
 	}
 }
 
@@ -2489,7 +2569,8 @@ func TestNDBCacheWithRuleBody(t *testing.T) {
 		Query(query),
 		NDBuiltinCache(ndBC),
 		Module("test.rego", fmt.Sprintf(`package foo
-p {
+import rego.v1
+p if {
 	http.send({"url": "%s", "method":"get"})
 }`, ts.URL)),
 	).Eval(ctx)
@@ -2516,7 +2597,7 @@ func TestNDBCacheWithRuleBodyAndIteration(t *testing.T) {
 		NDBuiltinCache(ndBC),
 		Module("test.rego", fmt.Sprintf(`package foo
 
-import future.keywords
+import rego.v1
 
 urls := [
 	"%[1]s/headers",
@@ -2524,7 +2605,7 @@ urls := [
 	"%[1]s/user-agent"
 ]
 
-results[response] {
+results contains response if {
 	some url in urls
 	response := http.send({
 		"method": "GET",
