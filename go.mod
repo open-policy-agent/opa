@@ -114,11 +114,6 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
-// glog is only used through badger, and only for fatal log-and-exit. However, it comes
-// at a cost, its init function will lookup the current user, and on Windows, that's much
-// work.
-replace github.com/golang/glog => ./build/replacements/github.com/golang/glog
-
 // retract directive comment below will be displayed as a warning on pkg.go.dev for the old package name. Please retain
 // this for future releases.
 
