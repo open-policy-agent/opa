@@ -1,4 +1,4 @@
-package test.contains
+package test["contains"]
 
 import future.keywords.contains
 

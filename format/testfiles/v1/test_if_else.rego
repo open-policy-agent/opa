@@ -1,4 +1,4 @@
-package test.if2 # FIXME: refs aren't allowed to contains keywords
+package test["if"]
 
 p := 1 if { 1 > 0 }
 else := 2
