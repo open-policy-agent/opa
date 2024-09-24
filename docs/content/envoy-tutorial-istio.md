@@ -50,43 +50,37 @@ The `quick_start.yaml` manifest defines the following resources:
     package istio.authz
     
     import rego.v1
-    
-    import input.attributes.request.http as http_request
-    import input.parsed_path
-    
+
     default allow := false
-    
+
     allow if {
-    	parsed_path[0] == "health"
-    	http_request.method == "GET"
+    	input.parsed_path[0] == "health"
+    	input.attributes.request.method == "GET"
     }
-    
+
     allow if {
-    	some r in roles_for_user
-    	r in required_roles
+    	some user_role in _user_roles[_user_name]
+    	some permission in _role_permissions[user_role]
+
+    	permission.method == input.attributes.request.http.method
+    	permission.path == input.attributes.request.http.path
     }
-    
-    roles_for_user contains r if {
-    	some r in user_roles[user_name]
-    }
-    
-    required_roles contains r if {
-    	some perm in role_perms[r]
-    	perm.method == http_request.method
-    	perm.path == http_request.path
-    }
-    
-    user_name := parsed if {
-    	[_, encoded] := split(http_request.headers.authorization, " ")
+
+    # Underscore prefix used only to signal that rules and functions are
+    # intended to be referenced only within the same policy, i.e. "private".
+    # It has no special meaning to OPA.
+
+    _user_name := parsed if {
+    	[_, encoded] := split(input.attributes.request.http.headers.authorization, " ")
     	[parsed, _] := split(base64url.decode(encoded), ":")
     }
-    
-    user_roles := {
+
+    _user_roles := {
     	"alice": ["guest"],
     	"bob": ["admin"],
     }
-    
-    role_perms := {
+
+    _role_permissions := {
     	"guest": [{"method": "GET", "path": "/productpage"}],
     	"admin": [
     		{"method": "GET", "path": "/productpage"},
@@ -127,7 +121,7 @@ The `quick_start.yaml` manifest defines the following resources:
     An example of the complete input received by OPA can be seen [here](https://github.com/open-policy-agent/opa-envoy-plugin/tree/main/examples/istio#example-input).
 
     > In typical deployments the policy would either be built into the OPA container
-    > image or it would fetched dynamically via the [Bundle
+    > image or it would be fetched dynamically via the [Bundle
     > API](https://www.openpolicyagent.org/docs/latest/bundles/). ConfigMaps are
     > used in this tutorial for test purposes.
 
