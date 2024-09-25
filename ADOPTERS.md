@@ -88,9 +88,10 @@ production users that have added themselves (in alphabetical order):
   Managed using OPA, this feature enables our customers to set rules that align their software blueprints(detailed architectural designs of their software) - with established standards.
   The Guardrails Policy feature has optimized resource management, minimized redundancy in policy definitions, and ensured comprehensive adherence to organizations’ best practices.
 
-* [Fugue](https://fugue.co) is a cloud security SaaS that uses OPA to
+* [Fugue](https://fugue.co) was a cloud security SaaS that uses OPA to
   classify compliance violations and security risks in AWS and Azure
-  accounts and generate compliance reports and notifications.
+  accounts and generate compliance reports and notifications. Now part of
+  [Snyk](https://snyk.com).
 
 * [Goldman Sachs](https://www.goldmansachs.com/) uses OPA to enforce admission control
   policies in their multi-tenant Kubernetes clusters as well as for _provisioning_
@@ -164,7 +165,7 @@ production users that have added themselves (in alphabetical order):
   has enabled Plex to have a consistent means of policy enforcement,
   no matter the environment.
 
-* [Splash]([https://splashthat.com) uses OPA to handle fine-grained authorization
+* [Splash](https://splashthat.com) uses OPA to handle fine-grained authorization
   across its entire platform, implemented as both a sidecar in Kubernetes and a separate
   container on bare instances. Policies and datasets are recompiled and updated based
   on changes to users' roles and permissions.
@@ -253,18 +254,6 @@ pre-production (in alphabetical order):
 * [Cyral](https://www.cyral.com/) is a venture-funded data security
   company. Still in stealth mode but using OPA to manage and enforce
   fine-grained authorization policies.
-
-* [build.security](https://build.security/) is a venture-funded cyber security
-  company, making it easy for developers to build role-based and attribute-based
-  access controls to their applications and services. build.security is leveraging
-  OPA and rego at their core technology.
-
-* [ORY Keto](https://github.com/ory/keto) replaced their internal
-  decision engine with OPA. By leveraging OPA, ORY Keto was able to
-  simplify their access control server implementation while retaining
-  the ability to easily add high-level models like ACLs and RBAC. In
-  December 2018, ~850 ORY Keto instances were running in a mix of
-  pre-production and production environments.
 
 * [Permit.io](https://permit.io) Uses a combination of OPA and OPAL
   to power fine-grained authorization policies at the core of the Permit.io platform.
