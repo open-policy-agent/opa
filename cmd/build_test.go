@@ -162,6 +162,8 @@ p if "opa" in input.tools`,
 				params.outputFile = path.Join(root, "bundle.tar.gz")
 				params.capabilities = caps
 				params.bundleMode = tc.bundleMode
+				// Test capabilities are all pre-v1
+				params.v0Compatible = true
 
 				err := dobuild(params, []string{root})
 				switch {
@@ -223,7 +225,8 @@ func TestBuildErrorDoesNotWriteFile(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			p { p }
+			import rego.v1
+			p if { p }
 		`,
 	}
 
@@ -232,7 +235,7 @@ func TestBuildErrorDoesNotWriteFile(t *testing.T) {
 		params.outputFile = path.Join(root, "bundle.tar.gz")
 
 		err := dobuild(params, []string{root})
-		exp := fmt.Sprintf("1 error occurred: %s/test.rego:3: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p",
+		exp := fmt.Sprintf("1 error occurred: %s/test.rego:4: rego_recursion_error: rule data.test.p is recursive: data.test.p -> data.test.p",
 			root)
 		if err == nil || err.Error() != exp {
 			t.Fatalf("expected recursion error %q but got: %q", exp, err)
@@ -249,7 +252,8 @@ func TestBuildErrorVerifyNonBundle(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
-			p { p }
+			import rego.v1
+			p if { p }
 		`,
 	}
 
@@ -331,10 +335,11 @@ func TestBuildPlanWithPruneUnused(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 			
-			p[1]
+			p contains 1
 			
-			f(x) { p[x] }
+			f(x) if { p[x] }
 		`,
 	}
 
@@ -399,8 +404,9 @@ func TestBuildPlanWithPrintStatements(t *testing.T) {
 	files := map[string]string{
 		"test.rego": `
 			package test
+			import rego.v1
 
-			p { print("hello") }
+			p if { print("hello") }
 		`,
 	}
 
@@ -464,9 +470,10 @@ func TestBuildPlanWithPrintStatements(t *testing.T) {
 func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
 
 	tests := []struct {
-		note  string
-		files map[string]string
-		err   error
+		note         string
+		files        map[string]string
+		err          error
+		v0Compatible bool
 	}{
 		{
 			note: "annotated entrypoint",
@@ -475,16 +482,18 @@ func TestBuildPlanWithRegoEntrypointAnnotations(t *testing.T) {
 # METADATA
 # entrypoint: true
 package test
+import rego.v1
 
-p[1]
+p contains 1
 
-f(x) { p[x] }
+f(x) if { p[x] }
 		`,
 			},
 			err: nil,
 		},
 		{
-			note: "set generation with annotated entrypoint",
+			note:         "set generation with annotated entrypoint (v0)",
+			v0Compatible: true,
 			files: map[string]string{
 				"test.rego": `
 package test
@@ -516,7 +525,8 @@ p contains x if {
 			err: nil,
 		},
 		{
-			note: "object generation with annotated entrypoint",
+			note:         "object generation with annotated entrypoint (v0)",
+			v0Compatible: true,
 			files: map[string]string{
 				"test.rego": `
 package test
@@ -567,10 +577,11 @@ p.a.b if {
 			files: map[string]string{
 				"test.rego": `
 package test
+import rego.v1
 
 # METADATA
 # entrypoint: true
-p.a.b[i] := x {
+p.a.b[i] := x if {
 	x := ["a", "b"][i]
 }
 		`,
@@ -581,12 +592,12 @@ p.a.b[i] := x {
 			note: "no annotated entrypoint",
 			files: map[string]string{
 				"test.rego": `
-
 package test
+import rego.v1
 
-p[1]
+p contains 1
 
-f(x) { p[x] }
+f(x) if { p[x] }
 `,
 			},
 			err: fmt.Errorf("plan compilation requires at least one entrypoint"),
@@ -601,6 +612,7 @@ f(x) { p[x] }
 				}
 				params.pruneUnused = true
 				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.v0Compatible = tc.v0Compatible
 
 				// Build should fail if entrypoint is not discovered from annotations.
 				err := dobuild(params, []string{root})
@@ -647,7 +659,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -680,7 +692,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p2",
@@ -732,7 +744,7 @@ bar := "baz"
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p3",
@@ -777,7 +789,7 @@ p := 1
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test/p",
@@ -817,7 +829,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -845,7 +857,7 @@ p2 := 2
 			manifest: `
 {
 	"revision":"",
-	"rego_version": 0,
+	"rego_version": %REGO_VERSION%,
 	"roots":[""],
 	"wasm":[{
 		"entrypoint":"test",
@@ -892,6 +904,9 @@ p2 := 2
 
 				tr := tar.NewReader(gr)
 
+				expManifest := strings.ReplaceAll(tc.manifest, "%REGO_VERSION%",
+					fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
+
 				found := false
 				for {
 					f, err := tr.Next()
@@ -907,8 +922,8 @@ p2 := 2
 							t.Fatal(err)
 						}
 						manifest := util.MustUnmarshalJSON(data)
-						if !reflect.DeepEqual(manifest, util.MustUnmarshalJSON([]byte(tc.manifest))) {
-							t.Fatalf("expected manifest\n\n%v\n\nbut got\n\n%v", tc.manifest, string(util.MustMarshalJSON(manifest)))
+						if !reflect.DeepEqual(manifest, util.MustUnmarshalJSON([]byte(expManifest))) {
+							t.Fatalf("expected manifest\n\n%v\n\nbut got\n\n%v", expManifest, string(util.MustMarshalJSON(manifest)))
 						}
 						break
 					}
@@ -987,11 +1002,13 @@ func TestBuildBundleModeIgnoreFlag(t *testing.T) {
 
 func TestBuildBundleModeWithManifestRegoVersion(t *testing.T) {
 	tests := []struct {
-		note        string
-		roots       []string
-		files       map[string]string
-		expManifest string
-		expErrs     []string
+		note         string
+		roots        []string
+		files        map[string]string
+		expManifest  string
+		expErrs      []string
+		v0Compatible bool
+		v1Compatible bool
 	}{
 		{
 			note: "v0 bundle rego-version",
@@ -1090,8 +1107,9 @@ p contains 2 if {
 			},
 		},
 		{
-			note:  "multiple bundles with different rego-versions",
-			roots: []string{"bundle1", "bundle2"},
+			note:         "multiple bundles with different rego-versions (v0-compatible)",
+			v0Compatible: true,
+			roots:        []string{"bundle1", "bundle2"},
 			files: map[string]string{
 				"bundle1/.manifest": `{
 	"roots": ["test1"],
@@ -1126,6 +1144,44 @@ p[4] {
 			},
 			expManifest: `{"revision":"","roots":["test1","test2"],"rego_version":0,"file_rego_versions":{"%ROOT%/bundle1/test2.rego":1,"%ROOT%/bundle2/test3.rego":1}}`,
 		},
+		{
+			note:         "multiple bundles with different rego-versions (v1-compatible)",
+			v1Compatible: true,
+			roots:        []string{"bundle1", "bundle2"},
+			files: map[string]string{
+				"bundle1/.manifest": `{
+	"roots": ["test1"],
+	"rego_version": 0,
+	"file_rego_versions": {
+		"*/test2.rego": 1
+	}
+}`,
+				"bundle1/test1.rego": `package test1
+p[1] {
+	input.x == 1
+}`,
+				"bundle1/test2.rego": `package test1
+p contains 2 if {
+	input.x == 1
+}`,
+				"bundle2/.manifest": `{
+	"roots": ["test2"],
+	"rego_version": 1,
+	"file_rego_versions": {
+		"*/test4.rego": 0
+	}
+}`,
+				"bundle2/test3.rego": `package test2
+p contains 3 if {
+	input.x == 1
+}`,
+				"bundle2/test4.rego": `package test2
+p[4] {
+	input.x == 1
+}`,
+			},
+			expManifest: `{"revision":"","roots":["test1","test2"],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle1/test1.rego":0,"%ROOT%/bundle2/test4.rego":0}}`,
+		},
 	}
 
 	for _, tc := range tests {
@@ -1134,6 +1190,8 @@ p[4] {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
 				params.bundleMode = true
+				params.v0Compatible = tc.v0Compatible
+				params.v1Compatible = tc.v1Compatible
 
 				var roots []string
 				if len(tc.roots) == 0 {
@@ -1208,6 +1266,7 @@ func TestBuildBundleFromOtherBundles(t *testing.T) {
 
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		bundles      map[string]bundleInfo
 		expBundle    bundleInfo
@@ -1218,21 +1277,19 @@ func TestBuildBundleFromOtherBundles(t *testing.T) {
 			bundles: map[string]bundleInfo{
 				"bundle.tar.gz": {
 					"policy.rego": `package test
-p {
-	input.x == 1
-}`,
+
+p := input.x == 1
+`,
 				},
 			},
 			expBundle: bundleInfo{
 				"/data.json": `{}
 `,
-				"/.manifest": `{"revision":"","roots":[""],"rego_version":0}
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":%DEFAULT_REGO_VERSION%}
 `,
 				"%ROOT%/bundle.tar.gz/policy.rego": `package test
 
-p {
-	input.x == 1
-}
+p := input.x == 1
 `,
 			},
 		},
@@ -1305,6 +1362,32 @@ p {
 				"%ROOT%/bundle.tar.gz/policy.rego": `package test
 
 p {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "single v1 bundle, --v0-compatible",
+			v1Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{"rego_version": 1}`,
+					"policy.rego": `package test
+p if {
+	input.x == 1
+}`,
+				},
+			},
+			// We don't expect parse/compile errors, as the bundle rego-version is 0, which overrides the --v1-compatible flag.
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1}
+`,
+				"%ROOT%/bundle.tar.gz/policy.rego": `package test
+
+p if {
 	input.x == 1
 }
 `,
@@ -1390,7 +1473,87 @@ q contains 1 if {
 			},
 		},
 		{
-			note: "v0 bundle + v1 bundle",
+			note: "single v1 bundle, v0 per-file override",
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy_0.rego": 0
+	}
+}`,
+					"policy_0.rego": `package test
+p {
+	input.x == 1
+}`,
+					"policy_1.rego": `package test
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_0.rego":0}}
+`,
+				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "single v1 bundle, v0 per-file override, --v0-compatible",
+			v0Compatible: true,
+			bundles: map[string]bundleInfo{
+				"bundle.tar.gz": {
+					".manifest": `{
+	"rego_version": 1,
+	"file_rego_versions": {
+		"/policy_0.rego": 0
+	}
+}`,
+					"policy_0.rego": `package test
+p {
+	input.x == 1
+}`,
+					"policy_1.rego": `package test
+q contains 1 if {
+	input.x == 1
+}`,
+				},
+			},
+			expBundle: bundleInfo{
+				"/data.json": `{}
+`,
+				"/.manifest": `{"revision":"","roots":[""],"rego_version":1,"file_rego_versions":{"%ROOT%/bundle.tar.gz/policy_0.rego":0}}
+`,
+				"%ROOT%/bundle.tar.gz/policy_0.rego": `package test
+
+p {
+	input.x == 1
+}
+`,
+				"%ROOT%/bundle.tar.gz/policy_1.rego": `package test
+
+q contains 1 if {
+	input.x == 1
+}
+`,
+			},
+		},
+		{
+			note:         "v0 bundle + v1 bundle, --v0-compatible",
+			v0Compatible: true,
 			bundles: map[string]bundleInfo{
 				"bundle_v0.tar.gz": {
 					".manifest": `{"roots": ["test1"], "rego_version": 0}`,
@@ -1492,6 +1655,7 @@ q contains 1 if {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
 				params.bundleMode = true
+				params.v0Compatible = tc.v0Compatible
 				params.v1Compatible = tc.v1Compatible
 
 				err := dobuild(params, roots)
@@ -1547,6 +1711,8 @@ q contains 1 if {
 									t.Fatal(err)
 								}
 								expVal = strings.ReplaceAll(expVal, "%ROOT%", root)
+								expVal = strings.ReplaceAll(expVal, "%DEFAULT_REGO_VERSION%",
+									fmt.Sprintf("%d", ast.DefaultRegoVersion.Int()))
 								if string(b) != expVal {
 									t.Fatalf("expected %v:\n\n%v\n\nbut got:\n\n%v", expName, expVal, string(b))
 								}
@@ -1556,16 +1722,6 @@ q contains 1 if {
 						if !found {
 							t.Fatalf("unexpected file in bundle: %v", f.Name)
 						}
-
-						//if f.Name == "/policy.rego" {
-						//	b, err := io.ReadAll(tr)
-						//	if err != nil {
-						//		t.Fatal(err)
-						//	}
-						//	if string(b) != tc.expBundle["policy.rego"] {
-						//		t.Fatalf("expected policy.rego:\n\n%v\n\nbut got:\n\n%v", tc.expBundle["policy.rego"], string(b))
-						//	}
-						//}
 					}
 				}
 			})
@@ -1573,16 +1729,18 @@ q contains 1 if {
 	}
 }
 
-func TestBuildWithV1CompatibleFlag(t *testing.T) {
+func TestBuildWithCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note          string
+		v0Compatible  bool
 		v1Compatible  bool
 		files         map[string]string
 		expectedFiles map[string]string
 		expectedErr   string
 	}{
 		{
-			note: "default compatibility: policy with no rego.v1 or future.keywords imports",
+			note:         "v0 compatibility: policy with no rego.v1 or future.keywords imports",
+			v0Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				allow if {
@@ -1592,7 +1750,8 @@ func TestBuildWithV1CompatibleFlag(t *testing.T) {
 			expectedErr: "rego_parse_error",
 		},
 		{
-			note: "default compatibility: policy with rego.v1 imports",
+			note:         "v0 compatibility: policy with rego.v1 imports",
+			v0Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				import rego.v1
@@ -1615,7 +1774,8 @@ allow if {
 			},
 		},
 		{
-			note: "default compatibility: policy with future.keywords imports",
+			note:         "v0 compatibility: policy with future.keywords imports",
+			v0Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
 				import future.keywords.if
@@ -1638,7 +1798,7 @@ allow if {
 			},
 		},
 		{
-			note:         "1.0 compatibility: policy with no rego.v1 or future.keywords imports",
+			note:         "v1 compatibility: policy with no rego.v1 or future.keywords imports",
 			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
@@ -1659,7 +1819,7 @@ allow if {
 			},
 		},
 		{
-			note:         "1.0 compatibility: policy with rego.v1 import",
+			note:         "v1 compatibility: policy with rego.v1 import",
 			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
@@ -1681,7 +1841,7 @@ allow if {
 			},
 		},
 		{
-			note:         "1.0 compatibility: policy with future.keywords import",
+			note:         "v1 compatibility: policy with future.keywords import",
 			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
@@ -1703,7 +1863,7 @@ allow if {
 			},
 		},
 		{
-			note:         "1.0 compatibility: missing keywords",
+			note:         "v1 compatibility: missing keywords",
 			v1Compatible: true,
 			files: map[string]string{
 				"test.rego": `package test
@@ -1713,6 +1873,69 @@ allow if {
 			},
 			expectedErr: "rego_parse_error",
 		},
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1 compatibility: policy with no rego.v1 or future.keywords imports",
+			v0Compatible: true,
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				allow if {
+					1 < 2
+				}`,
+			},
+			expectedErr: "rego_parse_error",
+		},
+		{
+			note:         "v0+v1 compatibility: policy with rego.v1 imports",
+			v0Compatible: true,
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import rego.v1
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"test.rego": `package test
+
+import rego.v1
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
+		{
+			note:         "v0+v1 compatibility: policy with future.keywords imports",
+			v0Compatible: true,
+			v1Compatible: true,
+			files: map[string]string{
+				"test.rego": `package test
+				import future.keywords.if
+				allow if {
+					1 < 2
+				}`,
+			},
+			// Imports are preserved
+			expectedFiles: map[string]string{
+				".manifest": `{"revision":"","roots":[""],"rego_version":0}
+`,
+				"test.rego": `package test
+
+import future.keywords.if
+
+allow if {
+	1 < 2
+}
+`,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -1720,6 +1943,7 @@ allow if {
 			test.WithTempFS(tc.files, func(root string) {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.v0Compatible = tc.v0Compatible
 				params.v1Compatible = tc.v1Compatible
 
 				err := dobuild(params, []string{root})
@@ -1939,6 +2163,7 @@ foo contains __local1__1 if {
 			test.WithTempFS(tc.files, func(root string) {
 				params := newBuildParams()
 				params.outputFile = path.Join(root, "bundle.tar.gz")
+				params.v0Compatible = !tc.v1Compatible
 				params.v1Compatible = tc.v1Compatible
 				params.optimizationLevel = 1
 
@@ -2047,6 +2272,7 @@ func TestBuildWithFollowSymlinks(t *testing.T) {
 	params.outputFile = path.Join(rootDir, "test.tar.gz")
 	params.bundleMode = true
 	params.followSymlinks = true
+	params.v1Compatible = true
 
 	err = dobuild(params, []string{bundleDir})
 	if err != nil {
@@ -2074,9 +2300,9 @@ func TestBuildWithFollowSymlinks(t *testing.T) {
 
 	// map of file name -> file content
 	expectedFiles := map[string]string{
-		bundleDir + "/foo.rego": "package foo\n\none = 1",
-		bundleDir + "/bar.rego": "package foo\n\ntwo = 2",
-		"/.manifest":            `{"revision":"","roots":[""],"rego_version":0}`,
+		bundleDir + "/foo.rego": "package foo\n\none := 1",
+		bundleDir + "/bar.rego": "package foo\n\ntwo := 2",
+		"/.manifest":            `{"revision":"","roots":[""],"rego_version":1}`,
 		"/data.json":            "{}",
 	}
 
@@ -2159,6 +2385,7 @@ func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
 	params.outputFile = path.Join(rootDir, "test.tar.gz")
 	params.bundleMode = true
 	params.followSymlinks = true
+	params.v1Compatible = true
 
 	err = dobuild(params, []string{symlinkDir + "/linked/"})
 	if err != nil {
@@ -2186,8 +2413,8 @@ func TestBuildWithFollowSymlinksEntireDir(t *testing.T) {
 
 	// map of file name -> file content
 	expectedFiles := map[string]string{
-		path.Join(symlinkDir, "linked", "foo.rego"): "package foo\n\none = 1",
-		"/.manifest": `{"revision":"","roots":[""],"rego_version":0}`,
+		path.Join(symlinkDir, "linked", "foo.rego"): "package foo\n\none := 1",
+		"/.manifest": `{"revision":"","roots":[""],"rego_version":1}`,
 		"/data.json": "{}",
 	}
 

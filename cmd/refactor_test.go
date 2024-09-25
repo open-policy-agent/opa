@@ -13,94 +13,228 @@ import (
 )
 
 func TestDoMoveRenamePackage(t *testing.T) {
+	cases := []struct {
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		module       string
+		expected     *ast.Module
+	}{
+		{
+			note:         "v0",
+			v0Compatible: true,
+			module: `package lib.foo
+			
+				# this is a comment
+				default allow = false
+				
+				allow {
+					input.message == "hello"    # this is a comment too
+				}`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
 
-	files := map[string]string{
-		"policy.rego": `package lib.foo
+				# this is a comment
+				default allow = false
+				
+				allow {
+					input.message == "hello"    # this is a comment too
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
+		},
+		{
+			note:         "v1",
+			v1Compatible: true,
+			module: `package lib.foo
+			
+				# this is a comment
+				default allow = false
+				
+				allow if {
+					input.message == "hello"    # this is a comment too
+				}`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
 
-# this is a comment
-default allow = false
+				# this is a comment
+				default allow = false
+				
+				allow if {
+					input.message == "hello"    # this is a comment too
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV1}),
+		},
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package lib.foo
+			
+				# this is a comment
+				default allow = false
+				
+				allow {
+					input.message == "hello"    # this is a comment too
+				}`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
 
-allow {
-        input.message == "hello"    # this is a comment too
-}`,
+				# this is a comment
+				default allow = false
+				
+				allow {
+					input.message == "hello"    # this is a comment too
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
+		},
 	}
 
-	test.WithTempFS(files, func(path string) {
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
 
-		mappings := []string{"data.lib.foo:data.baz.bar"}
+			test.WithTempFS(files, func(path string) {
 
-		params := moveCommandParams{
-			mapping: newrepeatedStringFlag(mappings),
-		}
+				mappings := []string{"data.lib.foo:data.baz.bar"}
 
-		var buf bytes.Buffer
+				params := moveCommandParams{
+					mapping:      newrepeatedStringFlag(mappings),
+					v0Compatible: tc.v0Compatible,
+					v1Compatible: tc.v1Compatible,
+				}
 
-		err := doMove(params, []string{path}, &buf)
-		if err != nil {
-			t.Fatal(err)
-		}
+				var buf bytes.Buffer
 
-		expected := ast.MustParseModule(`package baz.bar
+				err := doMove(params, []string{path}, &buf)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-# this is a comment
-default allow = false
+				formatted := format.MustAst(tc.expected)
 
-allow {
-        input.message == "hello"    # this is a comment too
-}`)
-
-		formatted := format.MustAst(expected)
-
-		if !reflect.DeepEqual(formatted, buf.Bytes()) {
-			t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", string(formatted), buf.String())
-		}
-	})
+				if !reflect.DeepEqual(formatted, buf.Bytes()) {
+					t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", string(formatted), buf.String())
+				}
+			})
+		})
+	}
 }
 
 func TestDoMoveOverwriteFile(t *testing.T) {
+	cases := []struct {
+		note         string
+		v0Compatible bool
+		v1Compatible bool
+		module       string
+		expected     *ast.Module
+	}{
+		{
+			note:         "v0",
+			v0Compatible: true,
+			module: `package lib.foo
 
-	files := map[string]string{
-		"policy.rego": `package lib.foo
+				import data.x.q
+				
+				default allow := false
 
-import data.x.q
+				allow {
+					input.message == "hello"
+				}
+				`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
+	
+				import data.hidden.q
+			
+				default allow := false
 
-default allow = false
-`,
+				allow {
+					input.message == "hello"
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
+		},
+		{
+			note:         "v1",
+			v1Compatible: true,
+			module: `package lib.foo
+
+				import data.x.q
+				
+				default allow := false
+
+				allow if {
+					input.message == "hello"
+				}
+				`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
+	
+				import data.hidden.q
+			
+				default allow := false
+
+				allow if {
+					input.message == "hello"
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV1}),
+		},
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package lib.foo
+
+				import data.x.q
+				
+				default allow := false
+
+				allow {
+					input.message == "hello"
+				}
+				`,
+			expected: ast.MustParseModuleWithOpts(`package baz.bar
+	
+				import data.hidden.q
+			
+				default allow := false
+
+				allow {
+					input.message == "hello"
+				}`, ast.ParserOptions{RegoVersion: ast.RegoV0}),
+		},
 	}
 
-	test.WithTempFS(files, func(path string) {
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			files := map[string]string{
+				"policy.rego": tc.module,
+			}
 
-		mappings := []string{"data.lib.foo:data.baz.bar", "data.x: data.hidden"}
+			test.WithTempFS(files, func(path string) {
 
-		params := moveCommandParams{
-			mapping:   newrepeatedStringFlag(mappings),
-			overwrite: true,
-		}
+				mappings := []string{"data.lib.foo:data.baz.bar", "data.x: data.hidden"}
 
-		var buf bytes.Buffer
+				params := moveCommandParams{
+					mapping:      newrepeatedStringFlag(mappings),
+					overwrite:    true,
+					v0Compatible: tc.v0Compatible,
+					v1Compatible: tc.v1Compatible,
+				}
 
-		err := doMove(params, []string{path}, &buf)
-		if err != nil {
-			t.Fatal(err)
-		}
+				var buf bytes.Buffer
 
-		data, err := os.ReadFile(filepath.Join(path, "policy.rego"))
-		if err != nil {
-			t.Fatal(err)
-		}
+				err := doMove(params, []string{path}, &buf)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-		actual := ast.MustParseModule(string(data))
+				data, err := os.ReadFile(filepath.Join(path, "policy.rego"))
+				if err != nil {
+					t.Fatal(err)
+				}
 
-		expected := ast.MustParseModule(`package baz.bar
-		
-		import data.hidden.q
-	
-		default allow = false`)
+				actual := ast.MustParseModule(string(data))
 
-		if !expected.Equal(actual) {
-			t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", expected, actual)
-		}
-	})
+				if !tc.expected.Equal(actual) {
+					t.Fatalf("Expected module:\n%v\n\nGot:\n%v\n", tc.expected, actual)
+				}
+			})
+		})
+	}
 }
 
 func TestParseSrcDstMap(t *testing.T) {

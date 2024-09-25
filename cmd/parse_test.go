@@ -487,9 +487,10 @@ func TestParseRulesBlockJSONOutputWithLocations(t *testing.T) {
 
 	files := map[string]string{
 		"x.rego": `package x
+import rego.v1
 
 default allow = false
-allow = true {
+allow = true if {
   input.method == "GET"
   input.path = ["getUser", user]
   input.user == user
@@ -538,6 +539,47 @@ allow = true {
       }
     ]
   },
+  "imports": [
+    {
+      "location": {
+        "file": "TEMPDIR/x.rego",
+        "row": 2,
+        "col": 1,
+        "text": "aW1wb3J0"
+      },
+      "path": {
+        "location": {
+          "file": "TEMPDIR/x.rego",
+          "row": 2,
+          "col": 8,
+          "text": "cmVnby52MQ=="
+        },
+        "type": "ref",
+        "value": [
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 2,
+              "col": 8,
+              "text": "cmVnbw=="
+            },
+            "type": "var",
+            "value": "rego"
+          },
+          {
+            "location": {
+              "file": "TEMPDIR/x.rego",
+              "row": 2,
+              "col": 13,
+              "text": "djE="
+            },
+            "type": "string",
+            "value": "v1"
+          }
+        ]
+      }
+    }
+  ],
   "rules": [
     {
       "body": [
@@ -545,14 +587,14 @@ allow = true {
           "index": 0,
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 3,
+            "row": 4,
             "col": 1,
             "text": "ZGVmYXVsdA=="
           },
           "terms": {
             "location": {
               "file": "TEMPDIR/x.rego",
-              "row": 3,
+              "row": 4,
               "col": 1,
               "text": "ZGVmYXVsdA=="
             },
@@ -567,7 +609,7 @@ allow = true {
         "value": {
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 3,
+            "row": 4,
             "col": 17,
             "text": "ZmFsc2U="
           },
@@ -578,7 +620,7 @@ allow = true {
           {
             "location": {
               "file": "TEMPDIR/x.rego",
-              "row": 3,
+              "row": 4,
               "col": 9,
               "text": "YWxsb3c="
             },
@@ -588,14 +630,14 @@ allow = true {
         ],
         "location": {
           "file": "TEMPDIR/x.rego",
-          "row": 3,
+          "row": 4,
           "col": 9,
           "text": "YWxsb3cgPSBmYWxzZQ=="
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
-        "row": 3,
+        "row": 4,
         "col": 1,
         "text": "ZGVmYXVsdA=="
       }
@@ -606,7 +648,7 @@ allow = true {
           "index": 0,
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 5,
+            "row": 6,
             "col": 3,
             "text": "aW5wdXQubWV0aG9kID09ICJHRVQi"
           },
@@ -614,7 +656,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 5,
+                "row": 6,
                 "col": 16,
                 "text": "PT0="
               },
@@ -623,7 +665,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 5,
+                    "row": 6,
                     "col": 16,
                     "text": "PT0="
                   },
@@ -635,7 +677,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 5,
+                "row": 6,
                 "col": 3,
                 "text": "aW5wdXQubWV0aG9k"
               },
@@ -644,7 +686,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 5,
+                    "row": 6,
                     "col": 3,
                     "text": "aW5wdXQ="
                   },
@@ -654,7 +696,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 5,
+                    "row": 6,
                     "col": 9,
                     "text": "bWV0aG9k"
                   },
@@ -666,7 +708,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 5,
+                "row": 6,
                 "col": 19,
                 "text": "IkdFVCI="
               },
@@ -679,7 +721,7 @@ allow = true {
           "index": 1,
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 6,
+            "row": 7,
             "col": 3,
             "text": "aW5wdXQucGF0aCA9IFsiZ2V0VXNlciIsIHVzZXJd"
           },
@@ -687,7 +729,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 6,
+                "row": 7,
                 "col": 14,
                 "text": "PQ=="
               },
@@ -696,7 +738,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 6,
+                    "row": 7,
                     "col": 14,
                     "text": "PQ=="
                   },
@@ -708,7 +750,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 6,
+                "row": 7,
                 "col": 3,
                 "text": "aW5wdXQucGF0aA=="
               },
@@ -717,7 +759,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 6,
+                    "row": 7,
                     "col": 3,
                     "text": "aW5wdXQ="
                   },
@@ -727,7 +769,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 6,
+                    "row": 7,
                     "col": 9,
                     "text": "cGF0aA=="
                   },
@@ -739,7 +781,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 6,
+                "row": 7,
                 "col": 16,
                 "text": "WyJnZXRVc2VyIiwgdXNlcl0="
               },
@@ -748,7 +790,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 6,
+                    "row": 7,
                     "col": 17,
                     "text": "ImdldFVzZXIi"
                   },
@@ -758,7 +800,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 6,
+                    "row": 7,
                     "col": 28,
                     "text": "dXNlcg=="
                   },
@@ -773,7 +815,7 @@ allow = true {
           "index": 2,
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 7,
+            "row": 8,
             "col": 3,
             "text": "aW5wdXQudXNlciA9PSB1c2Vy"
           },
@@ -781,7 +823,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 7,
+                "row": 8,
                 "col": 14,
                 "text": "PT0="
               },
@@ -790,7 +832,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 7,
+                    "row": 8,
                     "col": 14,
                     "text": "PT0="
                   },
@@ -802,7 +844,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 7,
+                "row": 8,
                 "col": 3,
                 "text": "aW5wdXQudXNlcg=="
               },
@@ -811,7 +853,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 7,
+                    "row": 8,
                     "col": 3,
                     "text": "aW5wdXQ="
                   },
@@ -821,7 +863,7 @@ allow = true {
                 {
                   "location": {
                     "file": "TEMPDIR/x.rego",
-                    "row": 7,
+                    "row": 8,
                     "col": 9,
                     "text": "dXNlcg=="
                   },
@@ -833,7 +875,7 @@ allow = true {
             {
               "location": {
                 "file": "TEMPDIR/x.rego",
-                "row": 7,
+                "row": 8,
                 "col": 17,
                 "text": "dXNlcg=="
               },
@@ -848,7 +890,7 @@ allow = true {
         "value": {
           "location": {
             "file": "TEMPDIR/x.rego",
-            "row": 4,
+            "row": 5,
             "col": 9,
             "text": "dHJ1ZQ=="
           },
@@ -859,7 +901,7 @@ allow = true {
           {
             "location": {
               "file": "TEMPDIR/x.rego",
-              "row": 4,
+              "row": 5,
               "col": 1,
               "text": "YWxsb3c="
             },
@@ -869,16 +911,16 @@ allow = true {
         ],
         "location": {
           "file": "TEMPDIR/x.rego",
-          "row": 4,
+          "row": 5,
           "col": 1,
           "text": "YWxsb3cgPSB0cnVl"
         }
       },
       "location": {
         "file": "TEMPDIR/x.rego",
-        "row": 4,
+        "row": 5,
         "col": 1,
-        "text": "YWxsb3cgPSB0cnVlIHsKICBpbnB1dC5tZXRob2QgPT0gIkdFVCIKICBpbnB1dC5wYXRoID0gWyJnZXRVc2VyIiwgdXNlcl0KICBpbnB1dC51c2VyID09IHVzZXIKfQ=="
+        "text": "YWxsb3cgPSB0cnVlIGlmIHsKICBpbnB1dC5tZXRob2QgPT0gIkdFVCIKICBpbnB1dC5wYXRoID0gWyJnZXRVc2VyIiwgdXNlcl0KICBpbnB1dC51c2VyID09IHVzZXIKfQ=="
       }
     }
   ]
@@ -930,22 +972,25 @@ func TestParseJSONOutputComments(t *testing.T) {
 	}
 }
 
-func TestParseV1Compatible(t *testing.T) {
+func TestParseCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		policy       string
 		expErrs      []string
 	}{
 		{
-			note: "v0.x, keywords not used",
+			note:         "v0, keywords not used",
+			v0Compatible: true,
 			policy: `package test
 p[v] { 
 	v := input.x
 }`,
 		},
 		{
-			note: "v0.x, keywords not imported",
+			note:         "v0, keywords not imported",
+			v0Compatible: true,
 			policy: `package test
 p contains v if { 
 	v := input.x
@@ -955,7 +1000,8 @@ p contains v if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:         "v0, keywords imported",
+			v0Compatible: true,
 			policy: `package test
 import future.keywords
 p contains v if { 
@@ -963,7 +1009,8 @@ p contains v if {
 }`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			policy: `package test
 import rego.v1
 p contains v if { 
@@ -972,7 +1019,7 @@ p contains v if {
 		},
 
 		{
-			note:         "v1.0, keywords not used",
+			note:         "v1, keywords not used",
 			v1Compatible: true,
 			policy: `package test
 p[v] { 
@@ -984,7 +1031,7 @@ p[v] {
 			},
 		},
 		{
-			note:         "v1.0, keywords not imported",
+			note:         "v1, keywords not imported",
 			v1Compatible: true,
 			policy: `package test
 p contains v if { 
@@ -992,7 +1039,7 @@ p contains v if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords imported",
+			note:         "v1, keywords imported",
 			v1Compatible: true,
 			policy: `package test
 import future.keywords
@@ -1001,7 +1048,50 @@ p contains v if {
 }`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
+			note:         "v1, rego.v1 imported",
+			v1Compatible: true,
+			policy: `package test
+import rego.v1
+p contains v if { 
+	v := input.x
+}`,
+		},
+
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1, keywords not used",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p[v] { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0+v1, keywords not imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+p contains v if { 
+	v := input.x
+}`,
+			expErrs: []string{
+				"var cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0+1, keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			policy: `package test
+import future.keywords
+p contains v if { 
+	v := input.x
+}`,
+		},
+		{
+			note:         "v0+v1, rego.v1 imported",
+			v0Compatible: true,
 			v1Compatible: true,
 			policy: `package test
 import rego.v1
@@ -1019,6 +1109,7 @@ p contains v if {
 
 			_, _, stderr, _ := testParse(t, files, &parseParams{
 				format:       util.NewEnumFlag(parseFormatPretty, []string{parseFormatPretty, parseFormatJSON}),
+				v0Compatible: tc.v0Compatible,
 				v1Compatible: tc.v1Compatible,
 			})
 

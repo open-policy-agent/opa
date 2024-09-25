@@ -71,8 +71,18 @@ type evalCommandParams struct {
 	optimizationLevel   int
 	entrypoints         repeatedStringFlag
 	strict              bool
+	v0Compatible        bool
 	v1Compatible        bool
 	traceVarValues      bool
+}
+
+func (p *evalCommandParams) regoVersion() ast.RegoVersion {
+	if p.v0Compatible {
+		return ast.RegoV0
+	} else if p.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.DefaultRegoVersion
 }
 
 func newEvalCommandParams() evalCommandParams {
@@ -332,6 +342,7 @@ access.
 	addTargetFlag(evalCommand.Flags(), params.target)
 	addCountFlag(evalCommand.Flags(), &params.count, "benchmark")
 	addStrictFlag(evalCommand.Flags(), &params.strict, false)
+	addV0CompatibleFlag(evalCommand.Flags(), &params.v0Compatible, false)
 	addV1CompatibleFlag(evalCommand.Flags(), &params.v1Compatible, false)
 
 	RootCommand.AddCommand(evalCommand)
@@ -535,7 +546,12 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		return nil, err
 	}
 
-	regoArgs := []func(*rego.Rego){rego.Query(query), rego.Runtime(info)}
+	regoArgs := []func(*rego.Rego){
+		rego.Query(query),
+		rego.Runtime(info),
+		rego.SetRegoVersion(params.regoVersion()),
+	}
+
 	evalArgs := []rego.EvalOption{
 		rego.EvalRuleIndexing(!params.disableIndexing),
 		rego.EvalEarlyExit(!params.disableEarlyExit),
@@ -673,10 +689,6 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	if params.strict {
 		regoArgs = append(regoArgs, rego.Strict(params.strict))
-	}
-
-	if params.v1Compatible {
-		regoArgs = append(regoArgs, rego.SetRegoVersion(ast.RegoV1))
 	}
 
 	evalCtx := &evalContext{
@@ -856,7 +868,8 @@ func generateOptimizedBundle(params evalCommandParams, asBundle bool, filter loa
 		WithEntrypoints(params.entrypoints.v...).
 		WithRegoAnnotationEntrypoints(true).
 		WithPaths(paths...).
-		WithFilter(filter)
+		WithFilter(filter).
+		WithRegoVersion(params.regoVersion())
 
 	err := compiler.Build(context.Background())
 	if err != nil {

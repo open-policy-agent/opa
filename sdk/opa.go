@@ -92,10 +92,7 @@ func New(ctx context.Context, opts Options) (*OPA, error) {
 	opa.plugins = opts.Plugins
 	opa.managerOpts = opts.ManagerOpts
 
-	opa.regoVersion = opts.RegoVersion
-	if opts.V1Compatible {
-		opa.regoVersion = ast.RegoV1
-	}
+	opa.regoVersion = opts.regoVersion()
 
 	return opa, opa.configure(ctx, opa.config, opts.Ready, opts.block)
 }

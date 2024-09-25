@@ -27,6 +27,7 @@ type checkParams struct {
 	schema       *schemaFlags
 	strict       bool
 	regoV1       bool
+	v0Compatible bool
 	v1Compatible bool
 }
 
@@ -45,10 +46,14 @@ func (p *checkParams) regoVersion() ast.RegoVersion {
 	if p.regoV1 {
 		return ast.RegoV0CompatV1
 	}
+	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 const (
@@ -183,6 +188,7 @@ func init() {
 	addStrictFlag(checkCommand.Flags(), &checkParams.strict, false)
 	addRegoV1FlagWithDescription(checkCommand.Flags(), &checkParams.regoV1, false,
 		"check for Rego v1 compatibility (policies must also be compatible with current OPA version)")
+	addV0CompatibleFlag(checkCommand.Flags(), &checkParams.v0Compatible, false)
 	addV1CompatibleFlag(checkCommand.Flags(), &checkParams.v1Compatible, false)
 	RootCommand.AddCommand(checkCommand)
 }
