@@ -61,6 +61,7 @@ type testCommandParams struct {
 	stopChan     chan os.Signal
 	output       io.Writer
 	errOutput    io.Writer
+	v0Compatible bool
 	v1Compatible bool
 	varValues    bool
 }
@@ -79,10 +80,14 @@ func newTestCommandParams() testCommandParams {
 }
 
 func (p *testCommandParams) RegoVersion() ast.RegoVersion {
+	// v0 takes precedence over v1
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 func opaTest(args []string, testParams testCommandParams) (int, error) {
@@ -552,6 +557,7 @@ recommended as some updates might cause them to be dropped by OPA.
 	addTargetFlag(testCommand.Flags(), testParams.target)
 	addCapabilitiesFlag(testCommand.Flags(), testParams.capabilities)
 	addSchemaFlags(testCommand.Flags(), testParams.schema)
+	addV0CompatibleFlag(testCommand.Flags(), &testParams.v0Compatible, false)
 	addV1CompatibleFlag(testCommand.Flags(), &testParams.v1Compatible, false)
 
 	RootCommand.AddCommand(testCommand)

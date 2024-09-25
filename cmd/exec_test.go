@@ -33,7 +33,8 @@ func TestExecBasic(t *testing.T) {
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package system
-				main["hello"]
+				import rego.v1
+				main contains "hello"
 			`,
 		}))
 
@@ -84,7 +85,8 @@ func TestExecDecisionOption(t *testing.T) {
 		s := sdk_test.MustNewServer(sdk_test.MockBundle("/bundles/bundle.tar.gz", map[string]string{
 			"test.rego": `
 				package foo
-				main["hello"]
+				import rego.v1
+				main contains "hello"
 			`,
 		}))
 
@@ -125,8 +127,8 @@ func TestExecBundleFlag(t *testing.T) {
 	files := map[string]string{
 		"files/test.json": `{"foo": 7}`,
 		"bundle/x.rego": `package system
-
-		main["hello"]`,
+		import rego.v1
+		main contains "hello"`,
 	}
 
 	test.WithTempFS(files, func(dir string) {
@@ -156,22 +158,25 @@ func TestExecBundleFlag(t *testing.T) {
 	})
 }
 
-func TestExecV1Compatible(t *testing.T) {
+func TestExecCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		module       string
 		expErrs      []string
 	}{
 		{
-			note: "v0.x, no keywords used",
+			note:         "v0, no keywords used",
+			v0Compatible: true,
 			module: `package system
 main["hello"] {
 	input.foo == "bar"
 }`,
 		},
 		{
-			note: "v0.x, no keywords imported",
+			note:         "v0, no keywords imported",
+			v0Compatible: true,
 			module: `package system
 main contains "hello" if {
 	input.foo == "bar"
@@ -182,7 +187,8 @@ main contains "hello" if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:         "v0, keywords imported",
+			v0Compatible: true,
 			module: `package system
 import future.keywords
 main contains "hello" if {
@@ -190,7 +196,8 @@ main contains "hello" if {
 }`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			module: `package system
 import rego.v1
 main contains "hello" if {
@@ -199,7 +206,7 @@ main contains "hello" if {
 		},
 
 		{
-			note:         "v1.0, no keywords used",
+			note:         "v1, no keywords used",
 			v1Compatible: true,
 			module: `package system
 main["hello"] {
@@ -211,7 +218,7 @@ main["hello"] {
 			},
 		},
 		{
-			note:         "v1.0, no keywords imported",
+			note:         "v1, no keywords imported",
 			v1Compatible: true,
 			module: `package system
 main contains "hello" if {
@@ -219,7 +226,7 @@ main contains "hello" if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords imported",
+			note:         "v1, keywords imported",
 			v1Compatible: true,
 			module: `package system
 import future.keywords
@@ -228,7 +235,51 @@ main contains "hello" if {
 }`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
+			note:         "v1, rego.v1 imported",
+			v1Compatible: true,
+			module: `package system
+import rego.v1
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1, no keywords used",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package system
+main["hello"] {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:         "v0+v1, no keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package system
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: string cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0+v1, keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package system
+import future.keywords
+main contains "hello" if {
+	input.foo == "bar"
+}`,
+		},
+		{
+			note:         "v0+v1, rego.v1 imported",
+			v0Compatible: true,
 			v1Compatible: true,
 			module: `package system
 import rego.v1
@@ -254,6 +305,7 @@ main contains "hello" if {
 
 				var buf bytes.Buffer
 				params := exec.NewParams(&buf)
+				params.V0Compatible = tc.v0Compatible
 				params.V1Compatible = tc.v1Compatible
 				_ = params.OutputFormat.Set("json")
 				params.ConfigOverrides = []string{
@@ -729,15 +781,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
-
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				import rego.v1
+				
+				test_fun := x if {
+					x = false
+					x
+				}
+				
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
@@ -754,8 +807,9 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
-
-		main["hello"]`,
+				import rego.v1
+				
+				main contains "hello"`,
 			},
 			decision:    "",
 			expectError: true,
@@ -770,15 +824,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
+				import rego.v1
 
-              some_function {
-                      input.foo == 7
-              }
-
-              default fail_test := false
-              fail_test {
-                      some_function
-              }`,
+				some_function if {
+					  input.foo == 7
+				}
+				
+				default fail_test := false
+				fail_test if {
+					  some_function
+				}`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: true,
@@ -793,11 +848,12 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
+				import rego.v1
 
-		default fail_test := false
-		fail_test {
-			false
-		}`,
+				default fail_test := false
+				fail_test if {
+					false
+				}`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: true,
@@ -812,15 +868,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				test_fun := x if {
+					x = false
+					x
+				}
+		
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			expectError: true,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
@@ -837,8 +894,9 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
-
-		main["hello"]`,
+				import rego.v1
+				
+			main contains "hello"`,
 			},
 			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
@@ -852,15 +910,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
+				import rego.v1
 
-              some_function {
-                      input.foo == 7
-              }
-
-              default fail_test := false
-              fail_test {
-                      some_function
-              }`,
+				some_function if {
+					input.foo == 7
+				}
+				
+				default fail_test := false
+				fail_test if {
+					some_function
+				}`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: false,
@@ -875,11 +934,12 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.defined.flag
+				import rego.v1
 
-		default fail_test := false
-		fail_test {
-			false
-		}`,
+				default fail_test := false
+				fail_test if {
+					false
+				}`,
 			},
 			decision:    "fail/defined/flag/fail_test",
 			expectError: false,
@@ -894,15 +954,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				test_fun := x if {
+					x = false
+					x
+				}
+		
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			expectError: false,
 			expected: util.MustUnmarshalJSON([]byte(`{"result": [{
@@ -919,8 +980,9 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		main["hello"]`,
+				main contains "hello"`,
 			},
 			decision:    "",
 			expectError: true,
@@ -935,15 +997,16 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.non.empty.flag
+				import rego.v1
 
-              some_function {
-                      input.foo == 7
-              }
-
-              default fail_test := false
-              fail_test {
-                      some_function
-              }`,
+				some_function if {
+					input.foo == 7
+				}
+				
+				default fail_test := false
+				fail_test if {
+					some_function
+				}`,
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
@@ -958,11 +1021,12 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.non.empty.flag
+				import rego.v1
 
-		default fail_test := false
-		fail_test {
-			false
-		}`,
+				default fail_test := false
+				fail_test if {
+					false
+				}`,
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: true,
@@ -977,11 +1041,12 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.non.empty.flag
+				import rego.v1
 
-		default fail_test := ["something", "hello"]
-		fail_test := [] if {
-			input.foo == 7
-		}`,
+				default fail_test := ["something", "hello"]
+				fail_test := [] if {
+					input.foo == 7
+				}`,
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: false,
@@ -996,11 +1061,12 @@ func TestFailFlagCases(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package fail.non.empty.flag
+				import rego.v1
 
-		fail_test[message] {
-		   false
-		   message := "not gonna happen"
-		}`,
+				fail_test contains message if {
+				   false
+				   message := "not gonna happen"
+				}`,
 			},
 			decision:    "fail/non/empty/flag/fail_test",
 			expectError: false,
@@ -1059,15 +1125,16 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 			files: map[string]string{
 				"files/test.json": `{"foo": 7}`,
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				test_fun := x if {
+					x = false
+					x
+				}
+		
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			expectError: false,
 			expected:    "",
@@ -1076,15 +1143,16 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 			description: "no paths passed in as args should raise error if --stdin-input flag not set",
 			files: map[string]string{
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				test_fun := x if {
+					x = false
+					x
+				}
+		
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			expectError: true,
 			expected:    "requires at least 1 path arg, or the --stdin-input flag",
@@ -1093,15 +1161,16 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 			description: "should not raise error if --stdin-input flag is set when no paths passed in as args",
 			files: map[string]string{
 				"bundle/x.rego": `package system
+				import rego.v1
 
-		test_fun := x {
-			x = false
-			x
-		}
-
-		undefined_test {
-			test_fun
-		}`,
+				test_fun := x if {
+					x = false
+					x
+				}
+		
+				undefined_test if {
+					test_fun
+				}`,
 			},
 			stdIn:       true,
 			input:       `{"foo": 7}`,

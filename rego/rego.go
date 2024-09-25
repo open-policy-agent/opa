@@ -1967,6 +1967,7 @@ func (r *Rego) parseQuery(queryImports []*ast.Import, m metrics.Metrics) (ast.Bo
 	if err != nil {
 		return nil, err
 	}
+	popts.RegoVersion = r.regoVersion
 	popts, err = parserOptionsFromRegoVersionImport(queryImports, popts)
 	if err != nil {
 		return nil, err

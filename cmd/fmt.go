@@ -26,6 +26,7 @@ type fmtCommandParams struct {
 	diff         bool
 	fail         bool
 	regoV1       bool
+	v0Compatible bool
 	v1Compatible bool
 	checkResult  bool
 }
@@ -37,10 +38,14 @@ func (p *fmtCommandParams) regoVersion() ast.RegoVersion {
 	if p.regoV1 {
 		return ast.RegoV0CompatV1
 	}
+	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 var formatCommand = &cobra.Command{
@@ -130,6 +135,14 @@ func formatFile(params *fmtCommandParams, out io.Writer, filename string, info o
 	opts := format.Opts{
 		RegoVersion: params.regoVersion(),
 	}
+
+	if params.v0Compatible {
+		// v0 takes precedence over v1
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV0}
+	} else if params.v1Compatible {
+		opts.ParserOptions = &ast.ParserOptions{RegoVersion: ast.RegoV1}
+	}
+
 	formatted, err := format.SourceWithOpts(filename, contents, opts)
 	if err != nil {
 		return newError("failed to format Rego source file: %v", err)
@@ -238,6 +251,7 @@ func init() {
 	formatCommand.Flags().BoolVarP(&fmtParams.diff, "diff", "d", false, "only display a diff of the changes")
 	formatCommand.Flags().BoolVar(&fmtParams.fail, "fail", false, "non zero exit code on reformat")
 	addRegoV1FlagWithDescription(formatCommand.Flags(), &fmtParams.regoV1, false, "format module(s) to be compatible with both Rego v1 and current OPA version)")
+	addV0CompatibleFlag(formatCommand.Flags(), &fmtParams.v0Compatible, false)
 	addV1CompatibleFlag(formatCommand.Flags(), &fmtParams.v1Compatible, false)
 	formatCommand.Flags().BoolVar(&fmtParams.checkResult, "check-result", true, "assert that the formatted code is valid and can be successfully parsed (default true)")
 

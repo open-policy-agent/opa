@@ -173,34 +173,35 @@ func failTrace(t *testing.T) []*topdown.Event {
 	t.Helper()
 	mod := `
 	package testing
+	import rego.v1
 	
-	p {
+	p if {
 		x  # Always true
 		trace("test test")
 		q["foo"]
 	}
 	
-	x {
+	x if {
 		y
 	}
 	
-	y {
+	y if {
 		true
 	}
 	
-	q[x] {
+	q contains x if {
 		some x
 		trace("got this far")
 		r[x]
 		trace("got this far1")
 	}
 	
-	r[x] {
+	r contains x if {
 		trace("got this far2")
 		x := data.x
 	}
 	
-	test_p {
+	test_p if {
 		p with data.x as "bar"
 	}
 	`
@@ -1540,7 +1541,13 @@ FAIL: 1/1
 // Assert that ignore flag is correctly used when the bundle flag is activated
 func TestIgnoreFlag(t *testing.T) {
 	files := map[string]string{
-		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/test.rego": `package test
+import rego.v1
+
+p := input.foo == 42
+test_p if {
+	p with input.foo as 42
+}`,
 		"/broken.rego": "package foo\n bar {",
 	}
 
@@ -1563,7 +1570,13 @@ func TestIgnoreFlag(t *testing.T) {
 // Assert that ignore flag is correctly used when the bundle flag is activated
 func TestIgnoreFlagWithBundleFlag(t *testing.T) {
 	files := map[string]string{
-		"/test.rego":   "package test\n p := input.foo == 42\ntest_p {\n p with input.foo as 42\n}",
+		"/test.rego": `package test
+import rego.v1
+
+p := input.foo == 42
+test_p if {
+	p with input.foo as 42
+}`,
 		"/broken.rego": "package foo\n bar {",
 	}
 
@@ -1606,15 +1619,17 @@ func testSchemasAnnotation(rego string) (int, error) {
 func TestSchemasAnnotation(t *testing.T) {
 	policyWithSchemaRef := `
 package test
+import rego.v1
+
 # METADATA
 # schemas:
 #   - input: schema["input"]
-p { 
+p if { 
 	rego.metadata.rule() # presence of rego.metadata.* calls must not trigger unwanted schema evaluation
 	input.foo == 42 # type mismatch with schema that should be ignored
 }
 
-test_p {
+test_p if {
     p with input.foo as 42
 }`
 
@@ -1626,14 +1641,16 @@ test_p {
 func TestSchemasAnnotationInline(t *testing.T) {
 	policyWithInlinedSchema := `
 package test
+import rego.v1
+
 # METADATA
 # schemas:
 #   - input.foo: {"type": "boolean"}
-p { 
+p if { 
 	input.foo == 42 # type mismatch with schema that should NOT be ignored since it is an inlined schema format
 }
 
-test_p {
+test_p if {
     p with input.foo as 42
 }`
 
@@ -1671,15 +1688,17 @@ func testSchemasAnnotationWithJSONFile(rego string, schema string) (int, error) 
 func TestJSONSchemaSuccess(t *testing.T) {
 
 	regoContents := `package test
+import rego.v1
+
 # METADATA
 # schemas:
 #   - input: schema.demo_schema
-p {
-input.foo == 42
+p if {
+	input.foo == 42
 }
 
-test_p {
-p with input.foo as 42
+test_p if {
+	p with input.foo as 42
 }`
 
 	schema := `{
@@ -1709,15 +1728,17 @@ p with input.foo as 42
 func TestJSONSchemaFail(t *testing.T) {
 
 	regoContents := `package test
+import rego.v1
+
 # METADATA
 # schemas:
 #   - input: schema.demo_schema
-p {
-input.foo == 42
+p if {
+	input.foo == 42
 }
 
-test_p {
-p with input.foo as 42
+test_p if {
+	p with input.foo as 42
 }`
 
 	schema := `{
@@ -1749,8 +1770,13 @@ p with input.foo as 42
 func TestWatchMode(t *testing.T) {
 
 	files := map[string]string{
-		"/policy.rego":      "package foo\n p := 1",
-		"/policy_test.rego": "package foo\n test_p { p == 1 }",
+		"/policy.rego": `package foo
+p := 1`,
+		"/policy_test.rego": `package foo
+import rego.v1
+test_p if { 
+	p == 1
+}`,
 	}
 
 	test.WithTempFS(files, func(root string) {
@@ -1850,8 +1876,12 @@ Watching for changes ...
 func TestWatchModeWithDataFile(t *testing.T) {
 
 	files := map[string]string{
-		"/policy.rego": "package foo\n test_p { data.y == 1 }",
-		"/data.json":   `{"y": 1}`,
+		"/policy.rego": `package foo
+import rego.v1
+test_p if { 
+	data.y == 1
+}`,
+		"/data.json": `{"y": 1}`,
 	}
 
 	test.WithTempFS(files, func(root string) {
@@ -1930,8 +1960,12 @@ Watching for changes ...
 
 func TestWatchModeWhenDataFileRemoved(t *testing.T) {
 	files := map[string]string{
-		"/policy.rego": "package foo\n test_p { data.y == 1 }",
-		"/data.json":   `{"y": 1}`,
+		"/policy.rego": `package foo
+import rego.v1
+test_p if { 
+	data.y == 1 
+}`,
+		"/data.json": `{"y": 1}`,
 	}
 
 	test.WithTempFS(files, func(root string) {
@@ -2046,8 +2080,13 @@ Watching for changes ...`,
 	}
 
 	files := map[string]string{
-		"/policy.rego":      "package foo\n p := 1",
-		"/policy_test.rego": "package foo\n test_p { p == 1 }",
+		"/policy.rego": `package foo
+p := 1`,
+		"/policy_test.rego": `package foo
+import rego.v1
+test_p if { 
+	p == 1
+}`,
 	}
 
 	for _, tc := range tests {
@@ -2146,57 +2185,64 @@ func TestExitCode(t *testing.T) {
 	}{
 		"pass when no failed or skipped tests": {
 			Test: `package foo
-			test_pass { true }
+			import rego.v1
+			test_pass if { true }
 			`,
 			ExitZeroOnSkipped: false,
 			ExpectedExitCode:  0,
 		},
 		"fail when failed tests": {
 			Test: `package foo
-			test_pass { true }
-			test_fail { false }
+			import rego.v1
+			test_pass if { true }
+			test_fail if { false }
 			`,
 			ExitZeroOnSkipped: false,
 			ExpectedExitCode:  2,
 		},
 		"fail when skipped tests": {
 			Test: `package foo
-			test_pass { true }
-			todo_test_skip { true }
+			import rego.v1
+			test_pass if { true }
+			todo_test_skip if { true }
 			`,
 			ExitZeroOnSkipped: false,
 			ExpectedExitCode:  2,
 		},
 		"fail when failed tests and skipped tests": {
 			Test: `package foo
-			test_pass { true }
-			test_fail { false }
-			todo_test_skip { true }
+			import rego.v1
+			test_pass if { true }
+			test_fail if { false }
+			todo_test_skip if { true }
 			`,
 			ExitZeroOnSkipped: false,
 			ExpectedExitCode:  2,
 		},
 		"pass when skipped tests and exit zero on skipped": {
 			Test: `package foo
-			test_pass { true }
-			todo_test_skip { true }
+			import rego.v1
+			test_pass if { true }
+			todo_test_skip if { true }
 			`,
 			ExitZeroOnSkipped: true,
 			ExpectedExitCode:  0,
 		},
 		"fail when failed tests and exit zero on skipped": {
 			Test: `package foo
-			test_pass { true }
-			test_fail { false }
+			import rego.v1
+			test_pass if { true }
+			test_fail if { false }
 			`,
 			ExitZeroOnSkipped: true,
 			ExpectedExitCode:  2,
 		},
 		"fail when failed tests, skipped tests and exit zero on skipped": {
 			Test: `package foo
-			test_pass { true }
-			test_fail { false }
-			todo_test_skip { true }
+			import rego.v1
+			test_pass if { true }
+			test_fail if { false }
+			todo_test_skip if { true }
 			`,
 			ExitZeroOnSkipped: true,
 			ExpectedExitCode:  2,
@@ -2227,8 +2273,10 @@ func TestCoverageThreshold(t *testing.T) {
 			note: "coverage threshold met",
 			modules: map[string]string{
 				"test.rego": `package test
+					import rego.v1
+
 					p := 1
-					test_p { p == 1 }`,
+					test_p if { p == 1 }`,
 			},
 			expectedExitCode: 0,
 		},
@@ -2236,12 +2284,14 @@ func TestCoverageThreshold(t *testing.T) {
 			note: "coverage threshold not met",
 			modules: map[string]string{
 				"test.rego": `package test
-					p := 1 {
+					import rego.v1
+
+					p := 1 if {
 						1 == 1
 					}
 					q := 2
 					r := 3
-					test_q { q == 2 }`,
+					test_q if { q == 2 }`,
 			},
 			threshold:         100,
 			expectedExitCode:  2,
@@ -2251,33 +2301,39 @@ func TestCoverageThreshold(t *testing.T) {
 			note: "coverage threshold not met (verbose)",
 			modules: map[string]string{
 				"test.rego": `package test
-					p := 1 {
+					import rego.v1
+
+					p := 1 if {
 						1 == 1
 					}
 					q := 2
 					r := 3
-					test_q { q == 2 }`,
+					test_q if { q == 2 }`,
 			},
 			threshold:        100,
 			expectedExitCode: 2,
 			verbose:          true,
 			expectedErrOutput: `Code coverage threshold not met: got 40.00 instead of 100.00
 Lines not covered:
-	%ROOT%/test.rego:2-3
-	%ROOT%/test.rego:6
+	%ROOT%/test.rego:4-5
+	%ROOT%/test.rego:8
 `,
 		},
 		{
 			note: "coverage threshold not met (verbose, multiple files)",
 			modules: map[string]string{
 				"policy1.rego": `package test
-					p := 1 {
+					import rego.v1
+					
+					p := 1 if {
 						1 == 1
 					}
 					q := 2
 					r := 3`,
 				"policy2.rego": `package test
-					s := 4 {
+					import rego.v1
+					
+					s := 4 if {
 						1 == 1
 						2 == 2
 					}
@@ -2285,18 +2341,20 @@ Lines not covered:
 					u := 6
 					v := 7`,
 				"test.rego": `package test
-					test_q { q == 2 }
-					test_t { t == 5 }`,
+					import rego.v1
+					
+					test_q if { q == 2 }
+					test_t if { t == 5 }`,
 			},
 			threshold:        100,
 			expectedExitCode: 2,
 			verbose:          true,
 			expectedErrOutput: `Code coverage threshold not met: got 33.33 instead of 100.00
 Lines not covered:
-	%ROOT%/policy1.rego:2-3
-	%ROOT%/policy1.rego:6
-	%ROOT%/policy2.rego:2-4
-	%ROOT%/policy2.rego:7-8
+	%ROOT%/policy1.rego:4-5
+	%ROOT%/policy1.rego:8
+	%ROOT%/policy2.rego:4-6
+	%ROOT%/policy2.rego:9-10
 `,
 		},
 	}
@@ -2342,15 +2400,17 @@ func (t loadType) String() string {
 	return [...]string{"file", "bundle", "bundle tarball"}[t]
 }
 
-func TestWithV1CompatibleFlag(t *testing.T) {
+func TestWithV1CompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		files        map[string]string
 		expErr       string
 	}{
 		{
-			note: "0.x module, no imports",
+			note:         "v0 module, no imports",
+			v0Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
 
@@ -2366,7 +2426,8 @@ test_l if {
 			expErr: "rego_parse_error",
 		},
 		{
-			note: "0.x module, rego.v1 imported",
+			note:         "v0 module, rego.v1 imported",
+			v0Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
 
@@ -2383,7 +2444,8 @@ test_l if {
 			},
 		},
 		{
-			note: "0.x module, future.keywords imported",
+			note:         "v0 module, future.keywords imported",
+			v0Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
 
@@ -2401,7 +2463,7 @@ test_l if {
 		},
 
 		{
-			note:         "1.0 compatible module, no imports",
+			note:         "v1 compatible module, no imports",
 			v1Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
@@ -2417,7 +2479,7 @@ test_l if {
 			},
 		},
 		{
-			note:         "1.0 compatible module, rego.v1 imported",
+			note:         "v1 compatible module, rego.v1 imported",
 			v1Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
@@ -2435,7 +2497,65 @@ test_l if {
 			},
 		},
 		{
-			note:         "1.0 compatible module, future.keywords imported",
+			note:         "v1 compatible module, future.keywords imported",
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import future.keywords
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1 module, no imports",
+			v0Compatible: true,
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+			expErr: "rego_parse_error",
+		},
+		{
+			note:         "v0+v1 module, rego.v1 imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			files: map[string]string{
+				"/test.rego": `package test
+
+import rego.v1
+
+l1 := {1, 3, 5}
+l2 contains v if {
+	v := l1[_]
+}
+
+test_l if {
+	l1 == l2
+}`,
+			},
+		},
+		{
+			note:         "v0+v1 module, future.keywords imported",
+			v0Compatible: true,
 			v1Compatible: true,
 			files: map[string]string{
 				"/test.rego": `package test
@@ -2489,6 +2609,7 @@ test_l if {
 					var errBuf bytes.Buffer
 
 					testParams := newTestCommandParams()
+					testParams.v0Compatible = tc.v0Compatible
 					testParams.v1Compatible = tc.v1Compatible
 					testParams.bundleMode = loadType == loadBundle
 					testParams.count = 1

@@ -228,13 +228,29 @@ type Params struct {
 	// UnixSocketPerm specifies the permission for the Unix domain socket if used to listen for connections
 	UnixSocketPerm *string
 
+	// V0Compatible will enable OPA features and behaviors that were enabled by default in OPA v0.x releases.
+	// Takes precedence over V1Compatible.
+	V0Compatible bool
+
 	// V1Compatible will enable OPA features and behaviors that will be enabled by default in a future OPA v1.0 release.
 	// This flag allows users to opt-in to the new behavior and helps transition to the future release upon which
 	// the new behavior will be enabled by default.
+	// If V0Compatible is set, V1Compatible will be ignored.
 	V1Compatible bool
 
 	// CipherSuites specifies the list of enabled TLS 1.0–1.2 cipher suites
 	CipherSuites *[]uint16
+}
+
+func (p *Params) regoVersion() ast.RegoVersion {
+	// v0 takes precedence over v1
+	if p.V0Compatible {
+		return ast.RegoV0
+	}
+	if p.V1Compatible {
+		return ast.RegoV1
+	}
+	return ast.DefaultRegoVersion
 }
 
 // LoggingConfig stores the configuration for OPA's logging behaviour.
@@ -339,12 +355,14 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	var regoVersion ast.RegoVersion
-	if params.V1Compatible {
-		regoVersion = ast.RegoV1
-	} else {
+	regoVersion := ast.DefaultRegoVersion
+	if params.V0Compatible {
+		// v0 takes precedence over v1
 		regoVersion = ast.RegoV0
+	} else if params.V1Compatible {
+		regoVersion = ast.RegoV1
 	}
+
 	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, false, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
@@ -500,7 +518,7 @@ func (rt *Runtime) Serve(ctx context.Context) error {
 	}
 
 	serverInitializingMessage := "Initializing server."
-	if !rt.Params.AddrSetByUser && !rt.Params.V1Compatible {
+	if !rt.Params.AddrSetByUser && (rt.Params.V0Compatible || !rt.Params.V1Compatible) {
 		serverInitializingMessage += " OPA is running on a public (0.0.0.0) network interface. Unless you intend to expose OPA outside of the host, binding to the localhost interface (--addr localhost:8181) is recommended. See https://www.openpolicyagent.org/docs/latest/security/#interface-binding"
 	}
 
@@ -711,7 +729,7 @@ func (rt *Runtime) StartREPL(ctx context.Context) {
 	banner := rt.getBanner()
 	repl := repl.New(rt.Store, rt.Params.HistoryPath, rt.Params.Output, rt.Params.OutputFormat, rt.Params.ErrorLimit, banner).
 		WithRuntime(rt.Manager.Info).
-		WithV1Compatible(rt.Params.V1Compatible).
+		WithRegoVersion(rt.Params.regoVersion()).
 		WithInitBundles(rt.loadedPathsResult.Bundles)
 
 	if rt.Params.Watch {

@@ -26,14 +26,19 @@ type depsCommandParams struct {
 	outputFormat *util.EnumFlag
 	ignore       []string
 	bundlePaths  repeatedStringFlag
+	v0Compatible bool
 	v1Compatible bool
 }
 
 func (p *depsCommandParams) regoVersion() ast.RegoVersion {
+	// The '--v0-compatible' flag takes precedence over the '--v1-compatible' flag.
+	if p.v0Compatible {
+		return ast.RegoV0
+	}
 	if p.v1Compatible {
 		return ast.RegoV1
 	}
-	return ast.RegoV0
+	return ast.DefaultRegoVersion
 }
 
 const (

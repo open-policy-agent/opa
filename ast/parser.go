@@ -2696,15 +2696,16 @@ func (p *Parser) regoV1Import(imp *Import) {
 		return
 	}
 
-	if p.po.RegoVersion == RegoV1 {
-		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
+	path := imp.Path.Value.(Ref)
+
+	// v1 is only valid option
+	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
+		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
 		return
 	}
 
-	path := imp.Path.Value.(Ref)
-
-	if len(path) == 1 || !path[1].Equal(RegoV1CompatibleRef[1]) || len(path) > 2 {
-		p.errorf(imp.Path.Location, "invalid import `%s`, must be `%s`", path, RegoV1CompatibleRef)
+	if p.po.RegoVersion == RegoV1 {
+		// We're parsing for Rego v1, where the 'rego.v1' import is a no-op.
 		return
 	}
 

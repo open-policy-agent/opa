@@ -85,6 +85,7 @@ e.g., opa exec --decision /foo/bar/baz ...
 	cmd.Flags().StringVar(&params.LogTimestampFormat, "log-timestamp-format", "", "set log timestamp format (OPA_LOG_TIMESTAMP_FORMAT environment variable)")
 	cmd.Flags().BoolVarP(&params.StdIn, "stdin-input", "I", false, "read input document from stdin rather than a static file")
 	cmd.Flags().DurationVar(&params.Timeout, "timeout", 0, "set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)")
+	addV0CompatibleFlag(cmd.Flags(), &params.V0Compatible, false)
 	addV1CompatibleFlag(cmd.Flags(), &params.V1Compatible, false)
 
 	RootCommand.AddCommand(cmd)
@@ -126,6 +127,7 @@ func runExecWithContext(ctx context.Context, params *exec.Params) error {
 		Logger:        stdLogger,
 		ConsoleLogger: consoleLogger,
 		Ready:         ready,
+		V0Compatible:  params.V0Compatible,
 		V1Compatible:  params.V1Compatible,
 	})
 	if err != nil {
