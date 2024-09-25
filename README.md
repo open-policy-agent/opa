@@ -29,6 +29,7 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 ## Want to download OPA?
 
+- Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
 - See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
 
 ## Want to integrate OPA?
