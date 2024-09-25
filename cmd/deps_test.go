@@ -16,16 +16,18 @@ import (
 	"github.com/open-policy-agent/opa/util/test"
 )
 
-func TestDepsV1Compatible(t *testing.T) {
+func TestDepsCompatibleFlags(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		module       string
 		query        string
 		expErrs      []string
 	}{
 		{
-			note: "v0.x, no keywords",
+			note:         "v0, no keywords",
+			v0Compatible: true,
 			module: `package test
 p[3] {
 	input.x = 1
@@ -33,7 +35,8 @@ p[3] {
 			query: `data.test.p`,
 		},
 		{
-			note: "v0.x, keywords not imported, but used",
+			note:         "v0, keywords not imported, but used",
+			v0Compatible: true,
 			module: `package test
 p contains 3 if {
 	input.x = 1
@@ -45,7 +48,8 @@ p contains 3 if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:         "v0, keywords imported",
+			v0Compatible: true,
 			module: `package test
 import future.keywords
 p contains 3 if {
@@ -54,7 +58,8 @@ p contains 3 if {
 			query: `data.test.p`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			module: `package test
 import rego.v1
 p contains 3 if {
@@ -63,7 +68,7 @@ p contains 3 if {
 			query: `data.test.p`,
 		},
 		{
-			note:         "v1.0, no keywords",
+			note:         "v1, no keywords",
 			v1Compatible: true,
 			module: `package test
 p[3] {
@@ -76,7 +81,7 @@ p[3] {
 			},
 		},
 		{
-			note:         "v1.0, no keyword imports",
+			note:         "v1, no keyword imports",
 			v1Compatible: true,
 			module: `package test
 p contains 3 if {
@@ -85,7 +90,7 @@ p contains 3 if {
 			query: `data.test.p`,
 		},
 		{
-			note:         "v1.0, keywords imported",
+			note:         "v1, keywords imported",
 			v1Compatible: true,
 			module: `package test
 import future.keywords
@@ -95,7 +100,54 @@ p contains 3 if {
 			query: `data.test.p`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
+			note:         "v1, rego.v1 imported",
+			v1Compatible: true,
+			module: `package test
+import rego.v1
+p contains 3 if {
+	input.x = 1
+}`,
+			query: `data.test.p`,
+		},
+		// v0 takes precedence over v1
+		{
+			note:         "v0+v1, no keywords",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package test
+p[3] {
+	input.x = 1
+}`,
+			query: `data.test.p`,
+		},
+		{
+			note:         "v0+v1, keywords not imported, but used",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package test
+p contains 3 if {
+	input.x = 1
+}`,
+			query: `data.test.p`,
+			expErrs: []string{
+				"rego_parse_error: var cannot be used for rule name",
+				"rego_parse_error: number cannot be used for rule name",
+			},
+		},
+		{
+			note:         "v0+v1, keywords imported",
+			v0Compatible: true,
+			v1Compatible: true,
+			module: `package test
+import future.keywords
+p contains 3 if {
+	input.x = 1
+}`,
+			query: `data.test.p`,
+		},
+		{
+			note:         "v0+v1, rego.v1 imported",
+			v0Compatible: true,
 			v1Compatible: true,
 			module: `package test
 import rego.v1
@@ -114,6 +166,7 @@ p contains 3 if {
 
 			test.WithTempFS(files, func(rootPath string) {
 				params := newDepsCommandParams()
+				params.v0Compatible = tc.v0Compatible
 				params.v1Compatible = tc.v1Compatible
 				_ = params.outputFormat.Set(depsFormatPretty)
 

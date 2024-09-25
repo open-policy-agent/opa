@@ -201,10 +201,11 @@ func TestInitRuntimeSkipKnownSchemaCheck(t *testing.T) {
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identty = "foo"        # this is a typo
 		}`,
 	}

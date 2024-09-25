@@ -22,9 +22,22 @@ import (
 )
 
 type moveCommandParams struct {
-	mapping   repeatedStringFlag
-	ignore    []string
-	overwrite bool
+	mapping      repeatedStringFlag
+	ignore       []string
+	overwrite    bool
+	v0Compatible bool
+	v1Compatible bool
+}
+
+func (m *moveCommandParams) regoVersion() ast.RegoVersion {
+	// v0 takes precedence over v1
+	if m.v0Compatible {
+		return ast.RegoV0
+	}
+	if m.v1Compatible {
+		return ast.RegoV1
+	}
+	return ast.DefaultRegoVersion
 }
 
 func init() {
@@ -88,6 +101,8 @@ The 'move' command outputs the below policy to stdout with the package name rewr
 	moveCommand.Flags().BoolVarP(&moveCommandParams.overwrite, "write", "w", false, "overwrite the original source file")
 	addIgnoreFlag(moveCommand.Flags(), &moveCommandParams.ignore)
 	refactorCommand.AddCommand(moveCommand)
+	addV0CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v0Compatible, false)
+	addV1CompatibleFlag(moveCommand.Flags(), &moveCommandParams.v1Compatible, false)
 	RootCommand.AddCommand(refactorCommand)
 }
 
@@ -107,7 +122,9 @@ func doMove(params moveCommandParams, args []string, out io.Writer) error {
 		Ignore: params.ignore,
 	}
 
-	result, err := loader.NewFileLoader().Filtered(args, f.Apply)
+	result, err := loader.NewFileLoader().
+		WithRegoVersion(params.regoVersion()).
+		Filtered(args, f.Apply)
 	if err != nil {
 		return err
 	}

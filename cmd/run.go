@@ -220,6 +220,7 @@ See https://godoc.org/crypto/tls#pkg-constants for more information.
 	runCommand.Flags().BoolVar(&cmdParams.rt.H2CEnabled, "h2c", false, "enable H2C for HTTP listeners")
 	runCommand.Flags().StringVarP(&cmdParams.rt.OutputFormat, "format", "f", "pretty", "set shell output format, i.e, pretty, json")
 	runCommand.Flags().BoolVarP(&cmdParams.rt.Watch, "watch", "w", false, "watch command line files for changes")
+	addV0CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V0Compatible, false)
 	addV1CompatibleFlag(runCommand.Flags(), &cmdParams.rt.V1Compatible, false)
 	addMaxErrorsFlag(runCommand.Flags(), &cmdParams.rt.ErrorLimit)
 	runCommand.Flags().BoolVar(&cmdParams.rt.PprofEnabled, "pprof", false, "enables pprof endpoints")
@@ -365,7 +366,8 @@ func initRuntime(ctx context.Context, params runCmdParams, args []string, addrSe
 	rt.SetDistributedTracingLogging()
 	rt.Params.AddrSetByUser = addrSetByUser
 
-	if !addrSetByUser && rt.Params.V1Compatible {
+	// v0 negates v1
+	if !addrSetByUser && !rt.Params.V0Compatible && rt.Params.V1Compatible {
 		rt.Params.Addrs = &[]string{defaultLocalAddr}
 	}
 
