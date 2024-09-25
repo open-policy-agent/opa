@@ -1089,7 +1089,6 @@ func (w *writer) writeImports(imports []*ast.Import, comments []*ast.Comment) []
 		})
 		for _, i := range group {
 			w.startLine()
-			//w.write(i.String())
 			w.writeImport(i)
 			if c, ok := m[i]; ok {
 				w.write(" " + c.String())
@@ -1552,7 +1551,10 @@ func ensureFutureKeywordImport(imps []*ast.Import, kw string) []*ast.Import {
 	imp := &ast.Import{
 		// NOTE: This is a hack to not error on the ref containing a keyword already present in v1.
 		// A cleaner solution would be to instead allow refs to contain keyword terms.
+		// E.g. in v1, `import future.keywords["in"]` is valid, but `import future.keywords.in` is not
+		// as it contains a reserved keyword.
 		Path: ast.MustParseTerm("future.keywords[\"" + kw + "\"]"),
+		//Path: ast.MustParseTerm("future.keywords." + kw),
 	}
 	imp.Location = defaultLocation(imp)
 	return append(imps, imp)
