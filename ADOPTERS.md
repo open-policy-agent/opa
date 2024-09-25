@@ -124,6 +124,11 @@ production users that have added themselves (in alphabetical order):
   Gatekeeper. Jetstack also uses OPA via the Golang API in _Jetstack Secure_ to
   automate the checking of resources against our best practice recommendations.
 
+* [Marsh McLennan](https://www.marshmclennan.com) uses OPA Gatekeeper in their
+  Kubernetes clusters, and OPA as an authorization decision point by many
+  applications for ingress traffic. Some applications also use OPA as a rules
+  engine.
+
 * [Medallia](https://www.medallia.com/) uses OPA to audit AWS
   resources for compliance violations. The policies search across
   state from Terraform and AWS APIs to identify security violations
