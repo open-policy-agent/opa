@@ -1,0 +1,7 @@
+package test["if"]["contains"]["in"]["every"]
+
+import rego.v1
+
+p if {
+	data["if"]["contains"]["in"]["every"] == 42
+}

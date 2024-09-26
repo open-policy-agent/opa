@@ -1,6 +1,4 @@
-package test.if
-
-import future.keywords.if
+package test["if"]
 
 p if 1 > 0 # shorthand
 
@@ -19,16 +17,9 @@ p if { # comment one
 	1 > 0 # comment two
 }
 
-q[x] = y if {
+q[x] := y if {
 	y := 10
 	x := "ten"
 }
 
-q[x] = y if { # not using if
-	y := 11
-	x := "eleven"
-}
-
-r[x] { # no if here before
-	x := "set"
-}
+r[x] if x := "set" # comment

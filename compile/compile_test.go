@@ -1741,7 +1741,7 @@ contains := 2 {
 import rego.v1
 
 p if {
-	data.foo.contains = input.x
+	data.foo["contains"] = input.x
 }
 `,
 				`package foo
