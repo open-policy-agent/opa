@@ -2050,12 +2050,12 @@ func TestPolicyWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error on duplicate imports",
 			policy: `package x
-			import future.keywords.if
-			import future.keywords.if
-			foo = 2`,
+			import data.bar
+			import data.bar
+			foo = bar`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
-			expectedMessage: "import must not shadow import future.keywords.if",
+			expectedMessage: "import must not shadow import data.bar",
 		},
 		{
 			note: "strict mode should error on unused imports",
@@ -2164,12 +2164,12 @@ func TestBundleWithStrictFlag(t *testing.T) {
 		{
 			note: "strict mode should error on duplicate imports in this bundle",
 			policy: `package x
-			import future.keywords.if
-			import future.keywords.if
-			foo = 2`,
+			import data.bar
+			import data.bar
+			foo = bar`,
 			query:           "data.foo",
 			expectedCode:    "rego_compile_error",
-			expectedMessage: "import must not shadow import future.keywords.if",
+			expectedMessage: "import must not shadow import data.bar",
 		},
 		{
 			note: "strict mode should error on unused imports in this bundle",
