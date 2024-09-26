@@ -16,11 +16,10 @@ import (
 )
 
 const regexCacheMaxSize = 100
+const regexInterQueryValueCacheHits = "rego_builtin_regex_interquery_value_cache_hits"
 
 var regexpCacheLock = sync.Mutex{}
 var regexpCache map[string]*regexp.Regexp
-
-var regexInterQueryValueCacheHits = "rego_builtin_regex_interquery_value_cache_hits"
 
 func builtinRegexIsValid(_ BuiltinContext, operands []*ast.Term, iter func(*ast.Term) error) error {
 
@@ -107,17 +106,13 @@ func builtinRegexSplit(bctx BuiltinContext, operands []*ast.Term, iter func(*ast
 
 func getRegexp(bctx BuiltinContext, pat string) (*regexp.Regexp, error) {
 	if bctx.InterQueryBuiltinValueCache != nil {
-		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.StringTerm(pat).Value)
+		val, ok := bctx.InterQueryBuiltinValueCache.Get(ast.String(pat))
 		if ok {
 			res, valid := val.(*regexp.Regexp)
 			if !valid {
 				// The cache key may exist for a different value type (eg. glob).
 				// In this case, we calculate the regex and return the result w/o updating the cache.
-				re, err := regexp.Compile(pat)
-				if err != nil {
-					return nil, err
-				}
-				return re, nil
+				return regexp.Compile(pat)
 			}
 
 			bctx.Metrics.Counter(regexInterQueryValueCacheHits).Incr()
@@ -128,7 +123,7 @@ func getRegexp(bctx BuiltinContext, pat string) (*regexp.Regexp, error) {
 		if err != nil {
 			return nil, err
 		}
-		bctx.InterQueryBuiltinValueCache.Insert(ast.StringTerm(pat).Value, re)
+		bctx.InterQueryBuiltinValueCache.Insert(ast.String(pat), re)
 		return re, nil
 	}
 
