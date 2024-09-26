@@ -297,20 +297,23 @@ func TestRuntimeReplWithBundleBuiltWithV1Compatibility(t *testing.T) {
 func TestRuntimeReplProcessWatchV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		policy       string
 		expErrs      []string
 		expOutput    string
 	}{
 		{
-			note: "v0.x, keywords not used",
+			note:         "v0, keywords not used",
+			v0Compatible: true,
 			policy: `package test
 p[1] {
 	data.foo == "bar"
 }`,
 		},
 		{
-			note: "v0.x, keywords not imported",
+			note:         "v0, keywords not imported",
+			v0Compatible: true,
 			policy: `package test
 p contains 1 if {
 	data.foo == "bar"
@@ -321,7 +324,8 @@ p contains 1 if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:         "v0, keywords imported",
+			v0Compatible: true,
 			policy: `package test
 import future.keywords
 p contains 1 if {
@@ -329,7 +333,8 @@ p contains 1 if {
 }`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			policy: `package test
 import rego.v1
 p contains 1 if {
@@ -338,7 +343,7 @@ p contains 1 if {
 		},
 
 		{
-			note:         "v1.0, keywords not used",
+			note:         "v1, keywords not used",
 			v1Compatible: true,
 			policy: `package test
 p[1] {
@@ -350,7 +355,7 @@ p[1] {
 			},
 		},
 		{
-			note:         "v1.0, keywords not imported",
+			note:         "v1, keywords not imported",
 			v1Compatible: true,
 			policy: `package test
 p contains 1 if {
@@ -358,7 +363,7 @@ p contains 1 if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords imported",
+			note:         "v1, keywords imported",
 			v1Compatible: true,
 			policy: `package test
 import future.keywords
@@ -367,7 +372,7 @@ p contains 1 if {
 }`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
+			note:         "v1, rego.v1 imported",
 			v1Compatible: true,
 			policy: `package test
 import rego.v1
@@ -398,6 +403,7 @@ p contains 1 if {
 				params.Output = &output
 				params.Paths = []string{rootDir}
 				params.Watch = true
+				params.V0Compatible = tc.v0Compatible
 				params.V1Compatible = tc.v1Compatible
 
 				rt, err := NewRuntime(ctx, params)
@@ -445,20 +451,23 @@ p contains 1 if {
 func TestRuntimeServerProcessWatchV1Compatible(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		policy       string
 		expErrs      []string
 		expOutput    string
 	}{
 		{
-			note: "v0.x, keywords not used",
+			note:         "v0, keywords not used",
+			v0Compatible: true,
 			policy: `package test
 p[1] {
 	data.foo == "bar"
 }`,
 		},
 		{
-			note: "v0.x, keywords not imported",
+			note:         "v0, keywords not imported",
+			v0Compatible: true,
 			policy: `package test
 p contains 1 if {
 	data.foo == "bar"
@@ -469,7 +478,8 @@ p contains 1 if {
 			},
 		},
 		{
-			note: "v0.x, keywords imported",
+			note:         "v0, keywords imported",
+			v0Compatible: true,
 			policy: `package test
 import future.keywords
 p contains 1 if {
@@ -477,7 +487,8 @@ p contains 1 if {
 }`,
 		},
 		{
-			note: "v0.x, rego.v1 imported",
+			note:         "v0, rego.v1 imported",
+			v0Compatible: true,
 			policy: `package test
 import rego.v1
 p contains 1 if {
@@ -485,7 +496,7 @@ p contains 1 if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords not used",
+			note:         "v1, keywords not used",
 			v1Compatible: true,
 			policy: `package test
 p[1] {
@@ -497,7 +508,7 @@ p[1] {
 			},
 		},
 		{
-			note:         "v1.0, keywords not imported",
+			note:         "v1, keywords not imported",
 			v1Compatible: true,
 			policy: `package test
 p contains 1 if {
@@ -505,7 +516,7 @@ p contains 1 if {
 }`,
 		},
 		{
-			note:         "v1.0, keywords imported",
+			note:         "v1, keywords imported",
 			v1Compatible: true,
 			policy: `package test
 import future.keywords
@@ -514,7 +525,7 @@ p contains 1 if {
 }`,
 		},
 		{
-			note:         "v1.0, rego.v1 imported",
+			note:         "v1, rego.v1 imported",
 			v1Compatible: true,
 			policy: `package test
 import rego.v1
@@ -547,6 +558,7 @@ p contains 1 if {
 				params.AddrSetByUser = true
 				params.Paths = []string{rootDir}
 				params.Watch = true
+				params.V0Compatible = tc.v0Compatible
 				params.V1Compatible = tc.v1Compatible
 
 				rt, err := NewRuntime(ctx, params)
@@ -663,10 +675,11 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
           input.identity = "foo"
 		}`,
 	}
@@ -684,10 +697,11 @@ func TestRuntimeWithAuthzSchemaVerification(t *testing.T) {
 		}
 
 		badModule := []byte(`package system.authz
+		import rego.v1
 
 		default allow := false
 
-		allow {
+		allow if {
            input.identty = "foo"
 		}`)
 
@@ -718,6 +732,7 @@ func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
 
 	fs := map[string]string{
 		"test/authz.rego": `package system.authz
+		import rego.v1
 
 		default allow := false
 
@@ -725,16 +740,16 @@ func TestRuntimeWithAuthzSchemaVerificationTransitive(t *testing.T) {
 
         # even though "is_secret" is called via 2 paths, there should be only one resulting error
         # 1-step dependency
-        allow {
+        allow if {
           is_secret
         }
 
         # 2-step dependency
-        allow {
+        allow if {
           allow2
         }
 
-        allow2 {
+        allow2 if {
           is_secret
         }`,
 	}
@@ -825,12 +840,14 @@ func TestServerInitialized(t *testing.T) {
 func TestServerInitializedWithRegoV1(t *testing.T) {
 	tests := []struct {
 		note         string
+		v0Compatible bool
 		v1Compatible bool
 		files        map[string]string
 		expErr       string
 	}{
 		{
-			note: "Rego v0, keywords not imported",
+			note:         "Rego v0, keywords not imported",
+			v0Compatible: true,
 			files: map[string]string{
 				"policy.rego": `package test
 				p if {
@@ -841,7 +858,8 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 			expErr: "rego_parse_error: var cannot be used for rule name",
 		},
 		{
-			note: "Rego v0, rego.v1 imported",
+			note:         "Rego v0, rego.v1 imported",
+			v0Compatible: true,
 			files: map[string]string{
 				"policy.rego": `package test
 				import rego.v1
@@ -852,7 +870,8 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 			},
 		},
 		{
-			note: "Rego v0, future.keywords imported",
+			note:         "Rego v0, future.keywords imported",
+			v0Compatible: true,
 			files: map[string]string{
 				"policy.rego": `package test
 				import future.keywords.if
@@ -863,7 +882,8 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 			},
 		},
 		{
-			note: "Rego v0, no keywords used",
+			note:         "Rego v0, no keywords used",
+			v0Compatible: true,
 			files: map[string]string{
 				"policy.rego": `package test
 				p {
@@ -938,6 +958,7 @@ func TestServerInitializedWithRegoV1(t *testing.T) {
 					params.Addrs = &[]string{"localhost:0"}
 					params.GracefulShutdownPeriod = 1
 					params.Logger = logging.NewNoOpLogger()
+					params.V0Compatible = tc.v0Compatible
 					params.V1Compatible = tc.v1Compatible
 
 					rt, err := NewRuntime(ctx, params)

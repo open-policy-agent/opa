@@ -355,13 +355,7 @@ func NewRuntime(ctx context.Context, params Params) (*Runtime, error) {
 		}
 	}
 
-	regoVersion := ast.DefaultRegoVersion
-	if params.V0Compatible {
-		// v0 takes precedence over v1
-		regoVersion = ast.RegoV0
-	} else if params.V1Compatible {
-		regoVersion = ast.RegoV1
-	}
+	regoVersion := params.regoVersion()
 
 	loaded, err := initload.LoadPathsForRegoVersion(regoVersion, params.Paths, params.Filter, params.BundleMode, params.BundleVerificationConfig, params.SkipBundleVerification, false, false, nil, nil)
 	if err != nil {

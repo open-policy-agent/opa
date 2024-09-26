@@ -592,8 +592,9 @@ func TestServerSpanWithSystemAuthzPolicy(t *testing.T) {
 	)
 
 	authzPolicy := []byte(`package system.authz
+import rego.v1
 default allow = false
-allow {
+allow if {
 	input.path = ["health"]
 }`)
 

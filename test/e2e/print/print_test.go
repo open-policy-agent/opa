@@ -16,8 +16,9 @@ func TestEnablePrintStatementsForFilesystemPolicies(t *testing.T) {
 	files := map[string]string{
 		"/test.rego": `
 			package test
+			import rego.v1
 
-			p {
+			p if {
 				print("hello world")
 			}
 		`,
