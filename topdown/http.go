@@ -473,7 +473,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 			}
 			body = bytes.NewBuffer(bodyValBytes)
 		case "raw_body":
-			rawBody = bytes.NewBuffer([]byte(strVal))
+			rawBody = bytes.NewBufferString(strVal)
 		case "tls_use_system_certs":
 			tempTLSUseSystemCerts, err := strconv.ParseBool(obj.Get(val).String())
 			if err != nil {
