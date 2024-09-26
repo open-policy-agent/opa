@@ -11,6 +11,7 @@ linter-settings:
 linters:
   disable-all: true
   enable:
+    - mirror
     - errcheck
     - govet
     - ineffassign

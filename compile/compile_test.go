@@ -1893,7 +1893,7 @@ func modulesToString(modules []bundle.ModuleFile) string {
 	for i, m := range modules {
 		buf.WriteString(strconv.Itoa(i))
 		buf.WriteString(":\n")
-		buf.WriteString(string(m.Raw))
+		buf.Write(m.Raw)
 		buf.WriteString("\n\n")
 	}
 	return buf.String()

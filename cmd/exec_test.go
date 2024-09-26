@@ -1191,7 +1191,7 @@ func TestExecWithInvalidInputOptions(t *testing.T) {
 					if err != nil {
 						t.Fatalf("unexpected error creating temp file: %q", err.Error())
 					}
-					if _, err := tempFile.Write([]byte(tt.input)); err != nil {
+					if _, err := tempFile.WriteString(tt.input); err != nil {
 						t.Fatalf("unexpeced error when writing to temp file: %q", err.Error())
 					}
 					if _, err := tempFile.Seek(0, 0); err != nil {
