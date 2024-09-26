@@ -1511,6 +1511,14 @@ func TestDebuggerScopeVariables(t *testing.T) {
 					name:           "Locals",
 					namedVariables: 0,
 				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
+					namedVariables: 0,
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
+				},
 			},
 		},
 		{
@@ -1542,6 +1550,10 @@ func TestDebuggerScopeVariables(t *testing.T) {
 							},
 						},
 					},
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
 				},
 			},
 		},
@@ -1579,6 +1591,10 @@ func TestDebuggerScopeVariables(t *testing.T) {
 							},
 						},
 					},
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
 				},
 			},
 		},
@@ -1644,6 +1660,14 @@ func TestDebuggerScopeVariables(t *testing.T) {
 						},
 					},
 				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
+					namedVariables: 0,
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
+				},
 			},
 		},
 		{
@@ -1661,6 +1685,14 @@ func TestDebuggerScopeVariables(t *testing.T) {
 							val: fmt.Sprintf(`"%s...`, strings.Repeat("x", 97)),
 						},
 					},
+				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
+					namedVariables: 0,
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
 				},
 			},
 		},
@@ -1682,6 +1714,14 @@ func TestDebuggerScopeVariables(t *testing.T) {
 			expScopes: map[string]scopeInfo{
 				"Locals": {
 					name:           "Locals",
+					namedVariables: 0,
+				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
+					namedVariables: 0,
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
 					namedVariables: 0,
 				},
 				"Result Set": {
@@ -1739,6 +1779,14 @@ func TestDebuggerScopeVariables(t *testing.T) {
 					name:           "Locals",
 					namedVariables: 0,
 				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
+					namedVariables: 0,
+				},
+				"Data (not provided)": {
+					name:           "Data (not provided)",
+					namedVariables: 0,
+				},
 				"Virtual Cache": {
 					name:           "Virtual Cache",
 					namedVariables: 2,
@@ -1764,6 +1812,10 @@ func TestDebuggerScopeVariables(t *testing.T) {
 			expScopes: map[string]scopeInfo{
 				"Locals": {
 					name:           "Locals",
+					namedVariables: 0,
+				},
+				"Input (not provided)": {
+					name:           "Input (not provided)",
 					namedVariables: 0,
 				},
 				"Data": {
@@ -1859,23 +1911,27 @@ func TestDebuggerScopeVariables(t *testing.T) {
 				if scope.Name() != expScope.name {
 					t.Errorf("Expected scope name %s, got %s", expScope.name, scope.Name())
 				}
+
 				if scope.NamedVariables() != expScope.namedVariables {
 					t.Errorf("Expected %d named variables, got %d", expScope.namedVariables, scope.NamedVariables())
 				}
-				if scope.VariablesReference() == 0 {
+
+				if scope.NamedVariables() > 0 && scope.VariablesReference() == 0 {
 					t.Errorf("Expected non-zero variables reference")
 				}
 
-				vars, err := s.Variables(scope.VariablesReference())
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
+				if expScope.namedVariables > 0 {
+					vars, err := s.Variables(scope.VariablesReference())
+					if err != nil {
+						t.Fatalf("Unexpected error: %v", err)
+					}
 
-				if len(vars) != expScope.namedVariables {
-					t.Fatalf("Expected nuber of variables to equal named variables for scope (%d), got %d", expScope.namedVariables, len(vars))
-				}
+					if len(vars) != expScope.namedVariables {
+						t.Fatalf("Expected nuber of variables to equal named variables for scope (%d), got %d", expScope.namedVariables, len(vars))
+					}
 
-				assertVariables(t, s, vars, expScope.variables)
+					assertVariables(t, s, vars, expScope.variables)
+				}
 			}
 		})
 	}
