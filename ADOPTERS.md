@@ -9,6 +9,9 @@ production users that have added themselves (in alphabetical order):
 * [2U, Inc](https://2u.com) has incorporated OPA into their SDLC for both Terraform and Kubernetes deployments.
   Shift left!
 
+* [APIwiz](https://www.apiwiz.io) has implemented OPA as a centralized service to enforce consistent and secure 
+  authorization decisions across all internal APIs. By delegating authorization logic to OPA, APIwiz streamlines access control, ensuring robust security throughout the platform. Furthermore, OPA has been seamlessly integrated into APIwiz's API Builder, enabling users to embed policy-driven workflows. This integration provides precise control over workflows, enhancing both the security and efficiency of the platform's operations.
+
 * [Appsflyer](https://www.appsflyer.com/) uses OPA to make consistent
   authorization decisions by hundreds of microservices for UI and API data
   access. All authorization decisions are delegated to OPA that is deployed as a
