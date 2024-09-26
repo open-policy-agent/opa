@@ -13,9 +13,9 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 - Go to the [OPA Documentation](https://www.openpolicyagent.org/docs/latest/) to
   learn about the Rego language as well as how to deploy and integrate OPA.
 - Check out the learning resources in the [Learning Rego](https://www.openpolicyagent.org/ecosystem/learning-rego/) section of the ecosystem directory.
-- Watch OPA's [YouTube channel](https://www.youtube.com/channel/UClDMRN5HlqD3di5MMf-SV4A) for videos about OPA, or see the list of [presentations](#presentations) below.
-- Read the project updates on the [OPA Blog](https://blog.openpolicyagent.org/)
-  or check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
+- Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
+- See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
+- Check out the [OPA Roadmap](https://docs.google.com/presentation/d/16QV6gvLDOV3I0_guPC3_19g6jHkEg3X9xqMYgtoCKrs/edit?usp=sharing) to see a high-level snapshot of OPA features in-progress and planned.
 
 ## Want to talk about OPA or get support?
 
@@ -26,11 +26,6 @@ OPA is proud to be a graduated project in the [Cloud Native Computing Foundation
 
 - Browse community projects on the [OPA Ecosystem Directory](http://openpolicyagent.org/ecosystem/) - don't forget to [list your own](https://github.com/open-policy-agent/opa/tree/main/docs#opa-ecosystem)!
 - Check out the [ADOPTERS.md](./ADOPTERS.md) file for a list of production adopters. Does your organization use OPA in production? Support the OPA project by submitting a PR to add your organization to the list with a short description of your OPA use cases!
-
-## Want to download OPA?
-
-- Follow the [Running OPA](https://www.openpolicyagent.org/docs/latest/#running-opa) instructions to get started with the OPA CLI locally.
-- See [Docker Hub](https://hub.docker.com/r/openpolicyagent/opa/tags/) for container images and the [GitHub releases](https://github.com/open-policy-agent/opa/releases) for binaries.
 
 ## Want to integrate OPA?
 
