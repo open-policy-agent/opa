@@ -360,6 +360,12 @@ func (t *thread) scopes(stackIndex int) []Scope {
 			variablesReference: t.inputVars(e),
 		}
 		scopes = append(scopes, inputScope)
+	} else {
+		inputScope := scope{
+			name:           "Input (not provided)",
+			namedVariables: 0,
+		}
+		scopes = append(scopes, inputScope)
 	}
 
 	if t.store != nil {
@@ -367,6 +373,12 @@ func (t *thread) scopes(stackIndex int) []Scope {
 			name:               "Data",
 			namedVariables:     1,
 			variablesReference: t.dataVars(),
+		}
+		scopes = append(scopes, dataScope)
+	} else {
+		dataScope := scope{
+			name:           "Data (not provided)",
+			namedVariables: 0,
 		}
 		scopes = append(scopes, dataScope)
 	}
