@@ -62,7 +62,8 @@ opa bench <query> [flags]
   -I, --stdin-input                    read input document from stdin
   -t, --target {rego,wasm}             set the runtime to exercise (default rego)
   -u, --unknowns stringArray           set paths to treat as unknown during partial evaluation (default [input])
-      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                  opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                  opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -255,7 +256,8 @@ opa build <path> [<path> [...]] [flags]
       --signing-key string             set the secret (HMAC) or path of the PEM file containing the private key (RSA and ECDSA)
       --signing-plugin string          name of the plugin to use for signing/verification (see https://www.openpolicyagent.org/docs/latest/management-bundles/#signature-plugin
   -t, --target {rego,wasm,plan}        set the output bundle target type (default rego)
-      --v1-compatible                  opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                  opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                  opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
       --verification-key string        set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string     name assigned to the verification key used for bundle verification (default "default")
 ```
@@ -355,7 +357,8 @@ opa check <path> [path [...]] [flags]
       --rego-v1                check for Rego v1 compatibility (policies must also be compatible with current OPA version)
   -s, --schema string          set schema file path or directory path
   -S, --strict                 enable compiler strict mode
-      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible          opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible          opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -411,7 +414,7 @@ opa deps <query> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for deps
       --ignore strings         set file and directory names to ignore during loading (e.g., '.*' excludes hidden files)
-      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v1-compatible          opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -569,7 +572,8 @@ opa eval <query> [flags]
   -t, --target {rego,wasm}                                        set the runtime to exercise (default rego)
       --timeout duration                                          set eval timeout (default unlimited)
   -u, --unknowns stringArray                                      set paths to treat as unknown during partial evaluation (default [input])
-      --v1-compatible                                             opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                                             opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                                             opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
       --var-values                                                show local variable values in pretty trace output
 ```
 
@@ -631,7 +635,8 @@ opa exec <path> [<path> [...]] [flags]
       --set-file stringArray                 override config values with files on the command line (use commas to specify multiple values)
   -I, --stdin-input                          read input document from stdin rather than a static file
       --timeout duration                     set exec timeout with a Go-style duration, such as '5m 30s'. (default unlimited)
-      --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                        opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -675,7 +680,8 @@ opa fmt [path [...]] [flags]
   -h, --help            help for fmt
   -l, --list            list all files who would change when formatted
       --rego-v1         format module(s) to be compatible with both Rego v1 and current OPA version)
-      --v1-compatible   opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible   opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible   opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
   -w, --write           overwrite the original source file
 ```
 
@@ -722,7 +728,7 @@ opa inspect <path> [<path> [...]] [flags]
   -a, --annotations            list annotations
   -f, --format {json,pretty}   set output format (default pretty)
   -h, --help                   help for inspect
-      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v1-compatible          opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -745,7 +751,7 @@ opa parse <path> [flags]
   -f, --format {pretty,json}   set output format (default pretty)
   -h, --help                   help for parse
       --json-include string    include or exclude optional elements. By default comments are included. Current options: locations, comments. E.g. --json-include locations,-comments will include locations and exclude comments.
-      --v1-compatible          opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v1-compatible          opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
 ```
 
 ____
@@ -924,7 +930,8 @@ opa run [flags]
       --tls-cipher-suites strings            set list of enabled TLS 1.0–1.2 cipher suites (IANA)
       --tls-private-key-file string          set path of TLS private key file
       --unix-socket-perm string              specify the permissions for the Unix domain socket if used to listen for incoming connections (default "755")
-      --v1-compatible                        opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                        opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                        opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
       --verification-key string              set the secret (HMAC) or path of the PEM file containing the public key (RSA and ECDSA)
       --verification-key-id string           name assigned to the verification key used for bundle verification (default "default")
   -w, --watch                                watch command line files for changes
@@ -1143,7 +1150,8 @@ opa test <path> [path [...]] [flags]
   -t, --target {rego,wasm}                 set the runtime to exercise (default rego)
       --threshold float                    set coverage threshold and exit with non-zero status if coverage is less than threshold %
       --timeout duration                   set test timeout (default 5s, 30s when benchmarking)
-      --v1-compatible                      opt-in to OPA features and behaviors that will be enabled by default in a future OPA v1.0 release
+      --v0-compatible                      opt-in to OPA features and behaviors prior to the OPA v1.0 release. Takes precedence over --v1-compatible
+      --v1-compatible                      opt-in to OPA features and behaviors that are enabled by default in OPA v1.0
       --var-values                         show local variable values in test output
   -v, --verbose                            set verbose reporting mode
   -w, --watch                              watch command line files for changes
