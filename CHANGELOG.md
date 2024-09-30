@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This
 project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
 ## 0.69.0
 
 This release contains a mix of features, bugfixes and necessary tooling and test changes required to support the upcoming OPA `1.0` release.
