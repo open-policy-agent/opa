@@ -122,7 +122,7 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:latest
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
@@ -152,7 +152,7 @@ jobs:
           skip-dirs: vendor/,internal/gqlparser/validator/imported/
           severity: CRITICAL,HIGH
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:latest
 
       - name: Slack Notification
         uses: 8398a7/action-slack@28ba43ae48961b90635b50953d216767a6bea486 # v3.16.2
