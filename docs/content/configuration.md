@@ -856,8 +856,9 @@ Caching represents the configuration of the inter-query cache that built-in func
 functions provided by OPA, `http.send` is currently the only one to utilize the inter-query cache. See the documentation
 on the [http.send built-in function](../policy-reference/#http) for information about the available caching options.
 
-It also represents the configuration of the inter-query value cache that built-in functions can utilize. Currently, this
-cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns respectively.
+It also represents the configuration of the inter-query _value_ cache that built-in functions can utilize. Currently, 
+this cache is utilized by the `regex` and `glob` built-in functions for compiled regex and glob match patterns
+respectively, and the `json.schema_match` built-in function for compiled JSON schemas.
 
 | Field                                                                    | Type | Required | Description                                                                                                                                                                                         |
 |--------------------------------------------------------------------------| --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -5,7 +5,10 @@
 package topdown
 
 import (
+	"context"
 	"testing"
+
+	"github.com/open-policy-agent/opa/topdown/cache"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -271,5 +274,53 @@ func TestBuiltinJSONMatchSchema(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func TestBuiltinJSONMatchSchemaCache(t *testing.T) {
+	t.Parallel()
+
+	schema := ast.String(`
+{
+  "properties": {
+    "id": {
+      "type": "integer"
+    }
+  },
+  "required": ["id"]
+}
+`)
+
+	valueCache := cache.NewInterQueryValueCache(context.Background(), nil)
+	document := ast.String(`{ "id": 5 }`)
+
+	var result ast.Value
+	err := builtinJSONMatchSchema(
+		BuiltinContext{
+			InterQueryBuiltinValueCache: valueCache,
+		},
+		[]*ast.Term{ast.NewTerm(document), ast.NewTerm(schema)},
+		func(term *ast.Term) error {
+			result = term.Value
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("Unexpected schema validation error: %s", err)
+	}
+
+	arr, ok := result.(*ast.Array)
+	if !ok {
+		t.Fatalf("Unexpected result type, expected array, got %T", result)
+	}
+
+	expected := ast.NewArray(ast.BooleanTerm(true), ast.ArrayTerm())
+
+	if arr.Compare(expected) != 0 {
+		t.Fatalf("Unexpected result, expected %s, got %s", expected, arr)
+	}
+
+	if _, found := valueCache.Get(schema); !found {
+		t.Fatalf("Expected document to be cached")
 	}
 }
