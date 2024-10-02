@@ -293,7 +293,7 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 			// package expects, as big package doesn't append leading zeroes.
 			if iUpperBytesLen != net.IPv6len {
 				numZeroesToAppend := net.IPv6len - iUpperBytesLen
-				zeroBytes := make([]byte, numZeroesToAppend)
+				zeroBytes := make([]byte, 0, numZeroesToAppend)
 				iUpperBytes = append(zeroBytes, iUpper.Bytes()...)
 			} else {
 				iUpperBytes = iUpper.Bytes()
@@ -303,7 +303,7 @@ func partitionCIDR(targetCIDR net.IPNet, excludeCIDR net.IPNet) ([]*net.IPNet, [
 			iLowerBytesLen := len(iLower.Bytes())
 			if iLowerBytesLen != net.IPv6len {
 				numZeroesToAppend := net.IPv6len - iLowerBytesLen
-				zeroBytes := make([]byte, numZeroesToAppend)
+				zeroBytes := make([]byte, 0, numZeroesToAppend)
 				iLowerBytes = append(zeroBytes, iLower.Bytes()...)
 			} else {
 				iLowerBytes = iLower.Bytes()
