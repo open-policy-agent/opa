@@ -412,7 +412,7 @@ func createHTTPRequest(bctx BuiltinContext, obj ast.Object) (*http.Request, *htt
 	var tlsConfig tls.Config
 	var customHeaders map[string]interface{}
 	var tlsInsecureSkipVerify bool
-	var timeout = defaultHTTPRequestTimeout
+	timeout := defaultHTTPRequestTimeout
 
 	for _, val := range obj.Keys() {
 		key, err := ast.JSON(val.Value)
@@ -736,9 +736,12 @@ func executeHTTPRequest(req *http.Request, client *http.Client, inputReqObj ast.
 			return nil, err
 		}
 
+		delay := util.DefaultBackoff(float64(minRetryDelay), float64(maxRetryDelay), i)
+		timer, timerCancel := util.TimerWithCancel(delay)
 		select {
-		case <-time.After(util.DefaultBackoff(float64(minRetryDelay), float64(maxRetryDelay), i)):
+		case <-timer.C:
 		case <-req.Context().Done():
+			timerCancel() // explicitly cancel the timer.
 			return nil, context.Canceled
 		}
 	}
